@@ -1,0 +1,33 @@
+id: audit-fix-loop
+name: Audit fix loop
+description: Wakes the Product Senior agent each weekday morning to chip away at the open audit backlog.
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: product-senior
+agentSlug: product-senior
+timeout: 1800
+prompt: |-
+  Open the most recent `audit-YYYY-MM-DD/` folder. Read its `progress.md`
+  to find the current tally and the next `status: open` issue
+  (highest severity first, then lowest issue number).
+
+  If there is at least one open issue:
+    - Read the issue file in full (Observation, Repro, Recommendation,
+      Effort, Screenshot reference).
+    - Implement the fix.
+    - Update the issue file's frontmatter (status: fixed, fixed: today,
+      add `fixed` to tags).
+    - Append a `## Resolution (YYYY-MM-DD)` section with **What changed**
+      (code paths + summary), **Why these calls** (heuristic / reference
+      product), and **User impact** (table preferred). Embed a before /
+      after screenshot for UI changes.
+    - Append a row to `progress.md` and update the tally line.
+    - Commit ("fix: <area>: <one-line summary>"). One issue per commit.
+
+  If the open queue is empty, regenerate the review slideshow:
+    - From inside the audit folder, run `node build-review.mjs`.
+    - Confirm `review/index.html` and `review/.app` are present.
+    - Post a one-line summary in chat: "<N> fixed, <N> skipped,
+      <N> deferred — review/ is fresh."

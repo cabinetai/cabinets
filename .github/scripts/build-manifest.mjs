@@ -28,6 +28,7 @@ const ROOT = path.resolve(__dirname, "..", "..");
 const SLUG_DOMAIN = {
   agency: "Professional Services",
   "ai-hero": "Education",
+  audits: "Operations",
   "biology-experiments": "Education",
   "book-factory": "Media",
   "career-ops": "Operations",

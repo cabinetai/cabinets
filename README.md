@@ -35,6 +35,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 |---------|--------|--------|------|----------|-------------|
 | [agency](./agency) | Professional Services | 2 | 2 | 2 | Digital agency managing multiple client engagements |
 | [ai-hero](./ai-hero) | Education | 2 | 2 | 0 | Self-paced AI course from Python up through GPT-2 construction |
+| [audits](./audits) | Operations | 1 | 2 | 0 | End-to-end product audits — walk every surface, file each friction as a markdown issue, ship fixes with a 20-yr Senior Product Lead bar, hand stakeholder an interactive review slideshow |
 | [biology-experiments](./biology-experiments) | Education | 1 | 1 | 0 | Five browser-based simulations of landmark biology experiments |
 | [book-factory](./book-factory) | Media | 1 | 2 | 0 | Book OS — premise, outline, chapter draft, blurb, and publishing-path matrix |
 | [career-ops](./career-ops) | Operations | 2 | 5 | 0 | AI-powered job search command center with pipeline tracking and CV tailoring |
@@ -61,7 +62,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [wedding-planner](./wedding-planner) | Lifestyle | 1 | 2 | 0 | Wedding OS — timeline, budget tracker, vow generators, and day-of runbook |
 | [youtube-channel-factory](./youtube-channel-factory) | Media | 1 | 2 | 0 | YouTube OS — brand, calendar, scripts, thumbnail briefs, and gear guide |
 
-**Totals:** 27 cabinets, 37 agents, 54 jobs across the registry.
+**Totals:** 28 cabinets, 38 agents, 56 jobs across the registry.
 
 ## Cabinet File Format
 
