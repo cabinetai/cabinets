@@ -75,6 +75,8 @@ const CABINET_ICONS = {
   'usa-travel-planner':       { object: 'a single small vintage suitcase with one helium balloon tied to its handle by a thin string',                             bgHex: '#F2BFB1', bgName: 'soft salmon pink' },
   'wedding-planner':          { object: 'a single delicate satin ribbon tied in a perfect bow with two soft trailing ends',                                        bgHex: '#E8C9C9', bgName: 'soft misty rose' },
   'youtube-channel-factory':  { object: 'a single film clapper board, partially open at a slight playful angle',                                                   bgHex: '#D5E5C8', bgName: 'soft honeydew green' },
+  'email':                    { object: 'a single small open envelope with a neatly folded letter half-emerging from the top',                                      bgHex: '#B8D8C5', bgName: 'soft seafoam' },
+  'venture-capital':          { object: 'a single small upward-pointing rocket with a tiny coin balanced at its nose cone',                                         bgHex: '#F5E6A8', bgName: 'soft butter yellow' },
 
   // ─── Enterprise department templates (76) ────────────────────────────────────
   // Flagship
@@ -294,6 +296,10 @@ function buildIconPrompt(_spec, variation) {
   return `A minimalist horizontal landscape illustration. The composition centers on ONE big simple icon: ${variation.object}. The icon is the singular focal point and fills most of the canvas — large, bold, centered, with generous calm negative space around it. Style: soft, clean modern vector illustration with simplified shapes, subtle flat shading, and a refined hand-drawn feel. Background: a single solid soft pastel ${variation.bgName} (${variation.bgHex}) with no patterns, no gradients, no texture. The icon itself is rendered in a complementary pastel tone — calm, harmonious, never harsh. ABSOLUTELY NO TEXT, NO LETTERS, NO WORDS, NO NUMBERS, NO LOGOS, NO WATERMARKS anywhere in the image. Very simple, very minimal, very serene. Aspect ratio 16:9, horizontal landscape composition.`;
 }
 
+function buildWoodPrompt(_spec, variation) {
+  return `A single ${variation.object}, rendered as a small 3D wood-craft toy object in warm light blonde maple wood with a soft matte clay finish. Clean simplified form with gently rounded edges and subtle warm shading. Set against a solid warm parchment background (hex #FAF6F1 — soft cream-white). Small warm accent color touches on select details (amber gold, sage green, or dusty rose). Wide horizontal 16:9 composition, object centered with generous parchment space on all sides. Warm, calm, refined toy-craft aesthetic. ABSOLUTELY NO TEXT, NO LETTERS, NO WORDS, NO NUMBERS, NO LOGOS, NO WATERMARKS anywhere in the image.`;
+}
+
 const STYLE_SETS = {
   default: {
     variations: () => STYLE_VARIATIONS,
@@ -315,6 +321,16 @@ const STYLE_SETS = {
     },
     buildPrompt: buildIconPrompt,
     label: (v) => `icon — ${v.bgName}`,
+    needsCabinetSpec: false,
+  },
+  wood: {
+    variations: (slug) => {
+      const design = CABINET_ICONS[slug];
+      if (!design) return [];
+      return [{ version: 1, ...design, name: slug }];
+    },
+    buildPrompt: buildWoodPrompt,
+    label: () => 'wood — maple craft',
     needsCabinetSpec: false,
   },
 };
@@ -382,8 +398,11 @@ async function generateGemini(ai, spec, variation, outputPath, buildPrompt) {
   return saveImage(buffer, outputPath);
 }
 
-function buildOutputPath(cabinetSlug, provider, styleKey, variation, totalVariations) {
+function buildOutputPath(cabinetSlug, provider, styleKey, variation, totalVariations, outputCover = false) {
   const cabinetPath = path.join(__dirname, '..', cabinetSlug);
+  if (outputCover) {
+    return { cabinetPath, outputPath: path.join(cabinetPath, 'cover.jpg') };
+  }
   const styleSuffix = styleKey === 'default' ? '' : `_${styleKey}`;
   // Single-variation styles (e.g. icon) get a clean name; multi-variation keeps _vN.
   const versionSuffix = totalVariations > 1 ? `_v${variation.version}` : '';
@@ -393,8 +412,8 @@ function buildOutputPath(cabinetSlug, provider, styleKey, variation, totalVariat
   };
 }
 
-async function generateVariation(provider, client, cabinetSlug, spec, variation, styleSet, styleKey, totalVariations) {
-  const { cabinetPath, outputPath } = buildOutputPath(cabinetSlug, provider, styleKey, variation, totalVariations);
+async function generateVariation(provider, client, cabinetSlug, spec, variation, styleSet, styleKey, totalVariations, outputCover = false) {
+  const { cabinetPath, outputPath } = buildOutputPath(cabinetSlug, provider, styleKey, variation, totalVariations, outputCover);
 
   if (!fs.existsSync(cabinetPath)) {
     console.warn(`⚠️  Cabinet folder not found: ${cabinetSlug}`);
@@ -421,6 +440,8 @@ function parseArgs(argv) {
   let model = null;
   let style = 'default';
   let all = false;
+  let cover = false;
+  let skipExisting = false;
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -430,27 +451,31 @@ function parseArgs(argv) {
       style = args[++i];
     } else if (a === '--all') {
       all = true;
+    } else if (a === '--cover') {
+      cover = true;
+    } else if (a === '--skip-existing') {
+      skipExisting = true;
     } else if (!a.startsWith('-') && !slug) {
       slug = a;
     }
   }
 
-  return { slug, model, style, all };
+  return { slug, model, style, all, cover, skipExisting };
 }
 
 function usage() {
-  console.error('Usage: node scripts/generate_image.js <cabinet-slug|--all> --model <openai|gemini> [--style <default|wpa|icon>]');
+  console.error('Usage: node scripts/generate_image.js <cabinet-slug|--all> --model <openai|gemini> [--style <default|wpa|icon|wood>] [--cover]');
   console.error('');
   console.error('Examples:');
   console.error('  node scripts/generate_image.js book-factory --model gemini');
   console.error('  node scripts/generate_image.js book-factory --model gemini --style wpa');
-  console.error('  node scripts/generate_image.js --all --model gemini --style icon');
-  console.error('  node scripts/generate_image.js physics-101 --model gemini --style icon');
+  console.error('  node scripts/generate_image.js --all --model gemini --style wood --cover');
+  console.error('  node scripts/generate_image.js physics-101 --model openai --style wood --cover');
 }
 
 function resolveCabinetList(slug, all, style) {
   if (all) {
-    if (style === 'icon') return Object.keys(CABINET_ICONS);
+    if (style === 'icon' || style === 'wood') return Object.keys(CABINET_ICONS);
     return Object.keys(CABINET_SPECS);
   }
   return slug ? [slug] : [];
@@ -464,9 +489,16 @@ function getSpecForCabinet(slug, style) {
   return CABINET_SPECS[slug];
 }
 
-async function processCabinet(provider, client, slug, style, styleSet) {
+async function processCabinet(provider, client, slug, style, styleSet, outputCover = false, skipExisting = false) {
+  if (skipExisting && outputCover) {
+    const coverPath = path.join(__dirname, '..', slug, 'cover.jpg');
+    if (fs.existsSync(coverPath)) {
+      console.log(`\n⏭️  ${slug} (cover.jpg exists, skipping)`);
+      return { generated: 0, failed: 0 };
+    }
+  }
   const spec = getSpecForCabinet(slug, style);
-  if (style !== 'icon' && !spec) {
+  if (style !== 'icon' && style !== 'wood' && !spec) {
     console.error(`❌ Unknown cabinet for ${style} style: ${slug}`);
     return { generated: 0, failed: 1 };
   }
@@ -482,7 +514,7 @@ async function processCabinet(provider, client, slug, style, styleSet) {
   let failed = 0;
 
   for (const variation of variations) {
-    const ok = await generateVariation(provider, client, slug, spec, variation, styleSet, style, variations.length);
+    const ok = await generateVariation(provider, client, slug, spec, variation, styleSet, style, variations.length, outputCover);
     if (ok) generated++;
     else failed++;
 
@@ -495,7 +527,7 @@ async function processCabinet(provider, client, slug, style, styleSet) {
 }
 
 async function main() {
-  const { slug, model, style, all } = parseArgs(process.argv);
+  const { slug, model, style, all, cover, skipExisting } = parseArgs(process.argv);
 
   if ((!slug && !all) || !model) {
     console.error('❌ Missing required arguments');
@@ -546,7 +578,7 @@ async function main() {
 
   for (let i = 0; i < cabinets.length; i++) {
     const c = cabinets[i];
-    const { generated, failed } = await processCabinet(model, client, c, style, styleSet);
+    const { generated, failed } = await processCabinet(model, client, c, style, styleSet, cover, skipExisting);
     totalGen += generated;
     totalFail += failed;
 
