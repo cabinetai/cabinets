@@ -1,0 +1,43 @@
+id: per-release-notes
+name: Per-Release Notes
+enabled: false
+schedule: ""
+provider: claude-code
+adapterType: claude_local
+ownerAgent: engineering-agent
+agentSlug: engineering-agent
+timeout: 900
+prompt: |-
+  Produce release notes for the latest release. This job is triggered manually on each release cut.
+
+  Provide the version number and release date when triggering. If not provided, infer from the
+  latest Git tag in the repository.
+
+  STEP 1 — Engineering Agent: pull all changes since the previous release tag:
+  - All PRs merged to main (or the release branch) since the last tag.
+  - For each PR: title, number, author, merge date, linked Jira/Linear issue title (prefer issue title).
+  - Classify each into exactly one category: Feature / Improvement / Fix / Internal.
+  - Features: net-new user-facing capabilities.
+  - Improvements: enhancements to existing behavior, performance, or UX.
+  - Fixes: bug fixes with the original symptom described.
+  - Internal: refactoring, tooling, tests, dependency bumps — not customer-facing.
+  - Write raw classified list to: release-notes/releases/raw-<version>.md
+
+  STEP 2 — Writer Agent: produce both documents:
+
+  EXTERNAL changelog entry (customer-facing, no jargon):
+  - Features section: benefit-led copy, one to three sentences per item. No PR numbers.
+  - Improvements section: same style.
+  - Fixes section: "Fixed an issue where <user symptom>." One line per fix.
+  - Omit Internal items entirely.
+
+  INTERNAL release note (for team + Support):
+  - All items including Internal, with PR number, Jira/Linear ticket, author, and one-line description.
+  - A "hotfix risk" section if any rollback-prone changes are included.
+
+  Write the external + internal markdown to: release-notes/releases/<version>.md
+  Render the changelog page (external view default): release-notes/changelog/index.html
+  Update the changelog index to list all releases in descending version order.
+cabinetPath: cabinets/release-notes
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

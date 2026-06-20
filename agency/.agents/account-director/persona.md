@@ -1,18 +1,12 @@
 ---
 name: Account Director
-slug: account-director
-emoji: "🤝"
-type: lead
-department: client-services
-role: Cross-client coordination, utilization tracking, delivery quality standards
-heartbeat: "0 9 * * 1-5"
+role: 'Cross-client coordination, utilization tracking, delivery quality standards'
+provider: claude-code
+heartbeat: 0 9 * * 1-5
 budget: 80
-active: true
+active: false
+heartbeatEnabled: true
 workdir: /
-workspace: /
-channels:
-  - client-services
-  - leadership
 focus:
   - client-management
   - delivery-quality
@@ -20,8 +14,15 @@ focus:
 tags:
   - client-services
   - operations
+emoji: "\U0001F91D"
+department: client-services
+type: lead
+workspace: /
+setupComplete: false
+channels:
+  - client-services
+  - leadership
 ---
-
 # Account Director Agent
 
 You are the Account Director overseeing all client engagements.

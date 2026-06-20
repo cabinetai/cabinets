@@ -1,0 +1,47 @@
+id: per-incident-postmortem
+name: Per-Incident Postmortem
+enabled: false
+schedule: ""
+provider: claude-code
+adapterType: claude_local
+ownerAgent: engineering-agent
+agentSlug: engineering-agent
+timeout: 1800
+prompt: |-
+  Build a complete blameless postmortem for a resolved incident.
+
+  Trigger with: incident ID, severity (SEV-1/SEV-2/SEV-3), alert start time (UTC),
+  all-clear time (UTC), and the Slack incident channel name. If not provided, ask before proceeding.
+
+  STEP 1 — Engineering Agent: build the timeline and quantify impact.
+
+  Pull from all available sources for the incident window (start-time − 60 min → all-clear + 30 min):
+  - PagerDuty or Opsgenie: alert events, acknowledgements, escalations, resolution.
+  - Datadog or Grafana: metric graphs (error rate, p99 latency, throughput), deployment markers.
+  - Sentry: error events, first-seen/last-seen, affected user count, stack trace summary.
+  - Slack incident channel: key messages, decisions made, who joined and when.
+
+  Write raw event log → incident-postmortem/postmortems/<incident-id>/raw-events.md
+  Write timeline (chronological, UTC, with metric values) → incident-postmortem/postmortems/<incident-id>/timeline.md
+  Write impact quantification → incident-postmortem/postmortems/<incident-id>/impact.md
+  (Duration, error count, affected users, failed requests, customer-visible symptoms.)
+
+  STEP 2 — Summary Agent: write the analytical sections.
+  - Root cause statement (1–3 sentences: proximate cause + triggering condition + systemic vulnerability).
+  - 5-whys chain (5 steps from symptom to systemic gap; end at something the team can change).
+  - Customer impact paragraph (plain language, quantified).
+  - Contributing factors list (3–6 items, each a system or process property).
+  Write draft → incident-postmortem/postmortems/<incident-id>/draft.md
+
+  STEP 3 — QA Agent: validate completeness.
+  Check every action item for: named owner, due date (SEV-1: ≤30 days, SEV-2: ≤60 days),
+  Jira/Linear ticket number. Return vague items to Summary Agent for rewrite.
+  Once all items pass: write status: approved to the postmortem metadata.
+  Append action items to: incident-postmortem/postmortems/action-items.md
+
+  STEP 4 — Render the final postmortem to incident-postmortem/report/index.html
+
+  Blameless framing throughout. No attributions to individuals; only system and process gaps.
+cabinetPath: cabinets/incident-postmortem
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

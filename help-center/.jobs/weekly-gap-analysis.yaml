@@ -1,0 +1,56 @@
+id: weekly-gap-analysis
+name: Weekly Help Center Gap Analysis
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: content-writer
+agentSlug: content-writer
+timeout: 900
+prompt: |-
+  Run the weekly Help Center gap analysis and produce new article drafts.
+  Today is Monday — work covers the previous week's ticket data.
+
+  STEP 1 — Identify coverage gaps
+  1. Read the top 20 ticket clusters from `/clusters/` (use any cluster files present,
+     or fall back to `/data/cluster-summary.csv` if individual files aren't available).
+  2. Read the article registry at `/article-registry.md`. Cross-reference: which
+     high-volume clusters have no article, a draft-only article, or a stale article?
+  3. Score each gap by deflection potential:
+     - High: cluster volume >40 tickets/week, question is clearly answerable in an article
+     - Medium: volume 15–40, or question requires some product context
+     - Low: volume <15, or question is too account-specific to be generic
+  4. Write the gap analysis to `/gaps/gap-analysis-<YYYY-MM-DD>.md`:
+     | Cluster | Volume (7d) | Existing article? | Status | Deflection potential |
+
+  STEP 2 — Draft new articles
+  For the top 5 High-deflection gaps with no existing article:
+  1. Read 5–10 tickets from the cluster to extract the exact customer language.
+  2. Draft the article to `/drafts/<article-slug>.md` using this structure:
+     - Title (customer language, not internal)
+     - One-line answer (appears in search preview — max 20 words)
+     - Numbered steps (clear, current, accurate — cross-reference `/data/release-notes.md`
+       to ensure steps match the current product)
+     - Common mistakes / troubleshooting
+     - Related articles (list slugs)
+     - Linked cluster: <slug>
+     - Estimated deflection: N tickets/week
+  3. After drafting, add the article to `/article-registry.md` with status: draft.
+
+  STEP 3 — Update the content workspace
+  4. Update `/content-workspace/data.json` so the webapp reflects:
+     - Current article list with statuses
+     - Coverage gap table from step 1
+     - Articles needing update (from any stale sweep files in `/stale/`)
+
+  RULES:
+  - Write in the customer's language. If 34 tickets say "export cuts off," the article
+    is titled something like "Why does my CSV export stop at 10,000 rows?" — not
+    "Data Export Row Limits."
+  - Every draft goes to `/drafts/` — never mark an article "published" without a human
+    approval flag in the registry.
+  - If a cluster covers a feature that changed recently (check `/data/release-notes.md`),
+    note the release version and any step that may need Product Liaison review.
+cabinetPath: cabinet-examples/cabinets/help-center
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

@@ -1,0 +1,54 @@
+id: weekly-stale-sweep
+name: Weekly Stale Article Sweep
+enabled: true
+schedule: 0 16 * * 5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: product-liaison
+agentSlug: product-liaison
+timeout: 600
+prompt: |-
+  Run the weekly stale article sweep. Today is Friday — sweep covers releases and
+  product changes from the past 7 days.
+
+  STEP 1 — Product Liaison: identify stale articles
+  1. Read the latest release notes from `/data/release-notes.md`. Focus on entries
+     from the past 7 days (look for entries dated this week).
+  2. Read the article registry at `/article-registry.md`. For each published article,
+     check whether this week's release notes describe any change that affects it:
+     - Renamed UI elements (tab names, button labels, menu paths)
+     - Changed workflows (steps removed, steps added, order changed)
+     - Removed features or deprecated options
+     - New features that make old workarounds obsolete
+  3. Rate each invalidated article:
+     - Breaking: workflow described no longer exists
+     - Misleading: steps still work but describe a worse path
+     - Minor: label or name changed only
+  4. Write the stale sweep to `/stale/<YYYY-MM-DD>-stale-sweep.md`:
+     | Article slug | Invalidation type | Release version | What changed | Priority |
+
+  STEP 2 — Product Liaison: flag new feature coverage gaps
+  5. For any release note describing a new feature with no existing article, append to
+     `/gaps/product-gaps.md`:
+     | Feature | Release version | Suggested article title | Priority |
+
+  STEP 3 — Content Writer: draft updates for Breaking/Misleading articles
+  6. For each article rated Breaking or Misleading in the sweep:
+     a. Read the existing article from `/article-registry.md` to find its file path.
+     b. Draft the updated version to `/drafts/<slug>-update-<YYYY-MM-DD>.md`.
+     c. Mark the article in `/article-registry.md` as "Update pending review" with
+        today's date.
+  7. Update `/content-workspace/data.json` to reflect the newly stale articles so
+     the webapp shows them in the "Needs update" list.
+
+  RULES:
+  - The Product Liaison writes the sweep and gap files only — no article edits.
+  - The Content Writer handles the update drafts only — does not re-read release notes
+    from scratch; uses the sweep file as the source.
+  - If release notes are empty or not yet updated, write "No releases this week —
+    sweep skipped" to `/stale/<YYYY-MM-DD>-stale-sweep.md` and exit.
+  - All update drafts go to `/drafts/` for human review — never modify published
+    article content directly.
+cabinetPath: cabinet-examples/cabinets/help-center
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

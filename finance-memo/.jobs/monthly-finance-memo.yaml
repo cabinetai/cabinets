@@ -1,0 +1,42 @@
+id: monthly-finance-memo
+name: Monthly Finance Memo
+enabled: true
+schedule: 0 9 1 * *
+provider: claude-code
+adapterType: claude_local
+ownerAgent: analyst
+agentSlug: analyst
+timeout: 1200
+prompt: |-
+  Produce the monthly CFO finance memo for the prior calendar month. This is a
+  two-stage job: the Finance Analyst runs first, then hands off to the Finance Writer.
+
+  STAGE 1 — Finance Analyst:
+  1. Pull the prior month's GL actuals from NetSuite/QuickBooks: revenue by line
+     (subscription, services, other), COGS, gross profit, opex by category (R&D,
+     S&M, G&A, payroll, tools, facilities, other).
+  2. Pull MRR and ARR from Stripe. Compute MoM growth.
+  3. Pull cash on hand from the GL balance sheet.
+  4. Compute: gross margin %, net burn rate, runway = cash / burn (in months).
+  5. Compare every major line against prior month and against plan. Flag any variance
+     ≥ ±10% or ≥ ±$25k with the driver (e.g., "R&D +$38k — contractor invoice timing").
+  6. Write the full structured data file to `data/actuals-<YYYY-MM>.md`. Schema:
+     frontmatter (period, KPIs), then revenue table, opex table, KPI table, variance
+     flags. All derived numbers must show their inputs inline.
+
+  STAGE 2 — Finance Writer:
+  1. Read `data/actuals-<YYYY-MM>.md`.
+  2. Write the full CFO memo to `memo/index.html` (update the webapp) and archive a
+     markdown copy to `memo/archive/<YYYY-MM>.md`.
+  3. The memo must include: executive summary (3 sentences max), revenue section,
+     gross margin section, burn & runway section, expense breakdown, variance
+     commentary for every flagged item, and a forward look (1 paragraph).
+  4. Lead with what changed vs. last month. Do not restate totals without context.
+
+  Rules:
+  - Every number in the memo traces to a line in the data file.
+  - Flag unresolved reconciliation gaps in the memo as open items — do not block.
+  - Ship on time. The memo is ready by 10:00 on the 1st.
+cabinetPath: cabinets/finance-memo
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

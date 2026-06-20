@@ -1,0 +1,49 @@
+id: daily-ticket-cluster-scan
+name: Daily Ticket Cluster Scan
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: ticket-cluster-analyst
+agentSlug: ticket-cluster-analyst
+timeout: 600
+prompt: |-
+  Run the morning ticket clustering pass for the Support Intelligence cabinet.
+
+  1. Read the latest ticket export from `/inbox/` (look for the most recent CSV or JSON file).
+     If no new export is present, check `/inbox/last-sync.txt` for the sync timestamp and log
+     "no new tickets since <timestamp>" — do not abort.
+
+  2. Group tickets by underlying issue theme (use the ticket body, not just the category field).
+     Produce at least these cluster dimensions: Error/Bug, Billing Confusion, Onboarding,
+     Feature Request, Account/Auth, Performance, and Other. Sub-cluster any group with >20
+     tickets this week.
+
+  3. For each cluster, write or update `/clusters/<slug>.md` with:
+     - Cluster name + slug
+     - Volume: 7-day count, 30-day count
+     - Trend: vs. prior 7d (%, direction arrow)
+     - Sentiment: Negative / Mixed / Neutral / Positive + dominant emotion
+     - Top 3 representative customer quotes (verbatim, anonymised account name)
+     - Ticket IDs (comma-separated, max 10 most recent)
+
+  4. Compare today's cluster volumes against the 7-day rolling baseline stored in
+     `/clusters/baselines.json`. If any cluster has spiked >25% in 48 hours, create
+     `/clusters/emerging/<slug>-<YYYY-MM-DD>.md` with: spike magnitude, raw ticket sample
+     (5 tickets), and a suggested urgency level (Watch / Escalate).
+
+  5. Score sentiment for each cluster: infer from ticket language, not CSAT alone. Note
+     the dominant emotion.
+
+  6. Log any ticket that should have been deflected by an existing article to
+     `/gaps/article-gaps.md` (append rows: date, cluster slug, suggested article title).
+
+  7. Write a daily digest to `/inbox/digest-<YYYY-MM-DD>.md`:
+     - Total tickets processed
+     - Clusters updated
+     - Emerging spikes (if any)
+     - Top 3 clusters by volume
+     - Article gap count
+cabinetPath: cabinet-examples/cabinets/support-intelligence
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

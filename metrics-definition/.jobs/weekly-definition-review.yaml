@@ -1,0 +1,37 @@
+id: weekly-definition-review
+name: Weekly Definition Review
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: research
+agentSlug: research
+timeout: 900
+prompt: |-
+  Run the weekly metric definition review against all files in `glossary/metrics/`.
+
+  STAGE 1 — RESEARCHER: Load every YAML file in `glossary/metrics/`. For each metric:
+  1. Check `freshness_sla` — if the metric's source dbt model hasn't been referenced in a
+     freshness check within the SLA window, flag as STALE.
+  2. Check `certified: true` metrics — if `certified_date` is >90 days ago, flag for
+     re-review (definitions drift as product and data models evolve).
+  3. Check `owner` — if the owner field references someone who may have changed roles
+     (cross-reference `glossary/owners.yaml`), flag as OWNER_UNKNOWN.
+  4. Check for missing required fields: `formula`, `source_table`, `dbt_model`. Any metric
+     missing these fields cannot be certified.
+
+  Produce a review report at `glossary/review-YYYY-WXX.md` listing:
+  - STALE: metrics with freshness issues
+  - RE-REVIEW: certified metrics >90 days old
+  - MISSING_FIELDS: incomplete definitions
+  - CLEAN: metrics that passed all checks
+
+  STAGE 2 — QA: For each STALE or MISSING_FIELDS metric, open the YAML and attempt to
+  resolve: update `source_table` if the dbt model name changed, add missing fields from
+  the dbt docs context, flag unresolvable issues with a comment.
+
+  After both stages: update each reviewed metric's `last_reviewed` field to today's date.
+  Append the review summary to `glossary/changelog.md`.
+cabinetPath: cabinets/metrics-definition
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

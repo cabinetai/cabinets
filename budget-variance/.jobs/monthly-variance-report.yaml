@@ -1,0 +1,45 @@
+id: monthly-variance-report
+name: Monthly Budget Variance Report
+enabled: true
+schedule: 0 9 1 * *
+provider: claude-code
+adapterType: claude_local
+ownerAgent: analyst
+agentSlug: analyst
+timeout: 1200
+prompt: |-
+  Produce the monthly budget variance report for the prior calendar month.
+  This is a two-stage job: the Variance Analyst runs first, Finance QA reviews before publishing.
+
+  STAGE 1 — Variance Analyst:
+  1. Pull prior month actuals from ERP by department and cost category:
+     R&D, Sales & Marketing, G&A, Payroll, Tools & Software, Travel, Facilities, Other.
+  2. Compare against the prorated annual budget (annual_budget / 12) for each line.
+  3. Compute: absolute variance ($) and percentage variance (%) for each line.
+  4. Assign RAG status:
+     - GREEN: ≤ 5% over or any underspend
+     - AMBER: 5–15% over budget OR >$20k over
+     - RED: >15% over budget OR >$50k over
+  5. For every AMBER and RED line: write a one-sentence driver note.
+  6. Compute the full-year forecast per department: YTD actual + projected remainder.
+     Flag any department tracking >5% full-year overspend.
+  7. Write all data to `data/variance-<YYYY-MM>.md` with a clear schema:
+     frontmatter (period, total budget, total actual, total variance %),
+     then per-department table, then flagged items section, then full-year forecast table.
+
+  STAGE 2 — Finance QA:
+  1. Read `data/variance-<YYYY-MM>.md`.
+  2. Recompute every variance percentage from raw inputs. Flag any discrepancy > $1.
+  3. Validate all RAG flags against the thresholds in Stage 1.
+  4. Check that every AMBER/RED line has a driver note (not TBD or blank).
+  5. Validate full-year forecast consistency with YTD run rate.
+  6. Write sign-off to `.cabinet-state/qa-review.md`: APPROVED or BLOCKED with
+     specific issues. If APPROVED, update `dashboard/index.html` with the new data.
+
+  Rules:
+  - Do not publish if QA status is BLOCKED.
+  - All numbers come from the ERP — not from department heads.
+  - Ship by 11:00 on the 1st (Analyst by 09:30, QA by 11:00).
+cabinetPath: cabinets/budget-variance
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

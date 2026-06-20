@@ -1,0 +1,41 @@
+id: review-queue
+name: Weekly Review Queue Status
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: compliance-agent
+agentSlug: compliance-agent
+timeout: 600
+prompt: |-
+  Refresh the vendor security review queue status.
+
+  Read all vendor folders in `vendors/` and the queue file at `queue/status.md`.
+  For each vendor in the queue, determine the current status:
+  - PENDING: intake documents received, review not yet started
+  - IN-REVIEW: review in progress (check-packet in progress, QA not yet complete)
+  - WAITING-DOCS: review started but required documents not yet received from vendor
+  - APPROVED: review complete, decision = Approved or Approved with Conditions
+  - ESCALATED: review complete, decision = Escalated (awaiting CISO or Legal review)
+  - BLOCKED: vendor has not responded to document request in >7 days
+
+  For each WAITING-DOCS or BLOCKED vendor, draft a follow-up request template in
+  `vendors/<vendor-name>/follow-up.md` specifying exactly what documents are needed
+  and by when.
+
+  For each APPROVED vendor with Conditions, check whether the condition due dates
+  have passed. Flag overdue conditions as CONDITION-OVERDUE.
+
+  Write the updated queue status to `queue/status.md` with:
+  - Total in queue by status
+  - Each vendor: name, tier, requestor, date received, current status, days in queue,
+    next action and owner
+  - Blockers: vendors that need attention this week (WAITING-DOCS >5d, BLOCKED, ESCALATED)
+
+  Rules:
+  - A review that has been PENDING for >5 business days without assignment is a blocker.
+  - ESCALATED vendors must have a named CISO or Legal reviewer in the packet.
+  - Update `queue/status.md` in place — this file is the live queue, not a snapshot.
+cabinetPath: cabinets/vendor-security-review
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

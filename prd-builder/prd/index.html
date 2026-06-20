@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PRD · Salesforce Native Two-Way Sync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:#ffffff; --foreground:#09090b; --card:#ffffff;
+  --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+  --border:#e4e4e7;
+  --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+  --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+  --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+  --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+  --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+  --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media(prefers-color-scheme:dark){:root{
+  --background:#09090b; --foreground:#fafafa; --card:#101012;
+  --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b; --border:#27272a;
+  --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+  --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+  --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+  --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:800px;margin:0 auto;padding:40px 24px 80px}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 90%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px;margin:0 -24px 0}
+.topbar-in{max-width:800px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:52px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
+.brand .logo{width:26px;height:26px;border-radius:6px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:12px;font-weight:700}
+.sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground)}
+.eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground);display:flex;align-items:center;gap:10px;margin-top:28px}
+h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:10px 0 6px}
+.lede{color:var(--muted-foreground);font-size:15px;margin-bottom:16px}
+.meta-row{display:flex;gap:16px;flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--muted-foreground);margin-bottom:0}
+.meta-row b{color:var(--foreground);font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground)}
+.badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+.badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+.badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground);margin:36px 0 12px;display:flex;align-items:center;gap:8px}
+h2 .n{font-family:var(--mono);color:var(--foreground);background:var(--muted);width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px}
+p{margin-bottom:12px;font-size:15px}
+.callout{background:var(--bad-bg);border:1px solid var(--bad-bd);border-radius:var(--radius);padding:16px 18px;margin:16px 0}
+.callout .k{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--bad);font-weight:600;margin-bottom:6px}
+.callout .v{font-size:15px;font-weight:500}
+.story{border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;background:var(--card);box-shadow:var(--shadow-sm)}
+.story .sh{font-weight:600;font-size:14px;margin-bottom:4px}
+.story .sa{font-size:13.5px;color:var(--muted-foreground);margin-bottom:8px}
+.story ul{list-style:none;padding-left:0}
+.story ul li{padding:4px 0;border-top:1px solid var(--border);font-size:13px;display:flex;gap:8px}
+.story ul li::before{content:'✓';color:var(--good);font-weight:700;flex:none}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);font-weight:600;padding:8px 10px}
+td{padding:9px 10px;border-top:1px solid var(--border)}
+.p0{font-weight:700;color:var(--bad)} .p1{font-weight:600;color:var(--warn)} .p2{color:var(--muted-foreground)}
+.risk-h{color:var(--bad)} .risk-m{color:var(--warn)} .risk-l{color:var(--good)}
+.oq{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--border);font-size:13.5px}
+.oq:first-child{border-top:none}
+.oq .qn{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);width:36px;flex:none}
+.qa-panel{background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px}
+.qa-panel .qa-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--warn);margin-bottom:8px}
+.qa-item{font-size:13px;display:flex;gap:8px;padding:3px 0}
+.qa-item::before{content:'⚠';flex:none}
+.foot{margin-top:48px;padding-top:18px;border-top:1px solid var(--border);font-size:12px;color:var(--muted-foreground)}
+.foot code{font-family:var(--mono);background:var(--muted);padding:2px 6px;border-radius:5px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">PRD</span>PRD Builder</div>
+  <span class="sync">prds/salesforce-native-sync.md · v0.2 · in-review</span>
+</div></div>
+<main class="wrap">
+  <div class="eyebrow"><span>Product Requirements Document</span><span class="badge warn">In Review</span><span class="badge info">PLAT-1041</span></div>
+  <h1>Salesforce Native Two-Way Sync</h1>
+  <div class="lede">Enable real-time bidirectional sync between our platform and Salesforce CRM — eliminating the weekly CSV export that costs Enterprise ops teams 4+ hours per week.</div>
+  <div class="meta-row">
+    <span>Author <b>Product Manager</b></span>
+    <span>Version <b>0.2</b></span>
+    <span>Modified <b>May 23, 2026</b></span>
+    <span>QA Status <b>2 open flags</b></span>
+  </div>
+
+  <div class="qa-panel" style="margin-top:20px">
+    <div class="qa-title">PRD QA · Open Flags (2 MEDIUM)</div>
+    <div class="qa-item">OQ-01 is past due 2026-05-27 — Person Accounts decision needed before engineering kickoff.</div>
+    <div class="qa-item">NFR-04 load test threshold (2M records) not yet validated by engineering — confirm or adjust.</div>
+  </div>
+
+  <h2><span class="n">1</span> Problem</h2>
+  <p>Enterprise and Mid-Market customers manage records in both our platform and Salesforce. Currently there is no native sync — customers export CSV every Friday and manually import. This costs 2–4 hours per ops person per week, creates 7-day data lag, and causes divergent records that break reporting.</p>
+  <div class="callout">
+    <div class="k">Signal</div>
+    <div class="v">38 feedback signals · $2.1M ARR requesting · $480K ARR at renewal risk. Northwind shipped a one-way connector 6 months ago — we are behind on table stakes.</div>
+  </div>
+
+  <h2><span class="n">2</span> Business Goal</h2>
+  <p>Reduce customer data operations overhead by ≥80% for accounts using both platforms. Target: 0 accounts citing "no Salesforce sync" as a renewal risk by end of Q2 2026.</p>
+
+  <h2><span class="n">3</span> User Segments</h2>
+  <table>
+    <thead><tr><th>Segment</th><th>Accounts</th><th>Priority</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Enterprise (&gt;500 seats)</td><td class="num">34</td><td><span class="p0">P0</span></td><td>Primary requesters; ops teams most affected</td></tr>
+      <tr><td>Mid-Market (51–500 seats)</td><td class="num">89</td><td><span class="p1">P1</span></td><td>Significant; manual workaround still tolerated</td></tr>
+      <tr><td>SMB (&lt;50 seats)</td><td>—</td><td><span class="p2">Out of scope</span></td><td>CSV workflow adequate</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="n">4</span> User Stories</h2>
+  <div class="story">
+    <div class="sh">US-01 · Real-time push sync</div>
+    <div class="sa">As an Enterprise ops manager, I want records updated in our platform to sync to Salesforce within 15 minutes, so that sales reps always see current account status without manual exports.</div>
+    <ul>
+      <li>A record change appears in the linked Salesforce object within 15 minutes at P95.</li>
+      <li>If sync fails, an error is logged and an admin email is sent within 5 minutes.</li>
+    </ul>
+  </div>
+  <div class="story">
+    <div class="sh">US-02 · Bidirectional sync</div>
+    <div class="sa">As an Enterprise ops manager, I want Salesforce changes to sync back to our platform, so that Salesforce remains the system of record for account data.</div>
+    <ul>
+      <li>A field change in Salesforce propagates to our platform within 15 minutes.</li>
+      <li>Conflict resolution: Salesforce wins on shared fields; our platform wins on exclusive fields.</li>
+    </ul>
+  </div>
+  <div class="story">
+    <div class="sh">US-03 · Per-field mapping control</div>
+    <div class="sa">As an Enterprise admin, I want to configure which fields sync in each direction, so that I don't overwrite fields managed exclusively in one system.</div>
+    <ul>
+      <li>Field mapping UI allows per-field direction: → SF, ← SF, two-way, or excluded.</li>
+      <li>Mapping changes take effect within 5 minutes without a full re-sync.</li>
+    </ul>
+  </div>
+
+  <h2><span class="n">5</span> Functional Requirements</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td class="num">FR-01</td><td>Sync Account, Contact, Opportunity objects bidirectionally</td><td><span class="p0">P0</span></td><td>38 feedback signals</td></tr>
+      <tr><td class="num">FR-02</td><td>Sync latency ≤15 min at P95 under normal production load</td><td><span class="p0">P0</span></td><td>Customer SLA expectation (Gong, May 2026)</td></tr>
+      <tr><td class="num">FR-03</td><td>Per-field sync direction configurable from admin settings</td><td><span class="p0">P0</span></td><td>Enterprise ops manager interviews</td></tr>
+      <tr><td class="num">FR-04</td><td>Sync errors surfaced in dedicated dashboard (timestamp, field, error type)</td><td><span class="p0">P0</span></td><td>PM decision</td></tr>
+      <tr><td class="num">FR-05</td><td>Initial sync completes within 24h for accounts with up to 500K records</td><td><span class="p1">P1</span></td><td>Infrastructure estimate</td></tr>
+      <tr><td class="num">FR-06</td><td>Support Salesforce sandbox environments for pre-production testing</td><td><span class="p1">P1</span></td><td>Zendesk #0812</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="n">6</span> Non-Functional Requirements</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Type</th><th>Threshold</th></tr></thead>
+    <tbody>
+      <tr><td class="num">NFR-01</td><td>Performance</td><td>&lt;5ms overhead per write at P99</td></tr>
+      <tr><td class="num">NFR-02</td><td>Reliability</td><td>≥99.9% sync service uptime monthly</td></tr>
+      <tr><td class="num">NFR-03</td><td>Security</td><td>OAuth 2.0 only; no stored passwords</td></tr>
+      <tr><td class="num">NFR-04</td><td>Scalability</td><td>Load tested at 2M records before GA <span class="badge warn">unconfirmed</span></td></tr>
+      <tr><td class="num">NFR-05</td><td>Audit</td><td>All sync events logged; 90-day retention</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="n">7</span> Success Metrics</h2>
+  <table>
+    <thead><tr><th>Metric</th><th>Baseline</th><th>Target</th><th>By</th></tr></thead>
+    <tbody>
+      <tr><td>Accounts citing sync gap in renewal risk</td><td class="num">4 ($480K ARR)</td><td class="num">0</td><td>Q3 2026</td></tr>
+      <tr><td>Weekly manual export time per ops user</td><td>4h/week</td><td>&lt;30 min/week</td><td>Q3 2026</td></tr>
+      <tr><td>Enterprise adoption (% of accounts)</td><td>0%</td><td>≥60% in 90 days</td><td>Q4 2026</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="n">8</span> Risks</h2>
+  <table>
+    <thead><tr><th>Risk</th><th>L</th><th>I</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>Salesforce API rate limits cause sync delays</td><td><span class="risk-m">M</span></td><td><span class="risk-h">H</span></td><td>Backoff + queue; alert if queue depth &gt;100</td></tr>
+      <tr><td>Field mapping complexity exceeds UI capacity</td><td><span class="risk-m">M</span></td><td><span class="risk-m">M</span></td><td>Limit 50 field mappings in v1; review post-GA</td></tr>
+      <tr><td>Conflict resolution creates data loss</td><td><span class="risk-l">L</span></td><td><span class="risk-h">H</span></td><td>Full conflict log; admin 24h replay window</td></tr>
+      <tr><td>Salesforce changes connected app requirements</td><td><span class="risk-l">L</span></td><td><span class="risk-h">H</span></td><td>Monitor SF developer blog; maintain adapter layer</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="n">9</span> Open Questions</h2>
+  <div id="oqs">
+    <div class="oq"><span class="qn">OQ-01</span><span><b>Person Accounts (B2C) in v1?</b> Owner: PM · Due: <span style="color:var(--bad)">2026-05-27 OVERDUE</span></span></div>
+    <div class="oq"><span class="qn">OQ-02</span><span><b>Rollback plan if sync corrupts data?</b> Owner: Engineering Lead · Due: 2026-05-27 · Open</span></div>
+    <div class="oq"><span class="qn">OQ-03</span><span><b>Expose sync log via API?</b> Owner: PM · Due: 2026-06-03 · Open</span></div>
+  </div>
+
+  <div class="foot">Source: <code>prds/salesforce-native-sync.md</code> · QA report: <code>qa-reports/</code> · Generated by PRD Builder cabinet. Every section traces to a customer signal or product decision.</div>
+</main>
+</body>
+</html>

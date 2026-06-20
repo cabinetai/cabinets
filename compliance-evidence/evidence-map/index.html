@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Compliance Evidence Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+    --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+    --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:12px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:13.5px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+  .kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .c{font-size:12px;margin-top:5px;color:var(--muted-foreground)}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:1.7fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  td{padding:10px;border-top:1px solid var(--border);vertical-align:middle}
+  tbody tr:hover{background:var(--muted)}
+  .ctrl-id{font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--foreground)}
+  .ctrl-name{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .owner{font-size:11.5px;color:var(--muted-foreground)}
+  .verified{font-family:var(--mono);font-size:11px;color:var(--muted-foreground)}
+
+  /* framework coverage bars */
+  .fw-section{margin-bottom:18px}
+  .fw-label{font-size:11.5px;font-weight:600;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+  .cov-row{display:grid;grid-template-columns:90px 1fr 36px;gap:10px;align-items:center;margin-bottom:6px}
+  .cov-row .nm{font-size:12px;font-weight:500}
+  .cov-row .track{height:10px;background:var(--muted);border-radius:100px;overflow:hidden}
+  .cov-row .fill{height:100%;border-radius:100px;transition:width .4s}
+  .cov-row .pct{font-family:var(--mono);font-size:11px;font-weight:600;text-align:right}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">CE</span>Compliance Evidence<span class="sub">Evidence Map</span></div>
+  <div class="sync"><span class="dot"></span>Vanta · Okta · GitHub · 12 min ago</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Control Evidence Map</h1>
+      <p>SOC2 Type II · ISO 27001 · GDPR — evidence status per control, as of Week 21 2026</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">All Controls</button>
+      <button>Missing</button>
+      <button>Stale</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Controls in Scope</div><div class="v num">13</div><div class="c">SOC2 · ISO 27001 · GDPR</div></div>
+    <div class="kpi card"><div class="l">Collected</div><div class="v num" style="color:var(--good)">10</div><div class="c">77% coverage</div></div>
+    <div class="kpi card"><div class="l">Stale (&gt;90 days)</div><div class="v num" style="color:var(--warn)">2</div><div class="c">CC6.3 · A.9.4.2 adjacent</div></div>
+    <div class="kpi card"><div class="l">Missing</div><div class="v num" style="color:var(--bad)">1</div><div class="c">CC9.2 — vendor register</div></div>
+  </section>
+
+  <section class="grid g-2" style="margin-bottom:14px">
+    <!-- Controls table -->
+    <div class="card">
+      <div class="card-h">
+        <div><div class="t">Control Evidence Status</div><div class="d">All in-scope controls, current evidence state</div></div>
+        <span class="badge bad">1 missing</span>
+      </div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Control</th><th>Framework</th><th>Status</th><th>Owner</th><th>Last Verified</th></tr></thead>
+          <tbody id="ctable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Coverage by framework / category -->
+    <div class="card">
+      <div class="card-h"><div><div class="t">Framework Coverage</div><div class="d">% controls with collected evidence, by category</div></div><span class="meta">W21 2026</span></div>
+      <div class="card-b" id="coverage"></div>
+    </div>
+  </section>
+
+  <div class="foot">Evidence files in <code>evidence/&lt;control-id&gt;/</code>. Source of truth: <code>evidence-map/controls.yaml</code>. Gap report: <code>evidence-gaps/2026-W21.md</code>. Vanta and Drata remain the authoritative GRC systems of record.</div>
+</main>
+
+<script>
+'use strict';
+const CONTROLS = [
+  { id:'CC6.1', fw:'SOC2',     cat:'Logical Access',   name:'Logical access security measures',            status:'collected', owner:'priya.shah',   verified:'2026-05-12' },
+  { id:'CC6.2', fw:'SOC2',     cat:'Logical Access',   name:'New users provisioned to role',               status:'collected', owner:'priya.shah',   verified:'2026-05-12' },
+  { id:'CC6.3', fw:'SOC2',     cat:'Logical Access',   name:'Terminated user access removed timely',       status:'stale',     owner:'priya.shah',   verified:'2026-02-14' },
+  { id:'CC6.7', fw:'SOC2',     cat:'Encryption',       name:'Data at rest and in transit encrypted',       status:'collected', owner:'daniel.osei',  verified:'2026-05-01' },
+  { id:'CC7.1', fw:'SOC2',     cat:'System Ops',       name:'Vulnerability management in place',           status:'collected', owner:'daniel.osei',  verified:'2026-05-05' },
+  { id:'CC7.3', fw:'SOC2',     cat:'Incident Response','name':'Security incidents identified & responded', status:'collected', owner:'marcus.lane',  verified:'2026-04-30' },
+  { id:'CC8.1', fw:'SOC2',     cat:'Change Mgmt',      name:'Changes deployed via controlled process',     status:'collected', owner:'daniel.osei',  verified:'2026-05-12' },
+  { id:'CC9.2', fw:'SOC2',     cat:'Vendor Mgmt',      name:'Vendor & partner risks assessed',             status:'missing',   owner:'marcus.lane',  verified:null },
+  { id:'A.9.4.2',fw:'ISO27001',cat:'Access Control',   name:'Secure log-on procedures',                   status:'collected', owner:'priya.shah',   verified:'2026-05-12' },
+  { id:'A.12.6.1',fw:'ISO27001',cat:'Vuln Mgmt',       name:'Management of technical vulnerabilities',    status:'collected', owner:'daniel.osei',  verified:'2026-05-05' },
+  { id:'A.15.2.2',fw:'ISO27001',cat:'Vendor Mgmt',     name:'Managing changes to vendor services',        status:'stale',     owner:'marcus.lane',  verified:'2026-01-10' },
+  { id:'GDPR-32', fw:'GDPR',   cat:'Data Security',    name:'Appropriate technical & org measures',        status:'collected', owner:'marcus.lane',  verified:'2026-04-01' },
+  { id:'GDPR-33', fw:'GDPR',   cat:'Breach Notif.',    name:'Notification of breach to supervisory auth', status:'collected', owner:'marcus.lane',  verified:'2026-03-15' },
+];
+
+const S_CLS = { collected:'good', stale:'warn', missing:'bad', partial:'info' };
+const S_LBL = { collected:'Collected', stale:'Stale', missing:'Missing', partial:'Partial' };
+
+document.getElementById('ctable').innerHTML = CONTROLS.map(c=>`
+  <tr>
+    <td>
+      <div class="ctrl-id">${c.id}</div>
+      <div class="ctrl-name">${c.name}</div>
+    </td>
+    <td><span class="badge ${c.fw==='SOC2'?'solid':c.fw==='ISO27001'?'info':''}">${c.fw}</span></td>
+    <td><span class="badge ${S_CLS[c.status]}">${S_LBL[c.status]}</span></td>
+    <td><span class="owner">${c.owner}</span></td>
+    <td><span class="verified num">${c.verified||'—'}</span></td>
+  </tr>`).join('');
+
+const COVERAGE = [
+  { section:'SOC2 Common Criteria', items:[
+    { n:'Logical Access', pct:67, col:'var(--warn)' },
+    { n:'Encryption',     pct:100,col:'var(--good)' },
+    { n:'System Ops',     pct:100,col:'var(--good)' },
+    { n:'Incident Resp',  pct:100,col:'var(--good)' },
+    { n:'Change Mgmt',    pct:100,col:'var(--good)' },
+    { n:'Vendor Mgmt',    pct:0,  col:'var(--bad)'  },
+  ]},
+  { section:'ISO 27001', items:[
+    { n:'Access Control', pct:100,col:'var(--good)' },
+    { n:'Vuln Mgmt',      pct:100,col:'var(--good)' },
+    { n:'Vendor Mgmt',    pct:0,  col:'var(--bad)'  },
+  ]},
+  { section:'GDPR', items:[
+    { n:'Data Security',  pct:100,col:'var(--good)' },
+    { n:'Breach Notif.',  pct:100,col:'var(--good)' },
+  ]},
+];
+
+document.getElementById('coverage').innerHTML = COVERAGE.map(sec=>`
+  <div class="fw-section">
+    <div class="fw-label">${sec.section}</div>
+    ${sec.items.map(it=>`
+      <div class="cov-row">
+        <div class="nm">${it.n}</div>
+        <div class="track"><div class="fill" style="width:${it.pct}%;background:${it.col}"></div></div>
+        <div class="pct num">${it.pct}%</div>
+      </div>`).join('')}
+  </div>`).join('');
+</script>
+</body>
+</html>

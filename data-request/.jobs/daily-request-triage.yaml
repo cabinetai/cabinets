@@ -1,0 +1,38 @@
+id: daily-request-triage
+name: Daily Request Triage
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: routing-agent
+agentSlug: routing-agent
+timeout: 600
+prompt: |-
+  Run the daily data request triage against `queue/requests.yaml`.
+
+  STEP 1 — NEW REQUESTS: Find all requests with status: `new`. For each:
+  1. Classify the type: metric_question / data_pull / analysis / pipeline / definition.
+  2. Check `queue/common-questions.md` — if the question is answered there, set status to
+     `deflected`, add `deflection_link` field, and log the deflection.
+  3. If not deflectable: assign priority based on requester's stated urgency + business impact:
+     - P1 (4h SLA): blocking a launch, board presentation, or investor ask
+     - P2 (1 business day): stakeholder decision pending
+     - P3 (3 business days): background analysis, no hard deadline
+  4. Assign to `analyst`. Set `due_date` based on priority + today's date.
+  5. Update status to `triaged`.
+
+  STEP 2 — SLA CHECK: Find all requests with status `in_progress`. Compare `due_date`
+  against today. For any past-due requests:
+  - P1 breaches: flag as ESCALATION in the triage log
+  - P2/P3 breaches: log in `queue/triage-log.md` for the weekly report
+
+  STEP 3 — LOG: Append today's triage summary to `queue/triage-log.md`:
+  new requests processed, deflections, assignments, SLA breaches.
+
+  Rules:
+  - Never reassign a request that is already `in_progress` without logging the reason.
+  - If a request has been `triaged` for >24h with no analyst pickup, escalate to P1 or
+    break it into a smaller scoped deliverable.
+cabinetPath: cabinet-examples/cabinets/data-request
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Renewal Risk · Renewals Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --crit:#7c3aed; --crit-bg:#f5f3ff; --crit-bd:#ddd6fe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+    --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+    --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --crit:#a78bfa; --crit-bg:#1e1033; --crit-bd:#4c1d95;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.crit{background:var(--crit-bg);border-color:var(--crit-bd);color:var(--crit)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+  .kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .v small{font-size:13px;font-weight:500;color:var(--muted-foreground)}
+  .kpi .c{font-size:12px;margin-top:5px;color:var(--muted-foreground)}
+  .kpi .c.down{color:var(--bad)} .kpi .c.up{color:var(--good)}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:2fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  /* timeline */
+  .timeline{position:relative;padding:16px 0 0}
+  .tl-track{height:4px;background:var(--muted);border-radius:100px;position:relative;margin:0 0 24px}
+  .tl-marker{position:absolute;top:-12px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+  .tl-dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--card);display:grid;place-items:center;font-size:9px;font-weight:700;color:#fff}
+  .tl-label{font-size:10px;font-family:var(--mono);color:var(--muted-foreground);white-space:nowrap;margin-top:2px}
+
+  /* renewals board table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  th.r,td.r{text-align:right}
+  td{padding:11px 10px;border-top:1px solid var(--border);vertical-align:middle}
+  tbody tr:hover{background:var(--muted)}
+  .acct{font-weight:600}
+  .sub{font-size:11px;color:var(--muted-foreground);margin-top:1px}
+
+  /* countdown pill */
+  .countdown{font-family:var(--mono);font-size:13px;font-weight:700;padding:4px 10px;border-radius:6px;display:inline-block}
+  .countdown.crit{background:var(--crit-bg);color:var(--crit)}
+  .countdown.bad{background:var(--bad-bg);color:var(--bad)}
+  .countdown.warn{background:var(--warn-bg);color:var(--warn)}
+  .countdown.ok{background:var(--muted);color:var(--muted-foreground)}
+
+  /* expansion */
+  .exp-bar{display:flex;align-items:center;gap:8px}
+  .exp-pip{width:8px;height:8px;border-radius:50%}
+
+  /* action items */
+  .action-item{padding:11px 0;border-top:1px solid var(--border);display:flex;gap:12px}
+  .action-item:first-child{border-top:none}
+  .ai-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none}
+  .ai-body .an{font-weight:600;font-size:13px}
+  .ai-body .ad{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .ai-body .ao{font-size:12px;font-family:var(--mono);margin-top:3px}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">RR</span>Renewal Risk<span class="sub">Renewals Board</span></div>
+  <div class="sync"><span class="dot"></span>last sync · CRM + Contracts + Usage · 6 min ago</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>90-day renewal pipeline.</h1>
+      <p>Upcoming renewals, risk level, dollar exposure, expansion potential, and action owner.</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">All Renewals</button>
+      <button>Critical</button>
+      <button>Expansion</button>
+      <button>Competitor Watch</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card"><div class="l">ARR in 90-day window</div><div class="v num">$497K</div><div class="c">5 accounts</div></div>
+    <div class="kpi card"><div class="l">At-Risk ARR (High + Critical)</div><div class="v num">$402K</div><div class="c down">3 accounts need action</div></div>
+    <div class="kpi card"><div class="l">Expansion Potential</div><div class="v num">~$55K</div><div class="c up">3 accounts with upsell signals</div></div>
+    <div class="kpi card"><div class="l">Critical Renewals ≤ 30d</div><div class="v num">1</div><div class="c down">Cobalt Partners — escalated</div></div>
+  </section>
+
+  <!-- Timeline + Table -->
+  <section class="grid" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Renewal timeline — next 90 days</div><div class="d">Sized by ARR · colored by risk</div></div><span class="meta">May 23 → Aug 21</span></div>
+      <div class="card-b">
+        <div class="timeline">
+          <div class="tl-track" id="tl-track"></div>
+        </div>
+        <div style="height:32px"></div>
+        <table>
+          <thead><tr>
+            <th>Account</th>
+            <th>Renewal</th>
+            <th class="r">Days</th>
+            <th class="r">ARR</th>
+            <th>Risk</th>
+            <th>Expansion</th>
+            <th>Action Owner</th>
+          </tr></thead>
+          <tbody id="renewals-rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Action items + Blocking issues -->
+  <section class="grid g-2">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Open action items</div><div class="d">From this week's renewal plans</div></div><span class="badge bad">2 overdue</span></div>
+      <div class="card-b" id="actions-feed"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">Blocking issues</div><div class="d">Must resolve to close renewals</div></div></div>
+      <div class="card-b" id="blockers-feed"></div>
+    </div>
+  </section>
+
+  <p class="foot">Built from <code>renewals/index.md</code> · action plans in <code>renewals/&lt;account&gt;-renewal.md</code> · escalations in <code>renewals/escalations/</code></p>
+</main>
+
+<script>
+'use strict';
+const RENEWALS = [
+  { name:'Cobalt Partners', arr:62000,  date:'Jun 15', days:23,  risk:'Critical', health:38, expansion:'None',     expScore:0, owner:'James R.', blocker:'11 open tickets; P2 unresolved 5d; notice period lapsed' },
+  { name:'Atlas Logistics',  arr:210000, date:'Jul 1',  days:39,  risk:'Critical', health:41, expansion:'Possible', expScore:2, owner:'James R.', blocker:'P1 open 6d; competitor named (Northwind); exec not touched 38d' },
+  { name:'Nexar Retail',     arr:130000, date:'Jul 22', days:60,  risk:'High',     health:49, expansion:'Moderate', expScore:2, owner:'James R.', blocker:'WAU declining 3 weeks; no QBR in 90d' },
+  { name:'Vantage Capital',  arr:95000,  date:'Aug 30', days:99,  risk:'Medium',   health:67, expansion:'Good',     expScore:3, owner:'Sarah K.', blocker:'Competitor feature mention in Apr QBR notes' },
+  { name:'Stratum Energy',   arr:175000, date:'Sep 20', days:120, risk:'Medium',   health:55, expansion:'Moderate', expScore:2, owner:'Dana W.',  blocker:'Exec sponsor relationship weak; last QBR Apr 2' },
+];
+
+const ACTIONS = [
+  { acct:'Cobalt Partners', action:'Exec sponsor call — review P2 resolution plan', owner:'James R.', due:'May 27', overdue:true, tier:'crit' },
+  { acct:'Cobalt Partners', action:'Escalate P2 tickets to engineering',             owner:'James R.', due:'May 25', overdue:true, tier:'crit' },
+  { acct:'Atlas Logistics',  action:'P1 engineering escalation initiated',            owner:'James R.', due:'May 24', overdue:false, tier:'bad' },
+  { acct:'Atlas Logistics',  action:'Exec sponsor call booked',                       owner:'James R.', due:'May 28', overdue:false, tier:'bad' },
+  { acct:'Nexar Retail',     action:'QBR scheduled for Jun 10',                       owner:'James R.', due:'May 30', overdue:false, tier:'warn' },
+];
+
+const BLOCKERS = [
+  { acct:'Cobalt Partners', b:'11 open tickets (3×P2 > 5d unresolved)', sev:'crit' },
+  { acct:'Atlas Logistics',  b:'P1 ticket open 6 days without engineering response', sev:'bad' },
+  { acct:'Atlas Logistics',  b:'Executive sponsor last touched 38 days ago', sev:'bad' },
+  { acct:'Nexar Retail',     b:'No QBR in 90 days; analytics module not adopted', sev:'warn' },
+];
+
+function riskClass(r){ return r==='Critical'?'crit':r==='High'?'bad':r==='Medium'?'warn':'good'; }
+function fmtArr(n){ return '$'+Math.round(n/1000)+'K'; }
+function countdownClass(d){ return d<=23?'crit':d<=39?'bad':d<=60?'warn':'ok'; }
+function expDot(s){ return s===0?'var(--muted-foreground)':s===1?'var(--warn)':s===2?'var(--c1)':'var(--good)'; }
+function expLabel(s){ return s===0?'None':s===1?'Low':s===2?'Moderate':'Good'; }
+
+// Timeline
+const TL = document.getElementById('tl-track');
+const W_PCT = (d) => Math.min(100,Math.max(0,(d/90)*100));
+TL.innerHTML = RENEWALS.map(r=>{
+  const pct = W_PCT(r.days);
+  const col = r.risk==='Critical'?'var(--crit)':r.risk==='High'?'var(--bad)':r.risk==='Medium'?'var(--warn)':'var(--good)';
+  const sz = Math.round(10 + (r.arr/210000)*14);
+  return `<div class="tl-marker" style="left:${pct}%">
+    <div class="tl-dot" style="background:${col};width:${sz}px;height:${sz}px">${r.name[0]}</div>
+    <div class="tl-label">${r.date}</div>
+  </div>`;
+}).join('');
+
+// Table
+document.getElementById('renewals-rows').innerHTML = RENEWALS.map(r=>`
+  <tr>
+    <td><div class="acct">${r.name}</div><div class="sub">Health ${r.health}</div></td>
+    <td><span class="num" style="font-size:12.5px">${r.date}</span></td>
+    <td class="r"><span class="countdown ${countdownClass(r.days)} num">${r.days}d</span></td>
+    <td class="r num" style="font-weight:600">${fmtArr(r.arr)}</td>
+    <td><span class="badge ${riskClass(r.risk)}">${r.risk}</span></td>
+    <td>
+      <div class="exp-bar">
+        <div class="exp-pip" style="background:${expDot(r.expScore)}"></div>
+        <span style="font-size:12px">${expLabel(r.expScore)}</span>
+      </div>
+    </td>
+    <td style="font-size:12px;color:var(--muted-foreground)">${r.owner}</td>
+  </tr>`).join('');
+
+// Actions feed
+document.getElementById('actions-feed').innerHTML = ACTIONS.map(a=>`
+  <div class="action-item">
+    <div class="ai-dot" style="background:${a.overdue?'var(--bad)':'var(--warn)'};${a.overdue?'box-shadow:0 0 0 3px var(--bad-bg)':''}"></div>
+    <div class="ai-body">
+      <div class="an">${a.acct} ${a.overdue?'<span class="badge bad">Overdue</span>':''}</div>
+      <div class="ad">${a.action}</div>
+      <div class="ao">Due: ${a.due} · Owner: ${a.owner}</div>
+    </div>
+  </div>`).join('');
+
+// Blockers feed
+document.getElementById('blockers-feed').innerHTML = BLOCKERS.map(b=>`
+  <div class="action-item">
+    <div class="ai-dot" style="background:${b.sev==='crit'?'var(--crit)':b.sev==='bad'?'var(--bad)':'var(--warn)'};box-shadow:0 0 0 3px ${b.sev==='crit'?'var(--crit-bg)':b.sev==='bad'?'var(--bad-bg)':'var(--warn-bg)'}"></div>
+    <div class="ai-body">
+      <div class="an">${b.acct}</div>
+      <div class="ad">${b.b}</div>
+    </div>
+  </div>`).join('');
+</script>
+</body>
+</html>

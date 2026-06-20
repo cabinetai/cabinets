@@ -1,0 +1,38 @@
+id: daily-request-triage
+name: Daily Request Triage
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: it-router
+agentSlug: it-router
+timeout: 600
+prompt: |-
+  Run the morning IT request queue triage for all open tickets in `/requests/`.
+
+  Step 1 — SLA health check. For every open ticket in `/requests/`, read its
+  `triage.md` and compute time-to-SLA-breach based on the `sla_deadline` field
+  and current timestamp. Flag any ticket within 2 hours of breach — write an
+  escalation note to `/requests/<ticket-id>/escalation.md` and log it in
+  `/reports/escalation-log.md`.
+
+  Step 2 — New requests. Process every request in `/requests/inbox/` that does not
+  yet have a `triage.md`. For each:
+    - Assign a ticket ID in format `INC-YYYYMMDD-NNN`
+    - Categorize: Hardware / Software / Access / Network / Account / Security / Other
+    - Assign priority: P1 (4hr SLA) / P2 (8hr SLA) / P3 (24hr SLA) / P4 (72hr SLA)
+    - Check `/data/faq.md` — if the request is answered, close with FAQ deflection
+      and log the match in `/data/faq-deflections.md`
+    - If not deflected, assign the routing owner (Hardware→IT Ops, Software→IT
+      Software, Access→IT Security, Account→IT Ops, Network→NetOps, Security→InfoSec)
+    - Write `/requests/<ticket-id>/triage.md` with: category, priority, assigned
+      owner, sla_deadline (ISO 8601), routing rationale
+
+  Step 3 — Triage summary. Write today's triage digest to `/reports/daily-triage-YYYY-MM-DD.md`:
+    - Tickets processed (new / escalated / deflected via FAQ)
+    - Queue depth by priority
+    - SLA breach risk list
+    - Top recurring request patterns this week (flag if 3+ tickets match same FAQ candidate)
+cabinetPath: cabinet-examples/cabinets/it-request
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

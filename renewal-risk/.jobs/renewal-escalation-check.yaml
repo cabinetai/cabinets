@@ -1,0 +1,39 @@
+id: renewal-escalation-check
+name: Daily Renewal Escalation Check
+enabled: true
+schedule: 0 7 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: renewal-workflow
+agentSlug: renewal-workflow
+timeout: 600
+prompt: |-
+  Run the daily escalation check for all accounts in the 30-day renewal window.
+
+  Pull the current list from `renewals/index.md` and filter to accounts
+  renewing within 30 days.
+
+  For each account in the 30-day window:
+  1. Check `renewals/<account>-renewal.md` for the action plan.
+  2. Check `renewals/<account>-data.md` for the most recent support data
+     (open P1/P2 tickets, usage delta since last week).
+  3. Check `renewals/action-items.md` for any overdue action items for this account.
+
+  Flag any of the following as an escalation trigger:
+  - New P1 ticket opened since the last sweep
+  - Usage WAU drop > 15% week-over-week
+  - Overdue action item in the renewal plan (past due date, still Open)
+  - Contract notice period expiring in < 3 days
+
+  For each trigger: write an escalation entry to `renewals/escalations/<YYYY-MM-DD>-<account>.md`
+  with account name, ARR, renewal date, trigger type, and requested owner action.
+
+  If no triggers fire: write `renewals/escalations/<YYYY-MM-DD>-clear.md`.
+
+  Rules:
+  - Run even if the Renewal CSM's weekly sweep has not yet run this week.
+  - Do not re-escalate an issue already in `renewals/escalations/` from the past 48 hours
+    unless it worsened.
+cabinetPath: cabinet-examples/cabinets/renewal-risk
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

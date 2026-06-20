@@ -1,0 +1,74 @@
+id: weekly-macro-freshness-qa
+name: Weekly Macro Freshness QA
+enabled: true
+schedule: 0 16 * * 5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: macro-qa
+agentSlug: macro-qa
+timeout: 600
+prompt: |-
+  Run the weekly macro freshness QA pass. Today is Friday.
+
+  STEP 1 — Select macros for this week's audit rotation
+  1. Read `/macro-registry.md`. Sort active macros by `last-qa-date` ascending.
+     Select the 10 macros with the oldest last-QA date (these are most at risk of drift).
+     Also include ALL draft macros awaiting first-time QA.
+  2. Log your selection to `/qa-reports/<YYYY-MM-DD>.md` before starting.
+
+  STEP 2 — QA each selected macro
+  For each macro in your list, read the macro body from `/macros/<slug>.md` (or
+  `/macros/drafts/<slug>.md` for drafts) and check:
+
+  a. ACCURACY — Does every step in the macro match the current product?
+     - Read `/data/release-notes.md` for recent changes.
+     - Flag any step referencing a renamed UI element, removed feature, or changed workflow.
+     - Flag any pricing, plan name, or limit that may have changed.
+
+  b. LINKS — Does every URL in the macro resolve to the correct, current content?
+     - If a link references an article slug, check that slug exists in `/article-registry.md`
+       with status "published."
+     - Log broken or unresolvable links to `/data/broken-links.md`:
+       date | macro slug | bad URL | reason
+
+  c. TONE — Does the macro match the voice guide at `/data/voice-guide.md`?
+     - Fail tone: passive-aggressive, corporate jargon, "please be advised," deflection
+       language, overly apologetic without resolution.
+     - Warn (pass with note): slightly stiff, could be warmer, but not harmful.
+
+  d. SCOPE — Is the macro still scoped correctly to its linked cluster?
+     - If the cluster volume for this macro has dropped to near-zero, flag as
+       retirement candidate.
+     - If the macro is being used for a different problem than it was written for,
+       flag as scope drift.
+
+  STEP 3 — Write QA results
+  3. For each macro audited, write a QA result file to `/macros/qa/<slug>-qa.md`:
+     **Result:** Pass | Pass with notes | Fail
+     **Issues found:** (specific line-by-line if Fail or Pass with notes)
+     **Revision request:** (exact changes needed — specific enough for the Writer to act
+     without re-reading everything)
+     **QA date:** <YYYY-MM-DD>
+
+  4. Update `/macro-registry.md`:
+     - Set `qa-status` for each audited macro to: Passed / Passed with notes / Needs update
+     - Set `last-qa-date` to today
+
+  STEP 4 — QA summary report
+  5. Write the weekly QA summary to `/qa-reports/<YYYY-MM-DD>.md`:
+     - Macros audited: N
+     - Pass: N | Pass with notes: N | Needs update: N
+     - Broken links found: N (list them)
+     - Retirement candidates: (list macro slugs)
+     - Top 3 issues found across the batch (patterns, not individual macro errors)
+
+  RULES:
+  - Fail only on factual errors, broken links, or serious tone violations.
+  - Pass with notes for style improvements — never block on style alone.
+  - Write specific revision requests, not vague feedback.
+  - Do not edit macro files yourself — return findings to the Macro Writer.
+  - If a macro's linked cluster no longer appears in `/clusters/` or
+    `/data/cluster-summary.csv`, flag it as a retirement candidate.
+cabinetPath: cabinet-examples/cabinets/support-macro
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ADR Library · Architecture Decision Records</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+  --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+  --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+  --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+  --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+  --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+  --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+  --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+  --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+  --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media(prefers-color-scheme:dark){:root{
+  --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+  --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+  --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+  --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+  --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+  --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+  --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px 80px}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 85%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+.topbar-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:var(--c5);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;font-family:var(--mono)}
+.brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+.sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+.head h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap;cursor:pointer}
+.badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+.badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+.badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+.badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{padding:16px 18px}
+.kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+.kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:6px}
+.kpi .c{font-size:12px;margin-top:4px;color:var(--muted-foreground)}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filter-row .label{font-size:12px;color:var(--muted-foreground);font-weight:500;margin-right:4px}
+.filter-btn{font-size:11px;font-weight:600;padding:4px 12px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);cursor:pointer;font-family:var(--sans)}
+.filter-btn.active{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 12px 10px}
+td{padding:12px;border-top:1px solid var(--border);vertical-align:top;cursor:pointer}
+tbody tr:hover{background:var(--muted)}
+tbody tr.selected{background:var(--info-bg)}
+.adr-id{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);white-space:nowrap}
+.adr-title{font-weight:600;font-size:13px}
+/* detail panel */
+.panel{display:none;position:fixed;right:0;top:0;height:100vh;width:420px;background:var(--card);border-left:1px solid var(--border);box-shadow:var(--shadow-md);overflow-y:auto;z-index:50;padding:24px}
+.panel.open{display:block}
+.panel .ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.panel .ph .pt{font-size:16px;font-weight:700;letter-spacing:-.01em;flex:1;margin-right:12px}
+.panel .close{font-size:18px;color:var(--muted-foreground);cursor:pointer;line-height:1;padding:2px 6px;border-radius:5px}
+.panel .close:hover{background:var(--muted)}
+.panel-section{margin-bottom:18px}
+.panel-section .ps-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-foreground);margin-bottom:6px}
+.panel-section .ps-text{font-size:13.5px;line-height:1.6;color:var(--foreground)}
+.panel-section .ps-text p{margin-bottom:8px}
+.panel-section .ps-text li{margin-left:18px;margin-bottom:4px}
+.panel .pm{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted-foreground);padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:16px}
+.panel .pm b{color:var(--foreground);font-weight:600}
+.foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+.foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">ADR</span>Architecture Decision Cabinet<span class="sub">ADR Library</span></div>
+  <div class="sync"><span class="dot"></span>last review · Research Agent · Mon 08:00</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>ADR Library</h1>
+      <p>Architecture decisions — context, decision, consequences, and status in one place.</p>
+    </div>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Total ADRs</div><div class="v num">9</div><div class="c">since Aug 2024</div></div>
+    <div class="kpi card"><div class="l">Accepted</div><div class="v num">7</div><div class="c good">governing the codebase</div></div>
+    <div class="kpi card"><div class="l">Proposed</div><div class="v num">2</div><div class="c warn">ADR-008, ADR-009</div></div>
+    <div class="kpi card"><div class="l">Superseded</div><div class="v num">0</div><div class="c">library is current</div></div>
+  </section>
+
+  <div class="filter-row">
+    <span class="label">Filter:</span>
+    <button class="filter-btn active" onclick="filter('all',this)">All (9)</button>
+    <button class="filter-btn" onclick="filter('Accepted',this)">Accepted (7)</button>
+    <button class="filter-btn" onclick="filter('Proposed',this)">Proposed (2)</button>
+    <button class="filter-btn" onclick="filter('Superseded',this)">Superseded (0)</button>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <table>
+      <thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Date</th><th>Author</th></tr></thead>
+      <tbody id="adr-table"></tbody>
+    </table>
+  </div>
+
+  <p class="foot">Source: <code>adrs/</code> — every ADR is a Markdown file in version control. Click any row to read the full decision.</p>
+</main>
+
+<!-- Detail panel -->
+<div class="panel" id="detail-panel">
+  <div class="ph">
+    <div class="pt" id="dp-title"></div>
+    <span class="close" onclick="closePanel()">✕</span>
+  </div>
+  <div class="pm" id="dp-meta"></div>
+  <div id="dp-body"></div>
+</div>
+
+<script>
+'use strict';
+const ADRS=[
+  {id:'ADR-001',title:'Use PostgreSQL as the primary operational database',status:'Accepted',date:'2024-08-12',author:'Nadia Volkov',
+   context:'Multiple services were using different datastores (MySQL, SQLite, MongoDB) without a consistent choice, creating operational overhead and preventing shared tooling for migrations and backups.',
+   decision:'We will use PostgreSQL as the primary operational database for all services. SQLite is permitted for local dev only. Existing MySQL and MongoDB instances will be migrated.',
+   consequences:'Positive: unified operations, single migration framework, shared connection pooling. Negative: Migration cost for 2 services. Neutral: Requires PostgreSQL expertise in new hires.',
+   alts:'MySQL (rejected: fewer advanced features, weaker JSON support), MongoDB (rejected: ACID requirements not met for billing data).',
+   related:'ADR-003, ADR-007'},
+  {id:'ADR-002',title:'Adopt a monorepo for all backend services',status:'Accepted',date:'2024-09-03',author:'Riku Tanaka',
+   context:'8 separate repos were causing cross-service changes to require coordinated PRs across repos, slowing down refactoring and making dependency updates error-prone.',
+   decision:'Migrate all backend services into a single monorepo using Nx for task orchestration. Each service retains its own deployment pipeline.',
+   consequences:'Positive: atomic cross-service commits, unified CI, simpler dependency management. Negative: Initial migration effort (~2 sprints). Neutral: CI run times increase; mitigated by Nx affected-graph.',
+   alts:'Stay polyrepo (rejected: cross-service coupling getting worse), Git submodules (rejected: painful to work with day-to-day).',
+   related:'ADR-006'},
+  {id:'ADR-003',title:'Use ClickHouse for write-heavy analytics storage',status:'Accepted',date:'2025-01-10',author:'Lucas Ferreira',
+   context:'Analytics queries on the PostgreSQL events table were degrading write performance for the operational database. p99 write latency on events was 1.2s during peak.',
+   decision:'Move all write-heavy analytics storage to ClickHouse. PostgreSQL events table becomes read-only then deprecated after migration. Query layer routes analytical queries to ClickHouse.',
+   consequences:'Positive: 10x write throughput, p99 latency <100ms. Negative: New operational dependency; requires ClickHouse expertise. Neutral: Dual-write period of 30 days during migration.',
+   alts:'TimescaleDB (rejected: PostgreSQL-based, same write bottleneck), BigQuery (rejected: data-residency requirements prohibit external managed service).',
+   related:'ADR-001'},
+  {id:'ADR-007',title:'Use event sourcing for the audit log',status:'Accepted',date:'2026-02-14',author:'Riku Tanaka',
+   context:'Enterprise customers and compliance teams require a tamper-evident audit log. The current audit_log table can be mutated by anyone with DB write access, failing SOC 2 Type II and the Meridian contract addendum. Code paths that bypass the ORM produce no entries.',
+   decision:'Adopt event sourcing for the audit log: append-only audit_events table with PostgreSQL row-level insert policy, transactional writes with mutations, S3 Object Lock archival on 15-min schedule, read-model projection for UI queries.',
+   consequences:'Positive: tamper-evident, transactional writes, state reconstruction. Negative: +8–12ms write latency, schema versioning required. Neutral: audit_log table deprecated after 6-month migration.',
+   alts:'Kafka append-only topic (rejected: time-based retention not compliance-duration), Amazon QLDB (rejected: no self-hosted option, data-residency constraint).',
+   related:'ADR-001, ADR-005, ADR-006'},
+  {id:'ADR-008',title:'Adopt Rust for the new file-processing service',status:'Proposed',date:'2026-04-30',author:'Jae-won Park',
+   context:'The new file-processing service must handle files up to 10GB with memory-efficient streaming and predictable latency. Prototypes in Go showed acceptable performance but with frequent GC pauses at >2GB files.',
+   decision:'Write the file-processing service in Rust using the Tokio async runtime and the object_store crate for S3 integration. Go remains the language for all other services.',
+   consequences:'Positive: no GC pauses, safe memory handling, excellent streaming support. Negative: Rust expertise on team is limited (2 engineers); slower initial development. Neutral: separate deployment pipeline from Go services.',
+   alts:'Go with manual memory management (rejected: unsafe patterns; Go GC still fires), Python with C extensions (rejected: maintenance burden, complexity).',
+   related:'ADR-002'},
+  {id:'ADR-009',title:'Replace custom auth with Auth0 for external IdP federation',status:'Proposed',date:'2026-05-08',author:'Mira Osei',
+   context:'Supporting SAML 2.0, OIDC, and Google Workspace SSO in the custom auth service requires ongoing maintenance of identity-protocol code. Two recent security findings (ARC-2026-04, ARC-2026-05) originated in the custom session management layer.',
+   decision:'Federate all external IdP authentication through Auth0. The custom auth service handles internal credential management only. SAML/OIDC surface moves to Auth0 with passthrough to our user model.',
+   consequences:'Positive: eliminates custom IdP protocol code, faster SSO feature delivery, SLA-backed service. Negative: Auth0 is a managed external service; data-residency review required. Neutral: migration path for existing SAML customers.',
+   alts:'Keycloak self-hosted (rejected: operational overhead comparable to custom auth), continue custom auth (rejected: ongoing security surface we cannot resource).',
+   related:'ADR-001'},
+];
+
+let activeFilter='all';
+let selectedId=null;
+
+function statusBadge(s){
+  if(s==='Accepted') return '<span class="badge good">Accepted</span>';
+  if(s==='Proposed') return '<span class="badge warn">Proposed</span>';
+  if(s==='Superseded') return '<span class="badge">Superseded</span>';
+  return `<span class="badge">${s}</span>`;
+}
+
+function render(){
+  const rows=ADRS.filter(a=>activeFilter==='all'||a.status===activeFilter);
+  document.getElementById('adr-table').innerHTML=rows.map(a=>`
+    <tr onclick="openPanel('${a.id}')" class="${selectedId===a.id?'selected':''}">
+      <td class="adr-id">${a.id}</td>
+      <td><div class="adr-title">${a.title}</div></td>
+      <td>${statusBadge(a.status)}</td>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap;color:var(--muted-foreground)">${a.date}</td>
+      <td style="font-size:12px;color:var(--muted-foreground);white-space:nowrap">${a.author}</td>
+    </tr>`).join('');
+}
+
+function filter(f,btn){
+  activeFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function openPanel(id){
+  const a=ADRS.find(x=>x.id===id);
+  if(!a) return;
+  selectedId=id;
+  document.getElementById('dp-title').textContent=`${a.id} — ${a.title}`;
+  document.getElementById('dp-meta').innerHTML=`
+    <span>Status <b>${a.status}</b></span>
+    <span>Date <b>${a.date}</b></span>
+    <span>Author <b>${a.author}</b></span>
+    ${a.related?`<span>Related <b style="font-family:var(--mono);font-size:11px">${a.related}</b></span>`:''}`;
+  document.getElementById('dp-body').innerHTML=`
+    <div class="panel-section"><div class="ps-label">Context</div><div class="ps-text"><p>${a.context}</p></div></div>
+    <div class="panel-section"><div class="ps-label">Decision</div><div class="ps-text"><p>${a.decision}</p></div></div>
+    <div class="panel-section"><div class="ps-label">Consequences</div><div class="ps-text"><p>${a.consequences}</p></div></div>
+    <div class="panel-section"><div class="ps-label">Alternatives Considered</div><div class="ps-text"><p>${a.alts}</p></div></div>`;
+  document.getElementById('detail-panel').classList.add('open');
+  render();
+}
+
+function closePanel(){
+  selectedId=null;
+  document.getElementById('detail-panel').classList.remove('open');
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

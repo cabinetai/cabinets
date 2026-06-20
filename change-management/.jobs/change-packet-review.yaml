@@ -1,0 +1,59 @@
+id: change-packet-review
+name: Change Packet Review
+enabled: false
+schedule: ""
+provider: claude-code
+adapterType: claude_local
+ownerAgent: change-reviewer
+agentSlug: change-reviewer
+timeout: 600
+prompt: |-
+  Review a new change request packet. The draft request is at
+  `/changes/inbox/<draft-file>.md`.
+
+  Step 1 — Generate a change ID: CHG-YYYY-NNNN (increment from last entry in
+    `/changes/index.md`). Create `/changes/<change-id>/` directory structure.
+
+  Step 2 — Completeness check. Verify the draft contains ALL required sections:
+    - Change summary and business justification
+    - Affected systems/services (must reference CMDB entries in `/data/cmdb.md`)
+    - Implementation steps (numbered, must include change window: date, start time, duration)
+    - Testing evidence (pre-change test results, staging environment confirmation)
+    - Rollback plan (specific commands or procedure, decision criteria, responsible engineer)
+    - Risk assessment fields (filled in or to be scored)
+    - Communications plan (pre/during/post-change notifications with named recipients)
+
+    If ANY section is missing or skeletal ("TBD", blank, "N/A" without justification):
+    - Set status to `returned-incomplete`
+    - Write `/changes/<change-id>/review.md` with a bullet list of exactly what is missing
+    - Do NOT proceed to risk scoring
+    - Update `/changes/index.md` with status returned-incomplete
+
+  Step 3 — Risk scoring (only if completeness check passes).
+    Using `/data/risk-matrix.md`, score on two axes (1–4 each):
+      Probability: 1=Unlikely, 2=Possible, 3=Likely, 4=Highly likely
+      Impact: 1=Minimal (cosmetic, <10 users), 2=Moderate (one team, <100 users),
+              3=Significant (one service, <1000 users or revenue impact),
+              4=Critical (core services, >1000 users, data integrity risk)
+    Risk score = Probability × Impact. Risk level: 1–4=Low, 5–9=Medium, 10–13=High, 14–16=Critical.
+
+  Step 4 — Change classification.
+    Standard (pre-approved): Low risk + matches a standard change template in
+      `/data/standard-changes.md` → no CAB required.
+    Normal: Medium or High risk → CAB required.
+    Emergency: requestor flagged emergency + business justification provided → expedited path.
+
+  Step 5 — Freeze window check. Read `/data/freeze-windows.md`. If the change window
+    falls within a freeze period: block with status `freeze-window-conflict` and specify
+    the earliest available window after the freeze.
+
+  Step 6 — Write the final reviewed packet to `/changes/<change-id>/packet.md`.
+    Include all original sections plus: change ID, risk score, risk level, change type,
+    reviewer timestamp, and status (ready-for-cab / ready-standard / emergency-track /
+    returned-incomplete / freeze-window-conflict).
+
+  Update `/changes/index.md` with the new change entry.
+  Hand off to Change Workflow Agent by appending to `/changes/workflow-queue.md`.
+cabinetPath: cabinets/change-management
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

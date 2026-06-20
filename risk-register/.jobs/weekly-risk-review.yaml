@@ -1,0 +1,46 @@
+id: weekly-risk-review
+name: Weekly Risk Review
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: risk-agent
+agentSlug: risk-agent
+timeout: 900
+prompt: |-
+  Run the weekly risk register review.
+
+  STAGE 1 — STALENESS CHECK (Risk Lead)
+  Read `risks/register.yaml`. For each open risk:
+  - Flag as OVERDUE if the `next-review-date` has passed
+  - Flag as STALE if `last-updated` is >30 days ago and status is still "open"
+  - Flag as ESCALATION-DUE if the risk is scored Red (≥16) and has been open >14 days
+    with no mitigation-status update
+
+  STAGE 2 — STATUS UPDATES (Analyst)
+  For each OVERDUE or STALE risk, check the linked remediation ticket (in `risks/<id>.md`)
+  or the responsible team's recent activity. Update `risks/<id>.md` with:
+  - Current mitigation status (% complete if applicable)
+  - Any blockers or delays
+  - Updated `last-updated` date and `next-review-date`
+
+  Check the CVE feed summary in `signals/cve-digest.md` and security news for new risk
+  signals relevant to our technology stack. For any material new signal, draft a
+  candidate risk to `risks/candidates/<date>-<title>.md` for Risk Lead triage.
+
+  STAGE 3 — REGISTER UPDATE (Risk Lead)
+  Update `risks/register.yaml` with all status changes from Stage 2.
+  Write the weekly review summary to `reviews/<YYYY-WW>.md` with:
+  - Total open risks by RAG (Red / Amber / Green)
+  - Risks reviewed this week (status updated)
+  - Overdue risks (owner, days overdue, escalation status)
+  - Escalations sent (Red risks >14 days with no progress)
+  - New candidate risks from the Analyst
+
+  Rules:
+  - Do not change risk scores without a documented reason and a source.
+  - Escalation means writing an explicit note for the CISO in the review summary.
+  - Never close a risk without evidence that the mitigation is complete.
+cabinetPath: cabinets/risk-register
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

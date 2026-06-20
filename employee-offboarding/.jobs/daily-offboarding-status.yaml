@@ -1,0 +1,44 @@
+id: daily-offboarding-status
+name: Daily Offboarding Status Digest
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: offboarding-workflow
+agentSlug: offboarding-workflow
+timeout: 600
+prompt: |-
+  Produce the daily offboarding status digest across all active offboardings.
+
+  Read `/offboardings/active-offboardings.md` to get the list of active offboarding IDs.
+  For each active offboarding, read its checklist at
+  `/offboardings/<offboarding-id>/checklist.md`.
+
+  Compute for each offboarding:
+    - Days until last day (or days since, if past)
+    - Total checklist items vs completed items (% complete)
+    - Overdue steps: any step whose deadline has passed with status != complete
+    - Upcoming steps: steps due in the next 2 business days
+    - Blockers: steps in "blocked" status with a blocker note
+
+  Produce the daily digest at `/offboardings/daily-digest.md` (overwrite each day):
+
+  Section 1 — Approaching last days (next 7 days):
+    List each offboarding with: employee ID slug, last day, department, checklist %
+
+  Section 2 — Overdue steps:
+    For each overdue step across all offboardings:
+    - Offboarding ID, step name, owner, deadline, days overdue
+    - If overdue > 24h and the step is a mandatory access step: flag as BLOCKER
+      and write an escalation entry to `/offboardings/escalation-log.md`
+
+  Section 3 — Recently completed offboardings (last_day was yesterday or earlier,
+    all mandatory steps complete):
+    Prompt the compliance agent (via `/offboardings/compliance-queue.md`) to
+    finalize the audit log.
+
+  Section 4 — Summary metrics:
+    Active offboardings count, avg % complete, overdue step count, escalations today
+cabinetPath: cabinet-examples/cabinets/employee-offboarding
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

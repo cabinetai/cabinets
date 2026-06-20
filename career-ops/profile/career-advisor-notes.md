@@ -21,9 +21,9 @@ Running KB maintained by the Career Advisor agent. Updated each Monday heartbeat
 **As of 2026-04-12** — do not start any new training or portfolio projects yet.
 
 **Reason:** The next 6 days represent maximum opportunity cost for training:
-- Anthropic 2nd round panel on **Apr 16** (dream role, Block A: 4.8)
-- Hugging Face offer decision by **Apr 18** (EUR 175K + equity on the table)
-- n8n onsite outcome pending
+- StreamAI 2nd round panel on **Apr 16** (dream role, Block A: 4.7)
+- DataHub offer decision by **Apr 18** (EUR 160K + equity on the table)
+- FlowHQ onsite outcome pending
 
 Every hour in this window should go to **interview prep** (Interview Strategist) and **offer evaluation** (Evaluator). Training right now is a distraction, not an investment.
 
@@ -37,14 +37,14 @@ Gaps identified from Block B analyses and rejection feedback. Updated when new d
 
 | Skill / Domain | Source | Severity | Appears in Target Roles | Action |
 | --- | --- | --- | --- | --- |
-| Payments / Fintech domain | Stripe rejection (Apr 5) — "wanted more payments domain" | Low | Only in Stripe/Fintech targets (not primary target category) | Skip — narrow niche, off-trajectory |
-| ML lifecycle / model evaluation | Block B scores on Anthropic, W&B | Medium | High — appears in 60%+ of target roles | Watch — worth a project if search extends past May |
-| Enterprise go-to-market | Block B: Datadog (4.0), Retool (3.8) | Low-Medium | Medium — enterprise-heavy companies | Low priority — profile skews PLG/self-serve which is on-strategy |
-| Platform product strategy | Block B: Vercel (4.6), Linear (TBD) | None detected | High | No gap detected — proof points strong |
+| Payments / Fintech domain | PayNow rejection (Apr 5) — "wanted more payments domain" | Low | Only in Fintech targets (not primary target category) | Skip — narrow niche, off-trajectory |
+| ML lifecycle / model evaluation | Block B scores on StreamAI, ObserveML | Medium | High — appears in 60%+ of target roles | Watch — worth a project if search extends past May |
+| Enterprise go-to-market | Block B: MetricsCo (4.0), Retool (3.8) | Low-Medium | Medium — enterprise-heavy companies | Low priority — profile skews PLG/self-serve which is on-strategy |
+| Platform product strategy | Block B: EdgeCo (4.6), IssueLabs (TBD) | None detected | High | No gap detected — proof points strong |
 
 ### Pattern Summary
 - Block B scores are **consistently strong (4.0–4.7)** — no systemic CV match problem
-- The one confirmed rejection (Stripe) is **domain-specific, not skill-based** — not worth retraining for
+- The one confirmed rejection (PayNow) is **domain-specific, not skill-based** — not worth retraining for
 - Target role clustering (AI/ML, DX, Developer Tools) aligns well with existing proof points
 
 ---
@@ -57,7 +57,7 @@ Gaps identified from Block B analyses and rejection feedback. Updated when new d
 
 Flagged for assessment when search continues past May. Not evaluated yet.
 
-**Context:** Repeatedly appears in advice for PMs moving into AI product roles. Would strengthen Block B for Anthropic-type roles.
+**Context:** Repeatedly appears in advice for PMs moving into AI product roles. Would strengthen Block B for AI-platform roles.
 
 ---
 
@@ -70,18 +70,18 @@ Flagged for assessment when search continues past May. Not evaluated yet.
 | Project Idea | Source | Why It's Interesting |
 | --- | --- | --- |
 | AI-powered job evaluation tool (dogfooding this cabinet) | Self-generated | High signal for AI PM roles; demonstrates both product and technical range |
-| Developer onboarding analyzer | DX pattern from proof points | Builds on existing expertise; strong demo potential for DX-focused roles |
+| Developer onboarding flow analyzer | DX pattern from proof points | Builds on existing expertise; strong demo potential for DX-focused roles |
 
 ---
 
 ## Recommendations by Scenario
 
-### Scenario A: Land Anthropic or n8n (search ends)
+### Scenario A: Land StreamAI or FlowHQ (search ends)
 - No training needed. Focus on onboarding success.
 - Consider a personal postmortem write-up of the job search — good for personal brand.
 
-### Scenario B: Hugging Face offer only (take it)
-- No training needed. Evaluate onboarding needs at HF.
+### Scenario B: DataHub offer only (take it)
+- No training needed. Evaluate onboarding needs at DataHub.
 
 ### Scenario C: All current leads fall through (search continues past May)
 - **Re-evaluate then.** At that point, consider:
@@ -89,7 +89,7 @@ Flagged for assessment when search continues past May. Not evaluated yet.
   2. **Portfolio project** — AI developer tool that demos in 2 minutes (project mode evaluation)
   3. **Expand portal scan** to include companies where payments domain is NOT required
 
-### Scenario D: Stripe-type fintech roles become a priority
+### Scenario D: Fintech roles become a priority
 - Then and only then: evaluate a fintech domain crash course
 - More efficient to get a fintech referral/warm intro than a cert
 
@@ -97,9 +97,9 @@ Flagged for assessment when search continues past May. Not evaluated yet.
 
 ## Notes on Opportunity Cost
 
-The pipeline has 4 active opportunities at or above 4.3/5 (Anthropic, n8n, Hugging Face offer, Vercel). At this stage of the search:
+The pipeline has 4 active opportunities at or above 4.3/5 (StreamAI, FlowHQ, DataHub offer, EdgeCo). At this stage of the search:
 
-- **1 hour of interview prep ≈ high multiplier** on the Apr 16 Anthropic panel
+- **1 hour of interview prep ≈ high multiplier** on the Apr 16 StreamAI panel
 - **1 hour of training ≈ near-zero** near-term impact — no cert completes before any decision
 
 Training is a **search-extension tool**, not a search-acceleration tool. Only reach for it if the current pipeline dries up.

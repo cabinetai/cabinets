@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vendor Security Review Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+    --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+    --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:12px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:13.5px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+  .kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .c{font-size:12px;margin-top:5px;color:var(--muted-foreground)}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:1fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  /* vendor header */
+  .vendor-header{display:flex;align-items:flex-start;gap:16px;padding:16px 18px;border-bottom:1px solid var(--border)}
+  .vendor-mark{width:44px;height:44px;border-radius:10px;background:var(--muted);display:grid;place-items:center;font-weight:700;font-size:18px;color:var(--muted-foreground);flex:none}
+  .vendor-info{flex:1}
+  .vendor-info .vn{font-size:17px;font-weight:700}
+  .vendor-info .vd{font-size:12px;color:var(--muted-foreground);margin-top:3px}
+  .meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--border)}
+  .meta-item{padding:12px 18px;border-right:1px solid var(--border)}
+  .meta-item:last-child{border-right:none}
+  .meta-item .ml{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;margin-bottom:5px}
+  .meta-item .mv{font-size:13px;font-weight:600}
+
+  /* findings */
+  .finding{padding:13px 0;border-top:1px solid var(--border)}
+  .finding:first-child{border-top:none}
+  .finding .fh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+  .finding .fn{font-weight:600;font-size:13px}
+  .finding .fd{font-size:12.5px;color:var(--muted-foreground);line-height:1.45}
+  .finding .fa{font-size:12px;color:var(--muted-foreground);margin-top:6px}
+  .finding .fa b{color:var(--foreground)}
+
+  /* queue table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  td{padding:10px;border-top:1px solid var(--border);vertical-align:middle}
+  tbody tr:hover{background:var(--muted)}
+  .vname{font-weight:600}
+  .vsub{font-size:11px;color:var(--muted-foreground);margin-top:2px}
+  .days{font-family:var(--mono);font-size:12px}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">VS</span>Vendor Security<span class="sub">Review Workspace</span></div>
+  <div class="sync"><span class="dot"></span>Vanta · Drata · 7 min ago</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Vendor Review Workspace</h1>
+      <p>Active review: Atlas Logistics · Queue: 5 vendors · 1 blocker</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">Active Review</button>
+      <button>Queue</button>
+      <button>Approved</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Queue Total</div><div class="v num">5</div><div class="c">Pending · In Review · Waiting</div></div>
+    <div class="kpi card"><div class="l">In Review</div><div class="v num" style="color:var(--info)">1</div><div class="c">Intercom — QA in progress</div></div>
+    <div class="kpi card"><div class="l">Blockers</div><div class="v num" style="color:var(--warn)">2</div><div class="c">Loom (18d) · Stripe unassigned</div></div>
+    <div class="kpi card"><div class="l">Approved YTD</div><div class="v num" style="color:var(--good)">11</div><div class="c">3 w/ conditions · 1 escalated (resolved)</div></div>
+  </section>
+
+  <!-- Active review: Atlas Logistics -->
+  <section style="margin-bottom:14px">
+    <div class="card">
+      <div class="vendor-header">
+        <div class="vendor-mark">AL</div>
+        <div class="vendor-info">
+          <div class="vn">Atlas Logistics Ltd.</div>
+          <div class="vd">Integration platform · shipment records + customer delivery addresses · Tier 1 · Review completed 2026-05-14</div>
+        </div>
+        <span class="badge warn">Approved w/ Conditions</span>
+      </div>
+      <div class="meta-grid">
+        <div class="meta-item"><div class="ml">Risk Tier</div><div class="mv"><span class="badge solid">Tier 1</span></div></div>
+        <div class="meta-item"><div class="ml">Data Classification</div><div class="mv">Personal Data (GDPR) + Internal</div></div>
+        <div class="meta-item"><div class="ml">SOC2 Type II</div><div class="mv"><span class="badge good">Current · Jan–Dec 2025</span></div></div>
+        <div class="meta-item"><div class="ml">ISO 27001</div><div class="mv"><span class="badge">Not certified</span></div></div>
+        <div class="meta-item"><div class="ml">DPA Status</div><div class="mv"><span class="badge warn">In Negotiation</span></div></div>
+        <div class="meta-item"><div class="ml">Annual Re-assessment</div><div class="mv"><span style="font-family:var(--mono);font-size:12px">2027-05-14</span></div></div>
+      </div>
+      <div style="padding:0 18px">
+        <div style="padding:14px 0 4px;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground)">Sub-processors</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:14px">
+          <span class="badge good">AWS EU-WEST-1</span>
+          <span class="badge info">Datadog (SCCs)</span>
+          <span class="badge info">Sendgrid / Twilio (SCCs)</span>
+        </div>
+        <div style="border-top:1px solid var(--border);padding:14px 0 4px;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground)">Findings & Conditions</div>
+        <div id="findings"></div>
+        <div style="border-top:1px solid var(--border);padding:14px 0;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:11.5px;font-weight:600;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em">Approval Decision</div>
+            <div style="margin-top:4px;font-size:13.5px;font-weight:600">Approved with Conditions — no data may be shared until DPA countersigned</div>
+            <div style="font-size:11.5px;color:var(--muted-foreground);margin-top:3px">Compliance Lead · QA Reviewer · 2026-05-14</div>
+          </div>
+          <span class="badge warn" style="font-size:12px;padding:4px 12px">2 conditions open</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Queue table -->
+  <section class="grid">
+    <div class="card">
+      <div class="card-h">
+        <div><div class="t">Review Queue</div><div class="d">All vendors in active review — Week 21 2026</div></div>
+        <span class="badge warn">2 blockers</span>
+      </div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Vendor</th><th>Tier</th><th>Requestor</th><th>Received</th><th>Status</th><th>Days</th><th>Next Action</th></tr></thead>
+          <tbody id="queue"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">Review packets: <code>vendors/&lt;name&gt;/review-packet.md</code> · Queue: <code>queue/status.md</code> · Annual re-assessments: <code>queue/reassessment-due.md</code> · Vanta and Drata remain the authoritative vendor risk systems of record.</div>
+</main>
+
+<script>
+'use strict';
+const FINDINGS = [
+  { sev:'Medium', title:'Sub-processor SCC confirmation', desc:'DPA draft does not confirm SCCs with US-based sub-processors (Datadog, Sendgrid). Verbal confirmation received; written confirmation required.', action:'Legal to confirm SCC documentation in updated DPA draft.', owner:'emily.chen', due:'2026-05-28', blocker:true },
+  { sev:'Low',    title:'Data retention alignment',        desc:'Atlas standard retention is 24 months; our requirement is 12 months. Must be resolved in DPA negotiation before go-live.',                      action:'Legal to negotiate 12-month retention or document accepted exception.', owner:'emily.chen', due:'2026-05-28', blocker:false },
+];
+const SEV_CLS = { Medium:'warn', Low:'info', High:'bad', Critical:'bad' };
+document.getElementById('findings').innerHTML = FINDINGS.map(f=>`
+  <div class="finding">
+    <div class="fh">
+      <span class="badge ${SEV_CLS[f.sev]||''}">${f.sev}</span>
+      <span class="fn">${f.title}</span>
+      ${f.blocker?'<span class="badge bad">Blocker · no go-live</span>':''}
+    </div>
+    <div class="fd">${f.desc}</div>
+    <div class="fa"><b>Required action:</b> ${f.action} Owner: ${f.owner} · Due: ${f.due}</div>
+  </div>`).join('');
+
+const QUEUE = [
+  { name:'Notion Labs',     tier:2, req:'eng',         recv:'2026-05-19', status:'Pending',    days:0,  action:'Assign reviewer',                  sev:'' },
+  { name:'Stripe',          tier:1, req:'finance',     recv:'2026-05-15', status:'Pending',    days:4,  action:'Pull SOC2 report + assign',        sev:'warn' },
+  { name:'Intercom',        tier:1, req:'cs',          recv:'2026-05-08', status:'In Review',  days:11, action:'QA review in progress',            sev:'' },
+  { name:'Loom',            tier:2, req:'hr',          recv:'2026-05-01', status:'Waiting Docs',days:18, action:'Send 2nd follow-up or escalate', sev:'warn' },
+  { name:'Atlas Logistics', tier:1, req:'procurement', recv:'2026-05-06', status:'Appr. w/Cond',days:13,'action':'DPA finalisation by 2026-05-28', sev:'good' },
+];
+const ST_CLS = { 'Pending':'','In Review':'info','Waiting Docs':'warn','Appr. w/Cond':'good' };
+document.getElementById('queue').innerHTML = QUEUE.map(v=>`
+  <tr>
+    <td><div class="vname">${v.name}</div></td>
+    <td><span class="badge ${v.tier===1?'solid':''}">${v.tier===1?'Tier 1':'Tier 2'}</span></td>
+    <td><span style="font-size:12px;color:var(--muted-foreground)">${v.req}@co</span></td>
+    <td><span style="font-family:var(--mono);font-size:11.5px">${v.recv}</span></td>
+    <td><span class="badge ${ST_CLS[v.status]||''}">${v.status}</span></td>
+    <td><span class="days num ${v.days>10?'style':''}>${v.days}d</span></td>
+    <td style="font-size:12px;color:var(--muted-foreground)">${v.action}</td>
+  </tr>`).join('');
+</script>
+</body>
+</html>

@@ -1,17 +1,12 @@
 ---
 name: Marketing Specialist
-slug: marketing-specialist
-emoji: "📣"
-type: specialist
-department: marketing
-role: Campaign creation, social media management, lead capture and nurturing
-heartbeat: "0 9 * * 1-5"
+role: 'Campaign creation, social media management, lead capture and nurturing'
+provider: claude-code
+heartbeat: 0 9 * * 1-5
 budget: 60
-active: true
+active: false
+heartbeatEnabled: true
 workdir: /
-workspace: /
-channels:
-  - marketing
 focus:
   - campaigns
   - social-media
@@ -19,8 +14,14 @@ focus:
 tags:
   - marketing
   - real-estate
+emoji: "\U0001F4E3"
+department: marketing
+type: specialist
+workspace: /
+setupComplete: false
+channels:
+  - marketing
 ---
-
 # Marketing Specialist Agent
 
 You run marketing campaigns for the real estate brokerage.

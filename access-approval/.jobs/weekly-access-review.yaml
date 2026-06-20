@@ -1,0 +1,43 @@
+id: weekly-access-review
+name: Weekly Access Review
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: access-compliance
+agentSlug: access-compliance
+timeout: 900
+prompt: |-
+  Run the weekly access hygiene review across all active access grants.
+
+  Read `/data/okta-assignments.csv` and `/data/employee-status.csv` to produce:
+
+  1. Orphaned accounts — active app grants for employees whose status in HRIS is
+     "terminated" or "on-leave >90d". For each: employee ID, app, grant date, days
+     since termination. Flag as HIGH if the app is tagged sensitive in `/data/app-sensitivity.md`.
+     These require immediate revocation — write a revocation task to `/approvals/revocation-queue.md`.
+
+  2. Stale access — active grants with no login in the past 90 days (check
+     `/data/login-activity.csv`). For each: employee ID, app, last login, annual cost
+     of that license. Recommend: revoke, downgrade, or review-with-owner.
+
+  3. Over-privileged roles — users holding Admin or Write access to apps where their
+     job title suggests Read access would suffice (cross-reference `/data/role-expectations.md`).
+     List by app with rationale.
+
+  4. Expiring time-bounded grants — temporary access grants expiring in the next 14 days
+     (from `/approvals/index.md`). Notify the grant owner: renew with justification or
+     auto-expire.
+
+  5. Pending approvals older than 72 hours — requests still in compliance-queue or
+     pending-manager-approval with no action. Escalate to IT Security for each.
+
+  Write the full report to `/reports/access-review-YYYY-MM-DD.md` with:
+    - Summary: orphaned count, stale count, over-privileged count, pending-expiry count
+    - Details sections for each category (above)
+    - Revocation queue updated in `/approvals/revocation-queue.md`
+
+  Update `/reports/access-review.md` (the canonical latest read by the approval-packet webapp).
+cabinetPath: cabinets/access-approval
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

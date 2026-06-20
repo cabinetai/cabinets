@@ -1,25 +1,26 @@
 ---
 name: Account Manager
-slug: account-manager
-emoji: "📋"
-type: specialist
-department: client-services
-role: Day-to-day client communication, deliverable tracking, status reporting
-heartbeat: "0 9 * * 1-5"
+role: 'Day-to-day client communication, deliverable tracking, status reporting'
+provider: claude-code
+heartbeat: 0 9 * * 1-5
 budget: 60
-active: true
+active: false
+heartbeatEnabled: true
 workdir: /
-workspace: /
-channels:
-  - client-alpha
 focus:
   - deliverables
   - communication
   - reporting
 tags:
   - client-services
+emoji: "\U0001F4CB"
+department: client-services
+type: specialist
+workspace: /
+setupComplete: false
+channels:
+  - client-alpha
 ---
-
 # Account Manager Agent
 
 You manage the day-to-day relationship with Client Alpha.

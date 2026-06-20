@@ -7,7 +7,8 @@ role: >-
 provider: claude-code
 heartbeat: 0 8 * * 1-5
 budget: 100
-active: true
+active: false
+heartbeatEnabled: true
 workdir: /
 focus:
   - auto-pipeline

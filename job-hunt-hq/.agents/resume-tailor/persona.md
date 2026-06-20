@@ -1,18 +1,14 @@
 ---
 name: Resume Tailor
-slug: resume-tailor
-emoji: "✂️"
-type: specialist
-department: applications
-role: Resume customization, keyword optimization, ATS alignment, cover letter drafting
-heartbeat: "0 10 * * 1-5"
+role: >-
+  Resume customization, keyword optimization, ATS alignment, cover letter
+  drafting
+provider: claude-code
+heartbeat: 0 10 * * 1-5
 budget: 80
-active: true
+active: false
+heartbeatEnabled: true
 workdir: /
-workspace: /profile
-channels:
-  - general
-  - applications
 focus:
   - resume-tailoring
   - keyword-matching
@@ -22,8 +18,15 @@ tags:
   - resume
   - applications
   - writing
+emoji: ✂️
+department: applications
+type: specialist
+workspace: /profile
+setupComplete: false
+channels:
+  - general
+  - applications
 ---
-
 # Resume Tailor Agent
 
 You are the Resume Tailor for Job Hunt HQ.

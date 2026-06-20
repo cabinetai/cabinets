@@ -1,0 +1,52 @@
+id: weekly-decision-sweep
+name: Weekly Decision Extraction Sweep
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: decision-extractor
+agentSlug: decision-extractor
+timeout: 900
+prompt: |-
+  Run the weekly decision extraction sweep and update the decision register.
+
+  Step 1 — Decision Extractor: Sweep the following sources for decisions made in the
+  last 7 days:
+  - Meeting notes in `data/raw/` (any .md files added or modified this week)
+  - Slack channel summaries if available in `data/raw/slack/`
+  - Linked documents referenced in the raw notes
+
+  For each material decision found, create a record with the full schema:
+    id: DEC-NNN (next sequential ID)
+    date: YYYY-MM-DD
+    title: <one sentence, active voice, named owner>
+    owner: <named individual>
+    ownerTitle: <role>
+    department: <dept>
+    rationale: <why this decision was made>
+    consequences: <what changes as a result>
+    reversible: true/false
+    reversibilityNote: <one sentence on why>
+    status: decided
+    reviewed: false
+    source: <meeting name or file path>
+    linkedContext: <doc URL or "" >
+
+  Skip: opinions, action items, process notes, "let's think about it" statements.
+  Check for duplicates against existing `data/decisions.yaml` entries.
+  If a new decision supersedes an existing one, update the old record's status to "superseded"
+  and add `supersededBy: DEC-NNN`.
+
+  Write all new decisions to `data/decisions.yaml`.
+
+  Step 2 — Decision Reviewer: QA every new record (reviewed: false).
+  For each: verify all required fields are present and non-empty, owner is a named
+  individual (not a team), rationale is a real reason (not "not stated"), reversible
+  has a note. Mark passing records `reviewed: true`. Return failing records to Step 1
+  with specific gaps noted in `data/review-notes.md`.
+
+  Final output: updated `data/decisions.yaml` with all new decisions reviewed:true,
+  and a one-paragraph sweep summary appended to `data/sweep-log.md`.
+cabinetPath: cabinets/decision-log
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

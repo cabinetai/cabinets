@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vendor / Asset Registry · Inventory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+  --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+  --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+  --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+  --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+  --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+  --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+  --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+  --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media(prefers-color-scheme:dark){:root{
+  --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+  --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+  --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+  --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+  --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+  --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+  --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4);
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1300px;margin:0 auto;padding:0 24px 64px}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+.topbar-in{max-width:1300px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+.brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+.sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+.head h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.head p{color:var(--muted-foreground);margin-top:4px;font-size:13.5px}
+.tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+.tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px;border:none;background:none;cursor:pointer}
+.tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.card-h .t{font-size:13px;font-weight:600}.card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+.card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+.card-b{padding:14px 18px 18px}
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+.badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+.badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+.badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{padding:16px 18px}
+.kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+.kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+.kpi .c{font-size:12px;margin-top:5px;color:var(--muted-foreground)}
+.grid{display:grid;gap:14px}
+.g-2{grid-template-columns:1.5fr 1fr}
+@media(max-width:900px){.g-2{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 12px 10px}
+th.r,td.r{text-align:right}
+td{padding:11px 12px;border-top:1px solid var(--border);vertical-align:middle}
+tbody tr:hover{background:var(--muted)}
+.asset-name{font-weight:600;font-size:13px}
+.asset-sub{font-size:11.5px;color:var(--muted-foreground);font-family:var(--mono);margin-top:2px}
+.renew-row{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--border)}
+.renew-row:first-child{border-top:none}
+.renew-info{flex:1;min-width:0}
+.renew-name{font-weight:600;font-size:13px}
+.renew-meta{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+.renew-date{font-family:var(--mono);font-size:11px;white-space:nowrap}
+.cat-bar{display:flex;flex-direction:column;gap:10px}
+.cat-row{display:grid;grid-template-columns:96px 1fr 72px;gap:10px;align-items:center}
+.cat-label{font-size:12.5px;font-weight:500}
+.cat-track{height:10px;background:var(--muted);border-radius:100px;overflow:hidden}
+.cat-fill{height:100%;border-radius:100px}
+.cat-amt{font-family:var(--mono);font-size:12px;font-weight:600;text-align:right}
+.foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+.foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">VA</span>Vendor / Asset Registry<span class="sub">Inventory</span></div>
+  <div class="sync"><span class="dot"></span>reconciled · Okta + Jamf + Finance · 18 min ago</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Asset Inventory</h1>
+      <p>Hardware, software licences, and vendor contracts — owners, costs, and renewals always current.</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">All Assets</button>
+      <button>Software</button>
+      <button>Hardware</button>
+      <button>Renewals</button>
+    </nav>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Total Assets Tracked</div><div class="v num">312</div><div class="c">187 devices · 95 SW licences · 30 vendors</div></div>
+    <div class="kpi card"><div class="l">Annual Contracted Spend</div><div class="v num">$624k</div><div class="c">+8% vs. last year</div></div>
+    <div class="kpi card"><div class="l">Renewals · Next 90d</div><div class="v num">4 <small style="font-size:13px;color:var(--warn)">at risk</small></div><div class="c">Loom Aug · Ironclad Sep · Datadog Oct · Figma Nov</div></div>
+    <div class="kpi card"><div class="l">Discrepancies Open</div><div class="v num">3</div><div class="c">2 orphaned licences · 1 device offline</div></div>
+  </section>
+
+  <section class="grid g-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Software Licences</div><div class="d">Contracted vs. provisioned seats and renewal status</div></div><span class="meta">7 active</span></div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Vendor / Plan</th><th class="r">Contracted</th><th class="r">Provisioned</th><th class="r">Annual Cost</th><th>Renewal</th><th>SOC2</th></tr></thead>
+          <tbody id="sw-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div><div class="t">Renewals — Next 90 Days</div><div class="d">Act before auto-renew fires</div></div><span class="badge warn">4 items</span></div>
+      <div class="card-b" id="renewals"></div>
+    </div>
+  </section>
+
+  <section class="grid g-2">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Hardware Inventory</div><div class="d">Devices, assigned owners, warranty, MDM status</div></div><span class="meta">5 shown</span></div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Asset / Tag</th><th>Assigned To</th><th>Dept</th><th>Status</th><th>Warranty</th><th>MDM</th></tr></thead>
+          <tbody id="hw-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div><div class="t">Spend by Category</div><div class="d">Annual contracted spend</div></div><span class="meta">FY 2026</span></div>
+      <div class="card-b"><div class="cat-bar" id="cat-chart"></div></div>
+    </div>
+  </section>
+
+  <p class="foot">Records sourced from <code>assets/hardware.yaml</code>, <code>assets/software.yaml</code>, <code>assets/vendors.yaml</code> — reconciled weekly against Okta + Jamf + Finance. Open discrepancies in <code>reports/</code>.</p>
+</main>
+
+<script>
+'use strict';
+const SW = [
+  { vendor:'Slack', plan:'Business+', contracted:210, provisioned:206, cost:30900, renewal:'2027-03-01', autorenew:true, soc2:true },
+  { vendor:'Datadog', plan:'Pro + APM', contracted:null, provisioned:null, cost:89500, renewal:'2026-10-01', autorenew:true, soc2:true },
+  { vendor:'Greenhouse', plan:'Core + Onboarding', contracted:null, provisioned:null, cost:22000, renewal:'2027-02-28', autorenew:false, soc2:true },
+  { vendor:'Notion', plan:'Business', contracted:100, provisioned:92, cost:17664, renewal:'2027-01-15', autorenew:true, soc2:true },
+  { vendor:'Zoom', plan:'Business', contracted:150, provisioned:142, cost:28800, renewal:'2026-12-15', autorenew:true, soc2:true },
+  { vendor:'Figma', plan:'Professional', contracted:20, provisioned:19, cost:3420, renewal:'2026-11-30', autorenew:true, soc2:true },
+  { vendor:'Loom', plan:'Business', contracted:60, provisioned:47, cost:7050, renewal:'2026-08-15', autorenew:true, soc2:true },
+];
+const HW = [
+  { name:'MacBook Pro 14" M3 Pro', tag:'AC-2024-0147', assigned:'Marcus Chen', dept:'Engineering', status:'active', warranty:'2027-03-15', mdm:'2d ago' },
+  { name:'MacBook Pro 14" M3 Pro', tag:'AC-2024-0148', assigned:'Sofia Reyes', dept:'Sales', status:'active', warranty:'2027-03-15', mdm:'3d ago' },
+  { name:'MacBook Air 13" M2', tag:'AC-2023-0092', assigned:'—', dept:'—', status:'available', warranty:'2026-07-20', mdm:'43d ago' },
+  { name:'LG UltraFine 27"', tag:'AC-2023-0055', assigned:'Dana Park', dept:'HR', status:'active', warranty:'Expired', mdm:'—' },
+  { name:'MacBook Pro 16" M3 Max', tag:'AC-2025-0201', assigned:'Priya Nair', dept:'Operations', status:'active', warranty:'2028-01-08', mdm:'2d ago' },
+];
+const RENEWALS = [
+  { vendor:'Loom', date:'Aug 15, 2026', cost:'$7,050/yr', autorenew:true, urgency:'bad', days:84 },
+  { vendor:'Ironclad', date:'Sep 30, 2026', cost:'$31,000/yr', autorenew:false, urgency:'warn', days:130 },
+  { vendor:'Datadog', date:'Oct 1, 2026', cost:'$89,500/yr', autorenew:true, urgency:'bad', days:131 },
+  { vendor:'Figma', date:'Nov 30, 2026', cost:'$3,420/yr', autorenew:true, urgency:'warn', days:191 },
+];
+const CATS = [
+  { label:'SaaS', amt:199334, color:'var(--c1)' },
+  { label:'Infrastructure', amt:255200, color:'var(--c5)' },
+  { label:'Professional Svcs', amt:72000, color:'var(--c3)' },
+  { label:'Hardware', amt:62400, color:'var(--c2)' },
+  { label:'Identity/Security', amt:41200, color:'var(--c6)' },
+];
+
+function fmt(n){return n!=null?'$'+n.toLocaleString():'—'}
+function seatRatio(c,p){
+  if(!c||!p)return '<span style="color:var(--muted-foreground)">Usage-based</span>';
+  const pct=Math.round(p/c*100);
+  const cls=pct<70?'warn':pct>95?'bad':'good';
+  return `<span class="badge ${cls}">${p}/${c}</span>`;
+}
+function renewalBadge(d){
+  const days=Math.round((new Date(d)-new Date())/(86400000));
+  if(days<60)return'<span class="badge bad">'+days+'d</span>';
+  if(days<120)return'<span class="badge warn">'+days+'d</span>';
+  return'<span class="badge">'+days+'d</span>';
+}
+function statusBadge(s){
+  const m={active:'good',available:'info',lost:'bad',retired:''};
+  return `<span class="badge ${m[s]||''}">${s}</span>`;
+}
+function warrantyBadge(w){
+  if(w==='Expired')return'<span class="badge bad">Expired</span>';
+  const days=Math.round((new Date(w)-new Date())/86400000);
+  if(days<90)return`<span class="badge warn">${w}</span>`;
+  return`<span class="badge good">${w}</span>`;
+}
+
+document.getElementById('sw-body').innerHTML = SW.map(s=>`
+  <tr>
+    <td><div class="asset-name">${s.vendor}</div><div class="asset-sub">${s.plan}</div></td>
+    <td class="r">${seatRatio(s.contracted,s.provisioned)}</td>
+    <td class="r num">${fmt(s.cost)}</td>
+    <td>${renewalBadge(s.renewal)}</td>
+    <td>${s.autorenew?'<span class="badge warn">Auto</span>':'<span class="badge">Manual</span>'}</td>
+    <td>${s.soc2?'<span class="badge good">✓</span>':'<span class="badge bad">✗</span>'}</td>
+  </tr>`).join('');
+
+document.getElementById('hw-body').innerHTML = HW.map(h=>`
+  <tr>
+    <td><div class="asset-name">${h.name}</div><div class="asset-sub">${h.tag}</div></td>
+    <td style="font-size:13px">${h.assigned}</td>
+    <td><span class="badge">${h.dept}</span></td>
+    <td>${statusBadge(h.status)}</td>
+    <td>${warrantyBadge(h.warranty)}</td>
+    <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted-foreground)">${h.mdm}</td>
+  </tr>`).join('');
+
+document.getElementById('renewals').innerHTML = RENEWALS.map(r=>`
+  <div class="renew-row">
+    <div class="renew-info">
+      <div class="renew-name">${r.vendor}</div>
+      <div class="renew-meta">${r.cost} · ${r.autorenew?'Auto-renew ON':'Manual renewal'}</div>
+    </div>
+    <div>
+      <div class="renew-date">${r.date}</div>
+      <div style="margin-top:4px"><span class="badge ${r.urgency}">${r.days}d</span></div>
+    </div>
+  </div>`).join('');
+
+const maxCat=Math.max(...CATS.map(c=>c.amt));
+document.getElementById('cat-chart').innerHTML = CATS.map(c=>`
+  <div class="cat-row">
+    <div class="cat-label">${c.label}</div>
+    <div class="cat-track"><div class="cat-fill" style="width:${Math.round(c.amt/maxCat*100)}%;background:${c.color}"></div></div>
+    <div class="cat-amt num">${fmt(c.amt)}</div>
+  </div>`).join('');
+</script>
+</body>
+</html>

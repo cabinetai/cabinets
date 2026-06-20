@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ad Performance · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500;display:flex;align-items:center;gap:6px}
+  .kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .v small{font-size:14px;font-weight:500;color:var(--muted-foreground)}
+  .kpi .c{font-size:12px;margin-top:5px;display:flex;align-items:center;gap:5px;color:var(--muted-foreground)}
+  .kpi .c.up{color:var(--good)} .kpi .c.down{color:var(--bad)} .kpi .c.warn{color:var(--warn)}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:1.4fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  /* Spend by channel — horizontal bar chart SVG container */
+  .bar-chart{width:100%}
+  .bar-row{display:grid;grid-template-columns:80px 1fr 64px;gap:10px;align-items:center;margin-bottom:10px}
+  .bar-row:last-child{margin-bottom:0}
+  .bar-row .ch{font-size:12.5px;font-weight:500}
+  .bar-track{height:22px;background:var(--muted);border-radius:5px;overflow:hidden;position:relative}
+  .bar-fill{height:100%;border-radius:5px;display:flex;align-items:center;padding-left:8px;font-family:var(--mono);font-size:11px;color:#fff;font-weight:600;min-width:30px}
+  .bar-row .val{font-family:var(--mono);font-size:12px;text-align:right;font-weight:600}
+
+  /* creative leaderboard */
+  .creative-row{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-top:1px solid var(--border)}
+  .creative-row:first-child{border-top:none}
+  .rank{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted-foreground);width:20px;flex:none;margin-top:2px}
+  .rank.winner{color:var(--good)}
+  .rank.loser{color:var(--bad)}
+  .creative-body{flex:1;min-width:0}
+  .creative-body .name{font-weight:600;font-size:13px}
+  .creative-body .stats{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);margin-top:3px}
+  .creative-body .note{font-size:12px;color:var(--muted-foreground);margin-top:3px}
+
+  /* CAC trend sparkline */
+  .trend-svg{width:100%;height:80px}
+
+  /* experiments */
+  .exp-row{padding:9px 0;border-top:1px solid var(--border);display:flex;gap:10px;align-items:flex-start}
+  .exp-row:first-child{border-top:none}
+  .exp-body{flex:1}
+  .exp-body .hyp{font-size:13px;font-weight:500}
+  .exp-body .meta{font-size:12px;color:var(--muted-foreground);margin-top:2px;font-family:var(--mono)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  th.r,td.r{text-align:right}
+  td{padding:10px;border-top:1px solid var(--border)}
+  tbody tr:hover{background:var(--muted)}
+  .delta{font-family:var(--mono);font-weight:600} .delta.pos{color:var(--good)} .delta.neg{color:var(--bad)}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">AP</span>Ad Performance<span class="sub">Dashboard</span></div>
+  <div class="sync"><span class="dot"></span>last sync · Meta · Google · LinkedIn · 18 min ago</div>
+</div></div>
+
+<main class="wrap">
+
+  <header class="head">
+    <div><h1>Paid media, Week 21.</h1><p>Spend, CAC, ROAS, creative performance, and next experiments — sourced from platform exports.</p></div>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Total spend · 7d</div><div class="v num">$18.4k <small>/wk</small></div><div class="c warn">↑ 8% vs last week · on pace</div></div>
+    <div class="kpi card"><div class="l">Blended CAC · 7d</div><div class="v num">$84</div><div class="c down">↑ $9 vs last week · above $75 target</div></div>
+    <div class="kpi card"><div class="l">Blended ROAS · 7d</div><div class="v num">2.9<small>×</small></div><div class="c up">↑ 0.2× vs last week</div></div>
+    <div class="kpi card"><div class="l">Conversions · 7d</div><div class="v num">219</div><div class="c up">↑ 14 vs last week</div></div>
+  </section>
+
+  <!-- Row 1: Spend by channel + Channel KPI table -->
+  <section class="grid g-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Spend by channel · 7d</div><div class="d">vs monthly target pace</div></div><span class="meta">$76k/mo budget</span></div>
+      <div class="card-b" id="spend-bars"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">Channel breakdown</div><div class="d">CAC, ROAS, CPA vs target</div></div><span class="meta">7d · last-click</span></div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Channel</th><th class="r">Spend</th><th class="r">CAC</th><th class="r">ROAS</th></tr></thead>
+          <tbody id="channel-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Row 2: Creative leaderboard + CAC trend + Experiments -->
+  <section class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:0">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Creative leaderboard</div><div class="d">Winners and losers · 7d</div></div><span class="meta">by CPA</span></div>
+      <div class="card-b" id="creative-board"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">CAC trend · 8 weeks</div><div class="d">Blended, all channels</div></div><span class="badge warn">above target</span></div>
+      <div class="card-b" style="padding-top:4px">
+        <svg class="trend-svg" id="cac-trend" viewBox="0 0 300 80" preserveAspectRatio="none"></svg>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--muted-foreground)">
+          <span>Wk 14</span><span>Wk 15</span><span>Wk 16</span><span>Wk 17</span><span>Wk 18</span><span>Wk 19</span><span>Wk 20</span><span>Wk 21</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">Next experiments</div><div class="d">Ranked by expected impact</div></div><span class="badge info">3 queued</span></div>
+      <div class="card-b" id="experiments"></div>
+    </div>
+  </section>
+
+  <p class="foot">Built from <code>data/platform-exports/</code> and <code>data/creatives/</code>. Full memo in <code>memos/</code>. Daily anomaly log in <code>alerts/</code>.</p>
+
+</main>
+
+<script>
+'use strict';
+
+const CHANNELS = [
+  { ch:'Google Search', spend:7200, budget_pct:77, cac:71, roas:3.4, cpa:42, good:true, color:'var(--c1)' },
+  { ch:'Meta', spend:5100, budget_pct:70, cac:94, roas:2.7, cpa:58, good:false, color:'var(--c5)' },
+  { ch:'LinkedIn', spend:4400, budget_pct:73, cac:128, roas:2.4, cpa:74, good:null, color:'var(--c6)' },
+  { ch:'Twitter/X', spend:1700, budget_pct:64, cac:138, roas:1.9, cpa:82, good:false, color:'var(--c3)' },
+];
+
+document.getElementById('spend-bars').innerHTML = CHANNELS.map(c=>`
+  <div class="bar-row">
+    <div class="ch">${c.ch}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:${c.budget_pct}%;background:${c.color}">$${(c.spend/1000).toFixed(1)}k</div></div>
+    <div class="val num">${c.budget_pct}%</div>
+  </div>`).join('');
+
+const CAC_TARGET = 75;
+document.getElementById('channel-table').innerHTML = CHANNELS.map(c=>`
+  <tr>
+    <td style="font-weight:500">${c.ch}</td>
+    <td class="r num">$${(c.spend/1000).toFixed(1)}k</td>
+    <td class="r num"><span class="badge ${c.cac<=CAC_TARGET?'good':'bad'}">$${c.cac}</span></td>
+    <td class="r num"><span class="badge ${c.roas>=2.8?'good':c.roas>=2.2?'':'bad'}">${c.roas}×</span></td>
+  </tr>`).join('');
+
+const CREATIVES = [
+  { rank:1, name:'Search · "Ship faster, no IT"', ch:'Google', ctr:'4.8%', cpa:'$39', note:'Best CTR in 4 weeks. Scale budget +20%.' },
+  { rank:2, name:'Meta carousel · Team dashboard', ch:'Meta', ctr:'3.1%', cpa:'$51', note:'Solid performer. Running 3 weeks — monitor fatigue.' },
+  { rank:3, name:'LinkedIn · Engineering managers', ch:'LinkedIn', ctr:'1.9%', cpa:'$68', note:'On target for the channel. Extend audience.' },
+  { rank:null, name:'Meta video · "Setup in 5 min"', ch:'Meta', ctr:'0.6%', cpa:'$142', note:'Fatigue: CTR dropped 38% this week. Pause.' },
+  { rank:null, name:'Twitter/X · Feature highlight', ch:'Twitter/X', ctr:'0.4%', cpa:'$161', note:'Consistently underperforming. Kill creative.' },
+];
+
+document.getElementById('creative-board').innerHTML = CREATIVES.map((c,i)=>`
+  <div class="creative-row">
+    <div class="rank ${c.rank?'winner':'loser'}">${c.rank?'#'+c.rank:'✕'}</div>
+    <div class="creative-body">
+      <div class="name">${c.name}</div>
+      <div class="stats">CTR ${c.ctr} · CPA ${c.cpa}</div>
+      <div class="note">${c.note}</div>
+    </div>
+  </div>`).join('');
+
+// CAC trend sparkline
+const CAC_DATA = [72, 69, 74, 80, 77, 82, 79, 84];
+const min = 60, max = 90;
+const W = 300, H = 80, PAD = 8;
+const pts = CAC_DATA.map((v,i)=>{
+  const x = PAD + (i/(CAC_DATA.length-1))*(W-PAD*2);
+  const y = PAD + (1-(v-min)/(max-min))*(H-PAD*2);
+  return [x,y];
+});
+const poly = pts.map(p=>p.join(',')).join(' ');
+// target line y
+const ty = PAD + (1-(CAC_TARGET-min)/(max-min))*(H-PAD*2);
+document.getElementById('cac-trend').innerHTML = `
+  <line x1="${PAD}" y1="${ty}" x2="${W-PAD}" y2="${ty}" stroke="var(--bad)" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+  <polyline points="${poly}" fill="none" stroke="var(--c1)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  ${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="${i===pts.length-1?4:3}" fill="${CAC_DATA[i]>CAC_TARGET?'var(--bad)':'var(--good)'}"/>`).join('')}
+  <text x="${W-PAD}" y="${ty-5}" text-anchor="end" fill="var(--bad)" font-size="9" font-family="var(--mono)">Target $${CAC_TARGET}</text>`;
+
+const EXPS = [
+  { hyp:'Search: "No setup fee" headline vs current', est:'−$8 CAC', status:'Running', cls:'info' },
+  { hyp:'Meta: Retargeting with social proof variant', est:'+12% CVR', status:'Queued', cls:'' },
+  { hyp:'LinkedIn: ABM audience (50–200 eng headcount)', est:'−$20 CAC', status:'Queued', cls:'' },
+];
+
+document.getElementById('experiments').innerHTML = EXPS.map(e=>`
+  <div class="exp-row">
+    <div class="exp-body">
+      <div class="hyp">${e.hyp}</div>
+      <div class="meta">Expected: ${e.est} &nbsp;·&nbsp; <span class="badge ${e.cls}">${e.status}</span></div>
+    </div>
+  </div>`).join('');
+</script>
+</body>
+</html>

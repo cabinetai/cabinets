@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KPI Narrative · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0 / .05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+    --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+    --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:12px;font-weight:700;font-family:var(--mono)}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+
+  /* KPI tiles */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500;display:flex;align-items:center;gap:6px}
+  .kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:6px}
+  .kpi .v small{font-size:13px;font-weight:500;color:var(--muted-foreground)}
+  .kpi .delta{font-size:12px;margin-top:4px;display:flex;align-items:center;gap:5px}
+  .kpi .delta.up{color:var(--good)} .kpi .delta.down{color:var(--bad)} .kpi .delta.neutral{color:var(--muted-foreground)}
+  .kpi .sparkline{margin-top:10px}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:1.55fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+  .g-3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:900px){.g-3{grid-template-columns:1fr}}
+
+  /* narrative items */
+  .narr{padding:13px 0;border-top:1px solid var(--border)}
+  .narr:first-child{border-top:none}
+  .narr .metric-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .narr .metric-name{font-weight:600;font-size:13.5px}
+  .narr .metric-val{font-family:var(--mono);font-size:12.5px;font-weight:600}
+  .narr .text{font-size:13px;color:var(--muted-foreground);line-height:1.55}
+  .narr .src{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);margin-top:5px}
+
+  /* anomaly feed */
+  .anom{display:flex;gap:11px;padding:11px 0;border-top:1px solid var(--border)}
+  .anom:first-child{border-top:none}
+  .anom .sev{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none}
+  .sev.critical{background:var(--bad);box-shadow:0 0 0 3px var(--bad-bg)}
+  .sev.warning{background:var(--warn);box-shadow:0 0 0 3px var(--warn-bg)}
+  .sev.info{background:var(--info);box-shadow:0 0 0 3px var(--info-bg)}
+  .anom .body{flex:1;min-width:0}
+  .anom .body .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .anom .body .metric{font-weight:600;font-size:13px}
+  .anom .body .desc{font-size:12.5px;color:var(--muted-foreground);margin-top:3px}
+  .anom .body .when{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  th.r,td.r{text-align:right}
+  td{padding:11px 10px;border-top:1px solid var(--border)}
+  tbody tr:hover{background:var(--muted)}
+  .delta-cell{font-family:var(--mono);font-weight:600}
+  .delta-cell.pos{color:var(--good)} .delta-cell.neg{color:var(--bad)}
+
+  .callout{background:var(--info-bg);border:1px solid var(--info-bd);border-radius:var(--radius);padding:14px 18px;margin-bottom:14px}
+  .callout .ck{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--info);font-weight:600;margin-bottom:6px}
+  .callout .cv{font-size:14px;font-weight:500;line-height:1.55}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand">
+    <span class="logo">KN</span>KPI Narrative
+    <span class="sub">Week 21 · May 19, 2026</span>
+  </div>
+  <div class="sync"><span class="dot"></span>last sync · Snowflake · 14 min ago</div>
+</div></div>
+
+<main class="wrap">
+
+  <header class="head">
+    <div>
+      <h1>The numbers, in plain English.</h1>
+      <p>What moved this week, why it moved, and what to watch — sourced from your data warehouse.</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">Overview</button>
+      <button>Revenue</button>
+      <button>Growth</button>
+      <button>Retention</button>
+    </nav>
+  </header>
+
+  <!-- executive callout -->
+  <div class="callout">
+    <div class="ck">Week in one line</div>
+    <div class="cv">The Product Hunt launch drove a 14.6% signup surge — the largest single week in 6 months. The onboarding redesign held activation above 61%, and the Acme Corp upsell pushed expansion MRR to a record $48K. ARR crossed $4.82M.</div>
+  </div>
+
+  <!-- KPI row 1 — revenue -->
+  <section class="kpis" id="kpi-row"></section>
+
+  <!-- row 1 — narrative + anomalies -->
+  <section class="grid g-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><div><div class="t">What changed & why</div><div class="d">Plain-English metric explanations · Week 21</div></div><span class="meta">Mon–Sun</span></div>
+      <div class="card-b" id="narratives"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">Anomaly log</div><div class="d">Daily scan flags · last 14 days</div></div><span class="badge warn">2 warnings</span></div>
+      <div class="card-b" id="anomalies"></div>
+    </div>
+  </section>
+
+  <!-- row 2 — metric table + sparkline chart -->
+  <section class="grid g-2">
+    <div class="card">
+      <div class="card-h"><div><div class="t">All metrics · Week 21 vs Week 20</div><div class="d">Source tables from Snowflake / BigQuery</div></div><span class="meta">WoW delta</span></div>
+      <div class="card-b" style="padding-top:4px">
+        <table>
+          <thead><tr><th>Metric</th><th>Area</th><th class="r">W21</th><th class="r">WoW Δ</th><th class="r">vs 30d mean</th></tr></thead>
+          <tbody id="metric-table"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">ARR trend · 6 weeks</div><div class="d">Annual recurring revenue · Snowflake fct_subscriptions</div></div><span class="badge good">↑ on track</span></div>
+      <div class="card-b">
+        <svg id="arr-chart" viewBox="0 0 320 140" style="width:100%;overflow:visible"></svg>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px" id="arr-legend"></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Built from <code>data/kpis.csv</code> · <code>narratives/2026-W21.md</code>. Every number traces to a source table. Full narrative in <code>narratives/</code>.</p>
+
+</main>
+
+<script>
+'use strict';
+
+const KPIS = [
+  { label:'ARR', value:'$4.82M', delta:'+$69K', pct:'+1.5%', dir:'up', src:'fct_subscriptions',
+    spark:[4480,4560,4620,4690,4751,4820] },
+  { label:'NRR', value:'114.2%', delta:'+0.4pp', pct:'', dir:'up', src:'fct_subscriptions',
+    spark:[112.1,112.4,112.8,113.2,113.8,114.2] },
+  { label:'Activation Rate', value:'61.3%', delta:'+3.5pp', pct:'', dir:'up', src:'fct_activation_events',
+    spark:[54.1,55.2,56.2,56.2,57.8,61.3] },
+  { label:'Churn Rate', value:'2.1%', delta:'−0.3pp', pct:'', dir:'up', src:'fct_subscriptions',
+    spark:[2.8,2.7,2.6,3.1,2.4,2.1] },
+];
+
+const NARRATIVES = [
+  { metric:'New Signups', val:'1,847', badge:'warn', badgeLabel:'↑ 14.6% WoW',
+    text:'The Product Hunt launch on May 18 drove the largest signup week in 6 months. Historically, Product Hunt cohorts activate at ~45% — watch whether the onboarding redesign holds that rate above 60% next week.',
+    src:'fct_signups · UTM source: product-hunt' },
+  { metric:'Expansion MRR', val:'$48,200', badge:'warn', badgeLabel:'↑ 23% WoW',
+    text:'The Acme Corp upsell ($8K MRR) accounts for most of the spike. Two mid-market accounts added seats organically. Confirm no billing duplication in fct_subscriptions before celebrating.',
+    src:'fct_subscriptions · account: acme-corp-001' },
+  { metric:'Activation Rate', val:'61.3%', badge:'good', badgeLabel:'Record high',
+    text:'Highest activation rate since tracking began. Onboarding A/B test variant B (rolled out May 10 to 40% of new users) is the most likely driver. Recommend accelerating the full rollout if W22 holds above 59%.',
+    src:'fct_activation_events · experiment: onboarding-v2' },
+  { metric:'Churn Rate', val:'2.1%', badge:'good', badgeLabel:'Back on trend',
+    text:'Returned to the 30-day mean after last week\'s spike (which was two enterprise non-renewals, now confirmed and closed). One logo churned this week: Greenfield Co ($800 MRR, cited price).',
+    src:'fct_subscriptions · churned: greenfield-co' },
+];
+
+const ANOMALIES = [
+  { metric:'Expansion MRR', sev:'warning', badge:'warn', val:'+23% WoW',
+    desc:'Above 1.7σ from 30d mean. Likely Acme upsell. Confirm in fct_subscriptions.', when:'May 19' },
+  { metric:'New Signups', sev:'warning', badge:'warn', val:'+14.6% WoW',
+    desc:'Above 1σ — Product Hunt launch May 18. Check UTM source in fct_signups.', when:'May 19' },
+  { metric:'Churn Rate', sev:'info', badge:'info', val:'+0.7pp spike',
+    desc:'Prior week spike (May 7) resolved — two enterprise non-renewals, not structural.', when:'May 12' },
+];
+
+const TABLE_DATA = [
+  { metric:'ARR', area:'Revenue', w21:'$4,820,000', delta:'+$69K', pct:'+1.5%', vs30:'above', dir:'pos' },
+  { metric:'MRR', area:'Revenue', w21:'$401,667', delta:'+$5,750', pct:'+1.5%', vs30:'above', dir:'pos' },
+  { metric:'Expansion MRR', area:'Revenue', w21:'$48,200', delta:'+$9,100', pct:'+23.3%', vs30:'+1.7σ ⚠', dir:'pos' },
+  { metric:'New Signups', area:'Growth', w21:'1,847', delta:'+235', pct:'+14.6%', vs30:'+1.8σ ⚠', dir:'pos' },
+  { metric:'Trial Starts', area:'Growth', w21:'623', delta:'+82', pct:'+15.2%', vs30:'above', dir:'pos' },
+  { metric:'Activation Rate', area:'Growth', w21:'61.3%', delta:'+3.5pp', pct:'', vs30:'above', dir:'pos' },
+  { metric:'DAU', area:'Engagement', w21:'31,240', delta:'+2,370', pct:'+8.2%', vs30:'above', dir:'pos' },
+  { metric:'Feature Adoption', area:'Engagement', w21:'44.2%', delta:'+2.3pp', pct:'', vs30:'above', dir:'pos' },
+  { metric:'NRR', area:'Retention', w21:'114.2%', delta:'+0.4pp', pct:'', vs30:'above', dir:'pos' },
+  { metric:'Churn Rate', area:'Retention', w21:'2.1%', delta:'−0.3pp', pct:'', vs30:'below', dir:'pos' },
+  { metric:'Logo Retention', area:'Retention', w21:'97.8%', delta:'+0.2pp', pct:'', vs30:'above', dir:'pos' },
+];
+
+const ARR_WEEKS = ['W16','W17','W18','W19','W20','W21'];
+const ARR_VALS  = [4480000,4560000,4620000,4690000,4751000,4820000];
+
+// Render KPI tiles with sparklines
+function makeSpark(data, dir){
+  const mn = Math.min(...data), mx = Math.max(...data), rng = mx-mn||1;
+  const W=80, H=28, pts = data.map((v,i)=>`${i*(W/(data.length-1))},${H-(v-mn)/rng*H}`).join(' ');
+  const col = dir==='up'?'var(--c2)':'var(--c4)';
+  return `<svg viewBox="0 0 ${W} ${H+4}" width="${W}" height="${H+4}" style="overflow:visible">
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${(data.length-1)*(W/(data.length-1))}" cy="${H-(data[data.length-1]-mn)/rng*H}" r="2.5" fill="${col}"/>
+  </svg>`;
+}
+
+document.getElementById('kpi-row').innerHTML = KPIS.map(k=>`
+  <div class="kpi card">
+    <div class="l">${k.label}</div>
+    <div class="v num">${k.value}</div>
+    <div class="delta ${k.dir}">
+      <span>${k.delta}${k.pct?' · '+k.pct:''} WoW</span>
+    </div>
+    <div class="sparkline">${makeSpark(k.spark, k.dir)}</div>
+  </div>`).join('');
+
+document.getElementById('narratives').innerHTML = NARRATIVES.map(n=>`
+  <div class="narr">
+    <div class="metric-row">
+      <span class="metric-name">${n.metric}</span>
+      <span class="metric-val num">${n.val}</span>
+      <span class="badge ${n.badge}">${n.badgeLabel}</span>
+    </div>
+    <div class="text">${n.text}</div>
+    <div class="src">${n.src}</div>
+  </div>`).join('');
+
+document.getElementById('anomalies').innerHTML = ANOMALIES.map(a=>`
+  <div class="anom">
+    <div class="sev ${a.sev}"></div>
+    <div class="body">
+      <div class="top">
+        <span class="metric">${a.metric}</span>
+        <span class="badge ${a.badge}">${a.val}</span>
+        <span class="when">${a.when}</span>
+      </div>
+      <div class="desc">${a.desc}</div>
+    </div>
+  </div>`).join('');
+
+document.getElementById('metric-table').innerHTML = TABLE_DATA.map(r=>`
+  <tr>
+    <td style="font-weight:500">${r.metric}</td>
+    <td><span class="badge">${r.area}</span></td>
+    <td class="r num">${r.w21}</td>
+    <td class="r delta-cell ${r.dir} num">${r.delta}${r.pct?' ('+r.pct+')':''}</td>
+    <td class="r" style="font-family:var(--mono);font-size:11.5px;color:var(--muted-foreground)">${r.vs30}</td>
+  </tr>`).join('');
+
+// ARR chart
+(function(){
+  const svg = document.getElementById('arr-chart');
+  const W=320, H=120, pad={t:10,r:8,b:24,l:48};
+  const iW=W-pad.l-pad.r, iH=H-pad.t-pad.b;
+  const mn=4400000, mx=4900000, rng=mx-mn;
+  const x=i=>pad.l+i*(iW/(ARR_VALS.length-1));
+  const y=v=>pad.t+iH-(v-mn)/rng*iH;
+
+  // area fill
+  const apts=[`${x(0)},${y(ARR_VALS[0])}`,...ARR_VALS.slice(1).map((_,i)=>`${x(i+1)},${y(ARR_VALS[i+1])}`),`${x(ARR_VALS.length-1)},${pad.t+iH}`,`${x(0)},${pad.t+iH}`].join(' ');
+  // line
+  const lpts=ARR_VALS.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
+
+  let html=`<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--c1)" stop-opacity=".18"/><stop offset="100%" stop-color="var(--c1)" stop-opacity="0"/></linearGradient></defs>`;
+  // y-axis grid
+  [4500000,4600000,4700000,4800000].forEach(v=>{
+    const yy=y(v);
+    html+=`<line x1="${pad.l}" y1="${yy}" x2="${W-pad.r}" y2="${yy}" stroke="var(--border)" stroke-width="1"/>`;
+    html+=`<text x="${pad.l-6}" y="${yy+4}" text-anchor="end" font-family="var(--mono)" font-size="9" fill="var(--muted-foreground)">$${(v/1e6).toFixed(1)}M</text>`;
+  });
+  html+=`<polygon points="${apts}" fill="url(#ag)"/>`;
+  html+=`<polyline points="${lpts}" fill="none" stroke="var(--c1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  ARR_VALS.forEach((v,i)=>{
+    html+=`<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="var(--c1)" stroke="var(--card)" stroke-width="2"/>`;
+    html+=`<text x="${x(i)}" y="${pad.t+iH+16}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted-foreground)">${ARR_WEEKS[i]}</text>`;
+  });
+  svg.innerHTML=html;
+})();
+</script>
+</body>
+</html>

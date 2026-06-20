@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bug Triage Board · May 23, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+  --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+  --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+  --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+  --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+  --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+  --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+  --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+  --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+  --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media(prefers-color-scheme:dark){:root{
+  --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+  --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+  --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+  --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+  --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+  --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+  --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 85%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+.topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:var(--bad);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;font-family:var(--mono)}
+.brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+.sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+.head h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.card-h .t{font-size:13px;font-weight:600}
+.card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+.card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+.card-b{padding:14px 18px 18px}
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+.badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+.badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+.badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+.badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{padding:16px 18px}
+.kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+.kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:6px}
+.kpi .v small{font-size:14px;font-weight:500;color:var(--muted-foreground)}
+.kpi .c{font-size:12px;margin-top:4px;color:var(--muted-foreground)}
+.kpi .c.bad{color:var(--bad)} .kpi .c.warn{color:var(--warn)} .kpi .c.good{color:var(--good)}
+.grid{display:grid;gap:14px}
+.g-2{grid-template-columns:2fr 1fr}
+@media(max-width:900px){.g-2{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px;white-space:nowrap}
+th.r,td.r{text-align:right}
+th.c,td.c{text-align:center}
+td{padding:10px;border-top:1px solid var(--border);vertical-align:middle}
+tbody tr:hover{background:var(--muted)}
+tbody tr.flag{background:var(--bad-bg)}
+tbody tr.flag:hover{background:color-mix(in srgb,var(--bad-bg) 80%,var(--muted))}
+.sev{display:inline-flex;align-items:center;justify-content:center;width:26px;height:20px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:700}
+.sev.p0{background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad-bd)}
+.sev.p1{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-bd)}
+.sev.p2{background:var(--info-bg);color:var(--info);border:1px solid var(--info-bd)}
+.sev.p3{background:var(--muted);color:var(--muted-foreground);border:1px solid var(--border)}
+.score{font-family:var(--mono);font-size:12px;font-weight:700}
+.score.hi{color:var(--bad)} .score.md{color:var(--warn)} .score.lo{color:var(--muted-foreground)}
+/* sparkbar */
+.sparkbar{display:flex;align-items:flex-end;gap:1.5px;height:22px}
+.sparkbar span{display:block;width:4px;border-radius:1.5px 1.5px 0 0;background:var(--muted-foreground);opacity:.4}
+.sparkbar span.hi{opacity:1;background:var(--bad)}
+/* error rate trend SVG */
+.trend-svg{display:block}
+.needs-owner{font-weight:700;color:var(--bad)}
+.regression{font-size:10px;font-weight:600;color:var(--c5);background:color-mix(in srgb,var(--c5) 10%,transparent);border:1px solid color-mix(in srgb,var(--c5) 25%,transparent);padding:1px 6px;border-radius:100px;margin-left:6px}
+.foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+.foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">BT</span>Bug Triage<span class="sub">May 23, 2026 · 09:01 UTC</span></div>
+  <div class="sync"><span class="dot"></span>Sentry + Jira + GitHub · 2 min ago</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Daily Triage Board</h1>
+      <p>Bugs ranked by priority score — severity, frequency, and customer impact.</p>
+    </div>
+    <span class="badge bad">2 need-owner items</span>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Open bugs (total)</div><div class="v num">31</div><div class="c warn">↑ 4 vs yesterday</div></div>
+    <div class="kpi card"><div class="l">P0 / P1 open</div><div class="v num">2 <small>/ 5</small></div><div class="c bad">1 regression (P1)</div></div>
+    <div class="kpi card"><div class="l">Bugs &gt;14 days old</div><div class="v num">3</div><div class="c warn">debt accumulating</div></div>
+    <div class="kpi card"><div class="l">New today (Sentry)</div><div class="v num">7</div><div class="c">1,247 + 642 occurrences</div></div>
+  </section>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-h"><div><div class="t">Bug Triage — Ranked by Priority Score</div><div class="d">Score = (severity × 3) + (log occurrences × 20) + (affected customers × 2)</div></div><span class="meta">Pulled 09:01 UTC</span></div>
+    <div class="card-b" style="padding-top:6px;overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Sev</th><th>Score</th><th style="min-width:260px">Title</th>
+            <th>Occurrences (7d)</th><th class="r">Cust.</th><th class="r">Age</th><th>Owner</th><th>Source</th>
+          </tr>
+        </thead>
+        <tbody id="bug-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <section class="grid g-2">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Error rate trend — last 14 days</div><div class="d">Sentry event count per day across all issues</div></div><span class="meta">P0+P1 only</span></div>
+      <div class="card-b">
+        <svg id="trend-svg" class="trend-svg" width="100%" height="130" viewBox="0 0 560 130" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-h"><div><div class="t">Needs Owner</div><div class="d">P0/P1 bugs without an assigned engineer</div></div><span class="badge bad">2</span></div>
+        <div class="card-b" id="needs-owner"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><div class="t">Regressions</div><div class="d">Bugs re-opened after a fix</div></div><span class="badge warn">1</span></div>
+        <div class="card-b" id="regressions"></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Built from <code>triage/raw-sentry-2026-05-23.md</code> + <code>triage/raw-issues-2026-05-23.md</code> using <code>triage/ownership-map.md</code>. Full digest: <code>triage/daily-2026-05-23.md</code>.</p>
+</main>
+
+<script>
+'use strict';
+const BUGS=[
+  {rank:1,sev:'P0',score:94,title:'NullPointerException in PaymentService.processCharge — checkout failures',regression:false,
+   occ:[420,380,510,490,620,780,1247],cust:89,age:'0d',owner:'Maya Chen',src:'Sentry',needsOwner:false},
+  {rank:2,sev:'P1',score:71,title:'[REGRESSION] Payment webhooks delayed >5 min on Stripe events',regression:true,
+   occ:[0,0,22,41,28,15,0],cust:12,age:'3d',owner:'Maya Chen',src:'Jira ENG-7712',needsOwner:false},
+  {rank:3,sev:'P1',score:58,title:'Auth: JWT expired errors spiking — users force-logged-out',regression:false,
+   occ:[18,24,30,95,210,380,642],cust:211,age:'1d',owner:'Mira Osei',src:'Sentry',needsOwner:false},
+  {rank:4,sev:'P1',score:45,title:'Checkout: duplicate charges on retry — race condition',regression:false,
+   occ:[0,0,0,0,3,7,12],cust:7,age:'2d',owner:'',src:'Jira ENG-7715',needsOwner:true},
+  {rank:5,sev:'P2',score:34,title:'Billing: proration calculation wrong for mid-cycle downgrades',regression:false,
+   occ:[0,0,0,1,2,3,4],cust:7,age:'6d',owner:'Tomas Blunck',src:'Jira ENG-7698',needsOwner:false},
+  {rank:6,sev:'P1',score:32,title:'File upload: ECONNRESET on large files (>50MB)',regression:false,
+   occ:[14,18,22,30,45,62,83],cust:34,age:'2d',owner:'',src:'Sentry',needsOwner:true},
+  {rank:7,sev:'P2',score:22,title:'Dashboard: sparkline charts blank in Firefox 126',regression:false,
+   occ:[0,0,0,0,0,0,0],cust:0,age:'9d',owner:'Dani Reyes',src:'Jira ENG-7681',needsOwner:false},
+  {rank:8,sev:'P3',score:14,title:'Notification emails: unsubscribe link 404 on old-format tokens',regression:false,
+   occ:[4,5,4,6,7,8,31],cust:31,age:'4d',owner:'Tomas Blunck',src:'Sentry',needsOwner:false},
+];
+
+// error rate trend data (daily Sentry event counts, last 14 days)
+const TREND_DATA=[142,180,165,210,240,280,320,410,380,520,690,820,1100,1890];
+const TREND_LABELS=['M10','T11','W12','T13','F14','S15','S16','M17','T18','W19','T20','F21','M22','F23'];
+
+function spark(occ){
+  const max=Math.max(...occ,1);
+  return `<div class="sparkbar">${occ.map((v,i)=>{
+    const h=Math.max(3,Math.round((v/max)*22));
+    const isLast=i===occ.length-1;
+    return `<span style="height:${h}px" class="${isLast&&v>300?'hi':''}"></span>`;
+  }).join('')}</div>`;
+}
+
+function scoreClass(s){return s>=70?'hi':s>=30?'md':'lo';}
+
+document.getElementById('bug-table').innerHTML=BUGS.map(b=>{
+  const sevCls=b.sev==='P0'?'p0':b.sev==='P1'?'p1':b.sev==='P2'?'p2':'p3';
+  const rowCls=b.needsOwner?'flag':'';
+  const ownerCell=b.needsOwner
+    ?`<span class="needs-owner">NEEDS OWNER</span>`
+    :`<span style="font-size:12px">${b.owner}</span>`;
+  return `<tr class="${rowCls}">
+    <td class="num" style="font-family:var(--mono);font-size:11px;color:var(--muted-foreground)">${b.rank}</td>
+    <td><span class="sev ${sevCls}">${b.sev}</span></td>
+    <td><span class="score ${scoreClass(b.score)} num">${b.score}</span></td>
+    <td><span style="font-weight:500">${b.title}</span>${b.regression?'<span class="regression">REGRESSION</span>':''}</td>
+    <td>${spark(b.occ)}</td>
+    <td class="r num" style="font-size:12px">${b.cust>0?b.cust:'—'}</td>
+    <td class="r" style="font-family:var(--mono);font-size:11px;color:${parseInt(b.age)>=9?'var(--warn)':parseInt(b.age)>=14?'var(--bad)':'var(--muted-foreground)'}">${b.age}</td>
+    <td>${ownerCell}</td>
+    <td style="font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);white-space:nowrap">${b.src}</td>
+  </tr>`;}).join('');
+
+// error rate trend chart
+(function(){
+  const svg=document.getElementById('trend-svg');
+  const W=560,H=130,PAD={t:14,r:16,b:26,l:36};
+  const iW=W-PAD.l-PAD.r, iH=H-PAD.t-PAD.b;
+  const max=Math.max(...TREND_DATA)*1.1;
+  const pts=TREND_DATA.length;
+  const xS=i=>PAD.l+i*(iW/(pts-1));
+  const yS=v=>PAD.t+iH-(v/max)*iH;
+  let g='';
+  // grid lines
+  [0,500,1000,1500].forEach(v=>{
+    const y=yS(v);
+    g+=`<line x1="${PAD.l}" y1="${y}" x2="${W-PAD.r}" y2="${y}" stroke="var(--border)" stroke-width="1"/>`;
+    g+=`<text x="${PAD.l-4}" y="${y+4}" text-anchor="end" font-size="9" fill="var(--muted-foreground)" font-family="'JetBrains Mono'">${v>=1000?v/1000+'k':v}</text>`;
+  });
+  // x labels
+  TREND_LABELS.forEach((l,i)=>{
+    if(i%2===0||i===pts-1)
+      g+=`<text x="${xS(i)}" y="${H-8}" text-anchor="middle" font-size="9" fill="var(--muted-foreground)" font-family="'JetBrains Mono'">${l}</text>`;
+  });
+  // area fill
+  const areaD=TREND_DATA.map((v,i)=>`${i===0?'M':'L'}${xS(i)},${yS(v)}`).join(' ')
+    +`L${xS(pts-1)},${PAD.t+iH} L${PAD.l},${PAD.t+iH}Z`;
+  g+=`<path d="${areaD}" fill="var(--bad)" opacity=".08"/>`;
+  // line
+  const lineD=TREND_DATA.map((v,i)=>`${i===0?'M':'L'}${xS(i)},${yS(v)}`).join(' ');
+  g+=`<path d="${lineD}" fill="none" stroke="var(--bad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // last point
+  const lx=xS(pts-1), ly=yS(TREND_DATA[pts-1]);
+  g+=`<circle cx="${lx}" cy="${ly}" r="4" fill="var(--bad)"/>`;
+  g+=`<text x="${lx}" y="${ly-8}" text-anchor="end" font-size="9" font-weight="600" fill="var(--bad)" font-family="'JetBrains Mono'">1,890</text>`;
+  svg.innerHTML=g;
+})();
+
+document.getElementById('needs-owner').innerHTML=BUGS.filter(b=>b.needsOwner).map(b=>`
+  <div style="padding:10px 0;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="badge bad">${b.sev}</span>
+      <span style="font-weight:600;font-size:13px">Score ${b.score}</span>
+    </div>
+    <div style="font-size:13px">${b.title}</div>
+    <div style="font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground)">${b.src}</div>
+  </div>`).join('').replace(/^<div[^>]*>.*?border-top[^>]*>/, s=>s.replace('border-top:1px solid var(--border);',''));
+
+document.getElementById('regressions').innerHTML=`
+  <div style="padding:10px 0">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span class="badge warn">P1</span>
+      <span class="regression">REGRESSION</span>
+    </div>
+    <div style="font-weight:600;font-size:13px;margin-bottom:4px">Payment webhooks delayed >5 min on Stripe events</div>
+    <div style="font-size:12px;color:var(--muted-foreground)">Last closed: 2026-05-12 — fix: Stripe webhook lib upgraded to v4.1. Re-opened after v2.4.0 deploy. Suspected cause: Stripe event queue config reverted.</div>
+    <div style="font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);margin-top:4px">Jira ENG-7712 · Owner: Maya Chen</div>
+  </div>`;
+</script>
+</body>
+</html>

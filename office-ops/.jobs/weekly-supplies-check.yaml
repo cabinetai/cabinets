@@ -1,0 +1,45 @@
+id: weekly-supplies-check
+name: Weekly Supplies & Reorder Check
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: ops-workflow
+agentSlug: ops-workflow
+timeout: 600
+prompt: |-
+  Run the weekly supplies audit and generate the reorder list for the office
+  manager.
+
+  Read `supplies/inventory.yaml`.
+
+  STEP 1 — FULL INVENTORY AUDIT
+  For each supply item, report:
+  - Current level vs. reorder threshold vs. max capacity
+  - Status: OK / Low (at threshold) / Critical (below threshold) / Out
+  - Days of supply remaining (estimate from weekly consumption rate if known)
+  - Last restocked date
+
+  STEP 2 — REORDER LIST
+  For all items at or below reorder threshold:
+  - Item name, SKU, supplier, unit cost, recommended reorder quantity, total cost
+  - If auto_reorder = true: log as "reorder queued" and update last_reorder_date
+  - If item cost > $200 or requires vendor approval: flag for Procurement Intake
+    (create a request entry in the Procurement Intake cabinet's intake form)
+
+  STEP 3 — USAGE TRENDS
+  Note any items that have been restocked more than 2× in the past 4 weeks
+  (possible underthreshold or usage spike — consider increasing par level).
+  Note any items that haven't been touched in 4 weeks (overstock — consider
+  reducing par level or pausing reorders).
+
+  STEP 4 — NEXT WEEK PREP
+  Confirm supplies are adequate for any high-attendance events or all-hands
+  in `visitors/schedule.yaml` in the next 7 days.
+
+  STEP 5 — WRITE REPORT
+  Write to `reports/supplies-<YYYY-MM-DD>.md` with a reorder table and
+  usage notes. Update `supplies/inventory.yaml` with any auto-reorders logged.
+cabinetPath: cabinet-examples/cabinets/office-ops
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

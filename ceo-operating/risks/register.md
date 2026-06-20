@@ -1,0 +1,20 @@
+# Risk Register
+
+_Maintained by Operating Analyst. Severity: Critical / High / Medium / Low._
+_Severity reassessed 2026-06-18 on new information: the Workflow Manager's Friday chase ([[friday-chase-2026-06-12]]) plus the passage of four hard trigger dates (Series B LOI May 30, AcmeCorp signing May 29, VP Marketing offer May 31, Meridian 2.0 GA June 15) — all now past with no outcome recorded in the decisions log._
+
+| ID | Risk | Owner | Severity | Status | Mitigation | Last Updated |
+|---|---|---|---|---|---|---|
+| R-013 | Operating-data blackout — 21+ days with zero owner status updates; leadership is deciding on reconstructed, unverified inputs across every Q2 priority | Chief of Staff | High | Active | Monday memo to demand a one-line status + new due date from each owner by EOD Mon; restore the weekly update cadence. Source: friday-chase-2026-06-12, actions/tracker.md | 2026-06-18 |
+| R-012 | Series B closes late — runway hits <5 months before close | CFO | Critical | Active | **Trigger date passed:** May 30 LOI deadline is 19d gone with no close recorded in decisions/log.md. Bridge-loan standby (A-020) unconfirmed since legal review (May 22). Verify close status before runway compounds. | 2026-06-18 |
+| R-011 | VP Marketing hire misses deadline — no marketing leadership into Q3 | CEO | High | Active | **Deadline passed:** May 31 gone; top candidate declined, finalist #2 interview (May 26, A-026) result never logged. Base case is now no marketing lead into Q3 — confirm whether an offer was extended or fall back to interim agency. | 2026-06-18 |
+| R-010 | AcmeCorp deal slips past Q2 close — misses MRR target | CRO | High | Active | **Deadline passed:** May 29 signing date gone; signature not recorded (A-024 confirmed legal-team alignment May 22 only). Q2 MRR target hinges on this $180K ARR close — CRO to verify whether contract executed. | 2026-06-18 |
+| R-009 | Meridian 2.0 ships with critical bugs — delays GA past June 15 | CPO | High | Active | **GA window resolved:** June 15 target passed (today June 18); ship + quality status unverified. Feature-freeze comms (A-023) never confirmed sent. Confirm whether 2.0 GA'd and shipped clean. | 2026-06-18 |
+| R-008 | Northwind pricing cut ($99→$79) accelerates churn in mid-market cohort | CRO | Medium | Active | CS pre-empting renewals with TCO + data-residency one-pager (battlecard updated May 19, A-021). Still live in upcoming renewals; watch mid-market NRR once data feed returns. | 2026-06-18 |
+| R-007 | Burn remains $180K over Q2 plan — OpEx audit recommendations not yet approved | CFO | Medium | Pending | Audit complete; approval meeting was scheduled May 27 (A-027) — outcome never logged, 22d later. Cuts unrealized until this lands; confirm decision. | 2026-06-18 |
+| R-006 | Key engineer (Priya Mehta) at retention risk — competing offer received | CPO | High | Active | **Escalated Medium→High (2026-06-18):** equity refresh approved in principle May 15, but the retention conversation + letter (A-025) is 19d overdue and never confirmed. A month of inaction against a live competing offer raises loss probability — hold the conversation now. | 2026-06-18 |
+| R-005 | Customer churn: 2 SMB accounts churned in May (combined $48K ARR) | Head of CS | Low | Monitoring | Post-mortem complete; ICP tightening in progress. No new churn data this cycle (KPI feed stale since May 19). | 2026-06-18 |
+
+## Analyst note (2026-06-18)
+
+No new business data arrived this cycle — only the passage of time against fixed deadlines. Four risks (R-012, R-011, R-010, R-009) have crossed their trigger dates with no recorded outcome, which is itself the signal: these are no longer forward-looking risks, they are unverified events. R-006 escalated to High on inaction, not on new threat. R-013 (the blackout) is logged because leadership cannot soundly weigh any of the above while the underlying status reporting is dark. Severity reductions are deliberately withheld until verified updates land — absence of bad news is not good news here.

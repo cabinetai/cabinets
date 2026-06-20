@@ -1,0 +1,58 @@
+id: offboarding-kickoff
+name: Offboarding Kickoff
+enabled: false
+schedule: 0 9 * * *
+provider: claude-code
+adapterType: claude_local
+ownerAgent: offboarding-workflow
+agentSlug: offboarding-workflow
+timeout: 900
+prompt: |-
+  Initialize a new employee offboarding. The trigger file is at
+  `/offboardings/triggers/<trigger-file>.md` with fields: employee_id, display_name_slug,
+  last_day (ISO date), department, manager, role, device_list.
+
+  Step 1 — Create the offboarding directory.
+    Path: `/offboardings/<employee-id>-<YYYYMMDD>/`
+    where YYYYMMDD is the last_day date.
+
+  Step 2 — Generate the checklist at `/offboardings/<employee-id>-<YYYYMMDD>/checklist.md`.
+    Include all mandatory steps in four categories, each with: step name, owner,
+    deadline (relative to last day), status (pending), and notes field.
+
+    ACCESS (mandatory):
+      - Suspend SSO (Okta/Entra): IT Ops Admin, last_day 17:00 local
+      - Revoke email access: IT Ops Admin, last_day + 1 business day
+      - Remove from all security groups: IT Security, last_day + 2 business days
+      - Terminate API tokens and service accounts: IT Ops Admin, last_day + 3 business days
+      - Remove from VPN/network ACLs: NetOps, last_day + 1 business day
+
+    DEVICES (mandatory if device_list is non-empty):
+      - Confirm device list (from Jamf/Kandji): IT Ops, last_day - 3 business days
+      - Arrange device return (office/shipping/pickup): IT Ops, last_day
+      - Confirm device received or initiate remote wipe: IT Ops, last_day + 5 business days
+
+    DATA:
+      - Set up email forwarding to manager (30-day minimum): IT Ops Admin, last_day
+      - Transfer Google Drive / OneDrive ownership to manager: IT Ops Admin, last_day + 1
+      - Reassign shared document ownership: IT Ops Admin, last_day + 2
+      - Archive Slack messages (if required by policy): IT Ops, last_day + 3
+
+    COMMS:
+      - Notify direct team (factual, no reason given): Manager, last_day - 1 business day
+      - Notify IT mailing list (access cleanup note): IT Ops, last_day
+      - Cancel company expense card: Finance, last_day
+      - Offboard from HR systems: HR, last_day
+
+  Step 3 — Initialize the audit log at `/offboardings/<employee-id>-<YYYYMMDD>/audit-log.md`.
+    Write the initialization entry: timestamp, trigger source, checklist created.
+
+  Step 4 — Notify the compliance agent. Append the offboarding ID to
+    `/offboardings/active-offboardings.md`.
+
+  Step 5 — Write a kickoff summary to `/offboardings/<employee-id>-<YYYYMMDD>/kickoff.md`:
+    key dates, owner roster, risk flags (e.g., sensitive-role employee, admin access,
+    many devices).
+cabinetPath: cabinet-examples/cabinets/employee-offboarding
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

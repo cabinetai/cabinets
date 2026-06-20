@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quantum Tunneling</title>
+<style>
+  :root {
+    --bg: #111317;
+    --panel: #191d23;
+    --panel-2: #20262d;
+    --line: #343d46;
+    --text: #eef2e8;
+    --muted: #aeb8ad;
+    --amber: #f5b84b;
+    --cyan: #54d2c6;
+    --red: #e96558;
+    --green: #9bd66f;
+    --violet: #b78cf0;
+    --shadow: rgba(0, 0, 0, 0.35);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 13% 12%, rgba(183, 140, 240, 0.16), transparent 28rem),
+      radial-gradient(circle at 88% 82%, rgba(84, 210, 198, 0.14), transparent 24rem),
+      linear-gradient(135deg, #15181d 0%, #101114 46%, #181420 100%);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 22px;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  .app-shell {
+    width: min(1220px, 100%);
+    min-height: calc(100vh - 44px);
+    margin: 0 auto;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 16px;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 16px;
+  }
+
+  .eyebrow {
+    margin: 0 0 4px;
+    color: var(--violet);
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 3.05rem);
+    line-height: 1;
+    font-weight: 800;
+  }
+
+  .view-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    min-width: 224px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(12, 14, 17, 0.72);
+    box-shadow: 0 14px 36px var(--shadow);
+  }
+
+  .view-toggle button,
+  .actions button {
+    min-height: 39px;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text);
+    background: transparent;
+    transition: background 0.16s ease, color 0.16s ease, transform 0.08s ease;
+  }
+
+  .view-toggle button:hover,
+  .actions button:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .view-toggle button:active,
+  .actions button:active {
+    transform: translateY(1px);
+  }
+
+  .view-toggle button[aria-pressed="true"] {
+    background: linear-gradient(135deg, rgba(183, 140, 240, 0.26), rgba(84, 210, 198, 0.24));
+    color: #ffffff;
+  }
+
+  .main-grid {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(260px, 318px) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .controls {
+    align-self: start;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(25, 29, 35, 0.88);
+    box-shadow: 0 18px 48px var(--shadow);
+    padding: 16px;
+  }
+
+  .control-group {
+    padding: 0 0 16px;
+    margin: 0 0 16px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .control-group:last-child {
+    border-bottom: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  legend {
+    padding: 0;
+    margin-bottom: 12px;
+    color: var(--amber);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .slider-row {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .slider-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .label-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+
+  output {
+    min-width: 74px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--violet);
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .actions button {
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+  }
+
+  .actions button.primary {
+    border-color: rgba(183, 140, 240, 0.45);
+    background: rgba(183, 140, 240, 0.16);
+  }
+
+  .hint {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .canvas-area {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(460px, 1fr) auto;
+    gap: 12px;
+  }
+
+  .canvas-wrap {
+    min-height: 460px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #090b0e;
+    box-shadow: 0 22px 54px var(--shadow);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 460px;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .metric {
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(25, 29, 35, 0.82);
+    padding: 10px 12px;
+  }
+
+  .metric span {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .metric strong {
+    display: block;
+    color: var(--text);
+    font-size: clamp(0.96rem, 1.2vw, 1.2rem);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .metric.transmit strong {
+    color: var(--green);
+  }
+
+  .metric.reflect strong {
+    color: var(--red);
+  }
+
+  @media (max-width: 860px) {
+    body {
+      padding: 14px;
+    }
+
+    .app-shell {
+      min-height: calc(100vh - 28px);
+    }
+
+    .topbar {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .view-toggle {
+      min-width: 0;
+    }
+
+    .main-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .canvas-area {
+      grid-template-rows: minmax(420px, 62vh) auto;
+    }
+
+    .canvas-wrap,
+    canvas {
+      min-height: 420px;
+    }
+
+    .metrics {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 520px) {
+    body {
+      padding: 10px;
+    }
+
+    .metrics {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Wave-mechanics bench</p>
+      <h1>Quantum Tunneling</h1>
+    </div>
+    <div class="view-toggle" role="group" aria-label="Display mode">
+      <button id="densityView" type="button" aria-pressed="true">|ψ|²</button>
+      <button id="waveView" type="button" aria-pressed="false">Re / Im</button>
+    </div>
+  </header>
+
+  <main class="main-grid">
+    <aside class="controls" aria-label="Experiment controls">
+      <fieldset class="control-group">
+        <legend>Particle</legend>
+        <label class="slider-row" for="energy">
+          <span class="label-line">
+            <span>Energy E</span>
+            <output id="energyOut" for="energy">0.50 eV*</output>
+          </span>
+          <input id="energy" type="range" min="0.08" max="1.40" value="0.50" step="0.01" />
+        </label>
+        <label class="slider-row" for="packet">
+          <span class="label-line">
+            <span>Packet width</span>
+            <output id="packetOut" for="packet">42</output>
+          </span>
+          <input id="packet" type="range" min="18" max="70" value="42" step="1" />
+        </label>
+      </fieldset>
+
+      <fieldset class="control-group">
+        <legend>Barrier</legend>
+        <label class="slider-row" for="height">
+          <span class="label-line">
+            <span>Height V₀</span>
+            <output id="heightOut" for="height">0.80 eV*</output>
+          </span>
+          <input id="height" type="range" min="0.00" max="1.60" value="0.80" step="0.01" />
+        </label>
+        <label class="slider-row" for="thick">
+          <span class="label-line">
+            <span>Thickness a</span>
+            <output id="thickOut" for="thick">24</output>
+          </span>
+          <input id="thick" type="range" min="4" max="70" value="24" step="1" />
+        </label>
+      </fieldset>
+
+      <fieldset class="control-group">
+        <legend>Run</legend>
+        <div class="actions">
+          <button id="runToggle" class="primary" type="button">Pause</button>
+          <button id="fire" type="button">Fire packet</button>
+        </div>
+      </fieldset>
+
+      <p class="hint">Drag a slider to reload the packet. When E &lt; V₀ a classical particle is forbidden — yet a fraction leaks through. That fraction is the tunneling probability.</p>
+    </aside>
+
+    <section class="canvas-area" aria-label="Tunneling simulation">
+      <div class="canvas-wrap">
+        <canvas id="scene"></canvas>
+      </div>
+      <div class="metrics" aria-live="polite">
+        <div class="metric">
+          <span>Regime</span>
+          <strong id="regimeMetric">Tunneling</strong>
+        </div>
+        <div class="metric transmit">
+          <span>Transmitted</span>
+          <strong id="transMetric">0%</strong>
+        </div>
+        <div class="metric reflect">
+          <span>Reflected</span>
+          <strong id="reflMetric">0%</strong>
+        </div>
+        <div class="metric">
+          <span>Theory T</span>
+          <strong id="theoryMetric">—</strong>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // Time-dependent Schrödinger equation in natural units (hbar = m = 1).
+  // Integrated with Visscher's staggered real/imaginary leapfrog scheme, which
+  // conserves norm and is unconditionally well-behaved for small dt. The "eV*"
+  // labels are illustrative scaled units, not literal electron-volts.
+
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d", { alpha: false });
+
+  const controls = {
+    energy: document.getElementById("energy"),
+    packet: document.getElementById("packet"),
+    height: document.getElementById("height"),
+    thick: document.getElementById("thick")
+  };
+
+  const out = {
+    energy: document.getElementById("energyOut"),
+    packet: document.getElementById("packetOut"),
+    height: document.getElementById("heightOut"),
+    thick: document.getElementById("thickOut"),
+    regime: document.getElementById("regimeMetric"),
+    trans: document.getElementById("transMetric"),
+    refl: document.getElementById("reflMetric"),
+    theory: document.getElementById("theoryMetric")
+  };
+
+  const buttons = {
+    density: document.getElementById("densityView"),
+    wave: document.getElementById("waveView"),
+    run: document.getElementById("runToggle"),
+    fire: document.getElementById("fire")
+  };
+
+  const N = 640;          // spatial grid points
+  const DX = 1.0;         // grid spacing
+  const DT = 0.16;        // time step (Visscher-stable for the energies used)
+  const SUBSTEPS = 7;     // integration steps per animation frame
+  const ABSORB = 56;      // width of the absorbing layers at each edge
+  const BARRIER_CENTER = Math.round(N * 0.56);
+
+  const sim = {
+    re: new Float64Array(N),
+    im: new Float64Array(N),
+    imPrev: new Float64Array(N),
+    pot: new Float64Array(N),
+    mask: new Float64Array(N),
+    view: "density",
+    running: true,
+    params: null
+  };
+
+  // Build a smooth absorbing mask so the packet does not wrap around the box.
+  for (let i = 0; i < N; i += 1) {
+    let m = 1;
+    if (i < ABSORB) {
+      const t = i / ABSORB;
+      m = Math.sin(t * Math.PI * 0.5) ** 2;
+    } else if (i >= N - ABSORB) {
+      const t = (N - 1 - i) / ABSORB;
+      m = Math.sin(t * Math.PI * 0.5) ** 2;
+    }
+    sim.mask[i] = 0.5 + 0.5 * m; // gentle damping, full strength only at the very edge
+  }
+
+  function readParams() {
+    return {
+      energy: Number(controls.energy.value),
+      packet: Number(controls.packet.value),
+      height: Number(controls.height.value),
+      thick: Number(controls.thick.value)
+    };
+  }
+
+  function barrierBounds(p) {
+    const half = p.thick / 2;
+    return { left: BARRIER_CENTER - half, right: BARRIER_CENTER + half };
+  }
+
+  function buildPotential(p) {
+    const { left, right } = barrierBounds(p);
+    for (let i = 0; i < N; i += 1) {
+      sim.pot[i] = i >= left && i <= right ? p.height : 0;
+    }
+  }
+
+  // Load a fresh Gaussian wave packet travelling to the right.
+  function loadPacket(p) {
+    buildPotential(p);
+    const x0 = N * 0.26;
+    const sigma = p.packet;
+    const k0 = Math.sqrt(2 * p.energy); // E = k^2 / 2  ->  k = sqrt(2E)
+    let norm = 0;
+
+    for (let i = 0; i < N; i += 1) {
+      const x = i * DX;
+      const env = Math.exp(-((x - x0) ** 2) / (2 * sigma * sigma));
+      sim.re[i] = env * Math.cos(k0 * x);
+      sim.im[i] = env * Math.sin(k0 * x);
+      norm += sim.re[i] * sim.re[i] + sim.im[i] * sim.im[i];
+    }
+
+    const scale = 1 / Math.sqrt(norm * DX);
+    for (let i = 0; i < N; i += 1) {
+      sim.re[i] *= scale;
+      sim.im[i] *= scale;
+      sim.imPrev[i] = sim.im[i];
+    }
+
+    // Half-step the imaginary part so re and im are staggered in time.
+    halfStepIm(0.5 * DT);
+    sim.params = p;
+  }
+
+  // H f = -0.5 f'' + V f, with f'' from the 3-point stencil.
+  function applyH(field, i) {
+    const lap = (field[i - 1] - 2 * field[i] + field[i + 1]) / (DX * DX);
+    return -0.5 * lap + sim.pot[i] * field[i];
+  }
+
+  function halfStepIm(dt) {
+    const next = sim.imPrev; // reuse buffer
+    for (let i = 1; i < N - 1; i += 1) {
+      next[i] = sim.im[i] - dt * applyH(sim.re, i);
+    }
+    next[0] = next[N - 1] = 0;
+    for (let i = 0; i < N; i += 1) {
+      sim.im[i] = next[i];
+    }
+  }
+
+  // One full Visscher step: advance re by dt using im, then im by dt using re.
+  function step() {
+    const re = sim.re;
+    const im = sim.im;
+
+    sim.imPrev.set(im); // remember im(t) for the conserved density estimate
+
+    for (let i = 1; i < N - 1; i += 1) {
+      re[i] += DT * applyH(im, i);
+    }
+    re[0] = re[N - 1] = 0;
+
+    for (let i = 1; i < N - 1; i += 1) {
+      im[i] -= DT * applyH(re, i);
+    }
+    im[0] = im[N - 1] = 0;
+
+    // Absorbing boundaries.
+    for (let i = 0; i < N; i += 1) {
+      re[i] *= sim.mask[i];
+      im[i] *= sim.mask[i];
+    }
+  }
+
+  // Visscher density: rho = re(t)^2 + im(t+dt/2) * im(t-dt/2)  (non-negative, conserved).
+  function density(i) {
+    const d = sim.re[i] * sim.re[i] + sim.im[i] * sim.imPrev[i];
+    return d > 0 ? d : 0;
+  }
+
+  function measure(p) {
+    const { left, right } = barrierBounds(p);
+    let reflected = 0;
+    let inside = 0;
+    let transmitted = 0;
+
+    for (let i = ABSORB; i < N - ABSORB; i += 1) {
+      const d = density(i);
+      if (i < left) reflected += d;
+      else if (i > right) transmitted += d;
+      else inside += d;
+    }
+
+    const total = reflected + inside + transmitted;
+    if (total <= 1e-9) return { trans: 0, refl: 0 };
+    return { trans: transmitted / total, refl: reflected / total };
+  }
+
+  // Analytic transmission for a rectangular barrier (the textbook formula).
+  function theoryT(p) {
+    const E = p.energy;
+    const V0 = p.height;
+    const a = p.thick;
+    if (V0 <= 0) return 1;
+    if (E < V0) {
+      const kappa = Math.sqrt(2 * (V0 - E));
+      const s = Math.sinh(kappa * a);
+      return 1 / (1 + (V0 * V0 * s * s) / (4 * E * (V0 - E)));
+    }
+    if (E > V0) {
+      const k2 = Math.sqrt(2 * (E - V0));
+      const s = Math.sin(k2 * a);
+      return 1 / (1 + (V0 * V0 * s * s) / (4 * E * (E - V0)));
+    }
+    // E == V0 exactly.
+    const denom = 1 + (V0 * a * a) / 2;
+    return 1 / denom;
+  }
+
+  function syncControls() {
+    const p = readParams();
+    out.energy.textContent = `${p.energy.toFixed(2)} eV*`;
+    out.packet.textContent = `${p.packet}`;
+    out.height.textContent = `${p.height.toFixed(2)} eV*`;
+    out.thick.textContent = `${p.thick}`;
+
+    const tunneling = p.energy < p.height;
+    out.regime.textContent = p.height <= 0.001 ? "Free" : tunneling ? "Tunneling" : "Over-barrier";
+    out.theory.textContent = `${Math.round(theoryT(p) * 100)}%`;
+  }
+
+  function reload() {
+    syncControls();
+    loadPacket(readParams());
+  }
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const width = Math.max(320, Math.floor(rect.width));
+    const height = Math.max(360, Math.floor(rect.height));
+
+    if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    sim.cssW = width;
+    sim.cssH = height;
+  }
+
+  function xToPx(i, w) {
+    return (i / (N - 1)) * w;
+  }
+
+  function drawBackground(w, h) {
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, "#0c0f12");
+    g.addColorStop(0.52, "#10131a");
+    g.addColorStop(1, "#161220");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = "#29323a";
+    ctx.lineWidth = 1;
+    const step = Math.max(36, Math.floor(w / 18));
+    for (let x = step; x < w; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 18);
+      ctx.lineTo(x, h - 18);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawBarrier(p, w, h, baseY) {
+    const { left, right } = barrierBounds(p);
+    const xl = xToPx(left, w);
+    const xr = xToPx(right, w);
+    const maxV = 1.6;
+    const barH = Math.min(baseY - 24, (p.height / maxV) * (h * 0.62));
+
+    if (p.height > 0.001) {
+      const grad = ctx.createLinearGradient(0, baseY - barH, 0, baseY);
+      grad.addColorStop(0, "rgba(245, 184, 75, 0.30)");
+      grad.addColorStop(1, "rgba(245, 184, 75, 0.06)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(xl, baseY - barH, xr - xl, barH);
+
+      ctx.strokeStyle = "rgba(245, 184, 75, 0.85)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(xl, baseY);
+      ctx.lineTo(xl, baseY - barH);
+      ctx.lineTo(xr, baseY - barH);
+      ctx.lineTo(xr, baseY);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(245, 184, 75, 0.9)";
+      ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText(`V₀ = ${p.height.toFixed(2)}`, xr + 8, baseY - barH + 12);
+    }
+  }
+
+  function drawDensity(w, h, baseY) {
+    let peak = 0;
+    for (let i = ABSORB; i < N - ABSORB; i += 1) {
+      const d = density(i);
+      if (d > peak) peak = d;
+    }
+    const scale = peak > 1e-9 ? (h * 0.42) / peak : 0;
+
+    ctx.beginPath();
+    ctx.moveTo(xToPx(0, w), baseY);
+    for (let i = 0; i < N; i += 1) {
+      ctx.lineTo(xToPx(i, w), baseY - density(i) * scale);
+    }
+    ctx.lineTo(xToPx(N - 1, w), baseY);
+    ctx.closePath();
+
+    const fill = ctx.createLinearGradient(0, baseY - h * 0.42, 0, baseY);
+    fill.addColorStop(0, "rgba(183, 140, 240, 0.55)");
+    fill.addColorStop(1, "rgba(84, 210, 198, 0.08)");
+    ctx.fillStyle = fill;
+    ctx.fill();
+
+    ctx.beginPath();
+    for (let i = 0; i < N; i += 1) {
+      const x = xToPx(i, w);
+      const y = baseY - density(i) * scale;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = "rgba(214, 198, 248, 0.95)";
+    ctx.lineWidth = 1.8;
+    ctx.shadowColor = "rgba(183, 140, 240, 0.7)";
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawWave(field, color, w, baseY) {
+    let peak = 0;
+    for (let i = ABSORB; i < N - ABSORB; i += 1) {
+      const v = Math.abs(field[i]);
+      if (v > peak) peak = v;
+    }
+    const scale = peak > 1e-9 ? (sim.cssH * 0.2) / peak : 0;
+
+    ctx.beginPath();
+    for (let i = 0; i < N; i += 1) {
+      const x = xToPx(i, w);
+      const y = baseY - field[i] * scale;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  function drawAxis(w, baseY) {
+    ctx.strokeStyle = "rgba(238, 242, 232, 0.18)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, baseY);
+    ctx.lineTo(w, baseY);
+    ctx.stroke();
+  }
+
+  function drawFrame() {
+    resizeCanvas();
+    const w = sim.cssW;
+    const h = sim.cssH;
+    const p = sim.params || readParams();
+
+    drawBackground(w, h);
+
+    if (sim.view === "density") {
+      const baseY = h * 0.86;
+      drawAxis(w, baseY);
+      drawBarrier(p, w, h, baseY);
+      drawDensity(w, h, baseY);
+      ctx.fillStyle = "rgba(174, 184, 173, 0.82)";
+      ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText("probability density |ψ|²", 22, 28);
+    } else {
+      const baseY = h * 0.52;
+      drawAxis(w, baseY);
+      drawBarrier(p, w, h, h * 0.86);
+      drawWave(sim.im, "rgba(84, 210, 198, 0.85)", w, baseY);
+      drawWave(sim.re, "rgba(183, 140, 240, 0.95)", w, baseY);
+      ctx.fillStyle = "rgba(183, 140, 240, 0.9)";
+      ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText("Re ψ", 22, 28);
+      ctx.fillStyle = "rgba(84, 210, 198, 0.9)";
+      ctx.fillText("Im ψ", 64, 28);
+    }
+
+    const m = measure(p);
+    out.trans.textContent = `${Math.round(m.trans * 100)}%`;
+    out.refl.textContent = `${Math.round(m.refl * 100)}%`;
+  }
+
+  function setView(view) {
+    sim.view = view;
+    buttons.density.setAttribute("aria-pressed", view === "density" ? "true" : "false");
+    buttons.wave.setAttribute("aria-pressed", view === "wave" ? "true" : "false");
+  }
+
+  function toggleRunning() {
+    sim.running = !sim.running;
+    buttons.run.textContent = sim.running ? "Pause" : "Run";
+    buttons.run.classList.toggle("primary", sim.running);
+  }
+
+  function loop() {
+    if (sim.running) {
+      for (let s = 0; s < SUBSTEPS; s += 1) {
+        step();
+      }
+    }
+    drawFrame();
+    requestAnimationFrame(loop);
+  }
+
+  for (const control of Object.values(controls)) {
+    control.addEventListener("input", reload);
+  }
+
+  buttons.density.addEventListener("click", () => setView("density"));
+  buttons.wave.addEventListener("click", () => setView("wave"));
+  buttons.run.addEventListener("click", toggleRunning);
+  buttons.fire.addEventListener("click", reload);
+  window.addEventListener("resize", resizeCanvas);
+
+  resizeCanvas();
+  reload();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

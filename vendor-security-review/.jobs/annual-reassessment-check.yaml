@@ -1,0 +1,43 @@
+id: annual-reassessment-check
+name: Annual Reassessment Check
+enabled: true
+schedule: 0 9 1 * *
+provider: claude-code
+adapterType: claude_local
+ownerAgent: compliance-agent
+agentSlug: compliance-agent
+timeout: 600
+prompt: |-
+  Run the monthly check for vendors due for annual security re-assessment.
+
+  Read all approved vendor folders in `vendors/` and their review packets.
+  For each vendor with status = Approved or Approved with Conditions:
+  1. Find the original approval date from `vendors/<name>/review-packet.md`
+  2. Find the vendor's risk tier (Tier 1 / 2 / 3)
+  3. Apply re-assessment cadence rules:
+     - Tier 1: re-assess every 12 months from approval date
+     - Tier 2: re-assess every 18 months from approval date
+     - Tier 3: re-assess every 24 months from approval date
+  4. Flag vendors where the re-assessment is due within the next 60 days
+
+  Also check: if a vendor's SOC2 report on file will expire (be >12 months old)
+  within the next 60 days — flag separately as SOC2-EXPIRING.
+
+  Write the report to `queue/reassessment-due.md` with:
+  - Vendors due for re-assessment within 60 days (name, tier, approval date, due date,
+    original requestor, recommended action)
+  - Vendors with SOC2 expiring within 60 days (name, current SOC2 period end, action)
+  - Summary counts by tier
+
+  For each due vendor, draft a re-assessment request note in
+  `vendors/<name>/reassessment-request.md` that the Compliance Lead can send to
+  the requestor and procurement contact.
+
+  Rules:
+  - Use the original approval date for cadence calculation, not the review start date.
+  - If a vendor has had a material scope change since approval, flag for early re-assessment
+    regardless of cadence.
+  - A vendor with an expired SOC2 and no re-assessment scheduled is a critical finding.
+cabinetPath: cabinets/vendor-security-review
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

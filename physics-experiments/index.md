@@ -26,6 +26,7 @@ Interactive, self-contained simulations of classic physics experiments. Each fol
 ## Quantum
 
 - **Stern-Gerlach Lab** (`stern-gerlach/`) — Frankfurt, 1922. Send silver atoms through a non-uniform magnetic field. Classical physics predicts a smear; the screen shows two discrete spots. Spin is quantized. Now stack analyzers to discover the non-commutativity that built quantum mechanics.
+- **Quantum Tunneling** (`quantum-tunneling/`) — A live Schrödinger solver. Launch a Gaussian wave packet at a potential barrier taller than its own energy — classically forbidden — and watch part of it leak straight through. Tune energy, barrier height, and thickness; the measured transmission tracks the textbook tunneling formula in real time.
 - **Millikan Oil Drop** (`millikan-oil-drop/`) — Chicago, 1909. Suspend tiny charged oil droplets between charged plates, balance gravity against electric force, measure the charge. Find that every drop is an integer multiple of one number: e ≈ 1.602×10⁻¹⁹ C. Charge is quantized too.
 
 ## Solid state
@@ -36,7 +37,7 @@ Interactive, self-contained simulations of classic physics experiments. Each fol
 
 Each experiment is a directory with an `index.html` file plus a `.app` marker so Cabinet renders it full-screen. Built with vanilla JS + Canvas 2D — zero build step, zero external libs. Open any HTML file directly in a browser if you want to hack on it.
 
-## Why these ten
+## Why these eleven
 
 They cover the five moments physics changed:
 
@@ -44,6 +45,7 @@ They cover the five moments physics changed:
 2. **The Earth moves** (Foucault — physics confirms cosmology by direct demo)
 3. **Light is weirder than waves OR particles** (double-slit, wave interference)
 4. **Reality is quantized** (Stern-Gerlach for spin, Millikan for charge)
-5. **Matter is periodic** (Bragg — and once you know that, every transistor follows)
+5. **Matter obeys a wave equation** (quantum tunneling — barriers leak, and once you know that, the scanning tunneling microscope and flash memory follow)
+6. **Matter is periodic** (Bragg — and once you know that, every transistor follows)
 
 Read the cabinet top-to-bottom and you've toured 350 years of physics in the order it actually happened.

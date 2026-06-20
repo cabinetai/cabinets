@@ -1,0 +1,47 @@
+id: daily-request-routing
+name: Daily Request Routing
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: routing-agent
+agentSlug: routing-agent
+timeout: 600
+prompt: |-
+  Run the daily request routing pass. Process ALL requests in
+  `queue-state/requests.yaml` with status "submitted".
+
+  STEP 1 — CLASSIFY AND ROUTE (Routing Agent)
+  For each submitted request, apply `routing-rules.yaml`:
+  - Assign: type (IT/Design/Legal/Finance/Data/Marketing/Ops/Facilities)
+  - Assign: destination_team (the team that owns this request type)
+  - Assign: priority (P1-Urgent/P2-High/P3-Standard/P4-Low) from the
+    priority rules in `routing-rules.yaml`
+  - Assign: sla_tier (same-day/24h/48h/5-day/10-day) from the SLA matrix
+  - Record: routed_at (current timestamp), due_by (routed_at + SLA hours)
+  - Update status to "routed"
+
+  If a request cannot be classified (no matching rule), set type="unclassified",
+  destination_team="ops-general", priority="P3-Standard", sla_tier="48h",
+  add flag: "routing-review".
+
+  STEP 2 — OWNER ASSIGNMENT AND TICKET CREATION (Workflow Agent)
+  For each newly routed request:
+  - Assign a named owner from `team-rosters.yaml` for the destination team
+  - Create a downstream record: log to `queue-state/tickets.yaml` with the
+    ticket reference, owner, and SLA due date
+  - Update status to "in-progress"
+  - Send requester acknowledgement: "Your [type] request (REQ-XXXX) has been
+    received and assigned to [Owner] in [Team]. SLA: [due_by]."
+
+  STEP 3 — SLA BREACH CHECK
+  For all open requests (status: in-progress or blocked), check due_by.
+  - If due_by < (now + 4h): flag as "sla-warning", notify assigned owner
+  - If due_by < now: flag as "sla-breach", notify team lead, log to
+    `queue-state/sla-log.md` with breach duration
+
+  Write a daily routing digest to `queue-state/daily-digest-<YYYY-MM-DD>.md`:
+  # new requests routed, # SLA warnings, # SLA breaches, any unclassified.
+cabinetPath: cabinet-examples/cabinets/universal-request
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

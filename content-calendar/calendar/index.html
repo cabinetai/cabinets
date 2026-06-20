@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Content Calendar · Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:var(--sans)}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+  .kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:6px}
+  .kpi .c{font-size:12px;margin-top:4px;color:var(--muted-foreground)}
+  .kpi .c.up{color:var(--good)} .kpi .c.down{color:var(--bad)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:1.5fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  /* Kanban pipeline */
+  .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+  @media(max-width:900px){.kanban{grid-template-columns:repeat(2,1fr)}}
+  .lane{background:var(--muted);border-radius:var(--radius);padding:12px}
+  .lane-h{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+  .post-card{background:var(--card);border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);padding:12px;margin-bottom:8px;box-shadow:var(--shadow-sm)}
+  .post-card:last-child{margin-bottom:0}
+  .post-card .title{font-size:12.5px;font-weight:600;line-height:1.35;margin-bottom:6px}
+  .post-card .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground)}
+  .post-card .row{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+
+  /* performance table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  th.r,td.r{text-align:right}
+  td{padding:10px;border-top:1px solid var(--border)}
+  tbody tr:hover{background:var(--muted)}
+
+  /* channel sov bars */
+  .ch-row{display:grid;grid-template-columns:90px 1fr 48px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+  .ch-row:first-child{border-top:none}
+  .ch-row .nm{font-size:12.5px;font-weight:500}
+  .ch-track{height:8px;background:var(--muted);border-radius:100px;overflow:hidden}
+  .ch-fill{height:100%;border-radius:100px}
+  .ch-row .pct{font-family:var(--mono);font-size:11px;text-align:right;color:var(--muted-foreground)}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">CC</span>Content Calendar<span class="sub">Pipeline</span></div>
+  <div class="sync"><span class="dot"></span>last sync · CMS · Buffer · 6 min ago</div>
+</div></div>
+
+<main class="wrap">
+
+  <header class="head">
+    <div><h1>Content pipeline, June 2026.</h1><p>Every post by status, channel, and owner — idea to published.</p></div>
+    <nav class="tabs">
+      <button class="active">Pipeline</button>
+      <button>By channel</button>
+      <button>Performance</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Posts this month</div><div class="v num">28</div><div class="c up">↑ 4 vs May</div></div>
+    <div class="kpi card"><div class="l">In draft / review</div><div class="v num">9</div><div class="c">3 overdue review</div></div>
+    <div class="kpi card"><div class="l">Published · 30d</div><div class="v num">19</div><div class="c up">↑ 26% MoM</div></div>
+    <div class="kpi card"><div class="l">Avg engagement rate</div><div class="v num">4.8%</div><div class="c up">↑ 0.6pp vs May</div></div>
+  </section>
+
+  <!-- Kanban -->
+  <div class="kanban" id="kanban"></div>
+
+  <!-- Row: Performance + Channel Mix -->
+  <section class="grid g-2">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Recent post performance</div><div class="d">Last 14 days · sorted by engagement</div></div><span class="meta">published</span></div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Post</th><th>Channel</th><th class="r">Views</th><th class="r">Engmt</th><th class="r">Leads</th></tr></thead>
+          <tbody id="perf-table"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">Output by channel · 30d</div><div class="d">Post count share</div></div><span class="meta">indexed</span></div>
+      <div class="card-b" id="channel-mix"></div>
+    </div>
+  </section>
+
+  <p class="foot">Every post is a file in <code>posts/</code> — open the markdown, edit the brief, track revisions. Pipeline rebuilt from frontmatter weekly.</p>
+
+</main>
+
+<script>
+'use strict';
+
+const POSTS = {
+  idea: [
+    { title:'5 Git workflows that save 2hr/week', channel:'Blog', owner:'TBD', date:'Jun 18' },
+    { title:'Why your onboarding doc is lying to you', channel:'LinkedIn', owner:'TBD', date:'Jun 20' },
+  ],
+  draft: [
+    { title:'Why async wins for engineering teams', channel:'Blog', owner:'Content Writer', date:'Jun 4', warn:false },
+    { title:'AI-assisted code review: what actually works', channel:'Blog', owner:'Content Writer', date:'Jun 11', warn:false },
+    { title:'June newsletter — product updates + read of the month', channel:'Newsletter', owner:'Content Writer', date:'Jun 5', warn:true },
+  ],
+  scheduled: [
+    { title:'3 things we learned from shipping AI features fast', channel:'LinkedIn', owner:'Marcus T.', date:'May 28', warn:false },
+    { title:'Product changelog: May 2026', channel:'Blog', owner:'Marcus T.', date:'May 30', warn:false },
+    { title:'Thread: How we do async standups', channel:'Twitter/X', owner:'Lena B.', date:'Jun 2', warn:false },
+    { title:'Hiring season checklist for eng managers', channel:'LinkedIn', owner:'Lena B.', date:'Jun 6', warn:false },
+  ],
+  published: [
+    { title:'Async-first: the 30-day retrospective', channel:'Blog', owner:'Content Writer', date:'May 20' },
+    { title:'Q2 product recap: what shipped', channel:'Newsletter', owner:'Content Writer', date:'May 15' },
+    { title:'The cost of context switching', channel:'LinkedIn', owner:'Marcus T.', date:'May 19' },
+  ],
+};
+
+const CH_COLORS = { Blog:'var(--c1)', LinkedIn:'var(--c5)', Newsletter:'var(--c6)', 'Twitter/X':'var(--c2)' };
+const CH_BADGE = { Blog:'info', LinkedIn:'', Newsletter:'', 'Twitter/X':'good' };
+const STATUS_COLORS = { idea:'var(--muted-foreground)', draft:'var(--warn)', scheduled:'var(--info)', published:'var(--good)' };
+const STATUS_LABELS = { idea:'Ideas', draft:'Draft / Review', scheduled:'Scheduled', published:'Published' };
+
+document.getElementById('kanban').innerHTML = Object.entries(POSTS).map(([status, posts])=>`
+  <div class="lane">
+    <div class="lane-h"><span>${STATUS_LABELS[status]}</span><span class="badge">${posts.length}</span></div>
+    ${posts.map(p=>`<div class="post-card">
+      <div class="title">${p.title}</div>
+      <div class="meta">Owner: ${p.owner}</div>
+      <div class="row">
+        <span class="badge ${CH_BADGE[p.channel]||''}">${p.channel}</span>
+        <span style="font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground)">${p.date}</span>
+        ${p.warn?'<span class="badge bad">Overdue</span>':''}
+      </div>
+    </div>`).join('')}
+  </div>`).join('');
+
+const PERF = [
+  { title:'Async-first: 30-day retro', ch:'Blog', views:'4,821', eng:'6.2%', leads:38, good:true },
+  { title:'The cost of context switching', ch:'LinkedIn', views:'11,440', eng:'5.8%', leads:12, good:true },
+  { title:'Q2 product recap', ch:'Newsletter', views:'3,204', eng:'42% open', leads:51, good:true },
+  { title:'Hiring season checklist', ch:'LinkedIn', views:'2,180', eng:'2.1%', leads:3, good:false },
+  { title:'Thread: async standups', ch:'Twitter/X', views:'8,900', eng:'3.4%', leads:2, good:null },
+];
+
+document.getElementById('perf-table').innerHTML = PERF.map(p=>`
+  <tr>
+    <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</td>
+    <td><span class="badge ${CH_BADGE[p.ch]||''}">${p.ch}</span></td>
+    <td class="r num">${p.views}</td>
+    <td class="r"><span class="badge ${p.good===true?'good':p.good===false?'bad':''}">${p.eng}</span></td>
+    <td class="r num">${p.leads}</td>
+  </tr>`).join('');
+
+const CH_MIX = [
+  { nm:'Blog', v:36, c:'var(--c1)' },
+  { nm:'LinkedIn', v:28, c:'var(--c5)' },
+  { nm:'Twitter/X', v:20, c:'var(--c2)' },
+  { nm:'Newsletter', v:16, c:'var(--c6)' },
+];
+
+document.getElementById('channel-mix').innerHTML = CH_MIX.map(c=>`
+  <div class="ch-row">
+    <div class="nm">${c.nm}</div>
+    <div class="ch-track"><div class="ch-fill" style="width:${c.v}%;background:${c.c}"></div></div>
+    <div class="pct num">${c.v}%</div>
+  </div>`).join('');
+</script>
+</body>
+</html>

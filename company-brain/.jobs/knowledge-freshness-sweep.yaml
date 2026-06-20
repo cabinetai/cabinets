@@ -1,0 +1,33 @@
+id: knowledge-freshness-sweep
+name: Knowledge Freshness Sweep
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: knowledge-manager
+agentSlug: knowledge-manager
+timeout: 900
+prompt: |-
+  Run the weekly knowledge freshness sweep for the Company Brain cabinet.
+
+  1. Read `knowledge/docs.yaml` — the current doc index.
+  2. For each entry, compute a freshness score (0–100) based on:
+     - Days since last-modified (>90 days in fast-moving spaces = stale; >180 days elsewhere)
+     - Category: product/pricing/onboarding docs decay faster than legal/brand docs
+  3. Flag any doc with score <40 as STALE. Write the slug, owner, last-modified date, score, and reason.
+  4. Detect duplicates: docs in different spaces covering the same topic. Flag both with the recommended authoritative one.
+  5. Cross-reference `questions/unanswered.md`: identify topics employees asked about that have zero doc coverage. Flag as GAPS.
+  6. Write the full freshness report to `knowledge/freshness-report.md`:
+     - Summary: total docs, stale count, gap count, duplicate count
+     - Stale docs table (slug | owner | last-modified | score | reason)
+     - Content gaps table (topic | question count | recommended action)
+     - Duplicates table (doc-a | doc-b | recommendation)
+  7. Queue the top 5 stale/missing summaries for the Summary Agent:
+     append them to `knowledge/summary-queue.md` with priority: HIGH/MEDIUM.
+  8. Update `knowledge/docs.yaml` to reflect any freshness-score changes.
+
+  Rules: Do not edit source documents. Do not update owner information — flag only.
+  Lead with the gaps and stale docs that affect the most employees.
+cabinetPath: cabinets/company-brain
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

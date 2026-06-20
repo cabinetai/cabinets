@@ -1,0 +1,45 @@
+id: weekly-renewal-sweep
+name: Weekly Renewal Sweep
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: workflow
+agentSlug: workflow
+timeout: 600
+prompt: |-
+  Run the weekly renewal sweep as the Renewal Workflow Agent.
+
+  1. Read `data/vendors.csv`. For each vendor, compute:
+     days_to_renewal = renewal_date - today (2026-05-23).
+  2. Categorize each vendor:
+     - ACTION REQUIRED: days_to_renewal <= notice_window_days
+     - HEADS-UP: 0 < days_to_renewal <= 30 (but outside notice window)
+     - ESCALATE-AUTO-RENEW: auto_renew=true AND days_to_renewal <= 14
+       AND no owner confirmation in the notes column
+     - OK: everything else
+  3. Update the `status` column in `data/vendors.csv` for all ACTION REQUIRED
+     and ESCALATE-AUTO-RENEW vendors. Status values: action-required, active,
+     under-review, cancelled, renewed.
+  4. Write `.cabinet-state/renewal-alerts.md`:
+     ```
+     # Renewal Alerts — <date>
+     ## Action Required (inside notice window)
+     | Vendor | Owner | Annual Spend | Renewal Date | Days Left | Notice Window |
+     ...
+     ## Heads-Up (renewing in ≤30 days)
+     ...
+     ## Auto-Renew Escalations (≤14 days, no confirmation)
+     ...
+     ## Summary
+     X vendors require action. Y vendors renewing in 30 days. Z auto-renew escalations.
+     ```
+  5. If no vendors are in ACTION REQUIRED or ESCALATE status, write a clean summary.
+
+  Rules:
+  - Do not make or recommend renewal decisions — only flag and alert.
+  - Do not delete or archive rows — update status in place.
+  - All dates are in YYYY-MM-DD format.
+cabinetPath: cabinets/vendor-renewal
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

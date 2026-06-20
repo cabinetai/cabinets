@@ -1,0 +1,35 @@
+id: daily-feedback-intake
+name: Daily Feedback Intake
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: customer-insights
+agentSlug: customer-insights
+timeout: 600
+prompt: |-
+  Pull all new customer feedback from the last 24 hours across every connected source:
+  Zendesk (new + updated tickets), Intercom (new conversation closures), Gong (call
+  transcript excerpts flagged as customer pain/feature-request), App Store / Google Play
+  reviews (new reviews, any star rating), and Slack #customer-feedback channel.
+
+  For each feedback item, append a structured entry to `/feedback/log.md`:
+  - date (ISO)
+  - source (zendesk | intercom | gong | app-store | google-play | slack)
+  - segment (Free | SMB | Mid-Market | Enterprise | Unknown)
+  - sentiment (positive | neutral | negative)
+  - type (bug-report | feature-request | pricing | onboarding | support-process | compliment | other)
+  - summary (one sentence — the problem or praise, not the channel noise)
+  - verbatim (exact customer quote, anonymized: "Enterprise customer, ~$120K ARR")
+
+  Deduplication rule: if the same underlying issue appears across multiple sources, log it
+  once with a `signals: N` count and note each source. Do not create duplicate entries.
+
+  Flag any item where segment is Unknown — add a `crm-lookup: needed` tag.
+  Flag any source that returned 0 items (possible connector issue).
+
+  After appending, write a one-paragraph intake summary to `/feedback/intake-<YYYY-MM-DD>.md`
+  with: total items, breakdown by source, breakdown by type, any anomalies.
+cabinetPath: cabinet-examples/cabinets/voice-of-customer
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

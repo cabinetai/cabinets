@@ -1,0 +1,38 @@
+id: faq-gap-analysis
+name: FAQ Gap Analysis
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: faq-researcher
+agentSlug: faq-researcher
+timeout: 900
+prompt: |-
+  Run the weekly FAQ gap analysis for the Internal FAQ cabinet.
+
+  1. Read `faq/entries.yaml` — all current Q&A entries (question, answer, category, source, last-verified).
+  2. Read `questions/log.md` — questions employees asked this week that the hub couldn't answer.
+  3. For each logged question, attempt to match it against existing FAQ entries (text similarity).
+     - Match found (>80%): mark as covered. Check if the answer is current.
+     - No match: mark as gap.
+  4. For each gap, check `faq/coverage.yaml` (source doc → entries map) to see if a source doc exists
+     but has no entry for this topic. If yes, mark as "doc exists, entry missing."
+     If no doc covers it, mark as "no source doc."
+  5. Re-validate a 20% rotating sample of existing entries:
+     - Open the source document. Verify the answer reflects the current version.
+     - Mark each as: valid | needs-update | broken-source | conflict.
+  6. Detect contradictions: any two entries in the same category that give conflicting answers.
+     Flag both as conflict: true with a note naming the conflict.
+  7. Write the gap report to `faq/gap-report.md`:
+     - Summary: total entries, entries validated, gaps found, contradictions, broken sources
+     - Gaps table: question | category | frequency | type (entry-missing / no-source-doc)
+     - Entries needing update: entry-id | category | issue | source doc
+     - Contradictions: entry-a | entry-b | conflict description
+     - Recommended new entries: top 5 gaps by frequency
+  8. Have the QA Agent validate the contradiction findings before publishing.
+
+  Rules: Do not auto-update entries — flag for human review.
+  Priority order: contradictions > broken-sources > high-frequency gaps > stale entries.
+cabinetPath: cabinets/internal-faq
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

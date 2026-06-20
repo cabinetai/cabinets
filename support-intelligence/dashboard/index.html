@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Support Intelligence · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+    --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+    --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.5);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+  .kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .v small{font-size:14px;font-weight:500;color:var(--muted-foreground)}
+  .kpi .c{font-size:12px;margin-top:5px;display:flex;align-items:center;gap:5px;color:var(--muted-foreground)}
+  .kpi .c.up{color:var(--good)} .kpi .c.dn{color:var(--bad)}
+
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1.5fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:980px){.g2,.g3{grid-template-columns:1fr}}
+
+  /* SVG chart */
+  .chart-wrap{padding:4px 0 0}
+  svg.sparkline{display:block;width:100%;overflow:visible}
+
+  /* cluster table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  th.r,td.r{text-align:right}
+  td{padding:10px 10px;border-top:1px solid var(--border)}
+  tbody tr:hover{background:var(--muted)}
+  td .cname{font-weight:600;font-size:13px}
+
+  /* sentiment bar */
+  .sbar{display:inline-block;width:60px;height:6px;border-radius:100px;background:var(--muted);position:relative;vertical-align:middle;margin-left:6px}
+  .sbar .sfill{position:absolute;left:0;top:0;height:100%;border-radius:100px}
+
+  /* emerging cluster feed */
+  .emg{display:flex;gap:10px;padding:11px 0;border-top:1px solid var(--border)}
+  .emg:first-child{border-top:none}
+  .emg .pulse{width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 3px var(--bad-bg);flex:none;margin-top:4px}
+  .emg .body{flex:1;min-width:0}
+  .emg .body .name{font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px}
+  .emg .body .desc{font-size:12px;color:var(--muted-foreground);margin-top:3px}
+
+  /* csat trend */
+  .csat-row{display:grid;grid-template-columns:56px 1fr 48px;gap:10px;align-items:center;margin-bottom:10px}
+  .csat-row .lbl{font-size:11.5px;color:var(--muted-foreground);font-family:var(--mono);text-align:right}
+  .csat-row .track{height:8px;background:var(--muted);border-radius:100px;overflow:hidden}
+  .csat-row .fill{height:100%;border-radius:100px}
+  .csat-row .val{font-family:var(--mono);font-size:12px;font-weight:600}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand">
+    <span class="logo">SI</span>
+    Support Intelligence
+    <span class="sub">Insights Dashboard</span>
+  </div>
+  <div class="sync"><span class="dot"></span>last sync · Zendesk · 9 min ago</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Support, this week.</h1>
+      <p>Ticket volume, cluster trends, emerging issues, CSAT, and deflection — sourced from real tickets.</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">Clusters</button>
+      <button>CSAT</button>
+      <button>Deflection</button>
+      <button>Reports</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card">
+      <div class="l">Tickets · 7d</div>
+      <div class="v num">2,287</div>
+      <div class="c dn">↑ +153 vs prior week</div>
+    </div>
+    <div class="kpi card">
+      <div class="l">CSAT · this week</div>
+      <div class="v num">4.08 <small>/ 5</small></div>
+      <div class="c dn">↓ −0.17 vs 4-wk avg</div>
+    </div>
+    <div class="kpi card">
+      <div class="l">Deflection rate</div>
+      <div class="v num">14.6<small>%</small></div>
+      <div class="c dn">↓ −0.8pp vs prior week</div>
+    </div>
+    <div class="kpi card">
+      <div class="l">Active clusters</div>
+      <div class="v num">9 <small>clusters</small></div>
+      <div class="c dn">2 emerging spikes</div>
+    </div>
+  </section>
+
+  <!-- Row 1: volume trend + emerging -->
+  <section class="grid g2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h">
+        <div><div class="t">Ticket volume trend</div><div class="d">Weekly ticket count — 5-week window</div></div>
+        <span class="meta">wk of</span>
+      </div>
+      <div class="card-b chart-wrap" id="vol-chart"></div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <div><div class="t">Emerging spikes</div><div class="d">Clusters up >25% in 48h — needs attention</div></div>
+        <span class="badge bad">2 active</span>
+      </div>
+      <div class="card-b" id="emerging"></div>
+    </div>
+  </section>
+
+  <!-- Row 2: cluster table + csat -->
+  <section class="grid g2">
+    <div class="card">
+      <div class="card-h">
+        <div><div class="t">Issue clusters</div><div class="d">All clusters, ranked by 7-day volume</div></div>
+        <span class="meta">updated daily</span>
+      </div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead>
+            <tr>
+              <th>Cluster</th>
+              <th class="r">Vol 7d</th>
+              <th class="r">Trend</th>
+              <th>Sentiment</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="clusters"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <div><div class="t">CSAT trend</div><div class="d">Weekly score vs 4-week average of 4.25</div></div>
+        <span class="meta">out of 5.0</span>
+      </div>
+      <div class="card-b" id="csat-trend" style="padding-top:8px"></div>
+    </div>
+  </section>
+
+  <p class="foot">Built from <code>clusters/</code> and <code>data/</code> by the Ticket Cluster Analyst and Insights Synthesizer. Every cluster links to a sourced file. Report generated weekly — see <code>reports/</code>.</p>
+</main>
+
+<script>
+'use strict';
+
+const VOLUME = [
+  {label:'Apr 20', v:1842},{label:'Apr 27', v:1791},{label:'May 4', v:1953},
+  {label:'May 11', v:2134},{label:'May 18', v:2287}
+];
+const CLUSTERS = [
+  {name:'Billing — Invoice Confusion', v7:142, trend:34, sentiment:'Negative', action:'FAQ + Macro', actionCls:'warn'},
+  {name:'Onboarding — SSO Setup', v7:87, trend:18, sentiment:'Mixed', action:'Update Article', actionCls:'info'},
+  {name:'API — Rate Limit Errors', v7:64, trend:52, sentiment:'Negative', action:'Escalate', actionCls:'bad'},
+  {name:'Export — CSV Row Limit', v7:41, trend:0, sentiment:'Neutral', action:'Article', actionCls:''},
+  {name:'Mobile — iOS Login Loop', v7:38, trend:90, sentiment:'Negative', action:'Escalate', actionCls:'bad'},
+  {name:'Workspace Roles Confusion', v7:31, trend:-8, sentiment:'Mixed', action:'Article', actionCls:''},
+  {name:'Account — Password Reset', v7:28, trend:3, sentiment:'Neutral', action:'Macro', actionCls:''},
+  {name:'Webhooks — Delivery Failures', v7:19, trend:-21, sentiment:'Mixed', action:'Monitor', actionCls:''},
+  {name:'Performance — Slowness', v7:14, trend:8, sentiment:'Negative', action:'Monitor', actionCls:''},
+];
+const EMERGING = [
+  {name:'Mobile — iOS Login Loop', spike:90, desc:'38 tickets in 7d — first appeared this week. Pattern: post-password-reset OAuth loop. 3 enterprise accounts affected.'},
+  {name:'API — Rate Limit Errors', spike:52, desc:'64 tickets this week (+52%). 500 returned instead of 429 — violating documented API contract. Engineering escalation open.'},
+];
+const CSAT = [
+  {label:'Apr 20', v:4.31},{label:'Apr 27', v:4.28},{label:'May 4', v:4.19},
+  {label:'May 11', v:4.12},{label:'May 18', v:4.08}
+];
+
+// Volume bar chart (SVG)
+(function(){
+  const max = Math.max(...VOLUME.map(d=>d.v));
+  const W=560,H=120,PX=48,PY=16,BW=40,GAP=(W-PX*2-BW*VOLUME.length)/(VOLUME.length-1);
+  let bars='',labels='',gridlines='';
+  const gridVals=[1000,1500,2000,2500];
+  gridVals.forEach(g=>{
+    const y=PY+H*(1-g/max);
+    gridlines+=`<line x1="${PX}" y1="${y.toFixed(1)}" x2="${W-PX}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-dasharray="3,3" stroke-width="1"/>`;
+    gridlines+=`<text x="${PX-6}" y="${y.toFixed(1)}" text-anchor="end" fill="var(--muted-foreground)" font-size="10" font-family="var(--mono)" dominant-baseline="middle">${(g/1000).toFixed(1)}k</text>`;
+  });
+  VOLUME.forEach((d,i)=>{
+    const x=PX+i*(BW+GAP);
+    const bh=(d.v/max)*H;
+    const y=PY+H-bh;
+    const isLast=i===VOLUME.length-1;
+    bars+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${BW}" height="${bh.toFixed(1)}" rx="4" fill="${isLast?'var(--c1)':'var(--muted)'}"/>`;
+    if(isLast) bars+=`<text x="${(x+BW/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" fill="var(--c1)" font-size="11" font-weight="600" font-family="var(--mono)">${d.v.toLocaleString()}</text>`;
+    labels+=`<text x="${(x+BW/2).toFixed(1)}" y="${(PY+H+14).toFixed(1)}" text-anchor="middle" fill="var(--muted-foreground)" font-size="11" font-family="var(--sans)">${d.label}</text>`;
+  });
+  document.getElementById('vol-chart').innerHTML=`<svg class="sparkline" viewBox="0 0 ${W} ${PY+H+28}" xmlns="http://www.w3.org/2000/svg">${gridlines}${bars}${labels}</svg>`;
+})();
+
+// Emerging
+document.getElementById('emerging').innerHTML=EMERGING.map(e=>`
+  <div class="emg">
+    <div class="pulse"></div>
+    <div class="body">
+      <div class="name">${e.name}<span class="badge bad">↑ +${e.spike}%</span></div>
+      <div class="desc">${e.desc}</div>
+    </div>
+  </div>`).join('');
+
+// Cluster table
+function sentimentColor(s){
+  if(s==='Negative') return 'var(--bad)';
+  if(s==='Mixed') return 'var(--warn)';
+  if(s==='Positive') return 'var(--good)';
+  return 'var(--muted-foreground)';
+}
+document.getElementById('clusters').innerHTML=CLUSTERS.map(c=>{
+  const trendStr=c.trend===0?'→ Stable':(c.trend>0?`↑ +${c.trend}%`:`↓ ${c.trend}%`);
+  const trendCls=c.trend>20?'bad':c.trend<0?'good':'';
+  const sentPct=c.sentiment==='Negative'?20:c.sentiment==='Mixed'?55:c.sentiment==='Positive'?90:50;
+  return `<tr>
+    <td><span class="cname">${c.name}</span></td>
+    <td class="r num"><strong>${c.v7}</strong></td>
+    <td class="r"><span class="badge ${trendCls}">${trendStr}</span></td>
+    <td><span style="color:${sentimentColor(c.sentiment)};font-size:12px;font-weight:600">${c.sentiment}</span></td>
+    <td><span class="badge ${c.actionCls}">${c.action}</span></td>
+  </tr>`;
+}).join('');
+
+// CSAT trend bars
+const csatMin=3.8, csatMax=5.0;
+document.getElementById('csat-trend').innerHTML=CSAT.map((c,i)=>{
+  const pct=((c.v-csatMin)/(csatMax-csatMin)*100).toFixed(1);
+  const isLast=i===CSAT.length-1;
+  const color=c.v>=4.3?'var(--good)':c.v>=4.1?'var(--warn)':'var(--bad)';
+  return `<div class="csat-row">
+    <div class="lbl">${c.label}</div>
+    <div class="track"><div class="fill" style="width:${pct}%;background:${color};${isLast?'box-shadow:0 0 0 2px '+color+'40':''}"></div></div>
+    <div class="val num" style="color:${color}">${c.v.toFixed(2)}</div>
+  </div>`;
+}).join('');
+</script>
+</body>
+</html>

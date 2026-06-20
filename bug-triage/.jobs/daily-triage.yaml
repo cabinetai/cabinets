@@ -1,0 +1,44 @@
+id: daily-triage
+name: Daily Bug Triage
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: engineering-agent
+agentSlug: engineering-agent
+timeout: 900
+prompt: |-
+  Run the daily bug triage cycle.
+
+  STEP 1 — Engineering Agent: ingest all new and escalated bugs.
+
+  Pull since yesterday's triage run (or since 24h ago if no previous run today):
+  - Sentry: all new issues (first_seen in past 24h) + any existing issues with a spike
+    (occurrence count increased >50% in 24h). For each: error type, occurrence count (24h),
+    affected user count, first_seen, last_seen, stack trace summary (first 3 frames), linked issue.
+    Write raw → bug-triage/triage/raw-sentry-<YYYY-MM-DD>.md
+  - GitHub Issues / Jira: all new bug-labeled issues + any issues labeled support-escalation
+    opened or escalated in the past 24h. For each: title, labels, assignee, created date.
+    Write raw → bug-triage/triage/raw-issues-<YYYY-MM-DD>.md
+
+  Deduplicate: match Sentry issues to existing GitHub/Jira bugs by error signature.
+  Compute priority score for each unique bug:
+    priority_score = (severity_weight × 3) + (log10(occurrences + 1) × 20) + (affected_customers × 2)
+    severity_weight: P0=10, P1=7, P2=4, P3=1
+    Regressions get severity_weight bumped one tier.
+  Write scored list (sorted descending) → bug-triage/triage/scored-<YYYY-MM-DD>.md
+
+  STEP 2 — Analyst Agent: assign owners and write the report.
+  - Assign owners using bug-triage/triage/ownership-map.md (component → engineer/team).
+  - Flag any P0 or P1 bug with no owner as "NEEDS OWNER".
+  - Flag any regression with the last-closed date and suspected cause.
+  - Write daily triage report → bug-triage/triage/daily-<YYYY-MM-DD>.md
+  - Render the triage board → bug-triage/triage-board/index.html
+
+  Rules:
+  - P0 bugs (data loss, complete outage, security) must have an owner within 2 hours.
+  - Any bug open >14 days is highlighted in the age column regardless of current score.
+  - Never merge or close bugs in Sentry/GitHub/Jira — this is read-only ingestion.
+cabinetPath: cabinet-examples/cabinets/bug-triage
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

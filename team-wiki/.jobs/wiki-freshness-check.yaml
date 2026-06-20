@@ -1,0 +1,37 @@
+id: wiki-freshness-check
+name: Wiki Freshness Check
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: wiki-summarizer
+agentSlug: wiki-summarizer
+timeout: 600
+prompt: |-
+  Run the weekly wiki freshness check for the Team Wiki cabinet.
+
+  1. Read `team/members.yaml` — current roster. Cross-reference with any Slack org-chart or calendar signals
+     to detect new hires, role changes, or departures since last sweep. Flag any discrepancies.
+  2. Read `team/docs.yaml` — key doc registry. Verify each doc link is reachable.
+     Mark broken links as broken-link: true. Flag docs not verified in 30+ days as needs-review.
+  3. Read `team/rituals.yaml` — recurring meetings and rituals. Check the calendar connector for each:
+     - If the recurring calendar event exists and occurred in the last 28 days: mark active.
+     - If no occurrence in 28+ days: flag as potentially-dark.
+  4. Compute a freshness score per section:
+     - Roster: days since last change; flag if >30 days and team size is >5
+     - Docs: % of links verified in last 30 days
+     - Rituals: % marked active vs potentially-dark
+  5. Write the freshness report to `team/freshness-report-<YYYY-MM-DD>.md`:
+     - Summary: score per section (roster / docs / rituals) and overall
+     - Changes detected: what changed since last week
+     - Broken doc links (path | last-verified | owner)
+     - Potentially-dark rituals (ritual | last-seen | owner)
+     - Roster flags (member | issue | recommended action)
+  6. Update `team/members.yaml`, `team/docs.yaml`, `team/rituals.yaml` with any confirmed changes.
+     For anything unconfirmed, add a [needs-confirmation] flag rather than editing.
+
+  Rules: Do not guess at responsibility changes. Flag and let the team lead confirm.
+  A ritual not on the calendar is a broken ritual — flag it even if it feels awkward.
+cabinetPath: cabinets/team-wiki
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

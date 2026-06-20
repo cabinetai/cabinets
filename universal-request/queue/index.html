@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Universal Request Cabinet · Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+  --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+  --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+  --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+  --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+  --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+  --c7:#db2777; --c8:#059669;
+  --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+  --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+  --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media(prefers-color-scheme:dark){:root{
+  --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+  --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+  --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+  --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+  --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+  --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee; --c7:#f472b6; --c8:#34d399;
+  --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4);
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1340px;margin:0 auto;padding:0 24px 64px}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+.topbar-in{max-width:1340px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+.brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+.sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+.head h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.head p{color:var(--muted-foreground);margin-top:4px;font-size:13.5px}
+.tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+.tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px;border:none;background:none;cursor:pointer}
+.tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.card-h .t{font-size:13px;font-weight:600}.card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+.card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+.card-b{padding:14px 18px 18px}
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+.badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+.badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+.badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+.badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{padding:16px 18px}
+.kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+.kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+.kpi .c{font-size:12px;margin-top:5px;color:var(--muted-foreground)}
+.kpi .c.down{color:var(--bad)} .kpi .c.up{color:var(--good)}
+.grid{display:grid;gap:14px}
+.g-2{grid-template-columns:1.6fr 1fr}
+@media(max-width:900px){.g-2{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 12px 10px}
+td{padding:10px 12px;border-top:1px solid var(--border);vertical-align:middle}
+tbody tr:hover{background:var(--muted)}
+.req-title{font-weight:600;font-size:13px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.req-sub{font-size:11.5px;color:var(--muted-foreground);font-family:var(--mono);margin-top:2px}
+/* volume chart */
+.vol-chart{display:flex;align-items:flex-end;gap:8px;height:80px;padding:0 4px}
+.vol-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.vol-bar{width:100%;border-radius:4px 4px 0 0;min-height:4px;transition:height .3s}
+.vol-label{font-family:var(--mono);font-size:10px;color:var(--muted-foreground);text-align:center}
+.vol-val{font-family:var(--mono);font-size:10px;color:var(--muted-foreground)}
+/* rule rows */
+.rule-row{padding:10px 0;border-top:1px solid var(--border);display:flex;gap:10px;align-items:flex-start}
+.rule-row:first-child{border-top:none}
+.rule-id{font-family:var(--mono);font-size:10px;color:var(--muted-foreground);white-space:nowrap;margin-top:2px;min-width:52px}
+.rule-body{flex:1;min-width:0}
+.rule-name{font-weight:600;font-size:12.5px}
+.rule-meta{font-size:11.5px;color:var(--muted-foreground);margin-top:2px}
+.foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+.foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">UR</span>Universal Request Cabinet<span class="sub">Request Queue</span></div>
+  <div class="sync"><span class="dot"></span>live · Slack + Jira · 7 min ago</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Request Queue</h1>
+      <p>Every cross-team request — IT, Design, Legal, Finance, Data, Marketing — classified, routed, and tracked to SLA.</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">All Teams</button>
+      <button>IT</button>
+      <button>Design</button>
+      <button>Legal</button>
+      <button>Data</button>
+    </nav>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Open Requests</div><div class="v num">18</div><div class="c">6 teams · 3 blocked</div></div>
+    <div class="kpi card"><div class="l">SLA Met · This Week</div><div class="v num">87%</div><div class="c up">+4pp vs. last week</div></div>
+    <div class="kpi card"><div class="l">SLA Breaches · 7d</div><div class="v num">3</div><div class="c down">IT ×2 · Data ×1</div></div>
+    <div class="kpi card"><div class="l">Avg. Time to Close</div><div class="v num">19h</div><div class="c">vs. 24h SLA median</div></div>
+  </section>
+
+  <section class="grid g-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Request Queue</div><div class="d">All active requests across teams</div></div><span class="meta">live</span></div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:280px">Request</th>
+              <th>Type</th>
+              <th>Priority</th>
+              <th>Assignee</th>
+              <th>SLA</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="queue-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div><div class="t">Volume by Team · WTD</div><div class="d">Requests received this week</div></div><span class="meta">week 21</span></div>
+      <div class="card-b">
+        <div class="vol-chart" id="vol-chart"></div>
+        <div style="margin-top:18px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px">Top routing rule today</div>
+          <div id="top-rules"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><div><div class="t">Routing Rules</div><div class="d">How requests are automatically classified and assigned SLAs</div></div><span class="meta">8 rules active</span></div>
+    <div class="card-b">
+      <div id="rules-panel" style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px"></div>
+    </div>
+  </section>
+
+  <p class="foot">Requests sourced from <code>queue-state/requests.yaml</code> · Routing rules at <code>routing-rules.yaml</code> · SLA log at <code>queue-state/sla-log.md</code> · Reports at <code>reports/</code></p>
+</main>
+
+<script>
+'use strict';
+const REQUESTS = [
+  { id:'REQ-0501', title:"Laptop won't connect to VPN", requester:'James Wu', type:'IT', priority:'P1', assignee:'T. Hassan', sla:'Today 17:00', sla_cls:'bad', status:'in-progress', ticket:'IT-4821' },
+  { id:'REQ-0502', title:'Q2 campaign banner — 5 sizes', requester:'Chloe M.', type:'Design', priority:'P3', assignee:'I. Tran', sla:'May 26', sla_cls:'warn', status:'in-progress', ticket:'DES-0198' },
+  { id:'REQ-0503', title:'NDA review — new vendor', requester:'Priya N.', type:'Legal', priority:'P2', assignee:'R. Torres', sla:'May 25', sla_cls:'warn', status:'in-progress', ticket:'LEG-0114' },
+  { id:'REQ-0505', title:'WAU dashboard — Looker', requester:'Daniel P.', type:'Data', priority:'P3', assignee:'M. Chen', sla:'May 24', sla_cls:'bad', status:'blocked', ticket:'DAT-0311' },
+  { id:'REQ-0506', title:'Monitor + desk — new hire', requester:'Ana L.', type:'IT', priority:'P3', assignee:'T. Hassan', sla:'May 25', sla_cls:'', status:'in-progress', ticket:'IT-4822' },
+  { id:'REQ-0507', title:'Social copy — product launch', requester:'Leo Kim', type:'Marketing', priority:'P2', assignee:'—', sla:'May 26', sla_cls:'', status:'submitted', ticket:'—' },
+  { id:'REQ-0504', title:'Q1 travel reimbursement $840', requester:'Sofia R.', type:'Finance', priority:'P3', assignee:'B. Holloway', sla:'Met', sla_cls:'good', status:'resolved', ticket:'FIN-0892' },
+];
+const VOL = [
+  { team:'IT', v:7, color:'var(--c1)' }, { team:'Design', v:4, color:'var(--c5)' },
+  { team:'Legal', v:3, color:'var(--c3)' }, { team:'Finance', v:5, color:'var(--c2)' },
+  { team:'Data', v:3, color:'var(--c6)' }, { team:'Mkt', v:4, color:'var(--c7)' },
+  { team:'Facilities', v:2, color:'var(--c8)' }, { team:'Ops', v:1, color:'var(--muted-foreground)' },
+];
+const RULES = [
+  { id:'RR-001', name:'IT Support — Urgent', team:'IT', sla:'Same-day', priority:'P1', cls:'bad' },
+  { id:'RR-002', name:'IT Support — Standard', team:'IT', sla:'48h', priority:'P3', cls:'' },
+  { id:'RR-003', name:'Design Request', team:'Design', sla:'5-day', priority:'P3', cls:'' },
+  { id:'RR-004', name:'Legal Review', team:'Legal', sla:'5-day', priority:'P2', cls:'warn' },
+  { id:'RR-005', name:'Finance / Expense', team:'Finance', sla:'48h', priority:'P3', cls:'' },
+  { id:'RR-006', name:'Data / Analytics', team:'Data', sla:'5-day', priority:'P3', cls:'' },
+  { id:'RR-007', name:'Marketing Support', team:'Marketing', sla:'3-day', priority:'P3', cls:'' },
+  { id:'RR-008', name:'Facilities / Office', team:'Facilities', sla:'48h', priority:'P3', cls:'' },
+];
+const TOP_RULES = [
+  { rule:'IT Support — Standard', count:5, pct:71 },
+  { rule:'IT Support — Urgent', count:2, pct:29 },
+];
+
+function statusBadge(s){
+  const m={'in-progress':'info',submitted:'',resolved:'good',blocked:'bad'};
+  const l={'in-progress':'In Progress',submitted:'Submitted',resolved:'Resolved',blocked:'Blocked'};
+  return `<span class="badge ${m[s]||''}">${l[s]||s}</span>`;
+}
+function prioBadge(p){
+  const m={P1:'bad',P2:'warn',P3:'',P4:''};
+  return `<span class="badge ${m[p]||''}">${p}</span>`;
+}
+function typeBadge(t){
+  const colors={IT:'info',Design:'',Legal:'warn',Finance:'good',Data:'',Marketing:'',Facilities:'',Ops:''};
+  return `<span class="badge ${colors[t]||''}">${t}</span>`;
+}
+
+document.getElementById('queue-body').innerHTML = REQUESTS.map(r=>`
+  <tr>
+    <td>
+      <div class="req-title" title="${r.title}">${r.title}</div>
+      <div class="req-sub">${r.id} · ${r.requester}</div>
+    </td>
+    <td>${typeBadge(r.type)}</td>
+    <td>${prioBadge(r.priority)}</td>
+    <td style="font-size:12.5px">${r.assignee}</td>
+    <td><span class="badge ${r.sla_cls}" style="font-family:var(--mono);font-size:10.5px">${r.sla}</span></td>
+    <td>${statusBadge(r.status)}</td>
+  </tr>`).join('');
+
+const maxVol = Math.max(...VOL.map(v=>v.v));
+document.getElementById('vol-chart').innerHTML = VOL.map(v=>`
+  <div class="vol-bar-wrap">
+    <div class="vol-val">${v.v}</div>
+    <div class="vol-bar" style="height:${Math.round(v.v/maxVol*60)}px;background:${v.color}"></div>
+    <div class="vol-label">${v.team}</div>
+  </div>`).join('');
+
+document.getElementById('top-rules').innerHTML = TOP_RULES.map(r=>`
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+    <span style="font-size:12.5px;flex:1">${r.rule}</span>
+    <div style="width:80px;height:8px;background:var(--muted);border-radius:100px;overflow:hidden"><div style="height:100%;width:${r.pct}%;background:var(--c1);border-radius:100px"></div></div>
+    <span style="font-family:var(--mono);font-size:11px;width:20px;text-align:right">${r.count}</span>
+  </div>`).join('');
+
+const leftRules = RULES.slice(0,4);
+const rightRules = RULES.slice(4);
+function ruleHTML(rules){
+  return rules.map(r=>`
+  <div class="rule-row">
+    <div class="rule-id">${r.id}</div>
+    <div class="rule-body">
+      <div class="rule-name">${r.name}</div>
+      <div class="rule-meta">Team: ${r.team} · SLA: ${r.sla} · <span class="badge ${r.cls}" style="font-size:10px">${r.priority}</span></div>
+    </div>
+  </div>`).join('');
+}
+document.getElementById('rules-panel').innerHTML = `<div>${ruleHTML(leftRules)}</div><div>${ruleHTML(rightRules)}</div>`;
+</script>
+</body>
+</html>

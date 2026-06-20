@@ -1,0 +1,64 @@
+id: vendor-review
+name: Vendor Security Review
+enabled: false
+schedule: ""
+provider: claude-code
+adapterType: claude_local
+ownerAgent: compliance-agent
+agentSlug: compliance-agent
+timeout: 1800
+prompt: |-
+  A new vendor security review has been requested. Complete a full review for the vendor
+  identified in `.cabinet-state/current-vendor.md`. Pull vendor documents from
+  `vendors/<vendor-name>/intake/` — this folder should contain the vendor's security
+  questionnaire response, SOC2 report (if available), and any DPA drafts.
+
+  STAGE 1 — RISK TIERING (Compliance Lead)
+  Assign a risk tier based on data access:
+  - Tier 1: processes customer PII, has access to production systems, or is a
+    sub-processor under our DPA obligations → full review required
+  - Tier 2: accesses internal company data (HR, finance, employee data), limited scope
+    → standard review
+  - Tier 3: no data access, tooling only → lightweight review
+  Write the tier assignment and rationale to `vendors/<vendor-name>/review-packet.md`.
+
+  STAGE 2 — DOCUMENT REVIEW (Compliance Lead)
+  Review all available documents:
+  - SOC2 Type II report: check audit period (reject if >12 months old), scope vs.
+    services purchased, qualified opinions, and exception items
+  - ISO 27001 certificate: check expiry date and scope
+  - Security questionnaire: review answers against policy requirements; flag gaps
+  - DPA: verify data subjects, sub-processors, transfer mechanisms (SCCs for EU→non-EU),
+    retention and deletion terms
+  Write findings to `vendors/<vendor-name>/review-packet.md` including:
+  - Data classification (what data will the vendor access?)
+  - Sub-processors list (from SOC2 Subservice section or questionnaire)
+  - Findings (each finding: title, severity, description, required action)
+  - DPA status (signed / in-negotiation / not required with reason)
+
+  STAGE 3 — QA CHECK (QA Reviewer)
+  Verify the review packet is complete:
+  - All required sections present (tier, data classification, SOC2 status, DPA status,
+    sub-processors, findings, approval decision)
+  - SOC2 report is current and in-scope (or compensating controls documented)
+  - DPA status is confirmed for any data-processing vendor
+  - Every finding has a severity and a required action
+  Annotate any gaps inline. Write QA sign-off to `vendors/<vendor-name>/qa-notes.md`.
+
+  STAGE 4 — APPROVAL DECISION (Compliance Lead)
+  Resolve all QA flags. Issue the approval decision:
+  - Approved: no material findings
+  - Approved with Conditions: findings that must be remediated within 90 days
+    (list each condition with owner and due date)
+  - Escalated: findings requiring CISO review or legal sign-off before data sharing
+
+  Write the final decision into `vendors/<vendor-name>/review-packet.md` and update
+  `queue/status.md` with the vendor's new status.
+
+  Rules:
+  - Tier 1 vendors without a SOC2/ISO report require an approved compensating control set.
+  - Never approve a data-processing vendor without confirming DPA status.
+  - Every finding must have a named owner and resolution path.
+cabinetPath: cabinets/vendor-security-review
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

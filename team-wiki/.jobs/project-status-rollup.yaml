@@ -1,0 +1,37 @@
+id: project-status-rollup
+name: Weekly Project Status Roll-Up
+enabled: true
+schedule: 0 9 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: wiki-workflow
+agentSlug: wiki-workflow
+timeout: 600
+prompt: |-
+  Produce the weekly project status roll-up for the Team Wiki cabinet.
+
+  1. Read `team/projects.yaml` — the active project ledger (name, owner, status, milestone, due, note).
+  2. Pull updates from the project tool connector (Jira/Linear/GitHub Milestones):
+     - For each project: latest status, any milestone changes, new blockers, recently closed issues.
+  3. Compute RAG status for each project:
+     - Green: on track to hit next milestone by due date
+     - Amber: at risk (milestone delayed <2 weeks or dependency unclear)
+     - Red: blocked or will miss milestone (requires intervention)
+     If the project tool data is unavailable, status: unknown — do not invent a green.
+  4. Flag any project red for 2+ consecutive weeks as escalate: true in `team/projects.yaml`.
+  5. Read `team/ownership.yaml`. Update if any project ownership changed this week.
+  6. Write the roll-up to `team/rollup-<YYYY-MM-DD>.md`:
+     - **Shipped last week** (project | what shipped | owner — make it specific)
+     - **On track** (project | milestone | due | owner | one-line status)
+     - **At risk** (project | milestone | due | owner | risk description)
+     - **Blocked** (project | blocker description | who can unblock | days blocked)
+     - **Escalated** (projects with escalate: true + recommended action for team lead)
+     - **Coming up next week** (projects with milestones due in the next 7 days)
+  7. Update `team/projects.yaml` with new statuses, milestone changes, and escalation flags.
+
+  Rules: RAG is a commitment. Do not soften a red to amber.
+  "Shipped" must be specific: name the deliverable, not the effort.
+  Escalated items are for the team lead — do not attempt to resolve them.
+cabinetPath: cabinets/team-wiki
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

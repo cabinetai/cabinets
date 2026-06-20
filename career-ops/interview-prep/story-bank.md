@@ -112,9 +112,9 @@ Career Ops uses **STAR+R** — adding Reflection to the classic STAR format. The
 
 | Competency | Only Story | Risk Level | Recommendation |
 | --- | --- | --- | --- |
-| Growth / PLG | Story 1 | **High** — core theme for Anthropic, HF, ElevenLabs | Need a 2nd growth story (growth experiment, A/B test, market expansion) |
+| Growth / PLG | Story 1 | **High** — core theme for StreamAI, DataHub, SoundAI | Need a 2nd growth story (growth experiment, A/B test, market expansion) |
 | Conflict Resolution | Story 4 | Medium — less frequently probed | Acceptable for now; consider a non-technical conflict story |
-| Leadership / Hiring | Story 3 | Medium — only matters for Head-level roles (n8n) | Acceptable; n8n onsite already happened |
+| Leadership / Hiring | Story 3 | Medium — only matters for Head-level roles (FlowHQ) | Acceptable; FlowHQ onsite already happened |
 | Saying No / Hard Calls | Story 5 | Low — Story 5 is strong enough to carry this alone | No action needed |
 
 **Recommended Story 6 topic:** A growth experiment or activation initiative that's distinct from Story 1's PLG engine. Ideally something where you ran a specific experiment, measured it, and iterated — not a broad strategic motion. This would give Growth a backup and strengthen Data-Driven coverage further.
@@ -125,15 +125,15 @@ Career Ops uses **STAR+R** — adding Reflection to the classic STAR format. The
 
 ## Interview Load-Outs
 
-### Anthropic (PM, Claude API — Apr 16 Panel)
+### StreamAI (PM, AI Platform — Apr 16 Panel)
 **Pre-load:** Story 2, Story 1
 **Have ready:** Story 4, Story 5
 **Skip unless asked:** Story 3
 
-### n8n (Head of Product — post-onsite)
+### FlowHQ (Head of Product — post-onsite)
 **Pre-load:** Story 3, Story 1
 **Have ready:** Story 4, Story 2
 
-### Mistral / Weights & Biases (screen → interview)
+### VectorAI / ObserveML (screen → interview)
 **Pre-load:** Story 1, Story 2
 **Have ready:** Story 5

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Postmortem · INC-2026-047</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:#ffffff; --foreground:#09090b; --card:#ffffff;
+  --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+  --border:#e4e4e7; --ring:#a1a1aa;
+  --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+  --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+  --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+  --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+  --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+  --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+  --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media(prefers-color-scheme:dark){:root{
+  --background:#09090b; --foreground:#fafafa; --card:#101012;
+  --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b; --border:#27272a;
+  --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+  --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+  --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+  --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+  --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:800px;margin:0 auto;padding:0 24px 80px}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 32px;padding:0 24px}
+.topbar-in{max-width:800px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:52px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
+.brand .logo{width:26px;height:26px;border-radius:6px;background:var(--bad);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;font-family:var(--mono)}
+.brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+.eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground);display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground)}
+.badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+.badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+.badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-bottom:8px}
+.meta-row{display:flex;gap:16px;flex-wrap:wrap;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:13px;color:var(--muted-foreground);margin-bottom:24px}
+.meta-row b{color:var(--foreground);font-weight:600}
+.impact-box{background:var(--bad-bg);border:1px solid var(--bad-bd);border-radius:var(--radius);padding:20px 24px;margin-bottom:28px}
+.impact-box .ik{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--bad);font-weight:600;margin-bottom:8px}
+.impact-box .iv{font-size:17px;font-weight:600;letter-spacing:-.01em;margin-bottom:10px}
+.impact-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+@media(max-width:600px){.impact-kpis{grid-template-columns:1fr 1fr}}
+.ik-item{background:var(--card);border:1px solid var(--bad-bd);border-radius:calc(var(--radius)*.8);padding:12px 14px}
+.ik-item .ikl{font-size:11px;color:var(--muted-foreground);font-weight:500}
+.ik-item .ikv{font-size:20px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground);margin:32px 0 14px;display:flex;align-items:center;gap:8px}
+h2 .n{font-family:var(--mono);color:var(--foreground);background:var(--muted);width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px}
+.timeline-item{display:flex;gap:14px;padding:10px 0;position:relative}
+.timeline-item::before{content:'';position:absolute;left:12px;top:28px;bottom:-10px;width:1px;background:var(--border)}
+.timeline-item:last-child::before{display:none}
+.tl-dot{width:25px;height:25px;border-radius:50%;background:var(--muted);border:2px solid var(--border);display:grid;place-items:center;font-size:9px;font-weight:700;flex:none;color:var(--muted-foreground)}
+.tl-dot.alert{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.tl-dot.mitig{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.tl-dot.resolve{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.tl-body{flex:1;padding-bottom:8px}
+.tl-body .tl-time{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);margin-bottom:2px}
+.tl-body .tl-event{font-size:14px;font-weight:500}
+.tl-body .tl-detail{font-size:13px;color:var(--muted-foreground);margin-top:3px}
+.why-item{border-left:3px solid var(--border);padding:10px 16px;margin-bottom:10px}
+.why-item .wn{font-family:var(--mono);font-size:10px;color:var(--muted-foreground);font-weight:600;margin-bottom:3px}
+.why-item .wq{font-size:14px;font-weight:600;margin-bottom:4px}
+.why-item .wa{font-size:13.5px;color:var(--muted-foreground)}
+.factor-item{padding:9px 0;border-top:1px solid var(--border);display:flex;gap:10px;font-size:13.5px}
+.factor-item:first-child{border-top:none}
+.factor-item::before{content:'◦';color:var(--muted-foreground);flex:none}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);font-weight:600;padding:0 10px 8px}
+td{padding:10px;border-top:1px solid var(--border)}
+.status-open{color:var(--bad);font-weight:600} .status-ip{color:var(--warn);font-weight:600} .status-done{color:var(--good);font-weight:600}
+.foot{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted-foreground)}
+.foot code{font-family:var(--mono);background:var(--muted);padding:2px 6px;border-radius:5px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">PM</span>Incident Postmortem<span class="sub">INC-2026-047</span></div>
+  <span class="badge bad">SEV-1</span>
+</div></div>
+
+<main class="wrap">
+  <div class="eyebrow"><span>Blameless Postmortem</span><span class="badge bad">SEV-1 · Resolved</span></div>
+  <h1>Payment Service Outage — May 20, 2026</h1>
+
+  <div class="meta-row">
+    <span>Incident <b>INC-2026-047</b></span>
+    <span>Severity <b>SEV-1</b></span>
+    <span>Duration <b class="num">47 min</b></span>
+    <span>Started <b>02:11 UTC</b></span>
+    <span>Resolved <b>02:58 UTC</b></span>
+    <span>Prepared by <b>Engineering Agent</b></span>
+    <span>Status <b class="badge good">Approved · QA</b></span>
+  </div>
+
+  <div class="impact-box">
+    <div class="ik">Customer impact</div>
+    <div class="iv">Customers were unable to complete purchases for 47 minutes. Checkout requests returned a 500 error. Subscription renewals scheduled in this window were delayed by up to 6 hours.</div>
+    <div class="impact-kpis">
+      <div class="ik-item"><div class="ikl">Duration</div><div class="ikv">47 min</div></div>
+      <div class="ik-item"><div class="ikl">Sentry errors</div><div class="ikv">14,381</div></div>
+      <div class="ik-item"><div class="ikl">Affected users</div><div class="ikv">2,847</div></div>
+    </div>
+  </div>
+
+  <h2><span class="n">1</span> Timeline (UTC)</h2>
+  <div id="timeline"></div>
+
+  <h2><span class="n">2</span> Root Cause</h2>
+  <p style="font-size:15px;margin-bottom:12px">
+    A <strong>NullPointerException in PaymentService.processCharge</strong> was triggered when the Stripe webhook client returned a response with a null <code>charge.payment_intent</code> field — introduced in Stripe's v4.1 library as a non-breaking schema change but not handled in our client code. The vulnerability existed because the payment service had no nil-guard on the payment-intent field and no circuit breaker to shed load when the error rate exceeded a threshold.
+  </p>
+
+  <h2><span class="n">3</span> 5-Whys</h2>
+  <div id="whys"></div>
+
+  <h2><span class="n">4</span> Contributing Factors</h2>
+  <div id="factors"></div>
+
+  <h2><span class="n">5</span> Action Items</h2>
+  <table>
+    <thead><tr><th>Action</th><th>Owner</th><th>Due</th><th>Ticket</th><th>Status</th></tr></thead>
+    <tbody id="actions"></tbody>
+  </table>
+
+  <div class="foot">
+    Built by the <b>Per-Incident Postmortem</b> job from <code>postmortems/INC-2026-047/</code>.
+    Action items tracked in <code>postmortems/action-items.md</code>. QA sign-off: ✓ (all items have owner + due date + ticket).
+  </div>
+</main>
+
+<script>
+'use strict';
+const TIMELINE=[
+  {time:'02:07 UTC',event:'v2.4.0 deploy begins',detail:'payment-service v2.4.0 rolled out; includes Stripe client upgrade to v4.1.',cls:''},
+  {time:'02:11 UTC',event:'Alerts fire — checkout 5xx rate >5%',detail:'Datadog alert: payment-service error rate 12% (threshold 5%). PagerDuty pages Maya Chen (on-call).',cls:'alert'},
+  {time:'02:14 UTC',event:'On-call investigates',detail:'Maya acknowledges page, opens Sentry — sees NullPointerException in processCharge, 847 events in 3 min.',cls:''},
+  {time:'02:19 UTC',event:'Deploy identified as likely cause',detail:'Deployment marker at 02:07 correlates with error spike onset. Rollback initiated.',cls:'mitig'},
+  {time:'02:24 UTC',event:'Rollback to v2.3.5 in progress',detail:'Payment-service rolling back. Error rate begins declining at 02:26.',cls:''},
+  {time:'02:31 UTC',event:'Error rate below threshold',detail:'Sentry events: 0 new NullPointerExceptions. Checkout error rate: 0.3% (baseline).',cls:''},
+  {time:'02:58 UTC',event:'All-clear declared',detail:'All metrics nominal. Incident closed. Subscription renewals rescheduled. 47 min total duration.',cls:'resolve'},
+];
+const WHYS=[
+  {n:'Why 1',q:'Why did checkout fail?',a:'PaymentService.processCharge threw a NullPointerException when accessing charge.payment_intent on a null object.'},
+  {n:'Why 2',q:'Why was payment_intent null?',a:'Stripe v4.1 changed the charge response schema — payment_intent is now null when the charge is pre-authorized but not captured.'},
+  {n:'Why 3',q:'Why did this reach production?',a:'The Stripe client upgrade (ENG-7700) had no integration test against the new schema variant, and the staging environment used mocked Stripe responses that didn\'t reflect the schema change.'},
+  {n:'Why 4',q:'Why were there no mocked v4.1 responses in staging?',a:'The mock library was not updated when the Stripe client was upgraded; mocks and client versions are not version-locked.'},
+  {n:'Why 5',q:'Why is there no circuit breaker to limit impact?',a:'The payment service has no load-shedding mechanism. When the error rate crossed 10%, every checkout request continued to hit the broken code path rather than failing fast with a user-visible "try again" message.'},
+];
+const FACTORS=[
+  'No automated integration tests against live Stripe sandbox for the payment service — mocks diverged from real API behavior.',
+  'Mock library version not pinned to the Stripe client version — drift is silent and undetected until production.',
+  'No circuit breaker on payment-service — a partial failure becomes a full outage instead of graceful degradation.',
+  'No Datadog monitor for payment-service p99 latency — the alert fired on error rate only, 4 minutes after the deploy, not at the first latency spike at 02:09.',
+  'Deploy verification step did not include a synthetic checkout transaction against the new build before traffic shifted.',
+];
+const ACTIONS=[
+  {action:'Add Datadog monitor: payment-service p99 latency > 500ms, alert on-call',owner:'Maya Chen',due:'Jun 1',ticket:'ENG-5511',status:'open'},
+  {action:'Implement circuit breaker between checkout-service and payment-service (Resilience4j)',owner:'Riku Tanaka',due:'Jun 8',ticket:'ENG-5512',status:'in-progress'},
+  {action:'Load test payment-service at 3× peak traffic before next release',owner:'Priya Nair',due:'Jun 15',ticket:'ENG-5513',status:'open'},
+  {action:'Write runbook: payment-service degraded — manual fallback and requeue steps',owner:'Maya Chen',due:'May 30',ticket:'ENG-5514',status:'open'},
+  {action:'Pin mock library version to Stripe client version in Makefile; add lint rule',owner:'Lucas Ferreira',due:'May 28',ticket:'ENG-5515',status:'open'},
+  {action:'Add synthetic canary: checkout end-to-end flow in staging on every deploy',owner:'Priya Nair',due:'Jun 8',ticket:'ENG-5516',status:'open'},
+];
+
+document.getElementById('timeline').innerHTML=TIMELINE.map(t=>`
+  <div class="timeline-item">
+    <div class="tl-dot ${t.cls}">${t.cls==='alert'?'!':t.cls==='mitig'?'M':t.cls==='resolve'?'✓':'·'}</div>
+    <div class="tl-body">
+      <div class="tl-time">${t.time}</div>
+      <div class="tl-event">${t.event}</div>
+      <div class="tl-detail">${t.detail}</div>
+    </div>
+  </div>`).join('');
+
+document.getElementById('whys').innerHTML=WHYS.map(w=>`
+  <div class="why-item">
+    <div class="wn">${w.n}</div>
+    <div class="wq">${w.q}</div>
+    <div class="wa">${w.a}</div>
+  </div>`).join('');
+
+document.getElementById('factors').innerHTML=FACTORS.map(f=>`<div class="factor-item">${f}</div>`).join('');
+
+document.getElementById('actions').innerHTML=ACTIONS.map(a=>`
+  <tr>
+    <td>${a.action}</td>
+    <td style="white-space:nowrap;font-size:12px">${a.owner}</td>
+    <td style="white-space:nowrap;font-family:var(--mono);font-size:12px">${a.due}</td>
+    <td style="font-family:var(--mono);font-size:12px;color:var(--info)">${a.ticket}</td>
+    <td><span class="${a.status==='open'?'status-open':a.status==='in-progress'?'status-ip':'status-done'}">${a.status}</span></td>
+  </tr>`).join('');
+</script>
+</body>
+</html>

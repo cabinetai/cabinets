@@ -1,0 +1,35 @@
+id: daily-meeting-capture
+name: Daily Meeting Capture
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: meeting-summarizer
+agentSlug: meeting-summarizer
+timeout: 900
+prompt: |-
+  Process all meetings from the previous business day and write structured meeting files.
+
+  1. Pull yesterday's meetings from the calendar connector (Google Calendar / Outlook).
+     Include: title, time, duration, attendees, organiser, description/agenda.
+  2. For each meeting, pull the transcript from the video connector (Zoom/Meet/Teams).
+     If no transcript is available, use the calendar description as the source and note it.
+  3. For each meeting, write `meetings/<YYYY-MM-DD>-<slug>.md` with this exact structure:
+     - **Title** and **Date/Time/Duration**
+     - **Attendees** (name + role if known)
+     - **Summary** (≤3 sentences — the outcome of the meeting, not the agenda)
+     - **Decisions** (bulleted; each: [Decision] + context + alternatives considered)
+     - **Action Items** (each: task | owner | due date | priority: high/medium/low)
+     - **Parking Lot** (topics raised but deferred)
+     - **Source** (transcript path or "calendar description only")
+  4. Update `meetings/index.yaml`: add a row for each new meeting with slug, date, attendee count, decision count, open-action count.
+  5. Merge new action items into `meetings/action-items.yaml`:
+     - Each item: id (auto), meeting-slug, task, owner, due, priority, status: open.
+     - If owner is unclear from the transcript, set owner: "[unassigned]".
+
+  Rules: Never guess a decision owner — flag as [unassigned] if ambiguous.
+  A Parking Lot item is not a decision and not an action item — file it separately.
+  Process all meetings before 09:00. No meeting from yesterday should be missing.
+cabinetPath: cabinet-examples/cabinets/meeting-memory
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

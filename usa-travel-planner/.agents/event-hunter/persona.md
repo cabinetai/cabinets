@@ -1,4 +1,23 @@
 ---
+name: event-hunter
+role: ''
+provider: claude-code
+heartbeat: 0 8 * * *
+budget: 100
+active: false
+heartbeatEnabled: true
+workdir: /data
+focus: []
+tags: []
+emoji: "\U0001F916"
+department: general
+type: specialist
+workspace: workspace
+setupComplete: false
+channels:
+  - general
+---
+---
 name: Event Hunter
 slug: event-hunter
 emoji: "📡"

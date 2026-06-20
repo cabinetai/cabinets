@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spend Policy Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:3px;font-size:13.5px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600} .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .grid{display:grid;gap:14px}
+  .g-3{grid-template-columns:1fr 1fr 1fr}
+  .g-2{grid-template-columns:1.4fr 1fr}
+  @media(max-width:960px){.g-3,.g-2{grid-template-columns:1fr}}
+
+  /* Policy cards */
+  .policy-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-sm)}
+  .policy-card .cat{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground);font-weight:600;margin-bottom:6px;font-family:var(--mono)}
+  .policy-card .name{font-size:14px;font-weight:600;margin-bottom:10px}
+  .policy-card .limit-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-top:1px solid var(--border)}
+  .policy-card .limit-row .l{font-size:12.5px;color:var(--muted-foreground)}
+  .policy-card .limit-row .v{font-family:var(--mono);font-size:13px;font-weight:600}
+
+  /* Q&A examples */
+  .qa-item{padding:13px 0;border-top:1px solid var(--border)}
+  .qa-item:first-child{border-top:none;padding-top:0}
+  .qa-item .q{font-weight:600;font-size:13px;margin-bottom:5px}
+  .qa-item .a{font-size:12.5px;color:var(--muted-foreground);line-height:1.55}
+  .qa-item .ref{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);margin-top:5px}
+
+  /* Flagged transactions */
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 8px 8px}
+  th.r,td.r{text-align:right}
+  td{padding:10px 8px;border-top:1px solid var(--border)}
+  tbody tr:hover{background:var(--muted)}
+  .vname{font-weight:600}
+
+  /* Dept spend bars */
+  .dept-row{display:grid;grid-template-columns:100px 1fr 56px;gap:10px;align-items:center;margin-bottom:9px}
+  .dept-row .nm{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dept-row .track{height:9px;background:var(--muted);border-radius:100px;overflow:hidden}
+  .dept-row .fill{height:100%;border-radius:100px}
+  .dept-row .amt{font-family:var(--mono);font-size:11.5px;font-weight:600;text-align:right}
+
+  .foot{margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted-foreground);text-align:center}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">SP</span>Spend Policy<span class="sub">Employee Hub</span></div>
+  <div class="sync"><span class="dot"></span>policy v2.4 · Ramp/Brex · May 23, 08:04</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Spend Policy Hub</h1>
+      <p>Policy limits by category · "Can I expense this?" examples · flagged transactions · department spend</p>
+    </div>
+    <span class="badge warn">4 flags this week · 2 escalations</span>
+  </header>
+
+  <!-- Policy Cards -->
+  <section class="grid g-3" style="margin-bottom:14px">
+    <div class="policy-card">
+      <div class="cat">Section 3 — Meals</div>
+      <div class="name">Meals &amp; Entertainment</div>
+      <div class="limit-row"><span class="l">Team meal (internal)</span><span class="v">$40/person</span></div>
+      <div class="limit-row"><span class="l">Client meal (guests)</span><span class="v">$125/person</span></div>
+      <div class="limit-row"><span class="l">Working lunch (solo)</span><span class="v">$25/person</span></div>
+      <div class="limit-row"><span class="l">Team celebration</span><span class="v">$75/person</span></div>
+      <div class="limit-row"><span class="l">Coffee meeting</span><span class="v">$15/person</span></div>
+      <div class="limit-row"><span class="l">Alcohol standalone</span><span class="v" style="color:var(--bad)">Not covered</span></div>
+    </div>
+    <div class="policy-card">
+      <div class="cat">Section 4 — Travel</div>
+      <div class="name">Travel</div>
+      <div class="limit-row"><span class="l">Flights (< 6h)</span><span class="v">Economy</span></div>
+      <div class="limit-row"><span class="l">Flights (> 6h)</span><span class="v">Business + VP</span></div>
+      <div class="limit-row"><span class="l">Hotels (standard)</span><span class="v">$250/night</span></div>
+      <div class="limit-row"><span class="l">Hotels (NYC/SF/LDN)</span><span class="v">$350/night</span></div>
+      <div class="limit-row"><span class="l">Conference reg.</span><span class="v">Manager appr.</span></div>
+      <div class="limit-row"><span class="l">Conf. reg. > $1,500</span><span class="v">Director appr.</span></div>
+    </div>
+    <div class="policy-card">
+      <div class="cat">Sections 2 / 5 / 6 — Approvals</div>
+      <div class="name">Approval Thresholds</div>
+      <div class="limit-row"><span class="l">Under $500</span><span class="v" style="color:var(--good)">No pre-approval</span></div>
+      <div class="limit-row"><span class="l">$500 – $2,500</span><span class="v">Manager</span></div>
+      <div class="limit-row"><span class="l">$2,500 – $10,000</span><span class="v">Director / VP</span></div>
+      <div class="limit-row"><span class="l">Over $10,000</span><span class="v">CFO</span></div>
+      <div class="limit-row"><span class="l">Software (any amount)</span><span class="v">IT + Finance</span></div>
+      <div class="limit-row"><span class="l">Home office equip.</span><span class="v">$500/year</span></div>
+    </div>
+  </section>
+
+  <!-- Row 2: Q&A + Flagged Transactions -->
+  <section class="grid g-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Flagged Transactions — Week of May 19</div><div class="d">Policy anomaly sweep · 12 transactions reviewed</div></div><span class="badge warn">4 flags · 2 escalations</span></div>
+      <div class="card-b" style="padding-top:6px;overflow-x:auto">
+        <table>
+          <thead><tr><th>Vendor</th><th>Dept</th><th class="r">Amount</th><th>Issue</th><th>Type</th></tr></thead>
+          <tbody id="flags-table"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">"Can I expense this?" — Examples</div><div class="d">Representative Q&A from this week's sweep</div></div></div>
+      <div class="card-b" id="qa-list"></div>
+    </div>
+  </section>
+
+  <!-- Row 3: Dept spend summary -->
+  <section class="card">
+    <div class="card-h"><div><div class="t">Department Spend — Week of May 19</div><div class="d">Card spend by department vs. 4-week average</div></div><span class="meta">Ramp + Brex</span></div>
+    <div class="card-b"><div id="dept-spend"></div></div>
+  </section>
+
+  <p class="foot">Policy source: <code>data/policy.md</code> v2.4 · Transactions: <code>data/transactions-weekly.csv</code> · Flags: <code>.cabinet-state/anomaly-flag.md</code></p>
+</main>
+
+<script>
+'use strict';
+const FLAGS = [
+  { vendor:'Adobe Creative Cloud', dept:'Marketing', amount:79.99,  issue:'Personal subscription (personal email)', type:'FLAG',     badge:'warn', section:'§7 Excluded' },
+  { vendor:'Equinox Gym',          dept:'HR',        amount:180.00, issue:'Personal gym membership — not reimbursable', type:'FLAG', badge:'warn', section:'§7 Excluded' },
+  { vendor:'Shake Shack',          dept:'Eng',       amount:148.20, issue:'Team meal $49.40/person (limit: $40) + no receipt', type:'ESCALATE', badge:'bad', section:'§3.1 · §1.3' },
+  { vendor:'Hilton Hotels',        dept:'Sales',     amount:820.00, issue:'Hotel $820 vs $250/night standard limit', type:'ESCALATE', badge:'bad', section:'§4.2' },
+  { vendor:'GitHub Copilot',       dept:'Eng',       amount:19.00,  issue:'Personal dev tool — IT manages enterprise license', type:'FLAG', badge:'warn', section:'§5.2' },
+  { vendor:'Figma (extra seat)',    dept:'Marketing', amount:576.00, issue:'Software purchase without IT + Finance pre-approval', type:'FLAG', badge:'warn', section:'§5.1' },
+];
+const tbody = document.getElementById('flags-table');
+FLAGS.forEach(f=>{
+  tbody.innerHTML += `<tr>
+    <td><span class="vname">${f.vendor}</span></td>
+    <td>${f.dept}</td>
+    <td class="r num">$${f.amount.toFixed(2)}</td>
+    <td style="font-size:12px;color:var(--muted-foreground)">${f.issue}</td>
+    <td><span class="badge ${f.badge}">${f.type}</span></td>
+  </tr>`;
+});
+
+const QA = [
+  { q:'Can I expense a $90 team lunch for 3 people?', a:'No. Team meals are limited to $40/person (§3.1). A $90 meal for 3 people = $30/person — that is within policy. A $90 meal for 2 = $45/person — that exceeds the limit. Clarify headcount.', ref:'§3.1 — Meals & Entertainment' },
+  { q:'My hotel in NYC was $420/night. Is that okay?', a:'No. High-cost market rate is $350/night (NYC, SF, London, Zurich). $420 exceeds the limit — you will need manager approval for the overage, or switch to the corporate rate (Marriott Bonvoy CORP-34821).', ref:'§4.2 — Hotels' },
+  { q:'Can I buy a personal ChatGPT Plus subscription on my Ramp card?', a:'No. Personal AI tool subscriptions are not reimbursable. If you need AI tools for work, submit a request to IT — Engineering has an approved enterprise tier.', ref:'§5.3 — AI Tools · §7 Excluded' },
+  { q:'I want to add a Figma seat for a contractor. Is that okay?', a:'Any software purchase requires IT and Finance pre-approval before the purchase, regardless of amount. Submit a request to IT first, then use the company billing rather than your card.', ref:'§5.1 — Software & Subscriptions' },
+  { q:'Can I expense a $60 birthday gift for my direct report?', a:'Gifts to employees are capped at $50 without HR and Finance approval. A $60 gift requires approval from both teams before purchase.', ref:'§7 — Excluded Categories (gift threshold)' },
+];
+document.getElementById('qa-list').innerHTML = QA.map(q=>`
+  <div class="qa-item">
+    <div class="q">${q.q}</div>
+    <div class="a">${q.a}</div>
+    <div class="ref">${q.ref}</div>
+  </div>`).join('');
+
+const DEPTS = [
+  { name:'Engineering', spend:4039.00, avg:3200 },
+  { name:'Sales',       spend:2060.00, avg:2400 },
+  { name:'Marketing',   spend:655.99,  avg:800  },
+  { name:'HR',          spend:180.00,  avg:120  },
+  { name:'Finance',     spend:38.50,   avg:45   },
+  { name:'CS',          spend:94.30,   avg:110  },
+];
+const maxSpend = Math.max(...DEPTS.map(d=>Math.max(d.spend,d.avg)));
+const COLORS = ['var(--c1)','var(--c5)','var(--c2)','var(--c3)','var(--c6)','var(--c4)'];
+document.getElementById('dept-spend').innerHTML = `<div style="margin-bottom:10px;font-size:11.5px;color:var(--muted-foreground)">Bar = this week · lighter shade = 4-week average</div>` +
+DEPTS.map((d,i)=>`<div class="dept-row">
+  <div class="nm">${d.name}</div>
+  <div class="track" style="position:relative">
+    <div class="fill" style="width:${(d.spend/maxSpend*100).toFixed(1)}%;background:${COLORS[i]};opacity:0.85"></div>
+    <div style="position:absolute;top:0;left:0;height:100%;width:${(d.avg/maxSpend*100).toFixed(1)}%;background:${COLORS[i]};opacity:0.25;border-radius:100px"></div>
+  </div>
+  <div class="amt num">$${d.spend.toFixed(0)}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

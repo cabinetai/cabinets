@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Data Request Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+    --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+    --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:11px;font-weight:700;font-family:var(--mono)}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:14px 16px}
+  .kpi .l{font-size:11.5px;color:var(--muted-foreground);font-weight:500}
+  .kpi .v{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:4px}
+  .kpi .c{font-size:11.5px;margin-top:3px;color:var(--muted-foreground)}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:2fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  /* request table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 12px 9px}
+  td{padding:12px 12px;border-top:1px solid var(--border);vertical-align:middle}
+  tbody tr:hover{background:var(--muted)}
+  .req-id{font-family:var(--mono);font-size:11.5px;color:var(--muted-foreground);white-space:nowrap}
+  .req-q{font-weight:500;font-size:13px;line-height:1.4;max-width:340px}
+  .req-meta{font-size:11.5px;color:var(--muted-foreground);margin-top:3px}
+  .sla-ok{color:var(--good);font-family:var(--mono);font-size:11.5px}
+  .sla-warn{color:var(--warn);font-family:var(--mono);font-size:11.5px}
+  .sla-bad{color:var(--bad);font-family:var(--mono);font-size:11.5px}
+
+  /* common questions */
+  .cq{padding:12px 0;border-top:1px solid var(--border)}
+  .cq:first-child{border-top:none}
+  .cq .q{font-weight:600;font-size:13px;margin-bottom:5px}
+  .cq .a{font-size:12.5px;color:var(--muted-foreground);line-height:1.5}
+  .cq .link{font-family:var(--mono);font-size:11px;color:var(--info);margin-top:4px}
+
+  /* intake form */
+  .form{display:flex;flex-direction:column;gap:12px}
+  .form label{font-size:12px;font-weight:600;color:var(--muted-foreground);display:block;margin-bottom:4px}
+  .form input,.form select,.form textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;outline:none}
+  .form input:focus,.form select:focus,.form textarea:focus{border-color:var(--ring)}
+  .form textarea{resize:vertical;min-height:80px}
+  .submit-btn{background:var(--primary);color:var(--primary-foreground);padding:9px 18px;border-radius:var(--radius);font-size:13px;font-weight:600;border:none;cursor:pointer;width:100%;margin-top:4px}
+  .submit-btn:hover{opacity:.88}
+
+  /* throughput bars */
+  .tbar-row{display:grid;grid-template-columns:80px 1fr 28px;gap:10px;align-items:center;margin-bottom:10px}
+  .tbar-row .label{font-size:12px;font-weight:500}
+  .tbar-row .track{height:10px;background:var(--muted);border-radius:100px;overflow:hidden}
+  .tbar-row .fill{height:100%;border-radius:100px}
+  .tbar-row .pct{font-family:var(--mono);font-size:11.5px;font-weight:600;text-align:right}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand">
+    <span class="logo">DR</span>Data Request Queue
+    <span class="sub">Week 21 · 8 requests</span>
+  </div>
+  <div class="sync"><span class="dot"></span>triaged · 09:12 today</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Data Request Queue</h1>
+      <p>Every data question — classified, routed, SLA-tracked, and filed.</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">Queue</button>
+      <button>Throughput</button>
+      <button>Submit</button>
+    </nav>
+  </header>
+
+  <!-- KPI row -->
+  <section class="kpis" id="kpi-row"></section>
+
+  <!-- main content: queue + sidebar -->
+  <div id="view-queue">
+    <section class="grid g-2">
+      <div class="card">
+        <div class="card-h"><div><div class="t">Request queue</div><div class="d">All requests · this week</div></div><span class="badge bad">1 overdue</span></div>
+        <div class="card-b" style="padding-top:4px">
+          <table>
+            <thead><tr>
+              <th>ID</th><th>Question</th><th>Priority</th><th>Type</th><th>Status</th><th>SLA</th>
+            </tr></thead>
+            <tbody id="request-table"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-h"><div><div class="t">Common questions</div><div class="d">Self-serve before requesting</div></div><span class="badge good">5 answers</span></div>
+          <div class="card-b" id="common-q"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- throughput view (hidden) -->
+  <div id="view-throughput" style="display:none">
+    <div class="grid g-2">
+      <div class="card">
+        <div class="card-h"><div><div class="t">Weekly throughput · W21</div><div class="d">May 18–23, 2026</div></div></div>
+        <div class="card-b" id="throughput-detail"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><div class="t">Request types</div><div class="d">Distribution this week</div></div></div>
+        <div class="card-b" id="type-dist"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- intake form (hidden) -->
+  <div id="view-submit" style="display:none">
+    <div class="grid g-2">
+      <div class="card">
+        <div class="card-h"><div><div class="t">Submit a data request</div><div class="d">Routed to an analyst by 09:00 the next business day</div></div></div>
+        <div class="card-b">
+          <div class="form" id="intake-form">
+            <div>
+              <label>Your name & team</label>
+              <input type="text" placeholder="e.g. Marcus Chen · Sales" />
+            </div>
+            <div>
+              <label>Question / request</label>
+              <textarea placeholder="Be specific: what data do you need, for what time range, and what decision does it inform?"></textarea>
+            </div>
+            <div>
+              <label>Urgency</label>
+              <select>
+                <option>P3 — background (3 business days)</option>
+                <option>P2 — decision pending (1 business day)</option>
+                <option>P1 — blocking launch or board presentation (4 hours)</option>
+              </select>
+            </div>
+            <div>
+              <label>What will you do with the answer?</label>
+              <input type="text" placeholder="e.g. Inform Q3 upsell campaign targeting" />
+            </div>
+            <button class="submit-btn" onclick="handleSubmit()">Submit request → routed to triage</button>
+          </div>
+          <div id="submit-confirm" style="display:none;padding:18px;text-align:center">
+            <div style="font-size:22px;font-weight:700;margin-bottom:8px">Request filed</div>
+            <div style="color:var(--muted-foreground);font-size:14px">The Routing Agent will triage your request by 09:00 tomorrow. Check the queue for status updates.</div>
+            <div style="margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">ID: DR-2026-0049 · P3 · triaged at 09:00 Mon</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><div class="t">Before you submit</div><div class="d">Check common questions first — instant answer</div></div></div>
+        <div class="card-b" id="common-q-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot">Queue source: <code>queue/requests.yaml</code> · Answers: <code>queue/answers/</code> · Triage log: <code>queue/triage-log.md</code></p>
+</main>
+
+<script>
+'use strict';
+
+const REQUESTS = [
+  { id:'DR-2026-0048', q:'What % of PH launch signups (May 18) activated within 48h?', requester:'James Okafor · Growth', priority:'P1', type:'metric', status:'new', sla:'4h', slaState:'warn' },
+  { id:'DR-2026-0047', q:'Accounts on same plan >18 months without upsell attempt — with contacts.', requester:'Lena Fischer · CS', priority:'P2', type:'data_pull', status:'triaged', sla:'3 days', slaState:'ok' },
+  { id:'DR-2026-0045', q:'Trial activation Apr vs Mar broken by signup source (UTM)?', requester:'James Okafor · Growth', priority:'P2', type:'analysis', status:'in_progress', sla:'1 day', slaState:'bad' },
+  { id:'DR-2026-0046', q:"What's our current MRR?", requester:'Dan Torres · Sales', priority:'P3', type:'metric', status:'deflected', sla:'—', slaState:'ok' },
+  { id:'DR-2026-0043', q:'All accounts with expansion MRR in April 2026 + contact details.', requester:'Marcus Chen · Sales', priority:'P2', type:'data_pull', status:'answered', sla:'met', slaState:'ok' },
+  { id:'DR-2026-0044', q:'Why did DAU drop May 14? Pipeline issue or real?', requester:'Priya Mehta · Product', priority:'P1', type:'analysis', status:'answered', sla:'met', slaState:'ok' },
+  { id:'DR-2026-0042', q:'Churn rate for enterprise accounts (ARR >$20K) in Q1 2026.', requester:'Sarah Kim · Product', priority:'P2', type:'metric', status:'answered', sla:'met', slaState:'ok' },
+];
+
+const COMMON_Q = [
+  { q:'What is our current MRR / ARR?', a:'See KPI Narrative Dashboard — MRR and ARR tiles updated weekly.', link:'→ dashboard/index.html' },
+  { q:'What is our churn rate this month?', a:'Query fct_churn_monthly or Looker → Retention → Churn Rate explore.', link:'→ Looker · Retention' },
+  { q:'How many DAUs on [date]?', a:'Query fct_daily_active or Metabase → Engagement → DAU chart.', link:'→ Metabase · Engagement' },
+  { q:'Which accounts churned in [month]?', a:'Looker → Retention → Churned Accounts, filter by month.', link:'→ Looker · Retention' },
+  { q:'What is our NRR?', a:'See KPI Narrative Dashboard (Retention tile). Certified formula in metrics-definition cabinet.', link:'→ dashboard/index.html' },
+];
+
+const STATUS_CLASS = { new:'warn', triaged:'info', in_progress:'info', answered:'good', deflected:'', closed:'good' };
+const STATUS_LABEL = { new:'New', triaged:'Triaged', in_progress:'In progress', answered:'Answered', deflected:'Deflected', closed:'Closed' };
+const TYPE_LABEL = { metric:'Metric Q', data_pull:'Data pull', analysis:'Analysis', pipeline:'Pipeline', definition:'Definition' };
+const PRIORITY_CLASS = { P1:'bad', P2:'warn', P3:'' };
+
+// KPI row
+const kpis = [
+  { l:'Open', v:'3', c:'new + triaged + in_progress' },
+  { l:'SLA compliance', v:'83%', c:'5 of 6 closed on time' },
+  { l:'Deflected', v:'1', c:'of 7 total this week' },
+  { l:'Avg turnaround', v:'5.2h', c:'P1/P2 only' },
+  { l:'Overdue', v:'1', c:'DR-2026-0045 (P2)' },
+];
+document.getElementById('kpi-row').innerHTML = kpis.map(k=>`
+  <div class="kpi card">
+    <div class="l">${k.l}</div>
+    <div class="v num">${k.v}</div>
+    <div class="c">${k.c}</div>
+  </div>`).join('');
+
+// Request table
+document.getElementById('request-table').innerHTML = REQUESTS.map(r=>`
+  <tr>
+    <td class="req-id">${r.id}</td>
+    <td>
+      <div class="req-q">${r.q}</div>
+      <div class="req-meta">${r.requester}</div>
+    </td>
+    <td><span class="badge ${PRIORITY_CLASS[r.priority]}">${r.priority}</span></td>
+    <td><span class="badge">${TYPE_LABEL[r.type]||r.type}</span></td>
+    <td><span class="badge ${STATUS_CLASS[r.status]}">${STATUS_LABEL[r.status]}</span></td>
+    <td class="${r.slaState==='bad'?'sla-bad':r.slaState==='warn'?'sla-warn':'sla-ok'}">${r.sla}</td>
+  </tr>`).join('');
+
+// Common questions (both panels)
+const cqHtml = COMMON_Q.map(cq=>`
+  <div class="cq">
+    <div class="q">${cq.q}</div>
+    <div class="a">${cq.a}</div>
+    <div class="link">${cq.link}</div>
+  </div>`).join('');
+document.getElementById('common-q').innerHTML = cqHtml;
+document.getElementById('common-q-2').innerHTML = cqHtml;
+
+// Throughput view
+document.getElementById('throughput-detail').innerHTML = `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+    ${[{l:'Received',v:'7'},{l:'Answered',v:'4'},{l:'Deflected',v:'1'},{l:'In progress',v:'2'}].map(s=>`
+    <div><div style="font-size:11px;color:var(--muted-foreground);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">${s.l}</div><div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">${s.v}</div></div>`).join('')}
+  </div>
+  <div style="margin-bottom:14px">
+    <div style="font-size:12px;font-weight:600;margin-bottom:8px">SLA Compliance</div>
+    ${[{l:'P1 (4h)',pct:100,c:'var(--c2)'},{l:'P2 (1d)',pct:67,c:'var(--c3)'},{l:'P3 (3d)',pct:100,c:'var(--c1)'}].map(b=>`
+    <div class="tbar-row">
+      <div class="label">${b.l}</div>
+      <div class="track"><div class="fill" style="width:${b.pct}%;background:${b.c}"></div></div>
+      <div class="pct">${b.pct}%</div>
+    </div>`).join('')}
+  </div>
+  <div style="font-size:13px;color:var(--muted-foreground);padding:10px 12px;background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:var(--radius)">
+    <strong style="color:var(--warn)">Recommendation:</strong> 3 requests this week were activation/signup analysis from Growth. Consider adding a self-serve Looker explore for cohort activation by source.
+  </div>`;
+
+document.getElementById('type-dist').innerHTML = `
+  <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+    ${[{l:'Analysis',v:3,c:'var(--c1)'},{l:'Data pull',v:2,c:'var(--c2)'},{l:'Metric Q',v:2,c:'var(--c3)'}].map(b=>`
+    <div class="tbar-row">
+      <div class="label">${b.l}</div>
+      <div class="track"><div class="fill" style="width:${b.v/7*100}%;background:${b.c}"></div></div>
+      <div class="pct">${b.v}</div>
+    </div>`).join('')}
+  </div>
+  <div style="margin-top:12px">
+    <div style="font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin-bottom:8px">Top requesters</div>
+    ${[{t:'James Okafor · Growth',n:3},{t:'Marcus Chen · Sales',n:1},{t:'Priya Mehta · Product',n:1}].map(r=>`
+    <div style="display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid var(--border);font-size:13px">
+      <span>${r.t}</span><span class="num" style="font-weight:600">${r.n}</span>
+    </div>`).join('')}
+  </div>`;
+
+// Tab switching
+let currentView = 'queue';
+const TABS = ['queue','throughput','submit'];
+document.querySelectorAll('.tabs button').forEach((btn, i)=>{
+  btn.addEventListener('click',()=>{
+    currentView = TABS[i];
+    document.querySelectorAll('.tabs button').forEach((b,j)=>b.classList.toggle('active',j===i));
+    document.getElementById('view-queue').style.display = currentView==='queue'?'':'none';
+    document.getElementById('view-throughput').style.display = currentView==='throughput'?'':'none';
+    document.getElementById('view-submit').style.display = currentView==='submit'?'':'none';
+  });
+});
+
+function handleSubmit(){
+  document.getElementById('intake-form').style.display='none';
+  document.getElementById('submit-confirm').style.display='block';
+}
+</script>
+</body>
+</html>

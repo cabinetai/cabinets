@@ -1,0 +1,54 @@
+id: weekly-inventory-reconciliation
+name: Weekly Inventory Reconciliation
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: asset-workflow
+agentSlug: asset-workflow
+timeout: 600
+prompt: |-
+  Run the weekly asset and vendor inventory reconciliation.
+
+  DATA SOURCES
+  - Current asset records: `assets/hardware.yaml`, `assets/software.yaml`,
+    `assets/vendors.yaml`
+  - Okta provisioning snapshot: `sources/okta-users.yaml` (users + apps assigned)
+  - MDM device list: `sources/mdm-devices.yaml` (jamf/kandji export)
+  - Finance feed: `sources/finance-invoices.yaml` (last 30 days invoices)
+
+  STEP 1 — LICENCE RECONCILIATION
+  Compare `assets/software.yaml` assigned users against Okta provisioning.
+  Flag: (a) licences assigned to users not in Okta (orphaned — departed user?),
+  (b) Okta-active users not in asset records (unlicensed shadow usage?),
+  (c) licence count vs. provisioned count delta >5% (over- or under-licensed).
+
+  STEP 2 — DEVICE RECONCILIATION
+  Compare `assets/hardware.yaml` against `sources/mdm-devices.yaml`.
+  Flag: (a) devices in asset records not appearing in MDM >30 days
+  (lost/unreturned?), (b) MDM devices not in asset records (shadow hardware),
+  (c) devices with last check-in >14 days (potential offline/lost).
+
+  STEP 3 — INVOICE MATCH
+  For each active vendor in `assets/vendors.yaml`, check whether an invoice
+  from `sources/finance-invoices.yaml` matches the contracted amount (±5%
+  tolerance). Flag any invoice not matching the contract amount with delta.
+
+  STEP 4 — RENEWAL WATCH
+  List all assets/vendors with renewal/warranty date within 90 days.
+  For each: renewal date, contracted cost, auto-renew status, responsible owner,
+  recommended action (renew/renegotiate/cancel). Escalate anything >$10K or
+  with auto-renew=true at 60 days out.
+
+  STEP 5 — REPORT
+  Write to `reports/reconciliation-<YYYY-MM-DD>.md` with sections:
+    ## Summary (counts: flagged discrepancies by type, renewals at risk)
+    ## Licence Discrepancies
+    ## Device Discrepancies
+    ## Invoice Mismatches
+    ## Renewals — Next 90 Days
+    ## Recommended Actions
+  Update the `last_verified` field on all reconciled records in the asset YAMLs.
+cabinetPath: cabinets/vendor-asset
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

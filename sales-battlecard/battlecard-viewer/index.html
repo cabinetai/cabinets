@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sales Battlecard Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums} a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  /* competitor selector */
+  .comp-tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+  .comp-tab{display:flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--card);transition:all .15s}
+  .comp-tab:hover{border-color:var(--ring)}
+  .comp-tab.active{border-color:var(--primary);background:var(--primary);color:var(--primary-foreground)}
+  .comp-tab .mark{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-weight:700;font-size:12px;color:#fff;flex:none}
+  .comp-tab.active .mark{background:rgba(255,255,255,.2)}
+  .comp-tab .cn{font-weight:600;font-size:13px}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600} .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-b{padding:14px 18px 18px}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr} .g3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+
+  /* callout — how they pitch */
+  .pitch-box{background:var(--bad-bg);border:1px solid var(--bad-bd);border-radius:var(--radius);padding:16px 18px}
+  .pitch-box .k{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--bad);font-weight:600}
+  .pitch-box .v{font-size:14px;margin-top:6px}
+
+  /* sections */
+  ul.bc{list-style:none;margin-top:4px}
+  ul.bc li{padding:8px 0;border-top:1px solid var(--border);display:flex;gap:8px;font-size:13.5px;align-items:flex-start}
+  ul.bc li:first-child{border-top:none}
+  ul.bc li .icon{flex:none;margin-top:1px;font-size:12px;color:var(--muted-foreground)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  th.r,td.r{text-align:right} td{padding:10px;border-top:1px solid var(--border)}
+  tbody tr:hover{background:var(--muted)}
+  .delta{font-family:var(--mono);font-weight:600} .delta.neg{color:var(--bad)} .delta.pos{color:var(--good)}
+
+  .collateral{display:flex;flex-direction:column;gap:8px}
+  .coll-item{display:flex;gap:10px;align-items:center;padding:8px 10px;background:var(--muted);border-radius:calc(var(--radius)/1.3);font-size:13px}
+  .coll-item .ci{font-family:var(--mono);font-size:10px;color:var(--muted-foreground);margin-left:auto}
+
+  .updated{font-family:var(--mono);font-size:11px;color:var(--muted-foreground)}
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">SB</span>Sales Battlecard<span class="sub" id="topbar-sub">Northwind</span></div>
+  <div class="sync"><span class="dot"></span>refreshed Fri 16:00 · CI cross-ref current</div>
+</div></div>
+
+<main class="wrap">
+
+  <div class="comp-tabs" id="comp-tabs"></div>
+
+  <div id="battlecard"></div>
+
+  <p class="foot">Battlecards from <code>battlecards/<competitor>.md</code> — refreshed weekly by the Writer Agent from Gong mentions + CI cabinet signals.</p>
+</main>
+
+<script>
+'use strict';
+const BCS = {
+  northwind: {
+    name:'Northwind', mark:'N', color:'var(--c1)', tier:'Tier 1', threat:'bad', threatL:'↑ Rising',
+    updated:'2026-05-23',
+    pitch:`Leads with price. "Enterprise-grade at a price that doesn't require a board approval." Demos SSO on slide 3; frames security as "not a premium add-on." In late-stage, often offers an unpublished 15% trial extension to reset a stalled deal.`,
+    counter:`Don't fight on price — fight on TCO and isolation model. Northwind's Pro tier ($79/seat) looks cheap until you add EU data residency (Enterprise-only), API rate limits (5k req/min cap vs. our 50k), and implementation time (their median: 87 days; ours: 18). Lead with: "What does 87 days of delayed go-live cost you in lost productivity?"`,
+    traps:['Ask: "Where is EU data residency available? Which pricing tier?"','Ask: "What's their committed API rate limit in the contract — not the website?"','Ask their references: "What was the actual go-live time — not the sales pitch?"','Ask: "When you hit 250+ seats, what happens to your Pro-tier pricing?"'],
+    proofs:['380-person logistics company moved from Northwind. Our go-live: 16 days vs. their 90-day implementation. (Deal-tested: Atlas Logistics Q1 2026)','200-person healthcare org required EU data residency — Northwind required Enterprise uplift of 40%. (Deal-tested: Crestline Health Q4 2025)','3-year TCO at 300 seats: our total cost runs 12% lower than Northwind Enterprise including implementation + residency.'],
+    landmines:["Don't mock their price — it's real. Respond with TCO, not 'you get what you pay for'","Don't claim their AI features aren't real — they shipped v0.1 in May 2026. Say: 'We've had this in production 14 months'","Don't oversell our roadmap — if a feature is Q3, say Q3"],
+    pricing:[
+      { tier:'Pro', them:'$79/seat/mo', us:'$99', delta:'neg', deltaL:'−20%' },
+      { tier:'Enterprise', them:'~$120', us:'~$115', delta:'pos', deltaL:'+4%' },
+      { tier:'EU Residency', them:'Enterprise only', us:'All tiers', delta:'pos', deltaL:'We win' },
+    ],
+    collateral:['TCO Calculator vs. Northwind one-pager','Implementation Time comparison','EU Data Residency architecture brief','Reference: Atlas Logistics (16-day go-live)'],
+  },
+  helios: {
+    name:'Helios', mark:'H', color:'var(--c5)', tier:'Tier 1', threat:'', threatL:'→ Steady',
+    updated:'2026-05-23',
+    pitch:`Enterprise-first: Fortune 500 logo wall, SOC2 Type II + ISO 27001 + FedRAMP In Process. Positions as "the platform built for enterprise procurement" — long sales cycles are a feature. AI Assistant in beta (waitlist, no GA date as of May 2026).`,
+    counter:`Velocity is our wedge. Helios median implementation: 90 days (3 G2 reviews + 1 Gong loss). Ours: 18 days. In the time it takes Helios to complete security review, we're live and the customer is getting value. Lead with: "Helios is great if you have 6 months. If your board needs results by Q3, let's talk about what 18 days vs. 90 days means."`,
+    traps:['Ask: "What's Helios's committed implementation timeline in the contract?"','Ask: "Is their AI assistant in GA or still a waitlist? What's the GA date?"','Ask their references: "Did you go live in under 60 days? Can we speak to one?"','Ask: "Is implementation cost included or a separate SOW?"'],
+    proofs:['600-person financial services firm chose us over Helios after Helios scoped 90-day implementation. We went live in 19 days. (Deal-tested: Edgemont Capital Q1 2026)','Helios AI = waitlist only as of May 2026. Our AI: in production since March 2025 — 14 months of customer feedback baked in.','G2 pattern (3 of 5 recent reviews): "support quality drops post-implementation," "90-day promise became 5 months."'],
+    landmines:["Don't oversell AI — we have it in production, they have a waitlist. Don't promise features outside current release","Don't dismiss FedRAMP — if the customer needs it, acknowledge it and check our roadmap","Don't attack their logo wall — attack implementation time and AI velocity"],
+    pricing:[
+      { tier:'Pro', them:'~$120/seat/mo', us:'$99', delta:'pos', deltaL:'+21%' },
+      { tier:'Enterprise', them:'~$135+', us:'~$115', delta:'pos', deltaL:'+17%' },
+      { tier:'Implementation', them:'Separate SOW', us:'Included', delta:'pos', deltaL:'~$15-30k extra' },
+    ],
+    collateral:['Implementation Time comparison one-pager','AI feature overview with production date proof points','G2 review summary (competitive pack)','Reference: Edgemont Capital (fast go-live, financial services)'],
+  },
+  cobalt: {
+    name:'Cobalt', mark:'C', color:'var(--c2)', tier:'Tier 2', threat:'warn', threatL:'• Watch',
+    updated:'2026-05-23',
+    pitch:`Mid-market champion — positions on ease of use and fast setup. "Running in 48 hours." Just raised $22M Series B; starting to move upmarket with new enterprise-tier announcement.`,
+    counter:`Cobalt wins on simplicity. We win on scale. Their 48-hour setup is for <50-seat deployments with no integrations. For enterprise deployments with WMS/ERP integrations and multi-site rollouts, their timeline blows past ours. Ask about their largest customer by seat count.`,
+    traps:['Ask: "What's your largest customer by seat count and number of integrations?"','Ask: "Your $65/seat includes multi-site deployments?"','Ask: "What's the SLA for enterprise support — do you have a dedicated CSM?"'],
+    proofs:['Average enterprise deployment (200+ seats, 2+ integrations): Cobalt typically requires a custom "enterprise onboarding" engagement at $15-25k. We include it.','Cobalt does not offer EU data residency — all data US-hosted. (Source: their privacy policy, May 2026)'],
+    landmines:["Don't dismiss their price — $65/seat is real for their target buyer","Don't claim their product is bad — it's genuinely good for SMB. Our story is enterprise scale"],
+    pricing:[
+      { tier:'Pro', them:'$65/seat/mo', us:'$99', delta:'neg', deltaL:'−34%' },
+      { tier:'Enterprise', them:'Custom (new)', us:'~$115', delta:'', deltaL:'TBD' },
+      { tier:'EU Residency', them:'Not available', us:'All tiers', delta:'pos', deltaL:'We win' },
+    ],
+    collateral:['Enterprise Scale comparison one-pager','EU Data Residency brief','Reference: Meridian Foods (multi-site, SAP WMS integration)'],
+  },
+};
+
+const COMPS = Object.keys(BCS);
+let current = 'northwind';
+
+function render() {
+  const bc = BCS[current];
+  document.getElementById('topbar-sub').textContent = bc.name;
+  document.getElementById('comp-tabs').innerHTML = COMPS.map(k=>`
+    <div class="comp-tab ${k===current?'active':''}" onclick="select('${k}')">
+      <div class="mark" style="background:${BCS[k].color}">${BCS[k].mark}</div>
+      <div>
+        <div class="cn">${BCS[k].name}</div>
+        <div style="font-size:11px;opacity:.7;margin-top:1px">${BCS[k].tier}</div>
+      </div>
+      <span class="badge ${BCS[k].threat}" style="margin-left:8px">${BCS[k].threatL}</span>
+    </div>`).join('');
+
+  document.getElementById('battlecard').innerHTML = `
+    <div class="grid g2" style="margin-bottom:14px">
+      <div>
+        <div class="pitch-box">
+          <div class="k">How ${bc.name} Pitches</div>
+          <div class="v">${bc.pitch}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><div class="t">Our Counter</div><div class="d">What to say, how to frame</div></div><span class="badge good">Use this</span></div>
+        <div class="card-b" style="font-size:13.5px">${bc.counter}</div>
+      </div>
+    </div>
+
+    <div class="grid g3" style="margin-bottom:14px">
+      <div class="card">
+        <div class="card-h"><div><div class="t">Traps to Set</div><div class="d">Questions that expose gaps</div></div></div>
+        <div class="card-b">
+          <ul class="bc">${bc.traps.map(t=>`<li><span class="icon">→</span><span>${t}</span></li>`).join('')}</ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><div class="t">Proof Points</div><div class="d">Deal-tested wins</div></div><span class="badge good">Deal-tested</span></div>
+        <div class="card-b">
+          <ul class="bc">${bc.proofs.map(p=>`<li><span class="icon">✓</span><span>${p}</span></li>`).join('')}</ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><div class="t">Landmines to Avoid</div><div class="d">Where we're weak</div></div><span class="badge bad">Honest</span></div>
+        <div class="card-b">
+          <ul class="bc">${bc.landmines.map(l=>`<li><span class="icon">⚠</span><span>${l}</span></li>`).join('')}</ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-h"><div><div class="t">Pricing Delta</div><div class="d">vs. us · Pro tier</div></div><span class="updated">refreshed ${bc.updated}</span></div>
+        <div class="card-b" style="padding-top:6px">
+          <table>
+            <thead><tr><th>Tier</th><th class="r">Them</th><th class="r">Us</th><th class="r">Delta</th></tr></thead>
+            <tbody>${bc.pricing.map(p=>`<tr><td>${p.tier}</td><td class="r num">${p.them}</td><td class="r num">${p.us}</td><td class="r"><span class="delta ${p.delta}">${p.deltaL}</span></td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><div class="t">Recommended Collateral</div><div class="d">Send these in this order</div></div></div>
+        <div class="card-b">
+          <div class="collateral">${bc.collateral.map((c,i)=>`<div class="coll-item"><span style="font-family:var(--mono);font-size:11px;color:var(--muted-foreground)">${i+1}.</span><span style="font-size:13px">${c}</span><span class="ci">Drive</span></div>`).join('')}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function select(k){ current=k; render(); }
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+id: daily-anomaly-scan
+name: Daily Anomaly Scan
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: analyst
+agentSlug: analyst
+timeout: 600
+prompt: |-
+  Run the daily anomaly scan against `data/kpis.csv` (latest snapshot row).
+
+  For each metric, compare today's value against the 30-day rolling mean and standard
+  deviation. Flag anomalies using this threshold:
+  - CRITICAL: move >3σ from rolling mean, OR metric crosses a defined breach threshold
+    (churn rate >3.5%, activation rate <40%, ARR growth WoW <0%)
+  - WARNING: move >2σ from rolling mean, OR sustained directional reversal (3+ days)
+  - INFO: move >1.5σ but within prior week's range
+
+  For each flagged anomaly:
+  1. Record to `narratives/anomalies.md`: date, metric name, value, delta, severity,
+     30-day mean, and a one-sentence hypothesis (data pipeline issue? product change?
+     seasonality? external event?).
+  2. Update the anomaly badge count in `dashboard/index.html` if CRITICAL or WARNING.
+
+  Rules:
+  - If no anomalies: append a "YYYY-MM-DD: all clear" line to `narratives/anomalies.md`.
+  - Never remove prior anomaly entries — append only.
+  - If a metric is missing from today's snapshot (pipeline gap), log as CRITICAL with
+    hypothesis "data pipeline — check dbt model freshness in BigQuery".
+cabinetPath: cabinet-examples/cabinets/kpi-narrative
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

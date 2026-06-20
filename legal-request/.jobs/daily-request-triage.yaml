@@ -1,0 +1,47 @@
+id: daily-request-triage
+name: Daily Legal Request Triage
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: request-router
+agentSlug: request-router
+timeout: 600
+prompt: |-
+  Run the daily legal request triage across all open requests in `requests/queue.csv`.
+  Update each request's SLA countdown and status. Write triage output to
+  `requests/daily-triage.md` (overwrite previous day's file).
+
+  Triage steps:
+
+  1. OVERDUE REQUESTS
+     Any request past its SLA deadline with status not Closed or Withdrawn.
+     For each: request ID, type, requester, assigned counsel, original SLA deadline,
+     days overdue. Mark status as Overdue in queue.csv. Flag for escalation.
+
+  2. SLA AT RISK (due within 24 hours)
+     Requests approaching their SLA deadline. Flag for the assigned counsel.
+
+  3. NEEDS INFO — STALE
+     Any request in Needs Info status for more than 3 business days without a response
+     from the requester. Send a reminder note and flag as Stale if >5 business days.
+
+  4. NEW REQUESTS (received since last triage)
+     Any request in queue.csv with status New. For each:
+     - Classify type if not already set.
+     - Check required fields for the type are complete.
+     - If complete, route to Request QA and set status to Pending QA.
+     - If incomplete, set status to Needs Info and document exactly what is missing.
+
+  5. TRIAGE SUMMARY
+     Write a one-paragraph summary: total open requests, new since yesterday,
+     overdue count, at-risk count, Needs Info count.
+
+  Rules:
+  - Update `requests/queue.csv` with any status changes.
+  - Do not close or withdraw requests — only counsel can close a matter.
+  - If `requests/queue.csv` does not exist, create it with headers:
+    id,type,requester,team,counterparty,priority,sla_deadline,assigned_counsel,status,created_date
+cabinetPath: cabinet-examples/cabinets/legal-request
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

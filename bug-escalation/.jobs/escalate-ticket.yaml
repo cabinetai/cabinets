@@ -1,0 +1,77 @@
+id: escalate-ticket
+name: Escalate Ticket to Engineering
+enabled: false
+schedule: 0 9 * * *
+provider: claude-code
+adapterType: claude_local
+ownerAgent: engineering-liaison
+agentSlug: engineering-liaison
+timeout: 900
+prompt: |-
+  On-demand: produce a complete bug escalation packet for the issue described in the
+  trigger context (ticket ID, cluster slug, or free-text description provided at runtime).
+
+  STEP 1 — Customer Impact Analysis (delegate to Customer Impact Analyst)
+  Hand off to the customer-impact-analyst agent to:
+  1. Search `/inbox/` and any linked cluster file for all tickets referencing this issue.
+  2. Deduplicate by customer account (not ticket count).
+  3. Extract the clearest reproduction steps from real customer descriptions (verbatim).
+  4. Build the environment matrix: browser, OS, app version, auth method, account tier, region.
+  5. Cross-reference affected accounts against `/data/accounts.csv` for ARR and renewal date.
+  6. Write the impact draft to `/escalations/drafts/<slug>-impact.md`.
+  Confirm the draft is written before proceeding.
+
+  STEP 2 — Engineering Liaison: compose the escalation packet
+  1. Read the impact draft from `/escalations/drafts/<slug>-impact.md`.
+  2. Assign the next ESC number (read `/escalations/index.md` for the last used number).
+  3. Apply severity:
+     - P1: data loss, security issue, or >10 enterprise accounts with active impact
+     - P2: significant workflow blocker, >5 customers, or ≥$100K ARR at risk
+     - P3: workaround exists, experience materially degraded
+     - P4: minor, small number of customers
+  4. Write the final escalation packet to `/escalations/ESC-<NNN>.md` using this structure:
+
+     # ESC-<NNN>: <Bug title — one line, actionable>
+
+     **Severity:** P<N> — <rationale>
+     **Status:** Pending Repro
+     **Created:** <YYYY-MM-DD>
+     **Owner:** <suggested engineering team or "Unassigned">
+     **Jira/Linear:** <ticket URL or "To create">
+
+     ## Reproduction steps
+     (numbered, verbatim where possible)
+
+     ## Affected customers
+     | Account | Tier | ARR | Renewal | Tickets |
+     (table from impact analyst)
+
+     **Total affected:** N accounts | $XXX,XXX ARR at risk
+     **Renewal risk:** N accounts renewing within 60 days
+
+     ## Environment matrix
+     (browsers, OS, versions, auth methods affected / not affected)
+
+     ## Timeline
+     - First seen: <date>
+     - Volume trend: <description>
+
+     ## Linked support tickets
+     (comma-separated IDs)
+
+     ## Notes
+     (anything the engineer should know that doesn't fit above)
+
+  5. Update `/escalations/index.md` with the new ESC entry: id, title, severity, status, created date.
+  6. Update the dashboard data in `/escalation-packet/data.json` so the webapp reflects
+     the current active escalation list.
+
+  RULES:
+  - One packet per underlying bug, never per ticket.
+  - If reproduction fidelity is "Suspected" only, state that clearly in the packet.
+  - If an ARR figure can't be confirmed from `/data/accounts.csv`, write "ARR unconfirmed."
+  - Never mark severity P1 without at least 2 confirmed affected accounts or a confirmed
+    data loss / security signal.
+cabinetPath: cabinet-examples/cabinets/bug-escalation
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

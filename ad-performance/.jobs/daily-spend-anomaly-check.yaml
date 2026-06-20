@@ -1,0 +1,29 @@
+id: daily-spend-anomaly-check
+name: Daily Spend & Anomaly Check
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: ads-analyst
+agentSlug: ads-analyst
+timeout: 300
+prompt: |-
+  Run the daily paid media anomaly check.
+  1. Read today's spend data from `data/platform-exports/daily/` for all active channels.
+  2. Check each channel against its daily budget target (in `data/budget-targets.md`):
+     - OVER-PACING: spending >120% of daily target → flag CRITICAL
+     - UNDER-PACING: spending <50% of daily target by noon → flag WARN (potential delivery issue)
+  3. Check each active ad set for:
+     - CTR <0.4% when it was >1% at the same time last week → flag WARN (fatigue)
+     - CPA >2× the channel's CPA target → flag CRITICAL
+     - Zero conversions on a spend >$500/day → flag CRITICAL
+  4. Write all findings to `alerts/daily-<YYYY-MM-DD>.md` with:
+     - Severity (CRITICAL / WARN / OK)
+     - Channel + ad set
+     - Metric value vs threshold
+     - Recommended action
+  5. If any CRITICAL flag: also write a 3-sentence Slack alert draft to `alerts/slack-<YYYY-MM-DD>.md`.
+  If all clear: write "All channels pacing normally" to the daily log and stop.
+cabinetPath: cabinet-examples/cabinets/ad-performance
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

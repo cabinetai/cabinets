@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Portfolio Dashboard · Northbound Capital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --border:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --radius:0.7rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --border:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px}
+
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+  .topbar-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 24px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:600}
+  .brand .logo{width:30px;height:30px;border-radius:8px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12px;border-left:1px solid var(--border);padding-left:11px;margin-left:3px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{padding:26px 0 18px}
+  .eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground);margin-bottom:9px}
+  h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+  .lede{color:var(--muted-foreground);font-size:14px;max-width:680px}
+
+  /* top KPI strip */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:20px 0 26px}
+  @media(max-width:880px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow-sm)}
+  .kpi .lbl{font-size:11px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)}
+  .kpi .val{font-size:24px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
+  .kpi .sub{font-size:11.5px;color:var(--muted-foreground);margin-top:2px}
+  .kpi.alert .val{color:var(--bad)}
+
+  .sec-title{display:flex;align-items:center;gap:9px;font-size:12px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted-foreground);margin:26px 0 13px}
+  .sec-title::after{content:"";flex:1;height:1px;background:var(--border)}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+
+  .co{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 17px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+  .co.red{border-color:var(--bad-bd);background:linear-gradient(var(--bad-bg),var(--card) 64%)}
+  .co.amber{border-color:var(--warn-bd);background:linear-gradient(var(--warn-bg),var(--card) 64%)}
+  .co-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .co-name{font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .co-what{font-size:12.5px;color:var(--muted-foreground);margin-top:2px;max-width:90%}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap;font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 12px}
+  .m .ml{font-size:10px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono)}
+  .m .mv{font-size:15px;font-weight:600;margin-top:2px}
+  .m .mv small{font-size:11px;font-weight:500;color:var(--muted-foreground)}
+
+  /* runway bar */
+  .runway{margin:12px 0 10px}
+  .runway-top{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--muted-foreground);font-family:var(--mono);margin-bottom:5px}
+  .runway-top b{color:var(--foreground);font-size:13px}
+  .track{height:8px;border-radius:100px;background:var(--muted);overflow:hidden;position:relative}
+  .fill{height:100%;border-radius:100px}
+  .fill.g{background:var(--good)} .fill.w{background:var(--warn)} .fill.b{background:var(--bad)}
+  .runway-scale{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted-foreground);font-family:var(--mono);margin-top:3px}
+
+  .co-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--border);padding-top:11px;margin-top:4px;font-size:11.5px;color:var(--muted-foreground)}
+  .co-foot .own{font-family:var(--mono)}
+  .action{font-size:12px;background:var(--muted);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-top:11px;line-height:1.5}
+  .action b{color:var(--foreground)}
+  .action.red{background:var(--bad-bg);border-color:var(--bad-bd)}
+  .action.amber{background:var(--warn-bg);border-color:var(--warn-bd)}
+  .action.up{background:var(--good-bg);border-color:var(--good-bd)}
+
+  .foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--border);font-size:11.5px;color:var(--muted-foreground);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .foot code{font-family:var(--mono);background:var(--muted);padding:1px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+  <div class="topbar"><div class="topbar-in">
+    <div class="brand"><div class="logo">N</div>Northbound Capital<span class="sub">Portfolio Dashboard</span></div>
+    <div class="sync"><span class="dot"></span>synced from data/portfolio.md · Mon 08:30</div>
+  </div></div>
+
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Fund II · Seed–Series A · Applied AI &amp; Dev Infra</div>
+      <h1>Portfolio Health</h1>
+      <p class="lede">Eight active positions. The Portfolio Partner recomputes runway and re-evaluates flags every Monday. Two companies need attention this week — they're pinned to the top.</p>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Active positions</div><div class="val num">8</div><div class="sub">Fund I + Fund II</div></div>
+      <div class="kpi alert"><div class="lbl">Flagged</div><div class="val num">2</div><div class="sub">1 red · 1 amber</div></div>
+      <div class="kpi"><div class="lbl">Aggregate ARR</div><div class="val num">$16.6M</div><div class="sub">across portfolio</div></div>
+      <div class="kpi alert"><div class="lbl">Under 6mo runway</div><div class="val num">1</div><div class="sub">Helmwise · 4.8mo</div></div>
+      <div class="kpi"><div class="lbl">Pro-rata watch</div><div class="val num">2</div><div class="sub">raising ≤3 quarters</div></div>
+    </div>
+
+    <div class="sec-title">Needs attention</div>
+    <div class="grid">
+
+      <!-- Helmwise RED -->
+      <div class="co red">
+        <div class="co-top">
+          <div><div class="co-name">Helmwise</div><div class="co-what">AI-native claims processing for mid-market health insurers</div></div>
+          <span class="badge bad">● Red · runway</span>
+        </div>
+        <div class="metrics">
+          <div class="m"><div class="ml">ARR</div><div class="mv num">$2.1M <small>+3%</small></div></div>
+          <div class="m"><div class="ml">Net burn</div><div class="mv num">$290K<small>/mo</small></div></div>
+          <div class="m"><div class="ml">NRR</div><div class="mv num">104%</div></div>
+        </div>
+        <div class="runway">
+          <div class="runway-top"><span>Runway</span><b class="num">4.8 months</b></div>
+          <div class="track"><div class="fill b" style="width:20%"></div></div>
+          <div class="runway-scale"><span>0</span><span>6mo</span><span>12mo</span><span>24mo+</span></div>
+        </div>
+        <div class="action red">⚠️ <b>Fire.</b> Under 6mo and not yet raising; growth decelerating; 1 of 2 payer logos slipped to Q3. <b>MP to call CEO this week</b> — start bridge/extension or make the default-alive cut. Lining up 3 growth-fund intros.</div>
+        <div class="co-foot"><span class="own">Series A · 11.2% · board obs.</span><span>Updated 2026-05-28</span></div>
+      </div>
+
+      <!-- Cadencegrid AMBER -->
+      <div class="co amber">
+        <div class="co-top">
+          <div><div class="co-name">Cadencegrid</div><div class="co-what">Orchestration layer for multi-agent workflows in production</div></div>
+          <span class="badge warn">● Amber · quiet</span>
+        </div>
+        <div class="metrics">
+          <div class="m"><div class="ml">ARR</div><div class="mv num">$0 <small>pre-rev</small></div></div>
+          <div class="m"><div class="ml">Net burn</div><div class="mv num">$210K<small>/mo</small></div></div>
+          <div class="m"><div class="ml">Design ptrs</div><div class="mv num">4 <small>/ 8</small></div></div>
+        </div>
+        <div class="runway">
+          <div class="runway-top"><span>Runway</span><b class="num">15.2 months</b></div>
+          <div class="track"><div class="fill g" style="width:63%"></div></div>
+          <div class="runway-scale"><span>0</span><span>6mo</span><span>12mo</span><span>24mo+</span></div>
+        </div>
+        <div class="action amber">Cash is fine, but <b>71 days quiet</b> and off the design-partner milestone (4 of 8) with no revised plan. Silence + slippage is the pattern we watch. Requesting an update + revised plan; offering Platform Lead's help sourcing design partners.</div>
+        <div class="co-foot"><span class="own">Seed · 13.0% · info rights</span><span>Updated 2026-03-29</span></div>
+      </div>
+
+    </div>
+
+    <div class="sec-title">Healthy · upside flags</div>
+    <div class="grid">
+
+      <!-- Sentryflow upside -->
+      <div class="co">
+        <div class="co-top">
+          <div><div class="co-name">Sentryflow</div><div class="co-what">Runtime threat detection for AI agents &amp; tool calls</div></div>
+          <span class="badge good">▲ Upside</span>
+        </div>
+        <div class="metrics">
+          <div class="m"><div class="ml">ARR</div><div class="mv num">$640K <small>+18%</small></div></div>
+          <div class="m"><div class="ml">Net burn</div><div class="mv num">$180K<small>/mo</small></div></div>
+          <div class="m"><div class="ml">NRR</div><div class="mv num">121%</div></div>
+        </div>
+        <div class="runway">
+          <div class="runway-top"><span>Runway</span><b class="num">33.9 months</b></div>
+          <div class="track"><div class="fill g" style="width:96%"></div></div>
+          <div class="runway-scale"><span>0</span><span>6mo</span><span>12mo</span><span>24mo+</span></div>
+        </div>
+        <div class="action up">Growing fast; likely to raise an A in 2–3 quarters at a markup. <b>Pro-rata planning flagged to MP.</b> Strong PR moment — routed to Platform Lead.</div>
+        <div class="co-foot"><span class="own">Seed · 12.5% · board</span><span>Updated 2026-06-02</span></div>
+      </div>
+
+      <!-- Lexolve -->
+      <div class="co">
+        <div class="co-top">
+          <div><div class="co-name">Lexolve</div><div class="co-what">End-to-end contract review for in-house legal</div></div>
+          <span class="badge good">On track</span>
+        </div>
+        <div class="metrics">
+          <div class="m"><div class="ml">ARR</div><div class="mv num">$7.8M <small>+7%</small></div></div>
+          <div class="m"><div class="ml">Net burn</div><div class="mv num">$420K<small>/mo</small></div></div>
+          <div class="m"><div class="ml">NRR</div><div class="mv num">118%</div></div>
+        </div>
+        <div class="runway">
+          <div class="runway-top"><span>Runway</span><b class="num">27.1 months</b></div>
+          <div class="track"><div class="fill g" style="width:90%"></div></div>
+          <div class="runway-scale"><span>0</span><span>6mo</span><span>12mo</span><span>24mo+</span></div>
+        </div>
+        <div class="co-foot"><span class="own">Series A · 10.8% · board</span><span>Updated 2026-06-04</span></div>
+      </div>
+
+      <!-- Probekit -->
+      <div class="co">
+        <div class="co-top">
+          <div><div class="co-name">Probekit</div><div class="co-what">Eval + observability for LLM applications</div></div>
+          <span class="badge good">On track</span>
+        </div>
+        <div class="metrics">
+          <div class="m"><div class="ml">ARR</div><div class="mv num">$1.2M <small>+14%</small></div></div>
+          <div class="m"><div class="ml">Net burn</div><div class="mv num">$160K<small>/mo</small></div></div>
+          <div class="m"><div class="ml">NRR</div><div class="mv num">130%</div></div>
+        </div>
+        <div class="runway">
+          <div class="runway-top"><span>Runway</span><b class="num">26.9 months</b></div>
+          <div class="track"><div class="fill g" style="width:89%"></div></div>
+          <div class="runway-scale"><span>0</span><span>6mo</span><span>12mo</span><span>24mo+</span></div>
+        </div>
+        <div class="co-foot"><span class="own">Seed · 12.0% · info rights</span><span>Updated 2026-05-30</span></div>
+      </div>
+
+      <!-- Harborline -->
+      <div class="co">
+        <div class="co-top">
+          <div><div class="co-name">Harborline</div><div class="co-what">AI copilot for commercial-insurance underwriting</div></div>
+          <span class="badge good">On track</span>
+        </div>
+        <div class="metrics">
+          <div class="m"><div class="ml">ARR</div><div class="mv num">$310K <small>+22%</small></div></div>
+          <div class="m"><div class="ml">Net burn</div><div class="mv num">$140K<small>/mo</small></div></div>
+          <div class="m"><div class="ml">NRR</div><div class="mv num">n/a</div></div>
+        </div>
+        <div class="runway">
+          <div class="runway-top"><span>Runway</span><b class="num">39.3 months</b></div>
+          <div class="track"><div class="fill g" style="width:99%"></div></div>
+          <div class="runway-scale"><span>0</span><span>6mo</span><span>12mo</span><span>24mo+</span></div>
+        </div>
+        <div class="co-foot"><span class="own">Seed · 13.5% · board</span><span>Updated 2026-06-01</span></div>
+      </div>
+
+      <!-- Vectorgate -->
+      <div class="co">
+        <div class="co-top">
+          <div><div class="co-name">Vectorgate</div><div class="co-what">Data + retrieval infrastructure for enterprise RAG</div></div>
+          <span class="badge good">On track</span>
+        </div>
+        <div class="metrics">
+          <div class="m"><div class="ml">ARR</div><div class="mv num">$4.5M <small>+9%</small></div></div>
+          <div class="m"><div class="ml">Net burn</div><div class="mv num">$360K<small>/mo</small></div></div>
+          <div class="m"><div class="ml">NRR</div><div class="mv num">112%</div></div>
+        </div>
+        <div class="runway">
+          <div class="runway-top"><span>Runway</span><b class="num">27.2 months</b></div>
+          <div class="track"><div class="fill g" style="width:90%"></div></div>
+          <div class="runway-scale"><span>0</span><span>6mo</span><span>12mo</span><span>24mo+</span></div>
+        </div>
+        <div class="co-foot"><span class="own">Series A · 10.2% · board</span><span>Updated 2026-05-27</span></div>
+      </div>
+
+      <!-- Postern AI -->
+      <div class="co">
+        <div class="co-top">
+          <div><div class="co-name">Postern AI</div><div class="co-what">Posture management &amp; red-teaming for production models</div></div>
+          <span class="badge good">On track</span>
+        </div>
+        <div class="metrics">
+          <div class="m"><div class="ml">ARR</div><div class="mv num">$95K <small>pilots</small></div></div>
+          <div class="m"><div class="ml">Net burn</div><div class="mv num">$120K<small>/mo</small></div></div>
+          <div class="m"><div class="ml">NRR</div><div class="mv num">n/a</div></div>
+        </div>
+        <div class="runway">
+          <div class="runway-top"><span>Runway</span><b class="num">40.8 months</b></div>
+          <div class="track"><div class="fill g" style="width:99%"></div></div>
+          <div class="runway-scale"><span>0</span><span>6mo</span><span>12mo</span><span>24mo+</span></div>
+        </div>
+        <div class="co-foot"><span class="own">Seed · 12.8% · board</span><span>Updated 2026-06-05</span></div>
+      </div>
+
+    </div>
+
+    <div class="foot">
+      <span>Source of truth: <code>data/portfolio.md</code> · refreshed by the Weekly Portfolio Health Sweep job.</span>
+      <span>Fictional demo data · Northbound Capital Fund II</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,40 @@
+id: access-approval-check
+name: Access Approval Check
+enabled: false
+schedule: ""
+provider: claude-code
+adapterType: claude_local
+ownerAgent: access-router
+agentSlug: access-router
+timeout: 600
+prompt: |-
+  Process a new access request. The request file is at `/approvals/inbox/<request-file>.md`.
+
+  Step 1 — Identity validation.
+    - Confirm the requester is an active employee by checking HRIS data in `/data/employees.csv`
+    - Resolve their department, job title, and manager name
+    - If the requester cannot be confirmed as active, set status to `pending-identity`,
+      write a hold notice to `/approvals/<request-id>/hold.md`, and stop
+
+  Step 2 — Existing permissions check.
+    - Read `/data/okta-assignments.csv` to list all current app assignments for the requester
+    - Check if the requested app/role is already assigned — if so, flag as duplicate
+    - List any overlapping permissions in the same app family
+
+  Step 3 — Packet assembly.
+    - Generate request ID: AR-YYYYMMDD-NNN (increment from last ID in `/approvals/index.md`)
+    - Write `/approvals/<request-id>/packet.md` with sections:
+        Request Summary (app, role, justification, duration)
+        Identity Context (name placeholder, department, title, manager)
+        Existing Permissions (full list)
+        SoD Pre-Check (flag obvious conflicts only; note "Full SoD check by compliance agent")
+        Status: pending-compliance-review
+
+  Step 4 — Hand off to Access Compliance Agent.
+    - Append the request ID to `/approvals/compliance-queue.md`
+    - Log the routing to `/approvals/<request-id>/log.md`
+
+  Write a triage summary to `/approvals/<request-id>/triage.md` regardless of outcome.
+cabinetPath: cabinets/access-approval
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

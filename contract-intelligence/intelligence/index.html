@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contract Intelligence · Portfolio View</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626;  --bad-bg:#fef2f2;  --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+    --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171;  --bad-bg:#2a1012;  --bad-bd:#7f1d1d;
+    --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:11px;font-weight:700;font-family:var(--mono)}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px;transition:background .1s}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+  .kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .v small{font-size:14px;font-weight:500;color:var(--muted-foreground)}
+  .kpi .c{font-size:12px;margin-top:5px;color:var(--muted-foreground)}
+  .kpi .c.warn{color:var(--warn)} .kpi .c.bad{color:var(--bad)}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:1.6fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  td{padding:11px 10px;border-top:1px solid var(--border)}
+  tbody tr{cursor:pointer;transition:background .1s}
+  tbody tr:hover,tbody tr.selected{background:var(--muted)}
+  tbody tr.selected{border-left:3px solid var(--primary)}
+  td .name{font-weight:600}
+
+  /* contract detail panel */
+  .detail{display:none}
+  .detail.active{display:block}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  @media(max-width:700px){.detail-grid{grid-template-columns:1fr}}
+  .field{padding:12px 14px;background:var(--muted);border-radius:calc(var(--radius) - 2px)}
+  .field .fl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;margin-bottom:4px}
+  .field .fv{font-size:13px;font-weight:500}
+  .field .fv.mono{font-family:var(--mono);font-size:12px}
+
+  .risk-row{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-top:1px solid var(--border)}
+  .risk-row:first-child{border-top:none}
+  .risk-row .ri{flex:1;min-width:0}
+  .risk-row .ri .rn{font-weight:600;font-size:13px}
+  .risk-row .ri .rd{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+
+  .obl{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+  .obl:first-child{border-top:none}
+  .obl .od{flex:1}
+  .obl .od .on{font-size:13px;font-weight:500}
+  .obl .od .om{font-size:11.5px;color:var(--muted-foreground);margin-top:2px;font-family:var(--mono)}
+  .obl .ost{flex:none}
+
+  .disc{margin-top:12px;padding:14px 16px;background:var(--muted);border-radius:var(--radius);font-size:12px;color:var(--muted-foreground);border-left:3px solid var(--border)}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">CI</span>Contract Intelligence<span class="sub">Portfolio View</span></div>
+  <div class="sync"><span class="dot"></span>last sync · DocuSign · Ironclad · 12 min ago</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Contract Portfolio</h1>
+      <p>Executed contracts — obligations, risks, and renewal windows at a glance.</p>
+    </div>
+    <nav class="tabs">
+      <button class="active" onclick="switchTab('portfolio',this)">Portfolio</button>
+      <button onclick="switchTab('obligations',this)">Obligations</button>
+      <button onclick="switchTab('summary',this)">Contract Summary</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Active Contracts</div><div class="v num">12</div><div class="c">8 vendor · 4 customer</div></div>
+    <div class="kpi card"><div class="l">Total Portfolio TCV</div><div class="v num">€2.4M</div><div class="c">across all active</div></div>
+    <div class="kpi card"><div class="l">Obligations Due ≤30d</div><div class="v num">4</div><div class="c bad">1 overdue · 3 upcoming</div></div>
+    <div class="kpi card"><div class="l">Auto-Renew ≤60d</div><div class="v num">2</div><div class="c warn">action required</div></div>
+  </section>
+
+  <!-- PORTFOLIO TAB -->
+  <div id="tab-portfolio">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-h"><div><div class="t">Contract Portfolio</div><div class="d">Click a row to open the contract summary</div></div><span class="meta">12 contracts</span></div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Contract</th><th>Type</th><th>Counterparty</th><th>Value (ACV)</th><th>Renewal Date</th><th>Auto-Renew</th><th>Risk</th><th>Owner</th></tr></thead>
+          <tbody id="portfolio-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- OBLIGATIONS TAB -->
+  <div id="tab-obligations" style="display:none">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Obligations Tracker</div><div class="d">All time-sensitive obligations across the portfolio</div></div><span class="badge bad">1 overdue</span></div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Contract</th><th>Obligation</th><th>Due Date</th><th>Responsible</th><th>Status</th></tr></thead>
+          <tbody id="obl-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUMMARY TAB -->
+  <div id="tab-summary" style="display:none">
+    <div class="grid g-2">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><div><div class="t">Atlas Logistics GmbH — MSA</div><div class="d">CI-2024-031 · Analyzed May 15, 2026</div></div><span class="badge good">QA Approved</span></div>
+          <div class="card-b">
+            <div class="detail-grid">
+              <div class="field"><div class="fl">Parties</div><div class="fv">Acme Corp / Atlas Logistics GmbH</div></div>
+              <div class="field"><div class="fl">Contract Type</div><div class="fv">Master Services Agreement</div></div>
+              <div class="field"><div class="fl">Effective Date</div><div class="fv mono">2024-02-01</div></div>
+              <div class="field"><div class="fl">Renewal Date</div><div class="fv mono">2027-01-31</div></div>
+              <div class="field"><div class="fl">Annual Value</div><div class="fv mono">€160,000</div></div>
+              <div class="field"><div class="fl">Auto-Renew</div><div class="fv"><span class="badge warn">Yes — 90d notice</span></div></div>
+              <div class="field"><div class="fl">Action By</div><div class="fv mono" style="color:var(--warn);font-weight:700">2026-11-02</div></div>
+              <div class="field"><div class="fl">Governing Law</div><div class="fv">Germany (Munich)</div></div>
+            </div>
+            <div style="font-size:13px;line-height:1.65;color:var(--muted-foreground);padding:14px;background:var(--muted);border-radius:var(--radius);margin-top:4px">
+              Atlas Logistics provides warehousing and last-mile delivery services under a 3-year MSA at €160k/year. The agreement auto-renews annually; the next action window closes <strong style="color:var(--foreground)">November 2, 2026</strong>. No price-escalation clause. Liability is capped at 12 months' fees — strong position. The DPA requires an annual sub-processor audit by Acme; the next audit is due February 2027.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div><div class="t">Key Obligations</div></div></div>
+          <div class="card-b">
+            <div class="obl">
+              <div class="od"><div class="on">Monthly service report</div><div class="om">Due: 2026-05-31 · Cadence: Monthly · Atlas Logistics</div></div>
+              <div class="ost"><span class="badge warn">Due soon</span></div>
+            </div>
+            <div class="obl">
+              <div class="od"><div class="on">Renewal decision</div><div class="om">Action by: 2026-11-02 · Owner: Sarah Chen</div></div>
+              <div class="ost"><span class="badge">Open</span></div>
+            </div>
+            <div class="obl">
+              <div class="od"><div class="on">Annual sub-processor audit</div><div class="om">Due: 2027-02-01 · Owner: Acme IT / Legal</div></div>
+              <div class="ost"><span class="badge good">2027</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><div><div class="t">Risk Flags</div></div><span class="badge warn">2 medium</span></div>
+          <div class="card-b">
+            <div class="risk-row">
+              <div class="ri"><div class="rn">Indemnification</div><div class="rd">Asymmetric — Atlas bears no indemnity for third-party IP claims against Acme. No reciprocal protection.</div></div>
+              <span class="badge warn">Medium</span>
+            </div>
+            <div class="risk-row">
+              <div class="ri"><div class="rn">Data Processing (DPA)</div><div class="rd">30-day breach notification requirement on Atlas. Annual sub-processor audit required by Acme.</div></div>
+              <span class="badge warn">Medium</span>
+            </div>
+            <div class="risk-row">
+              <div class="ri"><div class="rn">Liability Cap</div><div class="rd">12 months of fees (~€160k). Mutual. Acceptable for this contract value.</div></div>
+              <span class="badge good">Low</span>
+            </div>
+            <div class="risk-row">
+              <div class="ri"><div class="rn">IP Assignment</div><div class="rd">No IP assignment. Work product owned by Acme; pre-existing tools carved out for Atlas.</div></div>
+              <span class="badge good">Low</span>
+            </div>
+            <div class="risk-row">
+              <div class="ri"><div class="rn">Termination</div><div class="rd">Either party may terminate for convenience with 90 days written notice. Clean exit clause.</div></div>
+              <span class="badge good">Low</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div><div class="t">Termination Clause</div><div class="d">Exact language from Section 12.2</div></div></div>
+          <div class="card-b">
+            <blockquote style="font-size:12.5px;line-height:1.7;font-family:var(--mono);color:var(--muted-foreground);border-left:3px solid var(--border);padding-left:14px;margin:0">
+              "Either Party may terminate this Agreement without cause upon ninety (90) calendar days' prior written notice to the other Party. Notice must be delivered by registered mail or email to the designated contract contact with read receipt confirmation."
+            </blockquote>
+            <div class="disc">AI-assisted summary. All interpretations require review by qualified legal counsel. Not legal advice.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot">Summaries written to <code>contracts/approved/</code> · Obligations logged in <code>contracts/obligations.csv</code> · Not legal advice — human review required</p>
+</main>
+
+<script>
+'use strict';
+const CONTRACTS = [
+  { id:'CI-2024-031', name:'Atlas Logistics MSA', type:'MSA', party:'Atlas Logistics GmbH', acv:'€160k', renewal:'2027-01-31', autoRenew:true, risk:'medium', owner:'S. Chen' },
+  { id:'CI-2023-018', name:'Meridian SaaS Subscription', type:'SaaS', party:'Meridian Analytics Inc', acv:'$32k', renewal:'2026-07-15', autoRenew:true, risk:'high', owner:'Finance' },
+  { id:'CI-2022-007', name:'Pemberton Office Lease', type:'Lease', party:'Pemberton Properties GmbH', acv:'€140k', renewal:'2026-09-30', autoRenew:true, risk:'low', owner:'S. Chen' },
+  { id:'CI-2024-055', name:'Northgate Data Processing Agreement', type:'DPA', party:'Northgate AI Ltd', acv:'N/A', renewal:'2026-09-01', autoRenew:false, risk:'medium', owner:'L. Hoffmann' },
+  { id:'CI-2025-011', name:'Veritas Insurance Policy', type:'Insurance', party:'Veritas Commercial Insurance', acv:'€85k', renewal:'2026-08-01', autoRenew:false, risk:'low', owner:'Finance' },
+  { id:'CI-2024-009', name:'Arden HR Platform Subscription', type:'SaaS', party:'Arden HR Technologies', acv:'$36k', renewal:'2026-10-01', autoRenew:true, risk:'low', owner:'HR' },
+  { id:'CI-2023-044', name:'FlexDesk Coworking Agreement', type:'Services', party:'FlexDesk GmbH', acv:'€24k', renewal:'2026-06-15', autoRenew:true, risk:'high', owner:'Ops' },
+  { id:'CI-2025-019', name:'Quorum Legal Research License', type:'SaaS', party:'Quorum Legal Inc', acv:'$18k', renewal:'2027-02-28', autoRenew:true, risk:'low', owner:'L. Hoffmann' },
+];
+const OBLIGATIONS = [
+  { contract:'Northgate DPA', obl:'Sub-processor list confirmation', due:'2026-05-30', party:'Northgate AI Ltd', status:'overdue' },
+  { contract:'Atlas Logistics MSA', obl:'Monthly service report', due:'2026-05-31', party:'Atlas Logistics', status:'open' },
+  { contract:'Pemberton Office Lease', obl:'Rent escalation notice review', due:'2026-06-01', party:'Acme Finance', status:'open' },
+  { contract:'Meridian SaaS', obl:'Quarterly usage report submission', due:'2026-06-30', party:'Acme Finance', status:'open' },
+  { contract:'Northgate DPA', obl:'DPIA review', due:'2026-06-15', party:'Acme Legal / Privacy', status:'open' },
+  { contract:'Atlas Logistics MSA', obl:'Renewal decision', due:'2026-11-02', party:'Sarah Chen', status:'open' },
+  { contract:'Veritas Insurance', obl:'Annual premium review', due:'2026-07-15', party:'Acme Finance', status:'open' },
+  { contract:'Meridian SaaS', obl:'Security questionnaire renewal', due:'2026-07-01', party:'Acme IT', status:'open' },
+];
+
+function riskBadge(r){
+  if(r==='high') return '<span class="badge bad">High</span>';
+  if(r==='medium') return '<span class="badge warn">Medium</span>';
+  return '<span class="badge good">Low</span>';
+}
+function statusBadge(s){
+  if(s==='overdue') return '<span class="badge bad">Overdue</span>';
+  return '<span class="badge">Open</span>';
+}
+function arBadge(v){
+  return v ? '<span class="badge warn">Yes</span>' : '<span class="badge good">No</span>';
+}
+
+document.getElementById('portfolio-body').innerHTML = CONTRACTS.map((c,i)=>`
+  <tr onclick="selectRow(this,${i})">
+    <td><span class="name">${c.name}</span><br><span style="font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground)">${c.id}</span></td>
+    <td><span class="badge">${c.type}</span></td>
+    <td>${c.party}</td>
+    <td class="num">${c.acv}</td>
+    <td class="num">${c.renewal}</td>
+    <td>${arBadge(c.autoRenew)}</td>
+    <td>${riskBadge(c.risk)}</td>
+    <td style="color:var(--muted-foreground)">${c.owner}</td>
+  </tr>`).join('');
+
+document.getElementById('obl-body').innerHTML = OBLIGATIONS.map(o=>`
+  <tr>
+    <td style="color:var(--muted-foreground);font-size:12px">${o.contract}</td>
+    <td><span class="name" style="font-weight:500">${o.obl}</span></td>
+    <td class="num" style="${o.status==='overdue'?'color:var(--bad);font-weight:600':''}">${o.due}</td>
+    <td style="color:var(--muted-foreground)">${o.party}</td>
+    <td>${statusBadge(o.status)}</td>
+  </tr>`).join('');
+
+function selectRow(el,i){ document.querySelectorAll('tbody tr').forEach(r=>r.classList.remove('selected')); el.classList.add('selected'); }
+
+function switchTab(tab, btn){
+  ['portfolio','obligations','summary'].forEach(t=>{
+    const el = document.getElementById('tab-'+t);
+    if(el) el.style.display = t===tab ? '' : 'none';
+  });
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

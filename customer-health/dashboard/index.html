@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Customer Health · Portfolio Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+    --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+    --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+  .kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .v small{font-size:14px;font-weight:500;color:var(--muted-foreground)}
+  .kpi .c{font-size:12px;margin-top:5px;display:flex;align-items:center;gap:5px;color:var(--muted-foreground)}
+  .kpi .c.down{color:var(--bad)} .kpi .c.up{color:var(--good)} .kpi .c.warn{color:var(--warn)}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:2fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  /* portfolio table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  th.r,td.r{text-align:right}
+  th.c,td.c{text-align:center}
+  td{padding:11px 10px;border-top:1px solid var(--border);vertical-align:middle}
+  tbody tr{cursor:pointer;transition:background .12s}
+  tbody tr:hover{background:var(--muted)}
+  tbody tr.selected{background:var(--info-bg)}
+  .acct-name{font-weight:600;font-size:13px}
+  .acct-csm{font-size:11px;color:var(--muted-foreground);margin-top:1px}
+
+  /* health score ring */
+  .score-cell{display:flex;align-items:center;gap:8px}
+  .score-ring{position:relative;width:36px;height:36px;flex:none}
+  .score-ring svg{transform:rotate(-90deg)}
+  .score-ring .val{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700}
+
+  /* sparkline */
+  .spark{width:60px;height:22px}
+
+  /* breakdown panel */
+  .breakdown{padding:16px 18px 18px}
+  .breakdown .bh{font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .sub-row{display:grid;grid-template-columns:96px 1fr 38px;gap:10px;align-items:center;margin-bottom:8px}
+  .sub-row .lbl{font-size:12px;color:var(--muted-foreground);font-weight:500}
+  .sub-row .bar-track{height:8px;background:var(--muted);border-radius:100px;overflow:hidden}
+  .sub-row .bar-fill{height:100%;border-radius:100px}
+  .sub-row .pct{font-family:var(--mono);font-size:11px;font-weight:600;text-align:right}
+
+  /* at-risk feed */
+  .alert-item{padding:12px 0;border-top:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}
+  .alert-item:first-child{border-top:none}
+  .alert-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none}
+  .alert-dot.bad{background:var(--bad);box-shadow:0 0 0 3px var(--bad-bg)}
+  .alert-dot.warn{background:var(--warn);box-shadow:0 0 0 3px var(--warn-bg)}
+  .alert-body .an{font-weight:600;font-size:13px}
+  .alert-body .ad{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .alert-body .aa{font-size:12px;margin-top:4px;color:var(--foreground)}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">CH</span>Customer Health<span class="sub">Portfolio Dashboard</span></div>
+  <div class="sync"><span class="dot"></span>last sync · CRM + Mixpanel + Zendesk · 4 min ago</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Customer portfolio — health, this week.</h1>
+      <p>Health scores, usage trends, open tickets, and renewal risk across all accounts.</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">Portfolio</button>
+      <button>At-Risk</button>
+      <button>Renewals</button>
+      <button>Competitor Watch</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Avg Portfolio Health</div><div class="v num">60.6 <small>/ 100</small></div><div class="c warn">↓ 3.1 vs last week</div></div>
+    <div class="kpi card"><div class="l">At-Risk Accounts</div><div class="v num">2</div><div class="c down">$272K ARR exposed</div></div>
+    <div class="kpi card"><div class="l">Renewing &lt; 60 days</div><div class="v num">2</div><div class="c down">Both At-Risk tier</div></div>
+    <div class="kpi card"><div class="l">Accounts Renewed YTD</div><div class="v num">11</div><div class="c up">↑ 2 vs same period LY</div></div>
+  </section>
+
+  <!-- Portfolio table + breakdown -->
+  <section class="grid g-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Account portfolio</div><div class="d">Click a row to see health-score breakdown</div></div><span class="meta">8 accounts · May 23</span></div>
+      <div class="card-b" style="padding:0 0 4px">
+        <table>
+          <thead><tr>
+            <th>Account</th>
+            <th class="c">Health</th>
+            <th>Usage</th>
+            <th class="r">Tickets</th>
+            <th>Renewal</th>
+            <th>Risk</th>
+          </tr></thead>
+          <tbody id="portfolio-rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t" id="breakdown-title">Health Breakdown</div><div class="d" id="breakdown-sub">Select an account</div></div></div>
+      <div id="breakdown-panel" class="breakdown">
+        <p style="color:var(--muted-foreground);font-size:13px;margin-top:12px">Click any account row to see the sub-score breakdown: Usage, Support, Engagement, and Adoption.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- At-risk alerts + Usage chart -->
+  <section class="grid g-2">
+    <div class="card">
+      <div class="card-h"><div><div class="t">At-risk &amp; watch alerts</div><div class="d">From daily alerting sweep</div></div><span class="badge bad">2 critical</span></div>
+      <div class="card-b" id="alerts-feed"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">Usage trend — 6 weeks</div><div class="d">Weekly active users, portfolio total</div></div><span class="meta">Mixpanel</span></div>
+      <div class="card-b">
+        <svg class="spark" viewBox="0 0 240 80" width="100%" height="80" style="width:100%;display:block;overflow:visible">
+          <defs><linearGradient id="ug" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--c1)" stop-opacity=".18"/><stop offset="100%" stop-color="var(--c1)" stop-opacity="0"/></linearGradient></defs>
+          <path id="usage-area" fill="url(#ug)"/>
+          <path id="usage-line" fill="none" stroke="var(--c1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          <g id="usage-dots"></g>
+          <g id="usage-labels"></g>
+        </svg>
+        <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap" id="usage-legend"></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Built from <code>accounts/index.md</code> · sub-scores in <code>accounts/&lt;account&gt;/</code> · alerts in <code>alerts/</code> · competitor signals in <code>competitor-watch/latest.md</code></p>
+</main>
+
+<script>
+'use strict';
+const ACCOUNTS = [
+  { name:'Meridian Foods',  arr:148000, score:82, risk:'Healthy', usage:'↑', tickets:1,  renewal:'Nov 15', csm:'Sarah K.', days:176,
+    sub:{usage:88,support:85,engagement:80,adoption:76}, trend:[71,74,78,80,82,82] },
+  { name:'Atlas Logistics', arr:210000, score:41, risk:'At-Risk', usage:'↓', tickets:7,  renewal:'Jul 1',  csm:'James R.', days:39,
+    sub:{usage:38,support:22,engagement:45,adoption:60}, trend:[68,61,55,48,43,41] },
+  { name:'Vantage Capital', arr:95000,  score:67, risk:'Watch',   usage:'→', tickets:3,  renewal:'Aug 30', csm:'Sarah K.', days:99,
+    sub:{usage:70,support:68,engagement:62,adoption:68}, trend:[64,65,66,67,67,67] },
+  { name:'Primoris Health', arr:320000, score:74, risk:'Healthy', usage:'↑', tickets:2,  renewal:'Dec 1',  csm:'Dana W.', days:192,
+    sub:{usage:80,support:76,engagement:70,adoption:72}, trend:[68,70,72,73,74,74] },
+  { name:'Cobalt Partners', arr:62000,  score:38, risk:'At-Risk', usage:'↓', tickets:11, renewal:'Jun 15', csm:'James R.', days:23,
+    sub:{usage:30,support:18,engagement:50,adoption:55}, trend:[72,65,55,46,40,38] },
+  { name:'Stratum Energy',  arr:175000, score:55, risk:'Watch',   usage:'→', tickets:4,  renewal:'Sep 20', csm:'Dana W.', days:120,
+    sub:{usage:58,support:60,engagement:50,adoption:52}, trend:[58,57,55,56,55,55] },
+  { name:'Linden Group',    arr:88000,  score:79, risk:'Healthy', usage:'↑', tickets:0,  renewal:'Oct 5',  csm:'Sarah K.', days:135,
+    sub:{usage:84,support:100,engagement:72,adoption:68}, trend:[72,74,76,77,79,79] },
+  { name:'Nexar Retail',    arr:130000, score:49, risk:'Watch',   usage:'↓', tickets:6,  renewal:'Jul 22', csm:'James R.', days:60,
+    sub:{usage:44,support:52,engagement:52,adoption:50}, trend:[62,58,55,52,50,49] },
+];
+
+const ALERTS = [
+  { name:'Cobalt Partners', arr:'$62K', tier:'bad', renewal:'Jun 15 (23 days)', trigger:'11 open tickets · WAU −42% over 4 wks', action:'Exec call by May 27 · escalate P2s by May 25' },
+  { name:'Atlas Logistics', arr:'$210K', tier:'bad', renewal:'Jul 1 (39 days)', trigger:'P1 ticket open 6 days · competitor mention (Northwind)', action:'Engineering escalation now · exec call this week' },
+  { name:'Nexar Retail', arr:'$130K', tier:'warn', renewal:'Jul 22 (60 days)', trigger:'WAU declining 3 consecutive weeks · no QBR in 90 days', action:'QBR scheduled June 10 · analytics module demo' },
+];
+
+function riskClass(r){ return r==='Healthy'?'good':r==='Watch'?'warn':'bad'; }
+function scoreColor(s){ return s>=70?'var(--good)':s>=45?'var(--warn)':'var(--bad)'; }
+function fmtArr(n){ return '$'+Math.round(n/1000)+'K'; }
+
+function scoreRing(score){
+  const r=15,cx=18,cy=18,circ=2*Math.PI*r;
+  const dash=circ*(score/100), gap=circ-dash;
+  const col=scoreColor(score);
+  return `<div class="score-ring">
+    <svg width="36" height="36" viewBox="0 0 36 36">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--muted)" stroke-width="3.5"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="3.5"
+        stroke-dasharray="${dash.toFixed(1)} ${gap.toFixed(1)}" stroke-linecap="round"/>
+    </svg>
+    <div class="val" style="color:${col}">${score}</div>
+  </div>`;
+}
+
+let selected = null;
+function renderRows(){
+  document.getElementById('portfolio-rows').innerHTML = ACCOUNTS.map((a,i)=>`
+    <tr data-i="${i}" class="${selected===i?'selected':''}">
+      <td><div class="acct-name">${a.name}</div><div class="acct-csm">${a.csm} · ${fmtArr(a.arr)}</div></td>
+      <td class="c"><div class="score-cell" style="justify-content:center">${scoreRing(a.score)}</div></td>
+      <td><span style="font-size:16px;color:${a.usage==='↑'?'var(--good)':a.usage==='↓'?'var(--bad)':'var(--muted-foreground)'}">${a.usage}</span></td>
+      <td class="r num">${a.tickets}</td>
+      <td><span class="num" style="font-size:12px">${a.renewal}</span><br><span style="font-size:11px;color:${a.days<=30?'var(--bad)':a.days<=60?'var(--warn)':'var(--muted-foreground)'}">${a.days}d</span></td>
+      <td><span class="badge ${riskClass(a.risk)}">${a.risk}</span></td>
+    </tr>`).join('');
+  document.querySelectorAll('#portfolio-rows tr').forEach(tr=>{
+    tr.addEventListener('click',()=>{
+      selected=parseInt(tr.dataset.i);
+      renderRows();
+      renderBreakdown(ACCOUNTS[selected]);
+    });
+  });
+}
+
+function renderBreakdown(a){
+  document.getElementById('breakdown-title').textContent = a.name;
+  document.getElementById('breakdown-sub').textContent = `Health score ${a.score} · ${a.risk}`;
+  const subs=[
+    {k:'Usage',    v:a.sub.usage,      w:'35%', col:'var(--c1)'},
+    {k:'Support',  v:a.sub.support,    w:'25%', col:'var(--c2)'},
+    {k:'Engagement',v:a.sub.engagement,w:'25%', col:'var(--c5)'},
+    {k:'Adoption', v:a.sub.adoption,   w:'15%', col:'var(--c6)'},
+  ];
+  document.getElementById('breakdown-panel').innerHTML = `
+    <div class="bh">${a.name} <span class="badge ${riskClass(a.risk)}">${a.risk}</span></div>
+    ${subs.map(s=>`
+      <div class="sub-row">
+        <div class="lbl">${s.k} <span style="font-size:10px;color:var(--muted-foreground)">(${s.w})</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${s.v}%;background:${s.col}"></div></div>
+        <div class="pct num" style="color:${scoreColor(s.v)}">${s.v}</div>
+      </div>`).join('')}
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--muted-foreground);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Renewal · ${a.renewal} · ${a.days} days</div>
+      <div style="font-size:12px">ARR: <b>${fmtArr(a.arr)}</b> · CSM: <b>${a.csm}</b></div>
+    </div>`;
+}
+
+document.getElementById('alerts-feed').innerHTML = ALERTS.map(al=>`
+  <div class="alert-item">
+    <div class="alert-dot ${al.tier}"></div>
+    <div class="alert-body">
+      <div class="an">${al.name} <span class="badge ${al.tier}">${al.tier==='bad'?'At-Risk':'Watch'}</span> <span style="font-size:11px;color:var(--muted-foreground);font-family:var(--mono)">${al.arr}</span></div>
+      <div class="ad">Renewal: ${al.renewal}</div>
+      <div class="ad" style="margin-top:3px">${al.trigger}</div>
+      <div class="aa">→ ${al.action}</div>
+    </div>
+  </div>`).join('');
+
+// Usage sparkline
+(function(){
+  const WAU = [3820,3710,3640,3580,3490,3440];
+  const LABELS = ['Apr 14','Apr 21','Apr 28','May 5','May 12','May 19'];
+  const W=240,H=80,PAD=8;
+  const min=Math.min(...WAU)-100, max=Math.max(...WAU)+100;
+  const xp=(i)=>PAD+(i/(WAU.length-1))*(W-PAD*2);
+  const yp=(v)=>H-PAD-(((v-min)/(max-min))*(H-PAD*2));
+  const pts=WAU.map((v,i)=>`${xp(i)},${yp(v)}`).join(' ');
+  const first=WAU[0],last=WAU[WAU.length-1];
+  document.getElementById('usage-line').setAttribute('d',`M${pts.split(' ').join('L')}`);
+  document.getElementById('usage-area').setAttribute('d',`M${xp(0)},${H} L${pts.split(' ').join('L')} L${xp(WAU.length-1)},${H}Z`);
+  document.getElementById('usage-dots').innerHTML = WAU.map((v,i)=>
+    `<circle cx="${xp(i)}" cy="${yp(v)}" r="3" fill="var(--c1)" stroke="var(--card)" stroke-width="1.5"/>`).join('');
+  document.getElementById('usage-labels').innerHTML = [0,WAU.length-1].map(i=>
+    `<text x="${xp(i)}" y="${H+2}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted-foreground)">${LABELS[i]}</text>`).join('');
+  const chg = ((last-first)/first*100).toFixed(1);
+  document.getElementById('usage-legend').innerHTML =
+    `<span style="font-size:12px;color:var(--muted-foreground)">Portfolio WAU: <b style="color:var(--foreground);font-variant-numeric:tabular-nums">${last.toLocaleString()}</b></span>
+     <span style="font-size:12px;color:var(--bad)">↓ ${Math.abs(chg)}% over 6 weeks</span>
+     <span style="font-size:12px;color:var(--muted-foreground)">Driven by Atlas Logistics, Cobalt Partners</span>`;
+})();
+
+renderRows();
+</script>
+</body>
+</html>

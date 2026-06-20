@@ -1,0 +1,45 @@
+id: daily-escalation-triage
+name: Daily Escalation Triage
+enabled: true
+schedule: 0 9 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: engineering-liaison
+agentSlug: engineering-liaison
+timeout: 600
+prompt: |-
+  Run the morning escalation triage pass for the Bug Escalation cabinet.
+
+  PART 1 — New escalation candidates
+  1. Read all cluster files in `/clusters/` (written by the Support Intelligence cabinet
+     or any ticket data in `/inbox/`). Filter for:
+     - Negative sentiment clusters with >15 new tickets in the past 48 hours
+     - Any cluster flagged as "Escalate" in `/clusters/emerging/`
+     - Any ticket explicitly escalated by a support rep (check `/inbox/escalation-flags.md`)
+  2. For each candidate, score escalation priority: P1 / P2 / P3 based on:
+     - Volume + trend
+     - Mention of data loss, security, or broken authentication
+     - Enterprise account mentions (cross-ref `/data/accounts.csv` if available)
+  3. Write the ranked triage list to `/triage/<YYYY-MM-DD>.md`:
+     | Rank | Cluster | Priority | Reason | Recommended action |
+     Flag P1 candidates at the top with a clear "ESCALATE NOW" marker.
+
+  PART 2 — Active escalation lifecycle check
+  4. Read all open escalation packets in `/escalations/ESC-*.md` (status ≠ Resolved).
+  5. For each open escalation:
+     - If status is "Pending Repro" for >2 business days, add a "needs repro push" note.
+     - If status is "Engineering Assigned" with no update for >3 business days, log a
+       nudge note: "3-day stale — recommend pinging assigned engineer."
+     - If status is "Resolved" but no fix version is logged, flag for closure confirmation.
+  6. Append lifecycle notes to each relevant escalation packet under a
+     `## Triage notes — <YYYY-MM-DD>` section.
+
+  PART 3 — Daily digest
+  7. Write `/triage/digest-<YYYY-MM-DD>.md`:
+     - New candidates identified (count + priority breakdown)
+     - Open escalations by status
+     - P1 escalations requiring immediate attention
+     - Stale escalations needing a nudge
+cabinetPath: cabinet-examples/cabinets/bug-escalation
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

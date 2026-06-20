@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Competitive Intelligence · Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ── shadcn/ui design tokens (zinc base) ─────────────────────────── */
+  :root{
+    --background:#ffffff; --foreground:#09090b;
+    --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a;
+    --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b;
+    --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626;  --bad-bg:#fef2f2;  --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0 / .05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --background:#09090b; --foreground:#fafafa;
+      --card:#101012; --card-foreground:#fafafa;
+      --muted:#1c1c1f; --muted-foreground:#a1a1aa;
+      --primary:#fafafa; --primary-foreground:#18181b;
+      --secondary:#1c1c1f; --secondary-foreground:#fafafa;
+      --border:#27272a; --input:#27272a; --ring:#52525b;
+      --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+      --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+      --bad:#f87171;  --bad-bg:#2a1012;  --bad-bd:#7f1d1d;
+      --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+      --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+      --shadow-sm:0 1px 2px 0 rgb(0 0 0 / .4);
+      --shadow:0 1px 3px 0 rgb(0 0 0/.5);
+      --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  /* top bar */
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:14px}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  /* header */
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:14px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  /* primitives */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+  .badge.solid{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+
+  /* KPI row */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500;display:flex;align-items:center;gap:6px}
+  .kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .v small{font-size:14px;font-weight:500;color:var(--muted-foreground)}
+  .kpi .c{font-size:12px;margin-top:5px;display:flex;align-items:center;gap:5px;color:var(--muted-foreground)}
+  .kpi .c.up{color:var(--good)} .kpi .c.down{color:var(--bad)}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:1.5fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  /* threat board */
+  .comp{display:flex;align-items:center;gap:14px;padding:13px 0;border-top:1px solid var(--border)}
+  .comp:first-child{border-top:none}
+  .comp .mark{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;font-weight:700;font-size:15px;color:#fff;flex:none}
+  .comp .info{flex:1;min-width:0}
+  .comp .info .n{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px}
+  .comp .info .m{font-size:12px;color:var(--muted-foreground);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .comp .trend{font-family:var(--mono);font-size:12px;font-weight:600;text-align:right;flex:none}
+
+  /* signals feed */
+  .sig{display:flex;gap:11px;padding:11px 0;border-top:1px solid var(--border)}
+  .sig:first-child{border-top:none}
+  .sig .tick{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;background:var(--muted-foreground)}
+  .sig .tick.material{background:var(--bad);box-shadow:0 0 0 3px var(--bad-bg)}
+  .sig .body{flex:1;min-width:0}
+  .sig .body .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .sig .body .who{font-weight:600;font-size:13px}
+  .sig .body .desc{font-size:12.5px;color:var(--muted-foreground);margin-top:2px}
+  .sig .body .when{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground)}
+
+  /* chart */
+  .sov{display:flex;flex-direction:column;gap:11px}
+  .sov-row{display:grid;grid-template-columns:96px 1fr 38px;gap:12px;align-items:center}
+  .sov-row .nm{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sov-row .track{height:10px;background:var(--muted);border-radius:100px;overflow:hidden}
+  .sov-row .fill{height:100%;border-radius:100px}
+  .sov-row .pct{font-family:var(--mono);font-size:12px;font-weight:600;text-align:right}
+
+  /* pricing table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  th.r,td.r{text-align:right}
+  td{padding:11px 10px;border-top:1px solid var(--border)}
+  tbody tr:hover{background:var(--muted)}
+  td .name{font-weight:600}
+  .delta{font-family:var(--mono);font-weight:600}
+  .delta.neg{color:var(--bad)} .delta.pos{color:var(--good)}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">CI</span>Competitive Intelligence<span class="sub">Command Center</span></div>
+  <div class="sync"><span class="dot"></span>last sync · 5 sources · 8 min ago</div>
+</div></div>
+
+<main class="wrap">
+
+  <header class="head">
+    <div>
+      <h1>The market, this week.</h1>
+      <p>Threat levels, recent movements, share of voice, and head-to-head pricing — sourced and current.</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">Landscape</button>
+      <button>This week</button>
+      <button>Pricing</button>
+      <button>Win/Loss</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Tracked competitors</div><div class="v num">5</div><div class="c">2 Tier&nbsp;1 · 2 Tier&nbsp;2 · 1 Tier&nbsp;3</div></div>
+    <div class="kpi card"><div class="l">Material moves · 7d</div><div class="v num">3</div><div class="c down">↑ 2 vs last week</div></div>
+    <div class="kpi card"><div class="l">Tier-1 threats</div><div class="v num">1 <small>rising</small></div><div class="c down">Northwind ↑</div></div>
+    <div class="kpi card"><div class="l">Avg Pro price delta</div><div class="v num">−14%</div><div class="c down">we sit above market</div></div>
+  </section>
+
+  <!-- row 1: threat board + signals -->
+  <section class="grid g-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Threat board</div><div class="d">Tracked set, by tier and momentum</div></div><span class="meta">re-tiered monthly</span></div>
+      <div class="card-b" id="board"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">Recent movements</div><div class="d">From the daily signal scan</div></div><span class="badge bad">3 material</span></div>
+      <div class="card-b" id="feed"></div>
+    </div>
+  </section>
+
+  <!-- row 2: share of voice + pricing -->
+  <section class="grid g-2">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Share of voice · this month</div><div class="d">Relative momentum: releases, press, hiring, reviews</div></div><span class="meta">indexed</span></div>
+      <div class="card-b"><div class="sov" id="sov"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">Head-to-head pricing</div><div class="d">Pro tier, per seat / mo</div></div><span class="meta">vs us · $99</span></div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Competitor</th><th class="r">Pro</th><th class="r">Δ vs us</th><th class="r">SSO at</th></tr></thead>
+          <tbody>
+            <tr><td><span class="name">Northwind</span></td><td class="r num">$79</td><td class="r delta neg">−20%</td><td class="r"><span class="badge bad">Pro</span></td></tr>
+            <tr><td><span class="name">Cobalt</span></td><td class="r num">$65</td><td class="r delta neg">−34%</td><td class="r"><span class="badge warn">Add-on</span></td></tr>
+            <tr><td><span class="name">Us</span></td><td class="r num">$99</td><td class="r delta">—</td><td class="r"><span class="badge good">Enterprise</span></td></tr>
+            <tr><td><span class="name">Drachma</span></td><td class="r num">$110</td><td class="r delta pos">+11%</td><td class="r"><span class="badge good">Enterprise</span></td></tr>
+            <tr><td><span class="name">Helios</span></td><td class="r num">Custom</td><td class="r delta">~+15%</td><td class="r"><span class="badge good">Enterprise</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Every tile is built from sourced files in this cabinet — open <code>signals/log.md</code>, <code>competitors/</code>, and the weekly <code>briefing/</code>. No source, no claim.</p>
+
+</main>
+
+<script>
+'use strict';
+const COMPETITORS = [
+  { n:'Northwind', tier:1, color:'var(--c1)', mark:'N', threat:'↑ Rising', cls:'bad', m:'Cut Pro −20%, moved SSO down-tier' },
+  { n:'Helios',    tier:1, color:'var(--c5)', mark:'H', threat:'→ Steady', cls:'',    m:'AI Assistant beta (waitlist), +10% list' },
+  { n:'Cobalt',    tier:2, color:'var(--c2)', mark:'C', threat:'• Watch',  cls:'warn',m:'Raised $22M Series B' },
+  { n:'Drachma',   tier:2, color:'var(--c6)', mark:'D', threat:'• Watch',  cls:'',    m:'EU data-residency angle' },
+  { n:'Lumen',     tier:3, color:'var(--muted-foreground)', mark:'L', threat:'↓ Fading', cls:'good', m:'No release in 2 quarters' },
+];
+const SIGNALS = [
+  { who:'Northwind', type:'pricing', material:true,  desc:'Pro cut $99→$79; SSO moved to Pro tier', when:'May 19' },
+  { who:'Northwind', type:'positioning', material:true, desc:'Added "Security" tab + SOC2 badge to pricing page', when:'May 12' },
+  { who:'Northwind', type:'hiring', material:true, desc:'Posted 4 enterprise AE roles in NYC — moving upmarket', when:'Apr 30' },
+  { who:'Helios', type:'product', material:false, desc:'"AI Assistant" beta announced — waitlist only, no GA', when:'May 08' },
+  { who:'Helios', type:'review', material:false, desc:'3 new G2 reviews cite slow support + price uplift', when:'May 16' },
+  { who:'Cobalt', type:'funding', material:false, desc:'Raised $22M Series B', when:'May 06' },
+];
+const SOV = [
+  { n:'Northwind', v:34, c:'var(--c1)' },
+  { n:'Helios',    v:27, c:'var(--c5)' },
+  { n:'Us',        v:19, c:'var(--foreground)' },
+  { n:'Cobalt',    v:13, c:'var(--c2)' },
+  { n:'Drachma',   v:7,  c:'var(--c6)' },
+];
+
+function tierBadge(t){ return t===1?'<span class="badge solid">Tier 1</span>':t===2?'<span class="badge">Tier 2</span>':'<span class="badge">Tier 3</span>'; }
+
+document.getElementById('board').innerHTML = COMPETITORS.map(c=>`
+  <div class="comp">
+    <div class="mark" style="background:${c.color}">${c.mark}</div>
+    <div class="info"><div class="n">${c.n} ${tierBadge(c.tier)}</div><div class="m">${c.m}</div></div>
+    <div class="trend"><span class="badge ${c.cls}">${c.threat}</span></div>
+  </div>`).join('');
+
+document.getElementById('feed').innerHTML = SIGNALS.map(s=>`
+  <div class="sig">
+    <div class="tick ${s.material?'material':''}"></div>
+    <div class="body">
+      <div class="top"><span class="who">${s.who}</span><span class="badge ${s.material?'bad':''}">${s.type}</span><span class="when">${s.when}</span></div>
+      <div class="desc">${s.desc}</div>
+    </div>
+  </div>`).join('');
+
+document.getElementById('sov').innerHTML = SOV.map(s=>`
+  <div class="sov-row">
+    <div class="nm">${s.n}</div>
+    <div class="track"><div class="fill" style="width:${s.v}%;background:${s.c}"></div></div>
+    <div class="pct num">${s.v}%</div>
+  </div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+id: weekly-anomaly-flag
+name: Weekly Spend Anomaly Flag
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: research
+agentSlug: research
+timeout: 600
+prompt: |-
+  Run the weekly spend anomaly flag as the Policy Research Agent.
+
+  1. Read `data/transactions-weekly.csv` (card transaction export from Ramp/Brex).
+     Each row: date, employee, department, vendor, amount, category, receipt_flag.
+  2. Read `data/policy.md` for current spend policy limits and excluded categories.
+  3. For each transaction, check:
+     a. Category limit: is the amount > the per-transaction limit for that category?
+     b. Excluded category: is the vendor/category on the excluded list?
+     c. Duplicate: does the same employee, vendor, and amount appear twice in 7 days?
+     d. Missing receipt: does receipt_flag = false AND amount > $25?
+     e. Large transaction: amount > $500 with no pre-approval note.
+  4. Classify each flagged transaction:
+     - FLAG: categories a–d above (policy violation or compliance gap)
+     - ESCALATE: amount > $500 with apparent policy violation (category e)
+  5. Write `.cabinet-state/anomaly-flag.md`:
+     ```
+     # Spend Anomaly Flag — Week of <date>
+     ## Escalations (>$500 / apparent violation)
+     | Date | Employee | Vendor | Amount | Category | Issue | Policy Section |
+     ...
+     ## Flags (policy gap / missing receipt)
+     | Date | Employee | Vendor | Amount | Category | Issue | Policy Section |
+     ...
+     ## Summary
+     X escalations, Y flags. Z transactions reviewed. Period: <date range>.
+     ```
+  6. Write a department spend summary to `.cabinet-state/spend-summary.md`:
+     total spend by department this week vs. 4-week average.
+
+  Rules:
+  - Cite the specific policy section for each flag (e.g., "Section 3.1 — Meals: $75/person limit").
+  - Neutral, factual tone. No names in the summary header.
+  - Do not approve or reject any expense — flag only.
+cabinetPath: cabinets/spend-policy
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

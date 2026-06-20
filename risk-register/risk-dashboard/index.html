@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Risk Register Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0;
+    --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca;
+    --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --shadow-md:0 4px 12px -2px rgb(0 0 0/.08),0 2px 6px -2px rgb(0 0 0/.05);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d;
+    --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d;
+    --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5); --shadow-md:0 4px 12px -2px rgb(0 0 0/.6);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  a,button{font-family:inherit;color:inherit;cursor:pointer;text-decoration:none;border:none;background:none}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:12px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+  .dot.red{background:var(--bad);box-shadow:0 0 0 3px var(--bad-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:4px;font-size:13.5px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600}
+  .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{padding:16px 18px}
+  .kpi .l{font-size:12px;color:var(--muted-foreground);font-weight:500}
+  .kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .c{font-size:12px;margin-top:5px;color:var(--muted-foreground)}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:1.5fr 1fr}
+  @media(max-width:900px){.g-2{grid-template-columns:1fr}}
+
+  /* risk table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 10px 9px}
+  th.r,td.r{text-align:right}
+  td{padding:10px;border-top:1px solid var(--border);vertical-align:middle}
+  tbody tr:hover{background:var(--muted)}
+  .risk-title{font-weight:600;font-size:13px}
+  .risk-cat{font-size:11px;color:var(--muted-foreground);margin-top:2px}
+  .score{font-family:var(--mono);font-size:13px;font-weight:700}
+  .mitigation{font-size:11.5px;color:var(--muted-foreground)}
+  .owner{font-size:11.5px}
+
+  /* heatmap SVG */
+  .heatmap-wrap{overflow-x:auto}
+  .hm-grid{display:grid;grid-template-columns:24px repeat(5,1fr);grid-template-rows:repeat(5,1fr) 24px;gap:3px;align-items:center;width:100%}
+  .hm-cell{border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--foreground);min-height:40px;min-width:40px;border:1px solid var(--border)}
+  .hm-label{font-family:var(--mono);font-size:9px;color:var(--muted-foreground);text-align:center;line-height:1.2}
+  .hm-dot{width:18px;height:18px;border-radius:50%;background:var(--primary);color:var(--primary-foreground);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;cursor:default}
+
+  .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--muted-foreground);font-size:12px}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">RR</span>Risk Register<span class="sub">Dashboard</span></div>
+  <div class="sync"><span class="dot red"></span>1 Red risk · updated 2026-05-19</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Company Risk Register</h1>
+      <p>Security and operational risks — likelihood × impact, owners, mitigation status · May 2026</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">Register</button>
+      <button>Heatmap</button>
+      <button>By Owner</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi card"><div class="l">Total Open Risks</div><div class="v num">6</div><div class="c">All categories</div></div>
+    <div class="kpi card"><div class="l">Red (≥16)</div><div class="v num" style="color:var(--bad)">1</div><div class="c">RISK-002 — Phishing / cred compromise</div></div>
+    <div class="kpi card"><div class="l">Amber (9–15)</div><div class="v num" style="color:var(--warn)">4</div><div class="c">Vendor · BCP · CVE · GDPR</div></div>
+    <div class="kpi card"><div class="l">Green (≤8)</div><div class="v num" style="color:var(--good)">1</div><div class="c">RISK-005 — Key person</div></div>
+  </section>
+
+  <section class="grid g-2" style="margin-bottom:14px">
+    <!-- Risk register table -->
+    <div class="card">
+      <div class="card-h">
+        <div><div class="t">Risk Register</div><div class="d">6 open risks — sorted by composite score</div></div>
+        <span class="badge bad">1 Red</span>
+      </div>
+      <div class="card-b" style="padding-top:6px">
+        <table>
+          <thead><tr><th>Risk</th><th class="r">Score</th><th>RAG</th><th>Owner</th><th>Mitigation</th><th>Review Due</th></tr></thead>
+          <tbody id="rtable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Heatmap -->
+    <div class="card">
+      <div class="card-h"><div><div class="t">Likelihood × Impact Heatmap</div><div class="d">Each dot = one open risk (RISK-XXX)</div></div><span class="meta">May 2026</span></div>
+      <div class="card-b">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--mono);font-size:9px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.08em;align-self:center">Likelihood →</div>
+          <div style="flex:1">
+            <div id="heatmap"></div>
+            <div style="text-align:center;font-family:var(--mono);font-size:9px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.08em;margin-top:6px">Impact →</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted-foreground)"><span style="width:10px;height:10px;border-radius:2px;background:var(--good-bg);border:1px solid var(--good-bd);display:inline-block"></span>Green ≤8</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted-foreground)"><span style="width:10px;height:10px;border-radius:2px;background:var(--warn-bg);border:1px solid var(--warn-bd);display:inline-block"></span>Amber 9–15</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted-foreground)"><span style="width:10px;height:10px;border-radius:2px;background:var(--bad-bg);border:1px solid var(--bad-bd);display:inline-block"></span>Red ≥16</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">Source of truth: <code>risks/register.yaml</code> · Individual risk files: <code>risks/&lt;id&gt;.md</code> · Monthly report: <code>reports/2026-05-risk-report.md</code></div>
+</main>
+
+<script>
+'use strict';
+const RISKS = [
+  { id:'RISK-002', title:'Phishing / credential compromise', cat:'Human Risk',     l:4, i:4, score:16, rag:'red',   owner:'daniel.osei', mit:'In progress', due:'2026-06-02' },
+  { id:'RISK-001', title:'Third-party vendor breach (PII)', cat:'Vendor Risk',     l:3, i:5, score:15, rag:'amber', owner:'marcus.lane', mit:'In progress', due:'2026-06-02' },
+  { id:'RISK-006', title:'Unpatched critical CVE in prod',   cat:'Vuln Mgmt',      l:3, i:4, score:12, rag:'amber', owner:'daniel.osei', mit:'Active',       due:'2026-06-16' },
+  { id:'RISK-003', title:'Ransomware on production infra',   cat:'Cyber Threat',   l:2, i:5, score:10, rag:'amber', owner:'daniel.osei', mit:'Active',       due:'2026-08-01' },
+  { id:'RISK-004', title:'GDPR DSR non-compliance',          cat:'Regulatory',     l:3, i:3, score:9,  rag:'amber', owner:'marcus.lane', mit:'Planned',      due:'2026-07-01' },
+  { id:'RISK-005', title:'CISO key-person dependency',       cat:'Operational',    l:2, i:4, score:8,  rag:'green', owner:'priya.shah',  mit:'Active',       due:'2026-11-01' },
+];
+
+const RAG_CLS = { red:'bad', amber:'warn', green:'good' };
+const MIT_CLS = { 'In progress':'info', 'Active':'good', 'Planned':'warn' };
+
+document.getElementById('rtable').innerHTML = RISKS.map(r=>`
+  <tr>
+    <td>
+      <div class="risk-title">${r.title}</div>
+      <div class="risk-cat"><span style="font-family:var(--mono);font-size:10px;color:var(--muted-foreground)">${r.id}</span> · ${r.cat}</div>
+    </td>
+    <td class="r"><span class="score num">${r.score}</span><div style="font-family:var(--mono);font-size:9px;color:var(--muted-foreground);margin-top:2px">${r.l}×${r.i}</div></td>
+    <td><span class="badge ${RAG_CLS[r.rag]}">${r.rag.charAt(0).toUpperCase()+r.rag.slice(1)}</span></td>
+    <td><span class="owner">${r.owner}</span></td>
+    <td><span class="badge ${MIT_CLS[r.mit]||''}">${r.mit}</span></td>
+    <td><span style="font-family:var(--mono);font-size:11px;color:var(--muted-foreground)">${r.due}</span></td>
+  </tr>`).join('');
+
+// Heatmap: 5×5 grid, L on Y axis (5=top), I on X axis (1=left)
+function cellColor(l, i) {
+  const s = l * i;
+  if (s >= 16) return { bg:'var(--bad-bg)', bd:'var(--bad-bd)' };
+  if (s >= 9)  return { bg:'var(--warn-bg)',bd:'var(--warn-bd)' };
+  return { bg:'var(--good-bg)', bd:'var(--good-bd)' };
+}
+
+// Map risks to cells
+const RISK_CELLS = {};
+RISKS.forEach(r => {
+  const key = `${r.l}-${r.i}`;
+  if (!RISK_CELLS[key]) RISK_CELLS[key] = [];
+  RISK_CELLS[key].push(r.id.replace('RISK-',''));
+});
+
+const hmEl = document.getElementById('heatmap');
+const rows = [];
+// Y axis label column + 5 columns for impact 1..5
+// 5 rows for likelihood 5..1
+rows.push('<div style="display:grid;grid-template-columns:20px repeat(5,1fr);gap:3px;align-items:center">');
+// header row (impact labels)
+rows.push('<div></div>');
+for (let i=1;i<=5;i++) rows.push(`<div style="text-align:center;font-family:var(--mono);font-size:9px;color:var(--muted-foreground)">I${i}</div>`);
+rows.push('</div>');
+
+for (let l=5;l>=1;l--) {
+  rows.push('<div style="display:grid;grid-template-columns:20px repeat(5,1fr);gap:3px;align-items:center;margin-top:3px">');
+  rows.push(`<div style="font-family:var(--mono);font-size:9px;color:var(--muted-foreground);text-align:center">L${l}</div>`);
+  for (let i=1;i<=5;i++) {
+    const { bg, bd } = cellColor(l, i);
+    const dots = RISK_CELLS[`${l}-${i}`] || [];
+    const dotsHtml = dots.map(d=>`<div class="hm-dot" title="RISK-${d}">${d}</div>`).join('');
+    rows.push(`<div style="background:${bg};border:1px solid ${bd};border-radius:5px;min-height:40px;display:flex;align-items:center;justify-content:center;gap:2px;flex-wrap:wrap;padding:3px">${dotsHtml}</div>`);
+  }
+  rows.push('</div>');
+}
+hmEl.innerHTML = rows.join('');
+</script>
+</body>
+</html>

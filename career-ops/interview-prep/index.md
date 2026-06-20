@@ -16,9 +16,9 @@ The Interview Strategist works from Block F evaluations to build company-specifi
 - **[[story-bank]]** — STAR+R stories mapped to competencies. The reusable ammo.
 - **[[negotiation-scripts]]** — Scripts for counters, geographic pushback, competing offers, equity, and timing.
 - Company-specific prep packets (generated per interview):
-  - **[[anthropic-panel-prep]]** — Anthropic PM, Claude API — Apr 16 panel (**T-3 days**)
-  - **[[hugging-face-negotiation]]** — Hugging Face Senior PM, Hub — offer negotiation (deadline Apr 18)
-  - **[[n8n-onsite-debrief]]** — n8n Head of Product — post-onsite debrief (**ACTION REQUIRED**)
+  - **[[streamai-panel-prep]]** — StreamAI PM, AI Platform — Apr 16 panel (**T-3 days**)
+  - **[[datahub-negotiation]]** — DataHub Senior PM, Hub — offer negotiation (deadline Apr 18)
+  - **[[flowhq-onsite-debrief]]** — FlowHQ Head of Product — post-onsite debrief (**ACTION REQUIRED**)
 
 ## The STAR+R Difference
 

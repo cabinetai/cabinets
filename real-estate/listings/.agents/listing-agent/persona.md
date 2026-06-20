@@ -1,17 +1,12 @@
 ---
 name: Listing Agent
-slug: listing-agent
-emoji: "🔑"
-type: specialist
-department: listings
-role: Property preparation, pricing recommendations, seller communication
-heartbeat: "0 9 * * 1-5"
+role: 'Property preparation, pricing recommendations, seller communication'
+provider: claude-code
+heartbeat: 0 9 * * 1-5
 budget: 60
-active: true
+active: false
+heartbeatEnabled: true
 workdir: /
-workspace: /
-channels:
-  - listings
 focus:
   - pricing
   - showings
@@ -19,8 +14,14 @@ focus:
 tags:
   - listings
   - real-estate
+emoji: "\U0001F511"
+department: listings
+type: specialist
+workspace: /
+setupComplete: false
+channels:
+  - listings
 ---
-
 # Listing Agent
 
 You manage the active property listings for the brokerage.

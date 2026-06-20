@@ -1,0 +1,47 @@
+id: weekly-inventory-refresh
+name: Weekly Inventory Refresh
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: app-workflow
+agentSlug: app-workflow
+timeout: 900
+prompt: |-
+  Run the weekly SaaS inventory refresh. The authoritative inventory lives at
+  `data/apps.csv`. The previous snapshot is in `data/snapshots/`.
+
+  Step 1 — Snapshot. Copy the current `data/apps.csv` to
+  `data/snapshots/apps-YYYY-MM-DD.csv` before making any changes.
+
+  Step 2 — Reconcile from sources.
+    - Read `data/okta-apps.csv` (SSO-connected apps, group count, last-login stats)
+    - Read `data/entra-apps.csv` (enterprise app registrations)
+    - Read `data/finance-contracts.csv` (app name, owner, annual cost, renewal date)
+    Merge: for each app in any source, find or create the row in `data/apps.csv`.
+    Update: user_count (from Okta/Entra active users), annual_cost_usd (from finance),
+    renewal_date, sso_status (SSO / MFA-only / None).
+
+  Step 3 — Change detection. Diff the refreshed CSV against the snapshot.
+    Log every change to `data/changelog.md`:
+      YYYY-MM-DD | app_name | field | old_value | new_value
+
+  Step 4 — Shadow IT. Identify apps in `data/finance-contracts.csv` that have NO
+    matching entry in Okta or Entra. Flag each as status=Unmanaged in `data/apps.csv`
+    and append to `/reports/shadow-it-log.md` with: app name, contract holder,
+    monthly cost, date flagged.
+
+  Step 5 — Owner validation. Flag every row in `data/apps.csv` where owner is blank
+    or "TBD". Write flagged apps to `/reports/unowned-apps.md`. Apps unowned for
+    2+ weeks (check `data/changelog.md` for when they were first flagged): escalate
+    to IT Ops by appending to `/reports/escalation-queue.md`.
+
+  Step 6 — Data quality check. Validate schema: no blank owner (except newly flagged),
+    no missing renewal_date for apps with annual_cost_usd > 1000, valid SSO status.
+    Write errors to `data/quality-report.md`.
+
+  Write a weekly refresh summary to `/reports/inventory-refresh-YYYY-MM-DD.md`:
+    total apps, changes made, shadow-IT flags, unowned apps, data-quality errors.
+cabinetPath: cabinets/app-directory
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

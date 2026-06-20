@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vendor Renewal · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#ffffff; --foreground:#09090b; --card:#ffffff; --card-foreground:#09090b;
+    --muted:#f4f4f5; --muted-foreground:#71717a; --primary:#18181b; --primary-foreground:#fafafa;
+    --secondary:#f4f4f5; --secondary-foreground:#18181b; --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+    --good:#16a34a; --good-bg:#f0fdf4; --good-bd:#bbf7d0; --warn:#d97706; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-bd:#fecaca; --info:#2563eb; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+    --c1:#2563eb; --c2:#16a34a; --c3:#d97706; --c4:#dc2626; --c5:#7c3aed; --c6:#0891b2;
+    --radius:0.65rem; --shadow-sm:0 1px 2px 0 rgb(0 0 0/.05);
+    --shadow:0 1px 3px 0 rgb(0 0 0/.08),0 1px 2px -1px rgb(0 0 0/.08);
+    --sans:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --background:#09090b; --foreground:#fafafa; --card:#101012; --card-foreground:#fafafa;
+    --muted:#1c1c1f; --muted-foreground:#a1a1aa; --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#1c1c1f; --secondary-foreground:#fafafa; --border:#27272a; --input:#27272a; --ring:#52525b;
+    --good:#4ade80; --good-bg:#0c2417; --good-bd:#14532d; --warn:#fbbf24; --warn-bg:#2a1f06; --warn-bd:#78350f;
+    --bad:#f87171; --bad-bg:#2a1012; --bad-bd:#7f1d1d; --info:#60a5fa; --info-bg:#0c1d33; --info-bd:#1e3a8a;
+    --c1:#60a5fa; --c2:#4ade80; --c3:#fbbf24; --c4:#f87171; --c5:#a78bfa; --c6:#22d3ee;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0/.4); --shadow:0 1px 3px 0 rgb(0 0 0/.5);
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 64px}
+
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--background) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);margin:0 -24px 24px;padding:0 24px}
+  .topbar-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:13px;font-weight:700}
+  .brand .sub{color:var(--muted-foreground);font-weight:400;font-size:12.5px;border-left:1px solid var(--border);padding-left:10px;margin-left:2px}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg)}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+  .head h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .head p{color:var(--muted-foreground);margin-top:3px;font-size:13.5px}
+  .tabs{display:flex;gap:2px;background:var(--muted);padding:3px;border-radius:9px}
+  .tabs button{font-size:12.5px;font-weight:500;color:var(--muted-foreground);padding:6px 14px;border-radius:6px;border:none;background:none;cursor:pointer}
+  .tabs button.active{background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);white-space:nowrap}
+  .badge.good{background:var(--good-bg);border-color:var(--good-bd);color:var(--good)}
+  .badge.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad)}
+  .badge.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-sm)}
+  .kpi .l{font-size:11.5px;color:var(--muted-foreground);font-weight:500;display:flex;align-items:center;gap:6px}
+  .kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .kpi .v small{font-size:13px;font-weight:500;color:var(--muted-foreground)}
+  .kpi .c{font-size:11.5px;margin-top:4px;color:var(--muted-foreground)}
+  .kpi .c.bad{color:var(--bad)} .kpi .c.warn{color:var(--warn)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .card-h .t{font-size:13px;font-weight:600} .card-h .d{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+  .card-h .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+  .card-b{padding:14px 18px 18px}
+
+  .grid{display:grid;gap:14px}
+  .g-2{grid-template-columns:2fr 1fr}
+  @media(max-width:960px){.g-2{grid-template-columns:1fr}}
+
+  /* Vendor table */
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);font-weight:600;padding:0 8px 8px}
+  th.r,td.r{text-align:right}
+  td{padding:10px 8px;border-top:1px solid var(--border)}
+  tbody tr:hover{background:var(--muted)}
+  .vname{font-weight:600}
+  .owner{font-size:11.5px;color:var(--muted-foreground);font-family:var(--mono)}
+  .countdown{font-family:var(--mono);font-weight:600;font-size:12px}
+
+  /* Timeline bars */
+  .tl-item{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--border)}
+  .tl-item:first-child{border-top:none}
+  .tl-left{width:120px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+  .tl-bar-wrap{flex:1;height:10px;background:var(--muted);border-radius:100px;overflow:hidden}
+  .tl-bar{height:100%;border-radius:100px}
+  .tl-date{font-family:var(--mono);font-size:11px;color:var(--muted-foreground);flex:none;width:60px;text-align:right}
+
+  /* Spend concentration */
+  .sov-row{display:grid;grid-template-columns:110px 1fr 56px;gap:10px;align-items:center;margin-bottom:9px}
+  .sov-row .nm{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sov-row .track{height:9px;background:var(--muted);border-radius:100px;overflow:hidden}
+  .sov-row .fill{height:100%;border-radius:100px}
+  .sov-row .pct{font-family:var(--mono);font-size:11.5px;font-weight:600;text-align:right}
+
+  .foot{margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted-foreground);text-align:center}
+  .foot code{font-family:var(--mono);font-size:11px;background:var(--muted);padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand"><span class="logo">VR</span>Vendor Renewal<span class="sub">SaaS Portfolio</span></div>
+  <div class="sync"><span class="dot"></span>vendors.csv · May 23, 08:02</div>
+</div></div>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <h1>Vendor Renewal Dashboard</h1>
+      <p>18 active vendors · $906k annual SaaS spend · renewal dates and notice windows</p>
+    </div>
+    <nav class="tabs">
+      <button class="active">All Vendors</button>
+      <button>Action Required</button>
+      <button>Spend Review</button>
+    </nav>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpis">
+    <div class="kpi"><div class="l">Total Annual SaaS Spend</div><div class="v num">$906<small>k</small></div><div class="c">18 active vendors</div></div>
+    <div class="kpi"><div class="l">Action Required</div><div class="v num">2</div><div class="c bad">Inside notice window now</div></div>
+    <div class="kpi"><div class="l">Renewing in 30 Days</div><div class="v num">4</div><div class="c warn">Heads-up needed</div></div>
+    <div class="kpi"><div class="l">Auto-Renew Escalations</div><div class="v num">2</div><div class="c warn">No confirmation received</div></div>
+  </section>
+
+  <!-- Row 1: Vendor table + Timeline -->
+  <section class="grid g-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><div><div class="t">Vendor Registry</div><div class="d">All active vendors, sorted by urgency</div></div><span class="meta">source: vendors.csv</span></div>
+      <div class="card-b" style="padding-top:6px;overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Vendor</th><th>Owner</th><th class="r">Annual Spend</th><th class="r">Renewal Date</th><th class="r">Days Left</th><th>Auto-Renew</th><th>Status</th>
+          </tr></thead>
+          <tbody id="vendor-table"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><div class="t">Renewal Timeline · Next 180 Days</div><div class="d">Upcoming renewals sorted by date</div></div></div>
+      <div class="card-b" id="timeline"></div>
+    </div>
+  </section>
+
+  <!-- Row 2: Spend concentration -->
+  <section class="card">
+    <div class="card-h"><div><div class="t">Spend Concentration — Top 8 Vendors</div><div class="d">% of total $906k annual SaaS spend</div></div><span class="meta">May 2026</span></div>
+    <div class="card-b"><div id="spend-conc"></div></div>
+  </section>
+
+  <p class="foot">Registry source: <code>data/vendors.csv</code> · Alerts: <code>.cabinet-state/renewal-alerts.md</code> · Weekly sweep: Mon 08:00</p>
+</main>
+
+<script>
+'use strict';
+const TODAY = new Date('2026-05-23');
+function daysTo(dateStr){ return Math.round((new Date(dateStr)-TODAY)/(1000*60*60*24)); }
+
+const VENDORS = [
+  { name:'Salesforce CRM',      owner:'sarah',    dept:'Sales',   spend:182000, renewal:'2026-06-30', notice:60, autoRenew:true,  status:'action-required' },
+  { name:'Okta',                owner:'it',       dept:'IT',      spend:72000,  renewal:'2026-06-15', notice:45, autoRenew:true,  status:'action-required' },
+  { name:'Guru',                owner:'cs',       dept:'CS',      spend:28000,  renewal:'2026-06-01', notice:30, autoRenew:false, status:'under-review'    },
+  { name:'Figma',               owner:'design',   dept:'Product', spend:36000,  renewal:'2026-07-01', notice:30, autoRenew:true,  status:'active'          },
+  { name:'Datadog',             owner:'ops',      dept:'Eng',     spend:96000,  renewal:'2026-07-15', notice:30, autoRenew:true,  status:'active'          },
+  { name:'Linear',              owner:'ops',      dept:'Eng',     spend:14400,  renewal:'2026-07-20', notice:14, autoRenew:false, status:'active'          },
+  { name:'Slack',               owner:'it',       dept:'IT',      spend:54000,  renewal:'2026-08-01', notice:30, autoRenew:true,  status:'active'          },
+  { name:'Lattice',             owner:'hr',       dept:'HR',      spend:32000,  renewal:'2026-08-15', notice:30, autoRenew:true,  status:'active'          },
+  { name:'GitHub Enterprise',   owner:'ops',      dept:'Eng',     spend:48000,  renewal:'2026-09-01', notice:30, autoRenew:false, status:'active'          },
+  { name:'HubSpot Marketing',   owner:'marketing',dept:'Mktg',   spend:42000,  renewal:'2026-09-15', notice:30, autoRenew:true,  status:'active'          },
+  { name:'Drata',               owner:'compliance',dept:'Sec',   spend:48000,  renewal:'2026-10-30', notice:30, autoRenew:true,  status:'active'          },
+  { name:'Zoom',                owner:'it',       dept:'IT',      spend:24000,  renewal:'2026-10-01', notice:30, autoRenew:true,  status:'active'          },
+  { name:'Notion',              owner:'ops',      dept:'Ops',     spend:18000,  renewal:'2026-11-15', notice:30, autoRenew:false, status:'active'          },
+  { name:'Intercom',            owner:'cs',       dept:'CS',      spend:84000,  renewal:'2026-12-01', notice:60, autoRenew:true,  status:'active'          },
+  { name:'AWS',                 owner:'ops',      dept:'Eng',     spend:228000, renewal:'2026-12-31', notice:0,  autoRenew:true,  status:'active'          },
+];
+
+const STATUS_MAP = { 'action-required':'bad', 'under-review':'warn', 'active':'', 'renewed':'good', 'cancelled':'' };
+const STATUS_LABEL = { 'action-required':'Action Required', 'under-review':'Under Review', 'active':'Active', 'renewed':'Renewed', 'cancelled':'Cancelled' };
+
+// Vendor table
+const tbody = document.getElementById('vendor-table');
+const sorted = [...VENDORS].sort((a,b)=>daysTo(a.renewal)-daysTo(b.renewal));
+sorted.forEach(v=>{
+  const days = daysTo(v.renewal);
+  const inside = days <= v.notice;
+  const urgentCls = inside ? 'bad' : days <= 30 ? 'warn' : '';
+  const st = STATUS_MAP[v.status] || '';
+  tbody.innerHTML += `<tr>
+    <td><span class="vname">${v.name}</span><br><span class="owner">${v.dept}</span></td>
+    <td><span class="owner">${v.owner}@co</span></td>
+    <td class="r num">$${v.spend.toLocaleString()}</td>
+    <td class="r num">${v.renewal}</td>
+    <td class="r"><span class="countdown" style="color:${days<=v.notice?'var(--bad)':days<=30?'var(--warn)':'var(--muted-foreground)'}">${days}d</span></td>
+    <td>${v.autoRenew?'<span class="badge warn">Auto</span>':'<span class="badge">Manual</span>'}</td>
+    <td><span class="badge ${st}">${STATUS_LABEL[v.status]}</span></td>
+  </tr>`;
+});
+
+// Timeline — next 180 days
+const timeline = document.getElementById('timeline');
+const upcoming = sorted.filter(v=>daysTo(v.renewal)<=180 && daysTo(v.renewal)>=0).slice(0,10);
+const maxDays = 180;
+timeline.innerHTML = upcoming.map(v=>{
+  const d = daysTo(v.renewal);
+  const pct = Math.max(3,(d/maxDays)*100);
+  const col = d<=v.notice?'var(--bad)':d<=30?'var(--warn)':'var(--c1)';
+  return `<div class="tl-item">
+    <div class="tl-left">${v.name}</div>
+    <div class="tl-bar-wrap"><div class="tl-bar" style="width:${pct}%;background:${col}"></div></div>
+    <div class="tl-date">${v.renewal.slice(5)}</div>
+  </div>`;
+}).join('');
+
+// Spend concentration
+const TOP8 = [...VENDORS].sort((a,b)=>b.spend-a.spend).slice(0,8);
+const totalSpend = VENDORS.reduce((s,v)=>s+v.spend,0);
+const COLORS = ['var(--c1)','var(--c5)','var(--c2)','var(--c3)','var(--c6)','var(--c4)','var(--muted-foreground)','var(--ring)'];
+document.getElementById('spend-conc').innerHTML = TOP8.map((v,i)=>`
+  <div class="sov-row">
+    <div class="nm">${v.name}</div>
+    <div class="track"><div class="fill" style="width:${(v.spend/totalSpend*100).toFixed(1)}%;background:${COLORS[i]}"></div></div>
+    <div class="pct num">$${(v.spend/1000).toFixed(0)}k</div>
+  </div>`).join('');
+</script>
+</body>
+</html>

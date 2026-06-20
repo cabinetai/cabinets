@@ -28,12 +28,12 @@ For each target company, answer:
 
 | Company | Stage | PM Team Size | Why Interested | Connection |
 | --- | --- | --- | --- | --- |
-| Notion | Late-stage, ~500 | ~20 PMs | Platform play, strong product culture | Dana Kim (Eng Manager) |
+| Notion | Late-stage, ~500 | ~20 PMs | Platform play, strong product culture | Jamie Lee (Eng Manager) |
 | Linear | Series B, ~80 | ~5 PMs | Best-in-class PLG, small high-impact team | None (recruiter contact) |
-| Vercel | Series D, ~400 | ~15 PMs | DX focus, developer-first culture | Sarah Lin (PM) |
-| Stripe | Public, ~8000 | ~100+ PMs | Gold standard PM org, billing domain | Marcus Johnson (Staff Eng) |
-| Retool | Series C, ~400 | ~12 PMs | Internal tools is a growing category | Priya Patel (PM Lead) |
-| Supabase | Series C, ~150 | ~5 PMs | Open source, developer community | Recruiter (Jake Wilson) |
-| Planetscale | Series C, ~200 | ~8 PMs | Dev tools, strong technical culture | Sam Torres (CTO) |
-| Figma | Acquired (Adobe), ~1500 | ~30 PMs | Collaboration focus, iconic product | Rachel Torres (Senior PM) |
-| Dbt Labs | Series D, ~400 | ~10 PMs | Data tooling, analytics engineering | David Park (Head of Product) |
+| Vercel | Series D, ~400 | ~15 PMs | DX focus, developer-first culture | Riley Patel (PM) |
+| Stripe | Public, ~8000 | ~100+ PMs | Gold standard PM org, billing domain | Alex Park (Staff Eng) |
+| Retool | Series C, ~400 | ~12 PMs | Internal tools is a growing category | Jordan Kim (PM Lead) |
+| Supabase | Series C, ~150 | ~5 PMs | Open source, developer community | Recruiter (Riley Chen) |
+| Planetscale | Series C, ~200 | ~8 PMs | Dev tools, strong technical culture | Morgan Davis (CTO) |
+| Figma | Acquired (Adobe), ~1500 | ~30 PMs | Collaboration focus, iconic product | Casey Wong (Senior PM) |
+| Dbt Labs | Series D, ~400 | ~10 PMs | Data tooling, analytics engineering | Taylor Singh (Head of Product) |

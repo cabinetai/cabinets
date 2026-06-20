@@ -1,0 +1,59 @@
+id: intake-request
+name: Procurement Intake — Process New Request
+enabled: false
+schedule: ""
+provider: claude-code
+adapterType: claude_local
+ownerAgent: routing-lead
+agentSlug: routing-lead
+timeout: 900
+prompt: |-
+  A new procurement request has arrived. Process it end-to-end and produce a
+  complete approval packet.
+
+  STEP 1 — TRIAGE (Routing Lead)
+  Read the most recent unprocessed request in `queue-state/requests.yaml`
+  (status: "submitted"). Validate it has: requester name, cost center, vendor
+  name, estimated annual cost, and a business case statement. If any field is
+  missing, update status to "needs-info", write a rejection note to
+  `queue-state/requests.yaml`, and stop — do not proceed.
+
+  Assign: category (software/hardware/services/consulting), priority
+  (urgent/standard/low) based on requester's stated urgency and cost, and
+  update status to "in-review".
+
+  STEP 2 — VENDOR ANALYSIS (Procurement Analyst)
+  Research the vendor in `knowledge/vendor-registry.md` and
+  `knowledge/existing-contracts.md`.
+  Produce: pricing breakdown (exact tier/SKU, per-seat or usage cost),
+  3-year TCO table (licence + implementation + training + renewal escalation),
+  and an alternatives matrix with ≥2 ranked alternatives including scores
+  against requester's stated must-haves.
+
+  STEP 3 — COMPLIANCE SCREEN (Compliance Reviewer)
+  Check the vendor against `knowledge/approved-vendor-certs.md`.
+  Assess: security certs (SOC 2 / ISO 27001), data classification of what
+  we'll share, DPA requirement, legal terms flags, insurance.
+  Issue: Pass / Conditional Pass (with named conditions) / Block (with reason).
+
+  STEP 4 — PACKET ASSEMBLY (Routing Lead)
+  Write a complete approval packet to
+  `approval-packets/<request-id>.md` using this structure:
+    # Procurement Approval Packet — <Vendor> — <Request ID>
+    ## Summary
+    ## Business Case (requester's words, verbatim)
+    ## Vendor & Cost Analysis (from Analyst)
+    ## Alternatives Compared
+    ## Compliance & Risk Verdict (from Compliance Reviewer)
+    ## Approval Chain (from knowledge/approval-matrix.md, cost-tier appropriate)
+    ## Recommended Decision: [Approve / Approve with conditions / Block]
+
+  Update status in `queue-state/requests.yaml` to "pending-approval" and
+  record the packet path.
+
+  STEP 5 — ROUTING
+  Notify the named approver(s) via Slack with the packet link. Log the
+  notification timestamp in `queue-state/requests.yaml`.
+cabinetPath: cabinets/procurement-intake
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

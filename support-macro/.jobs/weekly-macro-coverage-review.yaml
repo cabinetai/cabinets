@@ -1,0 +1,85 @@
+id: weekly-macro-coverage-review
+name: Weekly Macro Coverage Review
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: macro-writer
+agentSlug: macro-writer
+timeout: 900
+prompt: |-
+  Run the weekly macro coverage review and produce new macro drafts.
+  Today is Monday — work covers the previous week's ticket and usage data.
+
+  STEP 1 — Coverage analysis
+  1. Read the macro registry at `/macro-registry.md` to get the full list of active
+     and draft macros with their linked ticket cluster.
+  2. Read ticket cluster data from `/clusters/` (or `/data/cluster-summary.csv`).
+     Identify clusters with volume >15/week that have:
+     - No linked macro (coverage gap)
+     - Only a draft macro (not yet QA'd and activated)
+     - A macro marked "needs-update" by the QA Reviewer
+  3. Read macro usage data from `/data/macro-usage.csv`. Flag:
+     - Any active macro with 0 uses in the past 30 days (retirement candidate)
+     - The top 10 most-used macros this week (good signal for quality)
+  4. Write the coverage analysis to `/coverage/coverage-<YYYY-MM-DD>.md`:
+     | Cluster | Volume (7d) | Macro exists? | Status | Recommended action |
+
+  STEP 2 — Draft new macros
+  For the top 5 uncovered clusters (by volume):
+  1. Read 5–10 tickets from the cluster to absorb the exact customer language and
+     the most common resolution the support team gives.
+  2. Draft the macro to `/macros/drafts/<macro-slug>.md` using this structure:
+
+     # <Macro Name>
+     **Category:** <Billing / Onboarding / Technical / Account / Mobile / General>
+     **Linked cluster:** <slug>
+     **Status:** Draft
+     **Created:** <YYYY-MM-DD>
+     **QA Status:** Awaiting QA
+
+     ---
+
+     Hi {{customer_first_name}},
+
+     <Opening: show you understood their specific issue — 1 sentence>
+
+     <Clear answer or next steps — numbered if multi-step>
+
+     <Link to the relevant help article if one exists: see /article-registry.md>
+
+     <Closing: invite follow-up, offer human escalation if appropriate>
+
+     Best,
+     {{agent_name}} · Support Team
+
+     ---
+     *Macro notes (internal, not sent):*
+     - *When to use:*
+     - *When NOT to use:*
+     - *Estimated deflection: N tickets/week*
+
+  3. Add the macro to `/macro-registry.md` with status: draft, awaiting QA.
+
+  STEP 3 — Handle QA-flagged macros
+  4. Check `/macros/qa/` for any QA files with status "Fail" or "Pass with notes."
+     For each: read the specific revision requests and update the corresponding macro
+     in `/macros/<slug>.md`. Log the change in the macro file under
+     `## Revision history`.
+
+  STEP 4 — Retirement candidates
+  5. For any macro with 0 uses in 30 days: add a "Retirement candidate" note to
+     `/macro-registry.md`. Do not retire without human approval.
+
+  STEP 5 — Update the library webapp
+  6. Update `/macro-library/data.json` with current macro list, statuses, and usage.
+
+  TONE GUIDE — apply to all new macros:
+  - Direct and warm: get to the point, but sound human.
+  - Never: "As per my previous email," "Please be advised," passive voice for bad news.
+  - Always: acknowledge the specific problem first, answer second, invite follow-up last.
+  - Match formality to the customer's tier: Enterprise customers get slightly more formal
+    openers; SMB customers can be more casual.
+cabinetPath: cabinet-examples/cabinets/support-macro
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

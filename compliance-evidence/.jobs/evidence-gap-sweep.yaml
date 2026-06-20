@@ -1,0 +1,47 @@
+id: evidence-gap-sweep
+name: Weekly Evidence Gap Sweep
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: compliance-agent
+agentSlug: compliance-agent
+timeout: 900
+prompt: |-
+  Run the weekly evidence gap sweep across all in-scope compliance controls.
+
+  STAGE 1 — EVIDENCE PULL (Workflow Agent)
+  For each control in `evidence-map/controls.yaml` that has not been verified in
+  the past 7 days, request a fresh evidence pull from the relevant source:
+  - Access provisioning controls (CC6.1, CC6.2, CC6.3): pull from Okta admin export
+    at `connectors/okta/` — user access list, provisioning events, terminated users
+  - Change management controls (CC8.1): pull GitHub audit log from `connectors/github/`
+    — PRs merged, deployment approvals, branch protection status
+  - Vendor management (CC9.2): check `vendors/` folder for updated SOC2 / DPA docs
+  - Encryption controls (CC6.7): pull cloud config export from `connectors/aws/`
+
+  File each pulled artifact to `evidence/<control-id>/<source>-<YYYY-MM-DD>.<ext>`
+  and log to `evidence/pull-log.md`.
+
+  STAGE 2 — GAP ANALYSIS (Compliance Lead)
+  For every control in `evidence-map/controls.yaml`, evaluate:
+  - COLLECTED: evidence exists and is within the 90-day freshness window
+  - STALE: evidence exists but is >90 days old — requires refresh
+  - MISSING: no evidence file for this control
+  - PARTIAL: evidence exists but doesn't fully cover the control scope
+
+  Write the gap report to `evidence-gaps/<YYYY-WW>.md` with:
+  - Framework coverage % by category (CC, A-series, GDPR) vs. last week
+  - Full gap list: control ID, framework, status, owner, due date
+  - Escalations: controls that were MISSING or STALE last week and still are
+
+  Update `evidence-map/controls.yaml` with the current status and last-verified date
+  for every control reviewed.
+
+  Rules:
+  - Stale evidence is not collected evidence. Mark it STALE, not COLLECTED.
+  - If a pull fails (connector unavailable), log as PARTIAL and note the reason.
+  - Escalate controls that have been MISSING for 2+ consecutive weeks to the named owner.
+cabinetPath: cabinets/compliance-evidence
+createdAt: '2026-05-23T00:00:00.000Z'
+updatedAt: '2026-05-23T00:00:00.000Z'

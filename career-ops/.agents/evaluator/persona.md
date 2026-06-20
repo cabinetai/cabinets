@@ -6,7 +6,8 @@ role: >-
 provider: claude-code
 heartbeat: 0 9 * * 1-5
 budget: 100
-active: true
+active: false
+heartbeatEnabled: true
 workdir: /
 focus:
   - offer-evaluation
