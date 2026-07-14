@@ -6,11 +6,11 @@ This is a public registry of Cabinet templates. Each top-level directory is a co
 
 | What | Where |
 |---|---|
-| Registry (this repo) | https://github.com/hilash/cabinets (currently private) |
-| CLI tool source | https://github.com/hilash/cabinets-tool (private) |
+| Registry (this repo) | https://github.com/cabinetai/cabinets (public) |
+| CLI tool source | https://github.com/cabinetai/cabinets-tool (private) |
 | CLI tool on npm | https://www.npmjs.com/package/cabinets (`cabinets@0.1.1`) |
 | Scaffolder on npm | https://www.npmjs.com/package/create-cabinet |
-| Website | Separate `cabinets-web` repo |
+| Website | https://github.com/cabinetai/cabinets-website |
 
 ### CLI tools
 
@@ -20,7 +20,7 @@ This is a public registry of Cabinet templates. Each top-level directory is a co
 - `npx cabinets list` — list cabinets in current directory
 - `npx cabinets info <name>` — inspect a cabinet without installing
 
-Single-name sources (e.g. `npx cabinets add agency`) resolve to `hilash/cabinets/<name>`.
+Single-name sources (e.g. `npx cabinets add agency`) resolve to `cabinetai/cabinets/<name>`.
 
 ## Conventions
 
@@ -31,7 +31,7 @@ Single-name sources (e.g. `npx cabinets add agency`) resolve to `hilash/cabinets
 - Jobs are YAML at `.jobs/<name>.yaml`
 - Child cabinets are nested directories that also contain a `.cabinet` file
 - `.cabinet-state/` is for runtime state only — keep empty with `.gitkeep`
-- Do NOT add website code here — the website lives in the separate `cabinets-web` repo
+- Do NOT add website code here — the website lives in the separate `cabinets-website` repo
 - Do NOT add the CLI tool code here — it lives in the separate `cabinets-tool` repo
 
 ## .cabinet file schema
@@ -87,7 +87,7 @@ cabinets/
 }
 ```
 
-Clients build the cover URL as `https://raw.githubusercontent.com/hilash/cabinets/HEAD/<slug>/<cover>`.
+Clients build the cover URL as `https://raw.githubusercontent.com/cabinetai/cabinets/HEAD/<slug>/<cover>`.
 
 ### Adding a new cabinet — checklist
 
