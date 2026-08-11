@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<!--
+  stripe-daily showcase page.
+
+  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
+  The file names carry the timestamp, so the picker is built without opening any of them.
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  and survive the user renaming the cabinet at install time. The folder listing comes from
+  /api/tree because the assets route serves single files and cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stripe Daily Money</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
+    --line: #e6e5e1; --accent: #5548e0;
+    --hi: #b4443c; --lo: #5f6b7a; --ok: #3f7d35;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-size: 22px; margin: 0; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  /* An inline <svg> with a viewBox and no width fills its container — size it here or
+     the mark renders enormous. flex:none stops the flex row shrinking it. */
+  .mark { width: 22px; height: 22px; flex: none; }
+  .sub { color: var(--dim); margin: 4px 0 0; font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px 20px; margin-top: 18px; }
+  .empty { color: var(--dim); font-size: 14px; } .empty code { font-size: 13px; }
+  .scroll { overflow-x: auto; }
+  .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
+  .picker select {
+    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
+    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  }
+  .picker .next { display: block; margin-top: 7px; }
+  .banner { border-left: 3px solid var(--accent); padding: 10px 14px; margin-top: 18px;
+    background: var(--card); border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim); }
+  /* The one thing worth reading if nothing else. Same card, an accent edge to lead the eye. */
+  .lead { border-left: 3px solid var(--accent); }
+  .lead-tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--accent); margin-bottom: 6px;
+  }
+  .lead-who { font-weight: 600; }
+  .lead-verdict { margin: 4px 0 0; color: var(--dim); }
+  .qw-tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--dim); margin-bottom: 8px;
+  }
+  .qw-list { margin: 0; padding-left: 18px; }
+  .qw-list li { margin-top: 6px; }
+  .qw-list li:first-child { margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--dim); font-weight: 600; padding: 0 10px 8px 0;
+    border-bottom: 1px solid var(--line); }
+  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px;
+    border-radius: 20px; border: 1px solid currentColor; white-space: nowrap; }
+  /* State is the judgement the page exists to make. A dispute and a declined card are the
+     two rows worth a person's morning, so they share the one loud colour; refunded and
+     paid stay quiet, and s-unclear catches both "we can't tell" and anything unmapped. */
+  .s-disputed, .s-failed { color: var(--hi); }
+  .s-unclear { color: var(--dim); }
+  .s-refunded { color: var(--lo); } .s-paid { color: var(--ok); }
+  /* Money is the column the eye runs down, so it carries the accent — and it is set as a
+     figure, not as prose: right-aligned, digits the same width, never wrapped. */
+  .amt { color: var(--accent); font-weight: 600; text-align: right;
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+  th.amt-h { text-align: right; }
+  /* Who it was is context for the row, not the point of it. */
+  .cust { color: var(--dim); white-space: nowrap; }
+  /* The What cell is the deep link — the Stripe dashboard URL sits behind it. */
+  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+  .deep-link:hover { border-bottom-color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>
+      <!-- The integration's own mark, inlined so the page still makes
+           zero external requests. -->
+      <svg class="mark" viewBox="0 0 32 32" fill="#6772e5" aria-hidden="true"><path d="M111.328 15.602c0-4.97-2.415-8.9-7.013-8.9s-7.423 3.924-7.423 8.863c0 5.85 3.32 8.8 8.036 8.8 2.318 0 4.06-.528 5.377-1.26V19.22a10.246 10.246 0 0 1-4.764 1.075c-1.9 0-3.556-.67-3.774-2.943h9.497a39.64 39.64 0 0 0 .063-1.748zm-9.606-1.835c0-2.186 1.35-3.1 2.56-3.1s2.454.906 2.454 3.1zM89.4 6.712a5.434 5.434 0 0 0-3.801 1.509l-.254-1.208h-4.27v22.64l4.85-1.032v-5.488a5.434 5.434 0 0 0 3.444 1.265c3.472 0 6.64-2.792 6.64-8.957.003-5.66-3.206-8.73-6.614-8.73zM88.23 20.1a2.898 2.898 0 0 1-2.288-.906l-.03-7.2a2.928 2.928 0 0 1 2.315-.96c1.775 0 2.998 2 2.998 4.528.003 2.593-1.198 4.546-2.995 4.546zM79.25.57l-4.87 1.035v3.95l4.87-1.032z" fill-rule="evenodd"/><path d="M74.38 7.035h4.87V24.04h-4.87z"/><path d="M69.164 8.47l-.302-1.434h-4.196V24.04h4.848V12.5c1.147-1.5 3.082-1.208 3.698-1.017V7.038c-.646-.232-2.913-.658-4.048 1.43zm-9.73-5.646L54.698 3.83l-.02 15.562c0 2.87 2.158 4.993 5.038 4.993 1.585 0 2.756-.302 3.405-.643v-3.95c-.622.248-3.683 1.138-3.683-1.72v-6.9h3.683V7.035h-3.683zM46.3 11.97c0-.758.63-1.05 1.648-1.05a10.868 10.868 0 0 1 4.83 1.25V7.6a12.815 12.815 0 0 0-4.83-.888c-3.924 0-6.557 2.056-6.557 5.488 0 5.37 7.375 4.498 7.375 6.813 0 .906-.78 1.186-1.863 1.186-1.606 0-3.68-.664-5.307-1.55v4.63a13.461 13.461 0 0 0 5.307 1.117c4.033 0 6.813-1.992 6.813-5.485 0-5.796-7.417-4.76-7.417-6.943zM13.88 9.515c0-1.37 1.14-1.9 2.982-1.9A19.661 19.661 0 0 1 25.6 9.876v-8.27A23.184 23.184 0 0 0 16.862.001C9.762.001 5 3.72 5 9.93c0 9.716 13.342 8.138 13.342 12.326 0 1.638-1.4 2.146-3.37 2.146-2.905 0-6.657-1.202-9.6-2.802v8.378A24.353 24.353 0 0 0 14.973 32C22.27 32 27.3 28.395 27.3 22.077c0-10.486-13.42-8.613-13.42-12.56z" fill-rule="evenodd"/></svg>
+      Stripe Daily Money
+    </h1>
+    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
+    <p class="sub">Every morning, yesterday's money: what came in, what failed, and what needs you.</p>
+  </header>
+  <div id="root"><div class="card empty">Loading…</div></div>
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var DIR = 'daily-summaries';
+  var JOB = '.jobs/morning-stripe-daily.yaml';
+  var job = null;
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                'September', 'October', 'November', 'December'];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* Frontmatter + an optional quick-wins bullet list + a markdown table — the only
+     shapes this page reads. Anything richer belongs in the file, not in a parser here. */
+  function parse(text) {
+    var out = { meta: {}, rows: [], cols: [], quickWins: [] };
+    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    var body = text;
+    if (m) {
+      body = m[2];
+      m[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+    }
+    /* Bullets live between the frontmatter and the table; "- " never opens a table row,
+       so a plain scan of the whole body is enough. */
+    body.split('\n').forEach(function (line) {
+      var b = line.match(/^\s*-\s+(.*)$/);
+      if (b) out.quickWins.push(b[1].trim());
+    });
+    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
+    if (lines.length < 2) return out;
+    function cells(l) {
+      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
+    }
+    out.cols = cells(lines[0]);
+    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
+    return out;
+  }
+
+  /* State is a closed set of five. Anything else that reaches this page still has to
+     render, so it lands on the same quiet grey as "we can't tell" — never on a class
+     that does not exist. */
+  function stateClass(cell) {
+    var k = String(cell).trim().toLowerCase();
+    if (k === 'disputed') return 's-disputed';
+    if (k === 'failed') return 's-failed';
+    if (k === 'refunded') return 's-refunded';
+    if (k === 'paid') return 's-paid';
+    return 's-unclear';
+  }
+
+  /* url never gets a column of its own — it only decides whether What links out. */
+  function isUrl(head) { return head === 'url'; }
+
+  function render(data, name, files) {
+    var meta = data.meta, html = picker(name, files);
+
+    /* The routine could not reach Stripe. It said so rather than writing nothing. */
+    if (meta.status && meta.status !== 'ok') {
+      html += '<div class="banner">Last run could not reach ' +
+              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
+              '. Showing the previous result.</div>';
+    }
+
+    /* The single most consequential message, in one sentence — absent most days on purpose. */
+    if (meta.lead && meta.verdict) {
+      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
+              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
+              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
+    }
+
+    if (data.quickWins.length) {
+      html += '<div class="card"><span class="qw-tag">Quick wins</span><ul class="qw-list">' +
+              data.quickWins.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') +
+              '</ul></div>';
+    }
+
+    if (!data.rows.length) {
+      html += '<div class="card empty">Nothing to show for this day.</div>';
+      root.innerHTML = html;
+      bind(files);
+      return;
+    }
+
+    var urlCol = data.cols.findIndex(function (c) { return isUrl(c.toLowerCase()); });
+
+    var t = '<div class="card scroll"><table><thead><tr>';
+    data.cols.forEach(function (c) {
+      if (isUrl(c.toLowerCase())) return;
+      var h = c.toLowerCase() === 'amount' ? ' class="amt-h"' : '';
+      t += '<th' + h + '>' + esc(c) + '</th>';
+    });
+    t += '</tr></thead><tbody>';
+    data.rows.forEach(function (r) {
+      var url = urlCol > -1 ? r[urlCol] : '';
+      t += '<tr>';
+      r.forEach(function (cell, i) {
+        var head = (data.cols[i] || '').toLowerCase();
+        if (isUrl(head)) {
+          return;
+        } else if (head === 'state') {
+          t += '<td><span class="pill ' + stateClass(cell) + '">' + esc(cell) + '</span></td>';
+        } else if (head === 'amount') {
+          t += '<td class="amt">' + esc(cell) + '</td>';
+        } else if (head === 'customer') {
+          t += '<td class="cust">' + esc(cell) + '</td>';
+        } else if (head === 'what' && url) {
+          t += '<td><a class="deep-link" href="' + esc(url) +
+               '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a></td>';
+        } else {
+          t += '<td>' + esc(cell) + '</td>';
+        }
+      });
+      t += '</tr>';
+    });
+    t += '</tbody></table></div>';
+
+    root.innerHTML = html + t;
+    bind(files);
+  }
+
+  /* ---- the folder of summaries ------------------------------------------------------ */
+
+  /* 2026-08-10T07-00-00-stripe-summary.md — the name carries the date, so the picker
+     is built from names alone. EXAMPLE-stripe-summary.md is the one file without one. */
+  function stamp(name) {
+    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
+  }
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  function label(name) {
+    var d = stamp(name);
+    if (!d) return 'Stripe Daily Example';
+    var now = new Date(), yday = new Date(now.getTime() - 86400000);
+    if (sameDay(d, now)) return 'Today';
+    if (sameDay(d, yday)) return 'Yesterday';
+    return human(d);
+  }
+
+  function picker(current, files) {
+    var html = '';
+    if (files.length) {
+      var opts = files.map(function (f) {
+        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
+               esc(label(f)) + '</option>';
+      }).join('');
+      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+    }
+    var next = nextRunText();
+    if (next) html += '<span class="next">' + esc(next) + '</span>';
+    return html ? '<div class="picker">' + html + '</div>' : '';
+  }
+
+  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
+  function bind(files) {
+    var sel = document.getElementById('pick');
+    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
+  }
+
+  function show(name, files) {
+    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (text) { render(parse(text), name, files); })
+      .catch(function (err) {
+        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
+          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
+          'in a moment.</div>';
+        bind(files);
+      });
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only — never a nested one.
+     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
+     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
+
+  /* An empty folder is the normal state before the first run — not an error to shout about.
+     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0];
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
+      if (!files.length) {
+        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
+          'fills in after the routine runs for the first time.</div>';
+        return;
+      }
+      /* Newest first; the example, having no date, sits at the bottom of the list. */
+      files.sort(function (a, b) {
+        var da = stamp(a), db = stamp(b);
+        if (da && db) return db - da;
+        return da ? -1 : db ? 1 : 0;
+      });
+      var now = new Date();
+      var today = files.filter(function (f) {
+        var d = stamp(f);
+        return d && sameDay(d, now);
+      })[0];
+      show(today || files[0], files);
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>
