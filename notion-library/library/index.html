@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<!--
+  notion-library showcase page.
+
+  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
+  The file names carry the timestamp, so the picker is built without opening any of them.
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  and survive the user renaming the cabinet at install time. The folder listing comes from
+  /api/tree because the assets route serves single files and cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Notion Library</title>
+<style>
+  /* Notion's own brand is black and white — no signature colour to borrow — so the accent
+     stays inside the ink family instead of reaching for an arbitrary hue. */
+  :root {
+    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
+    --line: #e6e5e1; --accent: #2b2b28;
+    --mid: #9a6b1f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-size: 22px; margin: 0; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  /* An inline <svg> with a viewBox and no width fills its container — size it here or
+     the mark renders enormous. flex:none stops the flex row shrinking it. */
+  .mark { width: 22px; height: 22px; flex: none; }
+  .sub { color: var(--dim); margin: 4px 0 0; font-size: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 20px; margin-top: 18px;
+  }
+  .banner {
+    border-left: 3px solid var(--mid); padding: 10px 14px; margin-top: 18px;
+    background: var(--card); border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim);
+  }
+  /* The one thing worth reading if nothing else. Same card, an accent edge to lead the eye. */
+  .lead { border-left: 3px solid var(--accent); }
+  .lead-tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--accent); margin-bottom: 6px;
+  }
+  .lead-who { font-weight: 600; }
+  .lead-verdict { margin: 4px 0 0; color: var(--dim); }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th {
+    text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--dim); font-weight: 600; padding: 0 10px 8px 0; border-bottom: 1px solid var(--line);
+  }
+  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .pill {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px;
+    border-radius: 20px; border: 1px solid currentColor; white-space: nowrap;
+  }
+  /* Recency is the only signal this listing carries, so it is the only thing coloured. */
+  .u-today { color: var(--accent); } .u-recent { color: var(--mid); } .u-older { color: var(--dim); }
+  /* The title is what the eye scans down; everything else on the row is context. */
+  .name { font-weight: 600; }
+  .where { color: var(--dim); }
+  /* The page title is the deep link, straight back to the page in Notion. */
+  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+  .deep-link:hover { border-bottom-color: var(--dim); }
+  .empty { color: var(--dim); font-size: 14px; }
+  .empty code { font-size: 13px; }
+  .scroll { overflow-x: auto; }
+  .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
+  .picker select {
+    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
+    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  }
+  .picker .next { display: block; margin-top: 7px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>
+      <!-- The integration's own mark, inlined so the page still makes
+           zero external requests. -->
+      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M6.017 4.313l55.333 -4.087c6.797 -0.583 8.543 -0.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277 -1.553 6.807 -6.99 7.193L24.467 99.967c-4.08 0.193 -6.023 -0.39 -8.16 -3.113L3.3 79.94c-2.333 -3.113 -3.3 -5.443 -3.3 -8.167V11.113c0 -3.497 1.553 -6.413 6.017 -6.8z" fill="#fff"/> <path fill-rule="evenodd" clip-rule="evenodd" d="M61.35 0.227l-55.333 4.087C1.553 4.7 0 7.617 0 11.113v60.66c0 2.723 0.967 5.053 3.3 8.167l13.007 16.913c2.137 2.723 4.08 3.307 8.16 3.113l64.257 -3.89c5.433 -0.387 6.99 -2.917 6.99 -7.193V20.64c0 -2.21 -0.873 -2.847 -3.443 -4.733L74.167 3.143c-4.273 -3.107 -6.02 -3.5 -12.817 -2.917zM25.92 19.523c-5.247 0.353 -6.437 0.433 -9.417 -1.99L8.927 11.507c-0.77 -0.78 -0.383 -1.753 1.557 -1.947l53.193 -3.887c4.467 -0.39 6.793 1.167 8.54 2.527l9.123 6.61c0.39 0.197 1.36 1.36 0.193 1.36l-54.933 3.307 -0.68 0.047zM19.803 88.3V30.367c0 -2.53 0.777 -3.697 3.103 -3.893L86 22.78c2.14 -0.193 3.107 1.167 3.107 3.693v57.547c0 2.53 -0.39 4.67 -3.883 4.863l-60.377 3.5c-3.493 0.193 -5.043 -0.97 -5.043 -4.083zm59.6 -54.827c0.387 1.75 0 3.5 -1.75 3.7l-2.91 0.577v42.773c-2.527 1.36 -4.853 2.137 -6.797 2.137 -3.107 0 -3.883 -0.973 -6.21 -3.887l-19.03 -29.94v28.967l6.02 1.363s0 3.5 -4.857 3.5l-13.39 0.777c-0.39 -0.78 0 -2.723 1.357 -3.11l3.497 -0.97v-38.3L30.48 40.667c-0.39 -1.75 0.58 -4.277 3.3 -4.473l14.367 -0.967 19.8 30.327v-26.83l-5.047 -0.58c-0.39 -2.143 1.163 -3.7 3.103 -3.89l13.4 -0.78z" fill="currentColor"/></svg>
+      Notion Library
+    </h1>
+    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
+    <p class="sub">Every morning, a list of the Notion pages you shared, with what each one is actually about.</p>
+  </header>
+
+  <div id="root"><div class="card empty">Loading…</div></div>
+
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var DIR = 'daily-summaries';
+  var JOB = '.jobs/morning-notion-library.yaml';
+  var job = null;
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                'September', 'October', 'November', 'December'];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* Frontmatter + markdown table, the only two shapes this page reads.
+     Anything richer belongs in the file, not in a parser here. */
+  function parse(text) {
+    var out = { meta: {}, rows: [], cols: [] };
+    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    var body = text;
+    if (m) {
+      body = m[2];
+      m[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+    }
+    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
+    if (lines.length < 2) return out;
+    function cells(l) {
+      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
+    }
+    out.cols = cells(lines[0]);
+    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
+    return out;
+  }
+
+  /* Anything that is not Today, Yesterday or This week is a plain date, and they all share
+     one grey class — so a value the agent invents still renders as a legible pill. */
+  function updatedClass(cell) {
+    var k = cell.toLowerCase();
+    if (k === 'today') return 'u-today';
+    if (k === 'yesterday' || k === 'this week') return 'u-recent';
+    return 'u-older';
+  }
+
+  /* url never gets a column of its own — it only decides whether a page links out. */
+  function isUrl(head) { return head === 'url'; }
+
+  function render(data, name, files) {
+    var meta = data.meta, html = picker(name, files);
+
+    /* The routine could not reach Notion. It said so rather than writing nothing. */
+    if (meta.status && meta.status !== 'ok') {
+      html += '<div class="banner">Last run could not reach ' +
+              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
+              '. Showing the previous result.</div>';
+    }
+
+    /* The single most consequential page, in one sentence — absent most days on purpose. */
+    if (meta.lead && meta.verdict) {
+      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
+              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
+              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
+    }
+
+    if (!data.rows.length) {
+      html += '<div class="card empty">Nothing to show for this day.</div>';
+      root.innerHTML = html;
+      bind(files);
+      return;
+    }
+
+    var urlCol = data.cols.findIndex(function (c) { return isUrl(c.toLowerCase()); });
+
+    var t = '<div class="card scroll"><table><thead><tr>';
+    data.cols.forEach(function (c) {
+      if (isUrl(c.toLowerCase())) return;
+      t += '<th>' + esc(c) + '</th>';
+    });
+    t += '</tr></thead><tbody>';
+    data.rows.forEach(function (r) {
+      var url = urlCol > -1 ? r[urlCol] : '';
+      t += '<tr>';
+      r.forEach(function (cell, i) {
+        var head = (data.cols[i] || '').toLowerCase();
+        if (isUrl(head)) {
+          return;
+        } else if (head === 'updated') {
+          t += '<td><span class="pill ' + updatedClass(cell) + '">' + esc(cell) + '</span></td>';
+        } else if (head === 'page' && url) {
+          t += '<td class="name"><a class="deep-link" href="' + esc(url) +
+               '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a></td>';
+        } else if (head === 'page') {
+          t += '<td class="name">' + esc(cell) + '</td>';
+        } else if (head === 'where') {
+          t += '<td class="where">' + esc(cell) + '</td>';
+        } else {
+          t += '<td>' + esc(cell) + '</td>';
+        }
+      });
+      t += '</tr>';
+    });
+    t += '</tbody></table></div>';
+
+    root.innerHTML = html + t;
+    bind(files);
+  }
+
+  /* ---- the folder of summaries ------------------------------------------------------ */
+
+  /* 2026-08-10T07-00-00-notion-summary.md — the name carries the date, so the picker
+     is built from names alone. EXAMPLE-notion-summary.md is the one file without one. */
+  function stamp(name) {
+    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
+  }
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  function label(name) {
+    var d = stamp(name);
+    if (!d) return 'Notion Daily Example';
+    var now = new Date(), yday = new Date(now.getTime() - 86400000);
+    if (sameDay(d, now)) return 'Today';
+    if (sameDay(d, yday)) return 'Yesterday';
+    return human(d);
+  }
+
+  function picker(current, files) {
+    var html = '';
+    if (files.length) {
+      var opts = files.map(function (f) {
+        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
+               esc(label(f)) + '</option>';
+      }).join('');
+      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+    }
+    var next = nextRunText();
+    if (next) html += '<span class="next">' + esc(next) + '</span>';
+    return html ? '<div class="picker">' + html + '</div>' : '';
+  }
+
+  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
+  function bind(files) {
+    var sel = document.getElementById('pick');
+    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
+  }
+
+  function show(name, files) {
+    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (text) { render(parse(text), name, files); })
+      .catch(function (err) {
+        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
+          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
+          'in a moment.</div>';
+        bind(files);
+      });
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only — never a nested one.
+     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
+     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
+
+  /* An empty folder is the normal state before the first run — not an error to shout about.
+     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0];
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
+      if (!files.length) {
+        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
+          'fills in after the routine runs for the first time.</div>';
+        return;
+      }
+      /* Newest first; the example, having no date, sits at the bottom of the list. */
+      files.sort(function (a, b) {
+        var da = stamp(a), db = stamp(b);
+        if (da && db) return db - da;
+        return da ? -1 : db ? 1 : 0;
+      });
+      var now = new Date();
+      var today = files.filter(function (f) {
+        var d = stamp(f);
+        return d && sameDay(d, now);
+      })[0];
+      show(today || files[0], files);
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>
