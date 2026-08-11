@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<!--
+  sharepoint-week showcase page.
+
+  Reads ../weekly-summaries/, one file per run, written by this cabinet's single routine.
+  The file names carry the timestamp, so the picker is built without opening any of them.
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  and survive the user renaming the cabinet at install time. The folder listing comes from
+  /api/tree because the assets route serves single files and cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SharePoint Week in Files</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
+    --line: #e6e5e1; --accent: #0b6b70; --accent-bg: #e6f5f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-size: 22px; margin: 0; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  /* An inline <svg> with a viewBox and no width fills its container — size it here or
+     the mark renders enormous. flex:none stops the flex row shrinking it. */
+  .mark { width: 22px; height: 22px; flex: none; }
+  .sub { color: var(--dim); margin: 4px 0 0; font-size: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 20px; margin-top: 18px;
+  }
+  .banner {
+    border-left: 3px solid var(--accent); padding: 10px 14px; margin-top: 18px;
+    background: var(--card); border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim);
+  }
+  /* The one thing worth reading if nothing else. Same card, an accent edge to lead the eye. */
+  .lead { border-left: 3px solid var(--accent); }
+  .lead-tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--accent); margin-bottom: 6px;
+  }
+  .lead-who { font-weight: 600; }
+  .lead-verdict { margin: 4px 0 0; color: var(--dim); }
+  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+  .deep-link:hover { border-bottom-color: var(--dim); }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th {
+    text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--dim); font-weight: 600; padding: 0 10px 8px 0; border-bottom: 1px solid var(--line);
+  }
+  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .pill {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px;
+    border-radius: 20px; border: 1px solid currentColor; white-space: nowrap;
+  }
+  /* Whether a change reaches the reader is the only judgement this page makes, so it is
+     the only thing carrying colour — two intensities of one accent, then grey for what
+     does not reach them. t-other is where an off-vocabulary value lands, styled exactly
+     like Unclear, because that is what an unrecognised judgement is. */
+  .t-yours { color: var(--accent); background: var(--accent-bg); }
+  .t-worked { color: var(--accent); }
+  .t-not-yours { color: var(--dim); }
+  .t-unclear { color: var(--dim); border-style: dashed; }
+  .t-other { color: var(--dim); border-style: dashed; }
+  /* The document name is what the eye runs down; the rest of the row is context. */
+  .name { font-weight: 600; }
+  .site, .changed { color: var(--dim); }
+  .empty { color: var(--dim); font-size: 14px; }
+  .empty code { font-size: 13px; }
+  .scroll { overflow-x: auto; }
+  .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
+  .picker select {
+    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
+    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  }
+  .picker .next { display: block; margin-top: 7px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>
+      <!-- The integration's own mark, inlined so the page still makes
+           zero external requests. -->
+      <svg class="mark" viewBox="0 0 1992.333 1946" aria-hidden="true"><circle fill="#036C70" cx="1019.333" cy="556" r="556"/> <circle fill="#1A9BA1" cx="1482.667" cy="1065.667" r="509.667"/> <circle fill="#37C6D0" cx="1088.833" cy="1552.167" r="393.833"/> <path opacity="0.1" enable-background="new " d="M1112,501.79v988.753c-0.23,34.357-21.05,65.222-52.82,78.303 c-10.116,4.279-20.987,6.484-31.97,6.487H695.463c-0.463-7.877-0.463-15.29-0.463-23.167c-0.154-7.734,0.155-15.47,0.927-23.167 c8.48-148.106,99.721-278.782,235.837-337.77v-86.18c-302.932-48.005-509.592-332.495-461.587-635.427 c0.333-2.098,0.677-4.195,1.034-6.289c2.306-15.626,5.556-31.099,9.73-46.333h546.27C1073.964,417.178,1111.822,455.036,1112,501.79 z"/> <path opacity="0.2" enable-background="new " d="M980.877,463.333H471.21c-51.486,302.386,151.908,589.256,454.293,640.742 c9.156,1.559,18.35,2.888,27.573,3.986c-143.633,68.11-248.3,261.552-257.196,420.938c-0.771,7.697-1.081,15.433-0.927,23.167 c0,7.877,0,15.29,0.463,23.167c0.836,15.574,2.85,31.063,6.023,46.333h279.39c34.357-0.23,65.222-21.05,78.303-52.82 c4.279-10.115,6.485-20.987,6.487-31.97V548.123C1065.443,501.387,1027.613,463.537,980.877,463.333z"/> <path opacity="0.2" enable-background="new " d="M980.877,463.333H471.21c-51.475,302.414,151.95,589.297,454.364,640.773 c6.186,1.053,12.389,2.001,18.607,2.844c-139,73.021-239.543,266-248.254,422.05h284.95c46.681-0.353,84.437-38.109,84.79-84.79 V548.123C1065.489,501.369,1027.631,463.511,980.877,463.333z"/> <path opacity="0.2" enable-background="new " d="M934.543,463.333H471.21c-48.606,285.482,130.279,560.404,410.977,631.616 C775.901,1216.384,710.711,1368.301,695.927,1529h238.617c46.754-0.178,84.612-38.036,84.79-84.79V548.123 C1019.308,501.306,981.361,463.359,934.543,463.333z"/> <linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="177.0788" y1="1551.0284" x2="842.2545" y2="398.9716" gradientTransform="matrix(1 0 0 -1 0 1948)"> <stop offset="0" style="stop-color:#058F92"/> <stop offset="0.5" style="stop-color:#038489"/> <stop offset="1" style="stop-color:#026D71"/> </linearGradient> <path fill="url(#SVGID_1_)" d="M84.929,463.333h849.475c46.905,0,84.929,38.024,84.929,84.929v849.475 c0,46.905-38.024,84.929-84.929,84.929H84.929c-46.905,0-84.929-38.024-84.929-84.929V548.262 C0,501.357,38.024,463.333,84.929,463.333z"/> <path fill="#FFFFFF" d="M379.331,962.621c-19.903-13.202-36.528-30.777-48.604-51.384c-11.701-21.542-17.533-45.781-16.912-70.288 c-1.042-33.181,10.155-65.586,31.46-91.045c22.388-25.49,51.326-44.366,83.678-54.581c36.871-12.136,75.49-18.116,114.304-17.699 c51.043-1.865,102.015,5.272,150.583,21.082v106.567c-21.103-12.784-44.088-22.166-68.11-27.8 c-26.065-6.392-52.81-9.597-79.647-9.545c-28.3-1.039-56.419,4.913-81.871,17.329c-19.65,8.475-32.392,27.807-32.433,49.206 c-0.08,12.981,4.907,25.481,13.9,34.843c10.622,11.037,23.187,20.021,37.067,26.503c15.444,7.691,38.611,17.916,69.5,30.673 c3.401,1.075,6.716,2.407,9.915,3.985c30.401,11.881,59.729,26.344,87.663,43.229c21.154,13.043,38.908,30.924,51.801,52.171 c13.218,24.085,19.625,51.315,18.533,78.767c1.509,34.066-8.913,67.591-29.468,94.798c-20.488,25.012-47.88,43.446-78.767,53.005 c-36.329,11.387-74.245,16.892-112.312,16.309c-34.154,0.155-68.258-2.635-101.933-8.34c-28.434-4.653-56.182-12.807-82.612-24.279 v-112.358c25.264,18.043,53.489,31.529,83.4,39.847c29.81,9.289,60.798,14.251,92.018,14.734c28.895,1.83,57.739-4.291,83.4-17.699 c17.976-10.144,28.909-29.358,28.449-49.994c0.12-14.359-5.56-28.158-15.753-38.271c-12.676-12.444-27.352-22.671-43.414-30.256 c-18.533-9.267-45.824-21.483-81.871-36.65C432.618,993.951,405.161,979.594,379.331,962.621z"/></svg>
+      SharePoint Week in Files
+    </h1>
+    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
+    <p class="sub">Every Monday, what your team changed in SharePoint while you weren't looking.</p>
+  </header>
+
+  <div id="root"><div class="card empty">Loading…</div></div>
+
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var DIR = 'weekly-summaries';
+  var JOB = '.jobs/weekly-sharepoint-changes.yaml';
+  var job = null;
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                'September', 'October', 'November', 'December'];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* Frontmatter + markdown table, the only two shapes this page reads.
+     Anything richer belongs in the file, not in a parser here. */
+  function parse(text) {
+    var out = { meta: {}, rows: [], cols: [] };
+    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    var body = text;
+    if (m) {
+      body = m[2];
+      m[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+    }
+    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
+    if (lines.length < 2) return out;
+    function cells(l) {
+      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
+    }
+    out.cols = cells(lines[0]);
+    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
+    return out;
+  }
+
+  /* Four words, and every one of them has a rule above. A value the agent invents still
+     has to render, so it lands on t-other rather than on a class that does not exist. */
+  function touchClass(cell) {
+    var k = String(cell).trim().toLowerCase();
+    if (k === 'yours') return 't-yours';
+    if (k === 'worked on it') return 't-worked';
+    if (k === 'not yours') return 't-not-yours';
+    if (k === 'unclear') return 't-unclear';
+    return 't-other';
+  }
+
+  function render(data, name, files) {
+    var meta = data.meta, html = picker(name, files);
+
+    /* The routine could not reach SharePoint. It said so rather than writing nothing. */
+    if (meta.status && meta.status !== 'ok') {
+      html += '<div class="banner">Last run could not reach ' +
+              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
+              '. Showing the previous result.</div>';
+    }
+
+    /* The single most consequential change, in one sentence — absent most weeks on purpose. */
+    if (meta.lead && meta.verdict) {
+      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
+              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
+              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
+    }
+
+    if (!data.rows.length) {
+      html += '<div class="card empty">Nothing to show for this day.</div>';
+      root.innerHTML = html;
+      bind(files);
+      return;
+    }
+
+    var urlCol = data.cols.findIndex(function (c) { return c.toLowerCase() === 'url'; });
+
+    var t = '<div class="card scroll"><table><thead><tr>';
+    data.cols.forEach(function (c) {
+      if (c.toLowerCase() === 'url') return;
+      t += '<th>' + esc(c) + '</th>';
+    });
+    t += '</tr></thead><tbody>';
+    data.rows.forEach(function (r) {
+      var url = urlCol > -1 ? r[urlCol] : '';
+      t += '<tr>';
+      r.forEach(function (cell, i) {
+        var head = (data.cols[i] || '').toLowerCase();
+        if (head === 'url') {
+          return;
+        } else if (head === 'touches you') {
+          t += '<td><span class="pill ' + touchClass(cell) + '">' + esc(cell) + '</span></td>';
+        } else if (head === 'file') {
+          var text = url ? '<a class="deep-link" href="' + esc(url) +
+            '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a>' : esc(cell);
+          t += '<td class="name">' + text + '</td>';
+        } else if (head === 'site') {
+          t += '<td class="site">' + esc(cell) + '</td>';
+        } else if (head === 'changed') {
+          t += '<td class="changed">' + esc(cell) + '</td>';
+        } else {
+          t += '<td>' + esc(cell) + '</td>';
+        }
+      });
+      t += '</tr>';
+    });
+    t += '</tbody></table></div>';
+
+    root.innerHTML = html + t;
+    bind(files);
+  }
+
+  /* ---- the folder of summaries ------------------------------------------------------ */
+
+  /* 2026-08-10T07-00-00-sharepoint-summary.md — the name carries the date, so the picker
+     is built from names alone. EXAMPLE-sharepoint-summary.md is the one file without one. */
+  function stamp(name) {
+    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
+  }
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  function label(name) {
+    var d = stamp(name);
+    if (!d) return 'SharePoint Weekly Example';
+    var now = new Date(), yday = new Date(now.getTime() - 86400000);
+    if (sameDay(d, now)) return 'This week';
+    if (sameDay(d, yday)) return 'Last week';
+    return human(d);
+  }
+
+  function picker(current, files) {
+    var html = '';
+    if (files.length) {
+      var opts = files.map(function (f) {
+        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
+               esc(label(f)) + '</option>';
+      }).join('');
+      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+    }
+    var next = nextRunText();
+    if (next) html += '<span class="next">' + esc(next) + '</span>';
+    return html ? '<div class="picker">' + html + '</div>' : '';
+  }
+
+  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
+  function bind(files) {
+    var sel = document.getElementById('pick');
+    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
+  }
+
+  function show(name, files) {
+    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (text) { render(parse(text), name, files); })
+      .catch(function (err) {
+        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
+          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
+          'in a moment.</div>';
+        bind(files);
+      });
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only — never a nested one.
+     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
+     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
+
+  /* An empty folder is the normal state before the first run — not an error to shout about.
+     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0];
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
+      if (!files.length) {
+        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
+          'fills in after the routine runs for the first time.</div>';
+        return;
+      }
+      /* Newest first; the example, having no date, sits at the bottom of the list. */
+      files.sort(function (a, b) {
+        var da = stamp(a), db = stamp(b);
+        if (da && db) return db - da;
+        return da ? -1 : db ? 1 : 0;
+      });
+      var now = new Date();
+      var today = files.filter(function (f) {
+        var d = stamp(f);
+        return d && sameDay(d, now);
+      })[0];
+      show(today || files[0], files);
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>

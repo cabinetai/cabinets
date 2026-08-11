@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<!--
+  x-mentions showcase page.
+
+  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
+  The file names carry the timestamp, so the picker is built without opening any of them.
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  and survive the user renaming the cabinet at install time. The folder listing comes from
+  /api/tree because the assets route serves single files and cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>X Morning Mentions</title>
+<style>
+  /* Every hue in the family is spoken for, so this page separates itself by saturation:
+     a desaturated slate, which suits X's monochrome look and leaves the loud colour to
+     the `Needs you` pill — the judgement the page exists to make. */
+  :root {
+    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
+    --line: #e6e5e1; --accent: #455a70;
+    --hi: #b4443c; --mid: #9a6b1f; --lo: #6b6b66;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-size: 22px; margin: 0; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  /* An inline <svg> with a viewBox and no width fills its container — size it here or
+     the mark renders enormous. flex:none stops the flex row shrinking it. */
+  .mark { width: 22px; height: 22px; flex: none; }
+  .sub { color: var(--dim); margin: 4px 0 0; font-size: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 20px; margin-top: 18px;
+  }
+  .banner {
+    border-left: 3px solid var(--accent); padding: 10px 14px; margin-top: 18px;
+    background: var(--card); border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim);
+  }
+  /* The one thing worth reading if nothing else. Same card, an accent edge to lead the eye. */
+  .lead { border-left: 3px solid var(--accent); }
+  .lead-tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--accent); margin-bottom: 6px;
+  }
+  .lead-who { font-weight: 600; }
+  .lead-verdict { margin: 4px 0 0; color: var(--dim); }
+  .qw-tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--dim); margin-bottom: 8px;
+  }
+  .qw-list { margin: 0; padding-left: 18px; }
+  .qw-list li { margin-top: 6px; }
+  .qw-list li:first-child { margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th {
+    text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--dim); font-weight: 600; padding: 0 10px 8px 0; border-bottom: 1px solid var(--line);
+  }
+  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .pill {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px;
+    border-radius: 20px; border: 1px solid currentColor; white-space: nowrap;
+  }
+  /* Wants an answer is loud; worth-a-look is softer; ignorable stays grey. */
+  .n-answer { color: var(--hi); } .n-look { color: var(--mid); } .n-ignore { color: var(--lo); }
+  /* Who it came from is what the eye runs down; the follow marker sits quietly behind it. */
+  .who { color: var(--accent); font-weight: 600; }
+  .tie { color: var(--dim); font-size: 12px; }
+  .kind { color: var(--dim); white-space: nowrap; }
+  /* What they said is the deep link — a URL under it, so it reads as clickable. */
+  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+  .deep-link:hover { border-bottom-color: var(--dim); }
+  .empty { color: var(--dim); font-size: 14px; }
+  .empty code { font-size: 13px; }
+  .scroll { overflow-x: auto; }
+  .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
+  .picker select {
+    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
+    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  }
+  .picker .next { display: block; margin-top: 7px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>
+      <!-- The integration's own mark, inlined so the page still makes
+           zero external requests. -->
+      <svg class="mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
+      X Morning Mentions
+    </h1>
+    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
+    <p class="sub">Every morning, your mentions and which of them actually want an answer.</p>
+  </header>
+
+  <div id="root"><div class="card empty">Loading…</div></div>
+
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var DIR = 'daily-summaries';
+  var JOB = '.jobs/morning-x-mentions.yaml';
+  var job = null;
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                'September', 'October', 'November', 'December'];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* Frontmatter + an optional quick-wins bullet list + a markdown table — the only
+     shapes this page reads. Anything richer belongs in the file, not in a parser here. */
+  function parse(text) {
+    var out = { meta: {}, rows: [], cols: [], quickWins: [] };
+    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    var body = text;
+    if (m) {
+      body = m[2];
+      m[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+    }
+    /* Bullets live between the frontmatter and the table; "- " never opens a table row,
+       so a plain scan of the whole body is enough. */
+    body.split('\n').forEach(function (line) {
+      var b = line.match(/^\s*-\s+(.*)$/);
+      if (b) out.quickWins.push(b[1].trim());
+    });
+    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
+    if (lines.length < 2) return out;
+    function cells(l) {
+      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
+    }
+    out.cols = cells(lines[0]);
+    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
+    return out;
+  }
+
+  /* Needs you is a closed set of three. Anything else still has to render, so it falls
+     back to the quiet grey rather than to a class that does not exist. */
+  function needsClass(cell) {
+    var k = String(cell).toLowerCase();
+    if (k === 'answer it') return 'n-answer';
+    if (k === 'worth a look') return 'n-look';
+    return 'n-ignore';
+  }
+
+  /* "Dana Brooks @danabrooks · you follow": name and handle lead, the rest is kept small. */
+  function fromCell(cell) {
+    var p = String(cell).split(' · ');
+    var s = '<span class="who">' + esc(p[0]) + '</span>';
+    if (p.length > 1) s += '<span class="tie"> · ' + esc(p.slice(1).join(' · ')) + '</span>';
+    return s;
+  }
+
+  function render(data, name, files) {
+    var meta = data.meta, html = picker(name, files);
+
+    /* The routine could not reach X. It said so rather than writing nothing. */
+    if (meta.status && meta.status !== 'ok') {
+      html += '<div class="banner">Last run could not reach ' +
+              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
+              '. Showing the previous result.</div>';
+    }
+
+    /* The single most consequential mention, in one sentence — absent most days on purpose. */
+    if (meta.lead && meta.verdict) {
+      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
+              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
+              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
+    }
+
+    if (data.quickWins.length) {
+      html += '<div class="card"><span class="qw-tag">Quick wins</span><ul class="qw-list">' +
+              data.quickWins.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') +
+              '</ul></div>';
+    }
+
+    if (!data.rows.length) {
+      html += '<div class="card empty">Nothing to show for this day.</div>';
+      root.innerHTML = html;
+      bind(files);
+      return;
+    }
+
+    /* url never gets a column of its own — it only decides whether "What they said" links out. */
+    var urlCol = data.cols.findIndex(function (c) { return c.toLowerCase() === 'url'; });
+
+    var t = '<div class="card scroll"><table><thead><tr>';
+    data.cols.forEach(function (c) {
+      if (c.toLowerCase() === 'url') return;
+      t += '<th>' + esc(c) + '</th>';
+    });
+    t += '</tr></thead><tbody>';
+    data.rows.forEach(function (r) {
+      var url = urlCol > -1 ? r[urlCol] : '';
+      t += '<tr>';
+      r.forEach(function (cell, i) {
+        var head = (data.cols[i] || '').toLowerCase();
+        if (head === 'url') {
+          return;
+        } else if (head === 'needs you') {
+          t += '<td><span class="pill ' + needsClass(cell) + '">' + esc(cell) + '</span></td>';
+        } else if (head === 'from') {
+          t += '<td>' + fromCell(cell) + '</td>';
+        } else if (head === 'kind') {
+          t += '<td class="kind">' + esc(cell) + '</td>';
+        } else if (head === 'what they said' && url) {
+          t += '<td><a class="deep-link" href="' + esc(url) +
+               '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a></td>';
+        } else {
+          t += '<td>' + esc(cell) + '</td>';
+        }
+      });
+      t += '</tr>';
+    });
+    t += '</tbody></table></div>';
+
+    root.innerHTML = html + t;
+    bind(files);
+  }
+
+  /* ---- the folder of summaries ------------------------------------------------------ */
+
+  /* 2026-08-10T07-00-00-x-summary.md — the name carries the date, so the picker
+     is built from names alone. EXAMPLE-x-summary.md is the one file without one. */
+  function stamp(name) {
+    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
+  }
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  function label(name) {
+    var d = stamp(name);
+    if (!d) return 'X Daily Example';
+    var now = new Date(), yday = new Date(now.getTime() - 86400000);
+    if (sameDay(d, now)) return 'Today';
+    if (sameDay(d, yday)) return 'Yesterday';
+    return human(d);
+  }
+
+  function picker(current, files) {
+    var html = '';
+    if (files.length) {
+      var opts = files.map(function (f) {
+        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
+               esc(label(f)) + '</option>';
+      }).join('');
+      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+    }
+    var next = nextRunText();
+    if (next) html += '<span class="next">' + esc(next) + '</span>';
+    return html ? '<div class="picker">' + html + '</div>' : '';
+  }
+
+  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
+  function bind(files) {
+    var sel = document.getElementById('pick');
+    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
+  }
+
+  function show(name, files) {
+    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (text) { render(parse(text), name, files); })
+      .catch(function (err) {
+        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
+          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
+          'in a moment.</div>';
+        bind(files);
+      });
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only — never a nested one.
+     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
+     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
+
+  /* An empty folder is the normal state before the first run — not an error to shout about.
+     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0];
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
+      if (!files.length) {
+        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
+          'fills in after the routine runs for the first time.</div>';
+        return;
+      }
+      /* Newest first; the example, having no date, sits at the bottom of the list. */
+      files.sort(function (a, b) {
+        var da = stamp(a), db = stamp(b);
+        if (da && db) return db - da;
+        return da ? -1 : db ? 1 : 0;
+      });
+      var now = new Date();
+      var today = files.filter(function (f) {
+        var d = stamp(f);
+        return d && sameDay(d, now);
+      })[0];
+      show(today || files[0], files);
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>
