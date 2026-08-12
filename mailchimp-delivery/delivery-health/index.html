@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<!--
+  mailchimp-delivery showcase page.
+
+  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
+  The file names carry the timestamp, so the picker is built without opening any of them.
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  and survive the user renaming the cabinet at install time. The folder listing comes from
+  /api/tree because the assets route serves single files and cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Delivery Health</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
+    --line: #e6e5e1;
+    /* Mailchimp's brand colour is #FFE01B, a bright yellow. It is illegible as text or as
+       a link on white at any weight, so this page never lets it be ink: it appears only as
+       a surface — the chip behind the mark, the left edge of a card. Every word, link and
+       status on the page is drawn in --accent or one of the status colours below, and
+       --accent is the dark warm ink that pairs with the yellow rather than the yellow
+       itself. If you are tempted to set `color: var(--brand)`, don't. */
+    --brand: #FFE01B; --accent: #3f3213;
+    --bad: #b4443c; --watch: #8a5a00; --fine: #2f7d4f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 {
+    font-size: 22px; margin: 0; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  /* The one place the brand yellow is allowed to be solid: a small chip, with the mark
+     drawn on it in dark ink. Dark on yellow is the only legible direction. */
+  .chip-mark {
+    background: var(--brand); color: var(--ink); border-radius: 6px;
+    padding: 4px; display: inline-flex; flex: none;
+  }
+  /* An inline <svg> with a viewBox and no width fills its container — size it here or
+     the mark renders enormous. flex:none stops the flex row shrinking it. */
+  .mark { width: 22px; height: 22px; flex: none; }
+  .sub { color: var(--dim); margin: 6px 0 0; font-size: 14px; }
+  /* The product name misleads: people read "Mailchimp" and think newsletters. The page
+     says which email it is about before anyone reads a number off it. */
+  .note { color: var(--dim); margin: 2px 0 0; font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px 20px; margin-top: 18px; }
+  .empty { color: var(--dim); font-size: 14px; } .empty code { font-size: 13px; }
+  .scroll { overflow-x: auto; }
+  .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
+  .picker select {
+    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
+    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  }
+  .picker .next { display: block; margin-top: 7px; }
+  .banner { border-left: 3px solid var(--brand); padding: 10px 14px; margin-top: 18px;
+    background: var(--card); border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim); }
+  /* The one thing worth reading if nothing else. Same card, a brand edge to lead the eye —
+     the yellow as a 3px surface, which is the only shape it can safely take. */
+  .lead { border-left: 3px solid var(--brand); }
+  .lead-tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--accent); margin-bottom: 6px;
+  }
+  .lead-who { font-weight: 600; }
+  .lead-verdict { margin: 4px 0 0; color: var(--dim); }
+  /* How much mail there was, and the one link out. Sits directly above the table because
+     it is the denominator every row is read against. */
+  .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px;
+    margin-top: 18px; font-size: 14px; color: var(--dim); }
+  .sent { background: var(--brand); color: var(--ink); font-weight: 700;
+    border-radius: 20px; padding: 3px 11px; font-variant-numeric: tabular-nums; }
+  .dash { margin-left: auto; color: var(--accent); font-weight: 600; }
+  /* On a phone the strip has already wrapped onto two lines, and a link pushed to the far
+     right of a narrow column is the one that gets clipped. Let it sit where it falls. */
+  @media (max-width: 560px) { .dash { margin-left: 0; } }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--dim); font-weight: 600; padding: 0 10px 8px 0;
+    border-bottom: 1px solid var(--line); }
+  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px;
+    border-radius: 20px; border: 1px solid currentColor; white-space: nowrap; }
+  /* Status is the judgement the page exists to make: Bad is loud, Watch is amber, Fine is
+     green, and anything off-vocabulary lands on the same quiet grey as "we can't tell".
+     The amber is darkened well past the brand yellow on purpose — this is a word, and
+     #FFE01B cannot be read as one. */
+  .s-bad { color: var(--bad); } .s-watch { color: var(--watch); }
+  .s-fine { color: var(--fine); } .s-unclear { color: var(--dim); }
+  .signal { font-weight: 600; white-space: nowrap; }
+  /* Counts compare by size, so they are right-aligned and same-width. The extra right
+     padding keeps "96" and "+243%" from reading as one number. */
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
+    padding-right: 20px; }
+  th.num-h { text-align: right; padding-right: 20px; }
+  /* Change is the column that earns the page, so it carries the accent — but it is never
+     coloured by its sign. +12% is good news on Delivered and bad news on Bounced; a green
+     plus would lie on four of the seven rows. Status carries the judgement, not this. */
+  .chg { color: var(--accent); font-weight: 600;
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>
+      <!-- The integration's own mark, inlined so the page still makes zero external
+           requests. currentColor picks up the dark ink of the chip it sits on. -->
+      <span class="chip-mark"><svg class="mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.5 13.3a7.5 7.1 0 1 1 15 0 7.5 7.1 0 1 1-15 0ZM2.6 11a2.45 2.45 0 1 1 4.9 0 2.45 2.45 0 1 1-4.9 0ZM16.5 11a2.45 2.45 0 1 1 4.9 0 2.45 2.45 0 1 1-4.9 0ZM11.3 5.4a1.75 1.75 0 1 1 3.5 0 1.75 1.75 0 1 1-3.5 0ZM8.3 12.2a1.3 1.3 0 1 0 2.6 0 1.3 1.3 0 1 0-2.6 0ZM13.1 12.2a1.3 1.3 0 1 0 2.6 0 1.3 1.3 0 1 0-2.6 0ZM9.3 17.1a2.7 1.35 0 1 0 5.4 0 2.7 1.35 0 1 0-5.4 0Z"/></svg></span>
+      Delivery Health
+    </h1>
+    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
+    <p class="sub">Every morning, whether yesterday's email actually reached people.</p>
+    <p class="note">Mailchimp Transactional — the email your product sends one person at a
+      time. Not campaigns or newsletters.</p>
+  </header>
+  <div id="root"><div class="card empty">Loading…</div></div>
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var DIR = 'daily-summaries';
+  var JOB = '.jobs/morning-delivery-check.yaml';
+  var job = null;
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                'September', 'October', 'November', 'December'];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* Frontmatter plus a markdown table — the only two shapes this page reads. Anything
+     richer belongs in the file, not in a parser here. */
+  function parse(text) {
+    var out = { meta: {}, rows: [], cols: [] };
+    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    var body = text;
+    if (m) {
+      body = m[2];
+      m[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+    }
+    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
+    if (lines.length < 2) return out;
+    function cells(l) {
+      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
+    }
+    out.cols = cells(lines[0]);
+    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
+    return out;
+  }
+
+  /* Bad / Watch / Fine / Unclear is a closed set of four. Anything else that reaches this
+     page still has to render, so it lands on the same quiet grey as "we can't tell" —
+     never on a class that does not exist. */
+  function statusClass(cell) {
+    var k = String(cell).trim().toLowerCase();
+    if (k === 'bad') return 's-bad';
+    if (k === 'watch') return 's-watch';
+    if (k === 'fine') return 's-fine';
+    return 's-unclear';
+  }
+
+  /* The one link out of this page comes from the file's own frontmatter, so it is checked
+     before it is trusted: a scheme other than http(s) has no business in an href here. */
+  function safeUrl(u) { return /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : ''; }
+
+  /* How much mail there was, and the link to Mailchimp's own dashboard. Either half can be
+     missing from an older file without costing the other one. */
+  function metaStrip(meta) {
+    var bits = '';
+    if (meta.sent) {
+      bits += '<span class="sent">' + esc(meta.sent) + ' sent</span>';
+      bits += '<span>' + (meta.generated ? 'in the 24 hours to ' + esc(meta.generated)
+                                         : 'in the last 24 hours') + '</span>';
+    }
+    var dash = safeUrl(meta.dashboard);
+    if (dash) {
+      bits += '<a class="dash" href="' + esc(dash) + '" target="_blank" ' +
+              'rel="noopener noreferrer">Open the Mailchimp dashboard</a>';
+    }
+    return bits ? '<div class="meta">' + bits + '</div>' : '';
+  }
+
+  function render(data, name, files) {
+    var meta = data.meta, html = picker(name, files);
+
+    /* The routine could not reach Mailchimp Transactional. It said so rather than writing
+       nothing. */
+    if (meta.status && meta.status !== 'ok') {
+      html += '<div class="banner">Last run could not reach ' +
+              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
+              '. Showing the previous result.</div>';
+    }
+
+    /* The single thing that changed, in one sentence — absent on a quiet morning on purpose. */
+    if (meta.lead && meta.verdict) {
+      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
+              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
+              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
+    }
+
+    html += metaStrip(meta);
+
+    if (!data.rows.length) {
+      html += '<div class="card empty">Nothing to show for this day.</div>';
+      root.innerHTML = html;
+      bind(files);
+      return;
+    }
+
+    var t = '<div class="card scroll"><table><thead><tr>';
+    data.cols.forEach(function (c) {
+      var h = c.toLowerCase() === 'count' ? ' class="num-h"' : '';
+      t += '<th' + h + '>' + esc(c) + '</th>';
+    });
+    t += '</tr></thead><tbody>';
+    data.rows.forEach(function (r) {
+      t += '<tr>';
+      r.forEach(function (cell, i) {
+        var head = (data.cols[i] || '').toLowerCase();
+        if (head === 'status') {
+          t += '<td><span class="pill ' + statusClass(cell) + '">' + esc(cell) + '</span></td>';
+        } else if (head === 'signal') {
+          t += '<td class="signal">' + esc(cell) + '</td>';
+        } else if (head === 'count') {
+          t += '<td class="num">' + esc(cell) + '</td>';
+        } else if (head === 'change') {
+          t += '<td class="chg">' + esc(cell) + '</td>';
+        } else {
+          t += '<td>' + esc(cell) + '</td>';
+        }
+      });
+      t += '</tr>';
+    });
+    t += '</tbody></table></div>';
+
+    root.innerHTML = html + t;
+    bind(files);
+  }
+
+  /* ---- the folder of summaries ------------------------------------------------------ */
+
+  /* 2026-08-10T08-00-00-delivery-summary.md — the name carries the date, so the picker
+     is built from names alone. EXAMPLE-delivery-summary.md is the one file without one. */
+  function stamp(name) {
+    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
+  }
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  /* The undated file is the shipped demo. It says so in the one place someone looks before
+     believing a number: the date list itself. */
+  function label(name) {
+    var d = stamp(name);
+    if (!d) return 'Example — made-up numbers';
+    var now = new Date(), yday = new Date(now.getTime() - 86400000);
+    if (sameDay(d, now)) return 'Today';
+    if (sameDay(d, yday)) return 'Yesterday';
+    return human(d);
+  }
+
+  function picker(current, files) {
+    var html = '';
+    if (files.length) {
+      var opts = files.map(function (f) {
+        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
+               esc(label(f)) + '</option>';
+      }).join('');
+      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+    }
+    var next = nextRunText();
+    if (next) html += '<span class="next">' + esc(next) + '</span>';
+    return html ? '<div class="picker">' + html + '</div>' : '';
+  }
+
+  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
+  function bind(files) {
+    var sel = document.getElementById('pick');
+    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
+  }
+
+  function show(name, files) {
+    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (text) { render(parse(text), name, files); })
+      .catch(function (err) {
+        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
+          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
+          'in a moment.</div>';
+        bind(files);
+      });
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only — never a nested one.
+     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
+     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
+
+  /* An empty folder is the normal state before the first run — not an error to shout about.
+     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0];
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
+      if (!files.length) {
+        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
+          'fills in after the routine runs for the first time.</div>';
+        return;
+      }
+      /* Newest first; the example, having no date, sits at the bottom of the list. */
+      files.sort(function (a, b) {
+        var da = stamp(a), db = stamp(b);
+        if (da && db) return db - da;
+        return da ? -1 : db ? 1 : 0;
+      });
+      var now = new Date();
+      var today = files.filter(function (f) {
+        var d = stamp(f);
+        return d && sameDay(d, now);
+      })[0];
+      show(today || files[0], files);
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>
