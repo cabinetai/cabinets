@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<!--
+  tiktok-queue showcase page.
+
+  Reads ../post-log/, one file per upload, written by this cabinet's single routine.
+  Unlike the daily-summary pages in this registry, every file is a separate event rather
+  than a snapshot of the same thing — so this page lists them all instead of offering a
+  date picker over them. The file names carry the timestamp, so the order is settled
+  before anything is opened.
+
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  and survive the user renaming the cabinet at install time. The folder listing comes from
+  /api/tree because the assets route serves single files and cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Posting History</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
+    --line: #e6e5e1;
+    /* TikTok's brand is #FE2C55 on black. On white it reads at about 3.9:1 — under the
+       4.5:1 a word needs — so this page never lets it be ink: it appears only as a
+       surface, the chip behind the mark and the left edge of a card. Every word and link
+       is drawn in --accent, the dark rose that pairs with it. If you are tempted to set
+       `color: var(--brand)`, don't. */
+    --brand: #FE2C55; --accent: #7a1226;
+    --live: #2f7d4f; --pending: #8a5a00; --failed: #b4443c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 {
+    font-size: 22px; margin: 0; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  /* The one place the brand red is allowed to be solid: a small chip, with the mark drawn
+     on it in white. White on #FE2C55 clears 4.5:1; the reverse does not. */
+  .chip-mark {
+    background: var(--brand); color: #fff; border-radius: 6px;
+    padding: 4px; display: inline-flex; flex: none;
+  }
+  /* An inline <svg> with a viewBox and no width fills its container — size it here or
+     the mark renders enormous. flex:none stops the flex row shrinking it. */
+  .mark { width: 22px; height: 22px; flex: none; }
+  .sub { color: var(--dim); margin: 6px 0 0; font-size: 14px; }
+  /* The privacy promise is the reason this cabinet is allowed near someone's account.
+     It sits in the header, not in a footnote. */
+  .note { color: var(--dim); margin: 2px 0 0; font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px 18px; margin-top: 14px; }
+  .empty { color: var(--dim); font-size: 14px; } .empty code { font-size: 13px; }
+  .next { display: block; margin-top: 16px; font-size: 14px; color: var(--dim); }
+  .banner { border-left: 3px solid var(--brand); padding: 10px 14px; margin-top: 16px;
+    background: var(--card); border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim); }
+  /* A post that failed is the one the user came to read. A brand edge picks it out of the
+     list without recolouring the card. */
+  .post.is-failed { border-left: 3px solid var(--brand); }
+  .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  /* The filename is the handle the user recognises — it is what they named and dragged in,
+     so it leads the card and is set in mono to read as a file rather than a title. */
+  .file { font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 14px; word-break: break-all; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px;
+    border-radius: 20px; border: 1px solid currentColor; white-space: nowrap; margin-left: auto; }
+  /* live / pending / draft / failed is a closed set of four. Anything else that reaches
+     this page still has to render, so it lands on the same quiet grey as a draft — never
+     on a class that does not exist. */
+  .s-live { color: var(--live); } .s-pending { color: var(--pending); }
+  .s-failed { color: var(--failed); } .s-draft { color: var(--dim); }
+  /* The caption as it was actually sent. Quoted, because these are the user's words and
+     the page must not be read as having written them. */
+  .caption { margin: 10px 0 0; }
+  .caption.none { color: var(--dim); font-style: italic; }
+  .body { margin: 8px 0 0; color: var(--dim); font-size: 14px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px;
+    font-size: 13px; color: var(--dim); }
+  .meta a { color: var(--accent); font-weight: 600; }
+  /* "Only me" is a fact about the post, not decoration — it is the answer to the only
+     question anyone has about a routine that posts for them. */
+  .privacy { font-weight: 600; color: var(--accent); }
+  @media (max-width: 560px) { .pill { margin-left: 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>
+      <!-- The integration's own mark, inlined so the page still makes zero external
+           requests. currentColor picks up the white ink of the chip it sits on. -->
+      <span class="chip-mark"><svg class="mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.53 1.5h3.02c.18 1.42.86 2.72 1.9 3.66a5.9 5.9 0 0 0 3.55 1.47v3.06a9 9 0 0 1-5.19-1.7v7.02a6.5 6.5 0 1 1-6.5-6.5c.28 0 .55.02.82.06v3.14a3.4 3.4 0 1 0 2.4 3.25V1.5Z"/></svg></span>
+      Posting History
+    </h1>
+    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
+    <p class="sub">Finished videos go up on TikTok as private posts, ready for you to release.</p>
+    <p class="note">Every post here is visible to you and nobody else. You release it
+      yourself, in the TikTok app.</p>
+  </header>
+  <div id="root"><div class="card empty">Loading…</div></div>
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var DIR = 'post-log';
+  var JOB = '.jobs/evening-tiktok-queue.yaml';
+  var job = null;
+  /* One evening's run writes at most three files, so this is years of history. The cap is
+     here so a folder someone has scripted into the thousands cannot fire a fetch per file. */
+  var MAX = 120;
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                'September', 'October', 'November', 'December'];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* Frontmatter, plus whatever prose follows it — the only two shapes this page reads.
+     Anything richer belongs in the file, not in a parser here. */
+  function parse(text) {
+    var out = { meta: {}, body: '' };
+    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    if (!m) { out.body = text.trim(); return out; }
+    m[1].split('\n').forEach(function (line) {
+      var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+      if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+    });
+    out.body = m[2].trim();
+    return out;
+  }
+
+  function stateClass(s) {
+    var k = String(s || '').trim().toLowerCase();
+    if (k === 'live') return 's-live';
+    if (k === 'pending') return 's-pending';
+    if (k === 'failed') return 's-failed';
+    return 's-draft';
+  }
+
+  /* The words on the pill say what the user can do about it, which "live" alone does not. */
+  function stateLabel(s) {
+    var k = String(s || '').trim().toLowerCase();
+    if (k === 'live') return 'On your profile';
+    if (k === 'pending') return 'Still processing';
+    if (k === 'failed') return 'Refused';
+    if (k === 'draft') return 'In your TikTok inbox';
+    return s ? String(s) : 'Unknown';
+  }
+
+  /* The one link out of each card comes from the file's own frontmatter, so it is checked
+     before it is trusted: a scheme other than http(s) has no business in an href here. */
+  function safeUrl(u) { return /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : ''; }
+
+  /* 2026-08-11T18-00-00-sourdough-starter-day-9.md — the name carries the time, so the
+     list is ordered without opening a file. EXAMPLE-tiktok-post.md is the one without. */
+  function stamp(name) {
+    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
+  }
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  function when(name, meta) {
+    var d = stamp(name);
+    if (!d) return 'Example';
+    var now = new Date(), yday = new Date(now.getTime() - 86400000);
+    var clock = meta.posted && meta.posted.split(' ')[1] ? meta.posted.split(' ')[1]
+              : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    if (sameDay(d, now)) return 'Today at ' + clock;
+    if (sameDay(d, yday)) return 'Yesterday at ' + clock;
+    return human(d) + ' at ' + clock;
+  }
+
+  function card(name, data) {
+    var meta = data.meta;
+    var failed = String(meta.state || '').toLowerCase() === 'failed';
+    var h = '<div class="card post' + (failed ? ' is-failed' : '') + '">';
+
+    h += '<div class="head"><span class="file">' +
+         esc(meta.video || name.replace(/\.md$/, '')) + '</span>' +
+         '<span class="pill ' + stateClass(meta.state) + '">' +
+         esc(stateLabel(meta.state)) + '</span></div>';
+
+    /* An empty caption is a real, deliberate outcome — the routine sends one rather than
+       inventing words — so it is shown as absent instead of silently skipped. */
+    if (meta.caption) {
+      h += '<p class="caption">“' + esc(meta.caption) + '”</p>';
+    } else {
+      h += '<p class="caption none">No caption</p>';
+    }
+
+    /* Why the caption reads as it does, what TikTok refused and for what reason, a request
+       to post publicly that the routine did not act on. */
+    if (data.body) h += '<p class="body">' + esc(data.body) + '</p>';
+
+    var bits = ['<span>' + esc(when(name, meta)) + '</span>'];
+    if (meta.privacy) bits.push('<span class="privacy">' + esc(meta.privacy) + '</span>');
+    if (meta.account) bits.push('<span>' + esc(meta.account) + '</span>');
+    var url = safeUrl(meta.url);
+    if (url) {
+      bits.push('<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' +
+                'Open on TikTok</a>');
+    }
+    h += '<div class="meta">' + bits.join('') + '</div>';
+
+    return h + '</div>';
+  }
+
+  function render(entries) {
+    var html = '';
+    var next = nextRunText();
+    if (next) html += '<span class="next">' + esc(next) + '</span>';
+
+    /* A run that could not reach TikTok writes nothing at all, so the newest entry saying
+       so is the last thing that DID reach it. Surface it rather than letting the page look
+       up to date. */
+    var stale = entries.filter(function (e) {
+      return e.data.meta.status && e.data.meta.status !== 'ok';
+    })[0];
+    if (stale) {
+      html += '<div class="banner">Last upload reported: ' +
+              esc(stale.data.meta.status) + '</div>';
+    }
+
+    entries.forEach(function (e) { html += card(e.name, e.data); });
+    root.innerHTML = html;
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused — nothing will go out until you resume it.';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only — never a nested one.
+     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
+     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
+
+  /* An empty folder is the normal state before the first run — not an error to shout about.
+     `fresh=1` busts the tree cache so an upload from minutes ago is already listed. */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+      var files = listFiles(both[0], cabinetDir() + '/' + DIR, []);
+      if (!files.length) {
+        var next = nextRunText();
+        root.innerHTML = (next ? '<span class="next">' + esc(next) + '</span>' : '') +
+          '<div class="card empty">Nothing posted yet. Drop an <code>.mp4</code> into ' +
+          '<code>to-post/</code> and it goes up on the next run.</div>';
+        return;
+      }
+      /* Newest first; the example, having no date, sits at the bottom of the list. */
+      files.sort(function (a, b) {
+        var da = stamp(a), db = stamp(b);
+        if (da && db) return db - da;
+        return da ? -1 : db ? 1 : 0;
+      });
+      files = files.slice(0, MAX);
+      /* One file per upload, so the page opens all of them. A single unreadable file —
+         mid-write, most likely — must not cost the whole history, so each one resolves to
+         null and is dropped rather than rejecting the batch. */
+      return Promise.all(files.map(function (name) {
+        return fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.text() : null; })
+          .then(function (text) { return text === null ? null : { name: name, data: parse(text) }; })
+          .catch(function () { return null; });
+      })).then(function (entries) {
+        entries = entries.filter(Boolean);
+        if (!entries.length) {
+          root.innerHTML = '<div class="card empty">Could not read anything in <code>' +
+            DIR + '/</code>. Reload in a moment.</div>';
+          return;
+        }
+        render(entries);
+      });
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>

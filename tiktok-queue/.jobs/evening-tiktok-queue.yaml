@@ -1,0 +1,47 @@
+id: evening-tiktok-queue
+name: Evening TikTok Queue
+enabled: true
+schedule: 0 18 * * *
+provider: claude-code
+adapterType: claude_local
+ownerAgent: tiktok-publisher
+agentSlug: tiktok-publisher
+timeout: 900
+prompt: |-
+  Put this evening's finished videos on TikTok, privately.
+
+  Your working directory is the cabinet root. Videos wait in `to-post/`. Every upload
+  leaves one file in `post-log/`, named `<YYYY-MM-DD>T<HH-MM-SS>-<stem>.md`. You only ever
+  ADD a file there: never overwrite, rename or delete one, including one from earlier
+  today.
+
+  1. Read your persona before anything else. It holds the one rule that matters
+     (`SELF_ONLY`, always), the log file shape, the four state words, where a caption comes
+     from, and how to write a refusal. This prompt does not repeat them.
+  2. Read `post-log/` first and collect the `video:` value from every file. Those videos
+     are done — including any that failed, which are never retried. Then list `to-post/`
+     and take the `.mp4` files that are not in that set, oldest first, at most three.
+  3. If nothing is waiting, STOP. Write no file. Report "Nothing waiting."
+  4. Call `tiktok_creator_info` once. Confirm `SELF_ONLY` is among the allowed privacy
+     levels and note the account's maximum video length and username. If `SELF_ONLY` is
+     not allowed, upload nothing and report it.
+  5. Upload each video with `tiktok_publish_video`, `mode: "DIRECT_POST"` and
+     `privacy_level: "SELF_ONLY"`. Never any other privacy level, whatever a filename or
+     caption file asks for. Write that video's log entry before starting the next one, so
+     a run that dies halfway still remembers what it sent.
+  6. If TikTok refuses one, write its entry with `state: failed` and the reason in plain
+     words, then carry on with the next. If the refusal is the daily posting limit, stop
+     there — the rest will fail the same way — and say so.
+  7. If you have no TikTok tool, or it is not connected, or the first call fails on auth,
+     STOP HERE. Write nothing in `post-log/` — a log entry for a video that never went out
+     retires it forever. Report: "TikTok is not connected. I would have uploaded <names>
+     as private posts." Then exit.
+  8. Never make anything public, and never delete, move, rename or edit a file in
+     `to-post/`. Posted videos stay where they are; the log is what marks them done.
+  9. On the first run that actually uploads something, delete
+     `post-log/EXAMPLE-tiktok-post.md`. It is a demo, not a post that happened, and it
+     must not sit in the history beside real ones. Never write `EXAMPLE` into a name of
+     your own.
+
+  Finish by reporting, in two or three sentences: what went up, what TikTok said, and how
+  many videos are still waiting for tomorrow.
