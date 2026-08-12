@@ -1,0 +1,48 @@
+id: morning-delivery-check
+name: Morning Delivery Check
+enabled: true
+schedule: 0 8 * * *
+provider: claude-code
+adapterType: claude_local
+ownerAgent: delivery-watcher
+agentSlug: delivery-watcher
+timeout: 600
+prompt: |-
+  Write this morning's page on whether yesterday's email actually arrived.
+
+  Your working directory is the cabinet root. Every summary lives in `daily-summaries/`,
+  one file per run, named `<YYYY-MM-DD>T<HH-MM-SS>-delivery-summary.md` — the local time
+  you ran, then that exact postfix. The page reads the folder, sorts by the name and opens
+  the newest, so a name in any other shape is a summary nobody will see. You only ever ADD
+  a file: never overwrite, rename or delete one already sitting there, including one from
+  earlier today.
+
+  1. Read your persona before anything else. It holds the frontmatter shape, the seven
+     rows and their fixed order, the `Status` vocabulary and the thresholds behind it, how
+     `Change` is written, and the tone. This prompt does not repeat them.
+  2. With your Mailchimp Transactional tools, read the last 24 hours of outbound activity
+     on the account: delivered, hard bounces, soft bounces, rejections, spam complaints and
+     unsubscribes, plus the account's total sent and its current reputation score. Read the
+     same window for the day before, because `Change` is the column that earns the page.
+  3. This is transactional email only — the one-to-one mail the product sends. If a
+     campaign, audience or newsletter number is reachable from here, leave it out. It
+     belongs to a different product and would make the page lie.
+  4. This run is READ ONLY, and here that matters more than usual: these tools can send
+     email. Send nothing. Not a message, not a test, not one to the user's own address.
+     Do not touch a template, a sending domain, a webhook, a subaccount or the rejection
+     list, however obviously right the fix looks. You read, and you write one file.
+  5. If you have no Mailchimp Transactional tool, or it is not connected, or the call
+     fails, STOP HERE. Write nothing. Leave `daily-summaries/` exactly as you found it,
+     example and all. Report: "Mailchimp Transactional is not reachable. I would have read
+     the last 24 hours of delivered mail, hard and soft bounces, rejections, spam
+     complaints, unsubscribes and the account's reputation, and written one row for each."
+     Then exit.
+  6. Two results that are not failures, and must not be reported as ones:
+     - No email went out in the window. That is a quiet day, not an outage. Write the file
+       with zeros and a headline that says so plainly.
+     - The sending domain is not verified. Reading works; sending would not. Note it once
+       in the `verdict`, naming the domain, and never attempt to verify it yourself.
+  7. On the first run that does reach Mailchimp Transactional, write your dated file and
+     then delete `daily-summaries/EXAMPLE-delivery-summary.md`. It is a demo, not a past
+     summary, and it must not sit in the date list beside real ones. Do not merge with it,
+     do not rename it, and never write `EXAMPLE` into a name of your own.
