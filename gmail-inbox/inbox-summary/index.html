@@ -2,125 +2,840 @@
 <!--
   gmail-inbox showcase page.
 
-  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
-  The file names carry the timestamp, so the picker is built without opening any of them.
-  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
-  and survive the user renaming the cabinet at install time. The folder listing comes from
-  /api/tree because the assets route serves single files and cannot list a directory.
+  Three sections, in reading order:
+   - CONFIGURATION. A collapsed <details> bar with a live status chip (green once the
+     routine has produced a summary). The setup steps live inside; the bar opens itself
+     on a fresh install with nothing to show yet.
+   - YOUR INBOX. The real dashboard. Reads ../daily-summaries/, one file per run, written
+     by this cabinet's routine. The file names carry the timestamp, so the picker is
+     built without opening any of them. The folder listing comes from /api/tree because
+     the assets route serves single files and cannot list a directory. Schedule comes off
+     the cabinet's own .jobs file, so a paused or edited routine tells the truth here.
+   - IDEA GRID. A collapsible example playground: every vivid prompt card on screen at
+     once, each with its worked sample answer dealt over its bottom edge. Deliberately
+     NOT a one-at-a-time deck — you cannot copy the prompt you never saw, and hiding
+     eight of nine ideas behind an arrow defeats the point of the section.
+     Every number in the grid is INVENTED — a shape-of-the-answer preview, not your
+     mail. Marked as such on screen so nobody mistakes a sample for a reading.
 
-  Zero external requests. System fonts, inline CSS, no libraries.
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  and survive the user renaming the cabinet at install time.
+
+  Zero external requests. System fonts, inline CSS, no libraries, no build step.
   Every failure path renders something honest instead of a blank page.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Gmail Inbox Summary</title>
+<title>Gmail Inbox</title>
 <style>
+  /* Gmail's four brand colours on Cabinet's warm paper. The brand carries the
+     accents (chips, rules, bars); the paper keeps it from reading like a Google
+     product. Every colour is defined here on :root and only overridden in the
+     dark block, so nothing is left undefined in either scheme. */
   :root {
-    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
-    --line: #e6e5e1; --accent: #c5221f;
-    --hi: #b4443c; --mid: #9a6b1f; --lo: #6b6b66;
+    --paper:   #faf7f3;
+    --card:    #ffffff;
+    --sunk:    #f6f2ec;
+    --ink:     #1a1a18;
+    --dim:     #6f6b64;
+    --faint:   #9a948a;
+    --line:    #e9e2d6;
+    --line-2:  #f0ebe2;
+
+    --g-red:    #ea4335;
+    --g-blue:   #4285f4;
+    --g-yellow: #f9ab00;
+    --g-green:  #34a853;
+    --g-deep:   #c5221f;
+
+    /* The playground's vivid quartet — deliberately louder than the Gmail brand set.
+       Constant across light and dark; they are saturated enough to carry both. */
+    --v-pink:  #ff2d78;
+    --v-red:   #ff3b30;
+    --v-gold:  #ffb300;
+    --v-green: #00c853;
+
+    --hi:  var(--g-deep);
+    --mid: #b06f00;
+    --lo:  var(--dim);
+
+    /* Ink that sits ON a brand-coloured fill (chips, step numbers, buttons). One token
+       instead of three separate dark-mode overrides. */
+    --on-accent: #ffffff;
+
+    --shadow: 0 1px 2px rgba(26,26,24,.04), 0 8px 24px -12px rgba(26,26,24,.18);
+    --radius: 14px;
   }
+
+  /* Three-state theming, same contract as the host app: an explicit data-scheme wins in
+     both directions, and the media query only applies when nothing has been stamped.
+     `dark()` in the script sets data-scheme from Cabinet's own <html class="dark">, so
+     the app matches the shell rather than the OS. Opened standalone (no parent), the
+     media query takes over. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-scheme="light"]) {
+      --paper:  #17161a;
+      --card:   #201f24;
+      --sunk:   #1b1a1f;
+      --ink:    #f2efe9;
+      --dim:    #a9a49c;
+      --faint:  #7b766e;
+      --line:   #302e35;
+      --line-2: #292830;
+      --g-yellow: #fdd663;
+      --g-red:    #f28b82;
+      --g-blue:   #8ab4f8;
+      --g-green:  #81c995;
+      --g-deep:   #f28b82;
+      --hi:  var(--g-red);
+      --mid: var(--g-yellow);
+      --on-accent: #17161a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-scheme="dark"] {
+    --paper:  #17161a;
+    --card:   #201f24;
+    --sunk:   #1b1a1f;
+    --ink:    #f2efe9;
+    --dim:    #a9a49c;
+    --faint:  #7b766e;
+    --line:   #302e35;
+    --line-2: #292830;
+    --g-yellow: #fdd663;
+    --g-red:    #f28b82;
+    --g-blue:   #8ab4f8;
+    --g-green:  #81c995;
+    --g-deep:   #f28b82;
+    --hi:  var(--g-red);
+    --mid: var(--g-yellow);
+    --on-accent: #17161a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+    font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 {
-    font-size: 22px; margin: 0; letter-spacing: -0.01em;
-    display: flex; align-items: center; gap: 10px;
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 20px 72px; }
+
+  /* ---- hero ------------------------------------------------------------------------ */
+  /* The four brand colours as a single wash, so the header reads as Gmail without
+     painting a solid Google-blue slab over a warm page. */
+  /* Full-bleed by sitting outside .wrap, NOT by negative margins — body has no padding
+     to pull back against, so -20px each side would just overflow the viewport. */
+  .hero {
+    position: relative; overflow: hidden;
+    margin: 0 0 28px; padding: 40px 20px 32px;
+    background:
+      radial-gradient(760px 220px at 8% -20%,  rgba(255,45,120,.18), transparent 62%),
+      radial-gradient(680px 220px at 44% -30%, rgba(255,59,48,.14),  transparent 60%),
+      radial-gradient(700px 240px at 78% -10%, rgba(255,179,0,.20),  transparent 62%),
+      radial-gradient(560px 200px at 102% 20%, rgba(0,200,83,.12),   transparent 60%);
+    border-bottom: 1px solid var(--line);
   }
+  .hero-inner { max-width: 900px; margin: 0 auto; }
+  .brandrow { display: flex; align-items: center; gap: 12px; }
   /* An inline <svg> with a viewBox and no width fills its container — size it here or
      the mark renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 22px; height: 22px; flex: none; }
-  .sub { color: var(--dim); margin: 4px 0 0; font-size: 14px; }
+  .mark { width: 30px; height: 30px; flex: none; }
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--v-pink);
+  }
+  h1 {
+    font-size: clamp(26px, 4.4vw, 38px); line-height: 1.12; margin: 12px 0 0;
+    letter-spacing: -.02em; font-weight: 700;
+    /* The vivid quartet as a text wash; `color` stays as the fallback if clip is absent. */
+    background: linear-gradient(92deg, var(--v-pink), var(--v-red) 34%, var(--v-gold) 67%, var(--v-green));
+    -webkit-background-clip: text; background-clip: text;
+    color: var(--ink); -webkit-text-fill-color: transparent;
+  }
+  .sub { color: var(--dim); margin: 8px 0 0; font-size: 15px; max-width: 56ch; }
+
+  /* live status strip */
+  .strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .stat {
+    background: var(--card); border: 1px solid var(--line); border-radius: 11px;
+    padding: 9px 14px; display: flex; align-items: baseline; gap: 8px; box-shadow: var(--shadow);
+  }
+  .stat b { font-size: 14px; font-weight: 650; letter-spacing: -.01em; }
+  .stat span { font-size: 11.5px; color: var(--dim); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--v-green); flex: none; }
+  .dot.warn { background: var(--v-gold); }
+  .dot.off  { background: var(--faint); }
+
+  /* ---- section furniture ------------------------------------------------------------ */
+  .sec { margin-top: 40px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  h2 {
+    font-size: 19px; margin: 0; letter-spacing: -.015em; font-weight: 680;
+    display: flex; align-items: center; gap: 9px;
+  }
+  /* 3px brand tick before each section title — cheaper than an icon set and it keeps
+     the four colours circulating down the page. */
+  .tick { width: 3px; height: 17px; border-radius: 2px; background: var(--v-pink); flex: none; }
+  .tick.red { background: var(--v-red); } .tick.yel { background: var(--v-gold); }
+  .tick.grn { background: var(--v-green); } .tick.pink { background: var(--v-pink); }
+  .sec-note { color: var(--faint); font-size: 13px; }
+
   .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    padding: 18px 20px; margin-top: 18px;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px; margin-top: 14px; box-shadow: var(--shadow);
   }
+  .empty { color: var(--dim); }
   .banner {
-    border-left: 3px solid var(--mid); padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim);
+    border-left: 3px solid var(--mid); padding: 11px 15px; margin-top: 14px;
+    background: var(--card); border-radius: 0 10px 10px 0; font-size: 14px; color: var(--dim);
   }
-  /* The one thing worth reading if nothing else. Same card, an accent edge to lead the eye. */
-  .lead { border-left: 3px solid var(--accent); }
-  .lead-tag {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .08em; color: var(--accent); margin-bottom: 6px;
-  }
-  .lead-who { font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--dim); }
-  .qw-tag {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .08em; color: var(--dim); margin-bottom: 8px;
-  }
-  .qw-list { margin: 0; padding-left: 18px; }
-  .qw-list li { margin-top: 6px; }
-  .qw-list li:first-child { margin-top: 0; }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th {
-    text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
-    color: var(--dim); font-weight: 600; padding: 0 10px 8px 0; border-bottom: 1px solid var(--line);
-  }
-  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  .pill {
-    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px;
-    border-radius: 20px; border: 1px solid currentColor; white-space: nowrap;
-  }
-  .u-high { color: var(--hi); } .u-medium { color: var(--mid); } .u-low { color: var(--lo); }
-  /* The sender is what the eye scans a mail list for, so it gets weight, not the accent —
-     the red urgency pills already carry the colour in this row. */
-  .from { color: var(--ink); font-weight: 600; white-space: nowrap; }
-  /* The subject is the deep link — a thread ID under it, so it reads as clickable. */
-  .subj { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
-  .subj:hover { border-bottom-color: var(--dim); }
-  .empty { color: var(--dim); font-size: 14px; }
-  .empty code { font-size: 13px; }
-  .scroll { overflow-x: auto; }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
+
+  /* the day picker */
+  .picker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .picker label { font-size: 12px; font-weight: 650; color: var(--dim); text-transform: uppercase; letter-spacing: .07em; }
   .picker select {
-    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+    font: inherit; font-size: 14px; padding: 7px 11px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer;
   }
-  .picker .next { display: block; margin-top: 7px; }
+  .next { font-size: 12.5px; color: var(--faint); margin-inline-start: auto; }
+
+  /* the one message that matters */
+  .lead { border-left: 3px solid var(--g-deep); }
+  .lead-tag, .qw-tag {
+    display: block; font-size: 10.5px; font-weight: 750; text-transform: uppercase;
+    letter-spacing: .1em; margin-bottom: 7px;
+  }
+  .lead-tag { color: var(--g-deep); }
+  .qw-tag { color: var(--dim); }
+  .lead-who { font-weight: 650; font-size: 15.5px; }
+  .lead-verdict { margin: 5px 0 0; color: var(--dim); }
+  .qw-list { margin: 0; padding-inline-start: 19px; }
+  .qw-list li { margin-top: 7px; }
+
+  /* tables — shared by the live summary and the sample answers */
+  .scroll { overflow-x: auto; padding: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th {
+    text-align: start; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--dim); font-weight: 700; padding: 13px 16px; border-bottom: 1px solid var(--line);
+    white-space: nowrap; background: var(--sunk);
+  }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .from { font-weight: 600; white-space: nowrap; }
+  .subj { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+  .subj:hover { border-bottom-color: var(--g-blue); color: var(--g-blue); }
+  .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px;
+    border-radius: 999px; text-transform: capitalize; white-space: nowrap;
+    border: 1px solid currentColor; line-height: 1.5;
+  }
+  .u-high, .u-urgent { color: var(--hi); } .u-medium { color: var(--mid); }
+  .u-low, .u-none { color: var(--lo); }
+
+  /* ---- idea grid (the example playground) --------------------------------------------
+     Every idea on screen at once. A one-at-a-time deck hid eight of nine ideas behind an
+     arrow, which is the opposite of what this section is for: you cannot copy the prompt
+     you never saw. Each card keeps its vivid gradient and deals its worked answer over
+     its own bottom edge, so the card character survives the grid. */
+  .grid {
+    display: grid; gap: 20px; margin-top: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  }
+  .cardgroup { position: relative; display: flex; flex-direction: column; }
+  .idea {
+    border-radius: 20px; padding: 20px 22px 40px; color: #fff;
+    box-shadow: 0 18px 40px -20px rgba(26,26,24,.45);
+  }
+  .th-pink  { background: linear-gradient(135deg, #ff2d78, #ff5e3a); }
+  .th-red   { background: linear-gradient(135deg, #ff3b30, #e4006d); }
+  .th-gold  { background: linear-gradient(135deg, #ffc400, #ff9100); }
+  .th-green { background: linear-gradient(135deg, #00e676, #00a94f); }
+  .idea.th-gold { color: #402a00; }  /* white on gold fails contrast; deep brown holds it */
+  .deck-top { display: flex; align-items: center; gap: 9px; }
+  .tagpill {
+    font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+    padding: 4px 11px; border-radius: 999px; background: rgba(255,255,255,.24); color: inherit;
+  }
+  .th-gold .tagpill { background: rgba(64,42,0,.14); }
+  .dcopy {
+    margin-inline-start: auto; font: inherit; font-size: 12.5px; font-weight: 750;
+    padding: 7px 14px; border-radius: 999px; border: 0; cursor: pointer;
+    background: rgba(255,255,255,.92); color: #1a1a18;
+    display: inline-flex; align-items: center; gap: 6px; transition: transform .12s ease;
+  }
+  .dcopy:hover { transform: scale(1.05); }
+  .dcopy.done { background: #eafff1; color: #007a3d; }
+  .dcopy svg { width: 13px; height: 13px; }
+  /* The prompt is the product — the largest text in the card. Sized off the card, not the
+     viewport: nine cards in a grid each get a column, so a vw-based clamp would set the
+     type from a width the card does not have. */
+  .prompt-big {
+    font-size: 18px; line-height: 1.4; font-weight: 720;
+    letter-spacing: -.012em; margin: 14px 0 0;
+  }
+  /* The answer card, dealt over the prompt card's padded bottom edge. Inset on both sides
+     and pulled up — the overlap is what keeps the pair reading as one dealt card rather
+     than two stacked boxes. No rotation: nine tilted cards in a grid is noise. */
+  .result {
+    position: relative; margin: -24px 12px 0; flex: 1;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 13px 15px 15px; box-shadow: 0 14px 30px -16px rgba(26,26,24,.4);
+  }
+  .play-note { color: var(--dim); font-size: 14px; margin: 12px 2px 0; max-width: 62ch; }
+  .out-tag {
+    font-size: 10px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--faint); display: block; margin-bottom: 9px;
+  }
+
+  /* sample renderers */
+  .mini { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .mini th { padding: 0 0 6px; font-size: 9.5px; background: none; border-bottom: 1px solid var(--line); }
+  .mini td { padding: 6px 0; border-bottom: 1px solid var(--line-2); }
+  .mini tr:last-child td { border-bottom: 0; }
+  .mini .num { padding-inline-start: 10px; }
+  .foot { margin: 9px 0 0; font-size: 12.5px; color: var(--dim); }
+  .foot b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  .draft { border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; background: var(--card); }
+  .draft + .draft { margin-top: 8px; }
+  .draft-to { font-size: 12px; color: var(--dim); }
+  .draft-to b { color: var(--ink); font-weight: 650; }
+  .draft-sub { font-size: 13px; font-weight: 600; margin: 3px 0 6px; }
+  .draft-body { font-size: 12.5px; color: var(--dim); line-height: 1.5; font-style: italic; }
+  .draft-act {
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 9px;
+    font-size: 11.5px; font-weight: 650; color: var(--g-blue); text-decoration: none;
+  }
+  .draft-act:hover { text-decoration: underline; }
+
+  /* Fixed two-up, not flex-wrap: inside a grid card the four tiles wrapped 3 + 1 and the
+     orphan stretched to full width. A 2x2 stays even at every card width. */
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--card); }
+  .tile b { display: block; font-size: 19px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .tile span { font-size: 10.5px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .t-red b { color: var(--g-red); } .t-grn b { color: var(--g-green); } .t-blu b { color: var(--g-blue); }
+
+  .rows { margin: 0; padding: 0; list-style: none; }
+  .rows li { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-2); font-size: 12.5px; }
+  .rows li:last-child { border-bottom: 0; }
+  .rows .main { font-weight: 600; }
+  .rows .sub2 { color: var(--dim); }
+  .rows .end { margin-inline-start: auto; }
+
+  .checks { margin: 0; padding: 0; list-style: none; }
+  .checks li { display: flex; align-items: flex-start; gap: 9px; padding: 6px 0; font-size: 12.5px; }
+  .box { width: 13px; height: 13px; border: 1.5px solid var(--g-blue); border-radius: 3.5px; flex: none; margin-top: 3px; }
+  .checks .due { color: var(--faint); font-size: 11.5px; margin-inline-start: auto; white-space: nowrap; padding-inline-start: 10px; }
+
+  .sample-note {
+    margin-top: 14px; font-size: 12.5px; color: var(--faint);
+    display: flex; align-items: center; gap: 7px;
+  }
+
+  /* ---- accordion --------------------------------------------------------------------
+     Native <details>. It opens, closes, is keyboard reachable and prints expanded
+     with no script at all — a JS accordion would only re-implement that worse. */
+  details.acc {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    margin-top: 12px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  details.acc + details.acc { margin-top: 10px; }
+  details.acc > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 620; font-size: 14.5px;
+    list-style: none; display: flex; align-items: center; gap: 11px;
+  }
+  details.acc > summary::-webkit-details-marker { display: none; }
+  .caret { width: 9px; height: 9px; border-inline-end: 2px solid var(--faint); border-block-end: 2px solid var(--faint);
+           transform: rotate(-45deg); margin-inline-start: auto; transition: transform .15s ease; flex: none; }
+  details.acc[open] > summary .caret { transform: rotate(45deg); }
+  .step-n {
+    width: 21px; height: 21px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    font-size: 11px; font-weight: 750; color: var(--on-accent); background: var(--g-blue);
+  }
+  .acc-body { padding: 0 18px 18px 50px; font-size: 14px; color: var(--dim); }
+  .acc-body p { margin: 0 0 10px; }
+  .acc-body ol, .acc-body ul { margin: 0 0 10px; padding-inline-start: 18px; }
+  .acc-body li { margin-top: 6px; }
+  .acc-body code {
+    background: var(--sunk); border: 1px solid var(--line); border-radius: 5px;
+    padding: 1px 6px; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .acc-body strong { color: var(--ink); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; text-decoration: none;
+    font-size: 13px; font-weight: 650; padding: 8px 14px; border-radius: 9px;
+    background: var(--g-blue); color: var(--on-accent); margin-top: 4px;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn.ghost { background: transparent; color: var(--g-blue); border: 1px solid var(--line); }
+
+  /* ---- collapsible sections -----------------------------------------------------------
+     Whole sections fold, same native <details> as the steps. The bar carries either a
+     live status chip (Configuration) or the example-playground flag (Inbox ideas). */
+  /* The CARD is the <details>, not the <summary>. Styling the summary as its own card
+     left the opened body floating outside it, so the section read as a closed bar with
+     loose content underneath instead of an open panel holding its contents. Closed, the
+     details collapses to summary height and the card IS the bar — same look as before. */
+  details.fold {
+    margin-top: 40px; background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  details.fold > summary {
+    cursor: pointer; list-style: none; display: flex; align-items: center; gap: 11px;
+    padding: 15px 18px;
+  }
+  details.fold > summary::-webkit-details-marker { display: none; }
+  /* .caret's global margin-inline-start:auto would fight the chip's — the chip wins. */
+  details.fold > summary .caret { margin-inline-start: 4px; }
+  details.fold[open] > summary { border-bottom: 1px solid var(--line); }
+  details.fold[open] > summary .caret { transform: rotate(45deg); }
+  /* Sunk well so the panel's own cards (accordion rows, idea cards) read as sitting
+     inside it. Bottom padding clears the idea cards' drop shadow, which `overflow:
+     hidden` on the container would otherwise cut off mid-fade. */
+  .fold-body { padding: 16px 18px 26px; background: var(--sunk); }
+  .stat-chip {
+    margin-inline-start: auto; display: inline-flex; align-items: center; gap: 7px;
+    font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase;
+    padding: 4px 11px; border-radius: 999px; border: 1.5px solid currentColor; line-height: 1.6;
+  }
+  .stat-chip .cdot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+  .stat-chip.ok   { color: var(--v-green); }
+  .stat-chip.warn { color: var(--mid); }
+  .stat-chip.off  { color: var(--faint); }
+  .play-flag {
+    margin-inline-start: auto; font-size: 10.5px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase; padding: 4px 12px; border-radius: 999px; color: #fff;
+    background: linear-gradient(90deg, var(--v-pink), var(--v-red) 50%, var(--v-gold));
+    white-space: nowrap;
+  }
+
+  footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12.5px; }
+
+  @media (max-width: 560px) {
+    .acc-body { padding-inline-start: 18px; }
+    .next { margin-inline-start: 0; width: 100%; }
+    .idea { padding: 18px 17px 36px; }
+    .result { margin: -22px 8px 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="brandrow">
+      <svg class="mark" viewBox="52 42 88 66" aria-hidden="true"><path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/><path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/><path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/><path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/><path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"/></svg>
+      <span class="eyebrow">Gmail &middot; Cabinet</span>
+    </div>
+    <h1>Welcome to your inbox!</h1>
+    <p class="sub">Every morning your agent reads the last 24 hours and writes one short page
+      saying which messages actually want something from you. Ask it for more below.</p>
+    <div class="strip" id="strip"></div>
+  </div>
+</div>
+
 <div class="wrap">
 
-  <header>
-    <h1>
-      <!-- The integration's own mark, inlined so the page still makes
-           zero external requests. -->
-      <svg class="mark" viewBox="52 42 88 66" aria-hidden="true"><path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/> <path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/> <path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/> <path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/> <path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"/></svg>
-      Gmail Inbox Summary
-    </h1>
-    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
-    <p class="sub">Every morning, a plain-English summary of the email that arrived overnight.</p>
-  </header>
+  <details class="fold" id="cfg-fold">
+    <summary>
+      <h2><span class="tick grn"></span>Configuration</h2>
+      <span class="stat-chip off" id="cfg-status"><span class="cdot"></span>Checking&hellip;</span>
+      <span class="caret"></span>
+    </summary>
+    <div class="fold-body">
 
-  <div id="root"><div class="card empty">Loading…</div></div>
+    <details class="acc" open>
+      <summary><span class="step-n">1</span>Connect Gmail<span class="caret"></span></summary>
+      <div class="acc-body">
+        <p>Your agent reads mail through the Gmail connector. Until that is connected it has
+          nothing to read and every run will say so rather than inventing a summary.</p>
+        <ol>
+          <li>Open <strong>Connectors</strong> in the sidebar.</li>
+          <li>Find <strong>Gmail</strong> and press <strong>Connect</strong>.</li>
+          <li>Sign in with the Google account whose inbox you want summarised.</li>
+          <li>Approve read access. Cabinet stores the token on this machine only.</li>
+        </ol>
+        <!-- target="_top" breaks out of the app iframe: without it the whole Cabinet UI
+             would load inside this frame. The sandbox allows it on a real user click. -->
+        <a class="btn" href="/connectors" target="_top">
+          Open Connectors
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg>
+        </a>
+      </div>
+    </details>
 
+    <details class="acc">
+      <summary><span class="step-n">2</span>Set when it runs<span class="caret"></span></summary>
+      <div class="acc-body">
+        <p>The routine that fills this page lives on the agent&rsquo;s <strong>Schedule</strong> tab.
+          Open the agent, then <strong>Schedule</strong> &rarr; <strong>Morning Inbox Summary</strong>.</p>
+        <ul>
+          <li>Change the time, or switch it off — the strip at the top of this page reads the
+            real job file, so it always shows the truth.</li>
+          <li>Press <strong>&#9655;</strong> next to the routine to run it once, right now.</li>
+          <li>Each run writes one dated file into <code>daily-summaries/</code>. Nothing is
+            overwritten, so yesterday stays readable.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary><span class="step-n">3</span>Where the answers get saved<span class="caret"></span></summary>
+      <div class="acc-body">
+        <p>Ask for something new and the agent writes it into this cabinet as a page you can
+          reopen, search and hand to another agent.</p>
+        <ul>
+          <li><code>daily-summaries/</code> &mdash; one file per run of the morning routine.</li>
+          <li><code>subscriptions.md</code>, <code>waiting-on-me.md</code>, &hellip; &mdash; whatever you ask for,
+            named after what it holds.</li>
+          <li>This page reads <code>daily-summaries/</code> directly, so a new run shows up on reload.</li>
+        </ul>
+        <p>Ask it to &ldquo;update the webapp&rdquo; and it can edit this page too &mdash; it is a plain
+          file in the cabinet, same as everything else.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary><span class="step-n">4</span>What it can and can&rsquo;t do<span class="caret"></span></summary>
+      <div class="acc-body">
+        <ul>
+          <li><strong>Reads</strong> your mail, writes pages, and drafts replies.</li>
+          <li><strong>Drafts only.</strong> A reply it writes lands in your Gmail drafts — you press send.</li>
+          <li><strong>Local.</strong> Mail is read on this machine, into files you own.</li>
+          <li>If it cannot reach Gmail it says so and keeps the previous result rather than
+            filling the gap with a guess.</li>
+        </ul>
+      </div>
+    </details>
+    </div>
+  </details>
+
+  <section class="sec">
+    <div class="sec-head">
+      <h2><span class="tick red"></span>Your inbox</h2>
+      <span class="sec-note">your real dashboard &mdash; today&rsquo;s brief, written by your routine</span>
+    </div>
+    <div id="root"><div class="card empty">Loading&hellip;</div></div>
+  </section>
+
+  <details class="fold" id="play-fold" open>
+    <summary>
+      <h2><span class="tick pink"></span>Inbox ideas</h2>
+      <span class="play-flag">Example playground</span>
+      <span class="caret"></span>
+    </summary>
+    <div class="fold-body">
+      <p class="play-note">Copy a prompt, paste it in the agent chat, and it answers with your
+        <em>real</em> mail &mdash; everything below is invented, just to spark ideas.</p>
+      <div class="grid" id="stage"></div>
+      <p class="sample-note">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.4v4M8 4.8v.5"/></svg>
+        Every figure above is made up &mdash; it shows the shape of the answer, not your mail.
+      </p>
+    </div>
+  </details>
+
+  <footer>Gmail Inbox &middot; a Cabinet app. Reads <code>daily-summaries/</code> from this cabinet.</footer>
 </div>
 
 <script>
 (function () {
+  'use strict';
+
+  var DIR  = 'daily-summaries';
+  /* .yaml, not .md — the previous value pointed at a file that has never existed, so
+     "next run" silently never rendered. The two keys read below sit at the top level of
+     the job file, above the `prompt: |-` block. */
+  var JOB  = '.jobs/morning-inbox-summary.yaml';
   var root = document.getElementById('root');
-  var DIR = 'daily-summaries';
-  var JOB = '.jobs/morning-inbox-summary.yaml';
-  var job = null;
-  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-                'September', 'October', 'November', 'December'];
+  var job  = null;
+  var latestMeta = null;
+  var cfgKnown = false;
+
+  /* Which vivid deck gradient each gallery `cls` maps onto. */
+  var THEMES = { 'c-red': 'th-red', 'c-blue': 'th-pink', 'c-grn': 'th-green', 'c-yel': 'th-gold' };
+
+  /* The chip in the Configuration bar: ok (green) / warn (amber) / off (grey). */
+  function setCfg(state, text) {
+    var chip = document.getElementById('cfg-status');
+    if (!chip) return;
+    chip.className = 'stat-chip ' + state;
+    chip.innerHTML = '<span class="cdot"></span>' + esc(text);
+  }
+
+  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
   }
+
+  /* ---- follow the shell's theme ------------------------------------------------------
+     Cabinet paints its theme on its own <html> (class="dark", set by ThemeProvider).
+     This page is same-origin, so it can read that and stamp data-scheme on itself —
+     otherwise the app would sit in OS dark inside a light Cabinet window, which is the
+     one thing that makes an embedded page look bolted on. Opened in its own tab there
+     is no parent, the try fails, nothing is stamped, and the CSS media query decides. */
+  function applyHostScheme() {
+    try {
+      if (!window.parent || window.parent === window) return null;
+      var host = window.parent.document.documentElement;
+      var scheme = host.classList.contains('dark') ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-scheme', scheme);
+      return host;
+    } catch (err) {
+      return null;  /* cross-origin or torn down — media query takes over */
+    }
+  }
+
+  /* The user can flip theme (or walk into a room that pins one) while this page is open,
+     so keep watching rather than reading once at load. */
+  function watchHostScheme() {
+    var host = applyHostScheme();
+    if (!host || typeof MutationObserver === 'undefined') return;
+    try {
+      new MutationObserver(applyHostScheme)
+        .observe(host, { attributes: true, attributeFilter: ['class'] });
+    } catch (err) { /* observing is a nicety; the one-shot read above already landed */ }
+  }
+  watchHostScheme();
+
+  /* ---- the prompt gallery -----------------------------------------------------------
+     Data, not markup: nine near-identical cards written out by hand would be nine places
+     to fix a typo. `out` picks the renderer; every figure below is invented. */
+
+  var EXAMPLES = [
+    {
+      cls: 'c-red', tag: 'Money',
+      prompt: 'Show me a list of my top subscriptions, what each costs and when it renews — then update the webapp with it.',
+      out: 'table',
+      data: {
+        cols: ['Service', 'Amount', 'Renews'],
+        rows: [
+          ['Anthropic (Claude)', '$200.00', 'Monthly, 16th'],
+          ['Adobe Creative Cloud', '$59.99', 'Monthly, 3rd'],
+          ['ElevenLabs Creator', '$22.00', 'Monthly, 9th'],
+          ['Notion Plus', '$10.00', 'Monthly, 21st'],
+          ['Backblaze B2', '$7.40', 'Monthly, 28th']
+        ],
+        foot: '5 of 11 shown — <b>$299.39</b>/mo, <b>$3,592</b>/yr'
+      }
+    },
+    {
+      cls: 'c-blue', tag: 'Replies',
+      prompt: 'List every email I never answered, oldest first, and draft a reply to each one. Leave them in my drafts.',
+      out: 'drafts',
+      data: [
+        { to: 'Dana Reyes', waited: '9 days', sub: 'Re: Q3 partnership terms',
+          body: '“Thanks for your patience, Dana — I’ve read through the terms. The 60/40 split works; my only change is on clause 4…”' },
+        { to: 'Tomer Levi', waited: '5 days', sub: 'Re: Can you review the deck?',
+          body: '“Sorry for the slow reply. Went through the deck — slides 3 and 7 are the ones I’d rework before Thursday…”' }
+      ]
+    },
+    {
+      cls: 'c-yel', tag: 'Cleanup',
+      prompt: 'Which newsletters have I not opened in 60 days? Give me the unsubscribe link for each.',
+      out: 'rows',
+      data: [
+        { main: 'Retail Weekly', sub: '31 sent', end: '0 opened' },
+        { main: 'DevOps Digest', sub: '18 sent', end: '1 opened' },
+        { main: 'Founder Notes', sub: '12 sent', end: '0 opened' },
+        { main: 'Deals & Drops', sub: '44 sent', end: '2 opened' }
+      ]
+    },
+    {
+      cls: 'c-grn', tag: 'People',
+      prompt: 'Who is waiting on a reply from me? Sort by how long they have been waiting.',
+      out: 'rows',
+      data: [
+        { main: 'Dana Reyes', sub: 'partnership terms', end: '9 days', tone: 'u-high' },
+        { main: 'Tomer Levi', sub: 'deck review', end: '5 days', tone: 'u-medium' },
+        { main: 'Maya Gold', sub: 'intro to Ron', end: '3 days', tone: 'u-medium' },
+        { main: 'Accounts payable', sub: 'invoice #4471', end: '2 days', tone: 'u-low' }
+      ]
+    },
+    {
+      cls: 'c-red', tag: 'Deadlines',
+      prompt: 'Anything in my inbox with a deadline in the next 7 days? Put it in date order.',
+      out: 'checks',
+      data: [
+        { text: 'Send signed NDA back to Orbit Legal', due: 'Tomorrow' },
+        { text: 'Renew domain hila.sh before it lapses', due: 'Thu' },
+        { text: 'Submit expense report for July', due: 'Fri' },
+        { text: 'Confirm attendance — Q3 board call', due: 'Mon' }
+      ]
+    },
+    {
+      cls: 'c-blue', tag: 'Spend',
+      prompt: 'Total every receipt from last month and group it by category.',
+      out: 'tiles',
+      data: [
+        { v: '$1,284', k: 'Total', tone: 't-blu' },
+        { v: '$611', k: 'Software', tone: '' },
+        { v: '$402', k: 'Travel', tone: '' },
+        { v: '$271', k: 'Hardware', tone: '' }
+      ]
+    },
+    {
+      cls: 'c-grn', tag: 'Recruiters',
+      prompt: 'Find every recruiter email this month and draft a polite decline to each.',
+      out: 'drafts',
+      data: [
+        { to: 'Priya N. (Northwind)', waited: '2 days', sub: 'Re: Staff Engineer role',
+          body: '“Thanks for reaching out, Priya. I’m happy where I am and not looking right now — do keep me in mind for next year…”' }
+      ]
+    },
+    {
+      cls: 'c-yel', tag: 'Tasks',
+      prompt: 'Turn everything in today’s summary that needs an action into tasks in this cabinet.',
+      out: 'checks',
+      data: [
+        { text: 'Reply to Dana on clause 4', due: 'Today' },
+        { text: 'Rework deck slides 3 and 7', due: 'Thu' },
+        { text: 'Cancel Adobe before the 3rd', due: 'Sep 2' }
+      ]
+    },
+    {
+      cls: 'c-blue', tag: 'Routine',
+      prompt: 'Every Monday at 8am, send me a digest of what came in over the weekend and what I still owe people.',
+      out: 'rows',
+      data: [
+        { main: 'Weekly Monday digest', sub: 'new routine', end: 'Mon 08:00' },
+        { main: 'Morning Inbox Summary', sub: 'already running', end: 'Daily 07:00' }
+      ]
+    }
+  ];
+
+  /* one renderer per `out` value; each returns the inner HTML of the result card */
+  var RENDER = {
+    table: function (d) {
+      var h = '<table class="mini"><thead><tr>';
+      d.cols.forEach(function (c, i) {
+        h += '<th class="' + (i ? 'num' : '') + '">' + esc(c) + '</th>';
+      });
+      h += '</tr></thead><tbody>';
+      d.rows.forEach(function (r) {
+        h += '<tr>';
+        r.forEach(function (cell, i) {
+          h += '<td class="' + (i ? 'num' : '') + '">' + esc(cell) + '</td>';
+        });
+        h += '</tr>';
+      });
+      /* d.foot is the one authored string with markup in it, so it is not escaped. */
+      return h + '</tbody></table>' + (d.foot ? '<p class="foot">' + d.foot + '</p>' : '');
+    },
+    drafts: function (d) {
+      return d.map(function (m) {
+        return '<div class="draft">' +
+          '<div class="draft-to">To <b>' + esc(m.to) + '</b> &middot; waiting ' + esc(m.waited) + '</div>' +
+          '<div class="draft-sub">' + esc(m.sub) + '</div>' +
+          '<div class="draft-body">' + esc(m.body) + '</div>' +
+          '<span class="draft-act">Open draft in Gmail' +
+            '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h7v7M13 3 4 12"/></svg>' +
+          '</span></div>';
+      }).join('');
+    },
+    rows: function (d) {
+      return '<ul class="rows">' + d.map(function (r) {
+        return '<li><span class="main">' + esc(r.main) + '</span>' +
+               '<span class="sub2">' + esc(r.sub) + '</span>' +
+               '<span class="end">' + (r.tone
+                 ? '<span class="pill ' + esc(r.tone) + '">' + esc(r.end) + '</span>'
+                 : esc(r.end)) + '</span></li>';
+      }).join('') + '</ul>';
+    },
+    checks: function (d) {
+      return '<ul class="checks">' + d.map(function (c) {
+        return '<li><span class="box"></span><span>' + esc(c.text) + '</span>' +
+               '<span class="due">' + esc(c.due) + '</span></li>';
+      }).join('') + '</ul>';
+    },
+    tiles: function (d) {
+      return '<div class="tiles">' + d.map(function (t) {
+        return '<div class="tile ' + esc(t.tone || '') + '"><b>' + esc(t.v) + '</b>' +
+               '<span>' + esc(t.k) + '</span></div>';
+      }).join('') + '</div>';
+    }
+  };
+
+  var COPY_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 3.2A1.7 1.7 0 0 0 8.9 2H3.7A1.7 1.7 0 0 0 2 3.7v5.2c0 .8.5 1.4 1.2 1.6"/></svg>';
+  var DONE_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m3.5 8.5 3 3 6-6.5"/></svg>';
+
+  /* Every idea at once. Each card is its own gradient with its worked answer dealt over
+     the bottom edge — the deck's card character, without hiding eight ideas behind an
+     arrow. Written from EXAMPLES rather than by hand: nine near-identical blocks of
+     markup would be nine places to fix a typo. */
+  function buildDeck() {
+    var stage = document.getElementById('stage');
+    if (!stage) return;
+    stage.innerHTML = EXAMPLES.map(function (ex, i) {
+      var body = (RENDER[ex.out] || function () { return ''; })(ex.data);
+      return '<div class="cardgroup">' +
+        '<article class="idea ' + (THEMES[ex.cls] || 'th-pink') + '">' +
+          '<div class="deck-top">' +
+            '<span class="tagpill">' + esc(ex.tag) + '</span>' +
+            '<button class="dcopy" type="button" data-i="' + i + '" aria-label="Copy this prompt">' +
+              COPY_ICON + '<span>Copy</span></button>' +
+          '</div>' +
+          '<p class="prompt-big">&ldquo;' + esc(ex.prompt) + '&rdquo;</p>' +
+        '</article>' +
+        '<div class="result"><span class="out-tag">Example result &mdash; invented numbers</span>' +
+          body + '</div>' +
+      '</div>';
+    }).join('');
+    /* Delegated once on the container rather than per button. */
+    stage.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('.dcopy') : null;
+      if (btn) copy(EXAMPLES[+btn.getAttribute('data-i')].prompt, btn);
+    });
+  }
+
+  /* navigator.clipboard is unavailable on insecure origins and inside some embeds, so
+     the textarea+execCommand path stays as the fallback rather than the button silently
+     doing nothing. */
+  function copy(text, btn) {
+    function ok() {
+      if (btn.classList.contains('done')) return;  /* mid-flash re-click would trap "Copied!" */
+      var was = btn.innerHTML;
+      btn.classList.add('done');
+      btn.innerHTML = DONE_ICON + '<span>Copied!</span>';
+      setTimeout(function () {
+        btn.classList.remove('done');
+        btn.innerHTML = was;
+      }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok, function () { legacy(text, ok); });
+    } else {
+      legacy(text, ok);
+    }
+  }
+  function legacy(text, ok) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      ok();
+    } catch (err) { /* nothing sensible left to try — leave the button as it was */ }
+  }
+
+  /* ---- live summary ------------------------------------------------------------------ */
 
   /* Frontmatter + an optional quick-wins bullet list + a markdown table — the only
      shapes this page reads. Anything richer belongs in the file, not in a parser here. */
@@ -154,14 +869,55 @@
   /* threadid never gets a column of its own — it only decides whether a subject links out. */
   function isThreadId(head) { return head === 'threadid'; }
 
+  /* The strip is the only part of the hero that knows about data, so it is filled here
+     rather than left as an empty box when a run has not happened yet. */
+  function strip(data) {
+    var el = document.getElementById('strip');
+    if (!el) return;
+    var bits = [];
+    var status = data && data.meta.status;
+    var okRun = !status || status === 'ok';
+    bits.push('<div class="stat"><span class="dot ' + (okRun ? '' : 'warn') + '"></span>' +
+              '<b>' + esc(okRun ? 'Connected' : 'Last run failed') + '</b></div>');
+    if (data && data.rows.length) {
+      bits.push('<div class="stat"><b>' + data.rows.length + '</b><span>in the last run</span></div>');
+    }
+    if (data && data.meta.generated) {
+      bits.push('<div class="stat"><b>' + esc(data.meta.generated) + '</b><span>generated</span></div>');
+    }
+    var next = nextRunText();
+    if (next) {
+      var paused = next === 'Routine paused';
+      bits.push('<div class="stat"><span class="dot ' + (paused ? 'off' : '') + '"></span><b>' +
+                esc(paused ? next : next.replace(/^Next run:\s*/, '')) + '</b>' +
+                (paused ? '' : '<span>next run</span>') + '</div>');
+    }
+    el.innerHTML = bits.join('');
+  }
+
   function render(data, name, files) {
     var meta = data.meta, html = picker(name, files);
+    latestMeta = meta;
+    strip(data);
+
+    /* First render is always the newest file, so the config chip reads it once and then
+       stays put while the user browses older days. */
+    if (!cfgKnown) {
+      cfgKnown = true;
+      var okCfg = !meta.status || meta.status === 'ok';
+      setCfg(okCfg ? 'ok' : 'warn', okCfg ? 'Status: OK' : 'Last run failed');
+    }
 
     /* The routine could not reach Gmail. It said so rather than writing nothing. */
     if (meta.status && meta.status !== 'ok') {
       html += '<div class="banner">Last run could not reach ' +
               esc(meta.source || 'the source') + ': ' + esc(meta.status) +
               '. Showing the previous result.</div>';
+    }
+
+    if (meta.headline) {
+      html += '<div class="card"><span class="qw-tag">Headline</span>' +
+              '<div class="lead-who">' + esc(meta.headline) + '</div></div>';
     }
 
     /* The single most consequential message, in one sentence — absent most days on purpose. */
@@ -255,7 +1011,7 @@
         return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
                esc(label(f)) + '</option>';
       }).join('');
-      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+      html = '<label for="pick">Date</label><select id="pick">' + opts + '</select>';
     }
     var next = nextRunText();
     if (next) html += '<span class="next">' + esc(next) + '</span>';
@@ -352,6 +1108,10 @@
     return out;
   }
 
+  /* The deck and the accordion are static — paint them before any network work so the
+     page is useful even if the tree call is slow or fails outright. */
+  buildDeck();
+
   /* An empty folder is the normal state before the first run — not an error to shout about.
      `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
   Promise.all([
@@ -373,8 +1133,14 @@
       });
       var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
       if (!files.length) {
+        strip(null);
+        /* Fresh install: say so on the chip and unfold the setup steps. */
+        setCfg('warn', 'Waiting for first run');
+        var cf = document.getElementById('cfg-fold');
+        if (cf) cf.open = true;
         root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
+          'fills in after the routine runs for the first time — or press ▷ on the ' +
+          'agent’s Schedule tab to run it now.</div>';
         return;
       }
       /* Newest first; the example, having no date, sits at the bottom of the list. */
@@ -391,6 +1157,8 @@
       show(today || files[0], files);
     })
     .catch(function (err) {
+      strip(null);
+      setCfg('warn', 'Could not check');
       root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
         esc(err.message) + '). Reload in a moment.</div>';
     });
