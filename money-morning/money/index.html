@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<!--
+  money-morning flagship page, in the Cabinet Kit "wooden" theme
+  (source of truth: kit/themes/wooden/ at the registry root — tokens inlined here
+  because an installed cabinet is one copied directory and links nothing outside itself).
+
+  Reads ../daily-money/, one file per run, written by this cabinet's single routine.
+  File names carry the timestamp, so the date picker is built without opening any of them.
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  and survive the user renaming the cabinet at install time. The folder listing comes from
+  /api/tree because the assets route serves single files and cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Money Morning</title>
+<style>
+  /* ---- Cabinet Kit · wooden ------------------------------------------------------- */
+  :root {
+    --cabinet-bg: #FAF6F1; --cabinet-surface: #FFFFFF; --cabinet-surface-muted: #FAF0E9;
+    --cabinet-ink: #221716; --cabinet-ink-muted: #99887F;
+    --cabinet-wood: #834A2B; --cabinet-wood-deep: #5C2603;
+    --cabinet-border: #E1D6CE; --cabinet-border-soft: rgba(225,214,206,.45);
+    --cabinet-border-card: rgba(225,214,206,.75);
+    --cabinet-danger: #D40924; --cabinet-success: #14823E; --cabinet-warning: #9A6722;
+    --cabinet-info: #0F74C4;
+    --cabinet-radius: 10px;
+    --cabinet-shadow-2: 0 2px 4px -1px rgb(0 0 0 / .07), 0 1px 2px rgb(0 0 0 / .05);
+    --cabinet-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --cabinet-font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --cabinet-font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    --cabinet-focus-ring: 0 0 0 3px rgba(92,38,3,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--cabinet-bg); color: var(--cabinet-ink);
+    font: 15px/1.55 var(--cabinet-font-sans);
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-family: var(--cabinet-font-heading); letter-spacing: -0.02em;
+    font-size: 24px; margin: 0; display: flex; align-items: center; gap: 10px;
+  }
+  .mark { width: 24px; height: 24px; flex: none; }
+  .sub { color: var(--cabinet-ink-muted); margin: 4px 0 0 34px; font-size: 14px; }
+  .card {
+    background: var(--cabinet-surface); border: 1px solid var(--cabinet-border-card);
+    border-radius: var(--cabinet-radius); box-shadow: var(--cabinet-shadow-2);
+    padding: 18px 20px; margin-top: 18px;
+  }
+  .empty { color: var(--cabinet-ink-muted); font-size: 14px; }
+  .empty code { font: 13px var(--cabinet-font-mono); }
+  .scroll { overflow-x: auto; }
+  .picker { margin-top: 18px; font-size: 14px; color: var(--cabinet-ink-muted); }
+  .picker select {
+    font: inherit; color: var(--cabinet-ink); background: var(--cabinet-surface);
+    max-width: 100%; border: 1px solid var(--cabinet-border);
+    border-radius: var(--cabinet-radius); padding: 5px 9px; margin-left: 6px;
+  }
+  .picker select:focus-visible { outline: none; border-color: var(--cabinet-wood-deep); box-shadow: var(--cabinet-focus-ring); }
+  .picker .next { display: block; margin-top: 7px; }
+  .banner {
+    border-left: 3px solid var(--cabinet-warning); padding: 10px 14px; margin-top: 18px;
+    background: var(--cabinet-surface); border-radius: 0 6px 6px 0;
+    font-size: 14px; color: var(--cabinet-ink-muted);
+  }
+  .banner--example { border-left-color: var(--cabinet-wood); }
+  .lead { border-left: 3px solid var(--cabinet-wood); }
+  .tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--cabinet-wood); margin-bottom: 6px;
+  }
+  .lead-who { font-weight: 600; }
+  .lead-verdict { margin: 4px 0 0; color: var(--cabinet-ink-muted); }
+  /* The number the page exists for: yesterday's take, in the serif, big. */
+  .bignum {
+    font-family: var(--cabinet-font-heading); font-size: 36px; letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .bignum-sub { color: var(--cabinet-ink-muted); font-size: 14px; margin-top: 4px; }
+  .look-tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--cabinet-ink-muted); margin-bottom: 8px;
+  }
+  .look-list { margin: 0; padding-left: 18px; }
+  .look-list li { margin-top: 6px; }
+  .look-list li:first-child { margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th {
+    text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--cabinet-ink-muted); font-weight: 600; padding: 0 10px 8px 0;
+    border-bottom: 1px solid var(--cabinet-border);
+  }
+  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--cabinet-border-soft); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .pill {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px;
+    border-radius: 20px; border: 1px solid currentColor; white-space: nowrap;
+  }
+  /* State is the judgement this page exists to make: failed cards and disputes are the
+     rows worth a person's morning, so they share the one loud colour. */
+  .s-failed, .s-disputed { color: var(--cabinet-danger); }
+  .s-paid { color: var(--cabinet-success); }
+  .s-new { color: var(--cabinet-info); }
+  .s-refunded, .s-unclear { color: var(--cabinet-ink-muted); }
+  .amt { font-family: var(--cabinet-font-mono); font-size: 13.5px; white-space: nowrap; }
+  .cust { font-weight: 600; }
+  a.deep-link { color: var(--cabinet-wood); text-decoration-thickness: 1px; }
+  a.deep-link:hover { color: var(--cabinet-wood-deep); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>
+    <!-- A brass coin, drawn inline: maple face inside a brass ring. -->
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" fill="#B08A4F"/>
+      <circle cx="12" cy="12" r="7.2" fill="#E8CDA8"/>
+      <path d="M12 8.2v7.6M9.6 10.1c0-1 1.1-1.7 2.4-1.7s2.4.7 2.4 1.7c0 2.5-4.8 1.3-4.8 3.8 0 1 1.1 1.7 2.4 1.7s2.4-.7 2.4-1.7"
+            stroke="#8A6A3B" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    </svg>
+    Money Morning
+  </h1>
+  <p class="sub">Yesterday's money, in plain words.</p>
+  <div id="root"><div class="card empty">Reading the money folder&hellip;</div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DIR = 'daily-money';
+  var JOB = '.jobs/money-morning.yaml';
+  var EXAMPLE_LABEL = 'Example morning';
+  var root = document.getElementById('root');
+  var job = null;
+
+  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MONTHS = ['January','February','March','April','May','June','July','August',
+                'September','October','November','December'];
+
+  /* State is a closed set of five. Anything else that reaches this page still has to
+     render, so it lands on quiet grey — never on a class that does not exist. */
+  function stateClass(cell) {
+    var k = String(cell).trim().toLowerCase();
+    if (k === 'paid') return 's-paid';
+    if (k === 'failed') return 's-failed';
+    if (k === 'disputed') return 's-disputed';
+    if (k === 'refunded') return 's-refunded';
+    if (k === 'new') return 's-new';
+    return 's-unclear';
+  }
+
+  function render(data, name, files) {
+    var meta = data.meta, html = picker(name, files);
+
+    /* The example ships in the box so the page is never blank on day one. */
+    if (/^EXAMPLE/i.test(name)) {
+      html += '<div class="banner banner--example">These numbers are made up. This example ' +
+              'shows the shape of a morning; your first real one takes its place.</div>';
+    }
+
+    /* The routine could not reach Stripe. It said so rather than writing nothing. */
+    if (meta.status && meta.status !== 'ok') {
+      html += '<div class="banner">Last run could not reach Stripe: ' + esc(meta.status) +
+              '. Showing the previous morning.</div>';
+    }
+
+    /* Yesterday's take leads the page; the refund line only appears when money went back. */
+    if (meta['in']) {
+      var outLine = meta.out && !/^\D?0([.,]0+)?\s*\D*$/.test(meta.out.replace(/[^\d.,]/g, '0'))
+        ? ' &middot; ' + esc(meta.out) + ' went back out' : '';
+      var subBits = meta.headline ? esc(meta.headline) : 'came in yesterday';
+      html += '<div class="card"><span class="tag">Yesterday</span>' +
+              '<div class="bignum">' + esc(meta['in']) + '</div>' +
+              '<div class="bignum-sub">' + subBits + outLine + '</div></div>';
+    } else if (meta.headline) {
+      html += '<div class="card"><span class="tag">Yesterday</span>' + esc(meta.headline) + '</div>';
+    }
+
+    /* The one money event worth acting on today — absent most days on purpose. */
+    if (meta.lead && meta.verdict) {
+      html += '<div class="card lead"><span class="tag">Lead</span>' +
+              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
+              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
+    }
+
+    var look = data.sections['worth a look'] || [];
+    if (look.length) {
+      html += '<div class="card"><span class="look-tag">Worth a look</span><ul class="look-list">' +
+              look.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') +
+              '</ul></div>';
+    }
+
+    if (!data.rows.length) {
+      html += '<div class="card empty">No events worth a row for this day.</div>';
+      root.innerHTML = html;
+      bind(files);
+      return;
+    }
+
+    var urlCol = data.cols.findIndex(function (c) { return /^url$/i.test(c); });
+
+    var t = '<div class="card scroll"><table><thead><tr>';
+    data.cols.forEach(function (c, i) {
+      if (i === urlCol) return;  /* url never gets a column — it only makes What link */
+      t += '<th>' + esc(c) + '</th>';
+    });
+    t += '</tr></thead><tbody>';
+    data.rows.forEach(function (r) {
+      var url = urlCol > -1 ? String(r[urlCol] || '').trim() : '';
+      t += '<tr>';
+      r.forEach(function (cell, i) {
+        if (i === urlCol) return;
+        var head = (data.cols[i] || '').toLowerCase();
+        if (head === 'state') {
+          t += '<td><span class="pill ' + stateClass(cell) + '">' + esc(cell) + '</span></td>';
+        } else if (head === 'amount') {
+          t += '<td class="amt">' + esc(cell) + '</td>';
+        } else if (head === 'customer') {
+          t += '<td class="cust">' + esc(cell) + '</td>';
+        } else if (head === 'what' && /^https:\/\//.test(url)) {
+          t += '<td><a class="deep-link" href="' + esc(url) +
+               '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a></td>';
+        } else {
+          t += '<td>' + esc(cell) + '</td>';
+        }
+      });
+      t += '</tr>';
+    });
+    t += '</tbody></table></div>';
+
+    root.innerHTML = html + t;
+    bind(files);
+  }
+
+  /* ================= shared Cabinet Kit plumbing (digest apps) =================
+     Identical across the flagship digest apps; the render() above is what differs. */
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* YAML frontmatter, any number of "## Heading" bullet sections, one markdown table.
+     Anything richer in the file is ignored rather than crashed on. */
+  function parse(text) {
+    var meta = {}, sections = {}, cols = [], rows = [], current = null, rawHeadings = [];
+    var lines = text.split(/\r?\n/), i = 0;
+
+    if (lines[0] === '---') {
+      for (i = 1; i < lines.length; i++) {
+        if (lines[i] === '---') { i++; break; }
+        var kv = lines[i].match(/^(\w+):\s*(.*)$/);
+        if (kv) meta[kv[1]] = kv[2].replace(/^["']|["']$/g, '').trim();
+      }
+    }
+    for (; i < lines.length; i++) {
+      var L = lines[i];
+      var h = L.match(/^##\s+(.*)$/);
+      if (h) {
+        rawHeadings.push(h[1].trim());  /* the heading as written, for display */
+        current = h[1].trim().toLowerCase();
+        sections[current] = sections[current] || [];
+        continue;
+      }
+      if (current) {
+        var b = L.match(/^\s*[-*]\s+(.*)$/);
+        if (b) { sections[current].push(b[1]); continue; }
+      }
+      if (/^\s*\|/.test(L)) {
+        var cells = L.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|')
+          .map(function (c) { return c.trim(); });
+        if (/^[:\-\s|]+$/.test(cells.join('|'))) continue;  /* the |---| separator row */
+        if (!cols.length) cols = cells; else rows.push(cells);
+      }
+    }
+    return { meta: meta, sections: sections, cols: cols, rows: rows, rawHeadings: rawHeadings };
+  }
+
+  /* ---- the folder of runs ----------------------------------------------------------
+     <YYYY-MM-DD>T<HH-MM-SS>-<postfix>.md — the name carries the date, so the picker is
+     built from names alone. The EXAMPLE file is the one without one. */
+  function stamp(name) {
+    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
+  }
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  function label(name) {
+    var d = stamp(name);
+    if (!d) return EXAMPLE_LABEL;
+    var now = new Date(), yday = new Date(now.getTime() - 86400000);
+    if (sameDay(d, now)) return 'Today';
+    if (sameDay(d, yday)) return 'Yesterday';
+    return human(d);
+  }
+
+  function picker(current, files) {
+    var html = '';
+    if (files.length) {
+      var opts = files.map(function (f) {
+        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
+               esc(label(f)) + '</option>';
+      }).join('');
+      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+    }
+    var next = nextRunText();
+    if (next) html += '<span class="next">' + esc(next) + '</span>';
+    return html ? '<div class="picker">' + html + '</div>' : '';
+  }
+
+  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
+  function bind(files) {
+    var sel = document.getElementById('pick');
+    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
+  }
+
+  function show(name, files) {
+    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (text) { render(parse(text), name, files); })
+      .catch(function (err) {
+        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
+          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
+          'in a moment.</div>';
+        bind(files);
+      });
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only — never a nested one.
+     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
+     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
+
+  /* An empty folder is the normal state before the first run — not an error to shout about.
+     `fresh=1` busts the tree cache so a file written minutes ago is already listed. */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0];
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
+      if (!files.length) {
+        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
+          'fills in after the routine runs for the first time.</div>';
+        return;
+      }
+      /* Newest first; the example, having no date, sits at the bottom of the list. */
+      files.sort(function (a, b) {
+        var da = stamp(a), db = stamp(b);
+        if (da && db) return db - da;
+        return da ? -1 : db ? 1 : 0;
+      });
+      var now = new Date();
+      var today = files.filter(function (f) {
+        var d = stamp(f);
+        return d && sameDay(d, now);
+      })[0];
+      show(today || files[0], files);
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>

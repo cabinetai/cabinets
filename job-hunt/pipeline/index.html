@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<!--
+  job-hunt flagship page, in the Cabinet Kit "wooden" theme
+  (source of truth: kit/themes/wooden/ at the registry root — tokens inlined here
+  because an installed cabinet is one copied directory and links nothing outside itself).
+
+  A board, not a digest: reads every file in ../applications/ — one .md per
+  application, hand-edited and clerk-annotated — and draws the whole hunt at once,
+  grouped by state. No date picker; the folder is always the current truth.
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any
+  depth and survive the user renaming the cabinet at install time. The folder listing
+  comes from /api/tree because the assets route cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Job Hunt Pipeline</title>
+<style>
+  /* ---- Cabinet Kit · wooden ------------------------------------------------------- */
+  :root {
+    --cabinet-bg: #FAF6F1; --cabinet-surface: #FFFFFF; --cabinet-surface-muted: #FAF0E9;
+    --cabinet-ink: #221716; --cabinet-ink-muted: #99887F;
+    --cabinet-wood: #834A2B; --cabinet-wood-deep: #5C2603;
+    --cabinet-border: #E1D6CE; --cabinet-border-soft: rgba(225,214,206,.45);
+    --cabinet-border-card: rgba(225,214,206,.75);
+    --cabinet-danger: #D40924; --cabinet-success: #14823E; --cabinet-warning: #9A6722;
+    --cabinet-info: #0F74C4;
+    --cabinet-radius: 10px;
+    --cabinet-shadow-2: 0 2px 4px -1px rgb(0 0 0 / .07), 0 1px 2px rgb(0 0 0 / .05);
+    --cabinet-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --cabinet-font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --cabinet-font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    --cabinet-focus-ring: 0 0 0 3px rgba(92,38,3,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--cabinet-bg); color: var(--cabinet-ink);
+    font: 15px/1.55 var(--cabinet-font-sans);
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-family: var(--cabinet-font-heading); letter-spacing: -0.02em;
+    font-size: 24px; margin: 0; display: flex; align-items: center; gap: 10px;
+  }
+  .mark { width: 24px; height: 24px; flex: none; }
+  .sub { color: var(--cabinet-ink-muted); margin: 4px 0 0 34px; font-size: 14px; }
+  .card {
+    background: var(--cabinet-surface); border: 1px solid var(--cabinet-border-card);
+    border-radius: var(--cabinet-radius); box-shadow: var(--cabinet-shadow-2);
+    padding: 18px 20px; margin-top: 18px;
+  }
+  .empty { color: var(--cabinet-ink-muted); font-size: 14px; }
+  .empty code { font: 13px var(--cabinet-font-mono); }
+  .banner {
+    border-left: 3px solid var(--cabinet-warning); padding: 10px 14px; margin-top: 18px;
+    background: var(--cabinet-surface); border-radius: 0 6px 6px 0;
+    font-size: 14px; color: var(--cabinet-ink-muted);
+  }
+  .banner--example { border-left-color: var(--cabinet-wood); }
+  .tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--cabinet-wood); margin-bottom: 6px;
+  }
+  /* The hunt at a glance: live count in the serif, breakdown beneath. */
+  .bignum {
+    font-family: var(--cabinet-font-heading); font-size: 36px; letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .bignum-sub { color: var(--cabinet-ink-muted); font-size: 14px; margin-top: 4px; }
+  /* The week's score: applications sent against the goal in setup.md. */
+  .meter {
+    height: 8px; border-radius: 999px; background: var(--cabinet-surface-muted);
+    border: 1px solid var(--cabinet-border-soft); margin-top: 12px; overflow: hidden;
+  }
+  .meter-fill { height: 100%; border-radius: 999px; background: var(--cabinet-wood); }
+  .meter-fill--met { background: var(--cabinet-success); }
+  .streak { font-size: 13px; font-weight: 600; color: var(--cabinet-wood); margin-top: 8px; }
+  .goal-met { color: var(--cabinet-success); }
+  /* State sections: a serif heading over a card of rows, in the order that matters. */
+  .state-head {
+    font-family: var(--cabinet-font-heading); font-size: 18px; letter-spacing: -0.01em;
+    margin: 26px 0 0; display: flex; align-items: baseline; gap: 8px;
+  }
+  .state-count { font: 600 12px var(--cabinet-font-sans); color: var(--cabinet-ink-muted); }
+  .state-card { margin-top: 10px; padding: 6px 20px; }
+  .app-row { padding: 13px 0; border-bottom: 1px solid var(--cabinet-border-soft); }
+  .app-row:last-child { border-bottom: 0; }
+  .app-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .co { font-weight: 600; }
+  .co a { color: var(--cabinet-wood); text-decoration-thickness: 1px; }
+  .co a:hover { color: var(--cabinet-wood-deep); }
+  .role { color: var(--cabinet-ink-muted); }
+  .quiet {
+    margin-left: auto; font-size: 12px; font-weight: 600; white-space: nowrap;
+    color: var(--cabinet-ink-muted);
+  }
+  /* A week of silence is the thing this page exists to catch. */
+  .quiet--stale { color: var(--cabinet-warning); }
+  .next { margin-top: 3px; font-size: 13.5px; color: var(--cabinet-ink-muted); }
+  .next b { color: var(--cabinet-ink); font-weight: 600; }
+  .foot { margin-top: 18px; font-size: 13px; color: var(--cabinet-ink-muted); }
+  /* Rejected files quietly at the bottom, present but not loud. */
+  .state--rejected .state-head { color: var(--cabinet-ink-muted); }
+  .state--rejected .co, .state--rejected .role { color: var(--cabinet-ink-muted); font-weight: 400; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>
+    <!-- A wooden briefcase: maple body, brass clasp. -->
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="2.5" y="7" width="19" height="13" rx="2.5" fill="#E8CDA8"/>
+      <path d="M2.5 11.5h19v1.2h-19z" fill="#B08A4F"/>
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7h-1.8V5.8h-2.4V7Z" fill="#D9B98C"/>
+      <rect x="10.4" y="10.6" width="3.2" height="3" rx="0.8" fill="#B05926"/>
+    </svg>
+    Job Hunt
+  </h1>
+  <p class="sub">The whole hunt on one page.</p>
+  <div id="root"><div class="card empty">Reading the applications folder&hellip;</div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DIRS = ['applications'];
+  var JOB = '.jobs/morning-pipeline-check.yaml';
+  var root = document.getElementById('root');
+  var job = null;
+
+  /* The pipeline's order is the order of hope: closest to a yes at the top. */
+  var STATES = ['Offer', 'Interview', 'Applied', 'Saved', 'Rejected'];
+
+  function stateOf(item) {
+    var s = String(item.meta.state || '').trim().toLowerCase();
+    for (var i = 0; i < STATES.length; i++) {
+      if (STATES[i].toLowerCase() === s) return STATES[i];
+    }
+    return null;  /* an unknown state files under a catch-all rather than vanishing */
+  }
+
+  /* The weekly goal lives as `goal:` in setup.md's frontmatter — fetched once, and the
+     page renders without it if the file is missing or the line was deleted. */
+  var setupReady = fetch('../setup.md', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.text() : ''; })
+    .catch(function () { return ''; });
+
+  function weeklyGoal(text) {
+    var m = String(text).match(/^goal:\s*(\d+)\s*$/m);
+    return m ? +m[1] : null;
+  }
+
+  /* Monday-started week index of a date — the unit the streak counts in. */
+  function weekIndex(d) {
+    var monday = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    return Math.floor(monday.getTime() / 604800000);
+  }
+
+  function render(items, failed) {
+    setupReady.then(function (setupText) {
+      draw(items, failed, weeklyGoal(setupText));
+    });
+  }
+
+  /* The score of the week: how many applications went out, and the streak of weeks
+     with at least one. The hunt is a numbers game; the page keeps the score kindly. */
+  function weekCard(items, goal) {
+    var real = items.filter(function (it) { return !/^EXAMPLE/i.test(it.name); });
+    var weeks = {};
+    real.forEach(function (it) {
+      var d = parseDate(it.meta.applied);
+      if (d) weeks[weekIndex(d)] = (weeks[weekIndex(d)] || 0) + 1;
+    });
+    var thisWeek = weekIndex(new Date());
+    var sent = weeks[thisWeek] || 0;
+    var streak = 0, w = weeks[thisWeek] ? thisWeek : thisWeek - 1;
+    while (weeks[w]) { streak++; w--; }
+
+    var met = goal !== null && sent >= goal;
+    var head = goal !== null ? sent + ' of ' + goal + ' applied' : sent + ' applied';
+    var html = '<div class="card"><span class="tag">This week</span>' +
+               '<div class="bignum' + (met ? ' goal-met' : '') + '">' + head + '</div>';
+    if (goal !== null && goal > 0) {
+      var pct = Math.min(100, Math.round(sent / goal * 100));
+      html += '<div class="meter" role="img" aria-label="' + pct + '% of weekly goal">' +
+              '<div class="meter-fill' + (met ? ' meter-fill--met' : '') +
+              '" style="width:' + pct + '%"></div></div>';
+    }
+    if (met) html += '<div class="bignum-sub goal-met">Goal met — keep the streak fed.</div>';
+    if (streak > 1) html += '<div class="streak">' + streak + ' weeks in a row with an application out.</div>';
+    return html + '</div>';
+  }
+
+  function draw(items, failed, goal) {
+    var html = '';
+
+    if (items.some(function (it) { return /^EXAMPLE/i.test(it.name); })) {
+      html += '<div class="banner banner--example">The Riverline application is a made-up ' +
+              'example. Copy it, rename it, replace everything — or tell the clerk about a ' +
+              'real application — then delete the example file.</div>';
+    }
+    if (failed) {
+      html += '<div class="banner">' + failed + ' file' + (failed > 1 ? 's' : '') +
+              ' could not be read and ' + (failed > 1 ? 'are' : 'is') +
+              ' not shown. A reload usually clears it.</div>';
+    }
+
+    if (!items.length) {
+      html += '<div class="card empty">No applications yet. Copy the example in ' +
+              '<code>applications/</code>, or tell the clerk about one — &ldquo;I applied ' +
+              'to Acme for the designer role&rdquo; is enough.</div>';
+      root.innerHTML = html + foot();
+      return;
+    }
+
+    /* The number that matters: applications still in play. */
+    var byState = {}, unknown = [];
+    items.forEach(function (it) {
+      var s = stateOf(it);
+      if (s) (byState[s] = byState[s] || []).push(it);
+      else unknown.push(it);
+    });
+    var live = ['Offer', 'Interview', 'Applied', 'Saved'].reduce(function (n, s) {
+      return n + (byState[s] || []).length;
+    }, 0);
+    var bits = [];
+    STATES.forEach(function (s) {
+      if ((byState[s] || []).length) bits.push(byState[s].length + ' ' + s.toLowerCase());
+    });
+    html += '<div class="card"><span class="tag">In play</span>' +
+            '<div class="bignum">' + live + ' application' + (live === 1 ? '' : 's') + '</div>' +
+            '<div class="bignum-sub">' + esc(bits.join(' · ') || 'nothing yet') + '</div></div>';
+
+    html += weekCard(items, goal);
+
+    STATES.forEach(function (s) {
+      var group = byState[s] || [];
+      if (s === 'Unknown') return;
+      if (!group.length) return;
+      html += section(s, group);
+    });
+    if (unknown.length) html += section('Unsorted', unknown);
+
+    root.innerHTML = html + foot();
+  }
+
+  function section(state, group) {
+    /* Most recently touched first inside a section — the hunt's working end up top. */
+    group.sort(function (a, b) {
+      var da = parseDate(a.meta.last) || parseDate(a.meta.applied) || 0;
+      var db = parseDate(b.meta.last) || parseDate(b.meta.applied) || 0;
+      return db - da;
+    });
+    var h = '<div class="state state--' + state.toLowerCase() + '">' +
+            '<h2 class="state-head">' + esc(state) +
+            ' <span class="state-count">' + group.length + '</span></h2>' +
+            '<div class="card state-card">';
+    group.forEach(function (it) {
+      var m = it.meta;
+      var name = esc(m.company || it.name.replace(/\.md$/i, ''));
+      var co = /^https?:\/\//.test(m.url || '')
+        ? '<a href="' + esc(m.url) + '" target="_blank" rel="noopener noreferrer">' + name + '</a>'
+        : name;
+      var quiet = '';
+      var lastD = parseDate(m.last);
+      if (lastD) {
+        var days = -daysUntil(lastD);
+        if (days > 0 && (state === 'Applied' || state === 'Interview' || state === 'Offer')) {
+          var stale = state === 'Applied' && days >= 7;
+          quiet = '<span class="quiet' + (stale ? ' quiet--stale' : '') + '">' +
+                  (stale ? 'quiet for ' + days + ' days' : days + 'd ago') + '</span>';
+        }
+      }
+      h += '<div class="app-row"><div class="app-top">' +
+           '<span class="co">' + co + '</span>' +
+           (m.role ? '<span class="role">' + esc(m.role) + '</span>' : '') +
+           quiet + '</div>' +
+           (m.next ? '<div class="next"><b>Next:</b> ' + esc(m.next) + '</div>' : '') +
+           '</div>';
+    });
+    return h + '</div></div>';
+  }
+
+  function foot() {
+    var next = nextRunText();
+    return next ? '<div class="foot">' + esc(next) + '</div>' : '';
+  }
+
+  /* ================= shared Cabinet Kit plumbing (board apps) =================
+     Identical across the flagship board apps; the render() above is what differs.
+     A board app reads a folder (or folders) of item files — one .md per thing —
+     and draws them all at once, so there is no date picker and no "runs". */
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* YAML frontmatter + the raw markdown body after it. Items are hand-edited files,
+     so unknown keys and rich bodies are normal — never crash on them. */
+  function parseDoc(text) {
+    var meta = {}, i = 0, lines = text.split(/\r?\n/);
+    if (lines[0] === '---') {
+      for (i = 1; i < lines.length; i++) {
+        if (lines[i] === '---') { i++; break; }
+        var kv = lines[i].match(/^(\w+):\s*(.*)$/);
+        if (kv) meta[kv[1]] = kv[2].replace(/^["']|["']$/g, '').trim();
+      }
+    }
+    return { meta: meta, body: lines.slice(i).join('\n').trim() };
+  }
+
+  /* First real paragraph of a body — the one-line summary an item shows on the board. */
+  function firstLine(body) {
+    var lines = body.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var L = lines[i].trim();
+      if (L && !/^#/.test(L) && !/^[-*]\s/.test(L) && !/^\|/.test(L)) return L;
+    }
+    return '';
+  }
+
+  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MONTHS = ['January','February','March','April','May','June','July','August',
+                'September','October','November','December'];
+
+  /* A YYYY-MM-DD in a frontmatter field -> Date, or null for anything else. */
+  function parseDate(s) {
+    var m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  /* Days from today to d: negative is past, 0 is today. */
+  function daysUntil(d) {
+    var now = new Date();
+    var a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((d - a) / 86400000);
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only — never a nested one.
+     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
+     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
+
+  /* Empty folders are day one, not an error. `fresh=1` busts the tree cache so a file
+     written minutes ago is already listed. README files are furniture, not items. */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0], base = cabinetDir();
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+
+      var wanted = [];
+      DIRS.forEach(function (dir) {
+        listFiles(tree, base + '/' + dir, []).forEach(function (name) {
+          if (/^README\.md$/i.test(name)) return;
+          wanted.push({ dir: dir, name: name });
+        });
+      });
+
+      /* Fetch every item; one unreadable file dims to a count, it never blanks the page. */
+      var failed = 0;
+      Promise.all(wanted.map(function (w) {
+        return fetch('../' + w.dir + '/' + encodeURIComponent(w.name), { cache: 'no-store' })
+          .then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+          })
+          .then(function (text) {
+            var doc = parseDoc(text);
+            return { dir: w.dir, name: w.name, meta: doc.meta, body: doc.body };
+          })
+          .catch(function () { failed++; return null; });
+      }))
+        .then(function (items) {
+          render(items.filter(Boolean), failed);
+        });
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not read this cabinet’s folders (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>
