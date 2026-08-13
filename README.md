@@ -374,13 +374,13 @@ A cabinet maps the three pillars of a human organization onto plain files:
 ## Install a Cabinet
 
 ```bash
-npx cabinets add hilash/cabinets/text-your-mom
+npx cabinets add cabinetai/cabinets/text-your-mom
 ```
 
 Or with git directly:
 
 ```bash
-git clone --filter=blob:none --sparse https://github.com/hilash/cabinets.git && cd cabinets && git sparse-checkout set text-your-mom
+git clone --filter=blob:none --sparse https://github.com/cabinetai/cabinets.git && cd cabinets && git sparse-checkout set text-your-mom
 ```
 
 ## Community
