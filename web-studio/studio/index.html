@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<!--
+  web-studio flagship page, in the Cabinet Kit "wooden" theme
+  (source of truth: kit/themes/wooden/ at the registry root — tokens inlined here
+  because an installed cabinet is one copied directory and links nothing outside itself).
+
+  A shelf, not a digest: walks ../sites/ for <name>/index.html — one folder per built
+  site — and draws one card each, with the newest Monday review's verdict merged in
+  when there is one. Relative URLs on purpose — they resolve under
+  /api/assets/<cabinet>/<app>/ at any depth and survive the user renaming the cabinet
+  at install time. The folder listing comes from /api/tree because the assets route
+  cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Web Studio</title>
+<style>
+  /* ---- Cabinet Kit · wooden ------------------------------------------------------- */
+  :root {
+    --cabinet-bg: #FAF6F1; --cabinet-surface: #FFFFFF; --cabinet-surface-muted: #FAF0E9;
+    --cabinet-ink: #221716; --cabinet-ink-muted: #99887F;
+    --cabinet-wood: #834A2B; --cabinet-wood-deep: #5C2603;
+    --cabinet-border: #E1D6CE; --cabinet-border-soft: rgba(225,214,206,.45);
+    --cabinet-border-card: rgba(225,214,206,.75);
+    --cabinet-danger: #D40924; --cabinet-success: #14823E; --cabinet-warning: #9A6722;
+    --cabinet-radius: 10px;
+    --cabinet-shadow-2: 0 2px 4px -1px rgb(0 0 0 / .07), 0 1px 2px rgb(0 0 0 / .05);
+    --cabinet-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --cabinet-font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --cabinet-font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    --cabinet-focus-ring: 0 0 0 3px rgba(92,38,3,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--cabinet-bg); color: var(--cabinet-ink);
+    font: 15px/1.55 var(--cabinet-font-sans);
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-family: var(--cabinet-font-heading); letter-spacing: -0.02em;
+    font-size: 24px; margin: 0; display: flex; align-items: center; gap: 10px;
+  }
+  .mark { width: 24px; height: 24px; flex: none; }
+  .sub { color: var(--cabinet-ink-muted); margin: 4px 0 0 34px; font-size: 14px; }
+  .card {
+    background: var(--cabinet-surface); border: 1px solid var(--cabinet-border-card);
+    border-radius: var(--cabinet-radius); box-shadow: var(--cabinet-shadow-2);
+    padding: 18px 20px; margin-top: 18px;
+  }
+  .empty { color: var(--cabinet-ink-muted); font-size: 14px; }
+  .empty code { font: 13px var(--cabinet-font-mono); }
+  .banner {
+    border-left: 3px solid var(--cabinet-warning); padding: 10px 14px; margin-top: 18px;
+    background: var(--cabinet-surface); border-radius: 0 6px 6px 0;
+    font-size: 14px; color: var(--cabinet-ink-muted);
+  }
+  .banner--example { border-left-color: var(--cabinet-wood); }
+  /* The shelf: one card per site, side by side where the screen allows. */
+  .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 18px; }
+  .site {
+    background: var(--cabinet-surface); border: 1px solid var(--cabinet-border-card);
+    border-radius: var(--cabinet-radius); box-shadow: var(--cabinet-shadow-2);
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .site-name {
+    font-family: var(--cabinet-font-heading); font-size: 18px; letter-spacing: -0.01em;
+    line-height: 1.25; overflow-wrap: anywhere;
+  }
+  .verdict { font-size: 12px; font-weight: 600; }
+  .verdict--ok { color: var(--cabinet-success); }
+  .verdict--look { color: var(--cabinet-warning); }
+  .verdict-note { font-size: 13px; color: var(--cabinet-ink-muted); }
+  .open {
+    margin-top: auto; align-self: flex-start;
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 12px; border-radius: var(--cabinet-radius);
+    background: var(--cabinet-wood); color: #fff; text-decoration: none;
+    font-size: 13.5px; font-weight: 500; transition: opacity .15s ease;
+  }
+  .open:hover { opacity: .85; }
+  .open:active { transform: translateY(1px); }
+  .open:focus-visible { outline: none; box-shadow: var(--cabinet-focus-ring); }
+  .hint { margin-top: 18px; font-size: 14px; color: var(--cabinet-ink-muted); }
+  .foot { margin-top: 18px; font-size: 13px; color: var(--cabinet-ink-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>
+    <!-- A wooden mallet and a brass nail: the studio at work. -->
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="3.5" width="12" height="6.5" rx="1.6" fill="#D9B98C"/>
+      <rect x="9" y="10" width="2.4" height="10.5" rx="1.2" fill="#E8CDA8"/>
+      <rect x="17.6" y="8" width="1.8" height="9" rx="0.9" fill="#B08A4F"/>
+      <rect x="16.4" y="6.8" width="4.2" height="1.8" rx="0.9" fill="#B08A4F"/>
+    </svg>
+    Web Studio
+  </h1>
+  <p class="sub">Every site on one shelf.</p>
+  <div id="root"><div class="card empty">Walking the sites folder&hellip;</div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SITES = 'sites';
+  var REVIEWS = 'reviews';
+  var JOB = '.jobs/monday-studio-review.yaml';
+  var root = document.getElementById('root');
+  var job = null;
+
+  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MONTHS = ['January','February','March','April','May','June','July','August',
+                'September','October','November','December'];
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* "EXAMPLE-lemonade-stand" -> "Lemonade Stand" — folder names are kebab on purpose. */
+  function pretty(folder) {
+    return folder.replace(/^EXAMPLE-/i, '').split('-').map(function (w) {
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(' ');
+  }
+
+  /* The newest review's verdict table -> { folderName: {verdict, note} }. */
+  function parseReview(text) {
+    var out = {}, cols = [];
+    text.split(/\r?\n/).forEach(function (L) {
+      if (!/^\s*\|/.test(L)) return;
+      var cells = L.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|')
+        .map(function (c) { return c.trim(); });
+      if (/^[:\-\s|]+$/.test(cells.join('|'))) return;
+      if (!cols.length) { cols = cells.map(function (c) { return c.toLowerCase(); }); return; }
+      var row = {};
+      cols.forEach(function (c, i) { row[c] = cells[i] || ''; });
+      if (row.site) out[row.site] = { verdict: row.verdict || '', note: row.note || '' };
+    });
+    return out;
+  }
+
+  function render(folders, review, reviewStamp) {
+    var html = '';
+
+    if (folders.some(function (f) { return /^EXAMPLE/i.test(f); })) {
+      html += '<div class="banner banner--example">The lemonade stand is the built-in ' +
+              'example — open it to see what a finished site feels like. Describe your own ' +
+              'to the developer and it lands on this shelf beside it.</div>';
+    }
+
+    if (!folders.length) {
+      html += '<div class="card empty">The shelf is empty. Tell the developer what you ' +
+              'want — &ldquo;a page for my sister&rsquo;s pottery classes, warm and ' +
+              'simple&rdquo; is a complete brief.</div>';
+      root.innerHTML = html + foot();
+      return;
+    }
+
+    html += '<div class="shelf">';
+    folders.forEach(function (f) {
+      var r = review[f];
+      var ok = r && /^healthy$/i.test(r.verdict);
+      var look = r && /^needs a look$/i.test(r.verdict);
+      html += '<div class="site"><div class="site-name">' + esc(pretty(f)) + '</div>';
+      if (ok) html += '<div class="verdict verdict--ok">&#10003; Healthy</div>';
+      if (look) {
+        html += '<div class="verdict verdict--look">Needs a look</div>' +
+                (r.note ? '<div class="verdict-note">' + esc(r.note) + '</div>' : '');
+      }
+      html += '<a class="open" href="../' + SITES + '/' + encodeURIComponent(f) +
+              '/index.html" target="_blank" rel="noopener">Open &rarr;</a></div>';
+    });
+    html += '</div>';
+
+    if (reviewStamp) {
+      html += '<div class="hint">Verdicts from the review of ' + esc(reviewStamp) +
+              '. The next one runs Monday morning.</div>';
+    } else if (Object.keys(review).length) {
+      html += '<div class="hint">Verdicts are from the built-in example review — the ' +
+              'first real one runs Monday morning and takes over these cards.</div>';
+    } else {
+      html += '<div class="hint">No review yet — the first one runs Monday at 09:00 and ' +
+              'its verdicts will appear on these cards.</div>';
+    }
+
+    root.innerHTML = html + foot();
+  }
+
+  function foot() {
+    var next = nextRunText();
+    return next ? '<div class="foot">' + esc(next) + '</div>' : '';
+  }
+
+  /* ---- when the routine next runs (same shape as every kit app) --------------------- */
+
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next review: ' + DAYS[d.getDay()] + ', ' + d.getDate() + ' ' +
+           MONTHS[d.getMonth()] + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* sites/<folder>/index.html, exactly one level deep -> the folder names.
+     The tree strips `.md` from paths but leaves `.html` alone, so the folder is read
+     from the path and the file is recognized by its (always intact) name. */
+  function listSiteFolders(nodes, base, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      var rel = n.path.indexOf(base + '/') === 0
+        ? n.path.slice(base.length + 1).split('/') : null;
+      if (rel && rel.length === 2 && /^index\.html$/i.test(n.name || '')) out.push(rel[0]);
+      if (n.children) listSiteFolders(n.children, base, out);
+    });
+    return out;
+  }
+
+  /* Newest review file in reviews/, by the date in the name; EXAMPLE- has none and loses. */
+  function newestReview(nodes, base) {
+    var names = [];
+    (function walk(ns) {
+      (ns || []).forEach(function (n) {
+        if (!n || !n.path) return;
+        if (n.path.indexOf(base + '/') === 0 &&
+            n.path.indexOf('/', base.length + 1) === -1 &&
+            /\.md$/i.test(n.name || '')) names.push(n.name);
+        if (n.children) walk(n.children);
+      });
+    })(nodes);
+    names.sort().reverse();
+    var dated = names.filter(function (x) { return /^\d{4}-/.test(x); });
+    return dated[0] || names[0] || null;
+  }
+
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0], base = cabinetDir();
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+
+      var folders = [];
+      listSiteFolders(tree, base + '/' + SITES, folders);
+      folders = folders.filter(function (f, i) { return folders.indexOf(f) === i; }).sort();
+
+      var reviewName = newestReview(tree, base + '/' + REVIEWS);
+      if (!reviewName) { render(folders, {}, null); return; }
+      fetch('../' + REVIEWS + '/' + encodeURIComponent(reviewName), { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.text() : ''; })
+        .catch(function () { return ''; })
+        .then(function (text) {
+          var stampM = reviewName.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          var stamp = stampM
+            ? stampM[3].replace(/^0/, '') + ' ' + MONTHS[+stampM[2] - 1] + ' ' + stampM[1]
+            : null;
+          render(folders, text ? parseReview(text) : {}, stamp);
+        });
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not walk <code>sites/</code> (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>

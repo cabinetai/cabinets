@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<!--
+  family-hq flagship page, in the Cabinet Kit "wooden" theme
+  (source of truth: kit/themes/wooden/ at the registry root — tokens inlined here
+  because an installed cabinet is one copied directory and links nothing outside itself).
+
+  A board, not a digest: reads every file in ../dates/ — one small .md per date that
+  matters, written by the Sunday routine or by hand — and draws what's coming, in
+  order. The papers themselves stay in ../papers/ untouched; each row points back at
+  its source. Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/
+  at any depth and survive the user renaming the cabinet at install time. The folder
+  listing comes from /api/tree because the assets route cannot list a directory.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Family Board</title>
+<style>
+  /* ---- Cabinet Kit · wooden ------------------------------------------------------- */
+  :root {
+    --cabinet-bg: #FAF6F1; --cabinet-surface: #FFFFFF; --cabinet-surface-muted: #FAF0E9;
+    --cabinet-ink: #221716; --cabinet-ink-muted: #99887F;
+    --cabinet-wood: #834A2B; --cabinet-wood-deep: #5C2603;
+    --cabinet-border: #E1D6CE; --cabinet-border-soft: rgba(225,214,206,.45);
+    --cabinet-border-card: rgba(225,214,206,.75);
+    --cabinet-danger: #D40924; --cabinet-success: #14823E; --cabinet-warning: #9A6722;
+    --cabinet-radius: 10px;
+    --cabinet-shadow-2: 0 2px 4px -1px rgb(0 0 0 / .07), 0 1px 2px rgb(0 0 0 / .05);
+    --cabinet-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --cabinet-font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --cabinet-font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    --cabinet-focus-ring: 0 0 0 3px rgba(92,38,3,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--cabinet-bg); color: var(--cabinet-ink);
+    font: 15px/1.55 var(--cabinet-font-sans);
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-family: var(--cabinet-font-heading); letter-spacing: -0.02em;
+    font-size: 24px; margin: 0; display: flex; align-items: center; gap: 10px;
+  }
+  .mark { width: 24px; height: 24px; flex: none; }
+  .sub { color: var(--cabinet-ink-muted); margin: 4px 0 0 34px; font-size: 14px; }
+  .card {
+    background: var(--cabinet-surface); border: 1px solid var(--cabinet-border-card);
+    border-radius: var(--cabinet-radius); box-shadow: var(--cabinet-shadow-2);
+    padding: 18px 20px; margin-top: 18px;
+  }
+  .empty { color: var(--cabinet-ink-muted); font-size: 14px; }
+  .empty code { font: 13px var(--cabinet-font-mono); }
+  .banner {
+    border-left: 3px solid var(--cabinet-warning); padding: 10px 14px; margin-top: 18px;
+    background: var(--cabinet-surface); border-radius: 0 6px 6px 0;
+    font-size: 14px; color: var(--cabinet-ink-muted);
+  }
+  .banner--example { border-left-color: var(--cabinet-wood); }
+  .tag {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--cabinet-wood); margin-bottom: 6px;
+  }
+  /* The next thing coming is the board's headline. */
+  .next-what {
+    font-family: var(--cabinet-font-heading); font-size: 26px; letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .next-when { color: var(--cabinet-ink-muted); font-size: 14px; margin-top: 4px; }
+  .group-head {
+    font-family: var(--cabinet-font-heading); font-size: 18px; letter-spacing: -0.01em;
+    margin: 26px 0 0; display: flex; align-items: baseline; gap: 8px;
+  }
+  .group-head--late { color: var(--cabinet-danger); }
+  .group-count { font: 600 12px var(--cabinet-font-sans); color: var(--cabinet-ink-muted); }
+  .group-card { margin-top: 10px; padding: 6px 20px; }
+  .row { padding: 13px 0; border-bottom: 1px solid var(--cabinet-border-soft); }
+  .row:last-child { border-bottom: 0; }
+  .row-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .what { font-weight: 600; }
+  .who {
+    font-size: 12px; font-weight: 500; padding: 0 7px; border-radius: 999px;
+    background: rgba(131, 74, 43, 0.10); color: var(--cabinet-wood);
+    border: 1px solid rgba(131, 74, 43, 0.20);
+  }
+  .in { margin-left: auto; font-size: 12.5px; font-weight: 600; white-space: nowrap; color: var(--cabinet-ink-muted); }
+  .in--late { color: var(--cabinet-danger); }
+  .in--soon { color: var(--cabinet-warning); }
+  .detail { margin-top: 3px; font-size: 13.5px; color: var(--cabinet-ink-muted); }
+  .src { font-size: 12.5px; }
+  .src a { color: var(--cabinet-wood); text-decoration-thickness: 1px; }
+  .src a:hover { color: var(--cabinet-wood-deep); }
+  .foot { margin-top: 18px; font-size: 13px; color: var(--cabinet-ink-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>
+    <!-- A wooden house: maple walls, brass door. -->
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3 2.8 10.4a.9.9 0 0 0 .58 1.6H5v7A2 2 0 0 0 7 21h10a2 2 0 0 0 2-2v-7h1.62a.9.9 0 0 0 .58-1.6Z" fill="#E8CDA8"/>
+      <path d="M12 3 2.8 10.4a.9.9 0 0 0 .58 1.6h2.06L12 5.6l6.56 6.4h2.06a.9.9 0 0 0 .58-1.6Z" fill="#D9B98C"/>
+      <rect x="10" y="13.5" width="4" height="7.5" rx="0.8" fill="#B08A4F"/>
+      <circle cx="13.1" cy="17.4" r="0.55" fill="#7A5A2E"/>
+    </svg>
+    Family Board
+  </h1>
+  <p class="sub">What the paperwork knows is coming.</p>
+  <div id="root"><div class="card empty">Reading the dates folder&hellip;</div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DIRS = ['dates'];
+  var JOB = '.jobs/sunday-paper-check.yaml';
+  var root = document.getElementById('root');
+  var job = null;
+
+  function render(items, failed) {
+    var html = '';
+
+    if (items.some(function (it) { return /^EXAMPLE/i.test(it.name); })) {
+      html += '<div class="banner banner--example">The dates shown are made-up examples. ' +
+              'Drop real paperwork into <code>papers/</code>, or tell the clerk a date, ' +
+              'then delete the EXAMPLE files.</div>';
+    }
+    if (failed) {
+      html += '<div class="banner">' + failed + ' file' + (failed > 1 ? 's' : '') +
+              ' could not be read and ' + (failed > 1 ? 'are' : 'is') +
+              ' not shown. A reload usually clears it.</div>';
+    }
+
+    if (!items.length) {
+      html += '<div class="card empty">The board is clear — and empty. Drop household ' +
+              'paperwork into <code>papers/</code> and the Sunday routine pulls the dates ' +
+              'out, or tell the clerk one directly.</div>';
+      root.innerHTML = html + foot();
+      return;
+    }
+
+    /* Sort the whole board by date; undated files sink to the end. */
+    items.forEach(function (it) { it.d = parseDate(it.meta.when); });
+    items.sort(function (a, b) {
+      if (a.d && b.d) return a.d - b.d;
+      return a.d ? -1 : b.d ? 1 : 0;
+    });
+
+    /* The next dated thing is the headline — the glance this page is for. */
+    var next = items.filter(function (it) { return it.d && daysUntil(it.d) >= 0; })[0];
+    if (next) {
+      html += '<div class="card"><span class="tag">Next up</span>' +
+              '<div class="next-what">' + esc(next.meta.what || next.name.replace(/\.md$/i, '')) + '</div>' +
+              '<div class="next-when">' + esc(inWords(daysUntil(next.d))) + ' — ' +
+              esc(human(next.d)) + '</div></div>';
+    }
+
+    var overdue = [], week = [], month = [], later = [], undated = [];
+    items.forEach(function (it) {
+      if (!it.d) { undated.push(it); return; }
+      var d = daysUntil(it.d);
+      if (d < 0) overdue.push(it);
+      else if (d <= 7) week.push(it);
+      else if (d <= 31) month.push(it);
+      else later.push(it);
+    });
+
+    if (overdue.length) html += group('Slipped past', overdue, 'group-head--late');
+    if (week.length) html += group('This week', week, '');
+    if (month.length) html += group('This month', month, '');
+    if (later.length) html += group('Later', later, '');
+    if (undated.length) html += group('No date yet', undated, '');
+
+    root.innerHTML = html + foot();
+  }
+
+  function inWords(d) {
+    if (d < -1) return (-d) + ' days ago';
+    if (d === -1) return 'yesterday';
+    if (d === 0) return 'today';
+    if (d === 1) return 'tomorrow';
+    if (d <= 14) return 'in ' + d + ' days';
+    var w = Math.round(d / 7);
+    if (d <= 62) return 'in ' + w + ' weeks';
+    return 'in ' + Math.round(d / 30.4) + ' months';
+  }
+
+  function group(title, list, headCls) {
+    var h = '<h2 class="group-head ' + headCls + '">' + esc(title) +
+            ' <span class="group-count">' + list.length + '</span></h2>' +
+            '<div class="card group-card">';
+    list.forEach(function (it) {
+      var m = it.meta, d = it.d ? daysUntil(it.d) : null;
+      var inCls = d === null ? '' : d < 0 ? ' in--late' : d <= 7 ? ' in--soon' : '';
+      h += '<div class="row"><div class="row-top">' +
+           '<span class="what">' + esc(m.what || it.name.replace(/\.md$/i, '')) + '</span>' +
+           (m.who ? '<span class="who">' + esc(m.who) + '</span>' : '') +
+           (d !== null ? '<span class="in' + inCls + '">' + esc(inWords(d)) + '</span>' : '') +
+           '</div>';
+      var bits = [];
+      if (m.note) bits.push(esc(m.note));
+      if (bits.length) h += '<div class="detail">' + bits.join(' ') + '</div>';
+      /* The paper the date came from, one click away — the drawer doing its job. */
+      if (m.source) {
+        h += '<div class="detail src">From <a href="../' + esc(m.source) +
+             '" target="_blank" rel="noopener">' + esc(m.source.replace(/^papers\//, '')) +
+             '</a></div>';
+      }
+      h += '</div>';
+    });
+    return h + '</div>';
+  }
+
+  function foot() {
+    var next = nextRunText();
+    return next ? '<div class="foot">' + esc(next) + '</div>' : '';
+  }
+
+  /* ================= shared Cabinet Kit plumbing (board apps) =================
+     Identical across the flagship board apps; the render() above is what differs.
+     A board app reads a folder (or folders) of item files — one .md per thing —
+     and draws them all at once, so there is no date picker and no "runs". */
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* YAML frontmatter + the raw markdown body after it. Items are hand-edited files,
+     so unknown keys and rich bodies are normal — never crash on them. */
+  function parseDoc(text) {
+    var meta = {}, i = 0, lines = text.split(/\r?\n/);
+    if (lines[0] === '---') {
+      for (i = 1; i < lines.length; i++) {
+        if (lines[i] === '---') { i++; break; }
+        var kv = lines[i].match(/^(\w+):\s*(.*)$/);
+        if (kv) meta[kv[1]] = kv[2].replace(/^["']|["']$/g, '').trim();
+      }
+    }
+    return { meta: meta, body: lines.slice(i).join('\n').trim() };
+  }
+
+  /* First real paragraph of a body — the one-line summary an item shows on the board. */
+  function firstLine(body) {
+    var lines = body.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var L = lines[i].trim();
+      if (L && !/^#/.test(L) && !/^[-*]\s/.test(L) && !/^\|/.test(L)) return L;
+    }
+    return '';
+  }
+
+  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MONTHS = ['January','February','March','April','May','June','July','August',
+                'September','October','November','December'];
+
+  /* A YYYY-MM-DD in a frontmatter field -> Date, or null for anything else. */
+  function parseDate(s) {
+    var m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  /* Days from today to d: negative is past, 0 is today. */
+  function daysUntil(d) {
+    var now = new Date();
+    var a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((d - a) / 86400000);
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only — never a nested one.
+     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
+     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
+
+  /* Empty folders are day one, not an error. `fresh=1` busts the tree cache so a file
+     written minutes ago is already listed. README files are furniture, not items. */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0], base = cabinetDir();
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+
+      var wanted = [];
+      DIRS.forEach(function (dir) {
+        listFiles(tree, base + '/' + dir, []).forEach(function (name) {
+          if (/^README\.md$/i.test(name)) return;
+          wanted.push({ dir: dir, name: name });
+        });
+      });
+
+      /* Fetch every item; one unreadable file dims to a count, it never blanks the page. */
+      var failed = 0;
+      Promise.all(wanted.map(function (w) {
+        return fetch('../' + w.dir + '/' + encodeURIComponent(w.name), { cache: 'no-store' })
+          .then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+          })
+          .then(function (text) {
+            var doc = parseDoc(text);
+            return { dir: w.dir, name: w.name, meta: doc.meta, body: doc.body };
+          })
+          .catch(function () { failed++; return null; });
+      }))
+        .then(function (items) {
+          render(items.filter(Boolean), failed);
+        });
+    })
+    .catch(function (err) {
+      root.innerHTML = '<div class="card empty">Could not read this cabinet’s folders (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>
