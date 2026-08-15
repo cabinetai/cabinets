@@ -16,8 +16,9 @@ later the picture is sitting in this cabinet as a real file you can drag anywher
 Every picture keeps the words that made it in a small text file beside it, so you can
 run it again with one thing changed.
 
-It also makes a fresh set of four every Monday morning without being asked, so there
-is always something there.
+There is also a routine that makes a set of four in one go, and **it ships switched
+off**. Every picture bills your own OpenAI key, and a routine that spends money on a
+timer should be switched on by the person paying. Turn it on yourself when you want it.
 
 ## How to look at it
 
@@ -34,5 +35,6 @@ Two minutes, once. Cabinet keeps the key in a locked file on your own machine.
 ## What's inside
 
 - **Image Maker** — the one agent. Turns your words into a picture.
-- **Weekly Image Set** — the one routine. Runs Monday at 09:00.
+- **Weekly Image Set** — the one routine. Off until you switch it on; Monday at 09:00
+  once you do.
 - **Studio** — the one page. Write a description, watch it appear.
