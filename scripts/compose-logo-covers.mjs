@@ -14,8 +14,8 @@ import * as si from 'simple-icons';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const WOOD = path.join(__dirname, 'wood-panel-cream.jpg');
-const WEB = '/Users/mybiblepath/Development/cabinet-website/public';
-const APP = '/Users/mybiblepath/Development/cabinet/public'; // the Cabinet app — source of truth for connectors-page logos
+const WEB = path.join(ROOT, '..', 'cabinet-website', 'public');
+const APP = path.join(ROOT, '..', 'cabinet', 'public'); // the Cabinet app (sibling checkout) — source of truth for connectors-page logos
 
 const file = (p) => ({ type: 'file', p: path.join(WEB, p) });
 const app = (p) => ({ type: 'file', p: path.join(APP, p) });
