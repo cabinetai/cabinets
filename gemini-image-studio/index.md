@@ -1,11 +1,11 @@
 ---
-title: OpenAI Image Studio
-created: '2026-08-13T00:00:00Z'
-modified: '2026-08-13T00:00:00Z'
-tags: [openai, images, generation, showcase]
+title: Gemini Image Studio
+created: '2026-08-15T00:00:00Z'
+modified: '2026-08-15T00:00:00Z'
+tags: [gemini, google, images, generation, showcase]
 order: 1
 ---
-# OpenAI Image Studio
+# Gemini Image Studio
 
 Describe a picture and get a real image file in your cabinet.
 
@@ -17,7 +17,7 @@ Every picture keeps the words that made it in a small text file beside it, so yo
 run it again with one thing changed.
 
 There is also a routine that makes a set of four in one go, and **it ships switched
-off**. Every picture bills your own OpenAI key, and a routine that spends money on a
+off**. Every picture bills your own Google key, and a routine that spends money on a
 timer should be switched on by the person paying. Turn it on yourself when you want it.
 
 ## How to look at it
@@ -28,9 +28,9 @@ set replaces them.
 
 ## Before it can make real pictures
 
-Connect OpenAI Image in Cabinet's integrations screen. You get an API key from
-OpenAI's platform — sign in, create a key under API keys, paste it into Cabinet.
-Two minutes, once. Cabinet keeps the key in a locked file on your own machine.
+Connect Gemini Image in Cabinet's integrations screen. You get an API key from Google
+AI Studio — sign in, create a key, paste it into Cabinet. Two minutes, once. Cabinet
+keeps the key in a locked file on your own machine.
 
 ## What's inside
 
