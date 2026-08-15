@@ -17,27 +17,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>My Jira Tickets</title>
 <style>
+  /* Registry parchment design system — tokens shared with book-factory/tracker. */
   :root {
-    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
-    --line: #e6e5e1; --accent: #0052cc;
-    --hi: #b4443c; --mid: #9a6b1f; --lo: #5f6b7a;
+    --bg: #FAF6F1; --card: #FFFFFF; --ink: #3B2F2F; --dim: #8B7355;
+    --faint: #B5A58F; --line: #E8DFD2; --accent: #5B8FD6;
+    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
+    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 48px 24px 64px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
   }
   .wrap { max-width: 780px; margin: 0 auto; }
   h1 {
-    font-size: 22px; margin: 0; letter-spacing: -0.01em;
-    display: flex; align-items: center; gap: 10px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 32px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 12px;
   }
   /* An inline <svg> with a viewBox and no width fills its container — size it here or
      the mark renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 22px; height: 22px; flex: none; }
-  .sub { color: var(--dim); margin: 4px 0 0; font-size: 14px; }
-  .card { background: var(--card); border: 1px solid var(--line);
-    border-radius: 10px; padding: 18px 20px; margin-top: 18px; }
+  .mark { width: 26px; height: 26px; flex: none; }
+  .sub { color: var(--dim); margin: 6px 0 0; font-size: 15px; }
+  .card { background: var(--card); border: none;
+    border-radius: 12px; padding: 18px 22px; margin-top: 18px;
+    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14); }
   .empty { color: var(--dim); font-size: 14px; } .empty code { font-size: 13px; }
   .scroll { overflow-x: auto; }
   .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
@@ -46,39 +50,38 @@
     border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
   }
   .picker .next { display: block; margin-top: 7px; }
-  .banner { border-left: 3px solid var(--mid); padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim); }
-  /* The one thing worth reading if nothing else. Same card, an accent edge to lead the eye. */
-  .lead { border-left: 3px solid var(--accent); }
+  .banner { padding: 10px 14px; margin-top: 18px;
+    background: var(--card); border: none;
+    border-radius: 8px; font-size: 14px; color: var(--dim); }
   .lead-tag {
     display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .08em; color: var(--accent); margin-bottom: 6px;
+    letter-spacing: 0.12em; color: var(--accent); margin-bottom: 6px;
   }
   .lead-who { font-weight: 600; }
   .lead-verdict { margin: 4px 0 0; color: var(--dim); }
   .qw-tag {
     display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .08em; color: var(--dim); margin-bottom: 8px;
+    letter-spacing: 0.12em; color: var(--dim); margin-bottom: 8px;
   }
   .qw-list { margin: 0; padding-left: 18px; }
   .qw-list li { margin-top: 6px; }
   .qw-list li:first-child { margin-top: 0; }
   table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
-    color: var(--dim); font-weight: 600; padding: 0 10px 8px 0;
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--dim); font-weight: 700; padding: 0 10px 10px 0;
     border-bottom: 1px solid var(--line); }
-  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   tr:last-child td { border-bottom: 0; }
-  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px;
-    border-radius: 20px; border: 1px solid currentColor; white-space: nowrap; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
+    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
   /* Status answers "is this on me?": loud when someone is waiting, quiet when nothing can
-     be done today, grey for "we don't know". Priority rides the same three tones, and
+     be done today, grey for "we don't know". Priority rides the same tones, and
      p-unk only ever catches a value off-vocabulary. */
-  .s-block { color: var(--hi); } .s-doing { color: var(--mid); }
-  .s-todo { color: var(--ink); } .s-wait { color: var(--lo); }
+  .s-block { color: var(--terracotta); } .s-doing { color: var(--blue); }
+  .s-todo { color: var(--ink); } .s-wait { color: var(--dim); }
   .s-unk { color: var(--dim); }
-  .p-high { color: var(--hi); } .p-med { color: var(--mid); }
-  .p-low { color: var(--lo); } .p-unk { color: var(--dim); }
+  .p-high { color: var(--terracotta); } .p-med { color: var(--orange); }
+  .p-low { color: var(--dim); } .p-unk { color: var(--dim); }
   /* The issue key is the token they would search on, so it carries the accent. */
   .key { color: var(--accent); font-weight: 600; white-space: nowrap; }
   /* The ticket cell is the deep link — an issue key under it, so it reads as clickable. */
@@ -92,7 +95,7 @@
     <h1>
       <!-- The integration's own mark, inlined so the page still makes
            zero external requests. -->
-      <svg class="mark" viewBox="0 0 24 24" fill="#0052CC" aria-hidden="true"><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.001 1.001 0 0 0 23.013 0Z"/></svg>
+      <svg class="mark" viewBox="0 0 24 24" fill="#5B8FD6" aria-hidden="true"><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.001 1.001 0 0 0 23.013 0Z"/></svg>
       My Jira Tickets
     </h1>
     <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->

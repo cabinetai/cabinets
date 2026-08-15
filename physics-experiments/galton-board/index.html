@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Galton Board</title>
+<style>
+  :root {
+    --bg: #111317;
+    --panel: #191d23;
+    --panel-2: #20262d;
+    --line: #343d46;
+    --text: #eef2e8;
+    --muted: #aeb8ad;
+    --amber: #f5b84b;
+    --cyan: #54d2c6;
+    --red: #e96558;
+    --green: #9bd66f;
+    --violet: #b78cf0;
+    --shadow: rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(245,184,75,0.13), transparent 26rem),
+      radial-gradient(circle at 80% 85%, rgba(84,210,198,0.12), transparent 22rem),
+      linear-gradient(135deg, #15181d 0%, #101114 50%, #181420 100%);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 22px;
+  }
+  button, input { font: inherit; }
+  .app-shell {
+    width: min(1220px, 100%);
+    min-height: calc(100vh - 44px);
+    margin: 0 auto;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 16px;
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 16px;
+  }
+  .eyebrow {
+    margin: 0 0 4px;
+    color: var(--amber);
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 3.05rem);
+    line-height: 1;
+    font-weight: 800;
+  }
+  .main-grid {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(260px, 318px) minmax(0, 1fr);
+    gap: 16px;
+  }
+  .controls {
+    align-self: start;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(25,29,35,0.88);
+    box-shadow: 0 18px 48px var(--shadow);
+    padding: 16px;
+  }
+  .control-group {
+    padding: 0 0 16px;
+    margin: 0 0 16px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .control-group:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+  legend {
+    padding: 0;
+    margin-bottom: 12px;
+    color: var(--amber);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+  .slider-row { display: grid; gap: 8px; margin-bottom: 14px; }
+  .slider-row:last-child { margin-bottom: 0; }
+  .label-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+  output {
+    min-width: 74px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  input[type="range"] { width: 100%; accent-color: var(--amber); }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .actions button {
+    min-height: 39px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text);
+    background: var(--panel-2);
+    transition: background 0.16s ease, transform 0.08s ease;
+  }
+  .actions button:hover { background: rgba(255,255,255,0.08); }
+  .actions button:active { transform: translateY(1px); }
+  .actions button.primary {
+    border-color: rgba(245,184,75,0.45);
+    background: rgba(245,184,75,0.16);
+  }
+  .hint {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+  .canvas-area {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(460px, 1fr) auto;
+    gap: 12px;
+  }
+  .canvas-wrap {
+    min-height: 460px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #090b0e;
+    box-shadow: 0 22px 54px var(--shadow);
+  }
+  canvas { display: block; width: 100%; height: 100%; min-height: 460px; }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .metric {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(25,29,35,0.82);
+    padding: 10px 12px;
+  }
+  .metric span {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .metric strong {
+    display: block;
+    color: var(--text);
+    font-size: clamp(0.96rem, 1.2vw, 1.2rem);
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 860px) {
+    body { padding: 14px; }
+    .topbar { flex-direction: column; align-items: stretch; }
+    .main-grid { grid-template-columns: 1fr; }
+    .canvas-area { grid-template-rows: minmax(380px, 60vh) auto; }
+    .canvas-wrap, canvas { min-height: 380px; }
+    .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 520px) {
+    body { padding: 10px; }
+    .metrics { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Order from randomness</p>
+      <h1>Galton Board</h1>
+    </div>
+  </header>
+
+  <main class="main-grid">
+    <aside class="controls" aria-label="Experiment controls">
+      <fieldset class="control-group">
+        <legend>Board</legend>
+        <label class="slider-row" for="rows">
+          <span class="label-line">
+            <span>Peg rows</span>
+            <output id="rowsOut" for="rows">12</output>
+          </span>
+          <input id="rows" type="range" min="4" max="14" value="12" step="1" />
+        </label>
+        <label class="slider-row" for="bias">
+          <span class="label-line">
+            <span>Bias&nbsp;p (right)</span>
+            <output id="biasOut" for="bias">0.50</output>
+          </span>
+          <input id="bias" type="range" min="0.05" max="0.95" value="0.5" step="0.05" />
+        </label>
+      </fieldset>
+
+      <fieldset class="control-group">
+        <legend>Flow</legend>
+        <label class="slider-row" for="rate">
+          <span class="label-line">
+            <span>Drop rate (/s)</span>
+            <output id="rateOut" for="rate">60</output>
+          </span>
+          <input id="rate" type="range" min="5" max="140" value="60" step="5" />
+        </label>
+        <div class="actions">
+          <button id="pauseBtn" class="primary" type="button">Pause</button>
+          <button id="resetBtn" type="button">Reset</button>
+        </div>
+      </fieldset>
+
+      <p class="hint">
+        Every peg is one coin flip: go right with probability p, else left.
+        Each ball's bin = its number of right turns — a sum of independent
+        Bernoulli trials. The Central Limit Theorem guarantees that sum piles
+        up into a bell curve. The amber outline is the exact binomial prediction
+        <b>C(n,k)·p<sup>k</sup>(1−p)<sup>n−k</sup></b>; watch the bars climb to meet it.
+      </p>
+    </aside>
+
+    <section class="canvas-area" aria-label="Galton board">
+      <div class="canvas-wrap">
+        <canvas id="scene"></canvas>
+      </div>
+      <div class="metrics" aria-live="polite">
+        <div class="metric">
+          <span>Balls dropped</span>
+          <strong id="droppedMetric">0</strong>
+        </div>
+        <div class="metric">
+          <span>Mean bin (obs / exp)</span>
+          <strong id="meanMetric">– / 6.0</strong>
+        </div>
+        <div class="metric">
+          <span>Std dev (obs / exp)</span>
+          <strong id="sdMetric">– / 1.73</strong>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d", { alpha: false });
+
+  const els = {
+    rows: document.getElementById("rows"),
+    bias: document.getElementById("bias"),
+    rate: document.getElementById("rate"),
+    rowsOut: document.getElementById("rowsOut"),
+    biasOut: document.getElementById("biasOut"),
+    rateOut: document.getElementById("rateOut"),
+    dropped: document.getElementById("droppedMetric"),
+    mean: document.getElementById("meanMetric"),
+    sd: document.getElementById("sdMetric"),
+    pause: document.getElementById("pauseBtn"),
+    reset: document.getElementById("resetBtn")
+  };
+
+  const state = {
+    rows: 12,
+    p: 0.5,
+    rate: 60,
+    running: true,
+    cssW: 0,
+    cssH: 0,
+    balls: [],        // active falling balls
+    bins: [],         // landed counts, length rows+1
+    dropped: 0,
+    sumK: 0,          // running sum of landed bin indices (for mean)
+    sumK2: 0,         // running sum of squares (for std dev)
+    spawnAcc: 0,
+    pmf: []           // theoretical binomial probabilities, length rows+1
+  };
+
+  const FALL_SPEED = 7.5;   // lattice levels per second
+  const MAX_BALLS = 240;    // ponytail: hard cap on active balls; plenty for a smooth cascade
+
+  // Binomial pmf P(k) = C(n,k) p^k (1-p)^(n-k), built multiplicatively to dodge
+  // factorial overflow. n stays <= 14 here so plain doubles are exact enough.
+  function buildPmf(n, p) {
+    const out = new Array(n + 1);
+    let c = 1; // C(n,0)
+    for (let k = 0; k <= n; k++) {
+      out[k] = c * Math.pow(p, k) * Math.pow(1 - p, n - k);
+      c = c * (n - k) / (k + 1); // C(n,k) -> C(n,k+1)
+    }
+    return out;
+  }
+
+  function rebuild() {
+    state.bins = new Array(state.rows + 1).fill(0);
+    state.balls.length = 0;
+    state.dropped = 0;
+    state.sumK = 0;
+    state.sumK2 = 0;
+    state.spawnAcc = 0;
+    state.pmf = buildPmf(state.rows, state.p);
+    syncUI();
+  }
+
+  function syncUI() {
+    els.rowsOut.textContent = state.rows;
+    els.biasOut.textContent = state.p.toFixed(2);
+    els.rateOut.textContent = state.rate;
+    els.dropped.textContent = state.dropped;
+    const expMean = state.rows * state.p;
+    const expSd = Math.sqrt(state.rows * state.p * (1 - state.p));
+    if (state.dropped > 0) {
+      const m = state.sumK / state.dropped;
+      const v = Math.max(0, state.sumK2 / state.dropped - m * m);
+      els.mean.textContent = `${m.toFixed(2)} / ${expMean.toFixed(1)}`;
+      els.sd.textContent = `${Math.sqrt(v).toFixed(2)} / ${expSd.toFixed(2)}`;
+    } else {
+      els.mean.textContent = `– / ${expMean.toFixed(1)}`;
+      els.sd.textContent = `– / ${expSd.toFixed(2)}`;
+    }
+  }
+
+  // A ball pre-rolls all its coin flips, then we just animate the path.
+  // cum[L] = number of rights in the first L flips; offset(L) = cum[L] - L/2.
+  function spawnBall() {
+    const n = state.rows;
+    const cum = new Int8Array(n + 1);
+    let rights = 0;
+    for (let i = 0; i < n; i++) {
+      if (Math.random() < state.p) rights++;
+      cum[i + 1] = rights;
+    }
+    const hue = 150 + Math.random() * 80; // greens through cyans, just for variety
+    state.balls.push({ cum, prog: 0, bin: rights, hue });
+  }
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = Math.max(320, Math.floor(rect.width));
+    const H = Math.max(360, Math.floor(rect.height));
+    if (canvas.width !== Math.floor(W * dpr) || canvas.height !== Math.floor(H * dpr)) {
+      canvas.width = Math.floor(W * dpr);
+      canvas.height = Math.floor(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    state.cssW = W;
+    state.cssH = H;
+  }
+
+  // Layout helpers — recomputed each frame so it stays responsive.
+  function layout() {
+    const W = state.cssW, H = state.cssH, n = state.rows;
+    const cx = W / 2;
+    const topY = 34;
+    const pegBottom = topY + (H - topY) * 0.52;
+    const dy = (pegBottom - topY) / n;
+    const dx = Math.min((W * 0.84) / (n + 1), dy * 1.35, 48);
+    const histTop = pegBottom + 26;
+    const baseY = H - 26;
+    return { cx, topY, dy, dx, pegBottom, histTop, baseY, n };
+  }
+
+  function drawFrame() {
+    resizeCanvas();
+    const W = state.cssW, H = state.cssH;
+    const L = layout();
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#0c0f12");
+    bg.addColorStop(0.55, "#10131a");
+    bg.addColorStop(1, "#161220");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Pegs — lattice node (r, j) at x = cx + (j - r/2)dx, for r = 0..n-1.
+    ctx.fillStyle = "rgba(174,184,173,0.45)";
+    for (let r = 0; r < L.n; r++) {
+      const y = L.topY + r * L.dy;
+      for (let j = 0; j <= r; j++) {
+        const x = L.cx + (j - r / 2) * L.dx;
+        ctx.beginPath();
+        ctx.arc(x, y, 2.1, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+
+    // Baseline under the bins
+    ctx.strokeStyle = "rgba(52,61,70,0.9)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(L.cx - (L.n / 2 + 0.5) * L.dx, L.baseY + 0.5);
+    ctx.lineTo(L.cx + (L.n / 2 + 0.5) * L.dx, L.baseY + 0.5);
+    ctx.stroke();
+
+    // Scale: fit the taller of observed peak vs expected peak.
+    const total = Math.max(1, state.dropped);
+    let maxObs = 0;
+    for (const c of state.bins) if (c > maxObs) maxObs = c;
+    let maxPmf = 0;
+    for (const pk of state.pmf) if (pk > maxPmf) maxPmf = pk;
+    const expPeak = maxPmf * total;
+    const scaleRef = Math.max(maxObs, expPeak, 1);
+    const maxBarH = L.baseY - L.histTop;
+    const barScale = maxBarH / scaleRef;
+
+    // Observed histogram bars
+    const barW = Math.max(3, L.dx * 0.74);
+    for (let k = 0; k <= L.n; k++) {
+      const x = L.cx + (k - L.n / 2) * L.dx;
+      const h = state.bins[k] * barScale;
+      if (h <= 0) continue;
+      const grad = ctx.createLinearGradient(0, L.baseY - h, 0, L.baseY);
+      grad.addColorStop(0, "rgba(84,210,198,0.92)");
+      grad.addColorStop(1, "rgba(84,210,198,0.30)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(x - barW / 2, L.baseY - h, barW, h);
+    }
+
+    // Theoretical binomial curve (expected count = pmf * total)
+    ctx.save();
+    ctx.strokeStyle = "rgba(245,184,75,0.95)";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "rgba(245,184,75,0.5)";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    for (let k = 0; k <= L.n; k++) {
+      const x = L.cx + (k - L.n / 2) * L.dx;
+      const y = L.baseY - state.pmf[k] * total * barScale;
+      if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(245,184,75,0.95)";
+    for (let k = 0; k <= L.n; k++) {
+      const x = L.cx + (k - L.n / 2) * L.dx;
+      const y = L.baseY - state.pmf[k] * total * barScale;
+      ctx.beginPath();
+      ctx.arc(x, y, 2.4, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Falling balls
+    for (const b of state.balls) {
+      const li = Math.min(L.n - 1, Math.floor(b.prog));
+      const frac = b.prog - li;
+      const o0 = b.cum[li] - li / 2;
+      const o1 = b.cum[li + 1] - (li + 1) / 2;
+      const off = o0 + (o1 - o0) * frac;
+      const x = L.cx + off * L.dx;
+      const y = L.topY + b.prog * L.dy;
+      ctx.fillStyle = `hsl(${b.hue}, 70%, 62%)`;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.4, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  }
+
+  let lastTime = null;
+  function loop(ts) {
+    if (lastTime === null) lastTime = ts;
+    let dt = (ts - lastTime) / 1000;
+    lastTime = ts;
+    if (dt > 0.1) dt = 0.1; // clamp after tab-switch so we don't fast-forward
+
+    if (state.running) {
+      // spawn
+      state.spawnAcc += dt * state.rate;
+      while (state.spawnAcc >= 1) {
+        state.spawnAcc -= 1;
+        if (state.balls.length < MAX_BALLS) spawnBall();
+      }
+      // advance + land
+      const survivors = [];
+      for (const b of state.balls) {
+        b.prog += FALL_SPEED * dt;
+        if (b.prog >= state.rows) {
+          const k = b.bin;
+          state.bins[k]++;
+          state.dropped++;
+          state.sumK += k;
+          state.sumK2 += k * k;
+        } else {
+          survivors.push(b);
+        }
+      }
+      state.balls = survivors;
+      syncUI();
+    }
+
+    drawFrame();
+    requestAnimationFrame(loop);
+  }
+
+  els.rows.addEventListener("input", () => {
+    state.rows = Number(els.rows.value);
+    rebuild();
+  });
+  els.bias.addEventListener("input", () => {
+    state.p = Number(els.bias.value);
+    rebuild();
+  });
+  els.rate.addEventListener("input", () => {
+    state.rate = Number(els.rate.value);
+    syncUI();
+  });
+  els.pause.addEventListener("click", function () {
+    state.running = !state.running;
+    this.textContent = state.running ? "Pause" : "Resume";
+    this.classList.toggle("primary", state.running);
+  });
+  els.reset.addEventListener("click", rebuild);
+
+  window.addEventListener("resize", resizeCanvas);
+
+  // ponytail self-check: the binomial pmf is the money path — verify it sums to 1
+  // and reproduces the textbook mean n·p before we trust the overlay.
+  (function check() {
+    const n = 10, p = 0.37;
+    const pmf = buildPmf(n, p);
+    const sum = pmf.reduce((a, x) => a + x, 0);
+    let mean = 0;
+    for (let k = 0; k <= n; k++) mean += k * pmf[k];
+    console.assert(Math.abs(sum - 1) < 1e-9, "pmf must sum to 1, got " + sum);
+    console.assert(Math.abs(mean - n * p) < 1e-9, "mean must be n*p, got " + mean);
+  })();
+
+  resizeCanvas();
+  rebuild();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

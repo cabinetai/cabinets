@@ -109,6 +109,7 @@ const SHOTS = [
   ['support-intelligence',   'dashboard'],
   ['support-macro',          'macro-library'],
   ['team-wiki',              'wiki'],
+  ['text-your-mom',          'app-development/sprint-board'],
   ['universal-request',      'queue'],
   ['usa-travel-planner',     'parks-map'],
   ['vendor-asset',           'inventory'],
@@ -118,6 +119,17 @@ const SHOTS = [
   ['voice-of-customer',      'dashboard'],
   ['weekly-business-review', 'review'],
 ];
+
+// Auto-discover cabinets not in the hardcoded list via their <slug>/<app>/.app markers.
+// ponytail: first .app dir alphabetically; add an explicit SHOTS entry to override.
+const known = new Set(SHOTS.map(([s]) => s));
+for (const slug of fs.readdirSync(CABINETS).sort()) {
+  if (known.has(slug) || !fs.existsSync(path.join(CABINETS, slug, '.cabinet'))) continue;
+  const apps = fs.readdirSync(path.join(CABINETS, slug), { withFileTypes: true })
+    .filter(d => d.isDirectory() && fs.existsSync(path.join(CABINETS, slug, d.name, '.app')))
+    .map(d => d.name).sort();
+  if (apps.length > 0) SHOTS.push([slug, apps[0]]);
+}
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -148,15 +160,24 @@ console.log(`\n📸 ${targets.length} screenshots to take at ${W}×${H}\n`);
 const browser = await puppeteer.launch({ headless: true });
 const page = await browser.newPage();
 await page.setViewport({ width: W, height: H });
+await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
 
 let done = 0, failed = 0;
 for (const [slug, subpath] of targets) {
-  const filePath = path.join(CABINETS, slug, subpath, 'index.html');
-  const url = `file://${filePath}`;
+  // ponytail: apps fetch their data dirs over HTTP, so file:// renders empty.
+  // Serve through the Cabinet dev server (SHOT_BASE_URL) when it's running.
+  const base = process.env.SHOT_BASE_URL;
+  const url = base
+    ? `${base}/${slug}/${subpath}/index.html`
+    : `file://${path.join(CABINETS, slug, subpath, 'index.html')}`;
   const dest = path.join(OUT, `${slug}.jpg`);
   try {
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
-    await new Promise(r => setTimeout(r, 600)); // let animations settle
+    await page.goto(url, { waitUntil: base ? 'domcontentloaded' : 'networkidle2', timeout: 20000 });
+    if (base) {
+      // Apps load their data via the Cabinet server's /api/tree (~7s) — wait out the spinner.
+      try { await page.waitForFunction(() => !/Loading|Reading the|Fetching|Walking the/.test(document.body.innerText), { timeout: 40000 }); } catch {}
+    }
+    await new Promise(r => setTimeout(r, 800)); // let animations settle
     await page.screenshot({ path: dest, type: 'jpeg', quality: 90 });
     const kb = Math.round(fs.statSync(dest).size / 1024);
     console.log(`  ✅ ${slug} (${kb}KB)`);

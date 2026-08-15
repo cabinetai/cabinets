@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lissajous Figures</title>
+<style>
+  :root {
+    --bg: #111317;
+    --panel: #191d23;
+    --panel-2: #20262d;
+    --line: #343d46;
+    --text: #eef2e8;
+    --muted: #aeb8ad;
+    --amber: #f5b84b;
+    --cyan: #54d2c6;
+    --red: #e96558;
+    --green: #9bd66f;
+    --violet: #b78cf0;
+    --shadow: rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(84,210,198,0.14), transparent 26rem),
+      radial-gradient(circle at 80% 85%, rgba(183,140,240,0.13), transparent 22rem),
+      linear-gradient(135deg, #15181d 0%, #101114 50%, #181420 100%);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 22px;
+  }
+  button, input { font: inherit; }
+  .app-shell {
+    width: min(1220px, 100%);
+    min-height: calc(100vh - 44px);
+    margin: 0 auto;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 16px;
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 16px;
+  }
+  .eyebrow {
+    margin: 0 0 4px;
+    color: var(--cyan);
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 3.05rem);
+    line-height: 1;
+    font-weight: 800;
+  }
+  .main-grid {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(260px, 318px) minmax(0, 1fr);
+    gap: 16px;
+  }
+  .controls {
+    align-self: start;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(25,29,35,0.88);
+    box-shadow: 0 18px 48px var(--shadow);
+    padding: 16px;
+  }
+  .control-group {
+    padding: 0 0 16px;
+    margin: 0 0 16px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .control-group:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+  legend {
+    padding: 0;
+    margin-bottom: 12px;
+    color: var(--amber);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+  .slider-row { display: grid; gap: 8px; margin-bottom: 14px; }
+  .slider-row:last-child { margin-bottom: 0; }
+  .label-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+  output {
+    min-width: 74px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  input[type="range"] { width: 100%; accent-color: var(--cyan); }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .actions button {
+    min-height: 39px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text);
+    background: var(--panel-2);
+    transition: background 0.16s ease, transform 0.08s ease;
+  }
+  .actions button:hover { background: rgba(255,255,255,0.08); }
+  .actions button:active { transform: translateY(1px); }
+  .actions button.primary {
+    border-color: rgba(84,210,198,0.45);
+    background: rgba(84,210,198,0.16);
+  }
+  .hint {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+  .canvas-area {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(460px, 1fr) auto;
+    gap: 12px;
+  }
+  .canvas-wrap {
+    min-height: 460px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #090b0e;
+    box-shadow: 0 22px 54px var(--shadow);
+  }
+  canvas { display: block; width: 100%; height: 100%; min-height: 460px; }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .metric {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(25,29,35,0.82);
+    padding: 10px 12px;
+  }
+  .metric span {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .metric strong {
+    display: block;
+    color: var(--text);
+    font-size: clamp(0.96rem, 1.2vw, 1.2rem);
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 860px) {
+    body { padding: 14px; }
+    .topbar { flex-direction: column; align-items: stretch; }
+    .main-grid { grid-template-columns: 1fr; }
+    .canvas-area { grid-template-rows: minmax(380px, 60vh) auto; }
+    .canvas-wrap, canvas { min-height: 380px; }
+    .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 520px) {
+    body { padding: 10px; }
+    .metrics { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Parametric oscillations</p>
+      <h1>Lissajous Figures</h1>
+    </div>
+  </header>
+
+  <main class="main-grid">
+    <aside class="controls" aria-label="Experiment controls">
+      <fieldset class="control-group">
+        <legend>Frequencies</legend>
+        <label class="slider-row" for="freq1">
+          <span class="label-line">
+            <span>ω<sub>x</sub></span>
+            <output id="freq1Out" for="freq1">2</output>
+          </span>
+          <input id="freq1" type="range" min="1" max="7" value="2" step="1" />
+        </label>
+        <label class="slider-row" for="freq2">
+          <span class="label-line">
+            <span>ω<sub>y</sub></span>
+            <output id="freq2Out" for="freq2">3</output>
+          </span>
+          <input id="freq2" type="range" min="1" max="7" value="3" step="1" />
+        </label>
+      </fieldset>
+
+      <fieldset class="control-group">
+        <legend>Phase</legend>
+        <label class="slider-row" for="phase">
+          <span class="label-line">
+            <span>δ</span>
+            <output id="phaseOut" for="phase">π/2</output>
+          </span>
+          <input id="phase" type="range" min="0" max="6.2832" value="1.5708" step="0.0196" />
+        </label>
+      </fieldset>
+
+      <fieldset class="control-group">
+        <legend>Animate</legend>
+        <div class="actions">
+          <button id="animToggle" class="primary" type="button">Pause δ</button>
+          <button id="resetBtn" type="button">Reset</button>
+        </div>
+      </fieldset>
+
+      <p class="hint">
+        x = sin(ω<sub>x</sub>t + δ) &nbsp; y = sin(ω<sub>y</sub>t)<br><br>
+        Two perpendicular oscillations. When the ratio ω<sub>x</sub>:ω<sub>y</sub> is a simple fraction, the path closes into a knot — drag δ to watch it morph.
+      </p>
+    </aside>
+
+    <section class="canvas-area" aria-label="Lissajous figure">
+      <div class="canvas-wrap">
+        <canvas id="scene"></canvas>
+      </div>
+      <div class="metrics" aria-live="polite">
+        <div class="metric">
+          <span>Ratio</span>
+          <strong id="ratioMetric">2 : 3</strong>
+        </div>
+        <div class="metric">
+          <span>Phase δ</span>
+          <strong id="phaseMetric">π/2</strong>
+        </div>
+        <div class="metric">
+          <span>Loops (x-crossings)</span>
+          <strong id="loopsMetric">3</strong>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d", { alpha: false });
+
+  const sliders = {
+    freq1: document.getElementById("freq1"),
+    freq2: document.getElementById("freq2"),
+    phase: document.getElementById("phase")
+  };
+  const outs = {
+    freq1: document.getElementById("freq1Out"),
+    freq2: document.getElementById("freq2Out"),
+    phase: document.getElementById("phaseOut")
+  };
+  const metrics = {
+    ratio: document.getElementById("ratioMetric"),
+    phase: document.getElementById("phaseMetric"),
+    loops: document.getElementById("loopsMetric")
+  };
+
+  const state = {
+    n1: 2,
+    n2: 3,
+    delta: Math.PI / 2,
+    animating: true,
+    cssW: 0,
+    cssH: 0
+  };
+
+  function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+  function phaseLabel(d) {
+    const pi = Math.PI;
+    const snap = [
+      [0, "0"],
+      [pi / 4, "π/4"],
+      [pi / 2, "π/2"],
+      [3 * pi / 4, "3π/4"],
+      [pi, "π"],
+      [5 * pi / 4, "5π/4"],
+      [3 * pi / 2, "3π/2"],
+      [7 * pi / 4, "7π/4"],
+      [2 * pi, "2π"]
+    ];
+    const eps = 0.06;
+    for (const [val, label] of snap) {
+      if (Math.abs(d - val) < eps) return label;
+    }
+    return `${(d / pi).toFixed(2)}π`;
+  }
+
+  function syncUI() {
+    const { n1, n2, delta } = state;
+    outs.freq1.textContent = n1;
+    outs.freq2.textContent = n2;
+    outs.phase.textContent = phaseLabel(delta);
+    metrics.ratio.textContent = `${n1} : ${n2}`;
+    metrics.phase.textContent = phaseLabel(delta);
+    // x-axis crossings of a Lissajous = max(n1, n2) when gcd=1, else n2/gcd
+    const g = gcd(n1, n2);
+    metrics.loops.textContent = n2 / g;
+  }
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = Math.max(320, Math.floor(rect.width));
+    const H = Math.max(360, Math.floor(rect.height));
+    if (canvas.width !== Math.floor(W * dpr) || canvas.height !== Math.floor(H * dpr)) {
+      canvas.width = Math.floor(W * dpr);
+      canvas.height = Math.floor(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    state.cssW = W;
+    state.cssH = H;
+  }
+
+  const N_POINTS = 1200;
+
+  function drawFrame() {
+    resizeCanvas();
+    const W = state.cssW;
+    const H = state.cssH;
+    const { n1, n2, delta } = state;
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, "#0c0f12");
+    bg.addColorStop(0.5, "#10131a");
+    bg.addColorStop(1, "#161220");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Faint grid
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.strokeStyle = "#29323a";
+    ctx.lineWidth = 1;
+    const cx = W / 2, cy = H / 2;
+    ctx.beginPath(); ctx.moveTo(cx, 18); ctx.lineTo(cx, H - 18); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(18, cy); ctx.lineTo(W - 18, cy); ctx.stroke();
+    ctx.restore();
+
+    const R = Math.min(W, H) * 0.41;
+
+    // Build path — x = R*sin(n1*t + delta), y = R*sin(n2*t)
+    const pts = new Float32Array(N_POINTS * 2);
+    for (let i = 0; i < N_POINTS; i++) {
+      const t = (i / (N_POINTS - 1)) * 2 * Math.PI;
+      pts[i * 2]     = cx + R * Math.sin(n1 * t + delta);
+      pts[i * 2 + 1] = cy + R * Math.sin(n2 * t);
+    }
+
+    // Glow pass
+    ctx.save();
+    ctx.shadowColor = "rgba(84, 210, 198, 0.55)";
+    ctx.shadowBlur = 14;
+    ctx.strokeStyle = "rgba(84, 210, 198, 0.25)";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(pts[0], pts[1]);
+    for (let i = 1; i < N_POINTS; i++) ctx.lineTo(pts[i * 2], pts[i * 2 + 1]);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+
+    // Sharp line with colour gradient along the path
+    ctx.save();
+    ctx.lineWidth = 1.8;
+    ctx.lineJoin = "round";
+    ctx.shadowColor = "rgba(183, 140, 240, 0.6)";
+    ctx.shadowBlur = 6;
+    for (let i = 1; i < N_POINTS; i++) {
+      const f = i / N_POINTS;
+      // cyan → violet gradient along path
+      const r = Math.round(84 + (183 - 84) * f);
+      const g = Math.round(210 + (140 - 210) * f);
+      const b = Math.round(198 + (240 - 198) * f);
+      ctx.strokeStyle = `rgb(${r},${g},${b})`;
+      ctx.beginPath();
+      ctx.moveTo(pts[(i - 1) * 2], pts[(i - 1) * 2 + 1]);
+      ctx.lineTo(pts[i * 2], pts[i * 2 + 1]);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Label
+    ctx.fillStyle = "rgba(174,184,173,0.7)";
+    ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+    ctx.fillText(`x = sin(${n1}t + δ)   y = sin(${n2}t)`, 20, 26);
+  }
+
+  let lastTime = null;
+  function loop(ts) {
+    if (state.animating) {
+      if (lastTime !== null) {
+        const dt = (ts - lastTime) / 1000;
+        state.delta = (state.delta + dt * 0.38) % (2 * Math.PI);
+        sliders.phase.value = state.delta;
+        syncUI();
+      }
+      lastTime = ts;
+    } else {
+      lastTime = null;
+    }
+    drawFrame();
+    requestAnimationFrame(loop);
+  }
+
+  sliders.freq1.addEventListener("input", () => {
+    state.n1 = Number(sliders.freq1.value);
+    syncUI();
+  });
+  sliders.freq2.addEventListener("input", () => {
+    state.n2 = Number(sliders.freq2.value);
+    syncUI();
+  });
+  sliders.phase.addEventListener("input", () => {
+    state.delta = Number(sliders.phase.value);
+    syncUI();
+  });
+
+  document.getElementById("animToggle").addEventListener("click", function () {
+    state.animating = !state.animating;
+    this.textContent = state.animating ? "Pause δ" : "Animate δ";
+    this.classList.toggle("primary", state.animating);
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    state.n1 = 2; state.n2 = 3; state.delta = Math.PI / 2; state.animating = true;
+    sliders.freq1.value = 2; sliders.freq2.value = 3;
+    sliders.phase.value = Math.PI / 2;
+    document.getElementById("animToggle").textContent = "Pause δ";
+    document.getElementById("animToggle").classList.add("primary");
+    syncUI();
+  });
+
+  window.addEventListener("resize", resizeCanvas);
+
+  resizeCanvas();
+  syncUI();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

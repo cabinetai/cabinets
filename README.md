@@ -29,142 +29,175 @@ A cabinet is just a directory. Copy it, version it, share it — it works anywhe
 
 ## Browse the Registry
 
-Each top-level directory in this repo is a complete cabinet template you can install and customize. The registry has two collections: the original **personal & creator** templates, and a **76-cabinet enterprise suite** organized by department (below).
+Each top-level directory in this repo is a complete cabinet template you can install and customize — **163 templates**: the original personal & creator cabinets, a department-organized enterprise suite, per-integration showcases (Gmail, Asana, Stripe, Notion, …), and the wooden lifestyle templates. Install any of them with `npx cabinets add <name>`.
 
-### Personal & creator templates
+### All templates
 
 | Cabinet | Domain | Agents | Jobs | Children | Description |
 |---------|--------|--------|------|----------|-------------|
-| [agency](./agency) | Professional Services | 2 | 2 | 2 | Digital agency managing multiple client engagements |
-| [ai-hero](./ai-hero) | Education | 2 | 2 | 0 | Self-paced AI course from Python up through GPT-2 construction |
-| [audits](./audits) | Operations | 1 | 2 | 0 | End-to-end product audits — walk every surface, file each friction as a markdown issue, ship fixes with a 20-yr Senior Product Lead bar, hand stakeholder an interactive review slideshow |
-| [biology-experiments](./biology-experiments) | Education | 1 | 1 | 0 | Five browser-based simulations of landmark biology experiments |
-| [book-factory](./book-factory) | Media | 1 | 2 | 0 | Book OS — premise, outline, chapter draft, blurb, and publishing-path matrix |
-| [career-ops](./career-ops) | Operations | 2 | 5 | 0 | AI-powered job search command center with pipeline tracking and CV tailoring |
-| [content-creator](./content-creator) | Media | 2 | 2 | 0 | Solo content creator operation with strategy, editing, and analytics |
-| [cooking](./cooking) | Lifestyle | 1 | 1 | 0 | Pantry tracker, recipe suggestions, and weekly meal-plan generator |
-| [course-factory](./course-factory) | Education | 1 | 2 | 0 | Course OS — curriculum, lessons, sales page, and launch sequence |
-| [ecommerce](./ecommerce) | E-commerce | 2 | 2 | 0 | DTC brand with inventory, email marketing, and fulfillment ops |
-| [fitness](./fitness) | Lifestyle | 1 | 1 | 0 | Strength and conditioning tracker with smart deload suggestions |
-| [job-hunt-hq](./job-hunt-hq) | Operations | 2 | 4 | 0 | Career strategist, resume tailor, interview coach, and networking scout |
-| [keto-hq](./keto-hq) | Lifestyle | 2 | 4 | 0 | Macros, electrolytes, stall diagnosis, and meal planning for keto protocol |
-| [mom-command](./mom-command) | Lifestyle | 1 | 2 | 0 | Root cabinet for the Mom & Baby series — shared family context and data |
-| [music-factory](./music-factory) | Media | 0 | 0 | 0 | Browser-native MIDI factory with piano roll, Web Audio playback, and .mid export |
-| [newborn](./newborn) | Lifestyle | 1 | 2 | 0 | Survival tracker for weeks 0–12 — feeds, sleep, milestones, red flags |
-| [newsletter-factory](./newsletter-factory) | Media | 1 | 2 | 0 | Newsletter OS — brand voice, calendar, drafts, subject-line generators, platform guide |
-| [personal-os](./personal-os) | Operations | 1 | 1 | 6 | Second-brain cabinet with six life areas (brain, family, home, money, health, play) |
-| [physics-101](./physics-101) | Education | 1 | 1 | 0 | 6-module beginner curriculum — Motion through Light, no calculus required |
-| [physics-experiments](./physics-experiments) | Education | 1 | 1 | 0 | Five browser-based simulations of classic physics experiments |
-| [podcast-factory](./podcast-factory) | Media | 1 | 2 | 0 | Podcast OS — brand, calendar, scripts, shownotes, and recording-platform guide |
-| [reading-room](./reading-room) | Education | 1 | 1 | 0 | Private Goodreads — TBR, ratings, what-I-learned notes, year-in-review |
-| [real-estate](./real-estate) | Sales | 2 | 2 | 3 | Real estate brokerage with listings management, marketing, and client relations |
-| [saas-startup](./saas-startup) | Software | 2 | 2 | 0 | B2B SaaS with product-led growth, engineering, and customer success |
-| [text-your-mom](./text-your-mom) | Software | 2 | 3 | 3 | B2C app company with TikTok, Reddit, and engineering child cabinets |
-| [usa-travel-planner](./usa-travel-planner) | Lifestyle | 2 | 3 | 0 | National parks map, state fairs, and event-hunter agent for US travel |
-| [venture-capital](./venture-capital) | Professional Services | 5 | 5 | 0 | Early-stage VC firm OS — deal sourcing and thesis scoring, portfolio health monitoring, market research, and LP updates |
-| [wedding-planner](./wedding-planner) | Lifestyle | 1 | 2 | 0 | Wedding OS — timeline, budget tracker, vow generators, and day-of runbook |
-| [youtube-channel-factory](./youtube-channel-factory) | Media | 1 | 2 | 0 | YouTube OS — brand, calendar, scripts, thumbnail briefs, and gear guide |
-
-### Enterprise department templates
-
-A department-organized suite of B2B enterprise Cabinets. Pick a department, pick the workflow you run manually today, connect the systems of record you can’t replace — Cabinet replaces the docs, dashboards, trackers, and status rituals around them. The flagship **[competitive-intelligence](./competitive-intelligence)** cabinet publishes daily/weekly/monthly competitor reports, and Sales/CS/Product/Marketing/Exec/Strategy cabinets carry a competitor-watch routine that feeds it.
-
-| Cabinet | Domain | Agents | Jobs | Description |
-|---------|--------|--------|------|-------------|
-| [competitive-intelligence](./competitive-intelligence) | Operations | 3 | 4 | ⭐ Cross-company competitive intelligence command center |
-| **Executive / CEO Office** | | | | |
-| [ceo-operating](./ceo-operating) | Operations | 3 | 4 | Run company priorities, leadership decisions, risks, and operating cadence from one place |
-| [board-memo](./board-memo) | Operations | 3 | 4 | Generate monthly and quarterly board updates covering product, revenue, finance, hiring, risks, and asks |
-| [investor-update](./investor-update) | Operations | 2 | 2 | Write monthly investor updates from live company data and leadership notes |
-| [leadership-meeting](./leadership-meeting) | Operations | 2 | 2 | Prepare leadership meeting agendas, summarize decisions, and track action items across every weekly meeting |
-| **Strategy / Operations** | | | | |
-| [okr-command](./okr-command) | Operations | 3 | 2 | The living OKR board for your company and every department |
-| [weekly-business-review](./weekly-business-review) | Operations | 2 | 2 | Auto-generates the weekly business review across revenue, product, support, engineering, and finance |
-| [decision-log](./decision-log) | Operations | 2 | 1 | Extracts and preserves every material decision made in meetings, Slack, docs, and email |
-| [strategic-initiative](./strategic-initiative) | Operations | 2 | 2 | The initiative room for cross-functional strategic programs — pricing changes, market launches, reorgs |
-| **Sales** | | | | |
-| [account-room](./account-room) | Sales | 3 | 4 | One living workspace per account — stakeholders, history, open opportunities, objections, and next steps |
-| [pipeline-risk](./pipeline-risk) | Sales | 2 | 3 | Identify risky deals, stale opportunities, missing champions, and weak next steps before they cost you the quarter |
-| [sales-battlecard](./sales-battlecard) | Sales | 2 | 3 | Per-competitor battlecards with objection handling, proof points, pricing deltas, and recommended collateral |
-| [proposal-rfp](./proposal-rfp) | Sales | 3 | 3 | Draft proposals and RFP responses using customer context, pricing, security answers, and case studies |
-| [ae-csm-handoff](./ae-csm-handoff) | Sales | 2 | 3 | Turn closed-won deal context into a clean, structured onboarding handoff for Customer Success |
-| [sales-call-prep](./sales-call-prep) | Sales | 2 | 2 | Prep reps for every call with account context, recent activity, likely pain points, and discovery questions |
-| **Customer Success** | | | | |
-| [customer-health](./customer-health) | Sales | 2 | 4 | Always-on customer health command center — health scores, usage trends, tickets, and renewal risk |
-| [qbr-generator](./qbr-generator) | Sales | 2 | 3 | Turns raw customer data into polished Quarterly Business Review content — goals, adoption, ROI, next quarter |
-| [renewal-risk](./renewal-risk) | Sales | 2 | 3 | Surfaces upcoming renewals, risk levels, expansion potential, and required actions across the book |
-| [customer-escalation](./customer-escalation) | Sales | 3 | 3 | Converts escalation chaos into a structured packet — timeline, customer impact, root cause, owner plan |
-| **Customer Support** | | | | |
-| [support-intelligence](./support-intelligence) | Operations | 2 | 2 | Clusters tickets by theme, surfaces recurring pain, and ships a weekly support insights report |
-| [bug-escalation](./bug-escalation) | Operations | 2 | 2 | Turns raw customer tickets into engineering-ready bug reports with repro steps and customer impact |
-| [help-center](./help-center) | Operations | 2 | 2 | Drafts and maintains help articles from real customer questions and product release notes |
-| [support-macro](./support-macro) | Operations | 2 | 2 | Generates and QA-reviews a library of reusable support macros from real ticket clusters |
-| **Product** | | | | |
-| [voice-of-customer](./voice-of-customer) | Software | 3 | 3 | Collects, clusters, and quantifies feedback across support, sales calls, reviews, and chat |
-| [feature-request](./feature-request) | Software | 2 | 2 | Ingests feature requests from every channel and publishes a RICE-scored, prioritized board |
-| [roadmap](./roadmap) | Software | 2 | 2 | Builds data-backed Now/Next/Later roadmap proposals from goals, feedback, capacity, and impact |
-| [prd-builder](./prd-builder) | Software | 3 | 3 | Generates structured PRD drafts from customer pain, goals, and constraints — with a completeness QA pass |
-| [product-launch](./product-launch) | Software | 2 | 3 | Manages the launch lifecycle — checklist, owners, assets, risks, comms, and release notes |
-| [experiment-review](./experiment-review) | Software | 2 | 2 | Tracks hypotheses, variants, metrics, and decisions in a structured experiment readout + log |
-| **Engineering** | | | | |
-| [sprint-planning](./sprint-planning) | Software | 2 | 2 | Automated sprint preparation and daily standup digest for engineering teams |
-| [engineering-status](./engineering-status) | Software | 2 | 1 | Auto-generated weekly engineering update from GitHub, Jira, and Linear |
-| [release-notes](./release-notes) | Software | 2 | 2 | Turns merged PRs and completed issues into internal and customer-facing release notes |
-| [incident-postmortem](./incident-postmortem) | Software | 3 | 2 | Builds incident timelines, root-cause analyses, and action-item registers from your observability stack |
-| [architecture-decision](./architecture-decision) | Software | 2 | 2 | Maintains a living ADR library — decisions, tradeoffs, owners, diagrams, and rationale |
-| [bug-triage](./bug-triage) | Software | 2 | 2 | Daily bug triage from Sentry, GitHub, Jira, and Support — ranked by severity, impact, and frequency |
-| **IT** | | | | |
-| [it-request](./it-request) | Operations | 2 | 2 | Structured IT request intake and routing for modern teams |
-| [access-approval](./access-approval) | Operations | 2 | 2 | Policy-aware access request intake, compliance check, and approval routing |
-| [app-directory](./app-directory) | Operations | 2 | 2 | Always-current SaaS inventory — every app, owner, user count, cost, renewal, and SSO status |
-| [employee-offboarding](./employee-offboarding) | Operations | 2 | 2 | End-to-end employee offboarding orchestration for IT and HR teams |
-| [change-management](./change-management) | Operations | 2 | 2 | Structured change request docs, risk scoring, and CAB approval routing |
-| **HR / People** | | | | |
-| [new-hire-onboarding](./new-hire-onboarding) | Operations | 2 | 2 | Structured onboarding workspace for every new employee — pre-boarding to 30-day mark |
-| [hr-policy-assistant](./hr-policy-assistant) | Operations | 2 | 2 | Instant, sourced answers to employee policy questions — PTO, benefits, leave, remote work |
-| [performance-review](./performance-review) | Operations | 3 | 2 | Performance review packets from goals, manager notes, peer feedback, and shipped work |
-| [candidate-packet](./candidate-packet) | Operations | 2 | 2 | Candidate packets for hiring committees — resume, interview digest, scorecards, recommendation |
-| [hiring-pipeline](./hiring-pipeline) | Operations | 2 | 2 | Talent ops command center — open roles, funnel, time-to-fill, bottlenecks, and headcount plan |
-| [manager-one-on-one](./manager-one-on-one) | Operations | 2 | 2 | Per-report 1:1 workspace — agenda, running notes, action items, goals, and feedback log |
-| **Finance** | | | | |
-| [finance-memo](./finance-memo) | Professional Services | 2 | 2 | Turns ERP and payroll data into a polished monthly CFO memo — revenue, burn, runway, variance |
-| [budget-variance](./budget-variance) | Professional Services | 2 | 2 | Compares budget vs. actuals by department monthly, flags overspend, explains drivers |
-| [vendor-renewal](./vendor-renewal) | Professional Services | 2 | 2 | Tracks SaaS renewal dates, notice windows, owners, and spend — alerts before cancellation windows close |
-| [spend-policy](./spend-policy) | Professional Services | 2 | 2 | Answers "can I expense this?", flags anomalous spend, and keeps department summaries current |
-| [board-finance](./board-finance) | Professional Services | 2 | 2 | Assembles the CFO's board finance section — ARR, burn multiple, runway, plan vs. actual, risks |
-| **Procurement / Operations** | | | | |
-| [procurement-intake](./procurement-intake) | Operations | 3 | 2 | Turns vendor/tool requests into an approval packet — cost, risk, alternatives, compliance, decision |
-| [vendor-asset](./vendor-asset) | Operations | 1 | 2 | Single source of truth for equipment, software licences, and vendor relationships |
-| [universal-request](./universal-request) | Operations | 2 | 2 | One intake flow for every team — marketing, IT, finance, design, legal, data, and ops |
-| [office-ops](./office-ops) | Operations | 1 | 2 | Keeps the office running — visitors, supplies, facilities tickets, and recurring tasks |
-| **Legal** | | | | |
-| [contract-intelligence](./contract-intelligence) | Professional Services | 2 | 2 | Turns executed contracts into structured summaries — obligations, renewal terms, risk flags, owners |
-| [legal-request](./legal-request) | Professional Services | 2 | 2 | Structured intake for legal requests — classify, gather info, route to counsel, track SLA |
-| [contract-renewal](./contract-renewal) | Professional Services | 2 | 2 | Tracks renewal dates, notice windows, auto-renew risk, and pricing changes across contracts |
-| [clause-library](./clause-library) | Professional Services | 2 | 2 | A living library of approved clauses — standard language, fallbacks, negotiation notes, risk |
-| **Security / Compliance** | | | | |
-| [security-questionnaire](./security-questionnaire) | Professional Services | 3 | 2 | Auto-answers customer/vendor security questionnaires from your policies, SOC2 docs, and past answers |
-| [compliance-evidence](./compliance-evidence) | Professional Services | 2 | 2 | Collects and maps evidence — policies, screenshots, logs — to SOC2, ISO 27001, and GDPR controls |
-| [risk-register](./risk-register) | Professional Services | 2 | 2 | Tracks security & operational risks with owners, likelihood-impact scores, and mitigation plans |
-| [vendor-security-review](./vendor-security-review) | Professional Services | 2 | 3 | Assesses vendor risk via SOC2, DPA status, and sub-processors — producing an approval packet |
-| **Marketing** | | | | |
-| [campaign-launch](./campaign-launch) | Media | 2 | 3 | End-to-end campaign operations from brief to launch to performance review |
-| [content-calendar](./content-calendar) | Media | 2 | 2 | Plan, draft, schedule, and review all content — from idea to published to performance |
-| [seo-content](./seo-content) | Media | 2 | 3 | Keyword research, content briefs, rankings tracking, and refresh tasks in one workspace |
-| [ad-performance](./ad-performance) | Media | 2 | 2 | Paid media in one dashboard — spend, CAC, ROAS, creative winners/losers, next experiments |
-| [brand-hub](./brand-hub) | Media | 2 | 2 | Logos, colors, typography, messaging pillars, approved copy, and do/don't guidelines |
-| [competitive-marketing](./competitive-marketing) | Media | 2 | 2 | The marketing cut of competitive intel — messaging, campaigns, SEO/ad presence, share of voice |
-| **Data / Analytics** | | | | |
-| [kpi-narrative](./kpi-narrative) | Software | 2 | 2 | Converts dashboard data into plain-English business explanations and weekly metric narratives |
-| [metrics-definition](./metrics-definition) | Software | 2 | 2 | The canonical glossary for every business metric — owner, formula, source table, certified status |
-| [data-request](./data-request) | Software | 2 | 2 | Structured intake, triage, and delivery for every business data question |
-| **General Company Knowledge** | | | | |
-| [company-brain](./company-brain) | Operations | 2 | 2 | The AI-native knowledge base that makes every doc findable and every question answerable |
-| [meeting-memory](./meeting-memory) | Operations | 2 | 2 | Captures every meeting as structured memory — summaries, decisions, action items, owners |
-| [internal-faq](./internal-faq) | Operations | 2 | 2 | Instant, sourced answers to HR, IT, finance, and policy questions — without opening a ticket |
-| [team-wiki](./team-wiki) | Operations | 2 | 2 | A living team page — responsibilities, projects, rituals, key docs, and on-call ownership |
-
-**Totals:** 106 cabinets, 211 agents, 235 jobs across the registry (30 personal & creator + 76 enterprise).
+| [access-approval](./access-approval) | Operations | 2 | 2 | 0 | Policy-aware access request intake, compliance check, and approval routing for IT and security teams |
+| [account-room](./account-room) | Sales | 3 | 4 | 0 | One living workspace per account — stakeholders, history, open opportunities, objections, and next steps in a single place |
+| [ad-performance](./ad-performance) | Media | 2 | 2 | 0 | Paid media performance in one dashboard — spend, CAC, ROAS, creative winners/losers, and the next experiment queue |
+| [ae-csm-handoff](./ae-csm-handoff) | Sales | 2 | 3 | 0 | Turn closed-won deal context into a clean, structured onboarding handoff for Customer Success — stakeholders, promised outcomes, risks, s… |
+| [agency](./agency) | Professional Services | 2 | 2 | 2 | Digital agency managing multiple client engagements with shared processes and templates |
+| [ai-hero](./ai-hero) | Education | 2 | 2 | 0 | Self-paced AI course — 20 hours of math, intuition, theory, and hands-on LLM construction |
+| [app-directory](./app-directory) | Operations | 2 | 2 | 0 | Always-current SaaS inventory tracking every app, owner, user count, annual cost, renewal date, and SSO status across your organization |
+| [architecture-decision](./architecture-decision) | Software | 2 | 2 | 0 | Maintains a living ADR library — architecture decisions, tradeoffs, owners, diagrams, and rationale — discoverable in one place and kept… |
+| [asana-tasks](./asana-tasks) | Operations | 1 | 1 | 0 | Every morning, the Asana tasks that are actually on you today |
+| [audits](./audits) | Operations | 1 | 2 | 0 | Walk a product, file every friction as a markdown issue, ship fixes with a Senior Product Lead bar — then hand a stakeholder an interacti… |
+| [aws-s3-contents](./aws-s3-contents) | Operations | 1 | 1 | 0 | What's actually in your bucket, and what changed last |
+| [backblaze-b2-contents](./backblaze-b2-contents) | Operations | 1 | 1 | 0 | What's actually in your B2 bucket, and what changed last |
+| [biology-experiments](./biology-experiments) | Education | 1 | 1 | 0 | Five interactive simulations of landmark biology experiments — Griffith's transformation, Hershey-Chase, Mendel's peas, Meselson-Stahl, a… |
+| [board-finance](./board-finance) | Professional Services | 2 | 2 | 0 | Assembles the CFO's board finance section each quarter — ARR, burn multiple, runway, plan vs |
+| [board-memo](./board-memo) | Operations | 3 | 4 | 0 | Generate monthly and quarterly board updates covering product, revenue, finance, hiring, risks, and asks |
+| [book-factory](./book-factory) | Media | 1 | 2 | 0 | A complete book-writing OS in a directory |
+| [brand-hub](./brand-hub) | Media | 2 | 2 | 0 | Logos, colors, typography, messaging pillars, approved boilerplate copy, and do/don't guidelines — all in one place, always current |
+| [brightdata-web-search](./brightdata-web-search) | Research | 1 | 1 | 0 | Ask the live web a question and keep the answer |
+| [budget-variance](./budget-variance) | Professional Services | 2 | 2 | 0 | Compares budget vs. actuals by department every month, flags overspend with RAG status, and generates plain-English variance explanations… |
+| [bug-escalation](./bug-escalation) | Operations | 2 | 2 | 0 | Turns raw customer tickets into engineering-ready bug reports — with reproduction steps, customer impact, ARR at risk, and linked tickets… |
+| [bug-triage](./bug-triage) | Software | 2 | 2 | 0 | Daily bug triage from Sentry, GitHub, Jira, and Support — bugs ranked by severity, customer impact, and frequency, with owners assigned a… |
+| [campaign-launch](./campaign-launch) | Media | 2 | 3 | 0 | End-to-end campaign operations from brief to launch to review |
+| [candidate-packet](./candidate-packet) | Operations | 2 | 2 | 0 | Structured candidate packets for hiring committees — resume summary, interview notes digest, take-home assessment, scorecard by competenc… |
+| [career-ops](./career-ops) | Operations | 2 | 5 | 0 | AI-powered job search command center |
+| [ceo-operating](./ceo-operating) | Operations | 3 | 4 | 0 | Run company priorities, leadership decisions, risks, and operating cadence from one place |
+| [change-management](./change-management) | Operations | 2 | 2 | 0 | Structured change request documentation, risk scoring, and CAB approval routing for IT and DevOps teams |
+| [chrome-site-check](./chrome-site-check) | Software | 1 | 1 | 0 | Every morning, whether your pages still load properly |
+| [claude-code-style](./claude-code-style) | Knowledge | 1 | 1 | 0 | Shows you how you actually talk to your agents |
+| [clause-library](./clause-library) | Professional Services | 2 | 2 | 0 | A living, searchable library of approved contract clauses — standard language, fallback positions, negotiation notes, and risk explanatio… |
+| [cloudflare-r2-contents](./cloudflare-r2-contents) | Operations | 1 | 1 | 0 | What's actually in your R2 bucket, and what changed last |
+| [codex-style](./codex-style) | Knowledge | 1 | 1 | 0 | Shows you how you actually talk to Codex |
+| [company-brain](./company-brain) | Operations | 2 | 2 | 0 | The AI-native knowledge base that makes every doc findable and every question answerable |
+| [competitive-intelligence](./competitive-intelligence) | Operations | 3 | 4 | 0 | Cross-company competitive intelligence command center |
+| [competitive-marketing](./competitive-marketing) | Media | 2 | 2 | 0 | The marketing-specific cut of competitive intelligence — messaging, campaigns, SEO footprint, ad presence, and share of voice for every t… |
+| [competitor-watch](./competitor-watch) | Product | 1 | 1 | 0 | Daily competitor watch for your product |
+| [compliance-evidence](./compliance-evidence) | Professional Services | 2 | 2 | 0 | Collects and maps compliance evidence — policies, screenshots, access logs, vendor docs — to SOC2, ISO 27001, and GDPR controls |
+| [confluence-digest](./confluence-digest) | Operations | 1 | 1 | 0 | Every morning, what changed in your team's wiki and which of it you need to read |
+| [content-calendar](./content-calendar) | Media | 2 | 2 | 0 | Plan, draft, schedule, and review all content in one place — from idea to published to performance |
+| [content-creator](./content-creator) | Media | 2 | 2 | 0 | Solo content creator operation with strategy, editing, and analytics workflows |
+| [contract-intelligence](./contract-intelligence) | Professional Services | 2 | 2 | 0 | Turns every executed contract into a structured summary with obligations, renewal terms, risk flags, and owner assignments — all searchab… |
+| [contract-renewal](./contract-renewal) | Professional Services | 2 | 2 | 0 | Tracks every contract's renewal date, notice window, auto-renew risk, and pricing change — so legal, finance, and procurement always have… |
+| [cooking](./cooking) | Lifestyle | 1 | 1 | 0 | A cabinet for cooking at home — what's in the fridge, what's about to expire, what to make tonight |
+| [course-factory](./course-factory) | Education | 1 | 2 | 0 | A complete online-course OS in a directory |
+| [customer-escalation](./customer-escalation) | Sales | 3 | 3 | 0 | Converts customer escalation chaos into a structured packet — incident header, timeline, customer impact, root-cause status, owner plan,… |
+| [customer-health](./customer-health) | Sales | 2 | 4 | 0 | Always-on customer health command center |
+| [data-request](./data-request) | Software | 2 | 2 | 0 | Structured intake, triage, and delivery for every business data question — from the Slack "can someone pull this?" to a routed, answered,… |
+| [decision-log](./decision-log) | Operations | 2 | 1 | 0 | Extracts and preserves every material decision made in meetings, Slack, docs, and email — with owner, rationale, consequences, and status… |
+| [digitalocean-spaces-contents](./digitalocean-spaces-contents) | Operations | 1 | 1 | 0 | What's actually in your Space, and what changed last |
+| [discord-digest](./discord-digest) | Operations | 1 | 1 | 0 | Every morning, what was worth reading in your Discord server over the last 24 hours |
+| [ecommerce](./ecommerce) | E-commerce | 2 | 2 | 0 | Direct-to-consumer e-commerce brand with inventory, email marketing, and fulfillment operations |
+| [email](./email) | Other | 3 | 0 | 0 | Email cabinet. |
+| [employee-offboarding](./employee-offboarding) | Operations | 2 | 2 | 0 | End-to-end employee offboarding orchestration for IT and HR teams |
+| [engineering-status](./engineering-status) | Software | 2 | 1 | 0 | Auto-generated weekly engineering update from GitHub, Jira, and Linear — shipped every Monday before the leadership standup |
+| [experiment-review](./experiment-review) | Software | 2 | 2 | 0 | Tracks experiment hypotheses, variants, metrics, statistical results, and decisions in a structured log — producing a readable experiment… |
+| [family-hq](./family-hq) | Lifestyle | 1 | 1 | 0 | The household's paperwork in one drawer — and the dates it hides, on one board |
+| [feature-request](./feature-request) | Software | 2 | 2 | 0 | Ingests feature requests from support tickets, CRM, Slack, and Jira, scores each with a RICE-style framework, and publishes a prioritized… |
+| [figma-week](./figma-week) | Operations | 1 | 1 | 0 | Every Monday, what changed in your Figma files last week |
+| [finance-memo](./finance-memo) | Professional Services | 2 | 2 | 0 | Turns raw ERP and payroll data into a polished monthly CFO memo — revenue, burn, runway, expenses, and variance narrative — ready to shar… |
+| [fitness](./fitness) | Lifestyle | 1 | 1 | 0 | A cabinet for strength, mobility, and conditioning |
+| [food-diary](./food-diary) | Lifestyle | 1 | 1 | 0 | Say what you ate, in your own words — it keeps the count |
+| [freelance-desk](./freelance-desk) | Professional Services | 1 | 1 | 0 | Clients, proposals, invoices — and a clerk who chases the money you're owed |
+| [gemini-cli-style](./gemini-cli-style) | Knowledge | 1 | 1 | 0 | Shows you how you actually talk to Gemini CLI |
+| [github-dev-brief](./github-dev-brief) | Operations | 1 | 1 | 0 | Every morning, what you shipped and what's waiting on you across GitHub in the last 24 hours |
+| [gitlab-dev-brief](./gitlab-dev-brief) | Operations | 1 | 1 | 0 | Every morning, what you shipped and what's waiting on you across GitLab in the last 24 hours |
+| [gmail-inbox](./gmail-inbox) | Operations | 1 | 1 | 0 | Every morning, a plain-English summary of the email that arrived overnight |
+| [good-morning](./good-morning) | Operations | 1 | 1 | 0 | One morning page from everything you've connected — mail, calendar, money, whatever you add next |
+| [google-ads-brief](./google-ads-brief) | Marketing | 1 | 1 | 0 | Every Monday, where last week's ad money went and what it bought |
+| [google-calendar-week](./google-calendar-week) | Operations | 1 | 1 | 0 | Every morning, what's on your calendar today, with the rest of the week behind it |
+| [google-cloud-storage-contents](./google-cloud-storage-contents) | Operations | 1 | 1 | 0 | What's actually in your Cloud Storage bucket, and what changed last |
+| [help-center](./help-center) | Operations | 2 | 2 | 0 | Drafts, updates, and maintains help articles from real customer questions and product release notes — keeping your knowledge base current… |
+| [higgsfield-studio](./higgsfield-studio) | Media | 1 | 1 | 0 | A fresh set of images each week, made on your own Higgsfield account |
+| [hiring-pipeline](./hiring-pipeline) | Operations | 2 | 2 | 0 | Talent operations command center — open roles, candidate funnel by stage, time-to-fill, bottlenecks, offer/accept rate, and headcount pla… |
+| [hr-policy-assistant](./hr-policy-assistant) | Operations | 2 | 2 | 0 | Instant, accurate answers to employee policy questions — PTO, benefits, expenses, parental leave, remote work — sourced from your living… |
+| [incident-postmortem](./incident-postmortem) | Software | 3 | 2 | 0 | Builds complete incident timelines, root-cause analyses, and action-item registers from PagerDuty, Datadog, Sentry, and Slack — published… |
+| [internal-faq](./internal-faq) | Operations | 2 | 2 | 0 | Lets every employee get instant, sourced answers to HR, IT, finance, and policy questions — without opening a ticket or asking on Slack |
+| [investor-update](./investor-update) | Operations | 2 | 2 | 0 | Write monthly investor updates from live company data and leadership notes |
+| [it-request](./it-request) | Operations | 2 | 2 | 0 | Structured IT request intake and routing for modern teams |
+| [jira-tasks](./jira-tasks) | Operations | 1 | 1 | 0 | Every morning, the Jira tickets that are actually on you today |
+| [job-hunt](./job-hunt) | Operations | 1 | 1 | 0 | One folder per application, one page showing the whole hunt — and a clerk who never lets a follow-up slip |
+| [job-hunt-hq](./job-hunt-hq) | Operations | 2 | 4 | 0 | Job search is a full-time job |
+| [keto-hq](./keto-hq) | Lifestyle | 2 | 4 | 0 | Specialty protocol cabinet for ketogenic eating |
+| [kpi-narrative](./kpi-narrative) | Software | 2 | 2 | 0 | Converts raw dashboard data from Looker, Tableau, and your data warehouse into plain-English business explanations and weekly metric narr… |
+| [leadership-meeting](./leadership-meeting) | Operations | 2 | 2 | 0 | Prepare leadership meeting agendas, summarize decisions, and track action items across every weekly meeting |
+| [legal-request](./legal-request) | Professional Services | 2 | 2 | 0 | Structured intake for legal requests from any team — classify type, gather required information, route to the right counsel, and track SLA |
+| [linear-cycle](./linear-cycle) | Operations | 1 | 1 | 0 | Every morning, the Linear issues that are on you this cycle |
+| [mailchimp-delivery](./mailchimp-delivery) | Operations | 1 | 1 | 0 | Every morning, whether yesterday's email actually reached people |
+| [manager-one-on-one](./manager-one-on-one) | Operations | 2 | 2 | 0 | Per-report 1:1 workspace for managers — recurring agenda, running notes timeline, open action items, goals tracker, and feedback log — so… |
+| [meal-planner](./meal-planner) | Lifestyle | 1 | 1 | 0 | Every Saturday, a week of dinners you'll actually eat — and the shopping list to match |
+| [meeting-memory](./meeting-memory) | Operations | 2 | 2 | 0 | Captures every meeting as structured memory — summaries, decisions, action items, and owners — so nothing falls through the cracks |
+| [meta-ads-brief](./meta-ads-brief) | Marketing | 1 | 1 | 0 | Every Monday, where last week's ad money went on Meta and what it bought |
+| [metrics-definition](./metrics-definition) | Software | 2 | 2 | 0 | The canonical glossary for every business metric — owner, formula, source table, and certified status |
+| [microsoft-365-brief](./microsoft-365-brief) | Operations | 1 | 1 | 0 | Every morning, your whole day across Microsoft 365 on one page |
+| [mom-command](./mom-command) | Lifestyle | 1 | 2 | 0 | The always-installed root for the Mom & Baby cabinet series |
+| [monday-tasks](./monday-tasks) | Operations | 1 | 1 | 0 | Every morning, the monday.com items that are actually on you today |
+| [money-morning](./money-morning) | Operations | 1 | 1 | 0 | Yesterday's money in plain words — what came in, what failed, who left |
+| [morning-mail](./morning-mail) | Operations | 1 | 1 | 0 | Your inbox, read for you before coffee — one page of what actually needs you |
+| [music-factory](./music-factory) | Media | 0 | 0 | 0 | A browser-native MIDI factory |
+| [new-hire-onboarding](./new-hire-onboarding) | Operations | 2 | 2 | 0 | Structured onboarding workspace for every new employee — pre-boarding to 30-day mark |
+| [newborn](./newborn) | Lifestyle | 1 | 2 | 0 | The survival cabinet for weeks 0–12 with a brand-new baby |
+| [news-desk](./news-desk) | Media | 1 | 1 | 0 | Your news sites, read every morning — and analyzed the way you would, not the way a wire feed would |
+| [newsletter-factory](./newsletter-factory) | Media | 1 | 2 | 0 | A complete newsletter OS in a directory |
+| [notion-library](./notion-library) | Operations | 1 | 1 | 0 | Every morning, a list of the Notion pages you shared, with what each one is actually about |
+| [notion-project-status](./notion-project-status) | Operations | 1 | 1 | 0 | Every morning, which of your Notion projects are on track and which need a look |
+| [obsidian-kb](./obsidian-kb) | Knowledge | 1 | 1 | 0 | Turns the vault you already wrote into a knowledge base you can ask questions of |
+| [office-ops](./office-ops) | Operations | 1 | 2 | 0 | Keeps the physical office running — visitor management, supply levels and reorders, facilities tickets, recurring maintenance tasks, and… |
+| [okr-command](./okr-command) | Operations | 3 | 2 | 0 | The living OKR board for your company and every department |
+| [openai-image-studio](./openai-image-studio) | Creative | 1 | 1 | 0 | Describe a picture and get a real image file in your cabinet |
+| [performance-review](./performance-review) | Operations | 3 | 2 | 0 | Structured performance review packets generated from goals, manager notes, peer feedback, and shipped work — one packet per employee per… |
+| [personal-os](./personal-os) | Operations | 1 | 1 | 6 | Your life has departments |
+| [physics-101](./physics-101) | Education | 1 | 1 | 0 | A 6-module beginner physics curriculum — Motion, Forces, Energy, Waves, Electricity, Light |
+| [physics-experiments](./physics-experiments) | Education | 1 | 1 | 0 | Five interactive, self-contained simulations of classic physics experiments — double-slit, pendulum wave, projectile motion, wave interfe… |
+| [pipeline-risk](./pipeline-risk) | Sales | 2 | 3 | 0 | Identify risky deals, stale opportunities, missing champions, and weak next steps before they cost you the quarter |
+| [playwright-site-check](./playwright-site-check) | Engineering | 1 | 1 | 0 | Every morning, opens your site and tells you if anything broke |
+| [podcast-factory](./podcast-factory) | Media | 1 | 2 | 0 | A complete Podcast OS in a directory |
+| [prd-builder](./prd-builder) | Software | 3 | 3 | 0 | Generates structured PRD drafts from customer pain, business goals, user stories, and constraints — then runs a completeness QA pass to e… |
+| [procurement-intake](./procurement-intake) | Operations | 3 | 2 | 0 | Turns every vendor and tool request into a structured approval packet — cost, risk, alternatives, compliance flags, and a decision-ready… |
+| [product-launch](./product-launch) | Software | 2 | 3 | 0 | Manages the full product launch lifecycle — checklist by workstream, owners, asset tracker, risk log, internal comms, and release notes —… |
+| [proposal-rfp](./proposal-rfp) | Sales | 3 | 3 | 0 | Draft proposals and RFP responses using customer context, approved pricing, security questionnaire answers, and case studies — with a com… |
+| [qbr-generator](./qbr-generator) | Sales | 2 | 3 | 0 | Turns raw customer data into polished Quarterly Business Review content — exec summary, goals vs outcomes, usage and adoption, ROI realiz… |
+| [reading-room](./reading-room) | Education | 1 | 1 | 0 | A cabinet for what you read — TBR, currently reading, finished, with star ratings, three-bullet "what I learned", and a year-in-review wall |
+| [real-estate](./real-estate) | Sales | 2 | 2 | 3 | Real estate brokerage with listings management, marketing, and client relationship operations |
+| [release-notes](./release-notes) | Software | 2 | 2 | 0 | Turns merged PRs and completed issues into polished internal and customer-facing release notes on every release cycle |
+| [renewal-risk](./renewal-risk) | Sales | 2 | 3 | 0 | Structured renewal management command center that surfaces upcoming renewals, risk levels, expansion potential, and required actions acro… |
+| [risk-register](./risk-register) | Professional Services | 2 | 2 | 0 | Tracks company security and operational risks with owners, likelihood-impact scores, mitigation plans, and review cadence |
+| [roadmap](./roadmap) | Software | 2 | 2 | 0 | Builds data-backed roadmap proposals from goals, customer feedback, capacity, and business impact — producing a structured Now/Next/Later… |
+| [saas-startup](./saas-startup) | Software | 2 | 2 | 0 | B2B SaaS startup with product-led growth, engineering, and customer success teams |
+| [safari-site-check](./safari-site-check) | Engineering | 1 | 1 | 0 | Every morning, opens your site in Safari and tells you if anything broke |
+| [sales-battlecard](./sales-battlecard) | Sales | 2 | 3 | 0 | Per-competitor battlecards with objection handling, proof points, pricing deltas, and recommended collateral — always current, agent-refr… |
+| [sales-call-prep](./sales-call-prep) | Sales | 2 | 2 | 0 | Prep reps for every call with account context, recent activity, likely pain points, discovery questions, and competitive notes — delivere… |
+| [security-questionnaire](./security-questionnaire) | Professional Services | 3 | 2 | 0 | Auto-answers customer and vendor security questionnaires using your existing policies, SOC2 docs, and past answers |
+| [seo-content](./seo-content) | Media | 2 | 3 | 0 | Keyword research, content briefs, rankings tracking, and refresh tasks — all in one workspace |
+| [sharepoint-week](./sharepoint-week) | Operations | 1 | 1 | 0 | Every Monday, what your team changed in SharePoint while you weren't looking |
+| [slack-digest](./slack-digest) | Operations | 1 | 1 | 0 | Every morning, what moved in all your Slack channels in the last 24 hours, and which of it wants you |
+| [snowflake-brief](./snowflake-brief) | Marketing | 1 | 1 | 0 | Every Monday, the numbers out of your warehouse, in plain words |
+| [spend-policy](./spend-policy) | Professional Services | 2 | 2 | 0 | Answers "can I expense this?" instantly, flags anomalous transactions before month-end, and keeps department spend summaries current — so… |
+| [sprint-planning](./sprint-planning) | Software | 2 | 2 | 0 | Automated sprint preparation and daily standup digest for engineering teams |
+| [stackadapt-brief](./stackadapt-brief) | Marketing | 1 | 1 | 0 | Every Monday, where last week's programmatic spend went and what it bought |
+| [strategic-initiative](./strategic-initiative) | Operations | 2 | 2 | 0 | The initiative room for cross-functional strategic programs — pricing changes, market launches, reorgs |
+| [stripe-daily](./stripe-daily) | Operations | 1 | 1 | 0 | Every morning, yesterday's money: what came in, what failed, and what needs you |
+| [subscription-audit](./subscription-audit) | Lifestyle | 1 | 1 | 0 | Once a month, every recurring charge on your statements — what's new, what crept up, what you forgot |
+| [support-intelligence](./support-intelligence) | Operations | 2 | 2 | 0 | Clusters support tickets by theme, surfaces recurring pain patterns, and ships a weekly insights report — so your support team stops fire… |
+| [support-macro](./support-macro) | Operations | 2 | 2 | 0 | Generates, QA-reviews, and maintains a library of reusable support macros from real ticket clusters — so every rep pulls a reviewed, on-b… |
+| [tavily-web-search](./tavily-web-search) | Research | 1 | 1 | 0 | Ask the live web a question and keep the answer |
+| [team-wiki](./team-wiki) | Operations | 2 | 2 | 0 | A living team page with responsibilities, active projects, rituals, key docs, and on-call ownership — always current, always findable |
+| [teams-digest](./teams-digest) | Operations | 1 | 1 | 0 | Every morning, what moved in your Teams channels in the last 24 hours, and which of it wants you |
+| [telegram-digest](./telegram-digest) | Operations | 1 | 1 | 0 | Every morning, what came in on Telegram overnight and which of it wants you |
+| [text-your-mom](./text-your-mom) | Software | 2 | 3 | 1 | A relatable B2C app company fully staffed with product, marketing, design, and app development teams working as one |
+| [tiktok-queue](./tiktok-queue) | Media | 1 | 1 | 0 | Finished videos go up on TikTok as private posts, ready for you to release |
+| [universal-request](./universal-request) | Operations | 2 | 2 | 0 | One intake flow for every team — marketing, IT, finance, design, legal, data, and ops |
+| [usa-travel-planner](./usa-travel-planner) | Lifestyle | 2 | 3 | 0 | An inspiration board for exploring the United States — interactive map of all 63 national parks with been-there checklist, every state fa… |
+| [vendor-asset](./vendor-asset) | Operations | 1 | 2 | 0 | The single source of truth for every piece of equipment, software licence, and vendor relationship the company owns — with assigned owner… |
+| [vendor-renewal](./vendor-renewal) | Professional Services | 2 | 2 | 0 | Tracks every SaaS vendor renewal date, notice window, owner, and spend in one place — sends alerts before cancellation windows close and… |
+| [vendor-security-review](./vendor-security-review) | Professional Services | 2 | 3 | 0 | Assesses vendor risk through SOC2 reports, DPA status, sub-processor lists, and security questionnaires — producing a structured approval… |
+| [venture-capital](./venture-capital) | Professional Services | 6 | 7 | 0 | Run an early-stage venture firm from one knowledge base |
+| [voice-of-customer](./voice-of-customer) | Software | 3 | 3 | 0 | Collects, clusters, and quantifies customer feedback across every channel — support, sales calls, reviews, and chat — turning raw signals… |
+| [wasabi-contents](./wasabi-contents) | Operations | 1 | 1 | 0 | What's actually in your Wasabi bucket, and what changed last |
+| [web-studio](./web-studio) | Software | 1 | 1 | 0 | Describe a website in plain words; a developer builds it in a folder, working and clickable, right here |
+| [wedding-planner](./wedding-planner) | Lifestyle | 1 | 2 | 0 | A complete wedding-planning OS in a directory |
+| [week-ahead](./week-ahead) | Operations | 1 | 1 | 0 | Sunday evening — your week laid out, clashes flagged, prep noted |
+| [weekly-business-review](./weekly-business-review) | Operations | 2 | 2 | 0 | Auto-generates the weekly business review across revenue, product, support, engineering, and finance — so leadership walks into Monday wi… |
+| [whatsapp-digest](./whatsapp-digest) | Operations | 1 | 1 | 0 | Every morning, a plain-English digest of the WhatsApp conversations from the last 24 hours |
+| [x-mentions](./x-mentions) | Operations | 1 | 1 | 0 | Every morning, your mentions and which of them actually want an answer |
+| [youtube-channel-factory](./youtube-channel-factory) | Media | 1 | 2 | 0 | A complete YouTube OS in a directory |
 
 ## Cabinet File Format
 

@@ -188,6 +188,69 @@ const CABINET_ICONS = {
   'meeting-memory':           { object: 'a string of three connected polaroid frames hanging from one thin clothesline', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'internal-faq':             { object: 'a single delicate question mark suspended above three soft concentric ripples', bgHex: '#D8C9E0', bgName: 'soft pale lavender' },
   'team-wiki':                { object: 'a single small open notebook with one elegant ribbon bookmark trailing out the bottom', bgHex: '#C8D5B9', bgName: 'soft sage' },
+
+  'audits':                   { object: 'a magnifying glass resting on a clipboard with three ticked checkboxes', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'competitor-watch':         { object: 'a pair of chunky binoculars standing upright on a small lookout post', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+
+  // ─── Wooden lifestyle templates ──────────────────────────────────────────────
+  'family-hq':                { object: 'a small toy house with a pitched roof, round chimney, and a tiny front door', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'food-diary':               { object: 'an open journal with a small apple resting on its pages and a pencil beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'freelance-desk':           { object: 'a tiny desk with a slim laptop, a small desk lamp, and one coffee cup', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'good-morning':             { object: 'a rising sun with carved rays peeking over a steaming coffee cup', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'job-hunt':                 { object: 'a briefcase with a magnifying glass leaning against its side', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'meal-planner':             { object: 'a chef hat resting on a small recipe-card stand with three carved cards', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'money-morning':            { object: 'a round piggy bank with a coin slot and one coin standing on edge beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'morning-mail':             { object: 'a small mailbox on a post with its flag raised and one letter poking out', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'news-desk':                { object: 'a rolled newspaper tied with string resting on a small reading stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'subscription-audit':       { object: 'a pair of scissors mid-snip through a small price tag on a string', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'web-studio':               { object: 'an artist easel holding a browser-window canvas with rounded corners', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'week-ahead':               { object: 'a small standing weekly planner board with seven carved day slots, one slot marked', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+
+  // ─── Integration showcase cabinets (wooden style) ────────────────────────────
+  'asana-tasks':              { object: 'a small clipboard holding a page with three round checkboxes, the top one ticked', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'aws-s3-contents':          { object: 'a small round storage bucket with a snug lid, one tiny parcel resting beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'backblaze-b2-contents':    { object: 'a sturdy little storage chest with rounded corners and a front latch, lid slightly open', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'brightdata-web-search':    { object: 'a magnifying glass hovering over a small globe on a stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'chrome-site-check':        { object: 'a round porthole window frame with a tiny green checkmark tile leaning against it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'claude-code-style':        { object: 'an artist paintbrush resting across a small rectangular terminal-window tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'cloudflare-r2-contents':   { object: 'a puffy cloud shape with a small pull-out drawer built into its underside', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'codex-style':              { object: 'a fountain pen resting on a small stack of square code tiles', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'confluence-digest':        { object: 'an open book with a small branching tree of pages growing from its spine', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'digitalocean-spaces-contents': { object: 'a little sailboat carrying one small cargo crate on deck, riding a single carved wave', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'discord-digest':           { object: 'a rounded game controller beside a small speech-bubble tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'figma-week':               { object: 'a drafting triangle and a pen-nib cursor arranged on a small artboard tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'gemini-cli-style':         { object: 'two identical four-pointed stars side by side on a small display stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'github-dev-brief':         { object: 'a small tree whose two branches curve back together and merge into one', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'gitlab-dev-brief':         { object: 'a small mountain peak with two winding paths joining at a flag on the summit', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'gmail-inbox':              { object: 'an open envelope standing upright in a small letter tray', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'google-ads-brief':         { object: 'a small megaphone with one coin popping out of its mouth', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'google-calendar-week':     { object: 'a desk flip-calendar block with one page mid-turn', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'google-cloud-storage-contents': { object: 'a puffy cloud resting on top of a small open storage box', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'higgsfield-studio':        { object: 'a vintage film camera on a tiny tripod with a director chair beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'jira-tasks':               { object: 'a small kanban board with three columns of sliding square tiles', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'linear-cycle':             { object: 'a smooth circular arrow loop standing upright on a small base', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'mailchimp-delivery':       { object: 'a small carrier pigeon holding an envelope, standing on a parcel', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'meta-ads-brief':           { object: 'an infinity-loop ribbon standing upright with one coin balanced on top', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'microsoft-365-brief':      { object: 'a four-pane window tile leaning against a small stack of documents', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'monday-tasks':             { object: 'a neat row of five rounded beads in a shallow tray, one bead lifted out', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'notion-library':           { object: 'a small bookshelf of cube compartments, each holding one tiny book', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'notion-project-status':    { object: 'a small easel holding a page with three progress bars of different lengths', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'obsidian-kb':              { object: 'a faceted gemstone on a stand with three small notes linked to it by thin threads', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'openai-image-studio':      { object: 'an artist easel holding a canvas with a rising sun carved in relief', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'playwright-site-check':    { object: 'a theater comedy mask resting beside a small browser-window tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'safari-site-check':        { object: 'a navigation compass with its needle mid-swing, resting on a small map tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'sharepoint-week':          { object: 'a round table with four document tiles arranged evenly around its center', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'slack-digest':             { object: 'a hashtag symbol carved as a chunky tile, with one small speech bubble leaning on it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'snowflake-brief':          { object: 'a single ornate snowflake ornament on a small display stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'stackadapt-brief':         { object: 'three stacked stepped layers forming a small pyramid with a flag on top', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'stripe-daily':             { object: 'a payment card standing in a small card holder with two coins beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'tavily-web-search':        { object: 'a small telescope on a tripod pointed at a cluster of three tiny stars', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'teams-digest':             { object: 'two overlapping speech bubbles of different sizes on a small stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'telegram-digest':          { object: 'a paper airplane banking into a gentle curve, suspended on a thin stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'tiktok-queue':             { object: 'a musical eighth-note standing on a small round stage with two ripple arcs behind it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'wasabi-contents':          { object: 'a rounded storage jar with a snug lid and a small leaf-green painted band', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'whatsapp-digest':          { object: 'a vintage telephone handset cradled inside a rounded speech bubble', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'x-mentions':               { object: 'a small brass bell with one tiny speech-bubble tag hanging from its handle', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
 };
 
 const STYLE_VARIATIONS = [
@@ -297,7 +360,7 @@ function buildIconPrompt(_spec, variation) {
 }
 
 function buildWoodPrompt(_spec, variation) {
-  return `A single ${variation.object}, rendered as a small 3D wood-craft toy object in warm light blonde maple wood with a soft matte clay finish. Clean simplified form with gently rounded edges and subtle warm shading. Set against a solid warm parchment background (hex #FAF6F1 — soft cream-white). Small warm accent color touches on select details (amber gold, sage green, or dusty rose). Wide horizontal 16:9 composition, object centered with generous parchment space on all sides. Warm, calm, refined toy-craft aesthetic. ABSOLUTELY NO TEXT, NO LETTERS, NO WORDS, NO NUMBERS, NO LOGOS, NO WATERMARKS anywhere in the image.`;
+  return `A single ${variation.object}, rendered as a small 3D wood-craft toy object carved from warm light wood (hex #E8D6B6) with deeper wood-tan shading (hex #C9A47A) and a soft matte clay finish. Clean simplified form with gently rounded edges and subtle warm shading. Set against a solid warm parchment background (hex #FAF6F1 — soft cream-white). One or two small painted accent details on the object in exactly one or two of these colors: terracotta #E2725B, cornflower blue #5B8FD6, warm orange #E08A3C, mustard gold #E0B23C, leaf green #6FA45A, teal #4FA39A. Wide horizontal 16:9 composition, object centered with generous parchment space on all sides. Warm, calm, refined toy-craft aesthetic. ABSOLUTELY NO TEXT, NO LETTERS, NO WORDS, NO NUMBERS, NO LOGOS, NO WATERMARKS anywhere in the image.`;
 }
 
 const STYLE_SETS = {
