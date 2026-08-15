@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<!--
+  CHASSIS 2 — chat page. Chassis 1 plus a prompt box that dispatches a one-shot
+  agent run and re-lists the folder when it returns. Replace every token below:
+
+    OpenAI Image Studio        browser title and <h1>
+    Describe a picture and get a real image file in your cabinet.     the one sentence — must match .cabinet description and index.md
+    /logos/openai-image.png         catalog entry `logo`, e.g. /logos/acme.svg
+    #10a37f       catalog entry `brand`
+    images          archive folder, e.g. summaries
+    .jobs/weekly-image-set.yaml          job path
+    Describe a picture — “a quiet desk by a window, morning light”  prompt box placeholder, e.g. "Ask the web a question…"
+
+  POST /api/agents/headless is capped at 120s server-side; this page aborts at
+  118s and loses the race deliberately. providerId is omitted so the user's own
+  provider calls the MCP tool this cabinet exists to show off.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OpenAI Image Studio</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
+    --line: #e6e5e1; --accent: #10a37f;
+    --hi: #b4443c; --mid: #9a6b1f; --lo: #6b6b66;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-size: 22px; margin: 0; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  /* The mark is an <img> from the catalog; SVG sources have no intrinsic pixel size,
+     so size it here or it renders enormous. flex:none stops the flex row shrinking it. */
+  .mark { width: 22px; height: 22px; flex: none; }
+  .sub { color: var(--dim); margin: 4px 0 0; font-size: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 20px; margin-top: 18px;
+  }
+  .empty { color: var(--dim); font-size: 14px; }
+  .empty code { font-size: 13px; }
+  .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
+  .picker .next { display: block; margin-top: 7px; }
+  .seeded {
+    margin: 0 0 14px; padding: 9px 11px; border-radius: 8px;
+    background: #fdf6e3; border: 1px solid #efe3c2; color: #6b5a2f; font-size: 13.5px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .slot { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+  .slot img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+  .slot figcaption { padding: 7px 9px; font-size: 11.5px; color: var(--dim); word-break: break-all; }
+  .panel {
+    margin: 0 0 22px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px;
+  }
+  .panel textarea {
+    width: 100%; min-height: 76px; resize: vertical; padding: 10px 11px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+    color: var(--ink); font: inherit;
+  }
+  .panel textarea:focus { outline: none; border-color: var(--accent); }
+  .panel .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .panel button {
+    font: inherit; font-size: 14px; padding: 8px 15px; border-radius: 7px;
+    border: 1px solid var(--ink); background: var(--ink); color: #fff; cursor: pointer;
+  }
+  .panel button:disabled { opacity: 0.45; cursor: default; }
+  .panel .status { font-size: 13px; color: var(--dim); }
+  .panel .status.err { color: var(--hi); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>
+      <!-- The mark comes from the integration's catalog entry (`logo`), served
+           same-origin from the app. Not inlined: inlining duplicates an asset
+           that already exists, drifts when the real one is updated, and cannot
+           represent the raster marks (brightdata.webp, openai-image.png). -->
+      <img class="mark" src="/logos/openai-image.png" alt="" />
+      OpenAI Image Studio
+    </h1>
+    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
+    <p class="sub">Describe a picture and get a real image file in your cabinet.</p>
+  </header>
+
+  <section class="panel">
+    <textarea id="prompt" placeholder="Describe a picture — “a quiet desk by a window, morning light”"></textarea>
+    <div class="row">
+      <button id="send">Send</button>
+      <span class="status" id="status"></span>
+    </div>
+  </section>
+
+  <div id="root"><div class="card empty">Loading…</div></div>
+
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var DIR = 'images';
+  var JOB = '.jobs/weekly-image-set.yaml';
+  var job = null;
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                'September', 'October', 'November', 'December'];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* One-shot agent run. The server caps at 120s; we abort at 118s so the
+     failure message is ours rather than a dead socket. `providerId` is
+     deliberately omitted — whichever provider the user has should be the one
+     that calls the MCP tool, since that tool is what this cabinet showcases. */
+  var TIMEOUT = 118000;
+
+  function runAgent(prompt) {
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, TIMEOUT);
+    return fetch('/api/agents/headless', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: prompt, workdir: cabinetDir() }),
+      signal: ctl.signal
+    })
+      .then(function (r) { return r.json().catch(function () { return null; }); })
+      .then(function (res) {
+        clearTimeout(timer);
+        if (!res) return { ok: false, error: 'no response from the agent' };
+        if (res.error) return { ok: false, error: res.error };
+        return { ok: true };
+      })
+      .catch(function (e) {
+        clearTimeout(timer);
+        return {
+          ok: false,
+          error: e && e.name === 'AbortError' ? 'timed out after 118s' : String(e && e.message || e)
+        };
+      });
+  }
+
+  var sendBtn = document.getElementById('send');
+  var promptBox = document.getElementById('prompt');
+  var statusEl = document.getElementById('status');
+
+  sendBtn.addEventListener('click', function () {
+    var text = promptBox.value.trim();
+    if (!text) { promptBox.focus(); return; }
+    sendBtn.disabled = true;
+    statusEl.className = 'status';
+    statusEl.textContent = 'Working — this can take up to two minutes.';
+    runAgent(text).then(function (res) {
+      sendBtn.disabled = false;
+      if (!res.ok) {
+        statusEl.className = 'status err';
+        statusEl.textContent = res.error;
+        return;
+      }
+      statusEl.textContent = 'Done.';
+      promptBox.value = '';
+      load();
+    });
+  });
+
+  /* Images, not markdown. The folder listing is the whole data model — the
+     tool never overwrites, so the newest file simply sorts first. */
+  function listImages(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.(png|jpe?g|webp)$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listImages(n.children, dir, out);
+    });
+    return out;
+  }
+
+  function renderImages(files) {
+    if (!files.length) {
+      return '<div class="card empty">Nothing yet. Describe a picture above, or ' +
+             'wait for Monday\'s run.</div>';
+    }
+    var seeded = files.filter(function (f) { return f.indexOf('EXAMPLE-') === 0; }).length;
+    var banner = seeded
+      ? '<p class="seeded">These are examples, so the page is not empty. Connect ' +
+        'OpenAI Image and your first real set replaces them.</p>'
+      : '';
+    return banner + '<div class="grid">' + files.map(function (f) {
+      var url = '../' + DIR + '/' + encodeURIComponent(f);
+      return '<figure class="slot"><img src="' + url + '" alt="" loading="lazy" />' +
+             '<figcaption>' + esc(f) + '</figcaption></figure>';
+    }).join('') + '</div>';
+  }
+
+  /* ---- the folder of images ----------------------------------------------------------- */
+
+  /* <short-slug>-2026-08-10T07-00-00.png — the timestamp sits after the slug, not
+     at the start, so it is matched anywhere in the name. EXAMPLE- seeds carry no
+     timestamp and sort last. */
+  function stamp(name) {
+    var m = name.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* An empty folder is the normal state before the first run — not an error to shout about.
+     `fresh=1` busts the tree cache so an image written moments ago is already listed.
+     Named (not a bare IIFE tail) so a successful agent run can re-list the folder. */
+  function load() {
+    Promise.all([
+      fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }),
+      /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+      fetch('../' + JOB, { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.text() : ''; })
+        .catch(function () { return ''; })
+    ])
+      .then(function (both) {
+        var tree = both[0];
+        job = {};
+        both[1].split('\n').forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+        });
+        var files = listImages(tree, cabinetDir() + '/' + DIR, []);
+        /* Newest first; EXAMPLE seeds, having no timestamp, sink to the bottom. */
+        files.sort(function (a, b) {
+          var da = stamp(a), db = stamp(b);
+          if (da && db) return db - da;
+          return da ? -1 : db ? 1 : 0;
+        });
+        var next = nextRunText();
+        root.innerHTML = (next ? '<div class="picker"><span class="next">' + esc(next) +
+          '</span></div>' : '') + renderImages(files);
+      })
+      .catch(function (err) {
+        root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+          esc(err.message) + '). Reload in a moment.</div>';
+      });
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
