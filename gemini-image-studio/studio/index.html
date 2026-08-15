@@ -21,57 +21,103 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Gemini Image Studio</title>
 <style>
+  /* Registry parchment skin — the same design tokens as gmail-inbox/inbox-summary:
+     warm paper, ink-brown text, borderless white cards with a 12px radius lifted
+     by shadow, Georgia serif page heading, and accents drawn only from the six
+     registry colours (terracotta, blue, orange, gold, green, teal). No layout
+     hairlines anywhere — the only borders left are on form controls and the
+     textarea, which are controls, not furniture. Every colour is defined on
+     :root and only overridden in the dark blocks, so nothing is left undefined
+     in either scheme. */
   :root {
-    --bg: #fbfbfa; --card: #fff; --ink: #1a1a18; --dim: #6b6b66;
-    --line: #e6e5e1; --accent: #4285f4;
-    --hi: #b4443c; --mid: #9a6b1f; --lo: #6b6b66;
+    --bg: #FAF6F1; --card: #FFFFFF; --ink: #3B2F2F; --dim: #8B7355;
+    --faint: #B5A58F; --line: #E8DFD2; --accent: #5B8FD6;
+    --hi: #E2725B; --mid: #E08A3C; --lo: #8B7355;
+    --on-accent: #FFFFFF;
+    --shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+    --radius: 12px;
+  }
+  /* Three-state theming, same contract as the model page: an explicit data-scheme
+     wins in both directions; the media query applies only when nothing is stamped. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-scheme="light"]) {
+      --bg: #211B15; --card: #2A231C; --ink: #EFE7DB; --dim: #B5A48D;
+      --faint: #8C7D67; --line: #3D342A;
+      --shadow: 0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-scheme="dark"] {
+    --bg: #211B15; --card: #2A231C; --ink: #EFE7DB; --dim: #B5A48D;
+    --faint: #8C7D67; --line: #3D342A;
+    --shadow: 0 1px 2px rgba(0,0,0,.35);
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; padding: 32px 20px; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 40px 20px 64px; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 Geist, "Geist Fallback", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
   .wrap { max-width: 780px; margin: 0 auto; }
   h1 {
-    font-size: 22px; margin: 0; letter-spacing: -0.01em;
-    display: flex; align-items: center; gap: 10px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 30px; line-height: 1.15; margin: 0; letter-spacing: -0.01em;
+    font-weight: 700; color: var(--ink);
+    display: flex; align-items: center; gap: 12px;
   }
   /* The mark is an <img> from the catalog; SVG sources have no intrinsic pixel size,
      so size it here or it renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 22px; height: 22px; flex: none; }
-  .sub { color: var(--dim); margin: 4px 0 0; font-size: 14px; }
+  .mark { width: 26px; height: 26px; flex: none; }
+  .sub { color: var(--dim); margin: 8px 0 0; font-size: 15px; max-width: 56ch; }
   .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    padding: 18px 20px; margin-top: 18px;
+    background: var(--card); border: none; border-radius: var(--radius);
+    padding: 18px 20px; margin-top: 18px; box-shadow: var(--shadow);
   }
   .empty { color: var(--dim); font-size: 14px; }
-  .empty code { font-size: 13px; }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
-  .picker .next { display: block; margin-top: 7px; }
+  .empty code {
+    font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .picker { margin-top: 18px; font-size: 12.5px; color: var(--faint); }
+  .picker .next {
+    display: block; margin-top: 7px;
+    font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--dim);
+  }
+  /* Card, not a tinted warning box — the registry draws attention with type and
+     shadow, never with a coloured border or wash. */
   .seeded {
-    margin: 0 0 14px; padding: 9px 11px; border-radius: 8px;
-    background: #fdf6e3; border: 1px solid #efe3c2; color: #6b5a2f; font-size: 13.5px;
+    margin: 0 0 14px; padding: 11px 15px; border-radius: 10px;
+    background: var(--card); border: none; color: var(--dim); font-size: 13.5px;
+    box-shadow: var(--shadow);
   }
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
   @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
-  .slot { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
-  .slot img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
-  .slot figcaption { padding: 7px 9px; font-size: 11.5px; color: var(--dim); word-break: break-all; }
-  .panel {
-    margin: 0 0 22px; background: var(--card); border: 1px solid var(--line);
-    border-radius: 10px; padding: 14px;
+  .slot {
+    margin: 0; border: none; border-radius: var(--radius); overflow: hidden;
+    background: var(--card); box-shadow: var(--shadow);
   }
+  .slot img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+  .slot figcaption { padding: 8px 11px; font-size: 11px; color: var(--dim); word-break: break-all; }
+  .panel {
+    margin: 24px 0 22px; background: var(--card); border: none;
+    border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+  }
+  /* The textarea is a control — it keeps its hairline; sunk parchment well inside
+     the white card so it reads as a place to type. */
   .panel textarea {
-    width: 100%; min-height: 76px; resize: vertical; padding: 10px 11px;
-    border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+    width: 100%; min-height: 76px; resize: vertical; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--bg);
     color: var(--ink); font: inherit;
   }
+  .panel textarea::placeholder { color: var(--faint); }
   .panel textarea:focus { outline: none; border-color: var(--accent); }
   .panel .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
   .panel button {
-    font: inherit; font-size: 14px; padding: 8px 15px; border-radius: 7px;
-    border: 1px solid var(--ink); background: var(--ink); color: #fff; cursor: pointer;
+    font: inherit; font-size: 13px; font-weight: 600; padding: 8px 16px;
+    border-radius: 9px; border: 0; background: var(--accent);
+    color: var(--on-accent); cursor: pointer;
   }
+  .panel button:hover:not(:disabled) { filter: brightness(1.06); }
   .panel button:disabled { opacity: 0.45; cursor: default; }
   .panel .status { font-size: 13px; color: var(--dim); }
   .panel .status.err { color: var(--hi); }
@@ -86,7 +132,7 @@
            same-origin from the app. Not inlined: inlining duplicates an asset
            that already exists, drifts when the real one is updated, and cannot
            represent the raster marks (brightdata.webp, gemini-image.png). -->
-      <img class="mark" src="/logos/gemini-image.png" alt="" />
+      <img class="mark" src="/providers/gemini.svg" alt="" />
       Gemini Image Studio
     </h1>
     <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->

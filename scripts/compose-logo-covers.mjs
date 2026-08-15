@@ -34,6 +34,7 @@ const LOGOS = {
   'discord-digest': app('integrations/discord-logo.png'),
   'figma-week': app('logos/figma.svg'),
   'gemini-cli-style': file('providers/gemini.svg'),
+  'gemini-image-studio': file('providers/gemini.svg'),
   'github-dev-brief': app('logos/github.svg'),
   'gitlab-dev-brief': app('logos/gitlab.webp'),
   'gmail-inbox': app('logos/gmail.svg'),
