@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<!--
+  CHASSIS 2 — chat page. Forked from gemini-image-studio/studio/index.html: the
+  prompt box dispatches a one-shot agent run and the folder is re-listed when it
+  returns. Three things differ from the image original.
+
+  1. The tiles are <video>, and the folder matcher takes .mp4/.webm/.mov.
+  2. A standing cost line sits under the box. Every clip spends real Higgsfield
+     credits off the user's own plan, and video is the expensive end of it — that
+     fact belongs on the page, not only in index.md.
+  3. POST /api/agents/headless is capped at 120s server-side and this page aborts
+     at 118s. An image usually beats that clock; a clip often does not. So an abort
+     is NOT reported as a failure here — the run continues on the server and the
+     file may still land. The page says so and offers a re-check instead.
+
+  providerId is omitted so the user's own provider calls the MCP tool this cabinet
+  exists to show off.
+-->
+
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Higgsfield Video Studio</title>
+<style>
+  /* Registry parchment skin — the same design tokens as gmail-inbox/inbox-summary:
+     warm paper, ink-brown text, borderless white cards with a 12px radius lifted
+     by shadow, Georgia serif page heading, and accents drawn only from the six
+     registry colours (terracotta, blue, orange, gold, green, teal). No layout
+     hairlines anywhere — the only borders left are on form controls and the
+     textarea, which are controls, not furniture. Every colour is defined on
+     :root and only overridden in the dark blocks, so nothing is left undefined
+     in either scheme. */
+  :root {
+    --bg: #FAF6F1; --card: #FFFFFF; --ink: #3B2F2F; --dim: #8B7355;
+    --faint: #B5A58F; --line: #E8DFD2; --accent: #6E56CF;
+    --hi: #E2725B; --mid: #E08A3C; --lo: #8B7355;
+    --on-accent: #FFFFFF;
+    --shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+    --radius: 12px;
+  }
+  /* Three-state theming, same contract as the model page: an explicit data-scheme
+     wins in both directions; the media query applies only when nothing is stamped. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-scheme="light"]) {
+      --bg: #211B15; --card: #2A231C; --ink: #EFE7DB; --dim: #B5A48D;
+      --faint: #8C7D67; --line: #3D342A;
+      --shadow: 0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-scheme="dark"] {
+    --bg: #211B15; --card: #2A231C; --ink: #EFE7DB; --dim: #B5A48D;
+    --faint: #8C7D67; --line: #3D342A;
+    --shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; padding: 40px 20px 64px; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 Geist, "Geist Fallback", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 30px; line-height: 1.15; margin: 0; letter-spacing: -0.01em;
+    font-weight: 700; color: var(--ink);
+    display: flex; align-items: center; gap: 12px;
+  }
+  /* The mark is an <img> from the catalog; SVG sources have no intrinsic pixel size,
+     so size it here or it renders enormous. flex:none stops the flex row shrinking it. */
+  .mark { width: 26px; height: 26px; flex: none; }
+  .sub { color: var(--dim); margin: 8px 0 0; font-size: 15px; max-width: 56ch; }
+  .card {
+    background: var(--card); border: none; border-radius: var(--radius);
+    padding: 18px 20px; margin-top: 18px; box-shadow: var(--shadow);
+  }
+  .empty { color: var(--dim); font-size: 14px; }
+  .empty code {
+    font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .picker { margin-top: 18px; font-size: 12.5px; color: var(--faint); }
+  .picker .next {
+    display: block; margin-top: 7px;
+    font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--dim);
+  }
+  /* Card, not a tinted warning box — the registry draws attention with type and
+     shadow, never with a coloured border or wash. */
+  .seeded {
+    margin: 0 0 14px; padding: 11px 15px; border-radius: 10px;
+    background: var(--card); border: none; color: var(--dim); font-size: 13.5px;
+    box-shadow: var(--shadow);
+  }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .slot {
+    margin: 0; border: none; border-radius: var(--radius); overflow: hidden;
+    background: var(--card); box-shadow: var(--shadow);
+  }
+  .slot video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #000; }
+  .slot figcaption { padding: 8px 11px; font-size: 11px; color: var(--dim); word-break: break-all; }
+  .panel {
+    margin: 24px 0 22px; background: var(--card); border: none;
+    border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+  }
+  /* The textarea is a control — it keeps its hairline; sunk parchment well inside
+     the white card so it reads as a place to type. */
+  .panel textarea {
+    width: 100%; min-height: 76px; resize: vertical; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--bg);
+    color: var(--ink); font: inherit;
+  }
+  .panel textarea::placeholder { color: var(--faint); }
+  .panel textarea:focus { outline: none; border-color: var(--accent); }
+  .panel .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .panel button {
+    font: inherit; font-size: 13px; font-weight: 600; padding: 8px 16px;
+    border-radius: 9px; border: 0; background: var(--accent);
+    color: var(--on-accent); cursor: pointer;
+  }
+  .panel button:hover:not(:disabled) { filter: brightness(1.06); }
+  .panel button:disabled { opacity: 0.45; cursor: default; }
+  .panel .status { font-size: 13px; color: var(--dim); }
+  .panel .status.err { color: var(--hi); }
+  .panel .cost { margin: 10px 0 0; font-size: 12.5px; color: var(--faint); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>
+      <!-- The mark comes from the integration's catalog entry (`logo`), served
+           same-origin from the app. Not inlined: inlining duplicates an asset
+           that already exists, drifts when the real one is updated, and cannot
+           represent the raster marks (brightdata.webp, gemini-image.png). -->
+      <img class="mark" src="/logos/higgsfield.webp" alt="" />
+      Higgsfield Video Studio
+    </h1>
+    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
+    <p class="sub">Describe a short clip and get a real video file in your cabinet.</p>
+  </header>
+
+  <section class="panel">
+    <textarea id="prompt" placeholder="Describe a clip — “steam rising from a cup on a windowsill, morning light, camera still”"></textarea>
+    <div class="row">
+      <button id="send">Send</button>
+      <span class="status" id="status"></span>
+    </div>
+    <!-- Not a tinted warning box — the registry draws attention with type, never a
+         coloured wash. But this sentence stays on the page: pressing Send spends
+         money, and the person pressing it should read that without opening a file. -->
+    <p class="cost">One clip, about five seconds. Each one spends real credits from your
+      own Higgsfield plan.</p>
+  </section>
+
+  <div id="root"><div class="card empty">Loading…</div></div>
+
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var DIR = 'videos';
+  var JOB = '.jobs/weekly-clip.yaml';
+  var job = null;
+  /* How many clips the last load() saw. watch() compares against it to notice a
+     clip that landed after the page gave up waiting on the request. */
+  var count = 0;
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                'September', 'October', 'November', 'December'];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* Send is two writes and no waiting.
+     
+     1. PUT a request page holding the prompt. `requests/` belongs to this page
+        and to the person using it — the agent is told never to write there, so
+        there is exactly one writer and an approval or edit made while a clip is
+        generating cannot be silently overwritten.
+     2. PUT the on-demand job with action:"run". Job runs are fire-and-forget:
+        the call returns at once and the agent keeps going with the job's own
+        900s timeout.
+
+     What this replaces, and why: /api/agents/headless hardcodes a 120s timeout
+     and TERMINATES the agent process when it expires. An image usually beats
+     that clock; a clip usually does not. Dispatching a clip through it meant
+     the agent was killed mid-generation *after* Higgsfield had charged for the
+     clip — the user paid and got nothing, while the page cheerfully said it was
+     still working. */
+  var AGENT = 'video-maker';
+  var JOB_ID = 'on-demand-clip';
+
+  /* Local time, matching the shape the agent uses for clip names. */
+  function stampNow() {
+    var d = new Date(), p2 = function (n) { return ('0' + n).slice(-2); };
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) +
+           'T' + p2(d.getHours()) + '-' + p2(d.getMinutes()) + '-' + p2(d.getSeconds());
+  }
+
+  function put(url, body) {
+    return fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  }
+
+  function submit(text) {
+    var stamp = stampNow();
+    var reqPath = cabinetDir() + '/requests/' + stamp;
+    return put('/api/pages/' + reqPath.split('/').map(encodeURIComponent).join('/'), {
+      content: text,
+      frontmatter: { title: 'Clip request ' + stamp, status: 'pending', prompt: text }
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('could not save the request (HTTP ' + r.status + ')');
+        return put('/api/agents/' + AGENT + '/jobs/' + JOB_ID, {
+          action: 'run',
+          cabinetPath: cabinetDir()
+        });
+      })
+      .then(function (r) {
+        if (!r.ok) throw new Error('could not start the agent (HTTP ' + r.status + ')');
+        return { ok: true };
+      })
+      .catch(function (e) { return { ok: false, error: String(e && e.message || e) }; });
+  }
+
+  var sendBtn = document.getElementById('send');
+  var promptBox = document.getElementById('prompt');
+  var statusEl = document.getElementById('status');
+
+  sendBtn.addEventListener('click', function () {
+    var text = promptBox.value.trim();
+    if (!text) { promptBox.focus(); return; }
+    sendBtn.disabled = true;
+    statusEl.className = 'status';
+    statusEl.textContent = 'Working — a clip usually takes a minute or two.';
+    submit(text).then(function (res) {
+      sendBtn.disabled = false;
+      if (!res.ok) {
+        statusEl.className = 'status err';
+        statusEl.textContent = res.error;
+        return;
+      }
+      /* The agent is running with its own 900s budget. Nothing to wait on here —
+         watch the folder and let the clip announce itself. */
+      promptBox.value = '';
+      statusEl.className = 'status';
+      statusEl.textContent = 'Generating. The clip will appear here when it is ready.';
+      watch();
+    });
+  });
+
+  /* Clips, not markdown. The folder listing is the whole data model — the agent
+     never overwrites, so the newest file simply sorts first. The .txt sidecar
+     beside each clip is not listed: it holds the prompt, model and credits for
+     someone reading the folder, and the page shows the file name only. */
+  function listClips(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.(mp4|webm|mov)$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listClips(n.children, dir, out);
+    });
+    return out;
+  }
+
+  function renderClips(files) {
+    if (!files.length) {
+      return '<div class="card empty">Nothing yet. Describe a clip above — the ' +
+             'weekly routine ships switched off, so nothing arrives on its own.</div>';
+    }
+    var seeded = files.filter(function (f) { return f.indexOf('EXAMPLE-') === 0; }).length;
+    var banner = seeded
+      ? '<p class="seeded">These are examples, so the page is not empty. Connect ' +
+        'Higgsfield and your first real clip replaces them.</p>'
+      : '';
+    /* `preload="metadata"` on purpose: a grid of clips that each preloaded in full
+       would pull tens of megabytes off disk to show a poster frame. */
+    return banner + '<div class="grid">' + files.map(function (f) {
+      var url = '../' + DIR + '/' + encodeURIComponent(f);
+      return '<figure class="slot"><video src="' + url + '" controls playsinline ' +
+             'preload="metadata"></video>' +
+             '<figcaption>' + esc(f) + '</figcaption></figure>';
+    }).join('') + '</div>';
+  }
+
+  /* ---- the folder of clips ------------------------------------------------------------- */
+
+  /* <short-slug>-2026-08-10T07-00-00.mp4 — the timestamp sits after the slug, not
+     at the start, so it is matched anywhere in the name. EXAMPLE- seeds carry no
+     timestamp and sort last. */
+  function stamp(name) {
+    var m = name.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
+  }
+
+  function human(d) {
+    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
+           d.getFullYear();
+  }
+
+  /* ---- when the routine next runs ---------------------------------------------------
+     Read straight off this cabinet's own job file, so a user who edits the schedule or
+     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
+
+  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
+       stops a schedule that can never match (30 February) from spinning. */
+    for (var i = 0; i < 366 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return 'Routine paused';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return 'Next run: ' + human(d) + ' at ' + clock;
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* An empty folder is the normal state before the first run — not an error to shout about.
+     `fresh=1` busts the tree cache so a clip written moments ago is already listed.
+     Named (not a bare IIFE tail) so a successful agent run can re-list the folder. */
+  function load() {
+    Promise.all([
+      fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }),
+      /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+      fetch('../' + JOB, { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.text() : ''; })
+        .catch(function () { return ''; })
+    ])
+      .then(function (both) {
+        var tree = both[0];
+        job = {};
+        both[1].split('\n').forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+        });
+        var files = listClips(tree, cabinetDir() + '/' + DIR, []);
+        /* Newest first; EXAMPLE seeds, having no timestamp, sink to the bottom. */
+        files.sort(function (a, b) {
+          var da = stamp(a), db = stamp(b);
+          if (da && db) return db - da;
+          return da ? -1 : db ? 1 : 0;
+        });
+        count = files.length;
+        var next = nextRunText();
+        root.innerHTML = (next ? '<div class="picker"><span class="next">' + esc(next) +
+          '</span></div>' : '') + renderClips(files);
+      })
+      .catch(function (err) {
+        root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+          esc(err.message) + '). Reload in a moment.</div>';
+      });
+  }
+
+  /* Re-list every 15s until a new clip shows up, or until the job's own budget is
+     spent. 900s is the job timeout, so a clip that has not landed by then is not
+     coming — the agent has been stopped. Past that the page says so plainly rather
+     than polling forever. */
+  function watch() {
+    var start = Date.now();
+    var before = count;
+    var t = setInterval(function () {
+      if (count > before) {
+        clearInterval(t);
+        statusEl.textContent = 'Done.';
+        promptBox.value = '';
+        return;
+      }
+      if (Date.now() - start > 900000) {
+        clearInterval(t);
+        statusEl.className = 'status err';
+        statusEl.textContent = 'No clip arrived. Open the agent\'s run to see what happened.';
+        return;
+      }
+      load();
+    }, 15000);
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
