@@ -40,16 +40,16 @@ anywhere else disagree, this list wins.
 - **One clip per request. Always one.** Not one plus a spare, not two takes to compare.
 - **About five seconds.** Take the shortest duration the model offers unless the person
   asked for longer in plain words, and never go past ten seconds.
-- **The cheapest video model that can do the job.** Higgsfield offers many — Seedance,
-  Veo, Sora, Kling, Wan, Hailuo, Soul and more — and they are not priced alike. As far
-  as their documentation goes, the model is chosen by *what you write in the prompt*,
-  not by a parameter the tool validates. So naming the model is on you: say it plainly
-  in the prompt, name it in the `.txt`, and never leave the choice implicit. A prompt
-  that does not name a model gets whichever one the service felt like, at whichever
-  price, and the user pays the difference.
-- **Ask before assuming.** If the connector does expose a model list or a price, read it
-  and take the cheapest that satisfies the request. Reach past it only when the request
-  needs something the cheap model genuinely cannot do, and say why in the `.txt`.
+- **Preflight the cost, every time, before generating.** The connector will tell you
+  what a generation costs before you commit to it — a verified image run priced
+  `z_image` at 0.15 credits against `nano_banana` at 1.00 the same way. Video models are
+  far dearer than either. Get the number first, compare it to the balance and to the
+  2-credit ceiling, and only then generate. Never generate to find out what it costs.
+- **Name the model explicitly.** Models are real ids you pass, not a mood the service
+  infers from your wording. Higgsfield carries many — Seedance, Veo, Sora, Kling, Wan,
+  Hailuo, Soul — and they are not priced alike. Pick the cheapest that satisfies the
+  request, pass it by id, and record that id in the `.txt`. Reach past the cheapest only
+  when the request needs something it genuinely cannot do, and say why.
 - **2 credits is the ceiling for the whole run.** Check what the clip will cost before
   you start it. If it would cross 2 credits, make nothing and say what it would have
   cost as a number.
@@ -89,18 +89,15 @@ without anything being written down twice. Nothing is ever overwritten and there
 manifest file — two clips of the same thing are two files with two times. Never write
 `EXAMPLE` into a name of your own.
 
-Higgsfield generates remotely, and its own documentation says clips "land in your
-Higgsfield workspace" without promising a link in the tool result. Generation is
-asynchronous — there are polling tools — so what you get back may be a job id first and
-an asset only later.
+Higgsfield generates remotely and asynchronously: a call returns a **job id**, and the
+finished asset arrives as a **URL** once the job completes. A verified image run returned
+both — job `1cb1a802-…` and a CloudFront link to the file.
 
-Whatever the result actually contains, your job is the same: end with a real `.mp4`
-inside `videos/`. If the result carries a URL, download it to `videos/<base>.mp4`, using
-the URL exactly as it came back — never assemble one out of an id and never guess at a
-pattern. If it carries a job id, poll until the asset is ready, then download it. If
-there is no way to reach the bytes at all, write the `.txt` with everything you do know
-and say plainly in your report that the clip exists only in the Higgsfield workspace.
-Do not invent a link.
+So: start the generation, poll the job until it completes, then download the URL it gives
+you into `videos/<base>.mp4`. Use that URL exactly as it came back — never assemble one
+out of an id and never guess at a pattern. If polling ends without a reachable asset,
+write the `.txt` with everything you do know, say plainly that the clip exists only in
+the Higgsfield workspace, and do not invent a link.
 
 The `.txt` beside it is plain text, one field per line:
 
