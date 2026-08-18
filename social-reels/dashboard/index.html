@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<!--
+  CHASSIS 3 — a dashboard that writes.
+
+  The two studio pages read a folder and dispatch a prompt. This one also mutates
+  state, so the rules it plays by matter more:
+
+  * A shot's index.md has EXACTLY ONE WRITER: this page, acting for the person
+    clicking. The agent never touches it. That is why an approval made while a
+    clip is generating cannot be silently reverted by an agent that read the file
+    three minutes earlier — the agent has no reason to write there at all.
+  * Approve / reject / delete / reorder are local file writes: free, instant, and
+    committed to git by /api/pages, so every one of them is undoable.
+  * Regenerate is the only action that spends. It writes the edited prompt plus
+    `regenerate: true` into the shot, then fires the on-demand job. Job runs are
+    fire-and-forget with their own 900s timeout — unlike /api/agents/headless,
+    which kills the agent at 120s and would strand a paid-for clip.
+  * Shot state is NOT read from /api/tree: the tree whitelists frontmatter down to
+    title/icon/order/google, so `status` and `selected` never survive it. Each
+    shot's index.md is fetched raw instead.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reel Campaigns</title>
+<style>
+  :root {
+    --bg: #FAF6F1; --card: #FFFFFF; --ink: #3B2F2F; --dim: #8B7355;
+    --faint: #B5A58F; --line: #E8DFD2; --accent: #6E56CF;
+    --ok: #4F8A5B; --no: #C2503B; --wait: #C98A2E;
+    --on-accent: #FFFFFF;
+    --shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-scheme="light"]) {
+      --bg: #211B15; --card: #2A231C; --ink: #EFE7DB; --dim: #B5A48D;
+      --faint: #8C7D67; --line: #3D342A;
+      --ok: #7FB98C; --no: #E4836C; --wait: #E0AC5C;
+      --shadow: 0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-scheme="dark"] {
+    --bg: #211B15; --card: #2A231C; --ink: #EFE7DB; --dim: #B5A48D;
+    --faint: #8C7D67; --line: #3D342A;
+    --ok: #7FB98C; --no: #E4836C; --wait: #E0AC5C;
+    --shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 20px 72px; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 Geist, "Geist Fallback", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif; font-size: 30px; line-height: 1.15;
+    margin: 0; letter-spacing: -0.01em; font-weight: 700;
+  }
+  .sub { color: var(--dim); margin: 8px 0 0; font-size: 15px; max-width: 60ch; }
+  .bar { display: flex; align-items: baseline; gap: 14px; margin: 26px 0 4px; flex-wrap: wrap; }
+  .bar h2 { font-family: Georgia, serif; font-size: 20px; margin: 0; font-weight: 700; }
+  .bar .meta { color: var(--faint); font-size: 12.5px; }
+  select {
+    font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  }
+  .seeded {
+    margin: 14px 0 0; padding: 11px 15px; border-radius: 10px; background: var(--card);
+    border: none; color: var(--dim); font-size: 13.5px; box-shadow: var(--shadow);
+  }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 18px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .shot {
+    background: var(--card); border-radius: var(--radius); overflow: hidden;
+    box-shadow: var(--shadow); display: flex; flex-direction: column;
+  }
+  /* Reels are 9:16, but a true-ratio card is ~590px tall and pushes its own buttons
+     off screen — triage means comparing shots, so the whole card has to be visible at
+     once. Fixed height + contain keeps the frame uncropped inside a card that fits,
+     and the letterboxing reads as "vertical video" without costing the viewport. */
+  .shot video { display: block; width: 100%; height: 300px; object-fit: contain; background: #000; }
+  .body { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+  .head { display: flex; align-items: center; gap: 8px; }
+  .name { font-weight: 650; font-size: 14px; }
+  .pill {
+    margin-left: auto; font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 999px;
+    background: var(--bg); color: var(--dim);
+  }
+  .pill.approved { color: var(--ok); }
+  .pill.rejected { color: var(--no); }
+  .pill.needs-review { color: var(--wait); }
+  .pill.working { color: var(--accent); }
+  .prompt {
+    width: 100%; min-height: 62px; resize: vertical; padding: 8px 10px; font: inherit;
+    font-size: 12.5px; line-height: 1.5; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink);
+  }
+  .prompt:focus { outline: none; border-color: var(--accent); }
+  .takes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .takes button {
+    font: inherit; font-size: 11px; padding: 3px 8px; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--dim); cursor: pointer;
+  }
+  .takes button.on { border-color: var(--accent); color: var(--ink); font-weight: 650; }
+  .acts { display: flex; gap: 7px; margin-top: auto; padding-top: 4px; flex-wrap: wrap; }
+  .acts button {
+    font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 11px;
+    border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+    color: var(--ink); cursor: pointer;
+  }
+  .acts button:hover:not(:disabled) { border-color: var(--accent); }
+  .acts button.go { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .acts button:disabled { opacity: .45; cursor: default; }
+  .note { font-size: 11.5px; color: var(--faint); min-height: 1.4em; }
+  .note.err { color: var(--no); }
+  .empty { background: var(--card); border-radius: var(--radius); padding: 18px 20px;
+           box-shadow: var(--shadow); color: var(--dim); font-size: 14px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Reel Campaigns</h1>
+    <p class="sub">Generate reels a shot at a time, then keep the takes that are worth keeping.</p>
+  </header>
+  <div class="bar">
+    <h2 id="cname">Loading…</h2>
+    <select id="picker" hidden></select>
+    <span class="meta" id="cmeta"></span>
+  </div>
+  <div id="root"></div>
+</div>
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var picker = document.getElementById('picker');
+  var AGENT = 'reel-maker';
+  var JOB_ID = 'make-shot';
+  var campaigns = [];
+  var current = null;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* ---- frontmatter ------------------------------------------------------------
+     A deliberately small YAML subset: `key: value` scalars between --- fences.
+     That is all this page ever writes, and parsing only what we write means a
+     hand-edited file can never be silently mangled on the way back out. */
+  function parseFm(text) {
+    var m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+    if (!m) return { fm: {}, body: text };
+    var fm = {}, lines = m[1].split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var kv = lines[i].match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+      if (!kv) continue;
+      var key = kv[1], val = kv[2].trim();
+      /* Block scalars. The API writes frontmatter with a real YAML serializer, which
+         FOLDS any long string onto continuation lines (`prompt: >-`). Reading only the
+         first line would capture the literal ">-" and silently drop the text — and
+         because the fold only happens once a value is long, the bug would not show up
+         until the second save of a shot whose prompt had grown. Gather the indented
+         continuation instead. */
+      if (val === '>' || val === '>-' || val === '|' || val === '|-') {
+        var parts = [];
+        while (i + 1 < lines.length && /^\s+\S/.test(lines[i + 1])) {
+          parts.push(lines[++i].trim());
+        }
+        fm[key] = parts.join(val.charAt(0) === '>' ? ' ' : '\n');
+        continue;
+      }
+      fm[key] = val.replace(/^['"]|['"]$/g, '').trim();
+    }
+    return { fm: fm, body: m[2] };
+  }
+
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  function apiPath(rel) {
+    return '/api/pages/' + (cabinetDir() + '/' + rel).split('/').map(encodeURIComponent).join('/');
+  }
+
+  /* ---- tree ------------------------------------------------------------------- */
+  function findNode(nodes, path) {
+    for (var i = 0; i < (nodes || []).length; i++) {
+      var n = nodes[i];
+      if (n.path === path) return n;
+      var hit = n.children && findNode(n.children, path);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  function clipsOf(node) {
+    return (node.children || [])
+      .filter(function (c) { return /\.(mp4|webm|mov)$/i.test(c.name); })
+      .map(function (c) { return c.name; })
+      .sort()
+      .reverse();                       /* newest first — the stamp sorts lexically */
+  }
+
+  /* ---- reading a campaign ------------------------------------------------------ */
+  function loadCampaign(name) {
+    var base = cabinetDir() + '/campaigns/' + name;
+    return fetch('/api/tree?fresh=1', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (tree) {
+        var shotsNode = findNode(tree, base + '/shots');
+        var shots = ((shotsNode && shotsNode.children) || []).filter(function (n) {
+          return n.type === 'directory' || n.type === 'cabinet' || n.children;
+        }).sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+
+        return Promise.all(shots.map(function (s) {
+          /* State lives in index.md, which /api/tree strips down to a title. Fetch raw. */
+          return fetch('../campaigns/' + encodeURIComponent(name) + '/shots/' +
+                       encodeURIComponent(s.name) + '/index.md', { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.text() : ''; })
+            .catch(function () { return ''; })
+            .then(function (text) {
+              var p = parseFm(text);
+              return { name: s.name, fm: p.fm, body: p.body, takes: clipsOf(s) };
+            });
+        }));
+      });
+  }
+
+  /* ---- writing ----------------------------------------------------------------
+     Read-modify-write on a file only this page writes. The agent is forbidden from
+     touching index.md, so there is no second writer to race with. */
+  function saveShot(shot, changes) {
+    var fm = {};
+    Object.keys(shot.fm).forEach(function (k) { fm[k] = shot.fm[k]; });
+    Object.keys(changes).forEach(function (k) {
+      if (changes[k] === null) delete fm[k]; else fm[k] = changes[k];
+    });
+    shot.fm = fm;
+    return fetch(apiPath('campaigns/' + current + '/shots/' + shot.name), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: shot.body, frontmatter: fm })
+    }).then(function (r) {
+      if (!r.ok) throw new Error('could not save (HTTP ' + r.status + ')');
+    });
+  }
+
+  function runJob() {
+    return fetch('/api/agents/' + AGENT + '/jobs/' + JOB_ID, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'run', cabinetPath: cabinetDir() })
+    }).then(function (r) {
+      if (!r.ok) throw new Error('could not start the agent (HTTP ' + r.status + ')');
+    });
+  }
+
+  /* ---- render ------------------------------------------------------------------ */
+  function selectedTake(shot) {
+    if (shot.fm.selected && shot.takes.indexOf(shot.fm.selected) !== -1) return shot.fm.selected;
+    return shot.takes[0] || null;
+  }
+
+  function renderShot(shot, i) {
+    var take = selectedTake(shot);
+    var src = take
+      ? '../campaigns/' + encodeURIComponent(current) + '/shots/' +
+        encodeURIComponent(shot.name) + '/' + encodeURIComponent(take)
+      : null;
+    var state = shot.fm.regenerate === 'true' ? 'working' : (shot.fm.status || 'needs-review');
+    var label = state === 'working' ? 'generating' : state;
+
+    var takeBtns = shot.takes.length > 1
+      ? '<div class="takes">' + shot.takes.map(function (t, n) {
+          return '<button data-act="take" data-i="' + i + '" data-take="' + esc(t) + '"' +
+                 (t === take ? ' class="on"' : '') + '>take ' + (shot.takes.length - n) + '</button>';
+        }).join('') + '</div>'
+      : '';
+
+    return '<article class="shot">' +
+      (src ? '<video src="' + src + '" controls playsinline preload="metadata"></video>'
+           : '<video preload="none"></video>') +
+      '<div class="body">' +
+        '<div class="head"><span class="name">' + esc(shot.fm.title || shot.name) + '</span>' +
+        '<span class="pill ' + esc(state) + '">' + esc(label) + '</span></div>' +
+        takeBtns +
+        '<textarea class="prompt" data-i="' + i + '">' + esc(shot.fm.prompt || '') + '</textarea>' +
+        '<div class="note" data-note="' + i + '"></div>' +
+        '<div class="acts">' +
+          '<button data-act="approve" data-i="' + i + '">Approve</button>' +
+          '<button data-act="reject" data-i="' + i + '">Reject</button>' +
+          '<button class="go" data-act="regen" data-i="' + i + '">Regenerate</button>' +
+          (shot.takes.length ? '<button data-act="del" data-i="' + i + '">Delete take</button>' : '') +
+        '</div>' +
+      '</div></article>';
+  }
+
+  var shots = [];
+
+  function paint() {
+    var seeded = shots.some(function (s) { return s.fm.example === 'true'; });
+    var banner = seeded
+      ? '<p class="seeded">This campaign is an example so the dashboard is not empty — the ' +
+        'clips are colour cards, not real video. Approve and Reject work on it; Regenerate ' +
+        'needs Higgsfield connected.</p>' : '';
+    document.getElementById('cmeta').textContent =
+      shots.length + (shots.length === 1 ? ' shot' : ' shots');
+    root.innerHTML = banner + (shots.length
+      ? '<div class="grid">' + shots.map(renderShot).join('') + '</div>'
+      : '<div class="empty">No shots in this campaign yet.</div>');
+  }
+
+  function note(i, msg, bad) {
+    var el = root.querySelector('[data-note="' + i + '"]');
+    if (el) { el.className = 'note' + (bad ? ' err' : ''); el.textContent = msg; }
+  }
+
+  root.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('button[data-act]');
+    if (!btn) return;
+    var i = +btn.getAttribute('data-i');
+    var shot = shots[i];
+    var act = btn.getAttribute('data-act');
+
+    if (act === 'take') {
+      saveShot(shot, { selected: btn.getAttribute('data-take') })
+        .then(paint)
+        .catch(function (e) { note(i, e.message, true); });
+      return;
+    }
+    if (act === 'approve' || act === 'reject') {
+      saveShot(shot, { status: act === 'approve' ? 'approved' : 'rejected' })
+        .then(paint)
+        .catch(function (e) { note(i, e.message, true); });
+      return;
+    }
+    if (act === 'del') {
+      var take = selectedTake(shot);
+      if (!take) return;
+      fetch(apiPath('campaigns/' + current + '/shots/' + shot.name + '/' + take), { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok && r.status !== 204) throw new Error('could not delete (HTTP ' + r.status + ')');
+          /* Dropping `selected` lets the newest surviving take take over. */
+          return saveShot(shot, { selected: null });
+        })
+        .then(refresh)
+        .catch(function (e) { note(i, e.message, true); });
+      return;
+    }
+    if (act === 'regen') {
+      var text = root.querySelector('textarea[data-i="' + i + '"]').value.trim();
+      if (!text) { note(i, 'Write a prompt first.', true); return; }
+      btn.disabled = true;
+      note(i, 'Starting…');
+      /* The prompt travels through the file, not the request: the run action takes
+         no prompt override, so the job reads whatever is flagged here. */
+      saveShot(shot, { prompt: text, regenerate: 'true', status: 'needs-review' })
+        .then(runJob)
+        .then(function () {
+          note(i, 'Generating. The take will appear here when it is ready.');
+          paint();
+          watch();
+        })
+        .catch(function (e) { btn.disabled = false; note(i, e.message, true); });
+    }
+  });
+
+  /* ---- watching ----------------------------------------------------------------
+     A generation runs for minutes under the job's own timeout. Re-read the campaign
+     every 15s and clear the `regenerate` flag on any shot that has grown a newer
+     take — the agent never writes index.md, so clearing the flag is this page's job. */
+  var watching = null;
+  function watch() {
+    if (watching) return;
+    var started = Date.now();
+    watching = setInterval(function () {
+      if (Date.now() - started > 900000) { clearInterval(watching); watching = null; return; }
+      refresh(true);
+    }, 15000);
+  }
+
+  function refresh(quiet) {
+    return loadCampaign(current).then(function (next) {
+      var landed = [];
+      next.forEach(function (s) {
+        var was = shots.filter(function (o) { return o.name === s.name; })[0];
+        if (was && s.fm.regenerate === 'true' && s.takes.length > was.takes.length) landed.push(s);
+      });
+      shots = next;
+      paint();
+      /* Clear flags for shots whose new take has arrived. */
+      landed.forEach(function (s) { saveShot(s, { regenerate: null }).then(paint).catch(function () {}); });
+      if (!quiet) return;
+    }).catch(function (e) {
+      if (!quiet) root.innerHTML = '<div class="empty">Could not read the campaign (' +
+        esc(e.message) + ').</div>';
+    });
+  }
+
+  /* ---- boot -------------------------------------------------------------------- */
+  fetch('/api/tree?fresh=1', { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (tree) {
+      var node = findNode(tree, cabinetDir() + '/campaigns');
+      campaigns = ((node && node.children) || [])
+        .filter(function (n) { return n.children || n.type === 'directory'; })
+        .map(function (n) { return n.name; })
+        .sort();
+      if (!campaigns.length) {
+        document.getElementById('cname').textContent = 'No campaigns yet';
+        root.innerHTML = '<div class="empty">Make a folder under <code>campaigns/</code> to start one.</div>';
+        return;
+      }
+      current = campaigns[0];
+      if (campaigns.length > 1) {
+        picker.hidden = false;
+        picker.innerHTML = campaigns.map(function (c) {
+          return '<option value="' + esc(c) + '">' + esc(c) + '</option>';
+        }).join('');
+        picker.value = current;
+        picker.addEventListener('change', function () {
+          current = picker.value;
+          document.getElementById('cname').textContent = current;
+          refresh();
+        });
+      }
+      document.getElementById('cname').textContent = current;
+      return refresh();
+    })
+    .catch(function (e) {
+      root.innerHTML = '<div class="empty">Could not load campaigns (' + esc(e.message) + ').</div>';
+    });
+})();
+</script>
+</body>
+</html>
