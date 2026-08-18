@@ -121,47 +121,88 @@
   }
   .seeded b { color: var(--ink); font-weight: 600; }
 
-  /* ---- the wall ----------------------------------------------------------- */
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
-  @media (max-width: 940px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  /* ---- the wall -----------------------------------------------------------
+     Portrait cards, because reels are portrait. The previous version letterboxed
+     a 9:16 clip into a landscape box, so half of every card was dead black and
+     the eye landed on the bars instead of the footage. Filling the frame costs a
+     crop at the edges and buys a wall that actually looks like the thing being
+     made. */
+  /* Capped tracks, not 1fr. auto-fill with 1fr keeps an empty track at full
+     width when a row is short, which leaves a hole on the right; letting cards
+     stretch instead makes a three-shot campaign render as three enormous
+     portraits. A bounded track keeps a card a card however many there are. */
+  .grid {
+    display: grid; gap: 18px; margin-top: 20px; justify-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(196px, 232px));
+  }
+  @media (max-width: 520px) { .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
 
   .shot {
     background: var(--card); border: none; border-radius: var(--radius);
     box-shadow: var(--shadow); overflow: hidden;
     display: flex; flex-direction: column;
-    transition: opacity .18s ease;
+    transition: box-shadow .18s ease, transform .18s ease;
   }
-  /* A rejected take is set aside, not broken. Fading the whole card turns its
-     black video well into grey mush on paper, which reads as "failed to load".
-     Draining the colour out of the footage is what a contact sheet does, and it
-     leaves the text legible so you can still read why you rejected it. */
-  .shot.is-rejected .frame video { filter: grayscale(1); opacity: .5; }
+  .shot:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(59,47,47,.06), 0 18px 40px -18px rgba(59,47,47,.3); }
+
+  .frame {
+    position: relative; aspect-ratio: 9 / 16; background: #0C0C0E;
+    cursor: pointer; overflow: hidden;
+  }
+  .frame video { display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* Enough scrim for white overlay type to survive a bright frame, and no more. */
+  .frame::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,.34) 0%, transparent 26%,
+                                        transparent 62%, rgba(0,0,0,.42) 100%);
+  }
+  .shot.is-rejected .frame video { filter: grayscale(1); opacity: .45; }
+  .shot.is-rejected:hover .frame video { filter: none; opacity: 1; }
   .shot.is-rejected .name { color: var(--dim); }
-  .shot.is-rejected:hover .frame video,
-  .shot.is-rejected:focus-within .frame video { filter: none; opacity: 1; }
-  .shot.is-rejected .frame video { transition: filter .2s ease, opacity .2s ease; }
+  .frame video { transition: filter .2s ease, opacity .2s ease, transform .35s ease; }
+  .shot:hover .frame video { transform: scale(1.02); }
 
-  .frame { position: relative; background: #000; }
-  /* Letterboxed rather than true 9:16: a full-ratio card is ~590px tall and
-     pushes its own controls off screen, and triage means comparing shots. */
-  .frame video { display: block; width: 100%; height: 300px; object-fit: contain; background: #000; }
-
-  .stamp {
-    position: absolute; top: 9px; left: 9px;
+  .stamp, .state {
+    position: absolute; z-index: 2;
     font: 700 9.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    letter-spacing: .13em; text-transform: uppercase;
-    padding: 5px 8px; border-radius: 5px;
-    background: rgba(255,255,255,.9); color: #3B2F2F;
+    letter-spacing: .13em; text-transform: uppercase; color: #FFF;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
   }
-  /* The signature: a grease-pencil ring on the take that was chosen. Inset to
-     the letterboxed clip, hand-shaped rather than a clean ellipse, and kept an
-     even weight under that non-uniform scale by vector-effect. */
-  .mark { position: absolute; inset: 5% 25%; pointer-events: none; opacity: .95; }
+  .stamp { top: 11px; left: 12px; }
+  .state { top: 11px; right: 12px; display: flex; align-items: center; gap: 5px; }
+  .state::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; box-shadow: 0 0 0 2px rgba(0,0,0,.25);
+  }
+  .state.approved { color: #FF7A5C; }
+  .state.working  { color: #8FD0FF; }
+  .state.pending  { color: #FFC978; }
+
+  /* A play affordance that gets out of the way. Native controls put a grey
+     browser bar across the bottom of every card; three of those in a row read as
+     a form, not a wall of footage. */
+  .play {
+    position: absolute; z-index: 2; left: 50%; top: 50%; translate: -50% -50%;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(255,255,255,.9); display: grid; place-items: center;
+    transition: opacity .18s ease, scale .18s ease; pointer-events: none;
+  }
+  .play svg { width: 15px; height: 15px; margin-left: 2px; fill: #1A1A1A; }
+  .frame.playing .play { opacity: 0; scale: .85; }
+
+  .dur {
+    position: absolute; z-index: 2; right: 12px; bottom: 11px;
+    font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #FFF; text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+
+  /* The signature: a grease-pencil ring on the take that was chosen. */
+  .mark { position: absolute; z-index: 2; inset: 7% 9%; pointer-events: none; opacity: .95; }
   .mark svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .mark path {
-    fill: none; stroke: var(--grease); stroke-width: 4.5; stroke-linecap: round;
+    fill: none; stroke: #FF5233; stroke-width: 4; stroke-linecap: round;
     vector-effect: non-scaling-stroke;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
   }
   .shot.is-approved .mark path {
     stroke-dasharray: 760; stroke-dashoffset: 760;
@@ -170,69 +211,81 @@
   @keyframes ring { to { stroke-dashoffset: 0; } }
   @media (prefers-reduced-motion: reduce) {
     .shot.is-approved .mark path { animation: none; stroke-dashoffset: 0; }
+    .shot:hover { transform: none; }
+    .shot:hover .frame video { transform: none; }
   }
 
-  .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
-  .head { display: flex; align-items: baseline; gap: 10px; }
-  .name { font-size: 15px; font-weight: 650; letter-spacing: -0.004em; }
-  .state {
-    margin-left: auto;
-    font: 700 9.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    letter-spacing: .13em; text-transform: uppercase; color: var(--faint);
-  }
-  .state.approved { color: var(--grease); }
-  .state.working  { color: var(--accent); }
-  .state.pending  { color: var(--amber); }
+  .body { padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .name { font-size: 14px; font-weight: 650; letter-spacing: -0.004em; line-height: 1.3; }
 
-  .by { display: flex; align-items: center; gap: 7px; min-height: 18px; }
-  .by img { width: 14px; height: 14px; flex: none; border-radius: 3px; }
-  .by span {
-    font: 500 11px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
-    color: var(--faint); word-break: break-all;
+  .by { display: flex; align-items: center; gap: 6px; min-height: 16px; }
+  .by img { width: 13px; height: 13px; flex: none; border-radius: 3px; }
+  .by .model {
+    font: 500 10.5px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--faint); flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .by .cost { color: var(--dim); }
+  /* The price never truncates. A model id shortened to 'veo-3.1-lite…' still
+     says what made it; a cost shortened to '0…' says nothing at all. */
+  .by .cost {
+    flex: none; color: var(--dim);
+    font: 600 10.5px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
 
-  .takes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .takes { display: flex; gap: 5px; flex-wrap: wrap; }
   .takes button {
-    font: 600 10.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    letter-spacing: .08em; padding: 5px 9px; border-radius: 7px; cursor: pointer;
-    border: 1px solid var(--line); background: var(--sunk); color: var(--dim);
+    font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .06em; padding: 4px 7px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: transparent; color: var(--faint);
   }
   .takes button:hover { color: var(--ink); }
-  .takes button.on { border-color: var(--grease); color: var(--ink); font-weight: 700; }
+  .takes button.on { border-color: var(--grease); color: var(--grease); font-weight: 700; }
 
+  /* Reads as the line of direction it is, until you click it. A bordered box
+     with its own scrollbar made every card look like a form to fill in. */
   .prompt {
-    width: 100%; min-height: 64px; resize: vertical; padding: 9px 11px;
-    font: 13px/1.55 inherit; font-family: inherit; color: var(--ink);
-    background: var(--sunk); border: 1px solid var(--line); border-radius: 9px;
+    width: 100%; padding: 6px 7px; margin: -2px 0 0;
+    font: 12.5px/1.5 inherit; font-family: inherit; color: var(--dim);
+    background: transparent; border: 1px solid transparent; border-radius: 7px;
+    resize: none; overflow: hidden; min-height: 38px;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
   }
-  .prompt:focus { outline: none; border-color: var(--accent); }
-  .prompt::placeholder { color: var(--faint); }
+  .prompt:hover { background: var(--sunk); }
+  .prompt:focus {
+    outline: none; background: var(--sunk); border-color: var(--accent);
+    color: var(--ink); overflow: auto;
+  }
 
-  .note { font-size: 11.5px; color: var(--faint); min-height: 1.35em; }
+  .note { font-size: 11px; color: var(--faint); min-height: 1.3em; }
   .note.err { color: var(--grease); }
 
-  .acts { display: flex; gap: 7px; margin-top: auto; padding-top: 2px; flex-wrap: wrap; }
+  /* Two rows, not one. At 232px a card cannot hold four controls side by side —
+     the labels wrapped mid-word, which looks broken rather than compact. The
+     judgement pair sits together, the thing that spends money gets its own row
+     and full width, and delete stays a small mark at the end of the pair. */
+  .acts {
+    display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px;
+    margin-top: auto; padding-top: 2px;
+  }
   .acts button {
-    font: 600 12.5px/1 inherit; font-family: inherit; padding: 8px 12px;
-    border-radius: 8px; cursor: pointer;
+    font: 600 12px/1 inherit; font-family: inherit; padding: 8px 6px;
+    border-radius: 7px; cursor: pointer; white-space: nowrap;
     border: 1px solid var(--line); background: var(--card); color: var(--ink);
   }
   .acts button:hover:not(:disabled) { border-color: var(--dim); }
   .acts button.go {
+    grid-column: 1 / -1; padding: 9px 10px;
     background: var(--accent); border-color: var(--accent);
     color: var(--on-accent); font-weight: 650;
   }
   .acts button.go:hover:not(:disabled) { filter: brightness(1.06); border-color: var(--accent); }
-  /* Tertiary: destructive and rarely wanted, so it reads as a link rather than
-     a fourth equal choice. It wraps to its own line at this card width, which is
-     fine — losing a take you paid for should not sit shoulder to shoulder with
-     the things you do all day. */
-  .acts button.quiet { color: var(--dim); border-color: transparent; padding-left: 4px; }
+  /* Destructive and rarely wanted: an icon, not a fourth equal choice. */
+  .acts button.quiet {
+    color: var(--faint); border-color: transparent; padding: 8px 5px; font-size: 14px;
+  }
   .acts button.quiet:hover:not(:disabled) { color: var(--grease); border-color: transparent; }
   .acts button:disabled { opacity: .45; cursor: default; }
-  :is(.acts, .takes) button:focus-visible,
-  .prompt:focus-visible, select:focus-visible {
+  :is(.acts, .takes) button:focus-visible, .prompt:focus-visible, select:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
 
@@ -450,10 +503,8 @@
       : null;
     var working = shot.fm.regenerate === 'true';
     var status = shot.fm.status || 'needs-review';
-    var state = working ? 'working' : status;
-    /* Film words for film states, but only where they are plainer than the
-       alternative: "circled" is what the mark means, and the mark is on screen
-       next to it. "Generating" beats any jargon for a thing still happening. */
+    /* Film words where the mark on screen explains them, plain English where it
+       would not: "Circled" sits next to the ring that means it. */
     var label = working ? 'Generating' : status === 'approved' ? 'Circled'
               : status === 'rejected' ? 'No good' : 'Unreviewed';
     var cls = working ? 'working' : status === 'approved' ? 'approved'
@@ -463,41 +514,79 @@
     var takeBtns = n > 1
       ? '<div class="takes">' + shot.takes.map(function (t, k) {
           return '<button data-act="take" data-i="' + i + '" data-take="' + esc(t) + '"' +
-                 (t === take ? ' class="on"' : '') + '>Take ' + (n - k) + '</button>';
+                 (t === take ? ' class="on"' : '') + '>T' + (n - k) + '</button>';
         }).join('') + '</div>'
       : '';
 
     var p = providerFor(shot.meta.model);
     var cost = shot.meta.cost || shot.meta.credits;
     var by = p
-      ? '<div class="by"><img src="' + p.logo + '" alt="" /><span>' + esc(shot.meta.model) +
-        (cost ? ' <span class="cost">· ' + esc(cost) + '</span>' : '') + '</span></div>'
+      ? '<div class="by"><img src="' + p.logo + '" alt="' + esc(p.label) + '" />' +
+        '<span class="model">' + esc(shot.meta.model) + '</span>' +
+        (cost ? '<span class="cost">' + esc(cost) + '</span>' : '') + '</div>'
       : '<div class="by"></div>';
 
     return '<article class="shot ' +
       (status === 'approved' && !working ? 'is-approved ' : '') +
       (status === 'rejected' ? 'is-rejected' : '') + '">' +
-      '<div class="frame">' +
-        (src ? '<video src="' + src + '" controls playsinline preload="metadata"></video>'
+      '<div class="frame" data-frame="' + i + '">' +
+        (src ? '<video src="' + src + '" muted loop playsinline preload="metadata"></video>'
              : '<video preload="none"></video>') +
-        (take ? '<span class="stamp">Take ' + (n - shot.takes.indexOf(take)) + ' of ' + n +
-                '</span>' : '') +
+        (take ? '<span class="stamp">Take ' + (n - shot.takes.indexOf(take)) +
+                (n > 1 ? '/' + n : '') + '</span>' : '') +
+        '<span class="state ' + cls + '">' + esc(label) + '</span>' +
+        (src ? '<span class="play"><svg viewBox="0 0 12 14"><path d="M0 0l12 7-12 7z"/></svg></span>' +
+               '<span class="dur" data-dur="' + i + '"></span>' : '') +
         (status === 'approved' && !working ? RING : '') +
       '</div>' +
       '<div class="body">' +
-        '<div class="head"><span class="name">' + esc(shot.fm.title || shot.name) + '</span>' +
-        '<span class="state ' + cls + '">' + esc(label) + '</span></div>' +
+        '<div class="name">' + esc(shot.fm.title || shot.name) + '</div>' +
         by + takeBtns +
-        '<textarea class="prompt" data-i="' + i + '" placeholder="What happens in this shot?">' +
-          esc(shot.fm.prompt || '') + '</textarea>' +
+        '<textarea class="prompt" data-i="' + i + '" rows="2" ' +
+          'placeholder="What happens in this shot?">' + esc(shot.fm.prompt || '') + '</textarea>' +
         '<div class="note" data-note="' + i + '"></div>' +
         '<div class="acts">' +
-          '<button data-act="approve" data-i="' + i + '">Circle it</button>' +
-          '<button data-act="reject" data-i="' + i + '">No good</button>' +
+          '<button data-act="approve" data-i="' + i + '" title="Circle this take">Circle</button>' +
+          '<button data-act="reject" data-i="' + i + '" title="Mark no good">No good</button>' +
+          (n ? '<button class="quiet" data-act="del" data-i="' + i + '" ' +
+               'title="Delete this take" aria-label="Delete this take">&#215;</button>' : '') +
           '<button class="go" data-act="regen" data-i="' + i + '">Shoot again</button>' +
-          (n ? '<button class="quiet" data-act="del" data-i="' + i + '">Delete take</button>' : '') +
         '</div>' +
       '</div></article>';
+  }
+
+  /* Hover plays, muted and looping — a wall of stills tells you nothing about
+     footage, and native controls put a grey browser bar across every card.
+     Click toggles, so the keyboard and touch are not left out. Honour
+     prefers-reduced-motion by only playing on a real click. */
+  var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function bindFrames() {
+    root.querySelectorAll('.frame').forEach(function (frame) {
+      var v = frame.querySelector('video');
+      if (!v || !v.getAttribute('src')) return;
+
+      v.addEventListener('loadedmetadata', function () {
+        var el = frame.querySelector('.dur');
+        if (el && isFinite(v.duration)) el.textContent = v.duration.toFixed(1) + 's';
+      });
+
+      if (!calm) {
+        frame.addEventListener('mouseenter', function () {
+          frame.classList.add('playing');
+          v.play().catch(function () {});
+        });
+        frame.addEventListener('mouseleave', function () {
+          frame.classList.remove('playing');
+          v.pause();
+          v.currentTime = 0;
+        });
+      }
+      frame.addEventListener('click', function () {
+        if (v.paused) { frame.classList.add('playing'); v.play().catch(function () {}); }
+        else { frame.classList.remove('playing'); v.pause(); }
+      });
+    });
   }
 
   var shots = [];
@@ -522,6 +611,13 @@
       ? '<div class="grid">' + shots.map(renderShot).join('') + '</div>'
       : '<div class="empty">No shots in this campaign yet. Add a folder under ' +
         '<code>shots/</code> to start one.</div>');
+    bindFrames();
+    // Grow each direction box to its text: a scrollbar inside a card is the
+    // detail that makes a page look like an admin form.
+    root.querySelectorAll('.prompt').forEach(function (t) {
+      t.style.height = 'auto';
+      t.style.height = Math.max(38, t.scrollHeight) + 'px';
+    });
   }
 
   function note(i, msg, bad) {
