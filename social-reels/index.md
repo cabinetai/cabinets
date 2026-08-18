@@ -31,7 +31,21 @@ Open the **Campaigns** app. It comes with a made-up campaign for a wedding compa
 page is not empty — those clips are plain colour cards, not real video, and the page says
 so. Approve and Reject work on it straight away. Your first real campaign takes its place.
 
-## Connect Higgsfield
+## Connect a video generator
+
+You need one of two. **Gemini Video** is the simpler one and the cabinet prefers it.
+
+### Gemini Video
+
+1. In Cabinet, open **Integrations**, find **Gemini Video**, and click **Connect**.
+2. Click **Open Google AI Studio**, sign in, and turn on billing for your key.
+3. Copy your API key, come back, paste it in the box, and click **Connect**.
+
+Video needs a key on Google's **paid tier**. A free key makes pictures but not video, and
+every clip fails with a permission error until billing is on. Clips are billed per second
+of output, so a longer clip costs proportionally more.
+
+### Higgsfield
 
 1. In Cabinet, open **Integrations**, find **Higgsfield**, and click **Connect**.
 2. Click **Open Higgsfield sign-in**. Higgsfield opens in a new tab.
