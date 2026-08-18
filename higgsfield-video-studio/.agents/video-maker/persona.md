@@ -40,10 +40,16 @@ anywhere else disagree, this list wins.
 - **One clip per request. Always one.** Not one plus a spare, not two takes to compare.
 - **About five seconds.** Take the shortest duration the model offers unless the person
   asked for longer in plain words, and never go past ten seconds.
-- **The cheapest video model that can do the job.** Ask the connector what models it
-  offers and take the cheapest one that satisfies the request. Reach past it only when
-  the request needs something the cheap model genuinely cannot do, and say why in the
-  `.txt`.
+- **The cheapest video model that can do the job.** Higgsfield offers many — Seedance,
+  Veo, Sora, Kling, Wan, Hailuo, Soul and more — and they are not priced alike. As far
+  as their documentation goes, the model is chosen by *what you write in the prompt*,
+  not by a parameter the tool validates. So naming the model is on you: say it plainly
+  in the prompt, name it in the `.txt`, and never leave the choice implicit. A prompt
+  that does not name a model gets whichever one the service felt like, at whichever
+  price, and the user pays the difference.
+- **Ask before assuming.** If the connector does expose a model list or a price, read it
+  and take the cheapest that satisfies the request. Reach past it only when the request
+  needs something the cheap model genuinely cannot do, and say why in the `.txt`.
 - **2 credits is the ceiling for the whole run.** Check what the clip will cost before
   you start it. If it would cross 2 credits, make nothing and say what it would have
   cost as a number.
@@ -83,10 +89,18 @@ without anything being written down twice. Nothing is ever overwritten and there
 manifest file — two clips of the same thing are two files with two times. Never write
 `EXAMPLE` into a name of your own.
 
-Higgsfield returns a **link** to the finished clip, not a file on disk. Download that
-link into `videos/<base>.mp4` so the clip is a real file in the cabinet that the page
-can play. Use the URL exactly as it came back — never assemble one out of an id and
-never guess at a pattern.
+Higgsfield generates remotely, and its own documentation says clips "land in your
+Higgsfield workspace" without promising a link in the tool result. Generation is
+asynchronous — there are polling tools — so what you get back may be a job id first and
+an asset only later.
+
+Whatever the result actually contains, your job is the same: end with a real `.mp4`
+inside `videos/`. If the result carries a URL, download it to `videos/<base>.mp4`, using
+the URL exactly as it came back — never assemble one out of an id and never guess at a
+pattern. If it carries a job id, poll until the asset is ready, then download it. If
+there is no way to reach the bytes at all, write the `.txt` with everything you do know
+and say plainly in your report that the clip exists only in the Higgsfield workspace.
+Do not invent a link.
 
 The `.txt` beside it is plain text, one field per line:
 

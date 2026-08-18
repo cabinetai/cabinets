@@ -58,6 +58,7 @@ sign-in** again for a fresh one.
 
 - **Video Maker** — the one agent. Turns your words into a clip and writes down what it
   cost.
+- **Make a clip now** — what the Send button runs. Never runs on a timer.
 - **Weekly Clip** — the one routine. Off until you switch it on; Monday at 09:00 once
   you do.
 - **Studio** — the one page. Write a description, watch the clip appear.

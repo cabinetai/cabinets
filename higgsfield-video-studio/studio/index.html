@@ -178,38 +178,59 @@
     });
   }
 
-  /* One-shot agent run. The server caps at 120s; we abort at 118s so the message
-     is ours rather than a dead socket. `providerId` is deliberately omitted —
-     whichever provider the user has should be the one that calls the MCP tool,
-     since that tool is what this cabinet showcases.
+  /* Send is two writes and no waiting.
+     
+     1. PUT a request page holding the prompt. `requests/` belongs to this page
+        and to the person using it — the agent is told never to write there, so
+        there is exactly one writer and an approval or edit made while a clip is
+        generating cannot be silently overwritten.
+     2. PUT the on-demand job with action:"run". Job runs are fire-and-forget:
+        the call returns at once and the agent keeps going with the job's own
+        900s timeout.
 
-     A clip regularly takes longer than the cap, and an abort here does NOT stop
-     the run on the server. So `timedOut` comes back as its own outcome: the page
-     must never tell someone their clip failed when it is still being made and
-     their credits are already committed. */
-  var TIMEOUT = 118000;
+     What this replaces, and why: /api/agents/headless hardcodes a 120s timeout
+     and TERMINATES the agent process when it expires. An image usually beats
+     that clock; a clip usually does not. Dispatching a clip through it meant
+     the agent was killed mid-generation *after* Higgsfield had charged for the
+     clip — the user paid and got nothing, while the page cheerfully said it was
+     still working. */
+  var AGENT = 'video-maker';
+  var JOB_ID = 'on-demand-clip';
 
-  function runAgent(prompt) {
-    var ctl = new AbortController();
-    var timer = setTimeout(function () { ctl.abort(); }, TIMEOUT);
-    return fetch('/api/agents/headless', {
-      method: 'POST',
+  /* Local time, matching the shape the agent uses for clip names. */
+  function stampNow() {
+    var d = new Date(), p2 = function (n) { return ('0' + n).slice(-2); };
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) +
+           'T' + p2(d.getHours()) + '-' + p2(d.getMinutes()) + '-' + p2(d.getSeconds());
+  }
+
+  function put(url, body) {
+    return fetch(url, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: prompt, workdir: cabinetDir() }),
-      signal: ctl.signal
+      body: JSON.stringify(body)
+    });
+  }
+
+  function submit(text) {
+    var stamp = stampNow();
+    var reqPath = cabinetDir() + '/requests/' + stamp;
+    return put('/api/pages/' + reqPath.split('/').map(encodeURIComponent).join('/'), {
+      content: text,
+      frontmatter: { title: 'Clip request ' + stamp, status: 'pending', prompt: text }
     })
-      .then(function (r) { return r.json().catch(function () { return null; }); })
-      .then(function (res) {
-        clearTimeout(timer);
-        if (!res) return { ok: false, error: 'no response from the agent' };
-        if (res.error) return { ok: false, error: res.error };
+      .then(function (r) {
+        if (!r.ok) throw new Error('could not save the request (HTTP ' + r.status + ')');
+        return put('/api/agents/' + AGENT + '/jobs/' + JOB_ID, {
+          action: 'run',
+          cabinetPath: cabinetDir()
+        });
+      })
+      .then(function (r) {
+        if (!r.ok) throw new Error('could not start the agent (HTTP ' + r.status + ')');
         return { ok: true };
       })
-      .catch(function (e) {
-        clearTimeout(timer);
-        if (e && e.name === 'AbortError') return { ok: false, timedOut: true };
-        return { ok: false, error: String(e && e.message || e) };
-      });
+      .catch(function (e) { return { ok: false, error: String(e && e.message || e) }; });
   }
 
   var sendBtn = document.getElementById('send');
@@ -222,24 +243,19 @@
     sendBtn.disabled = true;
     statusEl.className = 'status';
     statusEl.textContent = 'Working — a clip usually takes a minute or two.';
-    runAgent(text).then(function (res) {
+    submit(text).then(function (res) {
       sendBtn.disabled = false;
-      /* Still running, not failed. The prompt box keeps its text so nothing is lost,
-         and the folder is re-listed on a timer until the clip appears. */
-      if (res.timedOut) {
-        statusEl.className = 'status';
-        statusEl.textContent = 'Still generating. The clip will appear here when it is ready.';
-        watch();
-        return;
-      }
       if (!res.ok) {
         statusEl.className = 'status err';
         statusEl.textContent = res.error;
         return;
       }
-      statusEl.textContent = 'Done.';
+      /* The agent is running with its own 900s budget. Nothing to wait on here —
+         watch the folder and let the clip announce itself. */
       promptBox.value = '';
-      load();
+      statusEl.className = 'status';
+      statusEl.textContent = 'Generating. The clip will appear here when it is ready.';
+      watch();
     });
   });
 
@@ -387,10 +403,10 @@
       });
   }
 
-  /* After a timeout the run is still going on the server. Re-list every 15s until a
-     new clip shows up or ten minutes pass — a clip that takes longer than that has
-     almost certainly failed, and the person can reload rather than have the page
-     poll forever. */
+  /* Re-list every 15s until a new clip shows up, or until the job's own budget is
+     spent. 900s is the job timeout, so a clip that has not landed by then is not
+     coming — the agent has been stopped. Past that the page says so plainly rather
+     than polling forever. */
   function watch() {
     var start = Date.now();
     var before = count;
@@ -401,10 +417,10 @@
         promptBox.value = '';
         return;
       }
-      if (Date.now() - start > 600000) {
+      if (Date.now() - start > 900000) {
         clearInterval(t);
         statusEl.className = 'status err';
-        statusEl.textContent = 'No clip after ten minutes. Reload the page to check again.';
+        statusEl.textContent = 'No clip arrived. Open the agent\'s run to see what happened.';
         return;
       }
       load();
