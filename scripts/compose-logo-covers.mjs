@@ -42,6 +42,7 @@ const LOGOS = {
   'google-calendar-week': app('logos/google-calendar.svg'),
   'google-cloud-storage-contents': icon('siGooglecloud'),
   'higgsfield-studio': git('2d50d4a', 'higgsfield-studio/gallery/index.html'),
+  'higgsfield-video-studio': git('2d50d4a', 'higgsfield-studio/gallery/index.html'),
   'jira-tasks': app('logos/jira.webp'),
   'linear-cycle': app('logos/linear.webp'),
   'mailchimp-delivery': icon('siMailchimp'),

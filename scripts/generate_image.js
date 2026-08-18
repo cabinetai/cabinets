@@ -227,6 +227,7 @@ const CABINET_ICONS = {
   'google-calendar-week':     { object: 'a desk flip-calendar block with one page mid-turn', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'google-cloud-storage-contents': { object: 'a puffy cloud resting on top of a small open storage box', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'higgsfield-studio':        { object: 'a vintage film camera on a tiny tripod with a director chair beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'higgsfield-video-studio':  { object: 'a small clapperboard lying open beside a reel of film', bgHex: '#EFE6F2', bgName: 'pale lilac' },
   'jira-tasks':               { object: 'a small kanban board with three columns of sliding square tiles', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'linear-cycle':             { object: 'a smooth circular arrow loop standing upright on a small base', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'mailchimp-delivery':       { object: 'a small carrier pigeon holding an envelope, standing on a parcel', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
