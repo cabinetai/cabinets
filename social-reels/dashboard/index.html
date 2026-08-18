@@ -48,7 +48,8 @@
     --bg: #FAF6F1; --card: #FFFFFF; --ink: #3B2F2F; --dim: #8B7355;
     --faint: #B5A58F; --line: #E8DFD2; --sunk: #FAF6F1;
     --accent: #5B8FD6;          /* actions */
-    --grease: #D0452B;          /* the marker — decisions only */
+    --ok: #4F8A5B;              /* approved */
+    --grease: #C2503B;          /* rejected, and destructive actions */
     --amber: #E08A3C;
     --on-accent: #FFFFFF;
     --shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
@@ -68,7 +69,7 @@
   :root[data-scheme="dark"] {
     --bg: #211B15; --card: #2A231C; --ink: #EFE7DB; --dim: #B5A48D;
     --faint: #8C7D67; --line: #3D342A; --sunk: #211B15;
-    --grease: #F0674A; --accent: #7BA7E4;
+    --ok: #7FB98C; --grease: #E4836C; --accent: #7BA7E4;
     --shadow: 0 1px 2px rgba(0,0,0,.35);
   }
   * { box-sizing: border-box; }
@@ -107,19 +108,12 @@
     letter-spacing: .1em; text-transform: uppercase; color: var(--faint);
   }
   .tally b { color: var(--dim); font-weight: 700; }
-  .tally .circled b { color: var(--grease); }
+  .tally .ok b { color: var(--ok); }
   select {
     font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
     letter-spacing: .08em; padding: 7px 10px; border-radius: 8px;
     border: 1px solid var(--line); background: var(--card); color: var(--ink);
   }
-
-  .seeded {
-    margin: 16px 0 0; padding: 12px 16px; border-radius: 10px;
-    background: var(--card); border: none; box-shadow: var(--shadow);
-    color: var(--dim); font-size: 13.5px;
-  }
-  .seeded b { color: var(--ink); font-weight: 600; }
 
   /* ---- the wall -----------------------------------------------------------
      Portrait cards, because reels are portrait. The previous version letterboxed
@@ -149,6 +143,8 @@
     transition: box-shadow .18s ease, transform .18s ease;
   }
   .shot:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(59,47,47,.06), 0 18px 40px -18px rgba(59,47,47,.3); }
+  .shot.is-approved { box-shadow: var(--shadow), 0 0 0 2px var(--ok); }
+  .shot.is-approved:hover { box-shadow: 0 2px 4px rgba(59,47,47,.06), 0 18px 40px -18px rgba(59,47,47,.3), 0 0 0 2px var(--ok); }
 
   .frame {
     position: relative; aspect-ratio: 9 / 16; background: #0C0C0E;
@@ -179,7 +175,7 @@
     content: ""; width: 6px; height: 6px; border-radius: 50%;
     background: currentColor; box-shadow: 0 0 0 2px rgba(0,0,0,.25);
   }
-  .state.approved { color: #FF7A5C; }
+  .state.approved { color: #86E0A6; }
   .state.working  { color: #8FD0FF; }
   .state.pending  { color: #FFC978; }
 
@@ -201,25 +197,9 @@
     color: #FFF; text-shadow: 0 1px 3px rgba(0,0,0,.6);
   }
 
-  /* The signature: a grease-pencil ring on the take that was chosen. */
-  .mark { position: absolute; z-index: 2; inset: 7% 9%; pointer-events: none; opacity: .95; }
-  .mark svg { width: 100%; height: 100%; display: block; overflow: visible; }
-  .mark path {
-    fill: none; stroke: #FF5233; stroke-width: 4; stroke-linecap: round;
-    vector-effect: non-scaling-stroke;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
-  }
-  .shot.is-approved .mark path {
-    stroke-dasharray: 760; stroke-dashoffset: 760;
-    animation: ring .62s cubic-bezier(.6,.05,.3,1) forwards;
-  }
-  @keyframes ring { to { stroke-dashoffset: 0; } }
-  @media (prefers-reduced-motion: reduce) {
-    .shot.is-approved .mark path { animation: none; stroke-dashoffset: 0; }
-    .shot:hover { transform: none; }
-    .shot:hover .frame video { transform: none; }
-  }
-
+  /* An approved take is edged in green and a rejected one drains to grey. Both
+     are conventions people already know from every gallery and inbox they use,
+     which beats a cleverer mark that has to be explained. */
   .body { padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
   .name { font-size: 14px; font-weight: 650; letter-spacing: -0.004em; line-height: 1.3; }
 
@@ -244,7 +224,7 @@
     border: 1px solid var(--line); background: transparent; color: var(--faint);
   }
   .takes button:hover { color: var(--ink); }
-  .takes button.on { border-color: var(--grease); color: var(--grease); font-weight: 700; }
+  .takes button.on { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 
   /* Reads as the line of direction it is, until you click it. A bordered box
      with its own scrollbar made every card look like a form to fill in. */
@@ -305,7 +285,6 @@
     .lede { font-size: 14px; }
     .slate { gap: 10px; margin-top: 24px; }
     .tally { margin-left: 0; width: 100%; gap: 14px; }
-    .seeded { font-size: 12.5px; padding: 10px 13px; }
     .body { padding: 10px 11px 11px; gap: 7px; }
     .name { font-size: 13px; }
     .acts button { font-size: 11.5px; padding: 8px 4px; }
@@ -523,13 +502,6 @@
     return shot.takes[0] || null;
   }
 
-  /* The grease-pencil ring. Hand-drawn on purpose — an even ellipse reads as a
-     border, and the whole point of the mark is that a person made a decision. */
-  var RING =
-    '<div class="mark" aria-hidden="true"><svg viewBox="0 0 300 300" preserveAspectRatio="none">' +
-    '<path d="M150 26 C74 26 26 78 26 150 C26 224 78 274 152 274 C228 274 274 220 274 148 ' +
-    'C274 76 224 30 148 30 C88 30 44 70 40 128" /></svg></div>';
-
   function renderShot(shot, i) {
     var take = selectedTake(shot);
     var src = take
@@ -540,8 +512,8 @@
     var status = shot.fm.status || 'needs-review';
     /* Film words where the mark on screen explains them, plain English where it
        would not: "Circled" sits next to the ring that means it. */
-    var label = working ? 'Generating' : status === 'approved' ? 'Circled'
-              : status === 'rejected' ? 'No good' : 'Unreviewed';
+    var label = working ? 'Generating' : status === 'approved' ? 'Approved'
+              : status === 'rejected' ? 'Rejected' : 'Not reviewed';
     var cls = working ? 'working' : status === 'approved' ? 'approved'
             : status === 'rejected' ? '' : 'pending';
 
@@ -572,7 +544,6 @@
         '<span class="state ' + cls + '">' + esc(label) + '</span>' +
         (src ? '<span class="play"><svg viewBox="0 0 12 14"><path d="M0 0l12 7-12 7z"/></svg></span>' +
                '<span class="dur" data-dur="' + i + '"></span>' : '') +
-        (status === 'approved' && !working ? RING : '') +
       '</div>' +
       '<div class="body">' +
         '<div class="name">' + esc(shot.fm.title || shot.name) + '</div>' +
@@ -581,11 +552,11 @@
           'placeholder="What happens in this shot?">' + esc(shot.fm.prompt || '') + '</textarea>' +
         '<div class="note" data-note="' + i + '"></div>' +
         '<div class="acts">' +
-          '<button data-act="approve" data-i="' + i + '" title="Circle this take">Circle</button>' +
-          '<button data-act="reject" data-i="' + i + '" title="Mark no good">No good</button>' +
+          '<button data-act="approve" data-i="' + i + '">Approve</button>' +
+          '<button data-act="reject" data-i="' + i + '">Reject</button>' +
           (n ? '<button class="quiet" data-act="del" data-i="' + i + '" ' +
                'title="Delete this take" aria-label="Delete this take">&#215;</button>' : '') +
-          '<button class="go" data-act="regen" data-i="' + i + '">Shoot again</button>' +
+          '<button class="go" data-act="regen" data-i="' + i + '">Regenerate</button>' +
         '</div>' +
       '</div></article>';
   }
@@ -627,20 +598,17 @@
   var shots = [];
 
   function paint() {
-    var seeded = shots.some(function (s) { return s.fm.example === 'true'; });
-    var banner = seeded
-      ? '<p class="seeded"><b>This campaign is an example.</b> The clips are colour cards, ' +
-        'not real video, so the dashboard has something to show before you have made ' +
-        'anything. Circle it and No good work on it now; Shoot again needs a video ' +
-        'connector. Your first real campaign replaces it.</p>'
-      : '';
+    /* No example banner. The campaign is literally named EXAMPLE-…, which says it
+       once, in the place the eye already goes. Saying it again in a box above the
+       work was the loudest thing on the page. */
+    var banner = '';
 
     var takes = shots.reduce(function (n, s) { return n + s.takes.length; }, 0);
-    var circled = shots.filter(function (s) { return s.fm.status === 'approved'; }).length;
+    var approved = shots.filter(function (s) { return s.fm.status === 'approved'; }).length;
     document.getElementById('tally').innerHTML =
       '<span><b>' + shots.length + '</b> shots</span>' +
       '<span><b>' + takes + '</b> takes</span>' +
-      '<span class="circled"><b>' + circled + '</b> circled</span>';
+      '<span class="ok"><b>' + approved + '</b> approved</span>';
 
     root.innerHTML = banner + (shots.length
       ? '<div class="grid">' + shots.map(renderShot).join('') + '</div>'
