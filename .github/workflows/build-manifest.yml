@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - 'manifest.json'
+      - 'details/**'
       - 'README.md'
       - 'CLAUDE.md'
       - 'RELEASE-INDEX.md'
@@ -53,14 +54,16 @@ jobs:
       - name: Build manifest.json
         run: node .github/scripts/build-manifest.mjs
 
-      - name: Commit manifest if changed
+      - name: Commit manifest and details if changed
         run: |
-          if git diff --quiet -- manifest.json; then
-            echo "manifest.json unchanged"
+          # Stage first: the detail files for a brand new cabinet are untracked,
+          # and a plain `git diff` does not see those.
+          git add -A manifest.json details
+          if git diff --cached --quiet; then
+            echo "manifest and details unchanged"
             exit 0
           fi
           git config user.name "cabinet-bot"
           git config user.email "bot@runcabinet.com"
-          git add manifest.json
-          git commit -m "chore: rebuild manifest.json [skip ci]"
+          git commit -m "chore: rebuild manifest.json and details [skip ci]"
           git push
