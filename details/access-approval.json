@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "slug": "access-approval",
+  "meta": {
+    "name": "Access Approval Cabinet",
+    "description": "Policy-aware access request intake, compliance check, and approval routing for IT and security teams. A routing agent validates every request against role, manager, and SoD policy before handing off a decision-ready approval packet. Keep Okta and Microsoft Entra as your IdP; replace the Google Form inbox, the Slack permission threads, and the untracked manual approvals around them.",
+    "version": "0.1.0"
+  },
+  "tags": [
+    "it",
+    "security",
+    "access-management",
+    "approval-workflow",
+    "enterprise",
+    "cabinet"
+  ],
+  "readme": "# Access Approval Cabinet\n\nEvery access request — new app, elevated role, temporary permission, service account — gets a structured compliance check before a human approves it. The routing agent validates requester role, manager chain, existing permissions, and SoD conflicts; the compliance agent checks the request against policy and generates a decision-ready approval packet. No more approving requests without context.\n\n> **Keep Okta, Microsoft Entra, and your HRIS as the systems of record. Replace the Google Form inbox, the Slack DM approvals with no audit trail, and the manual policy checks that get skipped under deadline pressure.**\n\n## The team\n\n- **[[.agents/access-router]]** — Access Router (lead). Receives every access request, validates requester identity and manager chain, checks existing permissions in Okta/Entra, and assembles the approval packet for the compliance agent.\n- **[[.agents/access-compliance]]** — Access Compliance Agent. Runs the policy check: SoD conflicts, least-privilege validation, role suitability, and regulatory flags. Produces the pass/fail verdict with rationale and routes to the right approver.\n\n## Recurring rhythm\n\n| Cadence | Job | Owner | Output |\n|---|---|---|---|\n| **On-demand** (per request) | [[.jobs/access-approval-check]] | Access Router | Approval packet in `/approvals/<request-id>/` |\n| **Weekly** (Mon 08:00) | [[.jobs/weekly-access-review]] | Access Compliance | Access hygiene report: orphaned accounts, over-privileged roles, stale requests |\n\n## How to run the demo\n\n1. Open the [[approval-packet]] — a complete access approval decision: who requested what, current access context, policy check result, SoD conflicts, manager approval status, and the final decision.\n2. Browse `/approvals/` — individual approval packet files for each request.\n3. Open `/reports/access-review.md` — the weekly access hygiene report.\n\n## Connectors\n\n**Required:** Okta or Microsoft Entra (identity, group membership, existing permissions), HRIS (manager chain, role, department, employment status).\n**Recommended:** ServiceNow (ticket sync for formal approval records), Google Workspace (group membership), Slack (approval notifications to managers), BambooHR or Workday (HR data source).\n\n**Cabinet philosophy:** Okta and Entra remain the authoritative identity stores — this cabinet handles the request intake, the policy reasoning, and the approval coordination that happens *before* an admin clicks \"Assign\" in the IdP console. The access change itself always flows through the IdP.",
+  "agents": [
+    {
+      "name": "Access Compliance Agent",
+      "slug": "access-compliance",
+      "emoji": "🛡",
+      "type": "specialist",
+      "department": "it",
+      "role": "Runs the policy compliance check on every access request packet — SoD conflicts, least-privilege validation, role suitability, and regulatory flags — then produces the pass/fail verdict and routes to the right human approver.",
+      "heartbeat": "0 8 * * 1"
+    },
+    {
+      "name": "Access Router",
+      "slug": "access-router",
+      "emoji": "🔐",
+      "type": "lead",
+      "department": "it",
+      "role": "Receives every access request, validates requester identity and manager chain, checks existing permissions in Okta and Entra, and assembles a decision-ready approval packet for the compliance agent to check.",
+      "heartbeat": ""
+    }
+  ],
+  "jobs": [
+    {
+      "id": "access-approval-check",
+      "name": "Access Approval Check",
+      "description": "",
+      "ownerAgent": "access-router",
+      "enabled": false,
+      "schedule": ""
+    },
+    {
+      "id": "weekly-access-review",
+      "name": "Weekly Access Review",
+      "description": "",
+      "ownerAgent": "access-compliance",
+      "enabled": true,
+      "schedule": "0 8 * * 1"
+    }
+  ],
+  "children": [],
+  "files": [
+    ".agents/access-compliance/persona.md",
+    ".agents/access-router/persona.md",
+    ".cabinet",
+    ".cabinet-state/.gitkeep",
+    ".jobs/access-approval-check.yaml",
+    ".jobs/weekly-access-review.yaml",
+    "access-approval_gemini_icon.jpg",
+    "approval-packet/.app",
+    "approval-packet/index.html",
+    "cover.jpg",
+    "data/app-sensitivity.md",
+    "data/sod-matrix.md",
+    "index.md"
+  ]
+}
