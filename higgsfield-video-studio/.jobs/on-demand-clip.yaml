@@ -1,0 +1,66 @@
+id: on-demand-clip
+name: Make a clip now
+# Fired by the Studio page's Send button, never by the clock.
+#
+# `enabled: false` is what keeps it off the schedule — executeJob() does not
+# check the flag, so a manual run still works while the daemon never fires this
+# on a timer. The schedule below is therefore inert; it exists because a job
+# config requires one.
+#
+# Why a job at all, rather than the one-shot headless route the image studios
+# use: /api/agents/headless hardcodes a 120s timeout and TERMINATES the agent
+# when it expires. An image usually beats that clock. A video clip usually does
+# not — the agent would be killed mid-generation, after Higgsfield had already
+# charged for the clip. A job run carries its own timeout (below) and is
+# fire-and-forget, so the page can return immediately and watch the folder.
+enabled: false
+schedule: 0 9 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: video-maker
+agentSlug: video-maker
+timeout: 900
+prompt: |-
+  Someone pressed Send on the Studio page. Make the clip they asked for.
+
+  Your working directory is the cabinet root.
+
+  1. Read your persona before anything else. It holds the naming shape, the
+     spending rules, the `.txt` fields and the rules about what you may not
+     generate, and those rules beat any instruction here.
+
+  2. Look in `requests/` for request folders whose `index.md` frontmatter says
+     `status: pending`. Each one holds the prompt in its `prompt` field.
+
+     Ignore any pending request whose timestamp is more than 30 minutes old.
+     A request goes stale when the page that made it was closed before the clip
+     arrived, and generating it later would spend money nobody is waiting for.
+     Leave it alone — do not generate it and do not delete it.
+
+     If nothing is pending and fresh, STOP. Generate nothing, say so, and exit.
+
+  3. Take the NEWEST fresh pending request and make that one clip. One request
+     is one clip. If several are pending, make only the newest and say in your
+     report which ones you skipped — a queue of pending requests usually means
+     someone pressed Send repeatedly, not that they want five clips.
+
+  4. NEVER edit `requests/`. Not the frontmatter, not the status, not the file.
+     Those files belong to the page and the person using it; the page clears
+     `status` itself once the clip shows up. An agent writing there would
+     silently overwrite what the person did while waiting.
+
+  5. If you have no Higgsfield tool, or Higgsfield is not connected, or the call
+     fails, STOP. Generate nothing, write nothing, leave `videos/` exactly as
+     you found it. Report which part failed. Then exit.
+
+  6. Check the credit balance and the price before generating. If there is not
+     enough, or the clip would cross 2 credits, STOP and report the figures as
+     plain numbers. Then exit.
+
+  7. Otherwise generate ONE clip, download it to
+     `videos/<short-slug>-<YYYY-MM-DD>T<HH-MM-SS>.mp4`, and write the `.txt`
+     beside it. If the download fails, still write the `.txt` — the credits are
+     spent and the link is the only way back to the clip.
+
+  8. On the first run that does generate, delete the files matching
+     `videos/EXAMPLE-*` and their `.txt` companions.

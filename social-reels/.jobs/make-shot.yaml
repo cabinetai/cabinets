@@ -1,0 +1,67 @@
+id: make-shot
+name: Make a shot
+# Fired by the dashboard's Regenerate button, never by the clock.
+#
+# There is no routine in this cabinet and there should never be one. Video is
+# expensive enough that every clip must be something a person asked for, on
+# purpose, by clicking. `enabled: false` keeps this off the schedule — executeJob()
+# does not check the flag, so manual dispatch still works — and the schedule below
+# is inert, present only because a job config requires one.
+#
+# Not /api/agents/headless: that route hardcodes a 120s timeout and TERMINATES the
+# agent when it expires, which for video means the user is charged and the clip is
+# stranded. A job run is fire-and-forget and carries the timeout below.
+enabled: false
+schedule: 0 9 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: reel-maker
+agentSlug: reel-maker
+timeout: 900
+prompt: |-
+  Someone pressed Regenerate on one shot. Make that shot.
+
+  Your working directory is the cabinet root.
+
+  1. Read your persona first. It holds the spending rules, the naming shape, the
+     `.txt` fields, and the rule about never writing `index.md`. Those beat anything
+     here.
+
+  2. Find the shots flagged for work: `campaigns/*/shots/*/index.md` whose frontmatter
+     says `regenerate: true`. Their `prompt` field is what to make.
+
+  3. If none are flagged, STOP. Generate nothing and say so.
+
+  4. If several are flagged, take only the one whose `modified` is newest. Say in your
+     report which others you left. The dashboard fires one run per shot deliberately —
+     generating all of them would spend several times what was clicked for.
+
+  5. Skip any shot in a campaign whose own `index.md` says `example: true`. That is the
+     demo campaign that ships with the cabinet. Say so and stop.
+
+  6. Pick your tool. Prefer `gemini_generate_video` when it is available; fall back to
+     Higgsfield. If neither is connected, STOP and say which one to set up.
+
+     On Gemini, a paid-tier error means billing is not enabled on the key. Say so and
+     STOP — retrying never turns billing on.
+
+     On Higgsfield, preflight the cost first: if there are not enough credits, or the
+     cheapest suitable model costs more than 2 credits, STOP, write nothing, and report
+     the numbers plainly.
+
+  7. Otherwise generate ONE clip, vertical unless the campaign's `aspect` says otherwise,
+     at the shortest duration that serves the shot.
+
+     With `gemini_generate_video`, pass `path` as
+     `campaigns/<campaign>/shots/<shot>/take-<YYYY-MM-DD>T<HH-MM-SS>.mp4` — relative to
+     the cabinet root, which is your working directory — and the tool writes the file for
+     you. Use the path it reports back, since it never overwrites.
+
+     With Higgsfield, poll the job to completion and download the returned URL to that
+     same path yourself.
+
+     Either way, write the `.txt` beside the take.
+
+  8. Do not touch `index.md` — not even to clear the flag you acted on. The dashboard
+     clears it when your take appears. Report which shot you made, the model id, and
+     what it cost.

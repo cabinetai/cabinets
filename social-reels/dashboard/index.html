@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<!--
+  CHASSIS 3 — a dashboard that writes.
+
+  The two studio pages read a folder and dispatch a prompt. This one also mutates
+  state, so the rules it plays by matter more:
+
+  * A shot's index.md has EXACTLY ONE WRITER: this page, acting for the person
+    clicking. The agent never touches it. That is why an approval made while a
+    clip is generating cannot be silently reverted by an agent that read the file
+    three minutes earlier — the agent has no reason to write there at all.
+  * Approve / reject / delete / reorder are local file writes: free, instant, and
+    committed to git by /api/pages, so every one of them is undoable.
+  * Regenerate is the only action that spends. It writes the edited prompt plus
+    `regenerate: true` into the shot, then fires the on-demand job. Job runs are
+    fire-and-forget with their own 900s timeout — unlike /api/agents/headless,
+    which kills the agent at 120s and would strand a paid-for clip.
+  * Shot state is NOT read from /api/tree: the tree whitelists frontmatter down to
+    title/icon/order/google, so `status` and `selected` never survive it. Each
+    shot's index.md is fetched raw instead.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reel Campaigns</title>
+<style>
+  /* ---------------------------------------------------------------------------
+     The registry's parchment skin — warm paper, ink-brown text, borderless white
+     cards lifted by shadow, Georgia for headings — with the film-review devices
+     this page needs on top of it.
+
+     Paper turns out to suit the subject better than a dark bay did. A contact
+     sheet IS paper, and the thing a script supervisor does to it is ring the
+     take to be printed in red china marker. So the mark sits on a white card the
+     way it would sit on a print.
+
+     Two colours do two jobs and never swap: red is a decision you made, blue is
+     an action you can take. The clip wells stay black because footage is judged
+     against neutral, not because the page is dark.
+
+     Data is monospaced — slates, take numbers and model ids genuinely are.
+
+     No webfonts: Cabinet runs local-first, and a page whose personality depends
+     on fonts.googleapis.com has none offline.
+  --------------------------------------------------------------------------- */
+  :root {
+    --bg: #FAF6F1; --card: #FFFFFF; --ink: #3B2F2F; --dim: #8B7355;
+    --faint: #B5A58F; --line: #E8DFD2; --sunk: #FAF6F1;
+    --accent: #5B8FD6;          /* actions */
+    --ok: #4F8A5B;              /* approved */
+    --grease: #C2503B;          /* rejected, and destructive actions */
+    --amber: #E08A3C;
+    --on-accent: #FFFFFF;
+    --shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+    --radius: 12px;
+  }
+  /* Three-state theming, the same contract as the other registry pages: an
+     explicit data-scheme wins in both directions, the media query applies only
+     when nothing is stamped. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-scheme="light"]) {
+      --bg: #211B15; --card: #2A231C; --ink: #EFE7DB; --dim: #B5A48D;
+      --faint: #8C7D67; --line: #3D342A; --sunk: #211B15;
+      --grease: #F0674A; --accent: #7BA7E4;
+      --shadow: 0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-scheme="dark"] {
+    --bg: #211B15; --card: #2A231C; --ink: #EFE7DB; --dim: #B5A48D;
+    --faint: #8C7D67; --line: #3D342A; --sunk: #211B15;
+    --ok: #7FB98C; --grease: #E4836C; --accent: #7BA7E4;
+    --shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; padding: 40px 20px 80px; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 Geist, "Geist Fallback", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  /* ---- masthead ----------------------------------------------------------- */
+  .eyebrow {
+    margin: 0;
+    font: 700 10.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .18em; text-transform: uppercase; color: var(--faint);
+  }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 32px; line-height: 1.12; margin: 10px 0 0;
+    letter-spacing: -0.012em; font-weight: 700; color: var(--ink);
+  }
+  .lede { margin: 9px 0 0; color: var(--dim); font-size: 15px; max-width: 56ch; }
+
+  .slate {
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    margin: 32px 0 0;
+  }
+  .slate h2 {
+    margin: 0; font-family: Georgia, serif; font-size: 19px; font-weight: 700;
+    letter-spacing: -0.005em;
+  }
+  .tally {
+    margin-left: auto; display: flex; gap: 16px;
+    font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--faint);
+  }
+  .tally b { color: var(--dim); font-weight: 700; }
+  .tally .ok b { color: var(--ok); }
+  select {
+    font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .08em; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  }
+
+  /* ---- the wall -----------------------------------------------------------
+     Portrait cards, because reels are portrait. The previous version letterboxed
+     a 9:16 clip into a landscape box, so half of every card was dead black and
+     the eye landed on the bars instead of the footage. Filling the frame costs a
+     crop at the edges and buys a wall that actually looks like the thing being
+     made. */
+  /* Capped tracks, not 1fr. auto-fill with 1fr keeps an empty track at full
+     width when a row is short, which leaves a hole on the right; letting cards
+     stretch instead makes a three-shot campaign render as three enormous
+     portraits. A bounded track keeps a card a card however many there are. */
+  .grid {
+    display: grid; gap: 18px; margin-top: 20px; justify-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(196px, 266px));
+  }
+  /* Two up on a phone, not one. A single column turns a four-shot campaign into
+     four screens of scrolling, and comparing takes is the entire job — you
+     cannot judge a shot against its neighbour if you can never see both. */
+  @media (max-width: 720px) {
+    .grid { gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  .shot {
+    background: var(--card); border: none; border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: box-shadow .18s ease, transform .18s ease;
+  }
+  .shot:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(59,47,47,.06), 0 18px 40px -18px rgba(59,47,47,.3); }
+  .shot.is-approved { box-shadow: var(--shadow), 0 0 0 2px var(--ok); }
+  .shot.is-approved:hover { box-shadow: 0 2px 4px rgba(59,47,47,.06), 0 18px 40px -18px rgba(59,47,47,.3), 0 0 0 2px var(--ok); }
+
+  .frame {
+    position: relative; aspect-ratio: 9 / 16; background: #0C0C0E;
+    cursor: pointer; overflow: hidden;
+  }
+  .frame video { display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* Enough scrim for white overlay type to survive a bright frame, and no more. */
+  .frame::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,.34) 0%, transparent 26%,
+                                        transparent 62%, rgba(0,0,0,.42) 100%);
+  }
+  .shot.is-rejected .frame video { filter: grayscale(1); opacity: .45; }
+  .shot.is-rejected:hover .frame video { filter: none; opacity: 1; }
+  .shot.is-rejected .name { color: var(--dim); }
+  .frame video { transition: filter .2s ease, opacity .2s ease, transform .35s ease; }
+  .shot:hover .frame video { transform: scale(1.02); }
+
+  .stamp, .state {
+    position: absolute; z-index: 2;
+    font: 700 9.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .13em; text-transform: uppercase; color: #FFF;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .stamp { top: 11px; left: 12px; }
+  .state { top: 11px; right: 12px; display: flex; align-items: center; gap: 5px; }
+  .state::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; box-shadow: 0 0 0 2px rgba(0,0,0,.25);
+  }
+  .state.approved { color: #86E0A6; }
+  .state.working  { color: #8FD0FF; }
+  .state.pending  { color: #FFC978; }
+
+  /* A play affordance that gets out of the way. Native controls put a grey
+     browser bar across the bottom of every card; three of those in a row read as
+     a form, not a wall of footage. */
+  .play {
+    position: absolute; z-index: 2; left: 50%; top: 50%; translate: -50% -50%;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(255,255,255,.9); display: grid; place-items: center;
+    transition: opacity .18s ease, scale .18s ease; pointer-events: none;
+  }
+  .play svg { width: 15px; height: 15px; margin-left: 2px; fill: #1A1A1A; }
+  .frame.playing .play { opacity: 0; scale: .85; }
+
+  .dur {
+    position: absolute; z-index: 2; right: 12px; bottom: 11px;
+    font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #FFF; text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+
+  /* An approved take is edged in green and a rejected one drains to grey. Both
+     are conventions people already know from every gallery and inbox they use,
+     which beats a cleverer mark that has to be explained. */
+  .body { padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .name { font-size: 14px; font-weight: 650; letter-spacing: -0.004em; line-height: 1.3; }
+
+  .by { display: flex; align-items: center; gap: 6px; min-height: 16px; }
+  .by img { width: 13px; height: 13px; flex: none; border-radius: 3px; }
+  .by .model {
+    font: 500 10.5px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--faint); flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* The price never truncates. A model id shortened to 'veo-3.1-lite…' still
+     says what made it; a cost shortened to '0…' says nothing at all. */
+  .by .cost {
+    flex: none; color: var(--dim);
+    font: 600 10.5px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .takes { display: flex; gap: 5px; flex-wrap: wrap; }
+  .takes button {
+    font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .06em; padding: 4px 7px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: transparent; color: var(--faint);
+  }
+  .takes button:hover { color: var(--ink); }
+  .takes button.on { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+  /* Reads as the line of direction it is, until you click it. A bordered box
+     with its own scrollbar made every card look like a form to fill in. */
+  .prompt {
+    width: 100%; padding: 6px 7px; margin: -2px 0 0;
+    font: 12.5px/1.5 inherit; font-family: inherit; color: var(--dim);
+    background: transparent; border: 1px solid transparent; border-radius: 7px;
+    resize: none; overflow: hidden; min-height: 38px;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .prompt:hover { background: var(--sunk); }
+  .prompt:focus {
+    outline: none; background: var(--sunk); border-color: var(--accent);
+    color: var(--ink); overflow: auto;
+  }
+
+  .note { font-size: 11px; color: var(--faint); min-height: 1.3em; }
+  .note.err { color: var(--grease); }
+
+  /* Two rows, not one. At 232px a card cannot hold four controls side by side —
+     the labels wrapped mid-word, which looks broken rather than compact. The
+     judgement pair sits together, the thing that spends money gets its own row
+     and full width, and delete stays a small mark at the end of the pair. */
+  .acts {
+    display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px;
+    margin-top: auto; padding-top: 2px;
+  }
+  .acts button {
+    font: 600 12px/1 inherit; font-family: inherit; padding: 8px 6px;
+    border-radius: 7px; cursor: pointer; white-space: nowrap;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  }
+  .acts button:hover:not(:disabled) { border-color: var(--dim); }
+  .acts button.go {
+    grid-column: 1 / -1; padding: 9px 10px;
+    background: var(--accent); border-color: var(--accent);
+    color: var(--on-accent); font-weight: 650;
+  }
+  .acts button.go:hover:not(:disabled) { filter: brightness(1.06); border-color: var(--accent); }
+  /* Destructive and rarely wanted: an icon, not a fourth equal choice. */
+  .acts button.quiet {
+    color: var(--faint); border-color: transparent; padding: 8px 5px; font-size: 14px;
+  }
+  .acts button.quiet:hover:not(:disabled) { color: var(--grease); border-color: transparent; }
+  .acts button:disabled { opacity: .45; cursor: default; }
+  :is(.acts, .takes) button:focus-visible, .prompt:focus-visible, select:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ---- narrow screens ------------------------------------------------------
+     The card is already the right shape for a phone — it is a portrait video —
+     so the work here is trimming the chrome around it rather than reflowing it.
+     Hover does not exist on touch, which is why click always toggled playback
+     and the play affordance is drawn rather than implied. */
+  @media (max-width: 720px) {
+    body { padding: 26px 14px 56px; }
+    h1 { font-size: 26px; }
+    .lede { font-size: 14px; }
+    .slate { gap: 10px; margin-top: 24px; }
+    .tally { margin-left: 0; width: 100%; gap: 14px; }
+    .body { padding: 10px 11px 11px; gap: 7px; }
+    .name { font-size: 13px; }
+    .acts button { font-size: 11.5px; padding: 8px 4px; }
+    .acts button.go { padding: 9px 8px; }
+    .prompt { font-size: 12px; }
+  }
+  @media (max-width: 400px) {
+    .by .model { font-size: 9.5px; }
+    .stamp, .state { font-size: 8.5px; }
+    .acts { grid-template-columns: 1fr 1fr; }
+    /* Delete drops to its own row rather than squeezing the pair to nothing —
+       and once it has a whole row, a lone glyph reads as an orphan. Give it the
+       words it has room for; a touch target this size should also say what it
+       destroys. The aria-label already carried the meaning for screen readers. */
+    .acts button.quiet { grid-column: 1 / -1; font-size: 0; padding: 7px 4px; }
+    .acts button.quiet::after { content: "Delete take"; font-size: 11.5px; font-weight: 600; }
+  }
+
+  .empty {
+    margin-top: 20px; padding: 22px; border-radius: var(--radius);
+    background: var(--card); box-shadow: var(--shadow);
+    color: var(--dim); font-size: 14px;
+  }
+  .empty code { font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Cabinet · Video</p>
+    <h1>Reel Campaigns</h1>
+    <p class="lede">Generate reels a shot at a time, then keep the takes that are worth keeping.</p>
+  </header>
+
+  <div class="slate">
+    <h2 id="cname">Loading</h2>
+    <select id="picker" hidden aria-label="Campaign"></select>
+    <div class="tally" id="tally"></div>
+  </div>
+
+  <div id="root"></div>
+</div>
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var picker = document.getElementById('picker');
+  var AGENT = 'reel-maker';
+  var JOB_ID = 'make-shot';
+  var campaigns = [];
+  var current = null;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* ---- frontmatter ------------------------------------------------------------
+     A deliberately small YAML subset: `key: value` scalars between --- fences.
+     That is all this page ever writes, and parsing only what we write means a
+     hand-edited file can never be silently mangled on the way back out. */
+  function parseFm(text) {
+    var m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+    if (!m) return { fm: {}, body: text };
+    var fm = {}, lines = m[1].split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var kv = lines[i].match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+      if (!kv) continue;
+      var key = kv[1], val = kv[2].trim();
+      /* Block scalars. The API writes frontmatter with a real YAML serializer, which
+         FOLDS any long string onto continuation lines (`prompt: >-`). Reading only the
+         first line would capture the literal ">-" and silently drop the text — and
+         because the fold only happens once a value is long, the bug would not show up
+         until the second save of a shot whose prompt had grown. Gather the indented
+         continuation instead. */
+      if (val === '>' || val === '>-' || val === '|' || val === '|-') {
+        var parts = [];
+        while (i + 1 < lines.length && /^\s+\S/.test(lines[i + 1])) {
+          parts.push(lines[++i].trim());
+        }
+        fm[key] = parts.join(val.charAt(0) === '>' ? ' ' : '\n');
+        continue;
+      }
+      fm[key] = val.replace(/^['"]|['"]$/g, '').trim();
+    }
+    return { fm: fm, body: m[2] };
+  }
+
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  function apiPath(rel) {
+    return '/api/pages/' + (cabinetDir() + '/' + rel).split('/').map(encodeURIComponent).join('/');
+  }
+
+  /* ---- tree ------------------------------------------------------------------- */
+  function findNode(nodes, path) {
+    for (var i = 0; i < (nodes || []).length; i++) {
+      var n = nodes[i];
+      if (n.path === path) return n;
+      var hit = n.children && findNode(n.children, path);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  function clipsOf(node) {
+    return (node.children || [])
+      .filter(function (c) { return /\.(mp4|webm|mov)$/i.test(c.name); })
+      .map(function (c) { return c.name; })
+      .sort()
+      .reverse();                       /* newest first — the stamp sorts lexically */
+  }
+
+  /* ---- provenance ---------------------------------------------------------------
+     Which model made a take lives in its .txt sidecar, written by the agent and
+     never rewritten. Reading it is what lets a card show the provider's own mark
+     instead of asking the user to remember which connector was on that day. */
+  var PROVIDERS = [
+    { test: /^veo|gemini/i, label: "Gemini Veo", logo: "/logos/gemini-image.svg" },
+    { test: /seedance|kling|sora|wan|hailuo|soul|higgsfield/i,
+      label: "Higgsfield", logo: "/logos/higgsfield.webp" }
+  ];
+
+  function providerFor(model) {
+    for (var i = 0; i < PROVIDERS.length; i++) {
+      if (PROVIDERS[i].test.test(model || '')) return PROVIDERS[i];
+    }
+    return null;
+  }
+
+  function readTake(campaign, shot, take) {
+    var base = take.replace(/\.(mp4|webm|mov)$/i, '');
+    return fetch('../campaigns/' + encodeURIComponent(campaign) + '/shots/' +
+                 encodeURIComponent(shot) + '/' + encodeURIComponent(base) + '.txt',
+                 { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+      .then(function (text) {
+        var out = {};
+        text.split(/\r?\n/).forEach(function (line) {
+          var kv = line.match(/^(model|cost|credits|duration|aspect):\s*(.+)$/);
+          // Placeholder angle brackets are the shipped shape, not a real value.
+          if (kv && kv[2].indexOf('<') === -1) out[kv[1]] = kv[2].trim();
+        });
+        return out;
+      });
+  }
+
+  /* ---- reading a campaign ------------------------------------------------------ */
+  function loadCampaign(name) {
+    var base = cabinetDir() + '/campaigns/' + name;
+    return fetch('/api/tree?fresh=1', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (tree) {
+        var shotsNode = findNode(tree, base + '/shots');
+        var shots = ((shotsNode && shotsNode.children) || []).filter(function (n) {
+          return n.type === 'directory' || n.type === 'cabinet' || n.children;
+        }).sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+
+        return Promise.all(shots.map(function (s) {
+          /* State lives in index.md, which /api/tree strips down to a title. Fetch raw. */
+          return fetch('../campaigns/' + encodeURIComponent(name) + '/shots/' +
+                       encodeURIComponent(s.name) + '/index.md', { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.text() : ''; })
+            .catch(function () { return ''; })
+            .then(function (text) {
+              var p = parseFm(text);
+              var shot = { name: s.name, fm: p.fm, body: p.body, takes: clipsOf(s), meta: {} };
+              var take = selectedTake(shot);
+              if (!take) return shot;
+              return readTake(name, s.name, take).then(function (meta) {
+                shot.meta = meta;
+                return shot;
+              });
+            });
+        }));
+      });
+  }
+
+  /* ---- writing ----------------------------------------------------------------
+     Read-modify-write on a file only this page writes. The agent is forbidden from
+     touching index.md, so there is no second writer to race with. */
+  function saveShot(shot, changes) {
+    var fm = {};
+    Object.keys(shot.fm).forEach(function (k) { fm[k] = shot.fm[k]; });
+    Object.keys(changes).forEach(function (k) {
+      if (changes[k] === null) delete fm[k]; else fm[k] = changes[k];
+    });
+    shot.fm = fm;
+    return fetch(apiPath('campaigns/' + current + '/shots/' + shot.name), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: shot.body, frontmatter: fm })
+    }).then(function (r) {
+      if (!r.ok) throw new Error('could not save (HTTP ' + r.status + ')');
+    });
+  }
+
+  function runJob() {
+    return fetch('/api/agents/' + AGENT + '/jobs/' + JOB_ID, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'run', cabinetPath: cabinetDir() })
+    }).then(function (r) {
+      if (!r.ok) throw new Error('could not start the agent (HTTP ' + r.status + ')');
+    });
+  }
+
+  /* ---- render ------------------------------------------------------------------ */
+  function selectedTake(shot) {
+    if (shot.fm.selected && shot.takes.indexOf(shot.fm.selected) !== -1) return shot.fm.selected;
+    return shot.takes[0] || null;
+  }
+
+  function renderShot(shot, i) {
+    var take = selectedTake(shot);
+    var src = take
+      ? '../campaigns/' + encodeURIComponent(current) + '/shots/' +
+        encodeURIComponent(shot.name) + '/' + encodeURIComponent(take)
+      : null;
+    var working = shot.fm.regenerate === 'true';
+    var status = shot.fm.status || 'needs-review';
+    /* Film words where the mark on screen explains them, plain English where it
+       would not: "Circled" sits next to the ring that means it. */
+    var label = working ? 'Generating' : status === 'approved' ? 'Approved'
+              : status === 'rejected' ? 'Rejected' : 'Not reviewed';
+    var cls = working ? 'working' : status === 'approved' ? 'approved'
+            : status === 'rejected' ? '' : 'pending';
+
+    var n = shot.takes.length;
+    var takeBtns = n > 1
+      ? '<div class="takes">' + shot.takes.map(function (t, k) {
+          return '<button data-act="take" data-i="' + i + '" data-take="' + esc(t) + '"' +
+                 (t === take ? ' class="on"' : '') + '>T' + (n - k) + '</button>';
+        }).join('') + '</div>'
+      : '';
+
+    var p = providerFor(shot.meta.model);
+    var cost = shot.meta.cost || shot.meta.credits;
+    var by = p
+      ? '<div class="by"><img src="' + p.logo + '" alt="' + esc(p.label) + '" />' +
+        '<span class="model">' + esc(shot.meta.model) + '</span>' +
+        (cost ? '<span class="cost">' + esc(cost) + '</span>' : '') + '</div>'
+      : '<div class="by"></div>';
+
+    return '<article class="shot ' +
+      (status === 'approved' && !working ? 'is-approved ' : '') +
+      (status === 'rejected' ? 'is-rejected' : '') + '">' +
+      '<div class="frame" data-frame="' + i + '">' +
+        (src ? '<video src="' + src + '" muted loop playsinline preload="metadata"></video>'
+             : '<video preload="none"></video>') +
+        (take ? '<span class="stamp">Take ' + (n - shot.takes.indexOf(take)) +
+                (n > 1 ? '/' + n : '') + '</span>' : '') +
+        '<span class="state ' + cls + '">' + esc(label) + '</span>' +
+        (src ? '<span class="play"><svg viewBox="0 0 12 14"><path d="M0 0l12 7-12 7z"/></svg></span>' +
+               '<span class="dur" data-dur="' + i + '"></span>' : '') +
+      '</div>' +
+      '<div class="body">' +
+        '<div class="name">' + esc(shot.fm.title || shot.name) + '</div>' +
+        by + takeBtns +
+        '<textarea class="prompt" data-i="' + i + '" rows="2" ' +
+          'placeholder="What happens in this shot?">' + esc(shot.fm.prompt || '') + '</textarea>' +
+        '<div class="note" data-note="' + i + '"></div>' +
+        '<div class="acts">' +
+          '<button data-act="approve" data-i="' + i + '">Approve</button>' +
+          '<button data-act="reject" data-i="' + i + '">Reject</button>' +
+          (n ? '<button class="quiet" data-act="del" data-i="' + i + '" ' +
+               'title="Delete this take" aria-label="Delete this take">&#215;</button>' : '') +
+          '<button class="go" data-act="regen" data-i="' + i + '">Regenerate</button>' +
+        '</div>' +
+      '</div></article>';
+  }
+
+  /* Hover plays, muted and looping — a wall of stills tells you nothing about
+     footage, and native controls put a grey browser bar across every card.
+     Click toggles, so the keyboard and touch are not left out. Honour
+     prefers-reduced-motion by only playing on a real click. */
+  var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function bindFrames() {
+    root.querySelectorAll('.frame').forEach(function (frame) {
+      var v = frame.querySelector('video');
+      if (!v || !v.getAttribute('src')) return;
+
+      v.addEventListener('loadedmetadata', function () {
+        var el = frame.querySelector('.dur');
+        if (el && isFinite(v.duration)) el.textContent = v.duration.toFixed(1) + 's';
+      });
+
+      if (!calm) {
+        frame.addEventListener('mouseenter', function () {
+          frame.classList.add('playing');
+          v.play().catch(function () {});
+        });
+        frame.addEventListener('mouseleave', function () {
+          frame.classList.remove('playing');
+          v.pause();
+          v.currentTime = 0;
+        });
+      }
+      frame.addEventListener('click', function () {
+        if (v.paused) { frame.classList.add('playing'); v.play().catch(function () {}); }
+        else { frame.classList.remove('playing'); v.pause(); }
+      });
+    });
+  }
+
+  var shots = [];
+
+  function paint() {
+    /* No example banner. The campaign is literally named EXAMPLE-…, which says it
+       once, in the place the eye already goes. Saying it again in a box above the
+       work was the loudest thing on the page. */
+    var banner = '';
+
+    var takes = shots.reduce(function (n, s) { return n + s.takes.length; }, 0);
+    var approved = shots.filter(function (s) { return s.fm.status === 'approved'; }).length;
+    document.getElementById('tally').innerHTML =
+      '<span><b>' + shots.length + '</b> shots</span>' +
+      '<span><b>' + takes + '</b> takes</span>' +
+      '<span class="ok"><b>' + approved + '</b> approved</span>';
+
+    root.innerHTML = banner + (shots.length
+      ? '<div class="grid">' + shots.map(renderShot).join('') + '</div>'
+      : '<div class="empty">No shots in this campaign yet. Add a folder under ' +
+        '<code>shots/</code> to start one.</div>');
+    bindFrames();
+    // Grow each direction box to its text: a scrollbar inside a card is the
+    // detail that makes a page look like an admin form.
+    root.querySelectorAll('.prompt').forEach(function (t) {
+      t.style.height = 'auto';
+      t.style.height = Math.max(38, t.scrollHeight) + 'px';
+    });
+  }
+
+  function note(i, msg, bad) {
+    var el = root.querySelector('[data-note="' + i + '"]');
+    if (el) { el.className = 'note' + (bad ? ' err' : ''); el.textContent = msg; }
+  }
+
+  root.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('button[data-act]');
+    if (!btn) return;
+    var i = +btn.getAttribute('data-i');
+    var shot = shots[i];
+    var act = btn.getAttribute('data-act');
+
+    if (act === 'take') {
+      // refresh(), not paint(): the provenance line belongs to the take, not the
+      // shot, so re-rendering from the meta already in memory would keep showing
+      // the previous take's model and price beside the new clip.
+      saveShot(shot, { selected: btn.getAttribute('data-take') })
+        .then(function () { return refresh(); })
+        .catch(function (e) { note(i, e.message, true); });
+      return;
+    }
+    if (act === 'approve' || act === 'reject') {
+      saveShot(shot, { status: act === 'approve' ? 'approved' : 'rejected' })
+        .then(paint)
+        .catch(function (e) { note(i, e.message, true); });
+      return;
+    }
+    if (act === 'del') {
+      var take = selectedTake(shot);
+      if (!take) return;
+      fetch(apiPath('campaigns/' + current + '/shots/' + shot.name + '/' + take), { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok && r.status !== 204) throw new Error('could not delete (HTTP ' + r.status + ')');
+          /* Dropping `selected` lets the newest surviving take take over. */
+          return saveShot(shot, { selected: null });
+        })
+        .then(refresh)
+        .catch(function (e) { note(i, e.message, true); });
+      return;
+    }
+    if (act === 'regen') {
+      var text = root.querySelector('textarea[data-i="' + i + '"]').value.trim();
+      if (!text) { note(i, 'Write a prompt first.', true); return; }
+      btn.disabled = true;
+      note(i, 'Starting…');
+      /* The prompt travels through the file, not the request: the run action takes
+         no prompt override, so the job reads whatever is flagged here. */
+      saveShot(shot, { prompt: text, regenerate: 'true', status: 'needs-review' })
+        .then(runJob)
+        .then(function () {
+          note(i, 'Generating. The take will appear here when it is ready.');
+          paint();
+          watch();
+        })
+        .catch(function (e) { btn.disabled = false; note(i, e.message, true); });
+    }
+  });
+
+  /* ---- watching ----------------------------------------------------------------
+     A generation runs for minutes under the job's own timeout. Re-read the campaign
+     every 15s and clear the `regenerate` flag on any shot that has grown a newer
+     take — the agent never writes index.md, so clearing the flag is this page's job. */
+  var watching = null;
+  function watch() {
+    if (watching) return;
+    var started = Date.now();
+    watching = setInterval(function () {
+      if (Date.now() - started > 900000) { clearInterval(watching); watching = null; return; }
+      refresh(true);
+    }, 15000);
+  }
+
+  function refresh(quiet) {
+    return loadCampaign(current).then(function (next) {
+      var landed = [];
+      next.forEach(function (s) {
+        var was = shots.filter(function (o) { return o.name === s.name; })[0];
+        if (was && s.fm.regenerate === 'true' && s.takes.length > was.takes.length) landed.push(s);
+      });
+      shots = next;
+      paint();
+      /* Clear flags for shots whose new take has arrived. */
+      landed.forEach(function (s) { saveShot(s, { regenerate: null }).then(paint).catch(function () {}); });
+      if (!quiet) return;
+    }).catch(function (e) {
+      if (!quiet) root.innerHTML = '<div class="empty">Could not read the campaign (' +
+        esc(e.message) + ').</div>';
+    });
+  }
+
+  /* ---- boot -------------------------------------------------------------------- */
+  fetch('/api/tree?fresh=1', { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (tree) {
+      var node = findNode(tree, cabinetDir() + '/campaigns');
+      campaigns = ((node && node.children) || [])
+        .filter(function (n) { return n.children || n.type === 'directory'; })
+        .map(function (n) { return n.name; })
+        .sort();
+      if (!campaigns.length) {
+        document.getElementById('cname').textContent = 'No campaigns yet';
+        root.innerHTML = '<div class="empty">Make a folder under <code>campaigns/</code> to start one.</div>';
+        return;
+      }
+      current = campaigns[0];
+      if (campaigns.length > 1) {
+        picker.hidden = false;
+        picker.innerHTML = campaigns.map(function (c) {
+          return '<option value="' + esc(c) + '">' + esc(c) + '</option>';
+        }).join('');
+        picker.value = current;
+        picker.addEventListener('change', function () {
+          current = picker.value;
+          document.getElementById('cname').textContent = current;
+          refresh();
+        });
+      }
+      document.getElementById('cname').textContent = current;
+      return refresh();
+    })
+    .catch(function (e) {
+      root.innerHTML = '<div class="empty">Could not load campaigns (' + esc(e.message) + ').</div>';
+    });
+})();
+</script>
+</body>
+</html>
