@@ -196,7 +196,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [wedding-planner](./wedding-planner) | Lifestyle | 1 | 2 | 0 | A complete wedding-planning OS in a directory |
 | [week-ahead](./week-ahead) | Operations | 1 | 1 | 0 | Sunday evening — your week laid out, clashes flagged, prep noted |
 | [weekly-business-review](./weekly-business-review) | Operations | 2 | 2 | 0 | Auto-generates the weekly business review across revenue, product, support, engineering, and finance — so leadership walks into Monday wi… |
-| [whatsapp-digest](./whatsapp-digest) | Operations | 1 | 1 | 0 | Every morning, a plain-English digest of the WhatsApp conversations from the last 24 hours |
+| [whatsapp-catch-up](./whatsapp-catch-up) | Lifestyle | 1 | 2 | 0 | Who needs you in your chats, what you planned, and what you promised |
 | [x-mentions](./x-mentions) | Operations | 1 | 1 | 0 | Every morning, your mentions and which of them actually want an answer |
 | [youtube-channel-factory](./youtube-channel-factory) | Media | 1 | 2 | 0 | A complete YouTube OS in a directory |
 
