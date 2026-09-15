@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<!--
+  whatsapp-catch-up page.
+
+  Reads ../catch-up/, one file per run, written by this cabinet's two routines:
+   - <stamp>-catch-up.md, every morning: frontmatter and six "## " sections, each one
+     markdown table. Each section is a card here.
+   - <stamp>-week-ahead.md, Sunday evenings: one "Plans and dates" table. When the newest
+     one is less than a week old, its rows sit under "This week" in the Plans card.
+   - EXAMPLE-catch-up.md, the made-up demo. Shown under an Example flag until the first
+     real catch-up deletes it.
+
+  The file names carry the time, so the newest is picked without opening any file. The
+  folder listing comes from /api/tree because the assets route serves single files and
+  cannot list a directory. The same listing names the chat folders under whatsapp/, so a
+  row opens its chat only when that folder really exists.
+
+  Chats are often Hebrew. Every text cell is dir="auto", and amounts, numbers, dates and
+  times sit inside <bdi>, so "₪450" and "13:12" never reorder inside a right to left row.
+  A row takes its direction from its own words.
+
+  Relative URLs on purpose: they resolve under /api/assets/<cabinet>/today/ at any depth
+  and survive the cabinet being renamed at install time. Zero external requests. Every
+  failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WhatsApp Catch-Up</title>
+<style>
+  /* Registry parchment skin, gmail-inbox's tokens, with the accents a step deeper in light
+     and lighter in dark so small coloured text stays readable. Every colour is defined on
+     :root and only overridden in the dark blocks. */
+  :root {
+    --parchment: #FAF6F1; --card: #FFFFFF; --sunk: #F5EFE6;
+    --ink: #3B2F2F; --muted: #8B7355; --faint: #A8977F;
+    --line: #E8DFD2; --line-2: #F1EBE1;
+    --terracotta: #C95F48; --blue: #4C7FC4; --orange: #C9772E;
+    --gold: #B58A1F; --green: #4F8A3C; --teal: #3B8C83;
+    --hover: rgba(59,47,47,.04);
+    --shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+    --radius: 12px;
+  }
+
+  /* Three-state theming, the host app's contract: an explicit data-scheme wins in both
+     directions, and the media query applies only when nothing was stamped. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-scheme="light"]) {
+      --parchment: #211B15; --card: #2A231C; --sunk: #251F18;
+      --ink: #EFE7DB; --muted: #B5A48D; --faint: #9A8B74;
+      --line: #3D342A; --line-2: #342C23;
+      --terracotta: #E88A74; --blue: #86ADE3; --orange: #E6A064;
+      --gold: #E0B23C; --green: #8DBF78; --teal: #6CBDB3;
+      --hover: rgba(255,255,255,.04);
+      --shadow: 0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-scheme="dark"] {
+    --parchment: #211B15; --card: #2A231C; --sunk: #251F18;
+    --ink: #EFE7DB; --muted: #B5A48D; --faint: #9A8B74;
+    --line: #3D342A; --line-2: #342C23;
+    --terracotta: #E88A74; --blue: #86ADE3; --orange: #E6A064;
+    --gold: #E0B23C; --green: #8DBF78; --teal: #6CBDB3;
+    --hover: rgba(255,255,255,.04);
+    --shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; padding: 0; background: var(--parchment); color: var(--ink);
+    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 20px 64px; }
+
+  /* ---- hero ------------------------------------------------------------------------ */
+  .hero { padding: 40px 20px 8px; }
+  .hero-inner { max-width: 960px; margin: 0 auto; }
+  .brandrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  /* An inline <svg> with a viewBox and no width fills its container: size it here. */
+  .mark { width: 26px; height: 26px; flex: none; }
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .flag {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    padding: 3px 11px; border-radius: 999px; color: var(--card); background: var(--terracotta);
+  }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 32px; line-height: 1.15; margin: 14px 0 0;
+    letter-spacing: -0.01em; font-weight: 700;
+  }
+  .sub { color: var(--muted); margin: 8px 0 0; font-size: 15.5px; max-width: 62ch; }
+
+  .strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .stat {
+    background: var(--card); border-radius: 10px; padding: 7px 13px;
+    display: inline-flex; align-items: baseline; gap: 7px; box-shadow: var(--shadow);
+    font-size: 13.5px;
+  }
+  .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+  .stat b { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .note {
+    margin: 22px 0 0; padding: 11px 15px; border-radius: 10px;
+    background: var(--card); color: var(--muted); font-size: 14px; box-shadow: var(--shadow);
+  }
+  .note.warn { color: var(--ink); border-inline-start: 3px solid var(--orange); }
+
+  /* ---- cards ----------------------------------------------------------------------- */
+  .grid {
+    display: grid; gap: 16px; margin-top: 22px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+    align-items: start;
+  }
+  .card {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px 0 6px; min-width: 0;
+  }
+  .card-head { display: flex; align-items: center; gap: 9px; padding: 0 18px 8px; }
+  h2 {
+    margin: 0; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    font-weight: 700; color: var(--muted);
+  }
+  .tick { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .count {
+    margin-inline-start: auto; font-size: 12px; font-weight: 700; color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .sub-head {
+    margin: 8px 18px 0; padding-top: 10px; border-top: 1px solid var(--line);
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
+    color: var(--faint);
+  }
+  .empty { padding: 4px 18px 12px; color: var(--faint); font-size: 14px; }
+
+  .rows { list-style: none; margin: 0; padding: 0; }
+  .rows li + li .row { border-top: 1px solid var(--line-2); }
+  .row {
+    display: block; padding: 10px 18px; color: inherit; text-decoration: none;
+    text-align: start;
+  }
+  a.row { cursor: pointer; }
+  a.row:hover { background: var(--hover); }
+  a.row:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; border-radius: 6px; }
+  .l1 { display: flex; align-items: baseline; gap: 10px; }
+  .lead { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+  .aside {
+    margin-inline-start: auto; flex: none; font-size: 13px; color: var(--muted);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .l2 { display: block; margin-top: 1px; overflow-wrap: anywhere; }
+  .meta { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+  .sep { color: var(--faint); padding: 0 5px; }
+  .amount { font-variant-numeric: tabular-nums; }
+  .pill {
+    display: inline-block; font-size: 11.5px; font-weight: 600; padding: 0 9px;
+    border-radius: 999px; border: 1px solid currentColor; line-height: 1.6;
+    color: var(--green);
+  }
+  bdi { unicode-bidi: isolate; }
+
+  footer {
+    margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline;
+    color: var(--faint); font-size: 12.5px;
+  }
+  .quiet { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
+  .quiet:hover { color: var(--blue); border-bottom-color: var(--blue); }
+  footer code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+  @media (max-width: 560px) {
+    .hero { padding-top: 28px; }
+    h1 { font-size: 27px; }
+    .wrap { padding-inline: 14px; }
+    .row { padding-inline: 14px; }
+    .card-head, .empty { padding-inline: 14px; }
+    .sub-head { margin-inline: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="brandrow">
+      <!-- The integration's own mark, inlined so the page makes no external request. -->
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path fill="#6FA45A" d="M16 0C7.163 0 0 7.163 0 16c0 2.82.735 5.47 2.02 7.77L0 32l8.44-2.01A15.93 15.93 0 0 0 16 32c8.837 0 16-7.163 16-16S24.837 0 16 0Z"/><path fill="#fff" d="M23.47 19.16c-.4-.2-2.37-1.17-2.74-1.3-.37-.14-.63-.2-.9.2-.27.4-1.03 1.3-1.26 1.56-.23.27-.46.3-.86.1-.4-.2-1.68-.62-3.2-1.98-1.18-1.05-1.98-2.36-2.21-2.76-.23-.4-.02-.62.17-.82.18-.18.4-.46.6-.7.2-.23.27-.4.4-.66.13-.27.07-.5-.03-.7-.1-.2-.9-2.17-1.24-2.98-.33-.78-.66-.68-.9-.69-.23-.01-.5-.01-.77-.01-.27 0-.7.1-1.07.5-.37.4-1.4 1.37-1.4 3.34 0 1.97 1.43 3.87 1.63 4.14.2.27 2.82 4.3 6.83 6.03.95.41 1.7.66 2.28.84.96.3 1.83.26 2.52.16.77-.11 2.37-.97 2.7-1.9.34-.94.34-1.74.24-1.9-.1-.17-.37-.27-.77-.47Z"/></svg>
+      <span class="eyebrow">WhatsApp &middot; Cabinet</span>
+      <span class="flag" id="flag" hidden>Example</span>
+    </div>
+    <h1>Your chats, caught up</h1>
+    <p class="sub" id="sub" dir="auto">Who needs you in your chats, what you planned, and what you promised.</p>
+    <div class="strip" id="strip"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="root"><div class="note">Loading&hellip;</div></div>
+  <footer id="foot">
+    <span>WhatsApp Catch-Up &middot; reads <code>catch-up/</code> in this cabinet.</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DIR = 'catch-up';
+  var JOB = '.jobs/morning-catch-up.yaml';
+  var EXAMPLE = 'EXAMPLE-catch-up.md';
+  var CONVERSATIONS = 'all-conversations';
+  var WEEK_MS = 7 * 86400000;
+
+  var root = document.getElementById('root');
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  /* The six cards, in the order the run file writes them. Keys are the "## " headings,
+     lowercased; column names are the table headers, lowercased. `lead` is the bold
+     first line, `text` the words under it (and what decides the row's direction),
+     `meta` the small cite line, `aside` the number at the end of the first line. */
+  var CARDS = [
+    { key: "today's chats", title: "Today's chats", tick: 'var(--teal)',
+      empty: 'No messages in the last day.',
+      lead: 'who', text: 'about', meta: ['date'],
+      aside: function (r) {
+        var n = (r.messages || '').trim();
+        return n ? n + (n === '1' ? ' message' : ' messages') : '';
+      } },
+    { key: 'waiting on your reply', title: 'Waiting on your reply', tick: 'var(--terracotta)',
+      empty: 'Nobody is waiting on you.',
+      lead: 'who', text: 'what they want', meta: [],
+      aside: function (r) { return r.since ? 'since ' + r.since : ''; } },
+    { key: 'plans and dates', title: 'Plans and dates', tick: 'var(--blue)',
+      empty: 'No plans mentioned.',
+      lead: 'when', leadIsNumber: true, text: 'what', meta: ['who', 'date'] },
+    { key: 'quotes and prices', title: 'Quotes and prices', tick: 'var(--gold)',
+      empty: 'No prices mentioned.',
+      lead: 'amount', leadIsNumber: true, text: 'for', meta: ['who', 'date'],
+      pill: function (r) { return /^agreed$/i.test((r.agreed || '').trim()) ? 'agreed' : ''; } },
+    { key: 'files and photos shared', title: 'Files and photos shared', tick: 'var(--orange)',
+      empty: 'No files or photos shared.',
+      lead: 'who', text: 'caption', label: 'what', meta: ['date'] },
+    { key: 'you said you would', title: 'You said you would', tick: 'var(--green)',
+      empty: 'No open promises.',
+      lead: 'who', text: 'what you said you would do', meta: ['date'] }
+  ];
+
+  var base = cabinetDir();
+  var folders = [];
+  var job = null;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* Amounts, numbers, dates and times inside free text: each run goes in its own <bdi>,
+     currency and all ("₪450", "450 ש״ח", "$1,200", "13:12"). */
+  var NUMBER_RUN = /(?:[₪$€£¥]\s?)?\d(?:[\d.,:\/]*\d)?(?:\s?(?:[₪$€£¥%]|ש["״]ח|NIS|ILS|USD|EUR|GBP)(?![\w֐-׿]))?/g;
+
+  function withBdi(s) {
+    var out = '', last = 0, m;
+    s = String(s);
+    NUMBER_RUN.lastIndex = 0;
+    while ((m = NUMBER_RUN.exec(s))) {
+      out += esc(s.slice(last, m.index)) + '<bdi>' + esc(m[0]) + '</bdi>';
+      last = m.index + m[0].length;
+    }
+    return out + esc(s.slice(last));
+  }
+
+  /* "the number ending 4410" reads mid-sentence in the file; as a row's first word, and
+     for a media label ("photo"), it takes a capital. Other words are shown as written. */
+  function capitalFirst(s) {
+    return /^(the number ending|a number not known yet|someone in|photo|video|voice note|file)\b/.test(s)
+      ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  function textSpan(s) { return '<span dir="auto">' + withBdi(s) + '</span>'; }
+  function numberSpan(s, cls) { return '<bdi' + (cls ? ' class="' + cls + '"' : '') + '>' + esc(s) + '</bdi>'; }
+
+  /* The direction of the first strong letter, or '' when there is none. */
+  function strongDir(s) {
+    var m = String(s || '').match(/[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]|[֐-ࣿיִ-﷿ﹰ-﻿]/);
+    if (!m) return '';
+    return /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/.test(m[0]) ? 'ltr' : 'rtl';
+  }
+
+  /* ---- follow the shell's theme ------------------------------------------------------
+     Cabinet paints its theme as class="dark" on its own <html>. This page is same-origin,
+     so it reads that and stamps data-scheme on itself; opened on its own there is no
+     parent, nothing is stamped, and the media query decides. */
+  function applyHostScheme() {
+    try {
+      if (!window.parent || window.parent === window) return null;
+      var host = window.parent.document.documentElement;
+      document.documentElement.setAttribute('data-scheme', host.classList.contains('dark') ? 'dark' : 'light');
+      return host;
+    } catch (err) {
+      return null;
+    }
+  }
+  (function watchHostScheme() {
+    var host = applyHostScheme();
+    if (!host || typeof MutationObserver === 'undefined') return;
+    try {
+      new MutationObserver(applyHostScheme).observe(host, { attributes: true, attributeFilter: ['class'] });
+    } catch (err) { /* the one-shot read above already landed */ }
+  })();
+
+  /* ---- where this page lives ---------------------------------------------------------
+     /api/assets/<cabinet path>/today/index.html: dropping the last two segments names
+     the cabinet, whatever it was called at install time. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(function (seg) {
+      try { return decodeURIComponent(seg); } catch (err) { return seg; }
+    }).join('/');
+  }
+  function inCabinet(rel) { return base ? base + '/' + rel : rel; }
+
+  function workspaceUrl(rel) {
+    return '/workspace/' + inCabinet(rel).split('/').filter(Boolean).map(encodeURIComponent).join('/');
+  }
+
+  /* Open a Cabinet page from inside the app frame: push the path on the shell's history
+     and tell its router, the way its own links do. The anchor's target="_top" is the
+     fallback when the shell cannot be reached. */
+  function openInShell(url, e) {
+    try {
+      var w = window.parent;
+      if (!w || w === window || w.location.origin !== location.origin) return;
+      w.history.pushState(null, '', url);
+      var Pop = w.PopStateEvent || PopStateEvent;
+      w.dispatchEvent(new Pop('popstate', { state: null }));
+      e.preventDefault();
+    } catch (err) { /* leave the click to the anchor */ }
+  }
+
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target.closest ? e.target.closest('a[data-shell]') : null;
+    if (a) openInShell(a.getAttribute('href'), e);
+  });
+
+  /* ---- the run file ------------------------------------------------------------------ */
+
+  function cells(line) {
+    var t = line.trim(), out = [], cur = '';
+    if (t.charAt(0) === '|') t = t.slice(1);
+    if (t.slice(-1) === '|' && t.slice(-2) !== '\\|') t = t.slice(0, -1);
+    for (var i = 0; i < t.length; i++) {
+      var c = t.charAt(i);
+      if (c === '\\' && t.charAt(i + 1) === '|') { cur += '|'; i++; continue; }
+      if (c === '|') { out.push(cur); cur = ''; continue; }
+      cur += c;
+    }
+    out.push(cur);
+    return out.map(function (x) { return x.trim().replace(/^\*\*(.*)\*\*$/, '$1').replace(/^`(.*)`$/, '$1'); });
+  }
+
+  function norm(s) {
+    return String(s).toLowerCase().replace(/[‘’`]/g, "'").replace(/\s+/g, ' ').trim();
+  }
+
+  /* Frontmatter, then "## " sections that each hold one markdown table. */
+  function parse(text) {
+    var out = { meta: {}, sections: {} };
+    var src = String(text).replace(/\r\n/g, '\n');
+    var m = src.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    var body = src;
+    if (m) {
+      body = m[2];
+      m[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+    }
+    var current = null;
+    body.split('\n').forEach(function (line) {
+      var h = line.match(/^##\s+(.+?)\s*#*\s*$/);
+      if (h) {
+        current = { lines: [] };
+        out.sections[norm(h[1])] = current;
+        return;
+      }
+      if (current && line.trim().charAt(0) === '|') current.lines.push(line);
+    });
+    Object.keys(out.sections).forEach(function (key) {
+      var lines = out.sections[key].lines;
+      var rows = [];
+      if (lines.length) {
+        var cols = cells(lines[0]).map(norm);
+        var start = lines[1] && /^[\s|:-]+$/.test(lines[1]) ? 2 : 1;
+        lines.slice(start).forEach(function (line) {
+          var r = cells(line);
+          if (!r.join('').trim()) return;
+          var row = {};
+          cols.forEach(function (c, i) { row[c] = r[i] || ''; });
+          rows.push(row);
+        });
+      }
+      out.sections[key] = rows;
+    });
+    return out;
+  }
+
+  /* "chat-...4410" (a folder name with its number cut to four digits) matches the one
+     saved folder of that kind ending in those digits. Anything else must match exactly.
+     A row whose folder is not saved here draws as plain text, never a broken link. */
+  function resolveFolder(cell) {
+    var f = String(cell || '').trim().replace(/^whatsapp\//, '').replace(/\/+$/, '');
+    if (!f || f === CONVERSATIONS) return null;
+    if (folders.indexOf(f) > -1) return f;
+    var m = f.match(/^(chat|group)-(?:\.{2,3}|…)(\d{4})$/);
+    if (!m) return null;
+    var hits = folders.filter(function (name) {
+      var rest = name.slice(m[1].length + 1);
+      return name.indexOf(m[1] + '-') === 0 && /^\d+$/.test(rest) && rest.slice(-4) === m[2];
+    });
+    return hits.length === 1 ? hits[0] : null;
+  }
+
+  function rowHtml(card, r) {
+    var lead = capitalFirst(r[card.lead] || '');
+    var text = r[card.text] || '';
+    if (card.label) {
+      var label = capitalFirst((r[card.label] || '').trim());
+      text = label && text ? label + ': ' + text : (label || text);
+    }
+    var dir = strongDir(text) || strongDir(lead);
+
+    var l1 = '<span class="lead">' +
+      (card.leadIsNumber ? numberSpan(lead, card.lead === 'amount' ? 'amount' : '') : textSpan(lead)) +
+      '</span>';
+    var asideText = card.aside ? card.aside(r) : '';
+    var pill = card.pill ? card.pill(r) : '';
+    if (asideText || pill) {
+      l1 += '<span class="aside">' + (asideText ? numberSpan(asideText) : '') +
+        (pill ? ' <bdi class="pill">' + esc(pill) + '</bdi>' : '') + '</span>';
+    }
+
+    var metaBits = card.meta.map(function (col) {
+      var v = (r[col] || '').trim();
+      if (!v) return '';
+      return col === 'date' ? numberSpan(v) : textSpan(v);
+    }).filter(Boolean);
+
+    var inner = '<span class="l1">' + l1 + '</span>' +
+      (text ? '<span class="l2">' + textSpan(text) + '</span>' : '') +
+      (metaBits.length ? '<span class="meta">' +
+        metaBits.join('<span class="sep" aria-hidden="true">&middot;</span>') + '</span>' : '');
+
+    var folder = resolveFolder(r.folder);
+    var dirAttr = dir ? ' dir="' + dir + '"' : '';
+    if (folder) {
+      return '<li><a class="row" data-shell href="' + esc(workspaceUrl('whatsapp/' + folder)) +
+        '" target="_top"' + dirAttr + '>' + inner + '</a></li>';
+    }
+    return '<li><div class="row"' + dirAttr + '>' + inner + '</div></li>';
+  }
+
+  function planKey(r) { return norm(r.when || '') + '|' + norm(r.folder || ''); }
+
+  function rowsHtml(card, rows) {
+    return '<ul class="rows">' + rows.map(function (r) { return rowHtml(card, r); }).join('') + '</ul>';
+  }
+
+  function render(data, week) {
+    var meta = data.meta;
+    var html = '';
+
+    if (meta.status && meta.status !== 'ok') {
+      html += '<div class="note warn" dir="auto">The last catch-up did not finish: ' +
+        withBdi(meta.status) + '. What it could read is below.</div>';
+    }
+
+    html += '<div class="grid">';
+    CARDS.forEach(function (card) {
+      var rows = data.sections[card.key] || [];
+      var weekRows = card.key === 'plans and dates' && week ? (week.sections[card.key] || []) : [];
+      /* The morning file carries plans still ahead, so a plan can be in both files: show it once. */
+      var seen = rows.map(planKey);
+      weekRows = weekRows.filter(function (r) { return !r.when || seen.indexOf(planKey(r)) === -1; });
+      var total = rows.length + weekRows.length;
+      html += '<section class="card" aria-label="' + esc(card.title) + '">' +
+        '<div class="card-head"><span class="tick" style="background:' + card.tick + '"></span>' +
+        '<h2>' + esc(card.title) + '</h2>' +
+        (total ? '<span class="count">' + total + '</span>' : '') + '</div>';
+      html += rows.length ? rowsHtml(card, rows) : '<div class="empty">' + esc(card.empty) + '</div>';
+      if (weekRows.length) {
+        html += '<div class="sub-head">This week</div>' + rowsHtml(card, weekRows);
+      }
+      html += '</section>';
+    });
+    html += '</div>';
+    root.innerHTML = html;
+  }
+
+  function strip(meta, isExample) {
+    var el = document.getElementById('strip');
+    var bits = [];
+    if (meta && meta.generated) {
+      bits.push('<div class="stat"><span>Updated</span><b>' + numberSpan(prettyStamp(meta.generated)) + '</b></div>');
+    }
+    if (meta && /^\d+$/.test(meta.chats || '')) {
+      bits.push('<div class="stat"><b>' + esc(meta.chats) + '</b><span>' +
+        (meta.chats === '1' ? 'chat read' : 'chats read') + '</span></div>');
+    }
+    var next = nextRunText();
+    if (next) bits.push('<div class="stat">' + next + '</div>');
+    el.innerHTML = bits.join('');
+    document.getElementById('flag').hidden = !isExample;
+  }
+
+  /* "2026-09-14 07:30" becomes "14 Sep 07:30"; anything else is shown as written. */
+  function prettyStamp(s) {
+    var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    return m ? (+m[3]) + ' ' + MONTHS[+m[2] - 1] + ' ' + m[4] + ':' + m[5] : s;
+  }
+
+  function foot(hasConversations) {
+    var el = document.getElementById('foot');
+    var html = '';
+    if (hasConversations) {
+      html += '<a class="quiet" data-shell target="_top" href="' +
+        esc(workspaceUrl('whatsapp/' + CONVERSATIONS)) + '">All conversations</a>';
+    }
+    html += '<span>WhatsApp Catch-Up &middot; reads <code>catch-up/</code> in this cabinet.</span>';
+    el.innerHTML = html;
+  }
+
+  /* ---- the folder listing ------------------------------------------------------------ */
+
+  /* 2026-09-14T07-30-00-catch-up.md: the name carries the local time of the run. */
+  function stamp(name) {
+    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-(catch-up|week-ahead)\.md$/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
+  }
+  function kindOf(name) {
+    var m = name.match(/-(catch-up|week-ahead)\.md$/);
+    return stamp(name) && m ? m[1] : null;
+  }
+
+  /* When the data folder is itself a cabinet, the tree is one node with path "." whose
+     children keep their plain paths ("my-cabinet/catch-up"), so "." is looked through. */
+  function findNode(nodes, path) {
+    var list = nodes || [];
+    for (var i = 0; i < list.length; i++) {
+      var n = list[i];
+      if (!n || !n.path) continue;
+      if (n.path === path) return n;
+      if (n.path === '.' || path.indexOf(n.path + '/') === 0) {
+        var hit = findNode(n.children, path);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  }
+
+  /* Direct .md children of a folder. The tree drops ".md" from `path` but keeps it on
+     `name`, so `name` is what gets fetched. */
+  function mdFiles(node) {
+    return ((node && node.children) || []).filter(function (n) {
+      return n && /\.md$/i.test(n.name || '');
+    }).map(function (n) { return n.name; });
+  }
+
+  function chatFolders(node) {
+    return ((node && node.children) || []).filter(function (n) {
+      return n && n.name && n.name !== CONVERSATIONS && n.name.indexOf('.') !== 0 &&
+        (n.type === 'directory' || (n.children && n.children.length));
+    }).map(function (n) { return n.name; });
+  }
+
+  function fetchText(name) {
+    return fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      });
+  }
+
+  /* ---- when the routine next runs -----------------------------------------------------
+     Read off this cabinet's own job file, so an edited or paused schedule shows the truth.
+     Cron is evaluated in the browser's time zone, the same computer the routine runs on. */
+  function field(spec, min, max) {
+    var set = {};
+    spec.split(',').forEach(function (part) {
+      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== '*') {
+        var r = bits[0].split('-');
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+
+  function nextRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;
+    var d = new Date(from.getTime() + 60000);
+    d.setSeconds(0, 0);
+    for (var i = 0; i < 8 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + 60000);
+    }
+    return null;
+  }
+
+  function nextRunText() {
+    if (!job) return '';
+    if (job.enabled === 'false') return '<span>Morning catch-up paused</span>';
+    if (!job.schedule) return '';
+    var d = nextRun(job.schedule, new Date());
+    if (!d) return '';
+    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return '<span>Next</span><b>' + numberSpan(DAYS[d.getDay()] + ' ' + d.getDate() + ' ' +
+      MONTHS[d.getMonth()] + ' ' + clock) + '</b>';
+  }
+
+  /* ---- load --------------------------------------------------------------------------- */
+
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    /* The schedule is a nicety: a missing or renamed job file never breaks the page. */
+    fetch('../' + JOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+  ])
+    .then(function (both) {
+      var tree = both[0];
+      job = {};
+      both[1].split('\n').forEach(function (line) {
+        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+      });
+
+      var wa = findNode(tree, inCabinet('whatsapp'));
+      folders = chatFolders(wa);
+      foot(!!findNode(tree, inCabinet('whatsapp/' + CONVERSATIONS)));
+
+      var names = mdFiles(findNode(tree, inCabinet(DIR)));
+      var byNewest = function (a, b) { return stamp(b) - stamp(a); };
+      var runs = names.filter(function (n) { return kindOf(n) === 'catch-up'; }).sort(byNewest);
+      var weeks = names.filter(function (n) { return kindOf(n) === 'week-ahead'; }).sort(byNewest);
+      var hasExample = names.indexOf(EXAMPLE) > -1;
+
+      var current = runs[0] || (hasExample ? EXAMPLE : null);
+      if (!current) {
+        strip(null, false);
+        root.innerHTML = '<div class="note">Nothing yet. This page fills in after the first ' +
+          'morning catch-up, once you choose chats for this cabinet on the WhatsApp page in ' +
+          'Integrations.</div>';
+        return;
+      }
+      var isExample = current === EXAMPLE;
+      var recentWeek = !isExample && weeks[0] && (Date.now() - stamp(weeks[0]).getTime() < WEEK_MS)
+        ? weeks[0] : null;
+
+      return Promise.all([
+        fetchText(current),
+        recentWeek ? fetchText(recentWeek).catch(function () { return ''; }) : ''
+      ]).then(function (texts) {
+        var data = parse(texts[0]);
+        var week = texts[1] ? parse(texts[1]) : null;
+        strip(data.meta, isExample);
+        if (data.meta.headline) {
+          var sub = document.getElementById('sub');
+          sub.innerHTML = withBdi(data.meta.headline);
+        }
+        render(data, week);
+        if (isExample) {
+          root.insertAdjacentHTML('afterbegin', '<div class="note">These chats are made up, to show ' +
+            'what the page looks like. Your first morning catch-up replaces them.</div>');
+        }
+      }).catch(function (err) {
+        strip(null, isExample);
+        root.innerHTML = '<div class="note">Could not read <code>' + esc(DIR + '/' + current) +
+          '</code> (' + esc(err.message) + '). It may still be being written. Reload in a moment.</div>';
+      });
+    })
+    .catch(function (err) {
+      strip(null, false);
+      root.innerHTML = '<div class="note">Could not list <code>' + DIR + '/</code> (' +
+        esc(err.message) + '). Reload in a moment.</div>';
+    });
+})();
+</script>
+</body>
+</html>

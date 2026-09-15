@@ -100,7 +100,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [gemini-image-studio](./gemini-image-studio) | Creative | 1 | 1 | 0 | Describe a picture and get a real image file in your cabinet |
 | [github-dev-brief](./github-dev-brief) | Operations | 1 | 1 | 0 | Every morning, what you shipped and what's waiting on you across GitHub in the last 24 hours |
 | [gitlab-dev-brief](./gitlab-dev-brief) | Operations | 1 | 1 | 0 | Every morning, what you shipped and what's waiting on you across GitLab in the last 24 hours |
-| [gmail-inbox](./gmail-inbox) | Operations | 1 | 1 | 0 | Every morning, a plain-English summary of the email that arrived overnight |
+| [gmail-inbox](./gmail-inbox) | Operations | 1 | 2 | 0 | Every morning, a plain-English summary of the email that arrived overnight |
 | [good-morning](./good-morning) | Operations | 1 | 1 | 0 | One morning page from everything you've connected — mail, calendar, money, whatever you add next |
 | [google-ads-brief](./google-ads-brief) | Marketing | 1 | 1 | 0 | Every Monday, where last week's ad money went and what it bought |
 | [google-calendar-week](./google-calendar-week) | Operations | 1 | 1 | 0 | Every morning, what's on your calendar today, with the rest of the week behind it |
@@ -196,7 +196,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [wedding-planner](./wedding-planner) | Lifestyle | 1 | 2 | 0 | A complete wedding-planning OS in a directory |
 | [week-ahead](./week-ahead) | Operations | 1 | 1 | 0 | Sunday evening — your week laid out, clashes flagged, prep noted |
 | [weekly-business-review](./weekly-business-review) | Operations | 2 | 2 | 0 | Auto-generates the weekly business review across revenue, product, support, engineering, and finance — so leadership walks into Monday wi… |
-| [whatsapp-digest](./whatsapp-digest) | Operations | 1 | 1 | 0 | Every morning, a plain-English digest of the WhatsApp conversations from the last 24 hours |
+| [whatsapp-catch-up](./whatsapp-catch-up) | Lifestyle | 1 | 2 | 0 | Who needs you in your chats, what you planned, and what you promised |
 | [x-mentions](./x-mentions) | Operations | 1 | 1 | 0 | Every morning, your mentions and which of them actually want an answer |
 | [youtube-channel-factory](./youtube-channel-factory) | Media | 1 | 2 | 0 | A complete YouTube OS in a directory |
 
