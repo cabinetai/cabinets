@@ -1,7 +1,7 @@
 ---
 title: OpenAI Image Studio
 created: '2026-08-13T00:00:00Z'
-modified: '2026-08-13T00:00:00Z'
+modified: '2026-09-15T00:00:00Z'
 tags: [openai, images, generation, showcase]
 order: 1
 ---
@@ -23,18 +23,17 @@ timer should be switched on by the person paying. Turn it on yourself when you w
 ## How to look at it
 
 Open the **Studio** app in this cabinet. It comes pre-filled with example pictures so
-the page is not empty — it says on the page that they are examples. Your first real
+the page is not empty. It says on the page that they are examples. Your first real
 set replaces them.
 
 ## Before it can make real pictures
 
-Connect OpenAI Image in Cabinet's integrations screen. You get an API key from
-OpenAI's platform — sign in, create a key under API keys, paste it into Cabinet.
-Two minutes, once. Cabinet keeps the key in a locked file on your own machine.
+Connect OpenAI Image from Integrations in Cabinet, or when Cabinet asks. You do it
+once. Until then the page keeps showing the example pictures.
 
 ## What's inside
 
-- **Image Maker** — the one agent. Turns your words into a picture.
-- **Weekly Image Set** — the one routine. Off until you switch it on; Monday at 09:00
+- **Image Maker**: the one agent. Turns your words into a picture.
+- **Weekly Image Set**: the one routine. Off until you switch it on; Monday at 09:00
   once you do.
-- **Studio** — the one page. Write a description, watch it appear.
+- **Studio**: the one page. Write a description, watch it appear.
