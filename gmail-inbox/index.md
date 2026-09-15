@@ -1,7 +1,7 @@
 ---
 title: Gmail Inbox
 created: '2026-08-09T00:00:00Z'
-modified: '2026-08-09T00:00:00Z'
+modified: '2026-09-15T00:00:00Z'
 tags: [gmail, email, inbox, summary, showcase]
 order: 1
 ---
@@ -11,46 +11,50 @@ Every morning, a plain-English summary of the email that arrived overnight.
 
 ## What you get
 
-One page. It lists the mail that came in since yesterday, one line each, with who sent
-it, what it actually wants from you, and how urgent it is. You read the page instead of
-the inbox, and you know in about fifteen seconds whether anything needs you today.
+One page, six cards, ready at 07:00:
 
-Nothing is replied to, archived, labelled or deleted. It only reads.
+- **Needs you today**: who wrote, what they want, and how urgent it is.
+- **Waiting on your reply**: people still waiting on you, oldest first.
+- **Bills and receipts**: who, how much, and when it is due.
+- **Dates and meetings mentioned**: what is coming up, soonest first.
+- **Newsletters you never open**: how many sit unread, and from whom.
+- **Replies ready to send**: short replies written for you, with a Copy button.
+
+You read the page instead of the inbox, and you know in about fifteen seconds whether
+anything needs you today. On Fridays at 16:00 a second check looks back over two weeks
+for anyone still waiting on you, so you can clear it before the weekend.
+
+The routines only read. Nothing is archived, labelled or deleted, and nothing is sent.
+To send one of the replies, ask your teammate in a chat; Cabinet shows you the email
+first and it goes out only when you approve it.
 
 ## How to look at it
 
 Open the **Inbox Summary** app in this cabinet. It comes pre-filled with a made-up
-example so you can see the shape of it straight away — the page says clearly that those
-emails are fake. Your first real summary takes its place.
+example so you can see the shape of it straight away, and the page says clearly that
+those emails are fake. Your first real summary takes its place.
+
+## Make it yours
+
+Open **setup.md** and replace the example answers: whose mail always matters, what to
+skip, what counts as waiting on you, and the tone for replies. Your teammate reads it
+before every run, so a change tonight shapes tomorrow's page.
 
 ## Before it can read your real mail
 
-Connect Gmail in Cabinet's integrations screen. One click, one Google approval page,
-no password to invent and nothing to install. Until then the page keeps showing the
-example.
-
-That click connects Gmail to your **Claude account**, not to Cabinet — which is exactly
-what makes the morning summary possible, because the routine runs as Claude on your
-machine and reads your mail through the same connection. It also means Gmail is now on
-for Claude everywhere, not just here. The Disconnect link on the integrations page takes
-you to claude.ai, where the off switch lives.
-
-If this cabinet's agent is set to something other than Claude — Codex, Cursor, Gemini —
-Google's one-click sign-in won't work for it. Use the App Password option at the bottom
-of the same Gmail page instead; it gives the agent a different way in and the routine
-works the same.
+Connect Gmail when Cabinet asks, when you create this cabinet, or later from
+Integrations. You do it once. Until then the page keeps showing the example, and the
+morning summary waits.
 
 ## If the page still shows the example
 
-The routine only writes when it can actually reach your mail. If it has run and the
-example is still sitting there, Gmail isn't connected yet, or it's connected in a way
-this cabinet's agent can't use — see above.
-
-Nothing was overwritten and nothing errored. Fix the connection and run the routine
-again.
+Cabinet doesn't run the morning summary until Gmail is connected, and its teammate says
+so in a chat. Connect it there and tomorrow's summary replaces the example.
 
 ## What's inside
 
-- **Inbox Summarizer** — the one agent. Reads the mail, writes the summary.
-- **Morning Inbox Summary** — the one routine. Runs at 07:00 every day.
-- **Inbox Summary** — the one page. Opens on today, with a dropdown for earlier days.
+- **Inbox Summarizer**: the one agent. Reads the mail, writes the page.
+- **Morning Inbox Summary**: a routine that runs at 07:00 every day and writes the six cards.
+- **Friday Loose Ends**: a routine that runs at 16:00 on Fridays and lists who is still waiting on you.
+- **Inbox Summary**: the page. Opens on today, with a dropdown for earlier days.
+- **setup.md**: your answers. Two minutes there makes every summary sharper.
