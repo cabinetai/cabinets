@@ -24,18 +24,50 @@ on:
       - 'CABINET-TOP-100-X.csv'
       - 'CABINET-PERSONAS.csv'
       - 'QUICK-START-IMAGE-GENERATION.md'
+  # Pull requests only validate: connector declarations, prompts and the
+  # builder's own tests. Nothing is written or committed.
+  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: build-manifest
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  manifest:
+  check:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    concurrency:
+      group: build-manifest-check-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install manifest deps
+        working-directory: .github/scripts
+        # The check needs no browser; puppeteer is for local cover tooling.
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+        run: npm ci
+
+      - name: Test the manifest builder
+        working-directory: .github/scripts
+        run: npm test
+
+      - name: Check cabinet declarations
+        run: node .github/scripts/build-manifest.mjs --check
+
+  manifest:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: build-manifest
+      cancel-in-progress: false
     steps:
       # Push via a deploy key: main is PR-only by ruleset, and the DeployKey
       # bypass is the sanctioned path for this bot's manifest commit-back.
