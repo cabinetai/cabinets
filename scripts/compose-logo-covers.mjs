@@ -53,6 +53,8 @@ const LOGOS = {
   'obsidian-kb': icon('siObsidian'),
   'openai-image-studio': file('providers/openai.svg'),
   'safari-site-check': icon('siSafari'),
+  'sharepoint-bid-room': app('logos/sharepoint.svg'),
+  'sharepoint-policy-desk': app('logos/sharepoint.svg'),
   'sharepoint-week': app('logos/sharepoint.svg'),
   'slack-digest': app('logos/slack.svg'),
   'stackadapt-brief': app('logos/stackadapt.svg'),
