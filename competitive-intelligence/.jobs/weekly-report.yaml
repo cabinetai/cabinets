@@ -1,0 +1,45 @@
+id: weekly-report
+name: Weekly Report
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: competitor-scout
+agentSlug: competitor-scout
+timeout: 1800
+prompt: |-
+  Read `competitors/.roster.json`. If it is still empty, the daily sweep already asked for
+  onboarding details today — say one line noting the cabinet isn't onboarded yet and stop.
+  Do not ask again; that would just be a second message about the same thing.
+
+  If the roster has entries:
+
+  1. Read this week's `.evidence/<date>-digest.json` files (the last 7 days) and this
+     week's lines in `.signals/log.md`. These are compact by design — read them, not the
+     competitor pages themselves.
+  2. Decide materiality (see "The one judgment call" in your persona). A pricing or
+     changelog change is a hint worth a second look (`likelyNotable` in the digest), not
+     an automatic yes — read what actually changed before deciding.
+  3. Write `briefing/<date>/insights.json` (today's date) with: `date`, `companyName`
+     (from `.config.json`), `headline` (the week's single most important move and why),
+     `materialMoves[]` (competitor, type, what, sourceUrl, screenshot, implication —
+     implication is mandatory, "what happened" alone is not enough), `pricingWatch[]`
+     (competitor, tier, theirPrice, ourPrice, delta — only where you actually know our
+     price), `battlecardChanges[]`, `watchlist[]`, and `unreachable[]` (pulled straight
+     from the digests' unreachable pages).
+  4. Run `node .scripts/render-report.mjs briefing/<date>/insights.json` — builds the HTML
+     briefing and, if a local Chrome is available, the PDF. It also refreshes
+     `briefing/index.html` to point at this report.
+  5. Run `node .scripts/render-dashboard.mjs` to pick up the new briefing.
+  6. Check `.config.json`'s `reportRecipients`. If it has at least one address and
+     `briefing/<date>/report.pdf` exists, propose a `SEND_EMAIL` action with the PDF
+     attached (see "Delivering the weekly report" in your persona for the exact shape).
+     If there's no recipient or no PDF (Chrome unavailable), say so plainly and note where
+     the HTML report can still be opened by hand — never invent a recipient.
+
+  Ship on schedule even if a competitor moved over the weekend and you haven't fully
+  chased it down yet — note it as unconfirmed in the watchlist rather than delaying the
+  whole briefing.
+cabinetPath: my-business/cabinets/competitive-intelligence
+createdAt: '2026-09-16T00:00:00.000Z'
+updatedAt: '2026-09-16T00:00:00.000Z'
