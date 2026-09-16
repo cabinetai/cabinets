@@ -1,44 +1,43 @@
 <!DOCTYPE html>
 <!--
-  CHASSIS 1, the report page. Copy this file, then replace every token below:
+  slack-triage showcase page.
 
-    AWS S3 Contents     browser title and <h1>
-    What's actually in your bucket, and what changed last.  the one sentence, must match .cabinet description and index.md
-    /logos/buckets/aws-s3.svg      catalog entry `logo`, e.g. /logos/acme.svg
-    #ff9900    catalog entry `brand`, e.g. #229ED9
-    summaries       archive folder, e.g. summaries
-    .jobs/daily-bucket-contents.yaml       job path, e.g. .jobs/morning-digest.yaml
+  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
+  The file names carry the timestamp, so the picker is built without opening any of them.
+  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  and survive the user renaming the cabinet at install time. The folder listing comes from
+  /api/tree because the assets route serves single files and cannot list a directory.
 
-  Reads summaries via /api/tree?fresh=1, sorts by filename, opens on today.
-  Relative URLs on purpose: they survive install at any depth and any rename.
-  Zero external requests. Light only. Every failure path renders something honest.
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AWS S3 Contents</title>
+<title>Slack Triage Board</title>
 <style>
   :root {
-    --bg: #FAF6F1; --card: #FFFFFF; --ink: #3B2F2F; --dim: #8B7355;
-    --faint: #B5A58F; --line: #E8DFD2; --accent: #E08A3C;
-    --hi: #E2725B; --mid: #E0B23C; --lo: #8B7355;
+    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
+    --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
+    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
+    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 48px 24px 64px; background: var(--bg); color: var(--ink);
+    margin: 0; padding: 48px 24px 64px; background: var(--parchment); color: var(--ink);
     font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
   }
   .wrap { max-width: 780px; margin: 0 auto; }
   h1 {
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 32px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
+    font-size: 30px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
     display: flex; align-items: center; gap: 12px;
   }
-  /* The mark is an <img> from the catalog; SVG sources have no intrinsic pixel size,
-     so size it here or it renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 28px; height: 28px; flex: none; }
-  .sub { color: var(--dim); margin: 6px 0 0; font-size: 15px; }
+  /* An inline <svg> with a viewBox and no width fills its container — size it here or
+     the mark renders enormous. flex:none stops the flex row shrinking it. */
+  .mark { width: 26px; height: 26px; flex: none; }
+  .sub { color: var(--muted); margin: 6px 0 0; font-size: 14px; }
   .card {
     background: var(--card); border: none; border-radius: 12px;
     padding: 18px 22px; margin-top: 18px;
@@ -46,53 +45,43 @@
   }
   .banner {
     padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border: none;
-    border-radius: 12px; font-size: 14px; color: var(--dim);
+    background: var(--card); border-radius: 8px; font-size: 14px; color: var(--muted);
     box-shadow: 0 1px 2px rgba(59,47,47,0.04);
   }
-  /* The one thing worth reading if nothing else. */
   .lead-tag {
     display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--accent); margin-bottom: 6px;
+    letter-spacing: 0.12em; color: var(--terracotta); margin-bottom: 6px;
   }
-  .lead-who { font-family: Georgia, "Times New Roman", serif; font-size: 18px; font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--dim); }
+  .lead-who { font-weight: 600; }
+  .lead-verdict { margin: 4px 0 0; color: var(--muted); }
   table { width: 100%; border-collapse: collapse; margin-top: 6px; }
   th {
     text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--dim); font-weight: 700; padding: 0 10px 10px 0; border-bottom: 1px solid var(--line);
+    color: var(--muted); font-weight: 700; padding: 0 10px 10px 0; border-bottom: 1px solid var(--line);
   }
   td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   tr:last-child td { border-bottom: 0; }
-  /* The path is what the eye runs down the page for, so it gets the accent. Broken
-     on the slashes rather than overflowed: bucket paths are long and a reader needs
-     the last segment more than the first. */
-  .path { color: var(--accent); font-weight: 600; word-break: break-word; }
-  /* A size reads as a quantity, not as prose. */
-  .num { color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .when { color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .empty { color: var(--dim); font-size: 14px; }
+  .pill {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
+    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+  }
+  .u-new { color: var(--terracotta); } .u-owned { color: var(--blue); } .u-waiting { color: var(--orange); } .u-done { color: var(--green); } .u-low { color: var(--muted); }
+  /* The item is what the eye runs down the board for, so it gets the accent. */
+  .key { color: var(--blue); font-weight: 600; }
+  /* An owner is a name, and a name never wraps mid-word. */
+  .num { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* The item links back to the message that raised it, so it reads as clickable. */
+  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+  .deep-link:hover { border-bottom-color: var(--blue); }
+  .empty { color: var(--muted); font-size: 14px; }
   .empty code { font-size: 13px; }
   .scroll { overflow-x: auto; }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--dim); }
+  .picker { margin-top: 18px; font-size: 14px; color: var(--muted); }
   .picker select {
     font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
     border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
   }
-  .picker .next { display: block; margin-top: 7px; color: var(--faint); font-size: 13px; }
-  .seeded {
-    margin: 18px 0 0; padding: 9px 12px; border-radius: 8px;
-    background: var(--bg); border: none;
-    color: var(--dim); font-size: 13.5px;
-  }
-  /* The week's result in one line. The agent always writes it, so the page always
-     has something to say before you reach the table. */
-  .headline {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 21px; line-height: 1.35; font-weight: 600;
-    margin: 20px 0 0; letter-spacing: -0.01em;
-  }
-  .overview { margin: 0 0 16px; color: var(--ink); font-size: 15px; line-height: 1.6; }
+  .picker .next { display: block; margin-top: 7px; color: var(--faint); }
 </style>
 </head>
 <body>
@@ -100,15 +89,13 @@
 
   <header>
     <h1>
-      <!-- The mark comes from the integration's catalog entry (`logo`), served
-           same-origin from the app. Not inlined: inlining duplicates an asset
-           that already exists, drifts when the real one is updated, and cannot
-           represent the raster marks (brightdata.webp, openai-image.png). -->
-      <img class="mark" src="/logos/buckets/aws-s3.svg" alt="" />
-      AWS S3 Contents
+      <!-- The integration's own mark, inlined so the page still makes
+           zero external requests. -->
+      <svg class="mark" viewBox="0 0 127 127" aria-hidden="true"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2C6.7 93.2.8 87.3.8 80c0-7.3 5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/> <path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2C33.8 6.5 39.7.6 47 .6c7.3 0 13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H13.9C6.6 60.1.7 54.2.7 46.9c0-7.3 5.9-13.2 13.2-13.2H47z" fill="#36C5F0"/> <path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V13.8C66.9 6.5 72.8.6 80.1.6c7.3 0 13.2 5.9 13.2 13.2v33.1z" fill="#2EB67D"/> <path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2 0-7.3 5.9-13.2 13.2-13.2h33.1c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H80.1z" fill="#ECB22E"/></svg>
+      Slack Triage Board
     </h1>
     <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
-    <p class="sub">What's actually in your bucket, and what changed last.</p>
+    <p class="sub">Everything the support channel asked for, as a list of items with an owner and a state, instead of a wall of messages.</p>
   </header>
 
   <div id="root"><div class="card empty">Loading…</div></div>
@@ -118,8 +105,8 @@
 <script>
 (function () {
   var root = document.getElementById('root');
-  var DIR = 'summaries';
-  var JOB = '.jobs/daily-bucket-contents.yaml';
+  var DIR = 'triage';
+  var JOB = '.jobs/support-triage.yaml';
   var job = null;
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
@@ -154,36 +141,28 @@
     return out;
   }
 
-  function render(data, name, files, raw) {
+  /* Urgency is a closed set of three. Anything else the agent writes still has to render,
+     so it falls back to the quiet grey rather than to a class that does not exist. */
+  function urgencyClass(cell) {
+    var k = cell.toLowerCase();
+    return k === 'new' || k === 'owned' || k === 'waiting' || k === 'done' ? 'u-' + k : 'u-low';
+  }
+
+  function render(data, name, files) {
     var meta = data.meta, html = picker(name, files);
 
-    /* The routine could not reach the source. It said so rather than writing nothing. */
+    /* The routine could not reach Slack. It said so rather than writing nothing. */
     if (meta.status && meta.status !== 'ok') {
       html += '<div class="banner">Last run could not reach ' +
               esc(meta.source || 'the source') + ': ' + esc(meta.status) +
               '. Showing the previous result.</div>';
     }
 
-    /* Said first, so nothing further down is mistaken for your own files. */
-    if (/^seeded:\s*true\s*$/m.test(raw)) {
-      html += '<p class="seeded">This bucket is made up, so you can see the shape of ' +
-              'the page. Connect AWS S3 and your first real morning replaces it.</p>';
-    }
-
-    /* How much is in there and what it mostly is. Always present. */
-    if (meta.headline) {
-      html += '<p class="headline">' + esc(meta.headline) + '</p>';
-    }
-
-    /* The single most consequential thing, in one sentence. Absent most days on purpose. */
+    /* The single most consequential channel, in one sentence — absent most days on purpose. */
     if (meta.lead && meta.verdict) {
       html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
               '<div class="lead-who">' + esc(meta.lead) + '</div>' +
               '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
-    }
-
-    if (meta.overview) {
-      html += '<p class="overview">' + esc(meta.overview) + '</p>';
     }
 
     if (!data.rows.length) {
@@ -193,21 +172,29 @@
       return;
     }
 
-    /* No link column, on purpose. An object in a bucket has no address a person can
-       open in a browser, and the copied file is in the sidebar anyway. */
+    var urlCol = data.cols.findIndex(function (c) { return c.toLowerCase() === 'url'; });
+
     var t = '<div class="card scroll"><table><thead><tr>';
-    data.cols.forEach(function (c) { t += '<th>' + esc(c) + '</th>'; });
+    data.cols.forEach(function (c) {
+      if (c.toLowerCase() === 'url') return;
+      t += '<th>' + esc(c) + '</th>';
+    });
     t += '</tr></thead><tbody>';
     data.rows.forEach(function (r) {
+      var url = urlCol > -1 ? r[urlCol] : '';
       t += '<tr>';
       r.forEach(function (cell, i) {
         var head = (data.cols[i] || '').toLowerCase();
-        if (head === 'file') {
-          t += '<td class="path">' + esc(cell) + '</td>';
-        } else if (head === 'size') {
+        if (head === 'url') {
+          return;
+        } else if (head === 'status') {
+          t += '<td><span class="pill ' + urgencyClass(cell) + '">' + esc(cell) + '</span></td>';
+        } else if (head === 'item') {
+          var text = url ? '<a class="deep-link" href="' + esc(url) +
+              '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a>' : esc(cell);
+          t += '<td class="key">' + text + '</td>';
+        } else if (head === 'owner') {
           t += '<td class="num">' + esc(cell) + '</td>';
-        } else if (head === 'modified') {
-          t += '<td class="when">' + esc(cell) + '</td>';
         } else {
           t += '<td>' + esc(cell) + '</td>';
         }
@@ -222,8 +209,8 @@
 
   /* ---- the folder of summaries ------------------------------------------------------ */
 
-  /* 2026-08-10T07-00-00-summary.md. The name carries the date, so the picker
-     is built from names alone. EXAMPLE-summary.md is the one file without one. */
+  /* 2026-08-10T07-00-00-slack-summary.md — the name carries the date, so the picker
+     is built from names alone. EXAMPLE-triage.md is the one file without one. */
   function stamp(name) {
     var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
     return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
@@ -241,7 +228,7 @@
 
   function label(name) {
     var d = stamp(name);
-    if (!d) return 'Example';
+    if (!d) return 'Triage Board Example';
     var now = new Date(), yday = new Date(now.getTime() - 86400000);
     if (sameDay(d, now)) return 'Today';
     if (sameDay(d, yday)) return 'Yesterday';
@@ -274,10 +261,10 @@
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.text();
       })
-      .then(function (text) { render(parse(text), name, files, text); })
+      .then(function (text) { render(parse(text), name, files); })
       .catch(function (err) {
         root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write, so reload ' +
+          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
           'in a moment.</div>';
         bind(files);
       });
@@ -331,14 +318,14 @@
     return 'Next run: ' + human(d) + ' at ' + clock;
   }
 
-  /* /api/assets/<cabinet path>/<app folder>/index.html. Dropping the last two segments
+  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
      tells the page which cabinet it is installed in, whatever the user named it. */
   function cabinetDir() {
     var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
     return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
   }
 
-  /* Direct .md children of the folder only, never a nested one.
+  /* Direct .md children of the folder only — never a nested one.
      The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
      separately: `path` decides what lives in the folder, `name` is what we fetch. */
   function listFiles(nodes, dir, out) {
@@ -352,14 +339,14 @@
     return out;
   }
 
-  /* An empty folder is the normal state before the first run, not an error to shout about.
+  /* An empty folder is the normal state before the first run — not an error to shout about.
      `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
   Promise.all([
     fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }),
-    /* The schedule is a nicety, so never let a missing or renamed job file break the page. */
+    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
     fetch('../' + JOB, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.text() : ''; })
       .catch(function () { return ''; })
