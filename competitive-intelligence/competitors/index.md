@@ -1,23 +1,29 @@
 ---
-title: Tracked Competitors
-modified: '2026-05-23T00:00:00Z'
-tags: [competitive-intelligence, tiering]
+title: Competitors
+modified: '2026-09-16T00:00:00Z'
+tags: [competitive-intelligence, roster]
 ---
-# Tracked Competitors
+# Competitors
 
-The competitor set and current tiering. The Intel Director re-tiers monthly in the [[../briefing/landscape]] review. Each Tier 1 competitor has a living profile + battlecard maintained by the Competitor Analyst.
+## Nothing tracked yet
+
+This cabinet ships empty on purpose. **Message Competitor Scout** in the `general`
+channel with your company name and a few competitors you want watched (just the names
+are enough; websites help but aren't required), and it takes care of the rest.
+
+From there it runs itself: Competitor Scout checks in on each competitor every weekday,
+decides what actually matters, and puts together a weekly report. Open the
+[[../dashboard]] any time for the current picture, or [[../briefing]] for the latest
+report.
 
 ## Tiering
 
-| Competitor | Tier | Threat | Why this tier | Profile |
-|---|---|---|---|---|
-| Northwind | **1** | ↑ Rising | Shows up in 60% of mid-market deals; just cut Pro pricing and shipped SSO down-tier | [[northwind]] |
-| Helios | **1** | → Steady | Incumbent in enterprise; strong brand, slow product; we win on velocity | [[helios]] |
-| Cobalt | 2 | • Watch | PLG up-start, strong in SMB, not yet enterprise-credible | (add) |
-| Drachma | 2 | • Watch | EU-focused, data-residency angle; only appears in EU deals | (add) |
-| Lumen | 3 | ↓ Fading | Hasn't shipped in 2 quarters; layoffs reported; archive unless it re-activates | (add) |
+- **Tier 1** — checked every weekday. The competitors that show up in most of your deals.
+- **Tier 2** — checked weekly. Worth watching, not worth a daily look.
 
-**Tiering rules (Intel Director owns):**
-- **Tier 1** — deal-blockers. Watched daily, battlecard kept current, in every weekly briefing.
-- **Tier 2** — watched weekly, profile updated monthly.
-- **Tier 3** — archived; re-promote only on a material signal.
+Tell Competitor Scout which tier a competitor belongs in, or just say "watch these
+closely" and "keep an eye on these" and it'll sort them for you.
+
+## Want to add, drop, or re-tier someone?
+
+Just say so in chat. There's nothing to configure by hand.
