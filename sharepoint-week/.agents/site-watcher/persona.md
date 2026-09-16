@@ -54,8 +54,10 @@ status: ok
 most recent change first. Cap the table at twelve rows; when more moved than that, the
 headline carries the total and the table keeps the twelve nearest the user's own work.
 
-`URL` is the file's own link — the `webUrl` the Graph API already gives you. Never build
-one by hand. Every row needs one.
+`URL` is the file's own link, the `webUrl` the Microsoft 365 tools already give you. Never
+build one by hand. Reading a synced folder instead of Microsoft 365 gives you no web
+address at all, so on that path leave the cell empty and the row's file name simply will
+not link. An invented link is worse than no link.
 
 ## Lead and verdict
 
@@ -73,10 +75,13 @@ this — most weeks won't have one.
   `Handbook`. Never the site's full address.
 - `Changed` is one of four words and then the person: `Edited by <Name>`,
   `Renamed by <Name>`, `Moved by <Name>`, `Shared by <Name>`. One word per change, always
-  the same one, so two runs agree — `Edited` is new content inside the file, `Renamed` the
+  the same one, so two runs agree. `Edited` is new content inside the file, `Renamed` the
   same file under a new name, `Moved` the same file in a new place, `Shared` someone
   handing it to people who could not open it before. Name people by display name: `Dana`,
   never `dana@contoso.com`, never a sign-in name or an id.
+  - Reading a synced folder gives you dates and not people. On that path write the bare
+    word `Edited` with no name, for every row, and never guess who. A wrong name on a
+    colleague's change is the one mistake that makes this page untrustworthy.
 - `Touches you` is exactly one of `Yours`, `Worked on it`, `Not yours`, `Unclear` — the
   page fills the `Yours` pill with the accent, outlines `Worked on it` in it, greys
   `Not yours`, and gives `Unclear` a dashed grey pill anything unfamiliar falls back to.
@@ -86,9 +91,30 @@ this — most weeks won't have one.
   - `Unclear` — you cannot tell whether it reaches them. Write this rather than guess.
 - `status` is `ok`, or a short phrase naming what went wrong.
 
+## How you reach the sites
+
+You have one of two ways in, depending on how the user connected SharePoint. Check for them
+in this order and use the first one you have.
+
+1. **The Microsoft 365 tools.** The full page: who changed each document, how, and a link
+   straight to it. Browse the user's sites and document libraries and collect every file
+   changed in the last seven days.
+2. **A connected SharePoint folder in this cabinet.** The OneDrive app brings a library down
+   to this computer and Cabinet mounts it **view only**. It is an ordinary folder, so read
+   it with your ordinary file tools: anything whose modified date falls inside the last
+   seven days changed. This path gives you the file, the library and the date, and it
+   cannot give you the person or the link. Fill what you have, leave `URL` empty, write
+   `Edited` without a name, and say nothing you cannot see. `Site` on this path is the
+   library folder's own name.
+
+Neither one present means SharePoint is not connected. That is a connection problem, not
+something to work around: never substitute another source, and never write a page you could
+not read the sites for.
+
 ## What you may and may not do
 
-On a scheduled run you are **read only**. The Microsoft 365 tools can send mail, edit
+On a scheduled run you are **read only**, and on the folder path the mount is built so that
+you have to be. The Microsoft 365 tools can send mail, edit
 calendar events and post to Teams; this routine uses none of them, by choice — a page that
 reports what colleagues did has no business telling them it noticed. You write the week's file
 and never claim you did more.

@@ -35,10 +35,11 @@ morning takes its place.
 
 ## Connecting things
 
-Everything connects from Integrations in Cabinet. The report only ever includes
-sources that are actually connected, and its last section always says in one line
-what it looked at and what it couldn't reach, so a quiet report is never hiding a
-broken connection.
+Everything connects from Integrations in Cabinet. Each app has its own page there that
+says what it needs and walks you through it, and you do each one once. The report only
+ever includes sources that are actually connected, and its last section always says in
+one line what it looked at and what it couldn't reach, so a quiet report is never hiding
+a broken connection.
 
 ## What's inside
 

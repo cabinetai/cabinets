@@ -36,9 +36,15 @@ those events are fake. Your first real brief takes its place.
 
 ## Before it can read your real calendar
 
-Connect Google Calendar from Integrations in Cabinet. You copy one private address from
-Google Calendar's settings and paste it. Your team can then read your calendar, not change
-it. Until you connect, the page keeps showing the example.
+Connect Google Calendar when Cabinet asks, or later from Integrations. You do it once,
+and there is nothing to install and no developer account to make.
+
+Cabinet's own way in is a private address: Google Calendar's settings give every calendar
+a secret web address, and you copy one and paste it in. The Google Calendar page in
+Integrations shows you where it is. Your team can then read your calendar. It cannot
+change anything in it.
+
+Until it is connected, the page keeps showing the example.
 
 ## What's inside
 
