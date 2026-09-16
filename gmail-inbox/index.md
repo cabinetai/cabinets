@@ -42,14 +42,28 @@ before every run, so a change tonight shapes tomorrow's page.
 
 ## Before it can read your real mail
 
-Connect Gmail when Cabinet asks, when you create this cabinet, or later from
-Integrations. You do it once. Until then the page keeps showing the example, and the
-morning summary waits.
+Connect Gmail when Cabinet asks, or later from Integrations. You do it once.
+
+Cabinet's own way in is an app password: a code you make in your Google account that
+lets one program read your mail and nothing else. The Gmail page in Integrations walks
+you through it and tells you where to click in Google. It works whichever assistant this
+cabinet runs on.
+
+If you already connected Gmail to Claude, on claude.ai, Cabinet sees that too and the
+routine can read your mail that way instead. That connection is managed on claude.ai,
+not here, and it only works when this cabinet runs on Claude.
+
+Until Gmail is connected one way or the other, the page keeps showing the example and
+the morning routine waits.
 
 ## If the page still shows the example
 
-Cabinet doesn't run the morning summary until Gmail is connected, and its teammate says
-so in a chat. Connect it there and tomorrow's summary replaces the example.
+The routine only writes when it can actually reach your mail. If it has run and the
+example is still sitting there, Gmail is not connected yet, or it is connected in a way
+this cabinet's agent cannot use. The run says which of the two it was.
+
+Nothing was overwritten and nothing errored. Fix the connection and run the routine
+again.
 
 ## What's inside
 
