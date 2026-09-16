@@ -251,7 +251,82 @@ const CABINET_ICONS = {
   'wasabi-contents':          { object: 'a rounded storage jar with a snug lid and a small leaf-green painted band', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'whatsapp-digest':          { object: 'a vintage telephone handset cradled inside a rounded speech bubble', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'x-mentions':               { object: 'a small brass bell with one tiny speech-bubble tag hanging from its handle', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+
+  // ─── Added 2026-09-16 for the four-demo-integrations cabinets (PR #159/#17), which shipped after this table ──
+  'aws-s3-asset-library':       { object: 'a small storage bucket with a labeled asset tag hanging from its rim', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'gemini-image-studio':        { object: 'an artist easel holding a canvas with a four-pointed star carved in relief', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'google-drive-client-folder': { object: 'a hanging file folder with a small triangular drive pennant clipped to its tab', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'google-drive-my-documents':  { object: 'a stack of three folded documents with a small triangular drive pennant resting on top', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'google-drive-team-drive':    { object: 'three small file folders fanned out together beneath one shared triangular drive pennant', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'sharepoint-bid-room':        { object: 'a single rolled proposal scroll tied with a ribbon, leaning against a small folder', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'sharepoint-policy-desk':     { object: 'a single open rulebook with one ribbon bookmark trailing out the bottom', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'slack-answers':              { object: 'a single speech bubble with a small question mark nested inside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'slack-triage':                { object: 'a small inbox tray with three speech-bubble tags sorted into it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'whatsapp-catch-up':          { object: 'a vintage telephone handset resting inside a rounded speech bubble, with a small clock face beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
 };
+
+// Most CABINET_ICONS entries share a generic 'soft warm cream' bgName — that's
+// fine for the 'wood' style (fixed parchment background regardless) and the
+// pastel 'icon' style, but it gives the 'vivid' style nothing to saturate.
+// Real, distinct hues for the cabinets that need one for 'vivid', without
+// touching the shared bgHex/bgName used by the other two styles.
+const VIVID_COLOR_OVERRIDES = {
+  'gmail-inbox':      { hex: '#e4634b', name: 'warm coral-red' },
+  'telegram-digest':  { hex: '#165db8', name: 'vivid sky blue' },
+  'hiring-pipeline':  { hex: '#e13c5a', name: 'vivid rose pink' },
+};
+
+// bgNames close enough to neutral (cream, taupe, dove gray, parchment) that
+// "a saturated version of X" gives the model nothing real to saturate.
+const NEUTRAL_BG_NAMES = new Set([
+  'soft warm cream',
+  'soft warm taupe',
+  'soft warm dove gray',
+  'soft warm gray',
+  'soft warm dove',
+  'soft warm beige',
+  'soft pale parchment',
+]);
+
+// A distinct, saturated hue per neutral-background cabinet, picked
+// deterministically from the slug so repeated runs stay stable. Borrowed from
+// the same department-color language the app itself already uses.
+const VIVID_PALETTE = [
+  { hex: '#da9d1f', name: 'mustard gold' },
+  { hex: '#4a6fa5', name: 'slate blue' },
+  { hex: '#2f6858', name: 'teal green' },
+  { hex: '#7c4fa0', name: 'deep plum' },
+  { hex: '#c96b28', name: 'burnt orange' },
+  { hex: '#3f9776', name: 'emerald teal' },
+  { hex: '#9e5536', name: 'terracotta brown' },
+  { hex: '#457297', name: 'steel blue' },
+  { hex: '#852333', name: 'deep crimson' },
+  { hex: '#189765', name: 'forest green' },
+  { hex: '#e99513', name: 'amber' },
+  { hex: '#6c7bc1', name: 'periwinkle blue' },
+  { hex: '#95b914', name: 'olive lime' },
+  { hex: '#c2603b', name: 'rust orange' },
+  { hex: '#328d8d', name: 'deep teal' },
+  { hex: '#7f395a', name: 'plum wine' },
+];
+
+function hashSlug(slug) {
+  let h = 2166136261;
+  for (let i = 0; i < slug.length; i++) {
+    h ^= slug.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function vividColorName(variation) {
+  const override = VIVID_COLOR_OVERRIDES[variation.name];
+  if (override) return override.name;
+  if (NEUTRAL_BG_NAMES.has(variation.bgName)) {
+    return VIVID_PALETTE[hashSlug(variation.name) % VIVID_PALETTE.length].name;
+  }
+  return `a saturated, vivid version of ${variation.bgName}`;
+}
 
 const STYLE_VARIATIONS = [
   {
@@ -363,6 +438,15 @@ function buildWoodPrompt(_spec, variation) {
   return `A single ${variation.object}, rendered as a small 3D wood-craft toy object carved from warm light wood (hex #E8D6B6) with deeper wood-tan shading (hex #C9A47A) and a soft matte clay finish. Clean simplified form with gently rounded edges and subtle warm shading. Set against a solid warm parchment background (hex #FAF6F1 — soft cream-white). One or two small painted accent details on the object in exactly one or two of these colors: terracotta #E2725B, cornflower blue #5B8FD6, warm orange #E08A3C, mustard gold #E0B23C, leaf green #6FA45A, teal #4FA39A. Wide horizontal 16:9 composition, object centered with generous parchment space on all sides. Warm, calm, refined toy-craft aesthetic. ABSOLUTELY NO TEXT, NO LETTERS, NO WORDS, NO NUMBERS, NO LOGOS, NO WATERMARKS anywhere in the image.`;
 }
 
+// "Painted vivid" — chosen 2026-09-16 after a Gemini cover-art review with Hila
+// (flat, saturated illustration on a solid color field, matching Cabinet's
+// Modern painted department characters). Reuses the same CABINET_ICONS object
+// descriptions as the wood/icon styles so all three stay swappable per cabinet.
+function buildVividPrompt(_spec, variation) {
+  const colorName = vividColorName(variation);
+  return `A single ${variation.object}, rendered as a flat vivid painted-wood illustration: a saturated, deeply-colored fill in ${colorName} (not a pastel tint — the bold, saturated version of that hue), with warm wood-grain texture visible on the lighter wood elements of the object. No drop shadow, no outline stroke, clean playful rounded shapes, gentle highlight instead of gloss. Background: a solid flat fill in a lighter tint of the same color family as the object, no gradient, no texture, no pattern. Wide horizontal 16:9 composition, the object placed off-center (right two-thirds of the frame), with generous open negative space on the left third for a title to be overlaid later. Calm but bold, saturated but not garish. ABSOLUTELY NO TEXT, NO LETTERS, NO WORDS, NO NUMBERS, NO LOGOS, NO WATERMARKS anywhere in the image.`;
+}
+
 const STYLE_SETS = {
   default: {
     variations: () => STYLE_VARIATIONS,
@@ -394,6 +478,16 @@ const STYLE_SETS = {
     },
     buildPrompt: buildWoodPrompt,
     label: () => 'wood — maple craft',
+    needsCabinetSpec: false,
+  },
+  vivid: {
+    variations: (slug) => {
+      const design = CABINET_ICONS[slug];
+      if (!design) return [];
+      return [{ version: 1, ...design, name: slug }];
+    },
+    buildPrompt: buildVividPrompt,
+    label: () => 'vivid — painted flat',
     needsCabinetSpec: false,
   },
 };
@@ -527,18 +621,19 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.error('Usage: node scripts/generate_image.js <cabinet-slug|--all> --model <openai|gemini> [--style <default|wpa|icon|wood>] [--cover]');
+  console.error('Usage: node scripts/generate_image.js <cabinet-slug|--all> --model <openai|gemini> [--style <default|wpa|icon|wood|vivid>] [--cover]');
   console.error('');
   console.error('Examples:');
   console.error('  node scripts/generate_image.js book-factory --model gemini');
   console.error('  node scripts/generate_image.js book-factory --model gemini --style wpa');
   console.error('  node scripts/generate_image.js --all --model gemini --style wood --cover');
   console.error('  node scripts/generate_image.js physics-101 --model openai --style wood --cover');
+  console.error('  node scripts/generate_image.js gmail-inbox --model gemini --style vivid --cover');
 }
 
 function resolveCabinetList(slug, all, style) {
   if (all) {
-    if (style === 'icon' || style === 'wood') return Object.keys(CABINET_ICONS);
+    if (style === 'icon' || style === 'wood' || style === 'vivid') return Object.keys(CABINET_ICONS);
     return Object.keys(CABINET_SPECS);
   }
   return slug ? [slug] : [];
@@ -561,7 +656,7 @@ async function processCabinet(provider, client, slug, style, styleSet, outputCov
     }
   }
   const spec = getSpecForCabinet(slug, style);
-  if (style !== 'icon' && style !== 'wood' && !spec) {
+  if (style !== 'icon' && style !== 'wood' && style !== 'vivid' && !spec) {
     console.error(`❌ Unknown cabinet for ${style} style: ${slug}`);
     return { generated: 0, failed: 1 };
   }
