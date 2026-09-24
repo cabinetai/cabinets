@@ -1,707 +1,1189 @@
 <!DOCTYPE html>
 <!--
-  whatsapp-catch-up page.
+  WhatsApp Catch-Up: who is waiting for you, what you promised, what you planned.
 
-  Reads ../catch-up/, one file per run, written by this cabinet's two routines:
-   - <stamp>-catch-up.md, every morning: frontmatter and six "## " sections, each one
-     markdown table. Each section is a card here.
-   - <stamp>-week-ahead.md, Sunday evenings: one "Plans and dates" table. When the newest
-     one is less than a week old, its rows sit under "This week" in the Plans card.
-   - EXAMPLE-catch-up.md, the made-up demo. Shown under an Example flag until the first
-     real catch-up deletes it.
+  Reads data/latest.json (the morning routine) and data/week.json (Sunday's week
+  ahead) inside this app folder; data/EXAMPLE-latest.json is the made-up example
+  shown until WhatsApp is connected. The shape is in DATA.md beside this file.
 
-  The file names carry the time, so the newest is picked without opening any file. The
-  folder listing comes from /api/tree because the assets route serves single files and
-  cannot list a directory. The same listing names the chat folders under whatsapp/, so a
-  row opens its chat only when that folder really exists.
-
-  Chats are often Hebrew. Every text cell is dir="auto", and amounts, numbers, dates and
-  times sit inside <bdi>, so "₪450" and "13:12" never reorder inside a right to left row.
-  A row takes its direction from its own words.
-
-  Relative URLs on purpose: they resolve under /api/assets/<cabinet>/today/ at any depth
-  and survive the cabinet being renamed at install time. Zero external requests. Every
-  failure path renders something honest instead of a blank page.
+  Talks to Cabinet only through window.cabinet (v2): the connection state and
+  Cabinet's own connect flow, the routine (Refresh), files, and ask (drafts and
+  questions go to the cabinet's chat, where nothing is sent without a yes).
+  An older Cabinet has no v2: the page then reads its files by URL and says how
+  to connect in words. One file on purpose: a sealed frame loads nothing beside it.
 -->
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>WhatsApp Catch-Up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap">
 <style>
-  /* Registry parchment skin, gmail-inbox's tokens, with the accents a step deeper in light
-     and lighter in dark so small coloured text stays readable. Every colour is defined on
-     :root and only overridden in the dark blocks. */
   :root {
-    --parchment: #FAF6F1; --card: #FFFFFF; --sunk: #F5EFE6;
-    --ink: #3B2F2F; --muted: #8B7355; --faint: #A8977F;
-    --line: #E8DFD2; --line-2: #F1EBE1;
-    --terracotta: #C95F48; --blue: #4C7FC4; --orange: #C9772E;
-    --gold: #B58A1F; --green: #4F8A3C; --teal: #3B8C83;
-    --hover: rgba(59,47,47,.04);
-    --shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
-    --radius: 12px;
+    --ink: #0b3b2e;
+    --ink-2: #2f5f50;
+    --ink-3: #557f71;
+    --paper: #ffffff;
+    --wall: #dcf8e8;
+    --wall-2: #c3f1d6;
+    --green: #25d366;
+    --green-2: #1fbf5b;
+    --deep: #075e54;
+    --me: #d9fdd3;
+    --yellow: #ffd84d;
+    --pink: #ff9cc2;
+    --sky: #8ad8ff;
+    --orange: #ffb35c;
+    --lilac: #cdbaff;
+    --mint: #9ff0c3;
+    --red: #ff6b6b;
+    --line: 3px solid var(--ink);
+    --pop: 5px 5px 0 var(--ink);
+    --pop-sm: 3px 3px 0 var(--ink);
+    --radius: 26px;
+    --accent: #075e54;
+    --yes: #0a8043;
+    --no: #b25d00;
+    --btn-bg: #ffffff;
+    --btn-fg: #0b3b2e;
+    --text: #0b3b2e;
+    --font: "Rubik", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans Hebrew", sans-serif;
+    --doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%230b3b2e' stroke-opacity='.09' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 22h34a9 9 0 0 1 9 9v14a9 9 0 0 1-9 9H33l-10 8v-8h-5a9 9 0 0 1-9-9V31a9 9 0 0 1 9-9z'/%3E%3Cpath d='M112 18l5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z'/%3E%3Cpath d='M40 118c-7-7-15-12-15-20a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 8-8 13-15 20z'/%3E%3Cpath d='M104 104l9 9 18-20'/%3E%3Ccircle cx='140' cy='140' r='5'/%3E%3Ccircle cx='80' cy='72' r='3'/%3E%3Cpath d='M70 140h22M81 129v22'/%3E%3C/g%3E%3C/svg%3E");
   }
-
-  /* Three-state theming, the host app's contract: an explicit data-scheme wins in both
-     directions, and the media query applies only when nothing was stamped. */
   @media (prefers-color-scheme: dark) {
     :root:not([data-scheme="light"]) {
-      --parchment: #211B15; --card: #2A231C; --sunk: #251F18;
-      --ink: #EFE7DB; --muted: #B5A48D; --faint: #9A8B74;
-      --line: #3D342A; --line-2: #342C23;
-      --terracotta: #E88A74; --blue: #86ADE3; --orange: #E6A064;
-      --gold: #E0B23C; --green: #8DBF78; --teal: #6CBDB3;
-      --hover: rgba(255,255,255,.04);
-      --shadow: 0 1px 2px rgba(0,0,0,.35);
+      --ink: #04140f; --ink-2: #b9e9d4; --ink-3: #8cc4ad;
+      --paper: #16362c; --wall: #0d261f; --wall-2: #113026; --me: #1f5a45;
+      --text: #effff6; --accent: #4be08a; --yes: #5ef29b; --no: #ffc37d;
+      --btn-bg: #effff6; --btn-fg: #04140f;
+      --doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%23d9fdd3' stroke-opacity='.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 22h34a9 9 0 0 1 9 9v14a9 9 0 0 1-9 9H33l-10 8v-8h-5a9 9 0 0 1-9-9V31a9 9 0 0 1 9-9z'/%3E%3Cpath d='M112 18l5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z'/%3E%3Cpath d='M40 118c-7-7-15-12-15-20a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 8-8 13-15 20z'/%3E%3Cpath d='M104 104l9 9 18-20'/%3E%3Ccircle cx='140' cy='140' r='5'/%3E%3Ccircle cx='80' cy='72' r='3'/%3E%3Cpath d='M70 140h22M81 129v22'/%3E%3C/g%3E%3C/svg%3E");
     }
   }
   :root[data-scheme="dark"] {
-    --parchment: #211B15; --card: #2A231C; --sunk: #251F18;
-    --ink: #EFE7DB; --muted: #B5A48D; --faint: #9A8B74;
-    --line: #3D342A; --line-2: #342C23;
-    --terracotta: #E88A74; --blue: #86ADE3; --orange: #E6A064;
-    --gold: #E0B23C; --green: #8DBF78; --teal: #6CBDB3;
-    --hover: rgba(255,255,255,.04);
-    --shadow: 0 1px 2px rgba(0,0,0,.35);
+    --ink: #04140f; --ink-2: #b9e9d4; --ink-3: #8cc4ad;
+    --paper: #16362c; --wall: #0d261f; --wall-2: #113026; --me: #1f5a45;
+    --text: #effff6; --accent: #4be08a; --yes: #5ef29b; --no: #ffc37d;
+    --btn-bg: #effff6; --btn-fg: #04140f;
+    --doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%23d9fdd3' stroke-opacity='.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 22h34a9 9 0 0 1 9 9v14a9 9 0 0 1-9 9H33l-10 8v-8h-5a9 9 0 0 1-9-9V31a9 9 0 0 1 9-9z'/%3E%3Cpath d='M112 18l5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z'/%3E%3Cpath d='M40 118c-7-7-15-12-15-20a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 8-8 13-15 20z'/%3E%3Cpath d='M104 104l9 9 18-20'/%3E%3Ccircle cx='140' cy='140' r='5'/%3E%3Ccircle cx='80' cy='72' r='3'/%3E%3Cpath d='M70 140h22M81 129v22'/%3E%3C/g%3E%3C/svg%3E");
   }
 
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; padding: 0; background: var(--parchment); color: var(--ink);
-    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
+    margin: 0; min-height: 100vh;
+    font-family: var(--font); font-size: 17px; line-height: 1.45;
+    color: var(--text);
+    background-color: var(--wall);
+    background-image: var(--doodle), radial-gradient(circle at 12% 0%, var(--wall-2), transparent 55%);
+    background-size: 160px 160px, 100% 100%;
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 20px 64px; }
-
-  /* ---- hero ------------------------------------------------------------------------ */
-  .hero { padding: 40px 20px 8px; }
-  .hero-inner { max-width: 960px; margin: 0 auto; }
-  .brandrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  /* An inline <svg> with a viewBox and no width fills its container: size it here. */
-  .mark { width: 26px; height: 26px; flex: none; }
-  .eyebrow {
-    font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-    color: var(--muted);
-  }
-  .flag {
-    font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    padding: 3px 11px; border-radius: 999px; color: var(--card); background: var(--terracotta);
-  }
-  h1 {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 32px; line-height: 1.15; margin: 14px 0 0;
-    letter-spacing: -0.01em; font-weight: 700;
-  }
-  .sub { color: var(--muted); margin: 8px 0 0; font-size: 15.5px; max-width: 62ch; }
-
-  .strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
-  .stat {
-    background: var(--card); border-radius: 10px; padding: 7px 13px;
-    display: inline-flex; align-items: baseline; gap: 7px; box-shadow: var(--shadow);
-    font-size: 13.5px;
-  }
-  .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
-  .stat b { font-weight: 600; font-variant-numeric: tabular-nums; }
-
-  .note {
-    margin: 22px 0 0; padding: 11px 15px; border-radius: 10px;
-    background: var(--card); color: var(--muted); font-size: 14px; box-shadow: var(--shadow);
-  }
-  .note.warn { color: var(--ink); border-inline-start: 3px solid var(--orange); }
-
-  /* ---- cards ----------------------------------------------------------------------- */
-  .grid {
-    display: grid; gap: 16px; margin-top: 22px;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-    align-items: start;
-  }
-  .card {
-    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
-    padding: 16px 0 6px; min-width: 0;
-  }
-  .card-head { display: flex; align-items: center; gap: 9px; padding: 0 18px 8px; }
-  h2 {
-    margin: 0; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
-    font-weight: 700; color: var(--muted);
-  }
-  .tick { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-  .count {
-    margin-inline-start: auto; font-size: 12px; font-weight: 700; color: var(--faint);
-    font-variant-numeric: tabular-nums;
-  }
-  .sub-head {
-    margin: 8px 18px 0; padding-top: 10px; border-top: 1px solid var(--line);
-    font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
-    color: var(--faint);
-  }
-  .empty { padding: 4px 18px 12px; color: var(--faint); font-size: 14px; }
-
-  .rows { list-style: none; margin: 0; padding: 0; }
-  .rows li + li .row { border-top: 1px solid var(--line-2); }
-  .row {
-    display: block; padding: 10px 18px; color: inherit; text-decoration: none;
-    text-align: start;
-  }
-  a.row { cursor: pointer; }
-  a.row:hover { background: var(--hover); }
-  a.row:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; border-radius: 6px; }
-  .l1 { display: flex; align-items: baseline; gap: 10px; }
-  .lead { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
-  .aside {
-    margin-inline-start: auto; flex: none; font-size: 13px; color: var(--muted);
-    font-variant-numeric: tabular-nums; white-space: nowrap;
-  }
-  .l2 { display: block; margin-top: 1px; overflow-wrap: anywhere; }
-  .meta { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
-  .sep { color: var(--faint); padding: 0 5px; }
-  .amount { font-variant-numeric: tabular-nums; }
-  .pill {
-    display: inline-block; font-size: 11.5px; font-weight: 600; padding: 0 9px;
-    border-radius: 999px; border: 1px solid currentColor; line-height: 1.6;
-    color: var(--green);
-  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  svg { display: block; }
   bdi { unicode-bidi: isolate; }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  :focus-visible { outline: 4px solid var(--yellow); outline-offset: 3px; border-radius: 14px; }
 
-  footer {
-    margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--line);
-    display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline;
-    color: var(--faint); font-size: 12.5px;
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 18px 20px 0; }
+
+  /* ── Top bar ─────────────────────────────────────────── */
+  .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .top .state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; margin-inline-end: auto; }
+  .logo {
+    width: 54px; height: 54px; flex: none; border-radius: 18px; background: var(--green);
+    border: var(--line); box-shadow: var(--pop-sm); display: grid; place-items: center;
+    transform: rotate(-6deg);
   }
-  .quiet { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
-  .quiet:hover { color: var(--blue); border-bottom-color: var(--blue); }
-  footer code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .logo svg { width: 32px; height: 32px; }
+  .brand h1 { margin: 0; font-size: 26px; line-height: 1.05; font-weight: 900; letter-spacing: -0.01em; color: var(--text); }
+  .brand small { display: block; font-size: 15px; font-weight: 600; color: var(--ink-2); margin-top: 3px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 16px;
+    border-radius: 999px; background: var(--paper); border: var(--line); box-shadow: var(--pop-sm);
+    font-weight: 700; font-size: 15px;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--green); border: 2px solid var(--ink); flex: none; }
+  .pill.warn .dot { background: var(--orange); }
+  .pill.off .dot { background: #d3dcd8; }
+  .pill.ex { background: var(--yellow); color: #0b3b2e; }
+  .iconbtn {
+    min-height: 48px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px;
+    border-radius: 999px; border: var(--line); background: var(--green); color: var(--ink);
+    box-shadow: var(--pop-sm); font-weight: 800; font-size: 15px;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .iconbtn svg { width: 22px; height: 22px; }
+  .iconbtn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+  .iconbtn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  .iconbtn[disabled] { opacity: .7; cursor: default; transform: none; }
+  .spin svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ── Banner (connection state) ───────────────────────── */
+  .banner {
+    margin-top: 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 18px; border-radius: 22px; background: var(--paper); border: var(--line); box-shadow: var(--pop-sm);
+  }
+  .banner .b-text { flex: 1 1 260px; font-weight: 600; }
+  .banner.ex { background: var(--yellow); color: var(--ink); }
+  .banner.warn { background: #fff1d9; color: var(--ink); }
+  .banner svg { width: 26px; height: 26px; flex: none; }
+
+  .tape {
+    margin: 26px auto 0; width: fit-content; max-width: 100%; display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px; background: var(--yellow); color: #0b3b2e; border: var(--line); border-radius: 12px;
+    box-shadow: var(--pop-sm); transform: rotate(-1.2deg); font-weight: 800; font-size: 17px;
+  }
+  .tape b { font-weight: 900; letter-spacing: .06em; }
+  .tape svg { width: 24px; height: 24px; flex: none; }
+
+  /* ── Hero: the helper's message ──────────────────────── */
+  .hero { display: flex; align-items: flex-end; gap: 12px; margin-top: 22px; }
+  .helper {
+    width: 64px; height: 64px; flex: none; border-radius: 50%; background: var(--green); border: var(--line);
+    box-shadow: var(--pop-sm); display: grid; place-items: center;
+  }
+  .helper svg { width: 40px; height: 40px; }
+  .say {
+    position: relative; flex: 1; min-width: 0; background: var(--paper); border: var(--line); box-shadow: var(--pop);
+    border-radius: var(--radius); border-end-start-radius: 6px; padding: 18px 22px 16px;
+  }
+  .say .who-says { font-size: 15px; font-weight: 800; color: var(--accent); }
+  .say h2 { margin: 4px 0 0; font-size: clamp(22px, 3.2vw, 32px); line-height: 1.18; font-weight: 800; letter-spacing: -0.01em; }
+  .say .meta { margin-top: 10px; font-size: 15px; color: var(--ink-3); font-weight: 600; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+  .say .meta .sched { display: inline-flex; align-items: center; gap: 5px; }
+  .say .meta .sched svg { width: 17px; height: 17px; }
+  .sticker {
+    position: absolute; top: -16px; inset-inline-end: 18px; transform: rotate(4deg);
+    background: var(--yellow); border: var(--line); border-radius: 12px; padding: 4px 12px;
+    font-weight: 900; font-size: 14px; letter-spacing: .06em; box-shadow: var(--pop-sm); color: var(--ink);
+  }
+  .typing { display: inline-flex; gap: 6px; align-items: center; height: 28px; }
+  .typing i { width: 11px; height: 11px; border-radius: 50%; background: var(--green); border: 2px solid var(--ink); animation: hop 1.1s infinite ease-in-out; }
+  .typing i:nth-child(2) { animation-delay: .15s; }
+  .typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-7px); } }
+
+  /* ── The big connect card ────────────────────────────── */
+  .connect {
+    position: relative; margin-top: 22px; border: var(--line); box-shadow: 7px 7px 0 var(--ink); border-radius: 32px;
+    background: linear-gradient(135deg, #3ae07a 0%, var(--green) 45%, #16b957 100%);
+    color: var(--ink); padding: 28px 26px 26px; overflow: hidden;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 26px; align-items: center;
+  }
+  .connect h2 { margin: 0; font-size: clamp(28px, 4.4vw, 44px); line-height: 1.04; font-weight: 900; letter-spacing: -0.02em; max-width: 16ch; }
+  .connect p { margin: 12px 0 0; font-size: 18px; font-weight: 500; max-width: 46ch; }
+  .connect .how { font-size: 16px; font-weight: 700; margin-top: 14px; display: flex; gap: 8px; align-items: center; }
+  .connect .how svg { width: 22px; height: 22px; flex: none; }
+  .bigbtn {
+    margin-top: 20px; min-height: 60px; display: inline-flex; align-items: center; gap: 12px; padding: 10px 26px;
+    border-radius: 999px; border: var(--line); background: var(--btn-bg); color: var(--btn-fg); box-shadow: var(--pop);
+    font-weight: 900; font-size: 20px; white-space: nowrap; transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .bigbtn svg { width: 30px; height: 30px; }
+  .bigbtn:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
+  .bigbtn:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--ink); }
+  .bigbtn[disabled] { opacity: .75; cursor: default; transform: none; }
+  .phone-art { width: 170px; height: 190px; }
+  .connect.soft { background: var(--paper); color: var(--text); }
+  .connect.soft .bigbtn { background: var(--green); color: #0b3b2e; }
+  .connect.soft h2 { font-size: clamp(24px, 3.6vw, 34px); max-width: 24ch; }
+
+  /* ── Sections ────────────────────────────────────────── */
+  .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 8px 28px; align-items: start; margin-top: 12px; }
+  .col { min-width: 0; }
+  section { margin-top: 24px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 6px 16px;
+    border-radius: 14px; border: var(--line); box-shadow: var(--pop-sm); font-size: 19px; font-weight: 900;
+    transform: rotate(-2deg); color: var(--ink);
+  }
+  .tag .n { background: var(--ink); color: #fff; border-radius: 999px; min-width: 28px; height: 28px; display: inline-grid; place-items: center; font-size: 15px; padding: 0 7px; }
+  .tag.t-wait { background: var(--yellow); }
+  .tag.t-promise { background: var(--pink); }
+  .tag.t-plan { background: var(--sky); transform: rotate(1.5deg); }
+  .tag.t-price { background: var(--orange); }
+  .tag.t-chats { background: var(--lilac); transform: rotate(1.5deg); }
+  .tag.t-files { background: var(--mint); }
+  .tag .ex-mark { font-size: 12px; letter-spacing: .08em; background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-radius: 8px; padding: 1px 6px; }
+  .empty { font-weight: 600; color: var(--ink-2); background: var(--paper); border: 2px dashed var(--ink-3); border-radius: 20px; padding: 14px 18px; }
+
+  /* Waiting: big bubbles with faces */
+  .bubbles { display: grid; gap: 18px; }
+  .row { display: flex; align-items: flex-start; gap: 12px; }
+  .face {
+    width: 60px; height: 60px; flex: none; border-radius: 50%; border: var(--line); box-shadow: var(--pop-sm);
+    display: grid; place-items: center; font-weight: 900; font-size: 21px; color: #0b3b2e; letter-spacing: -.02em;
+  }
+  .face svg { width: 30px; height: 30px; }
+  .face.sm { width: 46px; height: 46px; font-size: 16px; box-shadow: 2px 2px 0 var(--ink); border-width: 2.5px; }
+  .face.sm svg { width: 24px; height: 24px; }
+  .bub {
+    position: relative; flex: 1; min-width: 0; text-align: start; background: var(--paper); color: inherit;
+    border: var(--line); border-radius: var(--radius); border-start-start-radius: 6px; box-shadow: var(--pop);
+    padding: 14px 18px 14px; display: block; width: 100%;
+    transition: transform .14s ease, box-shadow .14s ease;
+  }
+  button.bub:hover { transform: translate(-2px, -2px) rotate(-.4deg); box-shadow: 7px 7px 0 var(--ink); }
+  button.bub:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--ink); }
+  .bub .who { display: block; font-size: 20px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+  .bub .wants { display: block; margin-top: 4px; font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
+  .bub .quote {
+    display: block; margin-top: 10px; padding: 8px 12px; border-radius: 14px; background: var(--me);
+    font-size: 16px; color: var(--ink-2); overflow-wrap: anywhere;
+  }
+  .bub .foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 12px; }
+  .since { font-size: 15px; font-weight: 700; color: var(--ink-3); }
+  .cta {
+    margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px;
+    padding: 6px 16px; border-radius: 999px; background: var(--green); border: 2.5px solid var(--ink);
+    font-weight: 800; font-size: 16px; color: var(--ink);
+  }
+  .cta svg { width: 20px; height: 20px; }
+  [dir="rtl"] .flip { transform: scaleX(-1); }
+
+  /* Promises: sticky notes */
+  .notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+  .note {
+    text-align: start; border: var(--line); border-radius: 18px; box-shadow: var(--pop-sm); padding: 14px 16px 12px;
+    color: var(--ink); min-height: 132px; display: flex; flex-direction: column; gap: 6px;
+    transition: transform .14s ease;
+  }
+  .note:nth-child(3n+1) { background: #fff3a8; transform: rotate(-1.2deg); }
+  .note:nth-child(3n+2) { background: #ffd1e3; transform: rotate(1deg); }
+  .note:nth-child(3n) { background: #c9ecff; transform: rotate(-.5deg); }
+  button.note:hover { transform: rotate(0) translate(-1px, -2px); }
+  .note .to { font-size: 15px; font-weight: 700; color: #2f5f50; overflow-wrap: anywhere; }
+  .note .what { font-size: 19px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+  .note .when { margin-top: auto; font-size: 14px; font-weight: 700; color: #557f71; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .note .when svg { width: 20px; height: 20px; }
+
+  /* Plans: tickets */
+  .tickets { display: grid; gap: 14px; }
+  .ticket {
+    display: flex; align-items: stretch; background: var(--paper); border: var(--line); border-radius: 20px;
+    box-shadow: var(--pop-sm); overflow: hidden;
+  }
+  .day {
+    flex: none; width: 82px; background: var(--sky); border-inline-end: var(--line); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 8px 4px; color: var(--ink);
+  }
+  .day .wd { font-size: 14px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+  .day .dn { font-size: 32px; font-weight: 900; line-height: 1; margin-top: 2px; }
+  .day .tm { font-size: 14px; font-weight: 800; margin-top: 4px; }
+  .ticket.today .day { background: var(--yellow); }
+  .ticket .body { padding: 12px 16px; min-width: 0; }
+  .ticket .what { font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
+  .ticket .sub { font-size: 15px; font-weight: 600; color: var(--ink-3); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 2px 12px; }
+  .ticket .sub span { display: inline-flex; align-items: center; gap: 5px; }
+  .ticket .sub svg { width: 16px; height: 16px; }
+  .soft-actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .softbtn {
+    min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px; border-radius: 999px;
+    border: 2.5px solid var(--ink); background: var(--paper); font-weight: 700; font-size: 15px; color: var(--text);
+  }
+  .softbtn svg { width: 20px; height: 20px; }
+  .softbtn:hover { background: var(--me); }
+
+  /* Prices: tags */
+  .prices { display: grid; gap: 12px; }
+  .price { display: flex; align-items: center; gap: 14px; background: var(--paper); border: var(--line); border-radius: 18px; box-shadow: var(--pop-sm); padding: 10px 14px; }
+  .amount {
+    flex: none; position: relative; background: var(--orange); border: 2.5px solid var(--ink); border-radius: 10px 18px 18px 10px;
+    padding: 6px 14px 6px 22px; font-size: 21px; font-weight: 900; color: var(--ink); white-space: nowrap;
+  }
+  .amount::before { content: ""; position: absolute; inset-inline-start: 7px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); }
+  [dir="rtl"] .amount { border-radius: 18px 10px 10px 18px; padding: 6px 22px 6px 14px; }
+  .price .body { min-width: 0; flex: 1; }
+  .price .for { font-weight: 700; overflow-wrap: anywhere; }
+  .price .sub { font-size: 15px; color: var(--ink-3); font-weight: 600; }
+  .stamp { flex: none; font-size: 13px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; border: 2.5px solid currentColor; border-radius: 10px; padding: 3px 8px; transform: rotate(-6deg); }
+  .stamp.yes { color: var(--yes); }
+  .stamp.no { color: var(--no); border-style: dashed; }
+
+  /* Busy chats and files */
+  .list { display: grid; gap: 10px; }
+  .item { display: flex; align-items: center; gap: 12px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; padding: 10px 14px; }
+  .item .body { min-width: 0; flex: 1; }
+  .item .name { font-weight: 800; overflow-wrap: anywhere; }
+  .item .sub { font-size: 15px; color: var(--ink-3); font-weight: 600; overflow-wrap: anywhere; }
+  .count { flex: none; min-width: 34px; height: 34px; padding: 0 9px; border-radius: 999px; background: var(--green); border: 2.5px solid var(--ink); display: grid; place-items: center; font-weight: 900; font-size: 15px; color: var(--ink); }
+  .ficon { width: 46px; height: 46px; flex: none; border-radius: 14px; border: 2.5px solid var(--ink); background: var(--mint); display: grid; place-items: center; color: var(--ink); }
+  .ficon svg { width: 24px; height: 24px; }
+
+  .foot-links { margin: 34px 0 0; padding: 16px 0 8px; border-top: 3px dashed var(--ink-3); display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; font-size: 15px; font-weight: 600; color: var(--ink-2); }
+  .foot-links a { color: var(--text); font-weight: 800; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; min-height: 44px; display: inline-flex; align-items: center; }
+
+  /* ── Composer: ask box and ready-made questions ─────── */
+  .spacer { height: 190px; }
+  .composer {
+    position: fixed; inset-inline: 0; bottom: 0; z-index: 5;
+    background: var(--wall-2); border-top: var(--line);
+    padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+  }
+  .composer .inner { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  .chips { display: flex; gap: 10px; overflow-x: auto; padding: 4px 4px 10px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  @media (min-width: 901px) { .chips { flex-wrap: wrap; overflow: visible; } }
+  .chip {
+    flex: none; min-height: 44px; padding: 8px 16px; border-radius: 999px; background: var(--paper);
+    border: 2.5px solid var(--ink); box-shadow: var(--pop-sm); font-weight: 700; font-size: 16px; white-space: nowrap; color: var(--text);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .chip:hover { background: var(--me); transform: translate(-1px, -1px); }
+  .chip:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  .ask { display: flex; gap: 10px; align-items: center; }
+  .ask input {
+    flex: 1; min-width: 0; min-height: 58px; border-radius: 999px; border: var(--line); background: var(--paper);
+    padding: 10px 22px; font-size: 18px; box-shadow: var(--pop-sm); color: var(--text);
+  }
+  .ask input::placeholder { color: var(--ink-3); opacity: 1; }
+  .send {
+    flex: none; width: 58px; height: 58px; border-radius: 50%; border: var(--line); background: var(--green);
+    box-shadow: var(--pop-sm); display: grid; place-items: center; color: var(--ink);
+  }
+  .send svg { width: 26px; height: 26px; }
+  .send:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+
+  .toast {
+    position: fixed; z-index: 9; inset-inline: 0; margin: 0 auto; bottom: 150px; width: max-content; max-width: calc(100vw - 32px);
+    background: var(--btn-fg); color: var(--btn-bg); font-weight: 700; padding: 12px 20px; border-radius: 999px; box-shadow: 3px 3px 0 rgba(0,0,0,.25);
+    opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+  }
+  .toast.on { opacity: 1; transform: none; }
+
+  .pop-in { animation: popin .42s cubic-bezier(.2, 1.4, .4, 1) both; }
+  @keyframes popin { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+  }
   @media (max-width: 560px) {
-    .hero { padding-top: 28px; }
-    h1 { font-size: 27px; }
-    .wrap { padding-inline: 14px; }
-    .row { padding-inline: 14px; }
-    .card-head, .empty { padding-inline: 14px; }
-    .sub-head { margin-inline: 14px; }
+    body { font-size: 16px; }
+    .top .state { width: 100%; }
+    .top .state .pill { flex: 1; min-width: 0; }
+    .iconbtn { padding: 0; width: 50px; justify-content: center; }
+    .iconbtn .rt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .bigbtn { width: 100%; justify-content: center; font-size: 19px; padding: 10px 18px; }
+    .tape { font-size: 15px; }
+    .brand small { font-size: 14px; }
+    .wrap { padding: 14px 16px 0; }
+    .brand h1 { font-size: 22px; }
+    .logo { width: 48px; height: 48px; }
+    .connect { grid-template-columns: minmax(0, 1fr); padding: 22px 20px; }
+    .phone-art { display: none; }
+    .helper { width: 50px; height: 50px; }
+    .helper svg { width: 30px; height: 30px; }
+    .say { padding: 16px 16px 14px; }
+    .face { width: 52px; height: 52px; font-size: 18px; }
+    .bub .who { font-size: 19px; }
+    .bub .wants { font-size: 17px; }
+    .cta { margin-inline-start: 0; }
+    .composer .inner { padding: 0 12px; }
+    .ask input { min-height: 54px; font-size: 17px; }
+    .send { width: 54px; height: 54px; }
+    .toast { bottom: 140px; }
   }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
-
-<div class="hero">
-  <div class="hero-inner">
-    <div class="brandrow">
-      <!-- The integration's own mark, inlined so the page makes no external request. -->
-      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path fill="#6FA45A" d="M16 0C7.163 0 0 7.163 0 16c0 2.82.735 5.47 2.02 7.77L0 32l8.44-2.01A15.93 15.93 0 0 0 16 32c8.837 0 16-7.163 16-16S24.837 0 16 0Z"/><path fill="#fff" d="M23.47 19.16c-.4-.2-2.37-1.17-2.74-1.3-.37-.14-.63-.2-.9.2-.27.4-1.03 1.3-1.26 1.56-.23.27-.46.3-.86.1-.4-.2-1.68-.62-3.2-1.98-1.18-1.05-1.98-2.36-2.21-2.76-.23-.4-.02-.62.17-.82.18-.18.4-.46.6-.7.2-.23.27-.4.4-.66.13-.27.07-.5-.03-.7-.1-.2-.9-2.17-1.24-2.98-.33-.78-.66-.68-.9-.69-.23-.01-.5-.01-.77-.01-.27 0-.7.1-1.07.5-.37.4-1.4 1.37-1.4 3.34 0 1.97 1.43 3.87 1.63 4.14.2.27 2.82 4.3 6.83 6.03.95.41 1.7.66 2.28.84.96.3 1.83.26 2.52.16.77-.11 2.37-.97 2.7-1.9.34-.94.34-1.74.24-1.9-.1-.17-.37-.27-.77-.47Z"/></svg>
-      <span class="eyebrow">WhatsApp &middot; Cabinet</span>
-      <span class="flag" id="flag" hidden>Example</span>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo" aria-hidden="true" data-icon="wa"></div>
+      <div><h1 id="title">WhatsApp Catch-Up</h1><small id="subtitle"></small></div>
     </div>
-    <h1>Your chats, caught up</h1>
-    <p class="sub" id="sub" dir="auto">Who needs you in your chats, what you planned, and what you promised.</p>
-    <div class="strip" id="strip"></div>
+    <div class="state">
+      <span class="pill off" id="pill" role="status"><span class="dot"></span><span id="pill-text"></span></span>
+      <button class="iconbtn" id="refresh" type="button" hidden><span data-icon="refresh"></span><span id="refresh-text" class="rt"></span></button>
+    </div>
+  </header>
+  <div id="banner"></div>
+  <main id="main" aria-live="polite"></main>
+  <div class="spacer" id="spacer"></div>
+</div>
+<div class="composer" id="composer" hidden>
+  <div class="inner">
+    <div class="chips" id="chips"></div>
+    <form class="ask" id="ask">
+      <label class="sr" for="ask-input" id="ask-label"></label>
+      <input id="ask-input" dir="auto" autocomplete="off" maxlength="1500">
+      <button class="send" id="ask-send" type="submit"><span data-icon="send" class="flip"></span></button>
+    </form>
   </div>
 </div>
-
-<div class="wrap">
-  <div id="root"><div class="note">Loading&hellip;</div></div>
-  <footer id="foot">
-    <span>WhatsApp Catch-Up &middot; reads <code>catch-up/</code> in this cabinet.</span>
-  </footer>
-</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function () {
-  'use strict';
+  "use strict";
 
-  var DIR = 'catch-up';
-  var JOB = '.jobs/morning-catch-up.yaml';
-  var EXAMPLE = 'EXAMPLE-catch-up.md';
-  var CONVERSATIONS = 'all-conversations';
-  var WEEK_MS = 7 * 86400000;
+  var JOB = "morning-catch-up";
+  var CHATS = "whatsapp";
 
-  var root = document.getElementById('root');
-  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-  /* The six cards, in the order the run file writes them. Keys are the "## " headings,
-     lowercased; column names are the table headers, lowercased. `lead` is the bold
-     first line, `text` the words under it (and what decides the row's direction),
-     `meta` the small cite line, `aside` the number at the end of the first line. */
-  var CARDS = [
-    { key: "today's chats", title: "Today's chats", tick: 'var(--teal)',
-      empty: 'No messages in the last day.',
-      lead: 'who', text: 'about', meta: ['date'],
-      aside: function (r) {
-        var n = (r.messages || '').trim();
-        return n ? n + (n === '1' ? ' message' : ' messages') : '';
-      } },
-    { key: 'waiting on your reply', title: 'Waiting on your reply', tick: 'var(--terracotta)',
-      empty: 'Nobody is waiting on you.',
-      lead: 'who', text: 'what they want', meta: [],
-      aside: function (r) { return r.since ? 'since ' + r.since : ''; } },
-    { key: 'plans and dates', title: 'Plans and dates', tick: 'var(--blue)',
-      empty: 'No plans mentioned.',
-      lead: 'when', leadIsNumber: true, text: 'what', meta: ['who', 'date'] },
-    { key: 'quotes and prices', title: 'Quotes and prices', tick: 'var(--gold)',
-      empty: 'No prices mentioned.',
-      lead: 'amount', leadIsNumber: true, text: 'for', meta: ['who', 'date'],
-      pill: function (r) { return /^agreed$/i.test((r.agreed || '').trim()) ? 'agreed' : ''; } },
-    { key: 'files and photos shared', title: 'Files and photos shared', tick: 'var(--orange)',
-      empty: 'No files or photos shared.',
-      lead: 'who', text: 'caption', label: 'what', meta: ['date'] },
-    { key: 'you said you would', title: 'You said you would', tick: 'var(--green)',
-      empty: 'No open promises.',
-      lead: 'who', text: 'what you said you would do', meta: ['date'] }
-  ];
-
-  var base = cabinetDir();
-  var folders = [];
-  var job = null;
-
-  function esc(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  }
-
-  /* Amounts, numbers, dates and times inside free text: each run goes in its own <bdi>,
-     currency and all ("₪450", "450 ש״ח", "$1,200", "13:12"). */
-  var NUMBER_RUN = /(?:[₪$€£¥]\s?)?\d(?:[\d.,:\/]*\d)?(?:\s?(?:[₪$€£¥%]|ש["״]ח|NIS|ILS|USD|EUR|GBP)(?![\w֐-׿]))?/g;
-
-  function withBdi(s) {
-    var out = '', last = 0, m;
-    s = String(s);
-    NUMBER_RUN.lastIndex = 0;
-    while ((m = NUMBER_RUN.exec(s))) {
-      out += esc(s.slice(last, m.index)) + '<bdi>' + esc(m[0]) + '</bdi>';
-      last = m.index + m[0].length;
+  /* ── Words, in English and Hebrew ────────────────────────────────── */
+  var WORDS = {
+    en: {
+      subtitle: "Who needs you in your chats",
+      connected: "WhatsApp connected",
+      example: "Example",
+      notConnected: "WhatsApp not connected",
+      needsYou: "WhatsApp needs you",
+      notHere: "Only on your computer",
+      linking: "Linking WhatsApp",
+      refresh: "Check my chats now",
+      refreshing: "Reading your chats",
+      helper: "Chat Keeper",
+      updated: "Updated {when}",
+      chatsRead: "{n} chats read",
+      chatsRead1: "1 chat read",
+      exampleSticker: "EXAMPLE",
+      exampleMark: "EXAMPLE",
+      exampleBanner: "This is an example. The people and the chats are made up.",
+      exampleTape: "The people below are made up.",
+      exampleOnly: "This is an example. Connect WhatsApp to draft real replies.",
+      exampleHeadline: "Here is what your mornings could look like.",
+      waitingTitle: "Waiting for you",
+      waitingEmpty: "Nobody is waiting for a reply from you.",
+      since: "since {when}",
+      draft: "Draft a reply",
+      draftLabel: "Draft a reply to {who}: {wants}",
+      promisesTitle: "You said you would",
+      promiseLabel: "Help me with what I told {to}: {what}",
+      said: "said {when}",
+      plansTitle: "Plans you made",
+      plansEmpty: "No plans in your chats.",
+      toCalendar: "Put these on my calendar",
+      connectCalendar: "Connect Google Calendar",
+      pricesTitle: "Prices",
+      agreed: "Agreed",
+      notAgreed: "Not yet",
+      chatsTitle: "Busy chats since yesterday",
+      messages: "{n} messages",
+      messages1: "1 message",
+      filesTitle: "Photos and files",
+      photo: "Photo", video: "Video", voice: "Voice note", file: "File",
+      connectTitle: "See who's waiting for you on WhatsApp",
+      connectLine: "Pick the chats Cabinet may read. Each morning you see who is waiting for your reply, what you promised and your plans. Nothing is sent without your yes.",
+      connectHow: "You scan a code with your phone, like WhatsApp Web.",
+      connectButton: "Connect WhatsApp",
+      connecting: "Opening WhatsApp setup",
+      oldCabinet: "Connect WhatsApp from Integrations in Cabinet.",
+      notHereTitle: "WhatsApp works in Cabinet on your computer",
+      notHereLine: "WhatsApp links to the Cabinet app on a computer, so it can't be connected here.",
+      fix: "Fix this",
+      choose: "Choose chats",
+      chooseTitle: "WhatsApp is linked. Now pick the chats this cabinet may read.",
+      linkingTitle: "Finish linking on your phone.",
+      catchingUp: "Cabinet is still saving your chats. Your first catch-up may miss some of them.",
+      firstTitle: "Your chats are in. Ready for your first catch-up?",
+      firstLine: "It reads the chats you picked and shows who is waiting for you. After this it happens {when}.",
+      firstLineNoWhen: "It reads the chats you picked and shows who is waiting for you.",
+      firstButton: "Catch me up now",
+      runningTitle: "Reading your chats",
+      runningLine: "This takes a minute or two. You can keep using Cabinet.",
+      runFailed: "The last catch-up didn't finish. Try again in a moment.",
+      readError: "The last catch-up couldn't be read. Check your chats again to make a new one.",
+      ownerOnly: "Only the cabinet's owner can connect WhatsApp.",
+      viewerOnly: "You can look, but only people who edit this cabinet can ask or check again.",
+      askLabel: "Ask about your chats",
+      askPlaceholder: "Ask about your chats",
+      askSend: "Ask",
+      opening: "Opening the chat beside this page",
+      nextRun: "{when}",
+      allChats: "All saved chats",
+      preferences: "What counts, what to skip",
+      prefsAsk: "I want to change what my catch-up shows. ",
+      draftAsk: "Draft a reply to {who} about: {wants}. Show me the draft first, and don't send anything until I say so.",
+      promiseAsk: "I told {to} I would: {what}. Help me get it done.",
+      calendarAsk: "Put the plans from my chats on my calendar.",
+      questions: [
+        "Who is waiting for my reply?",
+        "What did I agree with the plumber?",
+        "What did I promise to do this week?",
+        "What plans do I have this weekend?",
+        "Who said they'd get back to me and hasn't?"
+      ],
+      today: "today", yesterday: "yesterday", tomorrow: "tomorrow",
+      connectedToast: "WhatsApp is connected.",
+      numberFace: "Number"
+    },
+    he: {
+      subtitle: "מי צריך אתכם בשיחות",
+      connected: "WhatsApp מחובר",
+      example: "דוגמה",
+      notConnected: "WhatsApp לא מחובר",
+      needsYou: "WhatsApp מחכה לכם",
+      notHere: "רק במחשב שלכם",
+      linking: "מקשרים את WhatsApp",
+      refresh: "לבדוק את השיחות עכשיו",
+      refreshing: "קוראים את השיחות",
+      helper: "שומר השיחות",
+      updated: "עודכן {when}",
+      chatsRead: "נקראו {n} שיחות",
+      chatsRead1: "נקראה שיחה אחת",
+      exampleSticker: "דוגמה",
+      exampleMark: "דוגמה",
+      exampleBanner: "זו דוגמה. האנשים והשיחות מומצאים.",
+      exampleTape: "האנשים למטה מומצאים.",
+      exampleOnly: "זו דוגמה. חברו את WhatsApp כדי לנסח תשובות אמיתיות.",
+      exampleHeadline: "ככה הבקרים שלכם יכולים להיראות.",
+      waitingTitle: "מחכים לכם",
+      waitingEmpty: "אף אחד לא מחכה לתשובה מכם.",
+      since: "מאז {when}",
+      draft: "לנסח תשובה",
+      draftLabel: "לנסח תשובה ל־{who}: {wants}",
+      promisesTitle: "אמרתם שתעשו",
+      promiseLabel: "עזרה עם מה שאמרתי ל־{to}: {what}",
+      said: "נאמר {when}",
+      plansTitle: "תוכניות שקבעתם",
+      plansEmpty: "אין תוכניות בשיחות.",
+      toCalendar: "להכניס ליומן שלי",
+      connectCalendar: "לחבר את Google Calendar",
+      pricesTitle: "מחירים",
+      agreed: "סוכם",
+      notAgreed: "עוד לא",
+      chatsTitle: "שיחות עמוסות מאתמול",
+      messages: "{n} הודעות",
+      messages1: "הודעה אחת",
+      filesTitle: "תמונות וקבצים",
+      photo: "תמונה", video: "סרטון", voice: "הודעה קולית", file: "קובץ",
+      connectTitle: "לראות מי מחכה לכם בוואטסאפ",
+      connectLine: "בוחרים את השיחות ש־Cabinet רשאי לקרוא. כל בוקר רואים מי מחכה לתשובה שלכם, מה הבטחתם ומה התוכניות שלכם. שום דבר לא נשלח בלי האישור שלכם.",
+      connectHow: "סורקים קוד עם הטלפון, כמו ב־WhatsApp Web.",
+      connectButton: "לחבר את WhatsApp",
+      connecting: "פותחים את החיבור של WhatsApp",
+      oldCabinet: "חברו את WhatsApp מתוך החיבורים ב־Cabinet.",
+      notHereTitle: "WhatsApp עובד ב־Cabinet במחשב שלכם",
+      notHereLine: "WhatsApp מתחבר לאפליקציית Cabinet במחשב, ולכן אי אפשר לחבר אותו כאן.",
+      fix: "לתקן",
+      choose: "לבחור שיחות",
+      chooseTitle: "WhatsApp מקושר. עכשיו בחרו את השיחות שהארון הזה רשאי לקרוא.",
+      linkingTitle: "סיימו את הקישור בטלפון.",
+      catchingUp: "Cabinet עדיין שומר את השיחות שלכם. הסיכום הראשון עלול לפספס חלק מהן.",
+      firstTitle: "השיחות שלכם כאן. לעשות את הסיכום הראשון?",
+      firstLine: "הוא קורא את השיחות שבחרתם ומראה מי מחכה לכם. מעכשיו זה יקרה {when}.",
+      firstLineNoWhen: "הוא קורא את השיחות שבחרתם ומראה מי מחכה לכם.",
+      firstButton: "לעדכן אותי עכשיו",
+      runningTitle: "קוראים את השיחות שלכם",
+      runningLine: "זה לוקח דקה או שתיים. אפשר להמשיך לעבוד ב־Cabinet.",
+      runFailed: "הסיכום האחרון לא הסתיים. נסו שוב עוד רגע.",
+      readError: "לא הצלחנו לקרוא את הסיכום האחרון. בדקו את השיחות שוב כדי ליצור חדש.",
+      ownerOnly: "רק הבעלים של הארון יכולים לחבר את WhatsApp.",
+      viewerOnly: "אפשר להסתכל, אבל רק מי שעורך את הארון יכול לשאול או לבדוק שוב.",
+      askLabel: "שאלו על השיחות שלכם",
+      askPlaceholder: "שאלו על השיחות שלכם",
+      askSend: "לשאול",
+      opening: "פותחים את הצ׳אט ליד הדף",
+      nextRun: "{when}",
+      allChats: "כל השיחות השמורות",
+      preferences: "מה חשוב ומה לדלג",
+      prefsAsk: "אני רוצה לשנות מה הסיכום שלי מראה. ",
+      draftAsk: "נסחו תשובה ל־{who} על: {wants}. תראו לי את הנוסח קודם, ואל תשלחו כלום עד שאגיד.",
+      promiseAsk: "אמרתי ל־{to} שאעשה את זה: {what}. עזרו לי לסיים את זה.",
+      calendarAsk: "תכניסו את התוכניות מהשיחות שלי ליומן.",
+      questions: [
+        "מי מחכה לתשובה שלי?",
+        "על מה סיכמתי עם האינסטלטור?",
+        "מה הבטחתי לעשות השבוע?",
+        "אילו תוכניות יש לי בסוף השבוע?",
+        "מי אמר שיחזור אליי ולא חזר?"
+      ],
+      today: "היום", yesterday: "אתמול", tomorrow: "מחר",
+      connectedToast: "WhatsApp מחובר.",
+      numberFace: "מספר"
     }
-    return out + esc(s.slice(last));
-  }
+  };
 
-  /* "the number ending 4410" reads mid-sentence in the file; as a row's first word, and
-     for a media label ("photo"), it takes a capital. Other words are shown as written. */
-  function capitalFirst(s) {
-    return /^(the number ending|a number not known yet|someone in|photo|video|voice note|file)\b/.test(s)
-      ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-  }
+  /* ── Icons, drawn inline ─────────────────────────────────────────── */
+  var ICONS = {
+    wa: '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#fff" stroke="#0b3b2e" stroke-width="1.6" d="M16 3.2C9 3.2 3.3 8.9 3.3 15.9c0 2.3.6 4.5 1.8 6.4L3.2 28.8l6.7-1.8c1.8 1 3.9 1.5 6.1 1.5 7 0 12.7-5.7 12.7-12.6S23 3.2 16 3.2z"/><path fill="#0b3b2e" d="M22.4 18.9c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.8.2-.2.3-.9 1.1-1.1 1.3-.2.2-.4.3-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.4-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.6.1-.2.1-.4 0-.6l-1-2.5c-.3-.7-.5-.6-.8-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8 0 1.6 1.2 3.2 1.4 3.5.2.2 2.4 3.6 5.8 5.1.8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 2-.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.2-.3-.3-.6-.4z"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.6-4.5L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.6 4.5L20 16"/><path d="M20 21v-5h-5"/></svg>',
+    send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12L20 4l-4 16-4.5-6.5z"/><path d="M20 4L11.5 13.5"/></svg>',
+    reply: '<svg class="flip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v5"/></svg>',
+    arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+    help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12l-8 8-8-8 8-8z"/><path d="M12 9v4M12 16h.01"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.5"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+    person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+    group: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.2a5.5 5.5 0 0 1 5.5 5.8"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+    photo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="3"/><circle cx="9" cy="10.5" r="2"/><path d="M21 17l-5.5-5.5L7 20"/></svg>',
+    video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="13" height="12" rx="3"/><path d="M15.5 10.5l6-3.5v10l-6-3.5z"/></svg>',
+    voice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
+    file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" aria-hidden="true"><path d="M6 2.5h8l5 5v14H6z"/><path d="M14 2.5v5h5"/></svg>',
+    alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v4.5M12 17.5h.01"/></svg>',
+    laptop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4.5" width="16" height="11" rx="2"/><path d="M2 19.5h20"/></svg>',
+    helper: '<svg viewBox="0 0 40 40" aria-hidden="true"><path fill="#fff" stroke="#0b3b2e" stroke-width="2.6" stroke-linejoin="round" d="M8 8h24a5 5 0 0 1 5 5v12a5 5 0 0 1-5 5H18l-7 6v-6H8a5 5 0 0 1-5-5V13a5 5 0 0 1 5-5z"/><circle cx="15" cy="18" r="2.2" fill="#0b3b2e"/><circle cx="25" cy="18" r="2.2" fill="#0b3b2e"/><path d="M15.5 23.2c2.6 2.2 6.4 2.2 9 0" fill="none" stroke="#0b3b2e" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    chooseArt: '<svg class="phone-art" viewBox="0 0 170 160" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><rect x="20" y="12" width="132" height="38" rx="14" fill="#fff" transform="rotate(-4 86 31)"/><rect x="12" y="62" width="132" height="38" rx="14" fill="#fff" transform="rotate(3 78 81)"/><rect x="26" y="112" width="132" height="38" rx="14" fill="#fff" transform="rotate(-2 92 131)"/><rect x="32" y="20" width="22" height="22" rx="6" fill="#25d366" transform="rotate(-4 43 31)"/><rect x="24" y="70" width="22" height="22" rx="6" fill="#fff" transform="rotate(3 35 81)"/><rect x="38" y="120" width="22" height="22" rx="6" fill="#25d366" transform="rotate(-2 49 131)"/></g><g fill="none" stroke="#0b3b2e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M37 31l4 4 8-8" transform="rotate(-4 43 31)"/><path d="M43 131l4 4 8-8" transform="rotate(-2 49 131)"/><path d="M66 30h60" transform="rotate(-4 86 31)"/><path d="M58 81h52" transform="rotate(3 78 81)"/><path d="M72 131h58" transform="rotate(-2 92 131)"/></g></svg>',
+    morningArt: '<svg class="phone-art" viewBox="0 0 170 160" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><circle cx="112" cy="50" r="30" fill="#ffd84d"/><path d="M112 6v8M146 16l-6 6M156 50h-8M78 16l6 6" stroke-linecap="round"/><path d="M22 70h86a14 14 0 0 1 14 14v30a14 14 0 0 1-14 14H56l-20 16v-16H22a14 14 0 0 1-14-14V84a14 14 0 0 1 14-14z" fill="#fff"/></g><g fill="#25d366" stroke="#0b3b2e" stroke-width="3.5"><circle cx="40" cy="99" r="7"/><circle cx="65" cy="99" r="7"/><circle cx="90" cy="99" r="7"/></g></svg>',
+    fixArt: '<svg class="phone-art" viewBox="0 0 170 160" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><rect x="46" y="8" width="78" height="144" rx="16" fill="#fff" transform="rotate(-6 85 80)"/><path d="M84 52l30 52H54z" fill="#ffb35c" transform="rotate(-6 85 80)"/></g><g stroke="#0b3b2e" stroke-width="4" stroke-linecap="round" transform="rotate(-6 85 80)"><path d="M84 70v14M84 94v1"/></g><circle cx="140" cy="130" r="16" fill="#25d366" stroke="#0b3b2e" stroke-width="4"/><path d="M133 130l5 5 9-9" fill="none" stroke="#0b3b2e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    laptopArt: '<svg class="phone-art" viewBox="0 0 170 160" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><rect x="28" y="30" width="114" height="76" rx="10" fill="#fff"/><path d="M12 118h146l-10 16H22z" fill="#8ad8ff"/><path d="M62 52h36a8 8 0 0 1 8 8v12a8 8 0 0 1-8 8H78l-10 8v-8h-6a8 8 0 0 1-8-8V60a8 8 0 0 1 8-8z" fill="#25d366"/></g></svg>',
+    phoneArt: '<svg class="phone-art" viewBox="0 0 170 190" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><rect x="40" y="10" width="92" height="170" rx="18" fill="#fff" transform="rotate(8 86 95)"/><g transform="rotate(8 86 95)"><rect x="56" y="44" width="60" height="60" rx="6" fill="#fff"/><rect x="62" y="50" width="16" height="16" rx="2" fill="#0b3b2e"/><rect x="94" y="50" width="16" height="16" rx="2" fill="#0b3b2e"/><rect x="62" y="82" width="16" height="16" rx="2" fill="#0b3b2e"/><rect x="86" y="74" width="8" height="8" fill="#0b3b2e" stroke="none"/><rect x="98" y="86" width="12" height="12" fill="#0b3b2e" stroke="none"/><rect x="84" y="90" width="6" height="8" fill="#0b3b2e" stroke="none"/><path d="M70 130h32" stroke-linecap="round"/><path d="M76 140h20" stroke-linecap="round"/></g></g><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><path d="M8 34h34a8 8 0 0 1 8 8v12a8 8 0 0 1-8 8H26l-10 8v-8H8a8 8 0 0 1-8-8V42a8 8 0 0 1 8-8z" fill="#ffd84d" transform="translate(2 -18) rotate(-10 25 50)"/></g><path d="M18 34c2 3 6 3 8 0" transform="translate(2 -18) rotate(-10 25 50)" fill="none" stroke="#0b3b2e" stroke-width="3.5" stroke-linecap="round"/><circle cx="148" cy="150" r="14" fill="#ff9cc2" stroke="#0b3b2e" stroke-width="4"/><path d="M142 150l4 4 8-8" fill="none" stroke="#0b3b2e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
 
-  function textSpan(s) { return '<span dir="auto">' + withBdi(s) + '</span>'; }
-  function numberSpan(s, cls) { return '<bdi' + (cls ? ' class="' + cls + '"' : '') + '>' + esc(s) + '</bdi>'; }
+  var FACE_COLORS = ["#ffd84d", "#ff9cc2", "#8ad8ff", "#ffb35c", "#cdbaff", "#7ee7a8", "#ff8f8f", "#9fe3d8"];
 
-  /* The direction of the first strong letter, or '' when there is none. */
-  function strongDir(s) {
-    var m = String(s || '').match(/[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]|[֐-ࣿיִ-﷿ﹰ-﻿]/);
-    if (!m) return '';
-    return /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/.test(m[0]) ? 'ltr' : 'rtl';
-  }
-
-  /* ---- follow the shell's theme ------------------------------------------------------
-     Cabinet paints its theme as class="dark" on its own <html>. This page is same-origin,
-     so it reads that and stamps data-scheme on itself; opened on its own there is no
-     parent, nothing is stamped, and the media query decides. */
-  function applyHostScheme() {
+  /* ── Language: Cabinet's own, when the page can see it ───────────── */
+  function pickLang() {
+    var tag = "";
     try {
-      if (!window.parent || window.parent === window) return null;
-      var host = window.parent.document.documentElement;
-      document.documentElement.setAttribute('data-scheme', host.classList.contains('dark') ? 'dark' : 'light');
-      return host;
-    } catch (err) {
-      return null;
+      if (window.parent && window.parent !== window) tag = window.parent.document.documentElement.lang || "";
+    } catch (err) { tag = ""; }
+    if (!tag) tag = (navigator.languages && navigator.languages[0]) || navigator.language || "en";
+    return /^(he|iw)\b/i.test(tag) ? "he" : "en";
+  }
+  var LANG = pickLang();
+  var T = WORDS[LANG];
+  var LOCALE = LANG === "he" ? "he-IL" : "en-GB";
+  document.documentElement.lang = LANG;
+  document.documentElement.dir = LANG === "he" ? "rtl" : "ltr";
+
+  /* ── Follow Cabinet's light or dark theme when it can be read ────── */
+  (function followTheme() {
+    function apply() {
+      try {
+        var host = window.parent.document.documentElement;
+        document.documentElement.setAttribute("data-scheme", host.classList.contains("dark") ? "dark" : "light");
+        return host;
+      } catch (err) { return null; }
     }
-  }
-  (function watchHostScheme() {
-    var host = applyHostScheme();
-    if (!host || typeof MutationObserver === 'undefined') return;
-    try {
-      new MutationObserver(applyHostScheme).observe(host, { attributes: true, attributeFilter: ['class'] });
-    } catch (err) { /* the one-shot read above already landed */ }
+    if (!window.parent || window.parent === window) return;
+    var host = apply();
+    if (host && window.MutationObserver) {
+      try { new MutationObserver(apply).observe(host, { attributes: true, attributeFilter: ["class"] }); } catch (err) { /* read once is enough */ }
+    }
   })();
 
-  /* ---- where this page lives ---------------------------------------------------------
-     /api/assets/<cabinet path>/today/index.html: dropping the last two segments names
-     the cabinet, whatever it was called at install time. */
-  function cabinetDir() {
-    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
-    return p.split('/').slice(0, -2).map(function (seg) {
-      try { return decodeURIComponent(seg); } catch (err) { return seg; }
-    }).join('/');
+  /* ── Small helpers ───────────────────────────────────────────────── */
+  function $(id) { return document.getElementById(id); }
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
   }
-  function inCabinet(rel) { return base ? base + '/' + rel : rel; }
+  function fill(text, vars) {
+    return String(text).replace(/\{(\w+)\}/g, function (m, key) { return vars && vars[key] != null ? vars[key] : m; });
+  }
+  function text(value, max) {
+    var s = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : (typeof value === "number" ? String(value) : "");
+    return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function icon(name) { return ICONS[name] || ""; }
+  function span(value, cls) { return '<span dir="auto"' + (cls ? ' class="' + cls + '"' : "") + ">" + esc(value) + "</span>"; }
+  function bdi(value) { return "<bdi>" + esc(value) + "</bdi>"; }
+  function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
 
-  function workspaceUrl(rel) {
-    return '/workspace/' + inCabinet(rel).split('/').filter(Boolean).map(encodeURIComponent).join('/');
+  var NUMBER_WORDS = /^(the number ending|a number not known yet|המספר שמסתיים|מספר לא ידוע)/i;
+  function initials(name) {
+    var words = String(name).replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return "?";
+    var first = Array.from(words[0])[0] || "";
+    var second = words.length > 1 ? (Array.from(words[words.length - 1])[0] || "") : "";
+    return (first + second).toUpperCase();
+  }
+  function face(who, kind, small) {
+    var name = text(who) || "?";
+    var color = FACE_COLORS[hash(name) % FACE_COLORS.length];
+    var inner;
+    if (kind === "group") inner = icon("group");
+    else if (kind === "number" || NUMBER_WORDS.test(name)) inner = icon("phone");
+    else inner = '<bdi dir="auto">' + esc(initials(name)) + "</bdi>";
+    return '<span class="face' + (small ? " sm" : "") + '" style="background:' + color + '" aria-hidden="true">' + inner + "</span>";
   }
 
-  /* Open a Cabinet page from inside the app frame: push the path on the shell's history
-     and tell its router, the way its own links do. The anchor's target="_top" is the
-     fallback when the shell cannot be reached. */
-  function openInShell(url, e) {
+  /* ── Dates: the chats' local times, told the way people say them ─── */
+  function parseWhen(value) {
+    var s = text(value);
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+    if (!m) return null;
+    var hasTime = m[4] !== undefined;
+    var date;
+    if (hasTime && /(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(s)) date = new Date(s);
+    else date = new Date(+m[1], +m[2] - 1, +m[3], hasTime ? +m[4] : 12, hasTime ? +m[5] : 0);
+    return isNaN(date.getTime()) ? null : { date: date, hasTime: hasTime };
+  }
+  function dayStart(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
+  function clock(d) { return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  var fmtWeekday = new Intl.DateTimeFormat(LOCALE, { weekday: "short" });
+  var fmtDayMonth = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short" });
+  function daysBetween(a, b) { return Math.round((dayStart(b) - dayStart(a)) / 86400000); }
+  /* Past: "yesterday 16:40", "Tue 09:30", "24 Sep". Future: "tomorrow 08:30", "Sun 07:00". */
+  function when(value, now) {
+    var p = parseWhen(value);
+    if (!p) return text(value);
+    var diff = daysBetween(now, p.date);
+    var word;
+    if (diff === 0) word = T.today;
+    else if (diff === -1) word = T.yesterday;
+    else if (diff === 1) word = T.tomorrow;
+    else if (Math.abs(diff) < 7) word = fmtWeekday.format(p.date);
+    else word = fmtDayMonth.format(p.date);
+    return p.hasTime ? word + " " + clock(p.date) : word;
+  }
+
+  /* ── State ───────────────────────────────────────────────────────── */
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs && cab.ask);
+  var S = {
+    appPath: "today", cabinetPath: "", role: "owner",
+    connectors: null, job: null, data: null, example: false, week: null,
+    readError: false, loaded: false, saved: null, busyConnect: false, lastRunSeen: null
+  };
+  function wa() { return (S.connectors || []).filter(function (c) { return c.id === "whatsapp"; })[0] || null; }
+  function cal() { return (S.connectors || []).filter(function (c) { return c.id === "google-calendar"; })[0] || null; }
+  function canEdit() { return S.role === "owner" || S.role === "editor"; }
+  function dataPath(name) { return S.appPath + "/data/" + name; }
+
+  var toastTimer = null;
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("on"); }, 3600);
+  }
+  function said(err) { toast((err && err.message) || "That didn't work."); }
+
+  /* ── Reading the routine's files ─────────────────────────────────── */
+  function readJson(name) {
+    if (V2) {
+      return cab.files.read(dataPath(name)).then(function (t) { return JSON.parse(t); });
+    }
+    return fetch("data/" + encodeURIComponent(name), { cache: "no-store" }).then(function (r) {
+      if (r.status === 404) { var e = new Error("not found"); e.code = "not-found"; throw e; }
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    });
+  }
+  function isMissing(err) { return !!err && (err.code === "not-found" || /not found/i.test(err.message || "")); }
+
+  function loadData() {
+    return readJson("latest.json").then(function (json) {
+      S.data = json; S.example = json && json.example === true; S.readError = false;
+    }, function (err) {
+      S.readError = !isMissing(err);
+      return readJson("EXAMPLE-latest.json").then(function (json) {
+        S.data = json; S.example = true;
+      }, function () { S.data = null; S.example = false; });
+    }).then(function () {
+      if (S.example) return null;
+      return readJson("week.json").then(function (json) { S.week = json; }, function () { S.week = null; });
+    }).then(function () { S.loaded = true; render(); });
+  }
+
+  function loadSaved() {
+    if (!V2) return;
+    cab.files.list(CHATS).then(function (items) {
+      S.saved = (items || []).filter(function (i) { return i.isDir && i.name !== "all-conversations"; }).map(function (i) { return i.name; });
+      render();
+    }, function () { S.saved = []; render(); });
+  }
+
+  /* ── Actions ─────────────────────────────────────────────────────── */
+  function connect(id) {
+    if (!V2 || S.busyConnect) return;
+    S.busyConnect = true; render();
+    cab.connectors.connect(id).then(function (how) {
+      if (how === "connected" && id === "whatsapp") toast(T.connectedToast);
+    }, said).then(function () {
+      S.busyConnect = false;
+      return cab.connectors.list().then(function (l) { S.connectors = l; }, function () {});
+    }).then(function () { loadSaved(); render(); });
+  }
+
+  function refresh() {
+    if (!V2 || !S.job || S.job.running) return;
+    cab.jobs.run(S.job.id).then(function () {
+      S.job.running = true; render();
+    }, said);
+  }
+
+  function ask(question) {
+    if (!V2) return;
+    cab.ask(question).then(function () { toast(T.opening); }, said);
+  }
+
+  function openInCabinet(rel, event) {
     try {
-      var w = window.parent;
-      if (!w || w === window || w.location.origin !== location.origin) return;
-      w.history.pushState(null, '', url);
-      var Pop = w.PopStateEvent || PopStateEvent;
-      w.dispatchEvent(new Pop('popstate', { state: null }));
-      e.preventDefault();
-    } catch (err) { /* leave the click to the anchor */ }
+      var shell = window.parent;
+      if (!shell || shell === window || shell.location.origin !== location.origin) return;
+      var url = "/workspace/" + (S.cabinetPath + "/" + rel).split("/").filter(Boolean).map(encodeURIComponent).join("/");
+      shell.history.pushState(null, "", url);
+      shell.dispatchEvent(new (shell.PopStateEvent || PopStateEvent)("popstate", { state: null }));
+      event.preventDefault();
+    } catch (err) { /* a sealed frame keeps the plain link */ }
   }
 
-  document.addEventListener('click', function (e) {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var a = e.target.closest ? e.target.closest('a[data-shell]') : null;
-    if (a) openInShell(a.getAttribute('href'), e);
+  /* The page ends above the input bar, whatever its height. */
+  function sizeSpacer() {
+    var bar = $("composer");
+    $("spacer").style.height = bar.hidden ? "48px" : (bar.offsetHeight + 28) + "px";
+    $("toast").style.bottom = (bar.hidden ? 24 : bar.offsetHeight + 16) + "px";
+  }
+  window.addEventListener("resize", sizeSpacer);
+
+  /* ── Drawing ─────────────────────────────────────────────────────── */
+  function pill() {
+    var el = $("pill"), label = $("pill-text"), w = wa();
+    el.hidden = !V2;
+    var cls = "off", words = T.notConnected;
+    if (w) {
+      if (w.state === "connected") { cls = ""; words = T.connected; }
+      else if (w.busy === "linking") { cls = "warn"; words = T.linking; }
+      else if (w.state === "needs-you" || w.state === "needs-sign-in") { cls = "warn"; words = T.needsYou; }
+      else if (w.state === "not-available-here") { cls = "off"; words = T.notHere; }
+    }
+    el.className = "pill " + cls;
+    label.textContent = words;
+  }
+
+  function refreshButton() {
+    var btn = $("refresh"), w = wa();
+    var show = V2 && canEdit() && !!S.job && !!w && w.state === "connected" && !!S.data && !S.example;
+    btn.hidden = !show;
+    var running = !!(S.job && S.job.running);
+    btn.disabled = running;
+    btn.classList.toggle("spin", running);
+    $("refresh-text").textContent = running ? T.refreshing : T.refresh;
+  }
+
+  function composer() {
+    var w = wa();
+    var on = V2 && canEdit() && !!w && (w.state === "connected" || (!!S.data && !S.example));
+    $("composer").hidden = !on;
+    sizeSpacer();
+  }
+
+  function banner() {
+    var w = wa(), html = "";
+    if (!V2) {
+      html = '<div class="banner ex">' + icon("alert") + '<div class="b-text">' + esc(T.oldCabinet) + "</div></div>";
+    } else if (w && S.data && !S.example && w.state !== "connected") {
+      var line = w.state === "not-available-here" ? (w.problem && w.problem.text) || T.notHereLine
+        : (w.problem && w.problem.text) || T.notConnected;
+      var fix = w.canConnect && w.state !== "not-available-here"
+        ? '<button class="softbtn" type="button" data-act="connect">' + icon("wa") + esc(w.state === "not-added" ? T.connectButton : T.fix) + "</button>" : "";
+      html = '<div class="banner warn">' + icon("alert") + '<div class="b-text" dir="auto">' + esc(line) + "</div>" + fix + "</div>";
+    } else if (w && w.state === "connected" && w.busy === "catching-up") {
+      html = '<div class="banner">' + icon("clock") + '<div class="b-text">' + esc(T.catchingUp) + "</div></div>";
+    }
+    if (S.job && S.job.lastRun && S.job.lastRun.ok === false && !S.job.running && w && w.state === "connected") {
+      html += '<div class="banner warn">' + icon("alert") + '<div class="b-text">' + esc(T.runFailed) + "</div></div>";
+    } else if (S.readError) {
+      html += '<div class="banner warn">' + icon("alert") + '<div class="b-text">' + esc(T.readError) + "</div></div>";
+    }
+    $("banner").innerHTML = html;
+  }
+
+  /* The card at the top when there is no catch-up of the person's own to show. */
+  function lead() {
+    var w = wa();
+    if (!V2) return "";
+    if (!w) return "";
+    if (w.state === "connected") {
+      if (S.saved && S.saved.length === 0) return chooseCard();
+      if (S.data && !S.example) return "";
+      return firstRunCard();
+    }
+    if (S.data && !S.example) return "";
+    if (w.busy === "linking") return softCard(T.linkingTitle, "", w.canConnect ? T.connectButton : "", "connect", "", "phoneArt");
+    if (w.state === "not-available-here") return softCard(T.notHereTitle, (w.problem && w.problem.text) || T.notHereLine, "", "", "", "laptopArt");
+    if (w.state === "needs-you" || w.state === "needs-sign-in") {
+      return softCard((w.problem && w.problem.text) || T.needsYou, "", w.canConnect ? T.fix : "", "connect", w.canConnect ? "" : T.ownerOnly, "fixArt");
+    }
+    return connectCard(w);
+  }
+
+  function connectCard(w) {
+    var button = w.canConnect
+      ? '<button class="bigbtn" type="button" data-act="connect"' + (S.busyConnect ? " disabled" : "") + ">" + icon("wa") + "<span>" + esc(S.busyConnect ? T.connecting : T.connectButton) + "</span></button>"
+      : '<p class="how">' + esc(T.ownerOnly) + "</p>";
+    return '<div class="connect pop-in"><div><h2>' + esc(T.connectTitle) + "</h2><p>" + esc(T.connectLine) + "</p>" + button +
+      (w.canConnect ? '<p class="how">' + icon("phone") + "<span>" + esc(T.connectHow) + "</span></p>" : "") + "</div>" + icon("phoneArt") + "</div>";
+  }
+
+  function softCard(title, line, buttonText, act, note, art) {
+    return '<div class="connect soft pop-in"><div><h2 dir="auto">' + esc(title) + "</h2>" + (line ? '<p dir="auto">' + esc(line) + "</p>" : "") +
+      (buttonText ? '<button class="bigbtn" type="button" data-act="' + act + '"' + (S.busyConnect ? " disabled" : "") + ">" + icon("wa") + "<span>" + esc(buttonText) + "</span></button>" : "") +
+      (note ? '<p class="how">' + esc(note) + "</p>" : "") + "</div>" + (art ? icon(art) : "") + "</div>";
+  }
+
+  function chooseCard() {
+    var w = wa();
+    return softCard(T.chooseTitle, "", w && w.canConnect ? T.choose : "", "connect", w && w.canConnect ? "" : T.ownerOnly, "chooseArt");
+  }
+
+  function firstRunCard() {
+    var running = S.job && S.job.running;
+    if (running) {
+      return '<div class="hero pop-in"><div class="helper">' + icon("helper") + '</div><div class="say"><div class="who-says">' + esc(T.helper) +
+        '</div><h2>' + esc(T.runningTitle) + '</h2><div class="meta"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span>' + esc(T.runningLine) + "</span></div></div></div>";
+    }
+    var whenText = S.job && S.job.when ? String(S.job.when).toLowerCase() : "";
+    var line = whenText ? fill(T.firstLine, { when: whenText }) : T.firstLineNoWhen;
+    var button = canEdit() && S.job
+      ? '<button class="bigbtn" type="button" data-act="refresh">' + icon("refresh") + "<span>" + esc(T.firstButton) + "</span></button>" : "";
+    return '<div class="connect soft pop-in"><div><h2>' + esc(T.firstTitle) + "</h2><p>" + esc(line) + "</p>" + button + "</div>" + icon("morningArt") + "</div>";
+  }
+
+  function hero(d, now) {
+    var w = wa();
+    var running = S.job && S.job.running && !S.example;
+    var headline = text(d.headline, 240) || (S.example ? T.exampleHeadline : "");
+    var meta = [];
+    if (d.generatedAt && !S.example) meta.push(fill(esc(T.updated), { when: bdi(when(d.generatedAt, new Date())) }));
+    var n = typeof d.chatsRead === "number" ? d.chatsRead : null;
+    if (n !== null && !S.example) meta.push(esc(n === 1 ? T.chatsRead1 : fill(T.chatsRead, { n: n })));
+    if (S.job && S.job.when && !S.example) meta.push('<span class="sched">' + icon("clock") + esc(fill(T.nextRun, { when: S.job.when })) + "</span>");
+    var status = text(d.status);
+    return '<div class="hero pop-in"><div class="helper">' + icon("helper") + '</div><div class="say">' +
+      (S.example ? '<span class="sticker">' + esc(T.exampleSticker) + "</span>" : "") +
+      '<div class="who-says">' + esc(T.helper) + "</div>" +
+      (running ? '<h2>' + esc(T.runningTitle) + '</h2><div class="meta"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span>' + esc(T.runningLine) + "</span></div>"
+        : '<h2 dir="auto">' + esc(headline) + "</h2>" + (status && status !== "ok" ? '<div class="meta" dir="auto">' + esc(status) + "</div>" : "") +
+          (meta.length ? '<div class="meta">' + meta.map(function (m) { return "<span>" + m + "</span>"; }).join("") + "</div>" : "")) +
+      "</div></div>";
+  }
+
+  function tag(cls, title, count) {
+    return '<h3 class="tag ' + cls + '">' + esc(title) + (count ? ' <span class="n">' + count + "</span>" : "") +
+      (S.example ? ' <span class="ex-mark">' + esc(T.exampleMark) + "</span>" : "") + "</h3>";
+  }
+
+  function waitingSection(d, now) {
+    var rows = list(d.waiting).filter(function (r) { return text(r.who); });
+    var can = !S.example ? V2 && canEdit() : true;
+    var act = S.example ? "example" : "draft";
+    var html = "<section>" + tag("t-wait", T.waitingTitle, rows.length);
+    if (!rows.length) return html + '<div class="empty">' + esc(T.waitingEmpty) + "</div></section>";
+    html += '<div class="bubbles">';
+    rows.forEach(function (r, i) {
+      var who = text(r.who, 80), wants = text(r.wants, 140), quote = text(r.quote, 160);
+      var inner = '<span class="who" dir="auto">' + esc(who) + "</span>" +
+        (wants ? '<span class="wants" dir="auto">' + esc(wants) + "</span>" : "") +
+        (quote ? '<span class="quote" dir="auto">' + esc(quote) + "</span>" : "") +
+        '<span class="foot">' + (r.since ? '<span class="since">' + fill(esc(T.since), { when: bdi(when(r.since, now)) }) + "</span>" : "") +
+        (can ? '<span class="cta">' + icon("reply") + "<span>" + esc(T.draft) + "</span></span>" : "") + "</span>";
+      var label = fill(T.draftLabel, { who: who, wants: wants });
+      html += '<div class="row pop-in" style="animation-delay:' + (i * 60) + 'ms">' + face(who, r.kind) +
+        (can ? '<button class="bub" type="button" data-act="' + act + '" data-i="' + i + '" aria-label="' + esc(label) + '">' + inner + "</button>"
+          : '<div class="bub">' + inner + "</div>") + "</div>";
+    });
+    return html + "</div></section>";
+  }
+
+  function promisesSection(d, now) {
+    var rows = list(d.promises).filter(function (r) { return text(r.what); });
+    if (!rows.length) return "";
+    var can = !S.example ? V2 && canEdit() : true;
+    var act = S.example ? "example" : "promise";
+    var html = "<section>" + tag("t-promise", T.promisesTitle, rows.length) + '<div class="notes">';
+    rows.forEach(function (r, i) {
+      var to = text(r.to, 80), what = text(r.what, 140);
+      var inner = '<span class="to" dir="auto">' + esc(to) + '</span><span class="what" dir="auto">' + esc(what) + "</span>" +
+        '<span class="when"><span>' + (r.said ? fill(esc(T.said), { when: bdi(when(r.said, now)) }) : "") + "</span>" + (can ? icon("arrow").replace("<svg", '<svg class="flip"') : "") + "</span>";
+      html += can ? '<button class="note" type="button" data-act="' + act + '" data-i="' + i + '" aria-label="' + esc(fill(T.promiseLabel, { to: to, what: what })) + '">' + inner + "</button>"
+        : '<div class="note">' + inner + "</div>";
+    });
+    return html + "</div></section>";
+  }
+
+  function plansSection(d, week, now) {
+    var rows = list(d.plans).slice();
+    if (week && !S.example) {
+      var seen = {};
+      rows.forEach(function (r) { seen[text(r.when) + "|" + text(r.what)] = true; });
+      list(week.plans).forEach(function (r) { if (!seen[text(r.when) + "|" + text(r.what)]) rows.push(r); });
+    }
+    rows = rows.filter(function (r) { var p = parseWhen(r.when); return text(r.what) && p && daysBetween(now, p.date) >= 0; });
+    rows.sort(function (a, b) { return parseWhen(a.when).date - parseWhen(b.when).date; });
+    var html = "<section>" + tag("t-plan", T.plansTitle, rows.length);
+    if (!rows.length) html += '<div class="empty">' + esc(T.plansEmpty) + "</div>";
+    else {
+      html += '<div class="tickets">';
+      rows.slice(0, 8).forEach(function (r) {
+        var p = parseWhen(r.when);
+        var isToday = daysBetween(now, p.date) === 0;
+        var where = text(r.where, 80), who = text(r.who, 80);
+        html += '<div class="ticket' + (isToday ? " today" : "") + '"><div class="day"><span class="wd">' + esc(isToday ? T.today : fmtWeekday.format(p.date)) +
+          '</span><span class="dn">' + esc(String(p.date.getDate())) + "</span>" + (p.hasTime ? '<span class="tm">' + esc(clock(p.date)) + "</span>" : "") +
+          '</div><div class="body"><div class="what" dir="auto">' + esc(text(r.what, 140)) + '</div><div class="sub">' +
+          (who ? "<span>" + icon(r.kind === "group" ? "group" : "person") + '<bdi dir="auto">' + esc(who) + "</bdi></span>" : "") +
+          (where ? "<span>" + icon("pin") + '<bdi dir="auto">' + esc(where) + "</bdi></span>" : "") + "</div></div></div>";
+      });
+      html += "</div>";
+    }
+    var c = cal(), actions = "";
+    if (rows.length && V2 && canEdit() && !S.example && c) {
+      if (c.state === "connected" && c.canChange !== false) actions = '<button class="softbtn" type="button" data-act="calendar">' + icon("calendar") + esc(T.toCalendar) + "</button>";
+      else if (c.state === "not-added" && c.canConnect) actions = '<button class="softbtn" type="button" data-act="connect-calendar">' + icon("calendar") + esc(T.connectCalendar) + "</button>";
+    }
+    return html + (actions ? '<div class="soft-actions">' + actions + "</div>" : "") + "</section>";
+  }
+
+  function pricesSection(d, now) {
+    var rows = list(d.prices).filter(function (r) { return text(r.amount); });
+    if (!rows.length) return "";
+    var html = "<section>" + tag("t-price", T.pricesTitle, rows.length) + '<div class="prices">';
+    rows.slice(0, 8).forEach(function (r) {
+      var sub = [text(r.who, 80), r.said ? when(r.said, now) : ""].filter(Boolean);
+      html += '<div class="price"><span class="amount"><bdi>' + esc(text(r.amount, 30)) + '</bdi></span><div class="body"><div class="for" dir="auto">' +
+        esc(text(r["for"], 120)) + '</div><div class="sub">' + sub.map(function (s) { return '<bdi dir="auto">' + esc(s) + "</bdi>"; }).join(" · ") + "</div></div>" +
+        (r.agreed === true ? '<span class="stamp yes">' + esc(T.agreed) + "</span>" : '<span class="stamp no">' + esc(T.notAgreed) + "</span>") + "</div>";
+    });
+    return html + "</div></section>";
+  }
+
+  function chatsSection(d, now) {
+    var rows = list(d.chats).filter(function (r) { return text(r.who); });
+    if (!rows.length) return "";
+    var html = "<section>" + tag("t-chats", T.chatsTitle, 0) + '<div class="list">';
+    rows.slice(0, 6).forEach(function (r) {
+      var n = typeof r.messages === "number" ? r.messages : parseInt(r.messages, 10);
+      html += '<div class="item">' + face(r.who, r.kind, true) + '<div class="body"><div class="name" dir="auto">' + esc(text(r.who, 80)) +
+        '</div><div class="sub" dir="auto">' + esc(text(r.about, 120)) + "</div></div>" +
+        (n > 0 ? '<span class="count" aria-label="' + esc(n === 1 ? T.messages1 : fill(T.messages, { n: n })) + '">' + esc(String(n)) + "</span>" : "") + "</div>";
+    });
+    return html + "</div></section>";
+  }
+
+  function filesSection(d, now) {
+    var rows = list(d.files).filter(function (r) { return text(r.who); });
+    if (!rows.length) return "";
+    var names = { photo: T.photo, video: T.video, "voice note": T.voice, file: T.file };
+    var icons = { photo: "photo", video: "video", "voice note": "voice", file: "file" };
+    var html = "<section>" + tag("t-files", T.filesTitle, 0) + '<div class="list">';
+    rows.slice(0, 6).forEach(function (r) {
+      var type = text(r.type).toLowerCase();
+      var caption = text(r.caption, 120) || names[type] || T.file;
+      html += '<div class="item"><span class="ficon">' + icon(icons[type] || "file") + '</span><div class="body"><div class="name" dir="auto">' + esc(caption) +
+        '</div><div class="sub"><bdi dir="auto">' + esc(text(r.who, 80)) + "</bdi>" + (r.said ? " · <bdi>" + esc(when(r.said, now)) + "</bdi>" : "") + "</div></div></div>";
+    });
+    return html + "</div></section>";
+  }
+
+  function footer() {
+    if (!V2 || S.example) return "";
+    var links = [];
+    if (S.saved && S.saved.length) links.push('<a href="#" data-act="open" data-to="' + CHATS + '/all-conversations">' + esc(T.allChats) + "</a>");
+    if (canEdit()) links.push('<a href="#" data-act="prefs">' + esc(T.preferences) + "</a>");
+    return links.length ? '<div class="foot-links">' + links.join("") + "</div>" : "";
+  }
+
+  function render() {
+    pill();
+    refreshButton();
+    composer();
+    if (!S.loaded) {
+      $("main").innerHTML = '<div class="hero"><div class="helper">' + icon("helper") + '</div><div class="say"><div class="who-says">' + esc(T.helper) +
+        '</div><div class="meta"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span></div></div></div>';
+      return;
+    }
+    banner();
+    var d = S.data;
+    var html = lead();
+    var mine = d && !S.example;
+    var showData = d && (mine || !V2 || !wa() || wa().state !== "connected");
+    if (showData && S.example) {
+      html += '<p class="tape" role="note">' + icon("alert") + "<span><b>" + esc(T.exampleMark) + "</b> " + esc(T.exampleTape) + "</span></p>";
+    }
+    if (showData) {
+      var now = S.example ? (parseWhen(d.generatedAt) || { date: new Date() }).date : new Date();
+      html += hero(d, now) + '<div class="grid"><div class="col">' + waitingSection(d, now) + promisesSection(d, now) + chatsSection(d, now) +
+        '</div><div class="col">' + plansSection(d, S.week, now) + pricesSection(d, now) + filesSection(d, now) + "</div></div>" + footer();
+    }
+    $("main").innerHTML = html;
+  }
+
+  /* ── Presses ─────────────────────────────────────────────────────── */
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest ? event.target.closest("[data-act]") : null;
+    if (!el) return;
+    var act = el.getAttribute("data-act"), d = S.data || {};
+    var i = parseInt(el.getAttribute("data-i"), 10);
+    if (act === "connect") connect("whatsapp");
+    else if (act === "connect-calendar") connect("google-calendar");
+    else if (act === "refresh") refresh();
+    else if (act === "draft") {
+      var w = list(d.waiting).filter(function (r) { return text(r.who); })[i];
+      if (w) ask(fill(T.draftAsk, { who: text(w.who, 80), wants: text(w.wants, 140) || text(w.quote, 140) }));
+    } else if (act === "promise") {
+      var p = list(d.promises).filter(function (r) { return text(r.what); })[i];
+      if (p) ask(fill(T.promiseAsk, { to: text(p.to, 80), what: text(p.what, 140) }));
+    } else if (act === "calendar") ask(T.calendarAsk);
+    else if (act === "example") toast(T.exampleOnly);
+    else if (act === "prefs") {
+      event.preventDefault();
+      if (V2) cab.ask(T.prefsAsk, { send: false }).then(function () { toast(T.opening); }, said);
+    } else if (act === "open") {
+      event.preventDefault();
+      openInCabinet(el.getAttribute("data-to"), event);
+    }
   });
 
-  /* ---- the run file ------------------------------------------------------------------ */
+  $("ask").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var input = $("ask-input"), q = input.value.trim();
+    if (!q) { input.focus(); return; }
+    if (!V2) return;
+    cab.ask(q).then(function () { input.value = ""; toast(T.opening); }, said);
+  });
 
-  function cells(line) {
-    var t = line.trim(), out = [], cur = '';
-    if (t.charAt(0) === '|') t = t.slice(1);
-    if (t.slice(-1) === '|' && t.slice(-2) !== '\\|') t = t.slice(0, -1);
-    for (var i = 0; i < t.length; i++) {
-      var c = t.charAt(i);
-      if (c === '\\' && t.charAt(i + 1) === '|') { cur += '|'; i++; continue; }
-      if (c === '|') { out.push(cur); cur = ''; continue; }
-      cur += c;
-    }
-    out.push(cur);
-    return out.map(function (x) { return x.trim().replace(/^\*\*(.*)\*\*$/, '$1').replace(/^`(.*)`$/, '$1'); });
+  /* ── Start ───────────────────────────────────────────────────────── */
+  document.title = "WhatsApp Catch-Up";
+  $("subtitle").textContent = T.subtitle;
+  $("ask-label").textContent = T.askLabel;
+  $("ask-input").placeholder = T.askPlaceholder;
+  $("ask-send").setAttribute("aria-label", T.askSend);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-icon]"), function (el) { el.innerHTML = icon(el.getAttribute("data-icon")); });
+  $("chips").innerHTML = T.questions.map(function (q) { return '<button class="chip" type="button" data-q="' + esc(q) + '">' + esc(q) + "</button>"; }).join("");
+  $("chips").addEventListener("click", function (event) {
+    var chip = event.target.closest ? event.target.closest("[data-q]") : null;
+    if (chip) ask(chip.getAttribute("data-q"));
+  });
+
+  function watchJobs(jobs) {
+    var job = (jobs || []).filter(function (j) { return j.id === JOB; })[0] || (jobs || [])[0] || null;
+    var wasRunning = S.job && S.job.running;
+    S.job = job;
+    if (wasRunning && job && !job.running) loadData();
+    render();
   }
 
-  function norm(s) {
-    return String(s).toLowerCase().replace(/[‘’`]/g, "'").replace(/\s+/g, ' ').trim();
-  }
-
-  /* Frontmatter, then "## " sections that each hold one markdown table. */
-  function parse(text) {
-    var out = { meta: {}, sections: {} };
-    var src = String(text).replace(/\r\n/g, '\n');
-    var m = src.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-    var body = src;
-    if (m) {
-      body = m[2];
-      m[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
-        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
-      });
-    }
-    var current = null;
-    body.split('\n').forEach(function (line) {
-      var h = line.match(/^##\s+(.+?)\s*#*\s*$/);
-      if (h) {
-        current = { lines: [] };
-        out.sections[norm(h[1])] = current;
-        return;
-      }
-      if (current && line.trim().charAt(0) === '|') current.lines.push(line);
-    });
-    Object.keys(out.sections).forEach(function (key) {
-      var lines = out.sections[key].lines;
-      var rows = [];
-      if (lines.length) {
-        var cols = cells(lines[0]).map(norm);
-        var start = lines[1] && /^[\s|:-]+$/.test(lines[1]) ? 2 : 1;
-        lines.slice(start).forEach(function (line) {
-          var r = cells(line);
-          if (!r.join('').trim()) return;
-          var row = {};
-          cols.forEach(function (c, i) { row[c] = r[i] || ''; });
-          rows.push(row);
-        });
-      }
-      out.sections[key] = rows;
-    });
-    return out;
-  }
-
-  /* "chat-...4410" (a folder name with its number cut to four digits) matches the one
-     saved folder of that kind ending in those digits. Anything else must match exactly.
-     A row whose folder is not saved here draws as plain text, never a broken link. */
-  function resolveFolder(cell) {
-    var f = String(cell || '').trim().replace(/^whatsapp\//, '').replace(/\/+$/, '');
-    if (!f || f === CONVERSATIONS) return null;
-    if (folders.indexOf(f) > -1) return f;
-    var m = f.match(/^(chat|group)-(?:\.{2,3}|…)(\d{4})$/);
-    if (!m) return null;
-    var hits = folders.filter(function (name) {
-      var rest = name.slice(m[1].length + 1);
-      return name.indexOf(m[1] + '-') === 0 && /^\d+$/.test(rest) && rest.slice(-4) === m[2];
-    });
-    return hits.length === 1 ? hits[0] : null;
-  }
-
-  function rowHtml(card, r) {
-    var lead = capitalFirst(r[card.lead] || '');
-    var text = r[card.text] || '';
-    if (card.label) {
-      var label = capitalFirst((r[card.label] || '').trim());
-      text = label && text ? label + ': ' + text : (label || text);
-    }
-    var dir = strongDir(text) || strongDir(lead);
-
-    var l1 = '<span class="lead">' +
-      (card.leadIsNumber ? numberSpan(lead, card.lead === 'amount' ? 'amount' : '') : textSpan(lead)) +
-      '</span>';
-    var asideText = card.aside ? card.aside(r) : '';
-    var pill = card.pill ? card.pill(r) : '';
-    if (asideText || pill) {
-      l1 += '<span class="aside">' + (asideText ? numberSpan(asideText) : '') +
-        (pill ? ' <bdi class="pill">' + esc(pill) + '</bdi>' : '') + '</span>';
-    }
-
-    var metaBits = card.meta.map(function (col) {
-      var v = (r[col] || '').trim();
-      if (!v) return '';
-      return col === 'date' ? numberSpan(v) : textSpan(v);
-    }).filter(Boolean);
-
-    var inner = '<span class="l1">' + l1 + '</span>' +
-      (text ? '<span class="l2">' + textSpan(text) + '</span>' : '') +
-      (metaBits.length ? '<span class="meta">' +
-        metaBits.join('<span class="sep" aria-hidden="true">&middot;</span>') + '</span>' : '');
-
-    var folder = resolveFolder(r.folder);
-    var dirAttr = dir ? ' dir="' + dir + '"' : '';
-    if (folder) {
-      return '<li><a class="row" data-shell href="' + esc(workspaceUrl('whatsapp/' + folder)) +
-        '" target="_top"' + dirAttr + '>' + inner + '</a></li>';
-    }
-    return '<li><div class="row"' + dirAttr + '>' + inner + '</div></li>';
-  }
-
-  function planKey(r) { return norm(r.when || '') + '|' + norm(r.folder || ''); }
-
-  function rowsHtml(card, rows) {
-    return '<ul class="rows">' + rows.map(function (r) { return rowHtml(card, r); }).join('') + '</ul>';
-  }
-
-  function render(data, week) {
-    var meta = data.meta;
-    var html = '';
-
-    if (meta.status && meta.status !== 'ok') {
-      html += '<div class="note warn" dir="auto">The last catch-up did not finish: ' +
-        withBdi(meta.status) + '. What it could read is below.</div>';
-    }
-
-    html += '<div class="grid">';
-    CARDS.forEach(function (card) {
-      var rows = data.sections[card.key] || [];
-      var weekRows = card.key === 'plans and dates' && week ? (week.sections[card.key] || []) : [];
-      /* The morning file carries plans still ahead, so a plan can be in both files: show it once. */
-      var seen = rows.map(planKey);
-      weekRows = weekRows.filter(function (r) { return !r.when || seen.indexOf(planKey(r)) === -1; });
-      var total = rows.length + weekRows.length;
-      html += '<section class="card" aria-label="' + esc(card.title) + '">' +
-        '<div class="card-head"><span class="tick" style="background:' + card.tick + '"></span>' +
-        '<h2>' + esc(card.title) + '</h2>' +
-        (total ? '<span class="count">' + total + '</span>' : '') + '</div>';
-      html += rows.length ? rowsHtml(card, rows) : '<div class="empty">' + esc(card.empty) + '</div>';
-      if (weekRows.length) {
-        html += '<div class="sub-head">This week</div>' + rowsHtml(card, weekRows);
-      }
-      html += '</section>';
-    });
-    html += '</div>';
-    root.innerHTML = html;
-  }
-
-  function strip(meta, isExample) {
-    var el = document.getElementById('strip');
-    var bits = [];
-    if (meta && meta.generated) {
-      bits.push('<div class="stat"><span>Updated</span><b>' + numberSpan(prettyStamp(meta.generated)) + '</b></div>');
-    }
-    if (meta && /^\d+$/.test(meta.chats || '')) {
-      bits.push('<div class="stat"><b>' + esc(meta.chats) + '</b><span>' +
-        (meta.chats === '1' ? 'chat read' : 'chats read') + '</span></div>');
-    }
-    var next = nextRunText();
-    if (next) bits.push('<div class="stat">' + next + '</div>');
-    el.innerHTML = bits.join('');
-    document.getElementById('flag').hidden = !isExample;
-  }
-
-  /* "2026-09-14 07:30" becomes "14 Sep 07:30"; anything else is shown as written. */
-  function prettyStamp(s) {
-    var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
-    return m ? (+m[3]) + ' ' + MONTHS[+m[2] - 1] + ' ' + m[4] + ':' + m[5] : s;
-  }
-
-  function foot(hasConversations) {
-    var el = document.getElementById('foot');
-    var html = '';
-    if (hasConversations) {
-      html += '<a class="quiet" data-shell target="_top" href="' +
-        esc(workspaceUrl('whatsapp/' + CONVERSATIONS)) + '">All conversations</a>';
-    }
-    html += '<span>WhatsApp Catch-Up &middot; reads <code>catch-up/</code> in this cabinet.</span>';
-    el.innerHTML = html;
-  }
-
-  /* ---- the folder listing ------------------------------------------------------------ */
-
-  /* 2026-09-14T07-30-00-catch-up.md: the name carries the local time of the run. */
-  function stamp(name) {
-    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-(catch-up|week-ahead)\.md$/);
-    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
-  }
-  function kindOf(name) {
-    var m = name.match(/-(catch-up|week-ahead)\.md$/);
-    return stamp(name) && m ? m[1] : null;
-  }
-
-  /* When the data folder is itself a cabinet, the tree is one node with path "." whose
-     children keep their plain paths ("my-cabinet/catch-up"), so "." is looked through. */
-  function findNode(nodes, path) {
-    var list = nodes || [];
-    for (var i = 0; i < list.length; i++) {
-      var n = list[i];
-      if (!n || !n.path) continue;
-      if (n.path === path) return n;
-      if (n.path === '.' || path.indexOf(n.path + '/') === 0) {
-        var hit = findNode(n.children, path);
-        if (hit) return hit;
-      }
-    }
-    return null;
-  }
-
-  /* Direct .md children of a folder. The tree drops ".md" from `path` but keeps it on
-     `name`, so `name` is what gets fetched. */
-  function mdFiles(node) {
-    return ((node && node.children) || []).filter(function (n) {
-      return n && /\.md$/i.test(n.name || '');
-    }).map(function (n) { return n.name; });
-  }
-
-  function chatFolders(node) {
-    return ((node && node.children) || []).filter(function (n) {
-      return n && n.name && n.name !== CONVERSATIONS && n.name.indexOf('.') !== 0 &&
-        (n.type === 'directory' || (n.children && n.children.length));
-    }).map(function (n) { return n.name; });
-  }
-
-  function fetchText(name) {
-    return fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      });
-  }
-
-  /* ---- when the routine next runs -----------------------------------------------------
-     Read off this cabinet's own job file, so an edited or paused schedule shows the truth.
-     Cron is evaluated in the browser's time zone, the same computer the routine runs on. */
-  function field(spec, min, max) {
-    var set = {};
-    spec.split(',').forEach(function (part) {
-      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
-      if (bits[0] !== '*') {
-        var r = bits[0].split('-');
-        lo = +r[0];
-        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
-      }
-      for (var v = lo; v <= hi; v += step) set[v] = true;
-    });
-    return set;
-  }
-
-  function nextRun(cron, from) {
-    var f = cron.trim().split(/\s+/);
-    if (f.length !== 5) return null;
-    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
-        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
-    if (dows[7]) dows[0] = true;
-    var d = new Date(from.getTime() + 60000);
-    d.setSeconds(0, 0);
-    for (var i = 0; i < 8 * 1440; i++) {
-      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
-          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
-      d = new Date(d.getTime() + 60000);
-    }
-    return null;
-  }
-
-  function nextRunText() {
-    if (!job) return '';
-    if (job.enabled === 'false') return '<span>Morning catch-up paused</span>';
-    if (!job.schedule) return '';
-    var d = nextRun(job.schedule, new Date());
-    if (!d) return '';
-    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    return '<span>Next</span><b>' + numberSpan(DAYS[d.getDay()] + ' ' + d.getDate() + ' ' +
-      MONTHS[d.getMonth()] + ' ' + clock) + '</b>';
-  }
-
-  /* ---- load --------------------------------------------------------------------------- */
-
-  Promise.all([
-    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }),
-    /* The schedule is a nicety: a missing or renamed job file never breaks the page. */
-    fetch('../' + JOB, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .catch(function () { return ''; })
-  ])
-    .then(function (both) {
-      var tree = both[0];
-      job = {};
-      both[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
-      });
-
-      var wa = findNode(tree, inCabinet('whatsapp'));
-      folders = chatFolders(wa);
-      foot(!!findNode(tree, inCabinet('whatsapp/' + CONVERSATIONS)));
-
-      var names = mdFiles(findNode(tree, inCabinet(DIR)));
-      var byNewest = function (a, b) { return stamp(b) - stamp(a); };
-      var runs = names.filter(function (n) { return kindOf(n) === 'catch-up'; }).sort(byNewest);
-      var weeks = names.filter(function (n) { return kindOf(n) === 'week-ahead'; }).sort(byNewest);
-      var hasExample = names.indexOf(EXAMPLE) > -1;
-
-      var current = runs[0] || (hasExample ? EXAMPLE : null);
-      if (!current) {
-        strip(null, false);
-        root.innerHTML = '<div class="note">Nothing yet. This page fills in after the first ' +
-          'morning catch-up, once you choose chats for this cabinet on the WhatsApp page in ' +
-          'Integrations.</div>';
-        return;
-      }
-      var isExample = current === EXAMPLE;
-      var recentWeek = !isExample && weeks[0] && (Date.now() - stamp(weeks[0]).getTime() < WEEK_MS)
-        ? weeks[0] : null;
-
+  if (V2) {
+    Promise.resolve(cab.ready).catch(function () {}).then(function () {
       return Promise.all([
-        fetchText(current),
-        recentWeek ? fetchText(recentWeek).catch(function () { return ''; }) : ''
-      ]).then(function (texts) {
-        var data = parse(texts[0]);
-        var week = texts[1] ? parse(texts[1]) : null;
-        strip(data.meta, isExample);
-        if (data.meta.headline) {
-          var sub = document.getElementById('sub');
-          sub.innerHTML = withBdi(data.meta.headline);
-        }
-        render(data, week);
-        if (isExample) {
-          root.insertAdjacentHTML('afterbegin', '<div class="note">These chats are made up, to show ' +
-            'what the page looks like. Your first morning catch-up replaces them.</div>');
-        }
-      }).catch(function (err) {
-        strip(null, isExample);
-        root.innerHTML = '<div class="note">Could not read <code>' + esc(DIR + '/' + current) +
-          '</code> (' + esc(err.message) + '). It may still be being written. Reload in a moment.</div>';
-      });
-    })
-    .catch(function (err) {
-      strip(null, false);
-      root.innerHTML = '<div class="note">Could not list <code>' + DIR + '/</code> (' +
-        esc(err.message) + '). Reload in a moment.</div>';
+        cab.here().then(function (h) {
+          S.appPath = (h && h.appPath) || S.appPath;
+          S.cabinetPath = (h && h.cabinetPath) || "";
+          S.role = (h && h.role) || "owner";
+        }, function () {}),
+        cab.connectors.list().then(function (l) { S.connectors = l; }, function () { S.connectors = []; }),
+        cab.jobs.list().then(watchJobs, function () {})
+      ]);
+    }).then(function () {
+      cab.connectors.onChange(function (l) { S.connectors = l; loadSaved(); render(); });
+      cab.jobs.onChange(watchJobs);
+      cab.files.onChange(S.appPath + "/data", loadData);
+      cab.files.onChange(CHATS, loadSaved);
+      loadSaved();
+      return loadData();
     });
+  } else {
+    loadData();
+  }
 })();
 </script>
 </body>
