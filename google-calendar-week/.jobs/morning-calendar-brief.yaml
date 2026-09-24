@@ -6,29 +6,130 @@ provider: claude-code
 adapterType: claude_local
 ownerAgent: calendar-briefer
 agentSlug: calendar-briefer
-timeout: 600
+timeout: 900
 prompt: |-
-  Write this morning's calendar brief.
+  Update the Calendar Brief app and the client pages: this week's agenda, and the client
+  list built from the calendar.
 
-  Your working directory is the cabinet root. Every summary lives in `daily-summaries/`,
-  one file per run, named `<YYYY-MM-DD>T<HH-MM-SS>-calendar-summary.md`: the local time
-  you ran, then that exact postfix. The page reads the folder, sorts by the name and opens
-  the newest, so a name in any other shape is a summary nobody will see. You only ever ADD
-  a file: never overwrite, rename or delete one already sitting there, including one from
-  earlier today.
+  Your working directory is the cabinet root. You write only
+  `calendar-brief/data/latest.json` (the app draws it), `clients/index.md` and one page per
+  client in `clients/`. Never touch `calendar-brief/index.html`,
+  `calendar-brief/data/EXAMPLE-latest.json` or any other file. Your persona says who is a
+  client, the kinds, and the shape of the pages; this prompt does not repeat them.
 
-  1. Read your persona before anything else. It holds the frontmatter shape, the table
-     columns, the `Day` vocabulary and the tone. This prompt does not repeat them.
-  2. Read the user's calendar with the Google Calendar skill, or the claude.ai Google
-     Calendar tools if that is how it is connected: every event from today through the
-     end of this week, on the primary calendar. Read only. Skip anything already
-     declined.
-  3. This run is read only. Do not create, move, shorten, cancel or respond to anything,
-     however obvious the fix looks. Acting on the calendar happens only when the
-     user asks for it in chat.
-  4. If a calendar call fails, say which way in you tried and what it said, touch no file,
-     and stop. Leave `daily-summaries/` exactly as you found it, example and all.
-  5. On the first run that does reach the calendar, write your dated file and then delete
-     `daily-summaries/EXAMPLE-calendar-summary.md`. It is a demo, not a past summary, and
-     it must not sit in the date list beside real ones. Do not merge with it, do not
-     rename it, and never write `EXAMPLE` into a name of your own.
+  1. Find today's date, the time now and the calendar's time zone.
+  2. Read the person's primary calendar from midnight 90 days ago to midnight 30 days
+     ahead. The "Connections this cabinet uses" section of your instructions says how:
+     - "connected through Sign in with Google": use `gws`, Google's own Workspace command
+       line tool. It is on your PATH and signs itself in with this run's token; never
+       print, copy or write the token, and never run `gws auth`. Ask:
+
+       gws calendar events list --params '{"calendarId":"primary","timeMin":"<midnight 90 days ago, with offset>","timeMax":"<midnight 30 days ahead, with offset>","singleEvents":true,"orderBy":"startTime","maxResults":2500,"fields":"items(id,status,summary,start,end,location,htmlLink,attendees(email,displayName,responseStatus,resource,self)),nextPageToken,timeZone"}'
+
+       It prints the calendar's own JSON: `timeZone`, and `items`, each with `id`,
+       `status`, `summary`, `start`, `end`, `location`, `htmlLink` and `attendees`
+       (`email`, `displayName`, `responseStatus`, `self`; skip the ones with
+       `resource: true`, which are rooms). If it also prints a `nextPageToken`, run it
+       again with `--page-all` added. Do not use `gws calendar +agenda` here: it gives
+       no guests.
+     - "connected by its secret address": read the same days through the Google Calendar
+       skill, at most 62 days per ask. It only reads. Its events carry `guests` (`name`,
+       `email`, `response`); the person's own address is the calendar's `label`. In an older
+       Cabinet they may have no guests: then only titles can name a client.
+     Leave out events whose `status` is cancelled, and events the person declined (their
+     own entry in the guests says declined).
+  3. This run only reads. Do not create, move, shorten, cancel or answer any event, however
+     obvious the fix looks. Changes happen only in chat, when the person asks for one.
+  4. If you could not read the calendar, write no page. Change only
+     `calendar-brief/data/latest.json`, with one plain sentence as its `status`:
+     - Google Calendar is not connected: no Connections line says it is, or gws exits with
+       code 2 (`error[auth]`, no credentials; its text says 401 too, and suggests
+       `gws auth login`, which you never run): "Google Calendar isn't connected yet."
+     - Google refused the sign-in: gws exits with code 1 and its answer has `401` or
+       `UNAUTHENTICATED`: "Google Calendar needs you to sign in again." Also add
+       `NEEDS_CONNECTION: google-calendar | Google needs a new sign-in` inside your cabinet
+       block.
+     - Google did not allow reading the calendar (`403`, `insufficientPermissions` or
+       `ACCESS_TOKEN_SCOPE_INSUFFICIENT`): "Cabinet isn't allowed to read your calendar."
+       Do not try again.
+     - Google is busy (`429`, or a code of 500 or more): try once more after a few seconds.
+       If that fails too, or anything else goes wrong: "Couldn't reach Google Calendar this
+       morning."
+     If the file exists, set its `status` to that sentence and its `checkedAt` to now, and
+     keep everything else as it is. If it does not exist, write
+     {"generatedAt": null, "checkedAt": "<now>", "status": "<that sentence>", "events": [], "clients": []}.
+     Then stop.
+  5. Work out the clients from everything you read, as your persona says. A short script is
+     fine; check its numbers against a few events by hand. For each client:
+     - `id`: a short lowercase slug of the name, like `brightline-realty`.
+     - `contact`: the person from there met most often.
+     - `meetings90`: client meetings in the last 90 days, up to now.
+     - `firstMet` and `lastMet`: the first and the latest of those, or null.
+     - `next`: the first client meeting from now on, as {"date", "start", "title"}, or null.
+     - `hoursMonth`: hours of client meetings from the 1st of this month up to now, to the
+       nearest half hour.
+     - `status`: `quiet` when there is no meeting in the last 45 days and none booked;
+       `new` when the first meeting, or the first booking, is this month; else `active`.
+     Sort new first, then active by next meeting, then quiet by last met. At most 60.
+  6. Replace `calendar-brief/data/latest.json` with exactly this shape:
+
+     {
+       "generatedAt": "2026-09-25T07:02:00-04:00",
+       "checkedAt": "2026-09-25T07:02:00-04:00",
+       "status": "ok",
+       "timeZone": "America/New_York",
+       "today": "2026-09-25",
+       "canChange": false,
+       "business": "Prairie Air Heating & Cooling",
+       "headline": "9 client meetings this week, and Thursday afternoon is open.",
+       "note": "Kessler & Sons hasn't been on your calendar since July.",
+       "events": [
+         {
+           "id": "the event's own id",
+           "date": "2026-09-25",
+           "start": "09:30",
+           "end": "10:30",
+           "allDay": false,
+           "title": "Office AC replacement quote",
+           "place": "Summit Insurance, 2200 Main St",
+           "people": ["Greg Novak"],
+           "morePeople": 0,
+           "kind": "client",
+           "client": "summit-insurance",
+           "link": "https://www.google.com/calendar/event?eid=..."
+         }
+       ],
+       "clients": [
+         {
+           "id": "summit-insurance",
+           "name": "Summit Insurance Group",
+           "contact": "Greg Novak",
+           "meetings90": 1,
+           "firstMet": "2026-09-15",
+           "lastMet": "2026-09-15",
+           "next": { "date": "2026-09-25", "start": "09:30", "title": "Office AC replacement quote" },
+           "hoursMonth": 1,
+           "status": "new"
+         }
+       ]
+     }
+
+     - `generatedAt` and `checkedAt`: now, with the offset. `today`: today's date.
+     - `canChange`: true only when your Connections line for Google Calendar says "may read
+       and change events" (or `CABINET_GOOGLE_ACCESS` has `calendar=change`); you still
+       change nothing here. false when it says read only, as the secret address always
+       does. null if you cannot tell.
+     - `business`: the owner's business name when the calendar shows it, else null.
+     - `headline`: the week in business, at most 80 characters. `note`: the one thing worth
+       acting on, like a good client going quiet. Leave `note` out when nothing stands out.
+     - `events`: only the seven days from today, all of them, each with a `kind`; a client
+       meeting's `client` is its row's `id`, else null. `date`, `start` and `end` in the
+       calendar's own time zone, `start` and `end` as 24-hour `HH:MM`. An all-day event has
+       `allDay: true`, `start` and `end` null, and `lastDate` (its last day, not the day
+       after) when it covers more than one day. `link` is the event's `htmlLink`, else
+       null. Sort by date, then all-day first, then by start time. At most 80.
+  7. Update the client pages in `clients/`, in the shapes your persona gives: rewrite
+     `clients/index.md` whole; create `clients/<id>.md` for a client that has no page yet;
+     on a page that exists, rewrite only the frontmatter and the summary line under the
+     title, and keep everything from `## Notes` down exactly as it is. Never delete or
+     rename a page.
