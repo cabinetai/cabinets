@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <!--
-  WhatsApp Catch-Up: who is waiting for you, what you promised, what you planned.
+  WhatsApp Catch-Up: the customer line. Who is waiting for an answer and for how
+  long, quotes and appointments agreed in chats, promises to keep, and ideas for
+  the business, from the WhatsApp chats the person picked.
 
   Reads data/latest.json (the morning routine) and data/week.json (Sunday's week
-  ahead) inside this app folder; data/EXAMPLE-latest.json is the made-up example
-  shown until WhatsApp is connected. The shape is in DATA.md beside this file.
+  ahead) in this app folder; data/EXAMPLE-latest.json is a made-up business shown
+  until WhatsApp is connected. DATA.md beside this file has the shape.
 
   Talks to Cabinet only through window.cabinet (v2): the connection state and
-  Cabinet's own connect flow, the routine (Refresh), files, and ask (drafts and
-  questions go to the cabinet's chat, where nothing is sent without a yes).
-  An older Cabinet has no v2: the page then reads its files by URL and says how
-  to connect in words. One file on purpose: a sealed frame loads nothing beside it.
+  Cabinet's own connect flow, the routine (Refresh), files, and ask (drafts,
+  questions and ideas go to the cabinet's chat, where nothing is sent without a
+  yes). An older Cabinet has no v2: the page reads its files by URL and says how
+  to connect. One file on purpose: a sealed frame loads nothing beside it.
 -->
 <html lang="en" dir="ltr">
 <head>
@@ -19,375 +21,297 @@
 <title>WhatsApp Catch-Up</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Heebo:wght@400;500;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap">
 <style>
   :root {
-    --ink: #0b3b2e;
-    --ink-2: #2f5f50;
-    --ink-3: #557f71;
-    --paper: #ffffff;
-    --wall: #dcf8e8;
-    --wall-2: #c3f1d6;
-    --green: #25d366;
-    --green-2: #1fbf5b;
-    --deep: #075e54;
-    --me: #d9fdd3;
-    --yellow: #ffd84d;
-    --pink: #ff9cc2;
-    --sky: #8ad8ff;
-    --orange: #ffb35c;
-    --lilac: #cdbaff;
-    --mint: #9ff0c3;
-    --red: #ff6b6b;
-    --line: 3px solid var(--ink);
-    --pop: 5px 5px 0 var(--ink);
-    --pop-sm: 3px 3px 0 var(--ink);
-    --radius: 26px;
-    --accent: #075e54;
-    --yes: #0a8043;
-    --no: #b25d00;
-    --btn-bg: #ffffff;
-    --btn-fg: #0b3b2e;
-    --text: #0b3b2e;
-    --font: "Rubik", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans Hebrew", sans-serif;
-    --doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%230b3b2e' stroke-opacity='.09' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 22h34a9 9 0 0 1 9 9v14a9 9 0 0 1-9 9H33l-10 8v-8h-5a9 9 0 0 1-9-9V31a9 9 0 0 1 9-9z'/%3E%3Cpath d='M112 18l5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z'/%3E%3Cpath d='M40 118c-7-7-15-12-15-20a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 8-8 13-15 20z'/%3E%3Cpath d='M104 104l9 9 18-20'/%3E%3Ccircle cx='140' cy='140' r='5'/%3E%3Ccircle cx='80' cy='72' r='3'/%3E%3Cpath d='M70 140h22M81 129v22'/%3E%3C/g%3E%3C/svg%3E");
+    --bg: #f6f2e8;
+    --surface: #ffffff;
+    --surface-2: #faf8f2;
+    --ink: #10231c;
+    --ink-2: #3d564b;
+    --ink-3: #66796f;
+    --line: #e4ddcd;
+    --line-2: #eee9dc;
+    --brand: #0d4a35;
+    --brand-2: #13694b;
+    --brand-ink: #ffffff;
+    --brand-soft: #e2efe7;
+    --wa: #25d366;
+    --hero: #0e3a2c;
+    --hero-2: #145240;
+    --hero-ink: #f6f2e8;
+    --hero-muted: #b9d1c5;
+    --red: #a3392b;
+    --red-soft: #f8e4df;
+    --amber: #8a5a0b;
+    --amber-soft: #f8ecd2;
+    --blue: #245479;
+    --blue-soft: #e3ecf4;
+    --shadow: 0 1px 2px rgba(16, 35, 28, 0.05), 0 10px 28px -16px rgba(16, 35, 28, 0.18);
+    --radius: 16px;
+    --sans: "Inter", "Heebo", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --serif: "Newsreader", "Frank Ruhl Libre", Georgia, "Times New Roman", serif;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-scheme="light"]) {
-      --ink: #04140f; --ink-2: #b9e9d4; --ink-3: #8cc4ad;
-      --paper: #16362c; --wall: #0d261f; --wall-2: #113026; --me: #1f5a45;
-      --text: #effff6; --accent: #4be08a; --yes: #5ef29b; --no: #ffc37d;
-      --btn-bg: #effff6; --btn-fg: #04140f;
-      --doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%23d9fdd3' stroke-opacity='.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 22h34a9 9 0 0 1 9 9v14a9 9 0 0 1-9 9H33l-10 8v-8h-5a9 9 0 0 1-9-9V31a9 9 0 0 1 9-9z'/%3E%3Cpath d='M112 18l5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z'/%3E%3Cpath d='M40 118c-7-7-15-12-15-20a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 8-8 13-15 20z'/%3E%3Cpath d='M104 104l9 9 18-20'/%3E%3Ccircle cx='140' cy='140' r='5'/%3E%3Ccircle cx='80' cy='72' r='3'/%3E%3Cpath d='M70 140h22M81 129v22'/%3E%3C/g%3E%3C/svg%3E");
+      --bg: #0b1713; --surface: #11211b; --surface-2: #142820; --ink: #eef3ef; --ink-2: #b7c9c0; --ink-3: #8aa197;
+      --line: #22382f; --line-2: #1c3129; --brand: #3fb27c; --brand-2: #52c28c; --brand-ink: #06140f; --brand-soft: #173a2c;
+      --hero: #0f3327; --hero-2: #164536; --hero-ink: #f2efe6; --hero-muted: #a9c6b8;
+      --red: #f09a8b; --red-soft: #3a1d18; --amber: #e8c27a; --amber-soft: #36290f; --blue: #9cc3e6; --blue-soft: #16283a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
     }
   }
   :root[data-scheme="dark"] {
-    --ink: #04140f; --ink-2: #b9e9d4; --ink-3: #8cc4ad;
-    --paper: #16362c; --wall: #0d261f; --wall-2: #113026; --me: #1f5a45;
-    --text: #effff6; --accent: #4be08a; --yes: #5ef29b; --no: #ffc37d;
-    --btn-bg: #effff6; --btn-fg: #04140f;
-    --doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%23d9fdd3' stroke-opacity='.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 22h34a9 9 0 0 1 9 9v14a9 9 0 0 1-9 9H33l-10 8v-8h-5a9 9 0 0 1-9-9V31a9 9 0 0 1 9-9z'/%3E%3Cpath d='M112 18l5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z'/%3E%3Cpath d='M40 118c-7-7-15-12-15-20a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 8-8 13-15 20z'/%3E%3Cpath d='M104 104l9 9 18-20'/%3E%3Ccircle cx='140' cy='140' r='5'/%3E%3Ccircle cx='80' cy='72' r='3'/%3E%3Cpath d='M70 140h22M81 129v22'/%3E%3C/g%3E%3C/svg%3E");
+    --bg: #0b1713; --surface: #11211b; --surface-2: #142820; --ink: #eef3ef; --ink-2: #b7c9c0; --ink-3: #8aa197;
+    --line: #22382f; --line-2: #1c3129; --brand: #3fb27c; --brand-2: #52c28c; --brand-ink: #06140f; --brand-soft: #173a2c;
+    --hero: #0f3327; --hero-2: #164536; --hero-ink: #f2efe6; --hero-muted: #a9c6b8;
+    --red: #f09a8b; --red-soft: #3a1d18; --amber: #e8c27a; --amber-soft: #36290f; --blue: #9cc3e6; --blue-soft: #16283a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
 
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; min-height: 100vh;
-    font-family: var(--font); font-size: 17px; line-height: 1.45;
-    color: var(--text);
-    background-color: var(--wall);
-    background-image: var(--doodle), radial-gradient(circle at 12% 0%, var(--wall-2), transparent 55%);
-    background-size: 160px 160px, 100% 100%;
-    -webkit-font-smoothing: antialiased;
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font: 400 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01";
   }
   button, input { font: inherit; color: inherit; }
   button { cursor: pointer; }
-  svg { display: block; }
+  svg { display: block; flex: none; }
   bdi { unicode-bidi: isolate; }
   [hidden] { display: none !important; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  :focus-visible { outline: 4px solid var(--yellow); outline-offset: 3px; border-radius: 14px; }
+  :focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; border-radius: 10px; }
+  .num { font-variant-numeric: tabular-nums; }
+  [dir="rtl"] .flip { transform: scaleX(-1); }
 
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 18px 20px 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 28px 0; }
 
-  /* ── Top bar ─────────────────────────────────────────── */
-  .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .top .state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; margin-inline-end: auto; }
-  .logo {
-    width: 54px; height: 54px; flex: none; border-radius: 18px; background: var(--green);
-    border: var(--line); box-shadow: var(--pop-sm); display: grid; place-items: center;
-    transform: rotate(-6deg);
-  }
-  .logo svg { width: 32px; height: 32px; }
-  .brand h1 { margin: 0; font-size: 26px; line-height: 1.05; font-weight: 900; letter-spacing: -0.01em; color: var(--text); }
-  .brand small { display: block; font-size: 15px; font-weight: 600; color: var(--ink-2); margin-top: 3px; }
+  /* Top bar */
+  .top { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 14px; margin-inline-end: auto; min-width: 0; }
+  .mark { width: 44px; height: 44px; border-radius: 12px; background: var(--brand); display: grid; place-items: center; }
+  .mark svg { width: 24px; height: 24px; }
+  .eyebrow { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+  h1 { margin: 1px 0 0; font: 500 30px/1.1 var(--serif); letter-spacing: -0.01em; }
+  .state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .pill {
-    display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 16px;
-    border-radius: 999px; background: var(--paper); border: var(--line); box-shadow: var(--pop-sm);
-    font-weight: 700; font-size: 15px;
+    display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--line); font-size: 14.5px; font-weight: 500; color: var(--ink-2);
   }
-  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--green); border: 2px solid var(--ink); flex: none; }
-  .pill.warn .dot { background: var(--orange); }
-  .pill.off .dot { background: #d3dcd8; }
-  .pill.ex { background: var(--yellow); color: #0b3b2e; }
-  .iconbtn {
-    min-height: 48px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px;
-    border-radius: 999px; border: var(--line); background: var(--green); color: var(--ink);
-    box-shadow: var(--pop-sm); font-weight: 800; font-size: 15px;
-    transition: transform .12s ease, box-shadow .12s ease;
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #b3bdb7; }
+  .pill.on .dot { background: var(--wa); box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.18); }
+  .pill.warn .dot { background: #d99a2b; box-shadow: 0 0 0 3px rgba(217, 154, 43, 0.18); }
+  .btn {
+    min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 18px;
+    border-radius: 11px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    font-size: 15px; font-weight: 600; white-space: nowrap; transition: background .15s ease, border-color .15s ease, transform .15s ease;
   }
-  .iconbtn svg { width: 22px; height: 22px; }
-  .iconbtn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
-  .iconbtn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
-  .iconbtn[disabled] { opacity: .7; cursor: default; transform: none; }
+  .btn svg { width: 18px; height: 18px; }
+  .btn:hover { border-color: var(--ink-3); }
+  .btn:active { transform: translateY(1px); }
+  .btn[disabled] { opacity: .6; cursor: default; }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .btn.primary:hover { background: var(--brand-2); border-color: var(--brand-2); }
+  .btn.quiet { border-color: transparent; background: transparent; color: var(--brand); padding-inline: 10px; }
+  :root[data-scheme="dark"] .btn.quiet { color: var(--brand-2); }
+  .btn.quiet:hover { background: var(--brand-soft); }
   .spin svg { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Banner (connection state) ───────────────────────── */
-  .banner {
-    margin-top: 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    padding: 14px 18px; border-radius: 22px; background: var(--paper); border: var(--line); box-shadow: var(--pop-sm);
+  /* Notices */
+  .notice {
+    margin-top: 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px;
+    border-radius: 12px; background: var(--amber-soft); color: var(--ink); border: 1px solid rgba(138, 90, 11, 0.18);
   }
-  .banner .b-text { flex: 1 1 260px; font-weight: 600; }
-  .banner.ex { background: var(--yellow); color: var(--ink); }
-  .banner.warn { background: #fff1d9; color: var(--ink); }
-  .banner svg { width: 26px; height: 26px; flex: none; }
+  .notice.plain { background: var(--surface); border-color: var(--line); }
+  .notice svg { width: 20px; height: 20px; color: var(--amber); }
+  .notice .t { flex: 1 1 240px; font-weight: 500; }
 
-  .tape {
-    margin: 26px auto 0; width: fit-content; max-width: 100%; display: flex; align-items: center; gap: 10px;
-    padding: 10px 20px; background: var(--yellow); color: #0b3b2e; border: var(--line); border-radius: 12px;
-    box-shadow: var(--pop-sm); transform: rotate(-1.2deg); font-weight: 800; font-size: 17px;
+  /* Hero, for connecting */
+  .hero {
+    margin-top: 22px; border-radius: 22px; padding: 34px 36px; color: var(--hero-ink);
+    background: radial-gradient(120% 140% at 100% 0%, var(--hero-2) 0%, var(--hero) 55%);
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 28px; align-items: center; overflow: hidden;
   }
-  .tape b { font-weight: 900; letter-spacing: .06em; }
-  .tape svg { width: 24px; height: 24px; flex: none; }
+  .hero .kicker { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--hero-muted); }
+  .hero h2 { margin: 10px 0 0; font: 500 clamp(30px, 4vw, 44px)/1.08 var(--serif); letter-spacing: -0.015em; max-width: 17ch; }
+  .hero p { margin: 14px 0 0; font-size: 17px; color: var(--hero-muted); max-width: 44ch; }
+  .hero .btn.big { margin-top: 24px; min-height: 52px; padding: 12px 22px; font-size: 16.5px; border-radius: 12px; background: var(--hero-ink); color: #0e3a2c; border-color: var(--hero-ink); }
+  .hero .btn.big:hover { background: #ffffff; }
+  .hero .btn.big svg { width: 22px; height: 22px; }
+  .hero .how { margin-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 14.5px; color: var(--hero-muted); }
+  .hero .how svg { width: 18px; height: 18px; }
+  .preview { background: rgba(246, 242, 232, 0.06); border: 1px solid rgba(246, 242, 232, 0.14); border-radius: 16px; padding: 10px; }
+  .prow { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 11px; }
+  .prow + .prow { border-top: 1px solid rgba(246, 242, 232, 0.1); }
+  .prow .av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #0e3a2c; }
+  .prow .nm { font-weight: 600; font-size: 15px; }
+  .prow .sb { font-size: 13.5px; color: var(--hero-muted); }
+  .prow .tag { margin-inline-start: auto; font-size: 12.5px; font-weight: 600; padding: 4px 9px; border-radius: 999px; background: rgba(246, 242, 232, 0.12); color: var(--hero-ink); white-space: nowrap; }
+  .prow .tag.hot { background: #f1c5bd; color: #5c1a10; }
+  .card-soft {
+    margin-top: 22px; border-radius: 20px; padding: 28px 30px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
+    display: flex; gap: 22px; align-items: center; flex-wrap: wrap;
+  }
+  .card-soft .ic { width: 52px; height: 52px; border-radius: 14px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; }
+  .card-soft .ic svg { width: 26px; height: 26px; }
+  .card-soft .tx { flex: 1 1 320px; }
+  .card-soft h2 { margin: 0; font: 500 26px/1.2 var(--serif); }
+  .card-soft p { margin: 6px 0 0; color: var(--ink-2); }
+  .typing { display: inline-flex; gap: 5px; align-items: center; }
+  .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); opacity: .35; animation: pulse 1.2s infinite ease-in-out; }
+  .typing i:nth-child(2) { animation-delay: .2s; }
+  .typing i:nth-child(3) { animation-delay: .4s; }
+  @keyframes pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 
-  /* ── Hero: the helper's message ──────────────────────── */
-  .hero { display: flex; align-items: flex-end; gap: 12px; margin-top: 22px; }
-  .helper {
-    width: 64px; height: 64px; flex: none; border-radius: 50%; background: var(--green); border: var(--line);
-    box-shadow: var(--pop-sm); display: grid; place-items: center;
+  /* Example label */
+  .example-bar {
+    margin-top: 26px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 16px; border-radius: 12px;
+    background: var(--surface); border: 1px dashed #c9bfa8; color: var(--ink-2); font-size: 15px;
   }
-  .helper svg { width: 40px; height: 40px; }
-  .say {
-    position: relative; flex: 1; min-width: 0; background: var(--paper); border: var(--line); box-shadow: var(--pop);
-    border-radius: var(--radius); border-end-start-radius: 6px; padding: 18px 22px 16px;
-  }
-  .say .who-says { font-size: 15px; font-weight: 800; color: var(--accent); }
-  .say h2 { margin: 4px 0 0; font-size: clamp(22px, 3.2vw, 32px); line-height: 1.18; font-weight: 800; letter-spacing: -0.01em; }
-  .say .meta { margin-top: 10px; font-size: 15px; color: var(--ink-3); font-weight: 600; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
-  .say .meta .sched { display: inline-flex; align-items: center; gap: 5px; }
-  .say .meta .sched svg { width: 17px; height: 17px; }
-  .sticker {
-    position: absolute; top: -16px; inset-inline-end: 18px; transform: rotate(4deg);
-    background: var(--yellow); border: var(--line); border-radius: 12px; padding: 4px 12px;
-    font-weight: 900; font-size: 14px; letter-spacing: .06em; box-shadow: var(--pop-sm); color: var(--ink);
-  }
-  .typing { display: inline-flex; gap: 6px; align-items: center; height: 28px; }
-  .typing i { width: 11px; height: 11px; border-radius: 50%; background: var(--green); border: 2px solid var(--ink); animation: hop 1.1s infinite ease-in-out; }
-  .typing i:nth-child(2) { animation-delay: .15s; }
-  .typing i:nth-child(3) { animation-delay: .3s; }
-  @keyframes hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-7px); } }
+  :root[data-scheme="dark"] .example-bar { border-color: #3a5146; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: var(--amber-soft); color: var(--amber); }
 
-  /* ── The big connect card ────────────────────────────── */
-  .connect {
-    position: relative; margin-top: 22px; border: var(--line); box-shadow: 7px 7px 0 var(--ink); border-radius: 32px;
-    background: linear-gradient(135deg, #3ae07a 0%, var(--green) 45%, #16b957 100%);
-    color: var(--ink); padding: 28px 26px 26px; overflow: hidden;
-    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 26px; align-items: center;
-  }
-  .connect h2 { margin: 0; font-size: clamp(28px, 4.4vw, 44px); line-height: 1.04; font-weight: 900; letter-spacing: -0.02em; max-width: 16ch; }
-  .connect p { margin: 12px 0 0; font-size: 18px; font-weight: 500; max-width: 46ch; }
-  .connect .how { font-size: 16px; font-weight: 700; margin-top: 14px; display: flex; gap: 8px; align-items: center; }
-  .connect .how svg { width: 22px; height: 22px; flex: none; }
-  .bigbtn {
-    margin-top: 20px; min-height: 60px; display: inline-flex; align-items: center; gap: 12px; padding: 10px 26px;
-    border-radius: 999px; border: var(--line); background: var(--btn-bg); color: var(--btn-fg); box-shadow: var(--pop);
-    font-weight: 900; font-size: 20px; white-space: nowrap; transition: transform .12s ease, box-shadow .12s ease;
-  }
-  .bigbtn svg { width: 30px; height: 30px; }
-  .bigbtn:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
-  .bigbtn:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--ink); }
-  .bigbtn[disabled] { opacity: .75; cursor: default; transform: none; }
-  .phone-art { width: 170px; height: 190px; }
-  .connect.soft { background: var(--paper); color: var(--text); }
-  .connect.soft .bigbtn { background: var(--green); color: #0b3b2e; }
-  .connect.soft h2 { font-size: clamp(24px, 3.6vw, 34px); max-width: 24ch; }
+  /* Summary */
+  .summary { margin-top: 26px; }
+  .summary h2 { margin: 0; font: 500 clamp(24px, 2.7vw, 30px)/1.25 var(--serif); letter-spacing: -0.01em; max-width: 46ch; }
+  .meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--ink-3); font-size: 14.5px; }
+  .meta span { display: inline-flex; align-items: center; gap: 6px; }
+  .meta svg { width: 16px; height: 16px; }
+  .kpis { margin-top: 20px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .kpi { padding: 18px 20px; min-width: 0; }
+  .kpi + .kpi { border-inline-start: 1px solid var(--line-2); }
+  .kpi .v { font: 500 40px/1 var(--serif); letter-spacing: -0.02em; }
+  .kpi .l { margin-top: 8px; font-size: 14.5px; font-weight: 600; color: var(--ink-2); }
+  .kpi .s { margin-top: 2px; font-size: 14px; color: var(--ink-3); }
+  .kpi .s.hot { color: var(--red); font-weight: 600; }
 
-  /* ── Sections ────────────────────────────────────────── */
-  .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 8px 28px; align-items: start; margin-top: 12px; }
-  .col { min-width: 0; }
-  section { margin-top: 24px; }
-  .tag {
-    display: inline-flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 6px 16px;
-    border-radius: 14px; border: var(--line); box-shadow: var(--pop-sm); font-size: 19px; font-weight: 900;
-    transform: rotate(-2deg); color: var(--ink);
-  }
-  .tag .n { background: var(--ink); color: #fff; border-radius: 999px; min-width: 28px; height: 28px; display: inline-grid; place-items: center; font-size: 15px; padding: 0 7px; }
-  .tag.t-wait { background: var(--yellow); }
-  .tag.t-promise { background: var(--pink); }
-  .tag.t-plan { background: var(--sky); transform: rotate(1.5deg); }
-  .tag.t-price { background: var(--orange); }
-  .tag.t-chats { background: var(--lilac); transform: rotate(1.5deg); }
-  .tag.t-files { background: var(--mint); }
-  .tag .ex-mark { font-size: 12px; letter-spacing: .08em; background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-radius: 8px; padding: 1px 6px; }
-  .empty { font-weight: 600; color: var(--ink-2); background: var(--paper); border: 2px dashed var(--ink-3); border-radius: 20px; padding: 14px 18px; }
+  /* Layout */
+  .grid { margin-top: 28px; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .sec-h { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; }
+  .sec-h h3 { margin: 0; font-size: 17px; font-weight: 600; }
+  .sec-h .c { font-size: 14px; color: var(--ink-3); }
+  .sec-h .badge { margin-inline-start: auto; }
+  .stack { display: grid; gap: 12px; }
 
-  /* Waiting: big bubbles with faces */
-  .bubbles { display: grid; gap: 18px; }
-  .row { display: flex; align-items: flex-start; gap: 12px; }
-  .face {
-    width: 60px; height: 60px; flex: none; border-radius: 50%; border: var(--line); box-shadow: var(--pop-sm);
-    display: grid; place-items: center; font-weight: 900; font-size: 21px; color: #0b3b2e; letter-spacing: -.02em;
-  }
-  .face svg { width: 30px; height: 30px; }
-  .face.sm { width: 46px; height: 46px; font-size: 16px; box-shadow: 2px 2px 0 var(--ink); border-width: 2.5px; }
-  .face.sm svg { width: 24px; height: 24px; }
-  .bub {
-    position: relative; flex: 1; min-width: 0; text-align: start; background: var(--paper); color: inherit;
-    border: var(--line); border-radius: var(--radius); border-start-start-radius: 6px; box-shadow: var(--pop);
-    padding: 14px 18px 14px; display: block; width: 100%;
-    transition: transform .14s ease, box-shadow .14s ease;
-  }
-  button.bub:hover { transform: translate(-2px, -2px) rotate(-.4deg); box-shadow: 7px 7px 0 var(--ink); }
-  button.bub:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--ink); }
-  .bub .who { display: block; font-size: 20px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
-  .bub .wants { display: block; margin-top: 4px; font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
-  .bub .quote {
-    display: block; margin-top: 10px; padding: 8px 12px; border-radius: 14px; background: var(--me);
-    font-size: 16px; color: var(--ink-2); overflow-wrap: anywhere;
-  }
-  .bub .foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 12px; }
-  .since { font-size: 15px; font-weight: 700; color: var(--ink-3); }
-  .cta {
-    margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px;
-    padding: 6px 16px; border-radius: 999px; background: var(--green); border: 2.5px solid var(--ink);
-    font-weight: 800; font-size: 16px; color: var(--ink);
-  }
-  .cta svg { width: 20px; height: 20px; }
-  [dir="rtl"] .flip { transform: scaleX(-1); }
+  /* One card per customer conversation */
+  .cust { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px; }
+  .cust.waiting { border-inline-start: 3px solid var(--red); }
+  .cust.waiting.mild { border-inline-start-color: #d99a2b; }
+  .cust.waiting.fresh { border-inline-start-color: var(--brand-2); }
+  .cust-h { display: flex; align-items: center; gap: 12px; }
+  .av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: none; font-size: 14.5px; font-weight: 700; color: #10231c; }
+  .av svg { width: 20px; height: 20px; }
+  .who { min-width: 0; flex: 1; }
+  .who .n { font-weight: 600; font-size: 17px; line-height: 1.25; overflow-wrap: anywhere; }
+  .who .k { margin-top: 1px; font-size: 13.5px; color: var(--ink-3); }
+  .wait { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line-2); }
+  .wait svg { width: 15px; height: 15px; }
+  .wait.hot { background: var(--red-soft); color: var(--red); border-color: transparent; }
+  .wait.mild { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
+  .wait.ok { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
+  .wants { margin: 12px 0 0; font-size: 16.5px; font-weight: 500; overflow-wrap: anywhere; }
+  .said { margin: 8px 0 0; padding: 8px 12px; border-inline-start: 3px solid var(--line); background: var(--surface-2); border-radius: 0 10px 10px 0; color: var(--ink-2); font-size: 15.5px; overflow-wrap: anywhere; }
+  [dir="rtl"] .said { border-radius: 10px 0 0 10px; }
+  .facts { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 7px; }
+  .facts li { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ink-2); min-width: 0; }
+  .facts li svg { width: 17px; height: 17px; color: var(--ink-3); }
+  .facts li .x { min-width: 0; overflow-wrap: anywhere; }
+  .facts li b { color: var(--ink); font-weight: 600; }
+  .st { margin-inline-start: auto; flex: none; font-size: 12.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+  .st.open { background: var(--amber-soft); color: var(--amber); }
+  .st.done { background: var(--brand-soft); color: var(--brand); }
+  .cust-f { margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cust-f .last { font-size: 14px; color: var(--ink-3); margin-inline-end: auto; }
+  .more { margin-top: 4px; }
 
-  /* Promises: sticky notes */
-  .notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
-  .note {
-    text-align: start; border: var(--line); border-radius: 18px; box-shadow: var(--pop-sm); padding: 14px 16px 12px;
-    color: var(--ink); min-height: 132px; display: flex; flex-direction: column; gap: 6px;
-    transition: transform .14s ease;
-  }
-  .note:nth-child(3n+1) { background: #fff3a8; transform: rotate(-1.2deg); }
-  .note:nth-child(3n+2) { background: #ffd1e3; transform: rotate(1deg); }
-  .note:nth-child(3n) { background: #c9ecff; transform: rotate(-.5deg); }
-  button.note:hover { transform: rotate(0) translate(-1px, -2px); }
-  .note .to { font-size: 15px; font-weight: 700; color: #2f5f50; overflow-wrap: anywhere; }
-  .note .what { font-size: 19px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
-  .note .when { margin-top: auto; font-size: 14px; font-weight: 700; color: #557f71; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-  .note .when svg { width: 20px; height: 20px; }
+  /* Side panels */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 6px 18px 12px; }
+  .side > * + * { margin-top: 24px; }
+  .panel .sec-h { margin-top: 12px; }
+  .day-h { margin: 12px 0 4px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .appt { display: flex; gap: 14px; padding: 9px 0; }
+  .appt + .appt { border-top: 1px solid var(--line-2); }
+  .appt .tm { flex: none; min-width: 74px; white-space: nowrap; font-weight: 600; color: var(--blue); font-size: 15px; padding-top: 1px; }
+  .appt .d { min-width: 0; }
+  .appt .w { font-weight: 600; overflow-wrap: anywhere; }
+  .appt .p { font-size: 14px; color: var(--ink-3); overflow-wrap: anywhere; }
+  .promise { display: flex; gap: 12px; padding: 11px 0; }
+  .promise + .promise { border-top: 1px solid var(--line-2); }
+  .promise svg { width: 20px; height: 20px; color: var(--brand-2); margin-top: 2px; }
+  .promise .w { font-weight: 500; overflow-wrap: anywhere; }
+  .promise .p { font-size: 14px; color: var(--ink-3); overflow-wrap: anywhere; }
+  .panel .foot { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line-2); }
+  .empty { color: var(--ink-3); padding: 12px 0; }
 
-  /* Plans: tickets */
-  .tickets { display: grid; gap: 14px; }
-  .ticket {
-    display: flex; align-items: stretch; background: var(--paper); border: var(--line); border-radius: 20px;
-    box-shadow: var(--pop-sm); overflow: hidden;
-  }
-  .day {
-    flex: none; width: 82px; background: var(--sky); border-inline-end: var(--line); display: flex; flex-direction: column;
-    align-items: center; justify-content: center; padding: 8px 4px; color: var(--ink);
-  }
-  .day .wd { font-size: 14px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-  .day .dn { font-size: 32px; font-weight: 900; line-height: 1; margin-top: 2px; }
-  .day .tm { font-size: 14px; font-weight: 800; margin-top: 4px; }
-  .ticket.today .day { background: var(--yellow); }
-  .ticket .body { padding: 12px 16px; min-width: 0; }
-  .ticket .what { font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
-  .ticket .sub { font-size: 15px; font-weight: 600; color: var(--ink-3); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 2px 12px; }
-  .ticket .sub span { display: inline-flex; align-items: center; gap: 5px; }
-  .ticket .sub svg { width: 16px; height: 16px; }
-  .soft-actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; }
-  .softbtn {
-    min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px; border-radius: 999px;
-    border: 2.5px solid var(--ink); background: var(--paper); font-weight: 700; font-size: 15px; color: var(--text);
-  }
-  .softbtn svg { width: 20px; height: 20px; }
-  .softbtn:hover { background: var(--me); }
+  /* Ideas */
+  .ideas { margin-top: 40px; }
+  .ideas-h h2 { margin: 0; font: 500 28px/1.15 var(--serif); letter-spacing: -0.01em; }
+  .ideas-h p { margin: 4px 0 0; color: var(--ink-2); }
+  .idea-grid { margin-top: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 1180px) { .idea-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .idea { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .idea .ic { width: 38px; height: 38px; border-radius: 10px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; }
+  :root[data-scheme="dark"] .idea .ic { color: var(--brand-2); }
+  .idea .ic svg { width: 20px; height: 20px; }
+  .idea h4 { margin: 0; font: 500 19px/1.25 var(--serif); }
+  .idea p { margin: 0; font-size: 15px; color: var(--ink-2); flex: 1; }
+  .idea .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .idea .acts .btn { min-height: 44px; padding: 8px 11px; font-size: 14px; gap: 6px; }
+  .idea .acts .btn svg { width: 16px; height: 16px; }
 
-  /* Prices: tags */
-  .prices { display: grid; gap: 12px; }
-  .price { display: flex; align-items: center; gap: 14px; background: var(--paper); border: var(--line); border-radius: 18px; box-shadow: var(--pop-sm); padding: 10px 14px; }
-  .amount {
-    flex: none; position: relative; background: var(--orange); border: 2.5px solid var(--ink); border-radius: 10px 18px 18px 10px;
-    padding: 6px 14px 6px 22px; font-size: 21px; font-weight: 900; color: var(--ink); white-space: nowrap;
-  }
-  .amount::before { content: ""; position: absolute; inset-inline-start: 7px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); }
-  [dir="rtl"] .amount { border-radius: 18px 10px 10px 18px; padding: 6px 22px 6px 14px; }
-  .price .body { min-width: 0; flex: 1; }
-  .price .for { font-weight: 700; overflow-wrap: anywhere; }
-  .price .sub { font-size: 15px; color: var(--ink-3); font-weight: 600; }
-  .stamp { flex: none; font-size: 13px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; border: 2.5px solid currentColor; border-radius: 10px; padding: 3px 8px; transform: rotate(-6deg); }
-  .stamp.yes { color: var(--yes); }
-  .stamp.no { color: var(--no); border-style: dashed; }
+  .foot-links { margin: 36px 0 0; padding: 18px 0 6px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14.5px; color: var(--ink-3); }
+  .foot-links a { color: var(--ink-2); font-weight: 600; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; min-height: 44px; display: inline-flex; align-items: center; }
+  .foot-links a:hover { color: var(--brand); text-decoration-color: currentColor; }
 
-  /* Busy chats and files */
-  .list { display: grid; gap: 10px; }
-  .item { display: flex; align-items: center; gap: 12px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; padding: 10px 14px; }
-  .item .body { min-width: 0; flex: 1; }
-  .item .name { font-weight: 800; overflow-wrap: anywhere; }
-  .item .sub { font-size: 15px; color: var(--ink-3); font-weight: 600; overflow-wrap: anywhere; }
-  .count { flex: none; min-width: 34px; height: 34px; padding: 0 9px; border-radius: 999px; background: var(--green); border: 2.5px solid var(--ink); display: grid; place-items: center; font-weight: 900; font-size: 15px; color: var(--ink); }
-  .ficon { width: 46px; height: 46px; flex: none; border-radius: 14px; border: 2.5px solid var(--ink); background: var(--mint); display: grid; place-items: center; color: var(--ink); }
-  .ficon svg { width: 24px; height: 24px; }
-
-  .foot-links { margin: 34px 0 0; padding: 16px 0 8px; border-top: 3px dashed var(--ink-3); display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; font-size: 15px; font-weight: 600; color: var(--ink-2); }
-  .foot-links a { color: var(--text); font-weight: 800; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; min-height: 44px; display: inline-flex; align-items: center; }
-
-  /* ── Composer: ask box and ready-made questions ─────── */
-  .spacer { height: 190px; }
-  .composer {
-    position: fixed; inset-inline: 0; bottom: 0; z-index: 5;
-    background: var(--wall-2); border-top: var(--line);
-    padding: 12px 0 max(12px, env(safe-area-inset-bottom));
-  }
-  .composer .inner { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-  .chips { display: flex; gap: 10px; overflow-x: auto; padding: 4px 4px 10px; scrollbar-width: none; }
+  /* Question bar */
+  .spacer { height: 150px; }
+  .bar { position: fixed; inset-inline: 0; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid var(--line); padding: 10px 0 max(12px, env(safe-area-inset-bottom)); }
+  .bar .inner { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 10px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
-  @media (min-width: 901px) { .chips { flex-wrap: wrap; overflow: visible; } }
-  .chip {
-    flex: none; min-height: 44px; padding: 8px 16px; border-radius: 999px; background: var(--paper);
-    border: 2.5px solid var(--ink); box-shadow: var(--pop-sm); font-weight: 700; font-size: 16px; white-space: nowrap; color: var(--text);
-    transition: transform .12s ease, box-shadow .12s ease;
-  }
-  .chip:hover { background: var(--me); transform: translate(-1px, -1px); }
-  .chip:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  @media (min-width: 900px) { .chips { flex-wrap: wrap; overflow: visible; } }
+  .chip { flex: none; min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 14.5px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
+  .chip:hover { border-color: var(--brand-2); color: var(--ink); }
   .ask { display: flex; gap: 10px; align-items: center; }
-  .ask input {
-    flex: 1; min-width: 0; min-height: 58px; border-radius: 999px; border: var(--line); background: var(--paper);
-    padding: 10px 22px; font-size: 18px; box-shadow: var(--pop-sm); color: var(--text);
-  }
+  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 13px; border: 1px solid var(--line); background: var(--surface); padding: 10px 16px; font-size: 16.5px; color: var(--ink); box-shadow: var(--shadow); }
   .ask input::placeholder { color: var(--ink-3); opacity: 1; }
-  .send {
-    flex: none; width: 58px; height: 58px; border-radius: 50%; border: var(--line); background: var(--green);
-    box-shadow: var(--pop-sm); display: grid; place-items: center; color: var(--ink);
-  }
-  .send svg { width: 26px; height: 26px; }
-  .send:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  .ask input:focus { outline: none; border-color: var(--brand-2); box-shadow: 0 0 0 3px var(--brand-soft); }
+  .send { width: 50px; height: 50px; border-radius: 13px; border: 0; background: var(--brand); color: var(--brand-ink); display: grid; place-items: center; flex: none; }
+  .send:hover { background: var(--brand-2); }
+  .send svg { width: 22px; height: 22px; }
 
-  .toast {
-    position: fixed; z-index: 9; inset-inline: 0; margin: 0 auto; bottom: 150px; width: max-content; max-width: calc(100vw - 32px);
-    background: var(--btn-fg); color: var(--btn-bg); font-weight: 700; padding: 12px 20px; border-radius: 999px; box-shadow: 3px 3px 0 rgba(0,0,0,.25);
-    opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .2s ease, transform .2s ease;
-  }
+  .toast { position: fixed; z-index: 9; inset-inline: 0; margin: 0 auto; bottom: 140px; width: max-content; max-width: calc(100vw - 32px); background: var(--ink); color: var(--bg); font-size: 15px; font-weight: 500; padding: 11px 18px; border-radius: 11px; box-shadow: 0 10px 30px -12px rgba(0,0,0,.4); opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
   .toast.on { opacity: 1; transform: none; }
+  .in { animation: rise .45s ease both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-  .pop-in { animation: popin .42s cubic-bezier(.2, 1.4, .4, 1) both; }
-  @keyframes popin { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: none; } }
-
-  @media (max-width: 900px) {
+  @media (max-width: 1000px) {
     .grid { grid-template-columns: minmax(0, 1fr); }
+    .idea-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hero { grid-template-columns: minmax(0, 1fr); }
   }
-  @media (max-width: 560px) {
-    body { font-size: 16px; }
-    .top .state { width: 100%; }
-    .top .state .pill { flex: 1; min-width: 0; }
-    .iconbtn { padding: 0; width: 50px; justify-content: center; }
-    .iconbtn .rt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    .bigbtn { width: 100%; justify-content: center; font-size: 19px; padding: 10px 18px; }
-    .tape { font-size: 15px; }
-    .brand small { font-size: 14px; }
-    .wrap { padding: 14px 16px 0; }
-    .brand h1 { font-size: 22px; }
-    .logo { width: 48px; height: 48px; }
-    .connect { grid-template-columns: minmax(0, 1fr); padding: 22px 20px; }
-    .phone-art { display: none; }
-    .helper { width: 50px; height: 50px; }
-    .helper svg { width: 30px; height: 30px; }
-    .say { padding: 16px 16px 14px; }
-    .face { width: 52px; height: 52px; font-size: 18px; }
-    .bub .who { font-size: 19px; }
-    .bub .wants { font-size: 17px; }
-    .cta { margin-inline-start: 0; }
-    .composer .inner { padding: 0 12px; }
-    .ask input { min-height: 54px; font-size: 17px; }
-    .send { width: 54px; height: 54px; }
-    .toast { bottom: 140px; }
+  @media (max-width: 640px) {
+    .wrap { padding: 16px 16px 0; }
+    h1 { font-size: 26px; }
+    .state { width: 100%; }
+    .state .pill { flex: 1; }
+    .btn .rt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    #refresh { width: 44px; padding: 0; }
+    .hero { padding: 24px 20px; border-radius: 18px; }
+    .hero .preview { display: none; }
+    .hero .btn.big { width: 100%; }
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kpi:nth-child(3) { border-inline-start: 0; }
+    .kpi:nth-child(n+3) { border-top: 1px solid var(--line-2); }
+    .kpi { padding: 14px 16px; }
+    .kpi .v { font-size: 32px; }
+    .idea-grid { grid-template-columns: minmax(0, 1fr); }
+    .cust { padding: 14px; }
+    .cust-f .btn { width: 100%; }
+    .bar .inner { padding: 0 12px; }
+    .card-soft { padding: 22px 18px; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -398,19 +322,19 @@
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <div class="logo" aria-hidden="true" data-icon="wa"></div>
-      <div><h1 id="title">WhatsApp Catch-Up</h1><small id="subtitle"></small></div>
+      <div class="mark" aria-hidden="true" data-icon="wa"></div>
+      <div><div class="eyebrow" id="eyebrow">WhatsApp Catch-Up</div><h1 id="title">Customer line</h1></div>
     </div>
     <div class="state">
-      <span class="pill off" id="pill" role="status"><span class="dot"></span><span id="pill-text"></span></span>
-      <button class="iconbtn" id="refresh" type="button" hidden><span data-icon="refresh"></span><span id="refresh-text" class="rt"></span></button>
+      <span class="pill" id="pill" role="status"><span class="dot"></span><span id="pill-text"></span></span>
+      <button class="btn" id="refresh" type="button" hidden><span data-icon="refresh"></span><span class="rt" id="refresh-text"></span></button>
     </div>
   </header>
-  <div id="banner"></div>
+  <div id="notice"></div>
   <main id="main" aria-live="polite"></main>
   <div class="spacer" id="spacer"></div>
 </div>
-<div class="composer" id="composer" hidden>
+<div class="bar" id="bar" hidden>
   <div class="inner">
     <div class="chips" id="chips"></div>
     <form class="ask" id="ask">
@@ -429,212 +353,244 @@
   var JOB = "morning-catch-up";
   var CHATS = "whatsapp";
 
-  /* ── Words, in English and Hebrew ────────────────────────────────── */
+  /* ── Words ───────────────────────────────────────────────────────── */
   var WORDS = {
     en: {
-      subtitle: "Who needs you in your chats",
+      title: "Customer line",
       connected: "WhatsApp connected",
-      example: "Example",
       notConnected: "WhatsApp not connected",
       needsYou: "WhatsApp needs you",
-      notHere: "Only on your computer",
+      notHere: "Works on your computer",
       linking: "Linking WhatsApp",
-      refresh: "Check my chats now",
+      refresh: "Refresh",
       refreshing: "Reading your chats",
-      helper: "Chat Keeper",
       updated: "Updated {when}",
       chatsRead: "{n} chats read",
       chatsRead1: "1 chat read",
-      exampleSticker: "EXAMPLE",
-      exampleMark: "EXAMPLE",
-      exampleBanner: "This is an example. The people and the chats are made up.",
-      exampleTape: "The people below are made up.",
-      exampleOnly: "This is an example. Connect WhatsApp to draft real replies.",
-      exampleHeadline: "Here is what your mornings could look like.",
-      waitingTitle: "Waiting for you",
-      waitingEmpty: "Nobody is waiting for a reply from you.",
-      since: "since {when}",
-      draft: "Draft a reply",
-      draftLabel: "Draft a reply to {who}: {wants}",
-      promisesTitle: "You said you would",
-      promiseLabel: "Help me with what I told {to}: {what}",
-      said: "said {when}",
-      plansTitle: "Plans you made",
-      plansEmpty: "No plans in your chats.",
-      toCalendar: "Put these on my calendar",
-      connectCalendar: "Connect Google Calendar",
-      pricesTitle: "Prices",
-      agreed: "Agreed",
-      notAgreed: "Not yet",
-      chatsTitle: "Busy chats since yesterday",
-      messages: "{n} messages",
-      messages1: "1 message",
-      filesTitle: "Photos and files",
-      photo: "Photo", video: "Video", voice: "Voice note", file: "File",
-      connectTitle: "See who's waiting for you on WhatsApp",
-      connectLine: "Pick the chats Cabinet may read. Each morning you see who is waiting for your reply, what you promised and your plans. Nothing is sent without your yes.",
-      connectHow: "You scan a code with your phone, like WhatsApp Web.",
-      connectButton: "Connect WhatsApp",
+      heroKicker: "For your business",
+      heroTitle: "See every customer waiting on WhatsApp.",
+      heroLine: "Pick the chats Cabinet may read. Each morning you see who is waiting for an answer, the quotes and appointments you agreed, and what you promised. Nothing is sent without your yes.",
+      connect: "Connect WhatsApp",
       connecting: "Opening WhatsApp setup",
+      heroHow: "You scan a code with your phone, like WhatsApp Web.",
+      previewA: "Waiting 39 h", previewB: "Quote $389", previewC: "Fri 8:30",
+      exampleBar: "The example below is {business}, a made-up repair shop. Every customer in it is invented.",
+      exampleBarPlain: "The example below is made up. Every customer in it is invented.",
+      example: "Example",
       oldCabinet: "Connect WhatsApp from Integrations in Cabinet.",
       notHereTitle: "WhatsApp works in Cabinet on your computer",
       notHereLine: "WhatsApp links to the Cabinet app on a computer, so it can't be connected here.",
       fix: "Fix this",
       choose: "Choose chats",
       chooseTitle: "WhatsApp is linked. Now pick the chats this cabinet may read.",
+      chooseLine: "Pick your customers and suppliers. The people in them are not told.",
       linkingTitle: "Finish linking on your phone.",
-      catchingUp: "Cabinet is still saving your chats. Your first catch-up may miss some of them.",
+      catchingUp: "Cabinet is still saving your chats. The first catch-up may miss some of them.",
       firstTitle: "Your chats are in. Ready for your first catch-up?",
-      firstLine: "It reads the chats you picked and shows who is waiting for you. After this it happens {when}.",
-      firstLineNoWhen: "It reads the chats you picked and shows who is waiting for you.",
+      firstLine: "It reads the chats you picked and lines up who is waiting for you. After this it happens {when}.",
+      firstLineNoWhen: "It reads the chats you picked and lines up who is waiting for you.",
       firstButton: "Catch me up now",
       runningTitle: "Reading your chats",
       runningLine: "This takes a minute or two. You can keep using Cabinet.",
-      runFailed: "The last catch-up didn't finish. Try again in a moment.",
-      readError: "The last catch-up couldn't be read. Check your chats again to make a new one.",
+      runFailed: "The last catch-up didn't finish. Try Refresh in a moment.",
+      readError: "The last catch-up couldn't be read. Press Refresh to make a new one.",
       ownerOnly: "Only the cabinet's owner can connect WhatsApp.",
-      viewerOnly: "You can look, but only people who edit this cabinet can ask or check again.",
-      askLabel: "Ask about your chats",
-      askPlaceholder: "Ask about your chats",
+      kWaiting: "Waiting for an answer", kLongest: "Longest {d}", kNone: "Nobody is waiting",
+      kQuotes: "Open quotes", kQuotesSum: "{sum} in total", kQuotesAgreed: "{n} agreed",
+      kAppts: "Appointments this week", kNext: "Next: {when}", kNoAppts: "Nothing booked",
+      kPromises: "Promises to keep", kOldest: "Oldest from {when}", kNoPromises: "All kept",
+      customers: "Customers", customersCount: "{n} conversations",
+      waitingFor: "Waiting {d}", answered: "Answered",
+      topic: { quote: "Asked for a quote", appointment: "Wants an appointment", question: "Has a question", problem: "Has a problem", other: "Wrote to you" },
+      kindGroup: "Group chat", kindNumber: "Number not saved in your phone",
+      quoteRow: "Quote", apptRow: "Appointment", promiseRow: "You promised",
+      open: "Open", agreed: "Agreed",
+      lastMessage: "Last message {when}",
+      draft: "Draft a reply", askAbout: "Ask about this customer",
+      draftLabel: "Draft a reply to {who}",
+      showAll: "Show all {n}",
+      thisWeek: "This week", noWeek: "No appointments in your chats this week.",
+      toCalendar: "Put these on my calendar", connectCalendar: "Connect Google Calendar",
+      promises: "Promises to keep", noPromises: "No open promises.",
+      to: "to {who}",
+      ideasTitle: "Ideas for your business",
+      ideasLine: "Ask once now, or have it done for you on a schedule. Nothing is sent without your yes.",
+      askNow: "Ask now",
+      everyMorning: "Every morning", everyMonday: "Every Monday", everyFriday: "Every Friday", everyMonth: "Every month",
+      routineAsk: "Set this up as a routine that runs {when} at 8 in the morning, and show me the answer each time. Never send anything: {what}",
+      connectFirst: "Connect WhatsApp first, then this runs on your own chats.",
+      exampleOnly: "This is the example. Connect WhatsApp to do this with your own customers.",
+      askLabel: "Ask about your customers",
+      askPlaceholder: "Ask about your customers' chats",
       askSend: "Ask",
       opening: "Opening the chat beside this page",
-      nextRun: "{when}",
       allChats: "All saved chats",
       preferences: "What counts, what to skip",
       prefsAsk: "I want to change what my catch-up shows. ",
       draftAsk: "Draft a reply to {who} about: {wants}. Show me the draft first, and don't send anything until I say so.",
-      promiseAsk: "I told {to} I would: {what}. Help me get it done.",
-      calendarAsk: "Put the plans from my chats on my calendar.",
+      aboutAsk: "What's the latest with {who}? Anything I owe them?",
+      promiseAsk: "I told {who} I would: {what}. Help me get it done.",
+      calendarAsk: "Put the appointments from my chats on my calendar.",
       questions: [
-        "Who is waiting for my reply?",
-        "What did I agree with the plumber?",
-        "What did I promise to do this week?",
-        "What plans do I have this weekend?",
-        "Who said they'd get back to me and hasn't?"
+        "Who's waiting on me?",
+        "Which quotes are still open?",
+        "What appointments did I set this week?",
+        "Who hasn't heard back from me in a day?"
+      ],
+      ideas: [
+        { icon: "tag", title: "List every customer who asked for a quote", line: "Who asked, what for, the price you gave, and whether they said yes.", when: "everyMonday",
+          ask: "List every customer who asked for a quote in my chats: who, what for, the price I gave if any, and whether they said yes. Oldest first." },
+        { icon: "clock", title: "Customers I haven't answered in 24 hours", line: "So nobody waits long enough to call someone else.", when: "everyMorning",
+          ask: "Which customers have waited more than 24 hours for an answer from me? Who, what they asked, and how long they've waited." },
+        { icon: "check", title: "What did I promise this week?", line: "Calls, photos, prices and parts you said you'd send.", when: "everyMonday",
+          ask: "What did I promise customers this week, and which of those haven't I done yet?" },
+        { icon: "calendar", title: "Put the appointments from my chats on my calendar", line: "Drop-offs and pickups agreed in chats, in one place.", when: "",
+          ask: "Put the appointments from my chats on my calendar. Show me the list first." },
+        { icon: "users", title: "Build my customer list from my chats", line: "Name, what they came in for, last contact and next step.", when: "everyMonday",
+          ask: "Build a customer list from my chats: name, what they came in for, last contact, any open quote, and the next step. Show it as a table." },
+        { icon: "reply", title: "Follow up on quotes with no answer", line: "A short, friendly nudge for each one. You approve every message.", when: "everyMonday",
+          ask: "Find quotes I gave in the last two weeks that got no answer, and draft a short, friendly follow-up for each. Show me the drafts and don't send anything." },
+        { icon: "alert", title: "Spot unhappy customers early", line: "Complaints, delays and anyone who sounds upset.", when: "everyFriday",
+          ask: "Did any customer complain or sound unhappy in my chats this week? Who, about what, and what I said back." },
+        { icon: "refresh", title: "Win back quiet customers", line: "Who hasn't written in two months, and what they came in for last.", when: "everyMonth",
+          ask: "Which customers haven't written to me in the last two months? Show what they came in for last time, so I can check in with them." }
       ],
       today: "today", yesterday: "yesterday", tomorrow: "tomorrow",
-      connectedToast: "WhatsApp is connected.",
-      numberFace: "Number"
+      min: "{n} min", hours: "{n} h", days: "{n} days",
+      connectedToast: "WhatsApp is connected."
     },
     he: {
-      subtitle: "מי צריך אתכם בשיחות",
+      title: "קו הלקוחות",
       connected: "WhatsApp מחובר",
-      example: "דוגמה",
       notConnected: "WhatsApp לא מחובר",
       needsYou: "WhatsApp מחכה לכם",
-      notHere: "רק במחשב שלכם",
+      notHere: "עובד במחשב שלכם",
       linking: "מקשרים את WhatsApp",
-      refresh: "לבדוק את השיחות עכשיו",
+      refresh: "רענון",
       refreshing: "קוראים את השיחות",
-      helper: "שומר השיחות",
       updated: "עודכן {when}",
       chatsRead: "נקראו {n} שיחות",
       chatsRead1: "נקראה שיחה אחת",
-      exampleSticker: "דוגמה",
-      exampleMark: "דוגמה",
-      exampleBanner: "זו דוגמה. האנשים והשיחות מומצאים.",
-      exampleTape: "האנשים למטה מומצאים.",
-      exampleOnly: "זו דוגמה. חברו את WhatsApp כדי לנסח תשובות אמיתיות.",
-      exampleHeadline: "ככה הבקרים שלכם יכולים להיראות.",
-      waitingTitle: "מחכים לכם",
-      waitingEmpty: "אף אחד לא מחכה לתשובה מכם.",
-      since: "מאז {when}",
-      draft: "לנסח תשובה",
-      draftLabel: "לנסח תשובה ל־{who}: {wants}",
-      promisesTitle: "אמרתם שתעשו",
-      promiseLabel: "עזרה עם מה שאמרתי ל־{to}: {what}",
-      said: "נאמר {when}",
-      plansTitle: "תוכניות שקבעתם",
-      plansEmpty: "אין תוכניות בשיחות.",
-      toCalendar: "להכניס ליומן שלי",
-      connectCalendar: "לחבר את Google Calendar",
-      pricesTitle: "מחירים",
-      agreed: "סוכם",
-      notAgreed: "עוד לא",
-      chatsTitle: "שיחות עמוסות מאתמול",
-      messages: "{n} הודעות",
-      messages1: "הודעה אחת",
-      filesTitle: "תמונות וקבצים",
-      photo: "תמונה", video: "סרטון", voice: "הודעה קולית", file: "קובץ",
-      connectTitle: "לראות מי מחכה לכם בוואטסאפ",
-      connectLine: "בוחרים את השיחות ש־Cabinet רשאי לקרוא. כל בוקר רואים מי מחכה לתשובה שלכם, מה הבטחתם ומה התוכניות שלכם. שום דבר לא נשלח בלי האישור שלכם.",
-      connectHow: "סורקים קוד עם הטלפון, כמו ב־WhatsApp Web.",
-      connectButton: "לחבר את WhatsApp",
+      heroKicker: "בשביל העסק שלכם",
+      heroTitle: "לראות כל לקוח שמחכה לכם בוואטסאפ.",
+      heroLine: "בוחרים את השיחות ש־Cabinet רשאי לקרוא. כל בוקר רואים מי מחכה לתשובה, אילו הצעות מחיר ותורים סיכמתם, ומה הבטחתם. שום דבר לא נשלח בלי האישור שלכם.",
+      connect: "לחבר את WhatsApp",
       connecting: "פותחים את החיבור של WhatsApp",
+      heroHow: "סורקים קוד עם הטלפון, כמו ב־WhatsApp Web.",
+      previewA: "מחכה 39 שעות", previewB: "הצעה $389", previewC: "שישי 8:30",
+      exampleBar: "הדוגמה למטה היא {business}, מוסך מומצא. כל הלקוחות בה מומצאים.",
+      exampleBarPlain: "הדוגמה למטה מומצאת. כל הלקוחות בה מומצאים.",
+      example: "דוגמה",
       oldCabinet: "חברו את WhatsApp מתוך החיבורים ב־Cabinet.",
       notHereTitle: "WhatsApp עובד ב־Cabinet במחשב שלכם",
       notHereLine: "WhatsApp מתחבר לאפליקציית Cabinet במחשב, ולכן אי אפשר לחבר אותו כאן.",
       fix: "לתקן",
       choose: "לבחור שיחות",
       chooseTitle: "WhatsApp מקושר. עכשיו בחרו את השיחות שהארון הזה רשאי לקרוא.",
+      chooseLine: "בחרו לקוחות וספקים. האנשים בשיחות לא מקבלים על כך הודעה.",
       linkingTitle: "סיימו את הקישור בטלפון.",
       catchingUp: "Cabinet עדיין שומר את השיחות שלכם. הסיכום הראשון עלול לפספס חלק מהן.",
       firstTitle: "השיחות שלכם כאן. לעשות את הסיכום הראשון?",
-      firstLine: "הוא קורא את השיחות שבחרתם ומראה מי מחכה לכם. מעכשיו זה יקרה {when}.",
-      firstLineNoWhen: "הוא קורא את השיחות שבחרתם ומראה מי מחכה לכם.",
+      firstLine: "הוא קורא את השיחות שבחרתם ומסדר מי מחכה לכם. מעכשיו זה יקרה {when}.",
+      firstLineNoWhen: "הוא קורא את השיחות שבחרתם ומסדר מי מחכה לכם.",
       firstButton: "לעדכן אותי עכשיו",
       runningTitle: "קוראים את השיחות שלכם",
       runningLine: "זה לוקח דקה או שתיים. אפשר להמשיך לעבוד ב־Cabinet.",
-      runFailed: "הסיכום האחרון לא הסתיים. נסו שוב עוד רגע.",
-      readError: "לא הצלחנו לקרוא את הסיכום האחרון. בדקו את השיחות שוב כדי ליצור חדש.",
+      runFailed: "הסיכום האחרון לא הסתיים. נסו רענון עוד רגע.",
+      readError: "לא הצלחנו לקרוא את הסיכום האחרון. לחצו על רענון כדי ליצור חדש.",
       ownerOnly: "רק הבעלים של הארון יכולים לחבר את WhatsApp.",
-      viewerOnly: "אפשר להסתכל, אבל רק מי שעורך את הארון יכול לשאול או לבדוק שוב.",
-      askLabel: "שאלו על השיחות שלכם",
-      askPlaceholder: "שאלו על השיחות שלכם",
+      kWaiting: "מחכים לתשובה", kLongest: "הכי ארוך: {d}", kNone: "אף אחד לא מחכה",
+      kQuotes: "הצעות מחיר פתוחות", kQuotesSum: "{sum} בסך הכול", kQuotesAgreed: "{n} סוכמו",
+      kAppts: "תורים השבוע", kNext: "הבא: {when}", kNoAppts: "שום דבר לא קבוע",
+      kPromises: "הבטחות לקיים", kOldest: "הכי ישנה מ{when}", kNoPromises: "הכול קוים",
+      customers: "לקוחות", customersCount: "{n} שיחות",
+      waitingFor: "מחכה {d}", answered: "נענה",
+      topic: { quote: "ביקש הצעת מחיר", appointment: "רוצה תור", question: "יש לו שאלה", problem: "יש לו בעיה", other: "כתב לכם" },
+      kindGroup: "קבוצה", kindNumber: "מספר שלא שמור בטלפון",
+      quoteRow: "הצעת מחיר", apptRow: "תור", promiseRow: "הבטחתם",
+      open: "פתוחה", agreed: "סוכמה",
+      lastMessage: "הודעה אחרונה {when}",
+      draft: "לנסח תשובה", askAbout: "לשאול על הלקוח",
+      draftLabel: "לנסח תשובה ל־{who}",
+      showAll: "להציג את כל ה־{n}",
+      thisWeek: "השבוע", noWeek: "אין תורים בשיחות השבוע.",
+      toCalendar: "להכניס ליומן שלי", connectCalendar: "לחבר את Google Calendar",
+      promises: "הבטחות לקיים", noPromises: "אין הבטחות פתוחות.",
+      to: "ל־{who}",
+      ideasTitle: "רעיונות לעסק שלכם",
+      ideasLine: "לשאול עכשיו, או שזה ייעשה בשבילכם לפי לוח זמנים. שום דבר לא נשלח בלי האישור שלכם.",
+      askNow: "לשאול עכשיו",
+      everyMorning: "כל בוקר", everyMonday: "כל יום שני", everyFriday: "כל יום שישי", everyMonth: "כל חודש",
+      routineAsk: "תגדירו את זה כשגרה שרצה {when} בשמונה בבוקר, ותראו לי את התשובה בכל פעם. אף פעם לא לשלוח כלום: {what}",
+      connectFirst: "חברו קודם את WhatsApp, ואז זה ירוץ על השיחות שלכם.",
+      exampleOnly: "זו הדוגמה. חברו את WhatsApp כדי לעשות את זה עם הלקוחות שלכם.",
+      askLabel: "שאלו על הלקוחות שלכם",
+      askPlaceholder: "שאלו על השיחות עם הלקוחות",
       askSend: "לשאול",
       opening: "פותחים את הצ׳אט ליד הדף",
-      nextRun: "{when}",
       allChats: "כל השיחות השמורות",
       preferences: "מה חשוב ומה לדלג",
       prefsAsk: "אני רוצה לשנות מה הסיכום שלי מראה. ",
       draftAsk: "נסחו תשובה ל־{who} על: {wants}. תראו לי את הנוסח קודם, ואל תשלחו כלום עד שאגיד.",
-      promiseAsk: "אמרתי ל־{to} שאעשה את זה: {what}. עזרו לי לסיים את זה.",
-      calendarAsk: "תכניסו את התוכניות מהשיחות שלי ליומן.",
+      aboutAsk: "מה המצב האחרון עם {who}? יש משהו שאני חייב להם?",
+      promiseAsk: "אמרתי ל־{who} שאעשה את זה: {what}. עזרו לי לסיים את זה.",
+      calendarAsk: "תכניסו את התורים מהשיחות שלי ליומן.",
       questions: [
-        "מי מחכה לתשובה שלי?",
-        "על מה סיכמתי עם האינסטלטור?",
-        "מה הבטחתי לעשות השבוע?",
-        "אילו תוכניות יש לי בסוף השבוע?",
-        "מי אמר שיחזור אליי ולא חזר?"
+        "מי מחכה לי?",
+        "אילו הצעות מחיר עדיין פתוחות?",
+        "אילו תורים קבעתי השבוע?",
+        "מי לא קיבל ממני תשובה כבר יום?"
+      ],
+      ideas: [
+        { icon: "tag", title: "כל הלקוחות שביקשו הצעת מחיר", line: "מי ביקש, על מה, איזה מחיר נתתם, והאם הסכימו.", when: "everyMonday",
+          ask: "תרשמו את כל הלקוחות שביקשו הצעת מחיר בשיחות שלי: מי, על מה, איזה מחיר נתתי אם נתתי, והאם הסכימו. מהישן לחדש." },
+        { icon: "clock", title: "לקוחות שלא עניתי להם 24 שעות", line: "כדי שאף אחד לא יחכה עד שיפנה למישהו אחר.", when: "everyMorning",
+          ask: "אילו לקוחות מחכים לתשובה ממני יותר מ־24 שעות? מי, מה שאלו, וכמה זמן הם מחכים." },
+        { icon: "check", title: "מה הבטחתי השבוע?", line: "שיחות, תמונות, מחירים וחלקים שאמרתם שתשלחו.", when: "everyMonday",
+          ask: "מה הבטחתי ללקוחות השבוע, ומה מזה עוד לא עשיתי?" },
+        { icon: "calendar", title: "להכניס ליומן את התורים מהשיחות", line: "מסירות ואיסופים שסוכמו בשיחות, במקום אחד.", when: "",
+          ask: "תכניסו ליומן שלי את התורים מהשיחות. תראו לי את הרשימה קודם." },
+        { icon: "users", title: "רשימת לקוחות מתוך השיחות", line: "שם, בשביל מה הגיעו, קשר אחרון והצעד הבא.", when: "everyMonday",
+          ask: "תבנו רשימת לקוחות מתוך השיחות שלי: שם, בשביל מה הגיעו, קשר אחרון, הצעת מחיר פתוחה והצעד הבא. בטבלה." },
+        { icon: "reply", title: "תזכורת להצעות מחיר שלא נענו", line: "הודעה קצרה ונעימה לכל אחת. אתם מאשרים כל הודעה.", when: "everyMonday",
+          ask: "מצאו הצעות מחיר שנתתי בשבועיים האחרונים ולא קיבלו תשובה, ונסחו לכל אחת תזכורת קצרה ונעימה. תראו לי את הנוסחים ואל תשלחו כלום." },
+        { icon: "alert", title: "לזהות מוקדם לקוחות לא מרוצים", line: "תלונות, עיכובים וכל מי שנשמע כועס.", when: "everyFriday",
+          ask: "האם לקוח כלשהו התלונן או נשמע לא מרוצה בשיחות השבוע? מי, על מה, ומה עניתי." },
+        { icon: "refresh", title: "להחזיר לקוחות ששקטו", line: "מי לא כתב כבר חודשיים, ובשביל מה הגיע בפעם האחרונה.", when: "everyMonth",
+          ask: "אילו לקוחות לא כתבו לי בחודשיים האחרונים? תראו בשביל מה הגיעו בפעם האחרונה, כדי שאוכל ליצור איתם קשר." }
       ],
       today: "היום", yesterday: "אתמול", tomorrow: "מחר",
-      connectedToast: "WhatsApp מחובר.",
-      numberFace: "מספר"
+      min: "{n} דק׳", hours: "{n} שעות", days: "{n} ימים",
+      connectedToast: "WhatsApp מחובר."
     }
   };
 
   /* ── Icons, drawn inline ─────────────────────────────────────────── */
+  var S_ = ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
   var ICONS = {
-    wa: '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#fff" stroke="#0b3b2e" stroke-width="1.6" d="M16 3.2C9 3.2 3.3 8.9 3.3 15.9c0 2.3.6 4.5 1.8 6.4L3.2 28.8l6.7-1.8c1.8 1 3.9 1.5 6.1 1.5 7 0 12.7-5.7 12.7-12.6S23 3.2 16 3.2z"/><path fill="#0b3b2e" d="M22.4 18.9c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.8.2-.2.3-.9 1.1-1.1 1.3-.2.2-.4.3-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.4-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.6.1-.2.1-.4 0-.6l-1-2.5c-.3-.7-.5-.6-.8-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8 0 1.6 1.2 3.2 1.4 3.5.2.2 2.4 3.6 5.8 5.1.8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 2-.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.2-.3-.3-.6-.4z"/></svg>',
-    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.6-4.5L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.6 4.5L20 16"/><path d="M20 21v-5h-5"/></svg>',
-    send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12L20 4l-4 16-4.5-6.5z"/><path d="M20 4L11.5 13.5"/></svg>',
-    reply: '<svg class="flip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v5"/></svg>',
-    arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
-    help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12l-8 8-8-8 8-8z"/><path d="M12 9v4M12 16h.01"/></svg>',
-    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.5"/></svg>',
-    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
-    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
-    person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
-    group: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.2a5.5 5.5 0 0 1 5.5 5.8"/></svg>',
-    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/></svg>',
-    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
-    photo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="3"/><circle cx="9" cy="10.5" r="2"/><path d="M21 17l-5.5-5.5L7 20"/></svg>',
-    video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="13" height="12" rx="3"/><path d="M15.5 10.5l6-3.5v10l-6-3.5z"/></svg>',
-    voice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
-    file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" aria-hidden="true"><path d="M6 2.5h8l5 5v14H6z"/><path d="M14 2.5v5h5"/></svg>',
-    alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v4.5M12 17.5h.01"/></svg>',
-    laptop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4.5" width="16" height="11" rx="2"/><path d="M2 19.5h20"/></svg>',
-    helper: '<svg viewBox="0 0 40 40" aria-hidden="true"><path fill="#fff" stroke="#0b3b2e" stroke-width="2.6" stroke-linejoin="round" d="M8 8h24a5 5 0 0 1 5 5v12a5 5 0 0 1-5 5H18l-7 6v-6H8a5 5 0 0 1-5-5V13a5 5 0 0 1 5-5z"/><circle cx="15" cy="18" r="2.2" fill="#0b3b2e"/><circle cx="25" cy="18" r="2.2" fill="#0b3b2e"/><path d="M15.5 23.2c2.6 2.2 6.4 2.2 9 0" fill="none" stroke="#0b3b2e" stroke-width="2.4" stroke-linecap="round"/></svg>',
-    chooseArt: '<svg class="phone-art" viewBox="0 0 170 160" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><rect x="20" y="12" width="132" height="38" rx="14" fill="#fff" transform="rotate(-4 86 31)"/><rect x="12" y="62" width="132" height="38" rx="14" fill="#fff" transform="rotate(3 78 81)"/><rect x="26" y="112" width="132" height="38" rx="14" fill="#fff" transform="rotate(-2 92 131)"/><rect x="32" y="20" width="22" height="22" rx="6" fill="#25d366" transform="rotate(-4 43 31)"/><rect x="24" y="70" width="22" height="22" rx="6" fill="#fff" transform="rotate(3 35 81)"/><rect x="38" y="120" width="22" height="22" rx="6" fill="#25d366" transform="rotate(-2 49 131)"/></g><g fill="none" stroke="#0b3b2e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M37 31l4 4 8-8" transform="rotate(-4 43 31)"/><path d="M43 131l4 4 8-8" transform="rotate(-2 49 131)"/><path d="M66 30h60" transform="rotate(-4 86 31)"/><path d="M58 81h52" transform="rotate(3 78 81)"/><path d="M72 131h58" transform="rotate(-2 92 131)"/></g></svg>',
-    morningArt: '<svg class="phone-art" viewBox="0 0 170 160" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><circle cx="112" cy="50" r="30" fill="#ffd84d"/><path d="M112 6v8M146 16l-6 6M156 50h-8M78 16l6 6" stroke-linecap="round"/><path d="M22 70h86a14 14 0 0 1 14 14v30a14 14 0 0 1-14 14H56l-20 16v-16H22a14 14 0 0 1-14-14V84a14 14 0 0 1 14-14z" fill="#fff"/></g><g fill="#25d366" stroke="#0b3b2e" stroke-width="3.5"><circle cx="40" cy="99" r="7"/><circle cx="65" cy="99" r="7"/><circle cx="90" cy="99" r="7"/></g></svg>',
-    fixArt: '<svg class="phone-art" viewBox="0 0 170 160" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><rect x="46" y="8" width="78" height="144" rx="16" fill="#fff" transform="rotate(-6 85 80)"/><path d="M84 52l30 52H54z" fill="#ffb35c" transform="rotate(-6 85 80)"/></g><g stroke="#0b3b2e" stroke-width="4" stroke-linecap="round" transform="rotate(-6 85 80)"><path d="M84 70v14M84 94v1"/></g><circle cx="140" cy="130" r="16" fill="#25d366" stroke="#0b3b2e" stroke-width="4"/><path d="M133 130l5 5 9-9" fill="none" stroke="#0b3b2e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    laptopArt: '<svg class="phone-art" viewBox="0 0 170 160" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><rect x="28" y="30" width="114" height="76" rx="10" fill="#fff"/><path d="M12 118h146l-10 16H22z" fill="#8ad8ff"/><path d="M62 52h36a8 8 0 0 1 8 8v12a8 8 0 0 1-8 8H78l-10 8v-8h-6a8 8 0 0 1-8-8V60a8 8 0 0 1 8-8z" fill="#25d366"/></g></svg>',
-    phoneArt: '<svg class="phone-art" viewBox="0 0 170 190" aria-hidden="true"><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><rect x="40" y="10" width="92" height="170" rx="18" fill="#fff" transform="rotate(8 86 95)"/><g transform="rotate(8 86 95)"><rect x="56" y="44" width="60" height="60" rx="6" fill="#fff"/><rect x="62" y="50" width="16" height="16" rx="2" fill="#0b3b2e"/><rect x="94" y="50" width="16" height="16" rx="2" fill="#0b3b2e"/><rect x="62" y="82" width="16" height="16" rx="2" fill="#0b3b2e"/><rect x="86" y="74" width="8" height="8" fill="#0b3b2e" stroke="none"/><rect x="98" y="86" width="12" height="12" fill="#0b3b2e" stroke="none"/><rect x="84" y="90" width="6" height="8" fill="#0b3b2e" stroke="none"/><path d="M70 130h32" stroke-linecap="round"/><path d="M76 140h20" stroke-linecap="round"/></g></g><g stroke="#0b3b2e" stroke-width="4" stroke-linejoin="round"><path d="M8 34h34a8 8 0 0 1 8 8v12a8 8 0 0 1-8 8H26l-10 8v-8H8a8 8 0 0 1-8-8V42a8 8 0 0 1 8-8z" fill="#ffd84d" transform="translate(2 -18) rotate(-10 25 50)"/></g><path d="M18 34c2 3 6 3 8 0" transform="translate(2 -18) rotate(-10 25 50)" fill="none" stroke="#0b3b2e" stroke-width="3.5" stroke-linecap="round"/><circle cx="148" cy="150" r="14" fill="#ff9cc2" stroke="#0b3b2e" stroke-width="4"/><path d="M142 150l4 4 8-8" fill="none" stroke="#0b3b2e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    wa: '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#fff" d="M16 4.2C9.5 4.2 4.2 9.4 4.2 15.9c0 2.1.6 4.2 1.6 6L4 28l6.3-1.7c1.7.9 3.7 1.4 5.7 1.4 6.5 0 11.8-5.3 11.8-11.8S22.5 4.2 16 4.2z"/><path fill="#0d4a35" d="M22 18.6c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.5-1.6-.9-.8-1.5-1.8-1.7-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.6l-1-2.3c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.2c.2.2 2.2 3.4 5.4 4.7.8.3 1.3.5 1.8.6.8.2 1.4.2 2 .1.6-.1 1.9-.8 2.1-1.5.3-.7.3-1.4.2-1.5-.1-.1-.3-.2-.6-.4z"/></svg>',
+    waInk: '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#0d4a35" d="M16 4.2C9.5 4.2 4.2 9.4 4.2 15.9c0 2.1.6 4.2 1.6 6L4 28l6.3-1.7c1.7.9 3.7 1.4 5.7 1.4 6.5 0 11.8-5.3 11.8-11.8S22.5 4.2 16 4.2z"/><path fill="#f6f2e8" d="M22 18.6c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.5-1.6-.9-.8-1.5-1.8-1.7-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.6l-1-2.3c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.2c.2.2 2.2 3.4 5.4 4.7.8.3 1.3.5 1.8.6.8.2 1.4.2 2 .1.6-.1 1.9-.8 2.1-1.5.3-.7.3-1.4.2-1.5-.1-.1-.3-.2-.6-.4z"/></svg>',
+    refresh: '<svg' + S_ + '><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg>',
+    send: '<svg' + S_ + '><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>',
+    reply: '<svg class="flip"' + S_ + '><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v5"/></svg>',
+    clock: '<svg' + S_ + '><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    tag: '<svg' + S_ + '><path d="M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8-9 9z"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>',
+    calendar: '<svg' + S_ + '><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+    check: '<svg' + S_ + '><circle cx="12" cy="12" r="9"/><path d="M8.5 12.2l2.4 2.4 4.7-4.9"/></svg>',
+    circle: '<svg' + S_ + '><circle cx="12" cy="12" r="8.5"/></svg>',
+    users: '<svg' + S_ + '><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.3a6.5 6.5 0 0 1 3.5 5.7"/></svg>',
+    group: '<svg' + S_ + '><circle cx="9" cy="8.5" r="3.2"/><path d="M3 19.5a6 6 0 0 1 12 0"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.3a5 5 0 0 1 5.5 5.2"/></svg>',
+    phone: '<svg' + S_ + '><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/></svg>',
+    alert: '<svg' + S_ + '><path d="M12 3.5l9 16h-18z"/><path d="M12 10v4.5M12 17.2h.01"/></svg>',
+    laptop: '<svg' + S_ + '><rect x="4" y="4.5" width="16" height="11" rx="2"/><path d="M2 19.5h20"/></svg>',
+    arrow: '<svg class="flip"' + S_ + '><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+    repeat: '<svg' + S_ + '><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>',
+    chats: '<svg' + S_ + '><path d="M4 5h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M18 9h2a2 2 0 0 1 2 2v7l-3-2h-6"/></svg>'
   };
 
-  var FACE_COLORS = ["#ffd84d", "#ff9cc2", "#8ad8ff", "#ffb35c", "#cdbaff", "#7ee7a8", "#ff8f8f", "#9fe3d8"];
+  var TINTS = ["#f1d7b5", "#cfe3d3", "#d8e0ef", "#efd3cc", "#e5dcc2", "#d4e7e6", "#e6d6e8", "#dfe6c9"];
 
-  /* ── Language: Cabinet's own, when the page can see it ───────────── */
+  /* ── Language and theme: Cabinet's own when the page can see it ─── */
   function pickLang() {
     var tag = "";
     try {
@@ -645,11 +601,10 @@
   }
   var LANG = pickLang();
   var T = WORDS[LANG];
-  var LOCALE = LANG === "he" ? "he-IL" : "en-GB";
+  var LOCALE = LANG === "he" ? "he-IL" : "en-US";
   document.documentElement.lang = LANG;
   document.documentElement.dir = LANG === "he" ? "rtl" : "ltr";
 
-  /* ── Follow Cabinet's light or dark theme when it can be read ────── */
   (function followTheme() {
     function apply() {
       try {
@@ -665,7 +620,7 @@
     }
   })();
 
-  /* ── Small helpers ───────────────────────────────────────────────── */
+  /* ── Helpers ─────────────────────────────────────────────────────── */
   function $(id) { return document.getElementById(id); }
   function esc(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
@@ -675,76 +630,84 @@
   function fill(text, vars) {
     return String(text).replace(/\{(\w+)\}/g, function (m, key) { return vars && vars[key] != null ? vars[key] : m; });
   }
-  function text(value, max) {
+  function str(value, max) {
     var s = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : (typeof value === "number" ? String(value) : "");
     return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
   }
-  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function rows(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
   function icon(name) { return ICONS[name] || ""; }
-  function span(value, cls) { return '<span dir="auto"' + (cls ? ' class="' + cls + '"' : "") + ">" + esc(value) + "</span>"; }
-  function bdi(value) { return "<bdi>" + esc(value) + "</bdi>"; }
   function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
-
   var NUMBER_WORDS = /^(the number ending|a number not known yet|המספר שמסתיים|מספר לא ידוע)/i;
   function initials(name) {
     var words = String(name).replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).filter(Boolean);
     if (!words.length) return "?";
-    var first = Array.from(words[0])[0] || "";
-    var second = words.length > 1 ? (Array.from(words[words.length - 1])[0] || "") : "";
-    return (first + second).toUpperCase();
+    var a = Array.from(words[0])[0] || "";
+    var b = words.length > 1 ? (Array.from(words[words.length - 1])[0] || "") : "";
+    return (a + b).toUpperCase();
   }
-  function face(who, kind, small) {
-    var name = text(who) || "?";
-    var color = FACE_COLORS[hash(name) % FACE_COLORS.length];
-    var inner;
-    if (kind === "group") inner = icon("group");
-    else if (kind === "number" || NUMBER_WORDS.test(name)) inner = icon("phone");
-    else inner = '<bdi dir="auto">' + esc(initials(name)) + "</bdi>";
-    return '<span class="face' + (small ? " sm" : "") + '" style="background:' + color + '" aria-hidden="true">' + inner + "</span>";
+  function avatar(who, kind) {
+    var name = str(who) || "?";
+    var inner = kind === "group" ? icon("group") : (kind === "number" || NUMBER_WORDS.test(name)) ? icon("phone") : '<bdi dir="auto">' + esc(initials(name)) + "</bdi>";
+    return '<span class="av" style="background:' + TINTS[hash(name) % TINTS.length] + '" aria-hidden="true">' + inner + "</span>";
   }
 
-  /* ── Dates: the chats' local times, told the way people say them ─── */
+  /* Times: the chats' local times, told the way people say them. */
   function parseWhen(value) {
-    var s = text(value);
+    var s = str(value);
     var m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
     if (!m) return null;
     var hasTime = m[4] !== undefined;
-    var date;
-    if (hasTime && /(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(s)) date = new Date(s);
-    else date = new Date(+m[1], +m[2] - 1, +m[3], hasTime ? +m[4] : 12, hasTime ? +m[5] : 0);
-    return isNaN(date.getTime()) ? null : { date: date, hasTime: hasTime };
+    var d = hasTime && /(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(s) ? new Date(s)
+      : new Date(+m[1], +m[2] - 1, +m[3], hasTime ? +m[4] : 12, hasTime ? +m[5] : 0);
+    return isNaN(d.getTime()) ? null : { date: d, hasTime: hasTime };
   }
   function dayStart(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
-  function clock(d) { return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
-  var fmtWeekday = new Intl.DateTimeFormat(LOCALE, { weekday: "short" });
-  var fmtDayMonth = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short" });
   function daysBetween(a, b) { return Math.round((dayStart(b) - dayStart(a)) / 86400000); }
-  /* Past: "yesterday 16:40", "Tue 09:30", "24 Sep". Future: "tomorrow 08:30", "Sun 07:00". */
+  var fmtTime = new Intl.DateTimeFormat(LOCALE, { hour: "numeric", minute: "2-digit" });
+  var fmtWeekday = new Intl.DateTimeFormat(LOCALE, { weekday: "short" });
+  var fmtWeekdayLong = new Intl.DateTimeFormat(LOCALE, { weekday: "long", month: "short", day: "numeric" });
+  var fmtDayMonth = new Intl.DateTimeFormat(LOCALE, { month: "short", day: "numeric" });
   function when(value, now) {
     var p = parseWhen(value);
-    if (!p) return text(value);
+    if (!p) return str(value);
     var diff = daysBetween(now, p.date);
-    var word;
-    if (diff === 0) word = T.today;
-    else if (diff === -1) word = T.yesterday;
-    else if (diff === 1) word = T.tomorrow;
-    else if (Math.abs(diff) < 7) word = fmtWeekday.format(p.date);
-    else word = fmtDayMonth.format(p.date);
-    return p.hasTime ? word + " " + clock(p.date) : word;
+    var word = diff === 0 ? T.today : diff === -1 ? T.yesterday : diff === 1 ? T.tomorrow
+      : Math.abs(diff) < 7 ? fmtWeekday.format(p.date) : fmtDayMonth.format(p.date);
+    return p.hasTime ? word + " " + fmtTime.format(p.date) : word;
+  }
+  function duration(fromValue, now) {
+    var p = parseWhen(fromValue);
+    if (!p) return null;
+    var mins = Math.max(0, Math.round((now - p.date) / 60000));
+    var text = mins < 60 ? fill(T.min, { n: Math.max(1, mins) }) : mins < 48 * 60 ? fill(T.hours, { n: Math.round(mins / 60) })
+      : fill(T.days, { n: Math.round(mins / 1440) });
+    return { mins: mins, text: text };
+  }
+  function heat(mins) { return mins >= 24 * 60 ? "hot" : mins >= 4 * 60 ? "mild" : "fresh"; }
+
+  /* "$1,140" style amounts add up when they share one currency sign. */
+  function sumAmounts(list) {
+    var sign = null, total = 0;
+    for (var i = 0; i < list.length; i++) {
+      var m = str(list[i].amount).match(/^([$€£₪])\s?(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)$/);
+      if (!m) return null;
+      if (sign && sign !== m[1]) return null;
+      sign = m[1];
+      total += parseFloat(m[2].replace(/,/g, ""));
+    }
+    if (!sign) return null;
+    return sign + new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(total);
   }
 
   /* ── State ───────────────────────────────────────────────────────── */
   var cab = window.cabinet;
   var V2 = !!(cab && cab.connectors && cab.files && cab.jobs && cab.ask);
-  var S = {
-    appPath: "today", cabinetPath: "", role: "owner",
-    connectors: null, job: null, data: null, example: false, week: null,
-    readError: false, loaded: false, saved: null, busyConnect: false, lastRunSeen: null
-  };
+  var S = { appPath: "today", cabinetPath: "", role: "owner", connectors: null, job: null, data: null, example: false,
+    week: null, readError: false, loaded: false, saved: null, busyConnect: false, showAll: false };
   function wa() { return (S.connectors || []).filter(function (c) { return c.id === "whatsapp"; })[0] || null; }
   function cal() { return (S.connectors || []).filter(function (c) { return c.id === "google-calendar"; })[0] || null; }
   function canEdit() { return S.role === "owner" || S.role === "editor"; }
-  function dataPath(name) { return S.appPath + "/data/" + name; }
+  function linked() { var w = wa(); return !!w && w.state === "connected"; }
 
   var toastTimer = null;
   function toast(message) {
@@ -756,11 +719,9 @@
   }
   function said(err) { toast((err && err.message) || "That didn't work."); }
 
-  /* ── Reading the routine's files ─────────────────────────────────── */
+  /* ── Files ───────────────────────────────────────────────────────── */
   function readJson(name) {
-    if (V2) {
-      return cab.files.read(dataPath(name)).then(function (t) { return JSON.parse(t); });
-    }
+    if (V2) return cab.files.read(S.appPath + "/data/" + name).then(function (t) { return JSON.parse(t); });
     return fetch("data/" + encodeURIComponent(name), { cache: "no-store" }).then(function (r) {
       if (r.status === 404) { var e = new Error("not found"); e.code = "not-found"; throw e; }
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -768,19 +729,26 @@
     });
   }
   function isMissing(err) { return !!err && (err.code === "not-found" || /not found/i.test(err.message || "")); }
+  /* A frame that cannot fetch at all (sealed, or offline) is not a broken file. */
+  function isUnreachable(err) { return !V2 && !!err && err.name === "TypeError"; }
 
-  function loadData() {
+  function loadData(again) {
     return readJson("latest.json").then(function (json) {
-      S.data = json; S.example = json && json.example === true; S.readError = false;
+      S.data = json; S.example = !!(json && json.example === true); S.readError = false;
+      return true;
     }, function (err) {
-      S.readError = !isMissing(err);
-      return readJson("EXAMPLE-latest.json").then(function (json) {
-        S.data = json; S.example = true;
-      }, function () { S.data = null; S.example = false; });
-    }).then(function () {
-      if (S.example) return null;
-      return readJson("week.json").then(function (json) { S.week = json; }, function () { S.week = null; });
-    }).then(function () { S.loaded = true; render(); });
+      if (err instanceof SyntaxError && !again) {
+        // Caught mid-write: read it again in a moment.
+        return new Promise(function (resolve) { setTimeout(resolve, 1500); }).then(function () { return loadData(true); }).then(function () { return false; });
+      }
+      S.readError = !isMissing(err) && !isUnreachable(err);
+      return readJson("EXAMPLE-latest.json").then(function (json) { S.data = json; S.example = true; return true; },
+        function () { S.data = null; S.example = false; return true; });
+    }).then(function (mine) {
+      if (!mine) return false;
+      if (S.example) { S.week = null; return true; }
+      return readJson("week.json").then(function (json) { S.week = json; return true; }, function () { S.week = null; return true; });
+    }).then(function (draw) { if (draw) { S.loaded = true; render(); } });
   }
 
   function loadSaved() {
@@ -802,276 +770,282 @@
       return cab.connectors.list().then(function (l) { S.connectors = l; }, function () {});
     }).then(function () { loadSaved(); render(); });
   }
-
   function refresh() {
     if (!V2 || !S.job || S.job.running) return;
-    cab.jobs.run(S.job.id).then(function () {
-      S.job.running = true; render();
-    }, said);
+    cab.jobs.run(S.job.id).then(function () { S.job.running = true; render(); }, said);
   }
-
   function ask(question) {
     if (!V2) return;
     cab.ask(question).then(function () { toast(T.opening); }, said);
   }
-
   function openInCabinet(rel, event) {
     try {
       var shell = window.parent;
       if (!shell || shell === window || shell.location.origin !== location.origin) return;
-      var url = "/workspace/" + (S.cabinetPath + "/" + rel).split("/").filter(Boolean).map(encodeURIComponent).join("/");
-      shell.history.pushState(null, "", url);
+      shell.history.pushState(null, "", "/workspace/" + (S.cabinetPath + "/" + rel).split("/").filter(Boolean).map(encodeURIComponent).join("/"));
       shell.dispatchEvent(new (shell.PopStateEvent || PopStateEvent)("popstate", { state: null }));
       event.preventDefault();
     } catch (err) { /* a sealed frame keeps the plain link */ }
   }
 
-  /* The page ends above the input bar, whatever its height. */
-  function sizeSpacer() {
-    var bar = $("composer");
-    $("spacer").style.height = bar.hidden ? "48px" : (bar.offsetHeight + 28) + "px";
-    $("toast").style.bottom = (bar.hidden ? 24 : bar.offsetHeight + 16) + "px";
+  /* ── The customer cards: one per conversation ────────────────────── */
+  function customers(d, now) {
+    var byKey = {}, order = [];
+    function get(r, whoField) {
+      var field = whoField || "who";
+      var k = str(r.chat) || ("who:" + str(r[field]).toLowerCase());
+      if (!byKey[k]) {
+        byKey[k] = { key: k, who: str(r[field], 80), kind: str(r.kind), waiting: null, quotes: [], appts: [], promises: [], last: null, about: "" };
+        order.push(k);
+      }
+      return byKey[k];
+    }
+    rows(d.waiting).forEach(function (r) { if (str(r.who)) { var c = get(r); c.waiting = r; c.last = c.last || r.since; } });
+    rows(d.prices).forEach(function (r) { if (str(r.who) && str(r.amount)) get(r).quotes.push(r); });
+    rows(d.plans).forEach(function (r) {
+      var p = parseWhen(r.when);
+      if (str(r.who) && p && daysBetween(now, p.date) >= 0) get(r).appts.push(r);
+    });
+    rows(d.promises).forEach(function (r) { if (str(r.to) && str(r.what)) get(r, "to").promises.push(r); });
+    rows(d.chats).forEach(function (r) { if (str(r.who)) { var c = get(r); c.last = r.last || c.last; c.about = c.about || str(r.about, 120); } });
+    function t(v) { var p = parseWhen(v); return p ? p.date.getTime() : 0; }
+    function busy(c) { return c.quotes.length || c.appts.length || c.promises.length ? 1 : 0; }
+    return order.map(function (k) { return byKey[k]; }).sort(function (a, b) {
+      if (!!a.waiting !== !!b.waiting) return a.waiting ? -1 : 1;
+      if (a.waiting && b.waiting) return t(a.waiting.since) - t(b.waiting.since);
+      if (busy(a) !== busy(b)) return busy(b) - busy(a);
+      return t(b.last) - t(a.last);
+    });
   }
-  window.addEventListener("resize", sizeSpacer);
+
+  function card(c, i, now, mode) {
+    var w = c.waiting, dur = w ? duration(w.since, now) : null, h = dur ? heat(dur.mins) : "";
+    var kindLine = c.kind === "group" ? T.kindGroup : (c.kind === "number" || NUMBER_WORDS.test(c.who)) ? T.kindNumber
+      : w && T.topic[str(w.topic)] ? T.topic[str(w.topic)] : c.about;
+    var html = '<article class="cust in' + (w ? " waiting " + h : "") + '" style="animation-delay:' + Math.min(i, 8) * 40 + 'ms">' +
+      '<div class="cust-h">' + avatar(c.who, c.kind) + '<div class="who"><div class="n" dir="auto">' + esc(c.who) + "</div>" +
+      (kindLine ? '<div class="k" dir="auto">' + esc(kindLine) + "</div>" : "") + "</div>" +
+      (w && dur ? '<span class="wait ' + h + '">' + icon("clock") + "<span>" + esc(fill(T.waitingFor, { d: dur.text })) + "</span></span>"
+        : '<span class="wait ok">' + esc(T.answered) + "</span>") + "</div>";
+    if (w) {
+      if (str(w.wants)) html += '<p class="wants" dir="auto">' + esc(str(w.wants, 160)) + "</p>";
+      if (str(w.quote)) html += '<p class="said" dir="auto">' + esc(str(w.quote, 180)) + "</p>";
+    }
+    var facts = [];
+    c.quotes.forEach(function (q) {
+      facts.push("<li>" + icon("tag") + '<span class="x"><b class="num"><bdi>' + esc(str(q.amount, 30)) + '</bdi></b> · <bdi dir="auto">' + esc(str(q["for"], 120)) + "</bdi></span>" +
+        '<span class="st ' + (q.agreed === true ? "done" : "open") + '">' + esc(q.agreed === true ? T.agreed : T.open) + "</span></li>");
+    });
+    c.appts.forEach(function (a) {
+      facts.push("<li>" + icon("calendar") + '<span class="x"><b>' + esc(when(a.when, now)) + '</b> · <bdi dir="auto">' + esc(str(a.what, 120)) + "</bdi></span></li>");
+    });
+    c.promises.forEach(function (p) {
+      facts.push("<li>" + icon("circle") + '<span class="x">' + esc(T.promiseRow) + ': <bdi dir="auto">' + esc(str(p.what, 140)) + "</bdi></span></li>");
+    });
+    if (facts.length) html += '<ul class="facts">' + facts.join("") + "</ul>";
+    var lastWhen = w ? w.since : c.last;
+    var action = "";
+    if (mode === "example") action = '<button class="btn' + (w ? " primary" : "") + '" type="button" data-act="example">' + (w ? icon("reply") : "") + esc(w ? T.draft : T.askAbout) + "</button>";
+    else if (mode === "live") action = w
+      ? '<button class="btn primary" type="button" data-act="draft" data-k="' + esc(c.key) + '" aria-label="' + esc(fill(T.draftLabel, { who: c.who })) + '">' + icon("reply") + esc(T.draft) + "</button>"
+      : '<button class="btn" type="button" data-act="about" data-k="' + esc(c.key) + '">' + esc(T.askAbout) + "</button>";
+    html += '<div class="cust-f"><span class="last">' + (lastWhen ? esc(fill(T.lastMessage, { when: when(lastWhen, now) })) : "") + "</span>" + action + "</div></article>";
+    return html;
+  }
 
   /* ── Drawing ─────────────────────────────────────────────────────── */
   function pill() {
     var el = $("pill"), label = $("pill-text"), w = wa();
     el.hidden = !V2;
-    var cls = "off", words = T.notConnected;
+    var cls = "", words = T.notConnected;
     if (w) {
-      if (w.state === "connected") { cls = ""; words = T.connected; }
+      if (w.state === "connected") { cls = "on"; words = T.connected; }
       else if (w.busy === "linking") { cls = "warn"; words = T.linking; }
       else if (w.state === "needs-you" || w.state === "needs-sign-in") { cls = "warn"; words = T.needsYou; }
-      else if (w.state === "not-available-here") { cls = "off"; words = T.notHere; }
+      else if (w.state === "not-available-here") { words = T.notHere; }
     }
     el.className = "pill " + cls;
     label.textContent = words;
   }
-
   function refreshButton() {
-    var btn = $("refresh"), w = wa();
-    var show = V2 && canEdit() && !!S.job && !!w && w.state === "connected" && !!S.data && !S.example;
-    btn.hidden = !show;
+    var btn = $("refresh");
+    btn.hidden = !(V2 && canEdit() && !!S.job && linked() && !!S.data && !S.example);
     var running = !!(S.job && S.job.running);
     btn.disabled = running;
     btn.classList.toggle("spin", running);
     $("refresh-text").textContent = running ? T.refreshing : T.refresh;
+    btn.setAttribute("aria-label", running ? T.refreshing : T.refresh);
   }
-
-  function composer() {
-    var w = wa();
-    var on = V2 && canEdit() && !!w && (w.state === "connected" || (!!S.data && !S.example));
-    $("composer").hidden = !on;
+  function bar() {
+    $("bar").hidden = !(V2 && canEdit() && (linked() || (!!S.data && !S.example)));
     sizeSpacer();
   }
+  function sizeSpacer() {
+    var b = $("bar");
+    $("spacer").style.height = b.hidden ? "40px" : (b.offsetHeight + 24) + "px";
+    $("toast").style.bottom = (b.hidden ? 24 : b.offsetHeight + 14) + "px";
+  }
+  window.addEventListener("resize", sizeSpacer);
 
-  function banner() {
+  function notices() {
     var w = wa(), html = "";
-    if (!V2) {
-      html = '<div class="banner ex">' + icon("alert") + '<div class="b-text">' + esc(T.oldCabinet) + "</div></div>";
-    } else if (w && S.data && !S.example && w.state !== "connected") {
-      var line = w.state === "not-available-here" ? (w.problem && w.problem.text) || T.notHereLine
-        : (w.problem && w.problem.text) || T.notConnected;
-      var fix = w.canConnect && w.state !== "not-available-here"
-        ? '<button class="softbtn" type="button" data-act="connect">' + icon("wa") + esc(w.state === "not-added" ? T.connectButton : T.fix) + "</button>" : "";
-      html = '<div class="banner warn">' + icon("alert") + '<div class="b-text" dir="auto">' + esc(line) + "</div>" + fix + "</div>";
+    if (!V2) html += '<div class="notice">' + icon("alert") + '<div class="t">' + esc(T.oldCabinet) + "</div></div>";
+    else if (w && S.data && !S.example && w.state !== "connected") {
+      var line = w.state === "not-available-here" ? (w.problem && w.problem.text) || T.notHereLine : (w.problem && w.problem.text) || T.notConnected;
+      var fix = w.canConnect && w.state !== "not-available-here" ? '<button class="btn" type="button" data-act="connect">' + esc(w.state === "not-added" ? T.connect : T.fix) + "</button>" : "";
+      html += '<div class="notice">' + icon("alert") + '<div class="t" dir="auto">' + esc(line) + "</div>" + fix + "</div>";
     } else if (w && w.state === "connected" && w.busy === "catching-up") {
-      html = '<div class="banner">' + icon("clock") + '<div class="b-text">' + esc(T.catchingUp) + "</div></div>";
+      html += '<div class="notice plain">' + icon("clock") + '<div class="t">' + esc(T.catchingUp) + "</div></div>";
     }
-    if (S.job && S.job.lastRun && S.job.lastRun.ok === false && !S.job.running && w && w.state === "connected") {
-      html += '<div class="banner warn">' + icon("alert") + '<div class="b-text">' + esc(T.runFailed) + "</div></div>";
-    } else if (S.readError) {
-      html += '<div class="banner warn">' + icon("alert") + '<div class="b-text">' + esc(T.readError) + "</div></div>";
-    }
-    $("banner").innerHTML = html;
+    if (S.job && S.job.lastRun && S.job.lastRun.ok === false && !S.job.running && linked()) html += '<div class="notice">' + icon("alert") + '<div class="t">' + esc(T.runFailed) + "</div></div>";
+    else if (S.readError) html += '<div class="notice">' + icon("alert") + '<div class="t">' + esc(T.readError) + "</div></div>";
+    $("notice").innerHTML = html;
   }
 
-  /* The card at the top when there is no catch-up of the person's own to show. */
+  function hero(w) {
+    var btn = w.canConnect
+      ? '<button class="btn big" type="button" data-act="connect"' + (S.busyConnect ? " disabled" : "") + ">" + icon("waInk") + "<span>" + esc(S.busyConnect ? T.connecting : T.connect) + "</span></button>" +
+        '<div class="how">' + icon("phone") + "<span>" + esc(T.heroHow) + "</span></div>"
+      : "<p>" + esc(T.ownerOnly) + "</p>";
+    var preview = '<div class="preview" aria-hidden="true">' +
+      '<div class="prow"><span class="av" style="background:#f1d7b5">PS</span><div><div class="nm">Priya Shah</div><div class="sb">' + esc(T.topic.quote) + '</div></div><span class="tag hot">' + esc(T.previewA) + "</span></div>" +
+      '<div class="prow"><span class="av" style="background:#cfe3d3">BP</span><div><div class="nm">Buckeye Parts</div><div class="sb">' + esc(T.topic.question) + '</div></div><span class="tag">' + esc(T.previewB) + "</span></div>" +
+      '<div class="prow"><span class="av" style="background:#d8e0ef">TB</span><div><div class="nm">Tom Becker</div><div class="sb">' + esc(T.apptRow) + '</div></div><span class="tag">' + esc(T.previewC) + "</span></div></div>";
+    return '<section class="hero in"><div><div class="kicker">' + esc(T.heroKicker) + "</div><h2>" + esc(T.heroTitle) + "</h2><p>" + esc(T.heroLine) + "</p>" + btn + "</div>" + preview + "</section>";
+  }
+  function soft(iconName, title, line, button, act) {
+    return '<section class="card-soft in"><span class="ic">' + icon(iconName) + '</span><div class="tx"><h2 dir="auto">' + esc(title) + "</h2>" +
+      (line ? '<p dir="auto">' + esc(line) + "</p>" : "") + "</div>" +
+      (button ? '<button class="btn primary" type="button" data-act="' + act + '"' + (S.busyConnect ? " disabled" : "") + ">" + esc(button) + "</button>" : "") + "</section>";
+  }
+
+  /* What sits at the top when there is no catch-up of the person's own yet. */
   function lead() {
     var w = wa();
-    if (!V2) return "";
-    if (!w) return "";
+    if (!V2 || !w) return "";
+    var mine = S.data && !S.example;
     if (w.state === "connected") {
-      if (S.saved && S.saved.length === 0) return chooseCard();
-      if (S.data && !S.example) return "";
-      return firstRunCard();
+      if (S.saved && S.saved.length === 0) return soft("chats", T.chooseTitle, T.chooseLine, w.canConnect ? T.choose : "", "connect");
+      if (mine) return "";
+      if (S.job && S.job.running) {
+        return '<section class="card-soft in"><span class="ic">' + icon("chats") + '</span><div class="tx"><h2>' + esc(T.runningTitle) +
+          '</h2><p><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span> ' + esc(T.runningLine) + "</p></div></section>";
+      }
+      var whenText = S.job && S.job.when ? String(S.job.when).toLowerCase() : "";
+      return soft("chats", T.firstTitle, whenText ? fill(T.firstLine, { when: whenText }) : T.firstLineNoWhen, canEdit() && S.job ? T.firstButton : "", "refresh");
     }
-    if (S.data && !S.example) return "";
-    if (w.busy === "linking") return softCard(T.linkingTitle, "", w.canConnect ? T.connectButton : "", "connect", "", "phoneArt");
-    if (w.state === "not-available-here") return softCard(T.notHereTitle, (w.problem && w.problem.text) || T.notHereLine, "", "", "", "laptopArt");
+    if (mine) return "";
+    if (w.busy === "linking") return soft("phone", T.linkingTitle, "", w.canConnect ? T.connect : "", "connect");
+    if (w.state === "not-available-here") return soft("laptop", T.notHereTitle, (w.problem && w.problem.text) || T.notHereLine, "", "");
     if (w.state === "needs-you" || w.state === "needs-sign-in") {
-      return softCard((w.problem && w.problem.text) || T.needsYou, "", w.canConnect ? T.fix : "", "connect", w.canConnect ? "" : T.ownerOnly, "fixArt");
+      return soft("alert", (w.problem && w.problem.text) || T.needsYou, w.canConnect ? "" : T.ownerOnly, w.canConnect ? T.fix : "", "connect");
     }
-    return connectCard(w);
+    return hero(w);
   }
 
-  function connectCard(w) {
-    var button = w.canConnect
-      ? '<button class="bigbtn" type="button" data-act="connect"' + (S.busyConnect ? " disabled" : "") + ">" + icon("wa") + "<span>" + esc(S.busyConnect ? T.connecting : T.connectButton) + "</span></button>"
-      : '<p class="how">' + esc(T.ownerOnly) + "</p>";
-    return '<div class="connect pop-in"><div><h2>' + esc(T.connectTitle) + "</h2><p>" + esc(T.connectLine) + "</p>" + button +
-      (w.canConnect ? '<p class="how">' + icon("phone") + "<span>" + esc(T.connectHow) + "</span></p>" : "") + "</div>" + icon("phoneArt") + "</div>";
-  }
-
-  function softCard(title, line, buttonText, act, note, art) {
-    return '<div class="connect soft pop-in"><div><h2 dir="auto">' + esc(title) + "</h2>" + (line ? '<p dir="auto">' + esc(line) + "</p>" : "") +
-      (buttonText ? '<button class="bigbtn" type="button" data-act="' + act + '"' + (S.busyConnect ? " disabled" : "") + ">" + icon("wa") + "<span>" + esc(buttonText) + "</span></button>" : "") +
-      (note ? '<p class="how">' + esc(note) + "</p>" : "") + "</div>" + (art ? icon(art) : "") + "</div>";
-  }
-
-  function chooseCard() {
-    var w = wa();
-    return softCard(T.chooseTitle, "", w && w.canConnect ? T.choose : "", "connect", w && w.canConnect ? "" : T.ownerOnly, "chooseArt");
-  }
-
-  function firstRunCard() {
-    var running = S.job && S.job.running;
-    if (running) {
-      return '<div class="hero pop-in"><div class="helper">' + icon("helper") + '</div><div class="say"><div class="who-says">' + esc(T.helper) +
-        '</div><h2>' + esc(T.runningTitle) + '</h2><div class="meta"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span>' + esc(T.runningLine) + "</span></div></div></div>";
+  function kpis(d, now) {
+    var waiting = rows(d.waiting).filter(function (r) { return str(r.who); });
+    var longest = null;
+    waiting.forEach(function (r) { var x = duration(r.since, now); if (x && (!longest || x.mins > longest.mins)) longest = x; });
+    var quotes = rows(d.prices).filter(function (r) { return str(r.amount); });
+    var open = quotes.filter(function (r) { return r.agreed !== true; });
+    var sum = sumAmounts(open);
+    var week = rows(d.plans).filter(function (r) { var p = parseWhen(r.when); if (!p) return false; var k = daysBetween(now, p.date); return k >= 0 && k < 7; })
+      .sort(function (a, b) { return parseWhen(a.when).date - parseWhen(b.when).date; });
+    var promises = rows(d.promises).filter(function (r) { return str(r.what); });
+    var oldest = promises.map(function (r) { return parseWhen(r.said); }).filter(Boolean).sort(function (a, b) { return a.date - b.date; })[0];
+    function tile(v, label, sub, hot) {
+      return '<div class="kpi"><div class="v num">' + esc(String(v)) + '</div><div class="l">' + esc(label) + '</div><div class="s' + (hot ? " hot" : "") + '">' + esc(sub) + "</div></div>";
     }
-    var whenText = S.job && S.job.when ? String(S.job.when).toLowerCase() : "";
-    var line = whenText ? fill(T.firstLine, { when: whenText }) : T.firstLineNoWhen;
-    var button = canEdit() && S.job
-      ? '<button class="bigbtn" type="button" data-act="refresh">' + icon("refresh") + "<span>" + esc(T.firstButton) + "</span></button>" : "";
-    return '<div class="connect soft pop-in"><div><h2>' + esc(T.firstTitle) + "</h2><p>" + esc(line) + "</p>" + button + "</div>" + icon("morningArt") + "</div>";
+    return '<div class="kpis">' +
+      tile(waiting.length, T.kWaiting, longest ? fill(T.kLongest, { d: longest.text }) : T.kNone, !!longest && longest.mins >= 24 * 60) +
+      tile(open.length, T.kQuotes, sum ? fill(T.kQuotesSum, { sum: sum }) : quotes.length > open.length ? fill(T.kQuotesAgreed, { n: quotes.length - open.length }) : "", false) +
+      tile(week.length, T.kAppts, week.length ? fill(T.kNext, { when: when(week[0].when, now) }) : T.kNoAppts, false) +
+      tile(promises.length, T.kPromises, oldest ? fill(T.kOldest, { when: fmtWeekday.format(oldest.date) }) : T.kNoPromises, false) + "</div>";
   }
 
-  function hero(d, now) {
-    var w = wa();
-    var running = S.job && S.job.running && !S.example;
-    var headline = text(d.headline, 240) || (S.example ? T.exampleHeadline : "");
+  function summary(d, now, running) {
     var meta = [];
-    if (d.generatedAt && !S.example) meta.push(fill(esc(T.updated), { when: bdi(when(d.generatedAt, new Date())) }));
-    var n = typeof d.chatsRead === "number" ? d.chatsRead : null;
-    if (n !== null && !S.example) meta.push(esc(n === 1 ? T.chatsRead1 : fill(T.chatsRead, { n: n })));
-    if (S.job && S.job.when && !S.example) meta.push('<span class="sched">' + icon("clock") + esc(fill(T.nextRun, { when: S.job.when })) + "</span>");
-    var status = text(d.status);
-    return '<div class="hero pop-in"><div class="helper">' + icon("helper") + '</div><div class="say">' +
-      (S.example ? '<span class="sticker">' + esc(T.exampleSticker) + "</span>" : "") +
-      '<div class="who-says">' + esc(T.helper) + "</div>" +
-      (running ? '<h2>' + esc(T.runningTitle) + '</h2><div class="meta"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span>' + esc(T.runningLine) + "</span></div>"
-        : '<h2 dir="auto">' + esc(headline) + "</h2>" + (status && status !== "ok" ? '<div class="meta" dir="auto">' + esc(status) + "</div>" : "") +
-          (meta.length ? '<div class="meta">' + meta.map(function (m) { return "<span>" + m + "</span>"; }).join("") + "</div>" : "")) +
-      "</div></div>";
+    if (!S.example) {
+      if (d.generatedAt) meta.push("<span>" + esc(fill(T.updated, { when: when(d.generatedAt, new Date()) })) + "</span>");
+      if (S.job && S.job.when) meta.push("<span>" + icon("clock") + esc(S.job.when) + "</span>");
+      if (typeof d.chatsRead === "number") meta.push("<span>" + esc(d.chatsRead === 1 ? T.chatsRead1 : fill(T.chatsRead, { n: d.chatsRead })) + "</span>");
+    }
+    var status = str(d.status);
+    var headline = running ? T.runningTitle : str(d.headline, 260);
+    return '<section class="summary in">' + (headline ? '<h2 dir="auto">' + esc(headline) + "</h2>" : "") +
+      (running ? '<div class="meta"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span>' + esc(T.runningLine) + "</span></div>" : "") +
+      (status && status !== "ok" ? '<div class="meta" dir="auto">' + esc(status) + "</div>" : "") +
+      (meta.length ? '<div class="meta">' + meta.join("") + "</div>" : "") + kpis(d, now) + "</section>";
   }
 
-  function tag(cls, title, count) {
-    return '<h3 class="tag ' + cls + '">' + esc(title) + (count ? ' <span class="n">' + count + "</span>" : "") +
-      (S.example ? ' <span class="ex-mark">' + esc(T.exampleMark) + "</span>" : "") + "</h3>";
+  function secHead(title, count) {
+    return '<div class="sec-h"><h3>' + esc(title) + "</h3>" + (count ? '<span class="c">' + esc(count) + "</span>" : "") +
+      (S.example ? '<span class="badge">' + esc(T.example) + "</span>" : "") + "</div>";
   }
 
-  function waitingSection(d, now) {
-    var rows = list(d.waiting).filter(function (r) { return text(r.who); });
-    var can = !S.example ? V2 && canEdit() : true;
-    var act = S.example ? "example" : "draft";
-    var html = "<section>" + tag("t-wait", T.waitingTitle, rows.length);
-    if (!rows.length) return html + '<div class="empty">' + esc(T.waitingEmpty) + "</div></section>";
-    html += '<div class="bubbles">';
-    rows.forEach(function (r, i) {
-      var who = text(r.who, 80), wants = text(r.wants, 140), quote = text(r.quote, 160);
-      var inner = '<span class="who" dir="auto">' + esc(who) + "</span>" +
-        (wants ? '<span class="wants" dir="auto">' + esc(wants) + "</span>" : "") +
-        (quote ? '<span class="quote" dir="auto">' + esc(quote) + "</span>" : "") +
-        '<span class="foot">' + (r.since ? '<span class="since">' + fill(esc(T.since), { when: bdi(when(r.since, now)) }) + "</span>" : "") +
-        (can ? '<span class="cta">' + icon("reply") + "<span>" + esc(T.draft) + "</span></span>" : "") + "</span>";
-      var label = fill(T.draftLabel, { who: who, wants: wants });
-      html += '<div class="row pop-in" style="animation-delay:' + (i * 60) + 'ms">' + face(who, r.kind) +
-        (can ? '<button class="bub" type="button" data-act="' + act + '" data-i="' + i + '" aria-label="' + esc(label) + '">' + inner + "</button>"
-          : '<div class="bub">' + inner + "</div>") + "</div>";
-    });
-    return html + "</div></section>";
+  function customerSection(d, now) {
+    var list = customers(d, now);
+    if (!list.length) return "";
+    var mode = S.example ? "example" : V2 && canEdit() ? "live" : "look";
+    var shown = S.showAll ? list : list.slice(0, 6);
+    return "<section>" + secHead(T.customers, fill(T.customersCount, { n: list.length })) + '<div class="stack">' +
+      shown.map(function (c, i) { return card(c, i, now, mode); }).join("") + "</div>" +
+      (list.length > shown.length ? '<div class="more"><button class="btn quiet" type="button" data-act="all">' + esc(fill(T.showAll, { n: list.length })) + icon("arrow") + "</button></div>" : "") + "</section>";
   }
 
-  function promisesSection(d, now) {
-    var rows = list(d.promises).filter(function (r) { return text(r.what); });
-    if (!rows.length) return "";
-    var can = !S.example ? V2 && canEdit() : true;
-    var act = S.example ? "example" : "promise";
-    var html = "<section>" + tag("t-promise", T.promisesTitle, rows.length) + '<div class="notes">';
-    rows.forEach(function (r, i) {
-      var to = text(r.to, 80), what = text(r.what, 140);
-      var inner = '<span class="to" dir="auto">' + esc(to) + '</span><span class="what" dir="auto">' + esc(what) + "</span>" +
-        '<span class="when"><span>' + (r.said ? fill(esc(T.said), { when: bdi(when(r.said, now)) }) : "") + "</span>" + (can ? icon("arrow").replace("<svg", '<svg class="flip"') : "") + "</span>";
-      html += can ? '<button class="note" type="button" data-act="' + act + '" data-i="' + i + '" aria-label="' + esc(fill(T.promiseLabel, { to: to, what: what })) + '">' + inner + "</button>"
-        : '<div class="note">' + inner + "</div>";
-    });
-    return html + "</div></section>";
-  }
-
-  function plansSection(d, week, now) {
-    var rows = list(d.plans).slice();
+  function weekPanel(d, week, now) {
+    var list = rows(d.plans).slice();
     if (week && !S.example) {
       var seen = {};
-      rows.forEach(function (r) { seen[text(r.when) + "|" + text(r.what)] = true; });
-      list(week.plans).forEach(function (r) { if (!seen[text(r.when) + "|" + text(r.what)]) rows.push(r); });
+      list.forEach(function (r) { seen[str(r.when) + "|" + str(r.what)] = true; });
+      rows(week.plans).forEach(function (r) { if (!seen[str(r.when) + "|" + str(r.what)]) list.push(r); });
     }
-    rows = rows.filter(function (r) { var p = parseWhen(r.when); return text(r.what) && p && daysBetween(now, p.date) >= 0; });
-    rows.sort(function (a, b) { return parseWhen(a.when).date - parseWhen(b.when).date; });
-    var html = "<section>" + tag("t-plan", T.plansTitle, rows.length);
-    if (!rows.length) html += '<div class="empty">' + esc(T.plansEmpty) + "</div>";
-    else {
-      html += '<div class="tickets">';
-      rows.slice(0, 8).forEach(function (r) {
-        var p = parseWhen(r.when);
-        var isToday = daysBetween(now, p.date) === 0;
-        var where = text(r.where, 80), who = text(r.who, 80);
-        html += '<div class="ticket' + (isToday ? " today" : "") + '"><div class="day"><span class="wd">' + esc(isToday ? T.today : fmtWeekday.format(p.date)) +
-          '</span><span class="dn">' + esc(String(p.date.getDate())) + "</span>" + (p.hasTime ? '<span class="tm">' + esc(clock(p.date)) + "</span>" : "") +
-          '</div><div class="body"><div class="what" dir="auto">' + esc(text(r.what, 140)) + '</div><div class="sub">' +
-          (who ? "<span>" + icon(r.kind === "group" ? "group" : "person") + '<bdi dir="auto">' + esc(who) + "</bdi></span>" : "") +
-          (where ? "<span>" + icon("pin") + '<bdi dir="auto">' + esc(where) + "</bdi></span>" : "") + "</div></div></div>";
-      });
-      html += "</div>";
+    list = list.filter(function (r) { var p = parseWhen(r.when); if (!str(r.what) || !p) return false; var k = daysBetween(now, p.date); return k >= 0 && k < 8; })
+      .sort(function (a, b) { return parseWhen(a.when).date - parseWhen(b.when).date; });
+    var html = '<section class="panel">' + secHead(T.thisWeek, "");
+    if (!list.length) html += '<div class="empty">' + esc(T.noWeek) + "</div>";
+    var lastDay = null;
+    list.forEach(function (r) {
+      var p = parseWhen(r.when), day = dayStart(p.date);
+      if (day !== lastDay) {
+        var k = daysBetween(now, p.date);
+        html += '<div class="day-h">' + esc(k === 0 ? T.today : k === 1 ? T.tomorrow : fmtWeekdayLong.format(p.date)) + "</div>";
+        lastDay = day;
+      }
+      var place = [str(r.who, 80), str(r.where, 80)].filter(Boolean);
+      html += '<div class="appt"><div class="tm num">' + esc(p.hasTime ? fmtTime.format(p.date) : "") + '</div><div class="d"><div class="w" dir="auto">' + esc(str(r.what, 140)) +
+        "</div>" + (place.length ? '<div class="p">' + place.map(function (x) { return '<bdi dir="auto">' + esc(x) + "</bdi>"; }).join(" · ") + "</div>" : "") + "</div></div>";
+    });
+    var c = cal(), act = "";
+    if (list.length && V2 && canEdit() && !S.example && c) {
+      if (c.state === "connected" && c.canChange !== false) act = '<button class="btn quiet" type="button" data-act="calendar">' + icon("calendar") + esc(T.toCalendar) + "</button>";
+      else if (c.state === "not-added" && c.canConnect) act = '<button class="btn quiet" type="button" data-act="connect-calendar">' + icon("calendar") + esc(T.connectCalendar) + "</button>";
     }
-    var c = cal(), actions = "";
-    if (rows.length && V2 && canEdit() && !S.example && c) {
-      if (c.state === "connected" && c.canChange !== false) actions = '<button class="softbtn" type="button" data-act="calendar">' + icon("calendar") + esc(T.toCalendar) + "</button>";
-      else if (c.state === "not-added" && c.canConnect) actions = '<button class="softbtn" type="button" data-act="connect-calendar">' + icon("calendar") + esc(T.connectCalendar) + "</button>";
-    }
-    return html + (actions ? '<div class="soft-actions">' + actions + "</div>" : "") + "</section>";
+    return html + (act ? '<div class="foot">' + act + "</div>" : "") + "</section>";
   }
 
-  function pricesSection(d, now) {
-    var rows = list(d.prices).filter(function (r) { return text(r.amount); });
-    if (!rows.length) return "";
-    var html = "<section>" + tag("t-price", T.pricesTitle, rows.length) + '<div class="prices">';
-    rows.slice(0, 8).forEach(function (r) {
-      var sub = [text(r.who, 80), r.said ? when(r.said, now) : ""].filter(Boolean);
-      html += '<div class="price"><span class="amount"><bdi>' + esc(text(r.amount, 30)) + '</bdi></span><div class="body"><div class="for" dir="auto">' +
-        esc(text(r["for"], 120)) + '</div><div class="sub">' + sub.map(function (s) { return '<bdi dir="auto">' + esc(s) + "</bdi>"; }).join(" · ") + "</div></div>" +
-        (r.agreed === true ? '<span class="stamp yes">' + esc(T.agreed) + "</span>" : '<span class="stamp no">' + esc(T.notAgreed) + "</span>") + "</div>";
+  function promisePanel(d, now) {
+    var list = rows(d.promises).filter(function (r) { return str(r.what); });
+    var html = '<section class="panel">' + secHead(T.promises, "");
+    if (!list.length) return html + '<div class="empty">' + esc(T.noPromises) + "</div></section>";
+    list.forEach(function (r) {
+      html += '<div class="promise">' + icon("circle") + '<div><div class="w" dir="auto">' + esc(str(r.what, 160)) + '</div><div class="p"><bdi dir="auto">' +
+        esc(fill(T.to, { who: str(r.to, 80) })) + "</bdi>" + (r.said ? " · " + esc(when(r.said, now)) : "") + "</div></div></div>";
     });
-    return html + "</div></section>";
+    return html + "</section>";
   }
 
-  function chatsSection(d, now) {
-    var rows = list(d.chats).filter(function (r) { return text(r.who); });
-    if (!rows.length) return "";
-    var html = "<section>" + tag("t-chats", T.chatsTitle, 0) + '<div class="list">';
-    rows.slice(0, 6).forEach(function (r) {
-      var n = typeof r.messages === "number" ? r.messages : parseInt(r.messages, 10);
-      html += '<div class="item">' + face(r.who, r.kind, true) + '<div class="body"><div class="name" dir="auto">' + esc(text(r.who, 80)) +
-        '</div><div class="sub" dir="auto">' + esc(text(r.about, 120)) + "</div></div>" +
-        (n > 0 ? '<span class="count" aria-label="' + esc(n === 1 ? T.messages1 : fill(T.messages, { n: n })) + '">' + esc(String(n)) + "</span>" : "") + "</div>";
-    });
-    return html + "</div></section>";
-  }
-
-  function filesSection(d, now) {
-    var rows = list(d.files).filter(function (r) { return text(r.who); });
-    if (!rows.length) return "";
-    var names = { photo: T.photo, video: T.video, "voice note": T.voice, file: T.file };
-    var icons = { photo: "photo", video: "video", "voice note": "voice", file: "file" };
-    var html = "<section>" + tag("t-files", T.filesTitle, 0) + '<div class="list">';
-    rows.slice(0, 6).forEach(function (r) {
-      var type = text(r.type).toLowerCase();
-      var caption = text(r.caption, 120) || names[type] || T.file;
-      html += '<div class="item"><span class="ficon">' + icon(icons[type] || "file") + '</span><div class="body"><div class="name" dir="auto">' + esc(caption) +
-        '</div><div class="sub"><bdi dir="auto">' + esc(text(r.who, 80)) + "</bdi>" + (r.said ? " · <bdi>" + esc(when(r.said, now)) + "</bdi>" : "") + "</div></div></div>";
-    });
-    return html + "</div></section>";
+  function ideas() {
+    var live = V2 && canEdit();
+    return '<section class="ideas"><div class="ideas-h"><h2>' + esc(T.ideasTitle) + "</h2><p>" + esc(T.ideasLine) + "</p></div>" +
+      '<div class="idea-grid">' + T.ideas.map(function (idea, i) {
+        var every = idea.when ? T[idea.when] : "";
+        return '<article class="idea"><span class="ic">' + icon(idea.icon) + "</span><h4>" + esc(idea.title) + "</h4><p>" + esc(idea.line) + "</p>" +
+          (live ? '<div class="acts"><button class="btn primary" type="button" data-act="idea" data-i="' + i + '">' + esc(T.askNow) + "</button>" +
+            (every ? '<button class="btn" type="button" data-act="routine" data-i="' + i + '">' + icon("repeat") + esc(every) + "</button>" : "") + "</div>" : "") +
+          "</article>";
+      }).join("") + "</div></section>";
   }
 
   function footer() {
@@ -1083,47 +1057,53 @@
   }
 
   function render() {
-    pill();
-    refreshButton();
-    composer();
-    if (!S.loaded) {
-      $("main").innerHTML = '<div class="hero"><div class="helper">' + icon("helper") + '</div><div class="say"><div class="who-says">' + esc(T.helper) +
-        '</div><div class="meta"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span></div></div></div>';
-      return;
-    }
-    banner();
-    var d = S.data;
+    pill(); refreshButton(); bar();
+    if (!S.loaded) { $("main").innerHTML = '<div class="summary"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span></div>'; return; }
+    notices();
+    var d = S.data, w = wa();
     var html = lead();
     var mine = d && !S.example;
-    var showData = d && (mine || !V2 || !wa() || wa().state !== "connected");
-    if (showData && S.example) {
-      html += '<p class="tape" role="note">' + icon("alert") + "<span><b>" + esc(T.exampleMark) + "</b> " + esc(T.exampleTape) + "</span></p>";
-    }
-    if (showData) {
+    if (d && (mine || !V2 || !w || w.state !== "connected")) {
       var now = S.example ? (parseWhen(d.generatedAt) || { date: new Date() }).date : new Date();
-      html += hero(d, now) + '<div class="grid"><div class="col">' + waitingSection(d, now) + promisesSection(d, now) + chatsSection(d, now) +
-        '</div><div class="col">' + plansSection(d, S.week, now) + pricesSection(d, now) + filesSection(d, now) + "</div></div>" + footer();
+      if (S.example) {
+        var biz = str(d.business, 60);
+        html += '<div class="example-bar in"><span class="badge">' + esc(T.example) + "</span><span>" + esc(biz ? fill(T.exampleBar, { business: biz }) : T.exampleBarPlain) + "</span></div>";
+      }
+      var running = !!(S.job && S.job.running) && !S.example;
+      html += summary(d, now, running) + '<div class="grid"><div>' + customerSection(d, now) + '</div><aside class="side">' + weekPanel(d, S.week, now) + promisePanel(d, now) + "</aside></div>";
     }
+    html += ideas() + footer();
     $("main").innerHTML = html;
   }
 
   /* ── Presses ─────────────────────────────────────────────────────── */
+  function findCard(k) {
+    return customers(S.data || {}, new Date()).filter(function (c) { return c.key === k; })[0] || null;
+  }
   document.addEventListener("click", function (event) {
     var el = event.target.closest ? event.target.closest("[data-act]") : null;
     if (!el) return;
-    var act = el.getAttribute("data-act"), d = S.data || {};
-    var i = parseInt(el.getAttribute("data-i"), 10);
+    var act = el.getAttribute("data-act"), i = parseInt(el.getAttribute("data-i"), 10);
     if (act === "connect") connect("whatsapp");
     else if (act === "connect-calendar") connect("google-calendar");
     else if (act === "refresh") refresh();
-    else if (act === "draft") {
-      var w = list(d.waiting).filter(function (r) { return text(r.who); })[i];
-      if (w) ask(fill(T.draftAsk, { who: text(w.who, 80), wants: text(w.wants, 140) || text(w.quote, 140) }));
-    } else if (act === "promise") {
-      var p = list(d.promises).filter(function (r) { return text(r.what); })[i];
-      if (p) ask(fill(T.promiseAsk, { to: text(p.to, 80), what: text(p.what, 140) }));
-    } else if (act === "calendar") ask(T.calendarAsk);
+    else if (act === "all") { S.showAll = true; render(); }
     else if (act === "example") toast(T.exampleOnly);
+    else if (act === "draft" || act === "about") {
+      var c = findCard(el.getAttribute("data-k"));
+      if (!c) return;
+      if (act === "draft" && c.waiting) ask(fill(T.draftAsk, { who: c.who, wants: str(c.waiting.wants, 160) || str(c.waiting.quote, 160) }));
+      else ask(fill(T.aboutAsk, { who: c.who }));
+    } else if (act === "idea" || act === "routine") {
+      var idea = T.ideas[i];
+      if (!idea) return;
+      if (!linked()) {
+        toast(T.connectFirst);
+        if (wa() && wa().canConnect) connect("whatsapp");
+        return;
+      }
+      ask(act === "idea" ? idea.ask : fill(T.routineAsk, { when: String(T[idea.when] || "").toLowerCase(), what: idea.ask }));
+    } else if (act === "calendar") ask(T.calendarAsk);
     else if (act === "prefs") {
       event.preventDefault();
       if (V2) cab.ask(T.prefsAsk, { send: false }).then(function () { toast(T.opening); }, said);
@@ -1132,7 +1112,6 @@
       openInCabinet(el.getAttribute("data-to"), event);
     }
   });
-
   $("ask").addEventListener("submit", function (event) {
     event.preventDefault();
     var input = $("ask-input"), q = input.value.trim();
@@ -1142,8 +1121,7 @@
   });
 
   /* ── Start ───────────────────────────────────────────────────────── */
-  document.title = "WhatsApp Catch-Up";
-  $("subtitle").textContent = T.subtitle;
+  $("title").textContent = T.title;
   $("ask-label").textContent = T.askLabel;
   $("ask-input").placeholder = T.askPlaceholder;
   $("ask-send").setAttribute("aria-label", T.askSend);
@@ -1176,7 +1154,7 @@
     }).then(function () {
       cab.connectors.onChange(function (l) { S.connectors = l; loadSaved(); render(); });
       cab.jobs.onChange(watchJobs);
-      cab.files.onChange(S.appPath + "/data", loadData);
+      cab.files.onChange(S.appPath + "/data", function () { loadData(); });
       cab.files.onChange(CHATS, loadSaved);
       loadSaved();
       return loadData();

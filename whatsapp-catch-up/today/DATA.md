@@ -22,15 +22,19 @@ generatedAt  "2026-09-25T07:30:00", local time
 status       "ok", or a short phrase saying what went wrong
 headline     one sentence, the thing to know first
 chatsRead    number of chats read
-waiting      [{ who, kind, chat, wants, quote, since }]   oldest first
-promises     [{ to, kind, chat, what, said }]              oldest first
-plans        [{ when, what, where, who, kind, chat, said }] soonest first
-prices       [{ who, kind, chat, for, amount, agreed, said }] newest first
-files        [{ who, kind, chat, type, caption, said }]    newest first
-chats        [{ who, kind, chat, messages, about, last }]  busiest first
+waiting      [{ who, kind, chat, topic, wants, quote, since }]  oldest first
+promises     [{ to, kind, chat, what, said }]                   oldest first
+plans        [{ when, what, where, who, kind, chat, said }]     soonest first
+prices       [{ who, kind, chat, for, amount, agreed, said }]   newest first
+chats        [{ who, kind, chat, messages, about, last }]       busiest first
 ```
 
+The app puts every row with the same `chat` on one customer card.
+
 - `kind` is `person`, `group` or `number` (a chat with no saved name).
+- `topic` is what a waiting customer wants: `quote`, `appointment`, `question`, `problem`
+  or `other`.
+- The example file also has `business`, the made-up shop's name. Real files never do.
 - `chat` is the chat's folder under `whatsapp/`, with a bare number cut to its last four
   digits (`chat-...4410`).
 - Times are local, `YYYY-MM-DDTHH:MM`, or `YYYY-MM-DD` for a plan with no time.
