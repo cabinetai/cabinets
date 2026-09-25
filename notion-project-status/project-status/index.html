@@ -1,421 +1,1893 @@
 <!DOCTYPE html>
 <!--
-  notion-project-status showcase page.
+  Notion Project Status: every open project at a glance.
 
-  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
-  The file names carry the timestamp, so the picker is built without opening any of them.
-  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
-  and survive the user renaming the cabinet at install time. The folder listing comes from
-  /api/tree because the assets route serves single files and cannot list a directory.
+  One file on purpose. For anyone but the owner, Cabinet runs an app sealed, and a sealed
+  frame cannot load anything that sits next to this page, so the styles, the script and
+  every icon live here. The font comes from Google Fonts, which a sealed frame can load,
+  with a system stack behind it.
 
-  Zero external requests. System fonts, inline CSS, no libraries.
-  Every failure path renders something honest instead of a blank page.
+  Data: <app>/data/latest.json, written by this cabinet's routine. Until it exists the page
+  shows <app>/data/EXAMPLE-latest.json and says it is an example wherever it shows.
+  The page talks to Cabinet only through window.cabinet (v2): whether Notion is connected,
+  Cabinet's own connect flow, the routine, the files, and asking the cabinet's tracker.
+  In an older Cabinet (no v2) it still draws the board and says where to connect Notion.
+  It never changes anything in Notion.
 -->
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Notion Project Status</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Projects at a glance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
-  /* Registry parchment design system — tokens shared with book-factory/tracker. */
   :root {
-    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
-    --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
-    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
-    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
+    --bg: #0a1020;
+    --panel: #111a2c;
+    --panel-2: #152034;
+    --panel-3: #1b2842;
+    --line: #223049;
+    --line-2: #2e3e5c;
+    --text: #eef2f9;
+    --text-2: #b6c1d5;
+    --text-3: #95a3bc;
+    --late: #ff7070;
+    --late-fill: #ef4b4b;
+    --late-tint: rgba(239, 75, 75, 0.14);
+    --risk: #ffba52;
+    --risk-fill: #f5a524;
+    --risk-tint: rgba(245, 165, 36, 0.14);
+    --ok: #45dca0;
+    --ok-fill: #1fbf7f;
+    --ok-tint: rgba(31, 191, 127, 0.14);
+    --blue: #8eb1ff;
+    --blue-tint: rgba(142, 177, 255, 0.14);
+    --focus: #9fbeff;
+    --button: #f3f6fb;
+    --button-ink: #0a1020;
+    --radius: 14px;
+    --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color-scheme: dark;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; padding: 48px 24px 64px; background: var(--parchment); color: var(--ink);
-    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text);
+    background: var(--bg) radial-gradient(1200px 520px at 20% -12%, #16223c 0%, rgba(10, 16, 32, 0) 70%) no-repeat;
+    font: 400 16px/1.5 var(--font);
+    font-feature-settings: "cv11" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 32px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
-    display: flex; align-items: center; gap: 12px;
+  [hidden] { display: none !important; }
+  button, input { font: inherit; color: inherit; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ── Top bar ────────────────────────────────────────────────── */
+  .top {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(10, 16, 32, 0.88);
+    -webkit-backdrop-filter: saturate(140%) blur(12px);
+    backdrop-filter: saturate(140%) blur(12px);
+    border-bottom: 1px solid var(--line);
   }
-  /* An inline <svg> with a viewBox and no width fills its container — size it here or
-     the mark renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 28px; height: 28px; flex: none; }
-  .sub { color: var(--muted); margin: 6px 0 0 40px; font-size: 14px; }
-  .card {
-    background: var(--card); border: none; border-radius: 12px;
-    padding: 18px 22px; margin-top: 18px;
-    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+  .top-in {
+    max-width: 1320px; margin: 0 auto; padding: 12px 32px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px 24px;
   }
-  .banner {
-    border: none;
-    padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border-radius: 8px; font-size: 14px; color: var(--muted);
-    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark {
+    width: 36px; height: 36px; flex: none; border-radius: 10px;
+    background: var(--panel-3); border: 1px solid var(--line-2);
+    display: grid; place-items: center;
   }
-  /* The one thing worth reading if nothing else. Same card; the tag colour leads the eye. */
-  .lead-tag {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--blue); margin-bottom: 6px;
+  .mark svg { width: 22px; height: 22px; }
+  .brand h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+  .conn { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .nav { display: flex; align-items: center; gap: 4px; margin-left: 20px; }
+  .nav button {
+    min-height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: none; cursor: pointer;
+    color: var(--text-2); font-weight: 500;
   }
-  .lead-who { font-family: Georgia, serif; font-size: 18px; font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--muted); }
-  .qw-tag {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--muted); margin-bottom: 8px;
+  .nav button:hover { background: var(--panel-2); color: var(--text); }
+  .conn-words { display: flex; flex-direction: column; align-items: flex-end; text-align: right; line-height: 1.3; min-width: 0; }
+  .conn-main { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .conn-sub { color: var(--text-3); }
+  .conn-sub .more { white-space: nowrap; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--ok-fill); box-shadow: 0 0 0 3px var(--ok-tint); }
+  .dot.warn { background: var(--risk-fill); box-shadow: 0 0 0 3px var(--risk-tint); }
+  .dot.bad { background: var(--late-fill); box-shadow: 0 0 0 3px var(--late-tint); }
+  .dot.off { background: #6f7d98; box-shadow: 0 0 0 3px rgba(111, 125, 152, 0.2); }
+
+  /* ── Buttons ────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 0 16px; border-radius: 10px;
+    border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text);
+    font-weight: 600; font-size: 16px; line-height: 1; text-decoration: none; cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
   }
-  .qw-list { margin: 0; padding-left: 18px; }
-  .qw-list li { margin-top: 6px; }
-  .qw-list li:first-child { margin-top: 0; }
-  table { width: 100%; border-collapse: collapse; margin: 0; }
-  th {
-    text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--muted);
-    padding: 12px 12px 12px 22px; border-bottom: 1px solid var(--line);
+  .btn:hover { background: var(--panel-3); border-color: #3b4d70; }
+  .btn:disabled { cursor: default; opacity: 0.7; }
+  .btn svg { width: 18px; height: 18px; flex: none; }
+  .btn.primary { background: var(--button); color: var(--button-ink); border-color: var(--button); }
+  .btn.primary:hover { background: #ffffff; }
+  .btn.big { min-height: 52px; padding: 0 22px; font-size: 17px; border-radius: 12px; }
+  .btn.ghost { background: transparent; }
+  .btn.ghost:hover { background: var(--panel-2); }
+  .btn .nmark { width: 22px; height: 22px; border-radius: 5px; }
+  .spin {
+    width: 18px; height: 18px; flex: none; border-radius: 50%;
+    border: 2px solid currentColor; border-right-color: transparent;
+    animation: spin 0.9s linear infinite;
   }
-  th:last-child { padding-right: 22px; }
-  td { padding: 13px 12px 13px 22px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  td:last-child { padding-right: 22px; }
-  tr:last-child td { border-bottom: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Page ───────────────────────────────────────────────────── */
+  .page { max-width: 1320px; margin: 0 auto; padding: 24px 32px 56px; }
+
+  .notice {
+    display: flex; align-items: center; gap: 16px 22px; flex-wrap: wrap;
+    padding: 18px 20px; margin-bottom: 8px;
+    background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+  }
+  .notice.example { background: linear-gradient(90deg, rgba(142, 177, 255, 0.1), rgba(142, 177, 255, 0.02)); border-color: #34497a; }
+  .notice.warn { box-shadow: inset 4px 0 0 var(--late-fill); }
+  .notice-icon {
+    width: 44px; height: 44px; flex: none; border-radius: 12px; display: grid; place-items: center;
+    background: var(--panel-3); border: 1px solid var(--line-2); color: var(--text-2);
+  }
+  .notice-icon svg { width: 22px; height: 22px; }
+  .notice-icon .nmark { width: 26px; height: 26px; border-radius: 6px; }
+  .linking { position: relative; }
+  .linking::after {
+    content: ""; position: absolute; inset: -5px; border-radius: 15px;
+    border: 2px solid transparent; border-top-color: var(--blue); border-right-color: var(--blue);
+    animation: spin 1.1s linear infinite;
+  }
+  .notice .words { flex: 1 1 380px; min-width: 0; }
+  .notice h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .notice p { margin: 4px 0 0; color: var(--text-2); }
+  .notice .quiet { color: var(--text-3); }
+
+  /* ── Overview ───────────────────────────────────────────────── */
+  .overview { padding: 28px 0 28px; }
+  .eyebrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; color: var(--text-2); font-weight: 500; }
   .pill {
-    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
-    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    border: 1px solid #3a4f80; background: var(--blue-tint); color: #c7d7ff; font-weight: 600; font-size: 16px; line-height: 1.4;
   }
-  /* The whole page exists to make this one judgement, so it is the only thing coloured
-     by meaning. Trouble is warm, fine is green, and "we don't know" stays quiet. */
-  .s-stop { color: var(--terracotta); } .s-warn { color: var(--orange); }
-  .s-ok { color: var(--green); } .s-unk { color: var(--faint); border-color: var(--line); }
-  /* The project name is what the eye runs down the column for. */
-  .name { color: var(--ink); font-weight: 600; }
-  /* Who owns it is context, not the headline. */
-  .who { color: var(--muted); white-space: nowrap; }
-  /* The project name is the deep link — wrapped in this instead of replacing .name. */
-  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
-  .deep-link:hover { border-bottom-color: var(--muted); }
-  .empty { color: var(--muted); font-size: 14px; }
-  .empty code { font-size: 13px; }
-  .scroll { overflow-x: auto; padding: 0; }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--muted); }
-  .picker select {
-    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  .headline { margin: 0; font-size: 38px; line-height: 1.12; font-weight: 700; letter-spacing: -0.025em; }
+  .sub { margin: 10px 0 0; font-size: 18px; color: var(--text-2); max-width: 72ch; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
+  .tile {
+    position: relative; text-align: left; cursor: pointer;
+    display: flex; flex-direction: column; gap: 6px; min-height: 136px; padding: 18px 20px 16px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
-  .picker .next { display: block; margin-top: 7px; color: var(--faint); }
+  .tile::before {
+    content: ""; position: absolute; left: 18px; right: 18px; top: 0; height: 3px; border-radius: 0 0 3px 3px;
+    background: var(--line-2);
+  }
+  .tile.late::before { background: var(--late-fill); }
+  .tile.at-risk::before { background: var(--risk-fill); }
+  .tile.on-track::before { background: var(--ok-fill); }
+  .tile:hover { border-color: var(--line-2); background: var(--panel-2); }
+  .tile[aria-pressed="true"] { border-color: #52668f; background: var(--panel-2); box-shadow: 0 0 0 1px #52668f; }
+  .tile:disabled { cursor: default; }
+  .tile:disabled:hover { border-color: var(--line); background: var(--panel); }
+  .tile-label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text); }
+  .tile-num { font-size: 54px; line-height: 1; font-weight: 650; letter-spacing: -0.035em; margin-top: 8px; }
+  .tile-foot { color: var(--text-3); margin-top: auto; }
+  .tile-foot.up-bad { color: var(--late); }
+  .tile-foot.down-good { color: var(--ok); }
+
+  /* The three signals: colour, shape and word together. */
+  .sig { width: 18px; height: 18px; flex: none; }
+  .sig.late { color: var(--late-fill); }
+  .sig.at-risk { color: var(--risk-fill); }
+  .sig.on-track { color: var(--ok-fill); }
+  .sig.all { color: var(--text-3); }
+
+  /* ── First check ────────────────────────────────────────────── */
+  .firstrun {
+    display: flex; align-items: center; gap: 22px 32px; flex-wrap: wrap;
+    padding: 28px; margin: 28px 0;
+    background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+  }
+  .firstrun .words { flex: 1 1 420px; min-width: 0; }
+  .firstrun h2 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .firstrun p { margin: 8px 0 0; color: var(--text-2); font-size: 17px; }
+  .progress { height: 6px; margin-top: 18px; border-radius: 6px; background: var(--panel-3); overflow: hidden; }
+  .progress i {
+    display: block; height: 100%; width: 38%; border-radius: 6px;
+    background: linear-gradient(90deg, var(--blue), #b9ccff);
+    animation: slide 1.8s ease-in-out infinite;
+  }
+  @keyframes slide { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
+
+  /* ── Board: projects and the side column ────────────────────── */
+  .board { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 24px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  .card-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap;
+    padding: 18px 20px 12px;
+  }
+  .card-head h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .card-head .meta { color: var(--text-3); }
+  .filter-note { display: inline-flex; align-items: center; gap: 10px; color: var(--text-2); }
+  .link-btn {
+    min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: none;
+    color: var(--blue); font-weight: 600; cursor: pointer;
+  }
+  .link-btn:hover { background: var(--blue-tint); }
+
+  .cols, .row {
+    display: grid; grid-template-columns: 112px minmax(0, 1fr) 176px 124px 18px;
+    align-items: center; gap: 12px;
+  }
+  .cols { padding: 0 20px 10px; color: var(--text-3); font-weight: 500; border-bottom: 1px solid var(--line); }
+  .cols span:last-child { visibility: hidden; }
+  .cols .due-h { text-align: right; }
+  .list { list-style: none; margin: 0; padding: 0; }
+  .list li + li { border-top: 1px solid var(--line); }
+  .row {
+    width: 100%; min-height: 72px; padding: 12px 20px; text-align: left; cursor: pointer;
+    background: none; border: 0; border-radius: 0;
+  }
+  .list li:last-child .row { border-radius: 0 0 var(--radius) var(--radius); }
+  .row:hover { background: var(--panel-2); }
+  .row[aria-expanded="true"] { background: var(--panel-3); }
+  .status { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+  .status.late { color: var(--late); }
+  .status.at-risk { color: var(--risk); }
+  .status.on-track { color: var(--ok); }
+  .proj { min-width: 0; }
+  .proj-name { display: block; font-weight: 600; font-size: 17px; color: var(--text); overflow-wrap: anywhere; }
+  .proj-sub { display: block; color: var(--text-3); overflow-wrap: anywhere; }
+  .owner { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .owner span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .avatar {
+    width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: #eaf0ff; background: #33476e;
+  }
+  .avatar.none { background: none; border: 1.5px dashed #6c7c9a; color: var(--text-3); }
+  .owner.none { color: var(--risk); }
+  .due { text-align: right; white-space: nowrap; color: var(--text-2); }
+  .due.late { color: var(--late); font-weight: 600; }
+  .due.none { color: var(--risk); }
+  .chev { width: 18px; height: 18px; color: #6f7d98; }
+  .empty { padding: 22px 20px 26px; color: var(--text-2); }
+  .empty p { margin: 0 0 12px; }
+
+  .rail { display: flex; flex-direction: column; gap: 16px; }
+  .rail .card { padding-bottom: 8px; }
+  .items { list-style: none; margin: 0; padding: 0 8px; }
+  .item {
+    width: 100%; display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 12px; min-height: 44px; border-radius: 10px; text-align: left;
+    background: none; border: 0; color: var(--text);
+  }
+  button.item { cursor: pointer; }
+  button.item:hover { background: var(--panel-2); }
+  .item .ico { width: 22px; height: 22px; flex: none; margin-top: 1px; }
+  .item .ico.worse { color: var(--late); }
+  .item .ico.better { color: var(--ok); }
+  .item .ico.new { color: var(--blue); }
+  .item .ico.done { color: var(--text-3); }
+  .item .ico.other { color: var(--text-3); }
+  .item-text { min-width: 0; }
+  .item-title { display: block; font-weight: 600; }
+  .item-line { display: block; color: var(--text-2); }
+  .tag {
+    display: inline-block; margin: 4px 6px 0 0; padding: 0 10px; border-radius: 999px;
+    border: 1px solid rgba(245, 165, 36, 0.45); color: var(--risk); font-weight: 600; font-size: 16px; line-height: 1.6;
+  }
+  .rail-empty { margin: 0; padding: 4px 20px 12px; color: var(--text-3); }
+
+  /* ── Ask ────────────────────────────────────────────────────── */
+  .section { margin-top: 40px; }
+  .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px 24px; flex-wrap: wrap; margin-bottom: 16px; }
+  .section-head h2 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .section-head p { margin: 4px 0 0; color: var(--text-2); }
+  .ask { padding: 20px; }
+  .ask form { display: flex; gap: 10px; }
+  .ask input {
+    flex: 1; min-width: 0; min-height: 52px; padding: 0 16px; border-radius: 12px;
+    border: 1px solid var(--line-2); background: var(--bg); color: var(--text); font-size: 17px;
+  }
+  .ask input::placeholder { color: #8391ab; }
+  .ask input:disabled { opacity: 0.6; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .chip {
+    min-height: 44px; padding: 10px 16px; border-radius: 999px; cursor: pointer; text-align: left;
+    border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); font-weight: 500; font-size: 16px; line-height: 1.3;
+  }
+  .chip:hover { background: var(--panel-3); border-color: #3b4d70; }
+  .chip:disabled { cursor: default; opacity: 0.65; }
+  .chip:disabled:hover { background: var(--panel-2); border-color: var(--line-2); }
+  .note { margin: 12px 0 0; color: var(--text-3); }
+  .note.ok { color: var(--ok); font-weight: 600; }
+  .note.no { color: var(--late); font-weight: 600; }
+
+  /* ── Ideas ──────────────────────────────────────────────────── */
+  .ideas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .idea {
+    display: grid; grid-template-columns: 40px minmax(0, 1fr) 176px; gap: 6px 16px; align-items: start;
+    padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  .idea-words { min-width: 0; }
+  .idea-icon {
+    width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+    background: var(--blue-tint); color: var(--blue); border: 1px solid #33477a;
+  }
+  .idea-icon svg { width: 20px; height: 20px; }
+  .idea h3 { margin: 0; font-size: 18px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; }
+  .idea p { margin: 4px 0 0; color: var(--text-2); }
+  .idea-actions { display: flex; flex-direction: column; gap: 8px; }
+  .idea-actions .btn { width: 100%; }
+  .cadence { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--text-3); font-weight: 500; }
+  .cadence svg { width: 18px; height: 18px; }
+  .idea .note { grid-column: 2 / -1; margin: 6px 0 0; }
+  .fine { margin: 14px 0 0; color: var(--text-3); }
+
+  /* ── Footer ─────────────────────────────────────────────────── */
+  .foot {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 28px;
+    margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--text-3);
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+
+  /* ── Project panel ──────────────────────────────────────────── */
+  .scrim { position: fixed; inset: 0; z-index: 40; background: rgba(4, 8, 18, 0.62); animation: fade 0.18s ease-out; }
+  .drawer {
+    position: fixed; z-index: 50; top: 0; right: 0; bottom: 0; width: min(520px, 100%);
+    display: flex; flex-direction: column;
+    background: var(--panel); border-left: 1px solid var(--line-2);
+    box-shadow: -24px 0 60px rgba(0, 0, 0, 0.45);
+    animation: enter 0.22s ease-out;
+  }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes enter { from { transform: translateX(28px); opacity: 0; } }
+  .drawer:focus { outline: none; }
+  .drawer-top {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px 14px 24px; border-bottom: 1px solid var(--line);
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    font-weight: 600;
+  }
+  .badge.late { background: var(--late-tint); color: var(--late); }
+  .badge.at-risk { background: var(--risk-tint); color: var(--risk); }
+  .badge.on-track { background: var(--ok-tint); color: var(--ok); }
+  .close {
+    width: 44px; height: 44px; flex: none; border-radius: 10px; display: grid; place-items: center;
+    background: none; border: 1px solid transparent; color: var(--text-2); cursor: pointer;
+  }
+  .close:hover { background: var(--panel-2); border-color: var(--line-2); }
+  .close svg { width: 20px; height: 20px; }
+  .drawer-body { flex: 1; overflow: auto; padding: 22px 24px 28px; }
+  .drawer h2 { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+  .drawer .for { margin: 6px 0 0; color: var(--text-2); font-size: 17px; }
+  .moved { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; color: var(--text-2); }
+  .moved svg { width: 18px; height: 18px; }
+  .moved.worse { color: var(--late); }
+  .moved.better { color: var(--ok); }
+  .block { margin-top: 22px; }
+  .block h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; color: var(--text-3); }
+  .block p { margin: 0; font-size: 17px; }
+  .block .next { font-size: 20px; font-weight: 600; line-height: 1.35; }
+  .wait {
+    margin-top: 22px; padding: 14px 16px; border-radius: 12px;
+    background: var(--risk-tint); border: 1px solid rgba(245, 165, 36, 0.35);
+  }
+  .wait.late { background: var(--late-tint); border-color: rgba(239, 75, 75, 0.35); }
+  .wait h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: var(--risk); }
+  .wait.late h3 { color: var(--late); }
+  .wait p { margin: 0; font-size: 17px; }
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; margin: 26px 0 0; padding-top: 20px; border-top: 1px solid var(--line); }
+  .facts dt { color: var(--text-3); font-weight: 500; }
+  .facts dd { margin: 2px 0 0; font-weight: 500; overflow-wrap: anywhere; }
+  .facts dd.late { color: var(--late); }
+  .facts dd.none { color: var(--risk); }
+  .drawer-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+  .drawer-note { margin: 22px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--blue-tint); color: #c7d7ff; }
+
+  /* ── Smaller screens ────────────────────────────────────────── */
+  @media (max-width: 1180px) {
+    .ideas { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 980px) {
+    .board { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 980px) {
+    .nav { display: none; }
+  }
+  @media (max-width: 760px) {
+    .top { position: static; }
+    .top-in { padding: 12px 16px; flex-wrap: wrap; }
+    .conn { width: 100%; justify-content: space-between; }
+    .conn-words { align-items: flex-start; text-align: left; flex: 1; }
+    .conn-sub .sep { display: none; }
+    .conn-sub .more { display: block; }
+    .page { padding: 16px 16px 40px; }
+    .notice .btn { width: 100%; }
+    .overview { padding: 20px 0 22px; }
+    .headline { font-size: 30px; }
+    .sub { font-size: 17px; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
+    .tile { min-height: 124px; padding: 16px 14px 14px; }
+    .tile-num { font-size: 44px; }
+    .firstrun { padding: 22px 18px; }
+    .firstrun .btn { width: 100%; }
+    .cols { display: none; }
+    .row {
+      grid-template-columns: minmax(0, 1fr) 20px;
+      grid-template-areas: "status chev" "proj chev" "meta chev";
+      gap: 4px 10px; padding: 14px 16px;
+    }
+    .row .status { grid-area: status; }
+    .row .proj { grid-area: proj; }
+    .row .meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+    .row .chev { grid-area: chev; align-self: center; }
+    .due { text-align: left; }
+    .ask form { flex-direction: column; }
+    .idea { grid-template-columns: 40px minmax(0, 1fr); }
+    .idea-actions, .idea .cadence-box { grid-column: 1 / -1; }
+    .idea-actions { flex-direction: row; }
+    .idea-actions .btn { flex: 1 1 0; width: auto; padding: 0 12px; }
+    .idea .note { grid-column: 1 / -1; }
+    .facts { grid-template-columns: 1fr; }
+    .drawer { top: auto; height: 94vh; width: 100%; border-left: 0; border-top: 1px solid var(--line-2); border-radius: 18px 18px 0 0; animation-name: rise; }
+    @keyframes rise { from { transform: translateY(36px); opacity: 0; } }
+    .drawer-actions .btn { flex: 1 1 100%; }
+  }
+  @media (min-width: 761px) {
+    .row .meta { display: contents; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-width="2.6">
+          <path d="M5 7h9" stroke="#ef4b4b"/><path d="M5 12h14" stroke="#f5a524"/><path d="M5 17h11" stroke="#1fbf7f"/>
+        </svg>
+      </span>
+      <h1>Projects at a glance</h1>
+      <nav class="nav" aria-label="On this page">
+        <button type="button" data-go="board">Projects</button>
+        <button type="button" data-go="ask-section">Ask</button>
+        <button type="button" data-go="ideas-section">Ideas</button>
+      </nav>
+    </div>
+    <div class="conn" id="conn" aria-live="polite"></div>
+  </div>
+</header>
 
-  <header>
-    <h1>
-      <!-- The integration's own mark, inlined so the page still makes
-           zero external requests. -->
-      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M6.017 4.313l55.333 -4.087c6.797 -0.583 8.543 -0.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277 -1.553 6.807 -6.99 7.193L24.467 99.967c-4.08 0.193 -6.023 -0.39 -8.16 -3.113L3.3 79.94c-2.333 -3.113 -3.3 -5.443 -3.3 -8.167V11.113c0 -3.497 1.553 -6.413 6.017 -6.8z" fill="#FAF6F1"/> <path fill-rule="evenodd" clip-rule="evenodd" d="M61.35 0.227l-55.333 4.087C1.553 4.7 0 7.617 0 11.113v60.66c0 2.723 0.967 5.053 3.3 8.167l13.007 16.913c2.137 2.723 4.08 3.307 8.16 3.113l64.257 -3.89c5.433 -0.387 6.99 -2.917 6.99 -7.193V20.64c0 -2.21 -0.873 -2.847 -3.443 -4.733L74.167 3.143c-4.273 -3.107 -6.02 -3.5 -12.817 -2.917zM25.92 19.523c-5.247 0.353 -6.437 0.433 -9.417 -1.99L8.927 11.507c-0.77 -0.78 -0.383 -1.753 1.557 -1.947l53.193 -3.887c4.467 -0.39 6.793 1.167 8.54 2.527l9.123 6.61c0.39 0.197 1.36 1.36 0.193 1.36l-54.933 3.307 -0.68 0.047zM19.803 88.3V30.367c0 -2.53 0.777 -3.697 3.103 -3.893L86 22.78c2.14 -0.193 3.107 1.167 3.107 3.693v57.547c0 2.53 -0.39 4.67 -3.883 4.863l-60.377 3.5c-3.493 0.193 -5.043 -0.97 -5.043 -4.083zm59.6 -54.827c0.387 1.75 0 3.5 -1.75 3.7l-2.91 0.577v42.773c-2.527 1.36 -4.853 2.137 -6.797 2.137 -3.107 0 -3.883 -0.973 -6.21 -3.887l-19.03 -29.94v28.967l6.02 1.363s0 3.5 -4.857 3.5l-13.39 0.777c-0.39 -0.78 0 -2.723 1.357 -3.11l3.497 -0.97v-38.3L30.48 40.667c-0.39 -1.75 0.58 -4.277 3.3 -4.473l14.367 -0.967 19.8 30.327v-26.83l-5.047 -0.58c-0.39 -2.143 1.163 -3.7 3.103 -3.89l13.4 -0.78z" fill="currentColor"/></svg>
-      Notion Project Status
-    </h1>
-    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
-    <p class="sub">Every morning, which of your Notion projects are on track and which need a look.</p>
-  </header>
+<div class="page">
+  <section class="notice" id="notice" aria-live="polite" hidden></section>
 
-  <div id="root"><div class="card empty">Loading…</div></div>
+  <section class="overview" id="overview" aria-labelledby="headline">
+    <div>
+      <p class="eyebrow" id="eyebrow"></p>
+      <h2 class="headline" id="headline">Getting your projects</h2>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="tiles" id="tiles" role="group" aria-label="Show one kind of project"></div>
+  </section>
 
+  <section class="firstrun" id="firstrun" aria-live="polite" hidden></section>
+
+  <main class="board" id="board" hidden>
+    <section class="card" aria-labelledby="list-title">
+      <div class="card-head">
+        <h2 id="list-title">All open projects</h2>
+        <span class="meta" id="list-meta"></span>
+      </div>
+      <div class="cols" aria-hidden="true"><span>Status</span><span>Project</span><span>Owner</span><span class="due-h">Due</span><span></span></div>
+      <ul class="list" id="list"></ul>
+      <div class="empty" id="empty" hidden></div>
+    </section>
+    <aside class="rail">
+      <section class="card" aria-labelledby="changes-title">
+        <div class="card-head"><h2 id="changes-title">Since last week</h2><span class="meta" id="changes-meta"></span></div>
+        <ul class="items" id="changes"></ul>
+      </section>
+      <section class="card" aria-labelledby="waiting-title">
+        <div class="card-head"><h2 id="waiting-title">Waiting on</h2><span class="meta" id="waiting-meta"></span></div>
+        <ul class="items" id="waiting"></ul>
+      </section>
+      <section class="card" aria-labelledby="gaps-title">
+        <div class="card-head"><h2 id="gaps-title">No owner or no date</h2><span class="meta" id="gaps-meta"></span></div>
+        <ul class="items" id="gaps"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <section class="section" id="ask-section" aria-labelledby="ask-title" hidden>
+    <div class="section-head">
+      <div>
+        <h2 id="ask-title">Ask about your projects</h2>
+        <p id="ask-hint">The tracker answers in the chat beside this page.</p>
+      </div>
+    </div>
+    <div class="card ask">
+      <form id="ask-form">
+        <input id="ask-input" type="text" maxlength="400" autocomplete="off" dir="auto"
+          placeholder="Ask anything about your projects" aria-label="Ask about your projects">
+        <button class="btn primary big" type="submit" id="ask-send">Ask</button>
+      </form>
+      <div class="chips" id="chips" role="group" aria-label="Ready-made questions"></div>
+      <p class="note" id="ask-note" role="status" hidden></p>
+    </div>
+  </section>
+
+  <section class="section" id="ideas-section" aria-labelledby="ideas-title">
+    <div class="section-head">
+      <div>
+        <h2 id="ideas-title">Ideas for your business</h2>
+        <p id="ideas-hint">What Cabinet can do with your projects in Notion. One tap each.</p>
+      </div>
+    </div>
+    <div class="ideas" id="ideas"></div>
+    <p class="fine" id="ideas-fine"></p>
+  </section>
+
+  <footer class="foot">
+    <div class="legend" id="legend" aria-label="What the signals mean"></div>
+    <div>This page only reads Notion. It never changes a page or writes a status back.</div>
+  </footer>
 </div>
+
+<div id="panel-root"></div>
 
 <script>
 (function () {
-  var root = document.getElementById('root');
-  var DIR = 'daily-summaries';
-  var JOB = '.jobs/morning-project-status.yaml';
-  var job = null;
-  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-                'September', 'October', 'November', 'December'];
+  "use strict";
 
-  function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  var JOB_ID = "morning-project-status";
+  var SERVICE = "notion";
+  var cab = window.cabinet;
+  var v2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+
+  var STATUSES = ["late", "at-risk", "on-track"];
+  var WORD = { late: "Late", "at-risk": "At risk", "on-track": "On track" };
+  var MEANS = { late: "past the due date", "at-risk": "could slip", "on-track": "moving, nothing late" };
+  var RANK = { late: 0, "at-risk": 1, "on-track": 2 };
+  var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  var QUESTIONS = [
+    "What should I chase today?",
+    "Who has too much on their plate?",
+    "What's due in the next two weeks?",
+    "Which projects haven't moved in a while?",
+    "What do I need to decide this week?"
+  ];
+
+  var IDEAS = [
+    {
+      icon: "mail",
+      title: "A weekly status email for the team",
+      text: "What's late, what's at risk and what's next, written for the team. You read it before anyone gets it.",
+      ask: "Write a short status email for the team from our projects in Notion: what's late, what's at risk and what's coming up. Show me the draft here and don't send anything.",
+      every: "Every Monday",
+      routine: "Every Monday at 8, write me a short status email for the team from our projects in Notion. Show it to me, don't send it. Please set this up as a routine."
+    },
+    {
+      icon: "clock",
+      title: "Everything overdue, and who owns it",
+      text: "One list of what's past its date, how late it is and who to call about it.",
+      ask: "List every project in Notion that's past its due date, how many days late it is, and who owns it.",
+      every: "Every morning",
+      routine: "Every morning at 8, list every project in Notion that's past its due date, how late it is and who owns it. Please set this up as a routine."
+    },
+    {
+      icon: "client",
+      title: "A client-ready update for one project",
+      text: "A short, friendly note on where a client's project stands, ready for you to send yourself.",
+      ask: "Write a short, friendly update for a client about where their project stands, from what's in Notion. Ask me which project first, and don't send anything.",
+      every: null,
+      routine: null
+    },
+    {
+      icon: "person",
+      title: "Projects with no owner or no date",
+      text: "The work nobody is steering, with a suggestion for who could take each one.",
+      ask: "Which projects in Notion have no owner or no due date? Suggest who could take each one.",
+      every: "Every Monday",
+      routine: "Every Monday at 8, list the projects in Notion with no owner or no due date, with a suggestion for each. Please set this up as a routine."
+    },
+    {
+      icon: "trend",
+      title: "What changed since last week",
+      text: "What slipped, what got done and what's new, in a few short lines.",
+      ask: "What changed in our projects in Notion since last week? What slipped, what got done and what's new?",
+      every: "Every Friday",
+      routine: "Every Friday at 4, tell me what changed in our projects in Notion this week: what slipped, what got done and what's new. Please set this up as a routine."
+    },
+    {
+      icon: "wait",
+      title: "Jobs waiting on a customer or a supplier",
+      text: "Who you're waiting on, since when, and a polite nudge you could send them.",
+      ask: "Which projects in Notion are waiting on a customer or a supplier? For each one, tell me who we're waiting on, since when, and write a short, polite nudge I could send. Don't send anything.",
+      every: "Every morning",
+      routine: "Every morning at 8, list the projects in Notion that are waiting on a customer or a supplier, with who to nudge. Please set this up as a routine."
+    },
+    {
+      icon: "team",
+      title: "Who's doing what this week",
+      text: "A short plan for each person on the team, from the projects they own.",
+      ask: "From our projects in Notion, what should each person on the team focus on this week?",
+      every: "Every Monday",
+      routine: "Every Monday at 7, write a short plan for each person on the team from the projects they own in Notion. Please set this up as a routine."
+    },
+    {
+      icon: "done",
+      title: "What we finished this month",
+      text: "The wins of the month, ready for the team meeting or a note to customers.",
+      ask: "What did we finish this month, according to our projects in Notion? Write it as a short list I can share at the team meeting.",
+      every: null,
+      routine: null
+    }
+  ];
+
+  // Icons are fixed strings written here, never text from the data.
+  var ICON = {
+    late: '<svg class="sig late" viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="2.5" width="15" height="15" rx="3.5" fill="currentColor"/><path d="M7 7l6 6M13 7l-6 6" stroke="#0a1020" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    "at-risk": '<svg class="sig at-risk" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.2c.5 0 .9.3 1.2.7l7 12.4c.5.9-.1 2-1.2 2H3c-1 0-1.7-1.1-1.2-2L8.8 2.9c.3-.4.7-.7 1.2-.7z" fill="currentColor"/><path d="M10 7.2v4.2" stroke="#0a1020" stroke-width="2.2" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1.25" fill="#0a1020"/></svg>',
+    "on-track": '<svg class="sig on-track" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor"/><path d="M6.4 10.3l2.4 2.4 4.8-5" fill="none" stroke="#0a1020" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    all: '<svg class="sig all" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M6.5 8h7M6.5 12h5" stroke-linecap="round"/></svg>',
+    chev: '<svg class="chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5l5 5-5 5"/></svg>',
+    worse: '<svg class="ico worse" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7l10 9M16 9.5V16H9.5"/></svg>',
+    better: '<svg class="ico better" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l10-9M9.5 6H16v6.5"/></svg>',
+    "new": '<svg class="ico new" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M11 7.5v7M7.5 11h7"/></svg>',
+    done: '<svg class="ico done" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M7.5 11.2l2.3 2.3 4.7-4.8"/></svg>',
+    other: '<svg class="ico other" viewBox="0 0 22 22" fill="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="3"/></svg>',
+    close: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg>',
+    refresh: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6"/><path d="M16.5 3.5v4h-4"/></svg>',
+    out: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 3.5h5v5M16.5 3.5L9.5 10.5"/><path d="M15 12v3.5a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1H8"/></svg>',
+    chat: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 4.5h13v9H9l-4 3.2v-3.2H3.5z"/></svg>',
+    repeat: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V7.5A2.5 2.5 0 0 1 6.5 5H15l-2.5-2.5M16 11v1.5A2.5 2.5 0 0 1 13.5 15H5l2.5 2.5"/></svg>',
+    hourglass: '<svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M11 6.5V11l3 2"/></svg>',
+    mail: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4.5" width="15" height="11" rx="2"/><path d="M3 5.5l7 5.5 7-5.5"/></svg>',
+    clock: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5V10l3 2"/></svg>',
+    client: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="14" height="10.5" rx="2"/><path d="M7.5 6V4.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V6M3 10.5h14"/></svg>',
+    person: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="7" r="3.2" stroke-dasharray="2.4 1.8"/><path d="M4 17c1.1-3.2 3.3-4.8 6-4.8s4.9 1.6 6 4.8"/></svg>',
+    trend: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14l4.5-4.5 3 3L17 6M12.5 6H17v4.5"/></svg>',
+    wait: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 13.5V6.5h9v7M11.5 9h3l3 3v1.5h-6"/><circle cx="6" cy="14.5" r="1.6"/><circle cx="14.5" cy="14.5" r="1.6"/></svg>',
+    team: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="7.5" cy="7" r="2.8"/><circle cx="14" cy="8" r="2.2"/><path d="M2.5 16c.8-2.8 2.7-4.2 5-4.2s4.2 1.4 5 4.2M13 12.2c1.8 0 3.4 1.1 4.2 3.3"/></svg>',
+    done2: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M6.8 10.2l2.2 2.2 4.4-4.6"/></svg>',
+    notion: '<svg class="nmark" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="18" fill="#fff"/><path fill="#0a1020" transform="translate(14 13) scale(.72)" fill-rule="evenodd" d="M61.35.227L6.017 4.314C1.553 4.7 0 7.617 0 11.113v60.66c0 2.723.967 5.053 3.3 8.167l13.007 16.913c2.137 2.723 4.08 3.307 8.16 3.113l64.257-3.89c5.433-.387 6.99-2.917 6.99-7.193V20.64c0-2.21-.873-2.847-3.443-4.733L74.167 3.143C69.894.036 68.147-.357 61.35.227zM25.92 19.523c-5.247.353-6.437.433-9.417-1.99L8.927 11.507c-.77-.78-.383-1.753 1.557-1.947l53.193-3.887c4.467-.39 6.793 1.167 8.54 2.527l9.123 6.61c.39.197 1.36 1.36.193 1.36l-54.933 3.307-.68.047zM19.803 88.3V30.367c0-2.53.777-3.697 3.103-3.893L86 22.78c2.14-.193 3.107 1.167 3.107 3.693v57.547c0 2.53-.39 4.67-3.883 4.863l-60.377 3.5c-3.493.193-5.043-.97-5.043-4.083zm59.6-54.827c.387 1.75 0 3.5-1.75 3.7l-2.91.577v42.773c-2.527 1.36-4.853 2.137-6.797 2.137-3.107 0-3.883-.973-6.21-3.887l-19.03-29.94v28.967l6.02 1.363s0 3.5-4.857 3.5l-13.39.777c-.39-.78 0-2.723 1.357-3.11l3.497-.97v-38.3L30.48 40.667c-.39-1.75.58-4.277 3.3-4.473l14.367-.967 19.8 30.327v-26.83l-5.047-.58c-.39-2.143 1.163-3.7 3.103-3.89l13.4-.78z"/></svg>'
+  };
+  ICON.done_idea = ICON.done2;
+
+  var S = {
+    appDir: "project-status",
+    role: "owner",
+    notion: null,
+    notionProblem: null,
+    connecting: false,
+    connectNote: null,
+    job: null,
+    runStarting: false,
+    runNote: null,
+    kind: "loading",
+    data: null,
+    filter: null,
+    openKey: null,
+    askBusy: false,
+    askNote: null,
+    noticeInView: true
+  };
+
+  var el = {
+    conn: byId("conn"), notice: byId("notice"), overview: byId("overview"), eyebrow: byId("eyebrow"),
+    headline: byId("headline"), sub: byId("sub"), tiles: byId("tiles"), firstrun: byId("firstrun"),
+    board: byId("board"), list: byId("list"), listMeta: byId("list-meta"), empty: byId("empty"),
+    changes: byId("changes"), changesTitle: byId("changes-title"), changesMeta: byId("changes-meta"),
+    waiting: byId("waiting"), waitingMeta: byId("waiting-meta"), gaps: byId("gaps"), gapsMeta: byId("gaps-meta"),
+    askSection: byId("ask-section"), askForm: byId("ask-form"), askInput: byId("ask-input"), askSend: byId("ask-send"),
+    askHint: byId("ask-hint"), chips: byId("chips"), askNote: byId("ask-note"),
+    ideas: byId("ideas"), ideasHint: byId("ideas-hint"), ideasFine: byId("ideas-fine"),
+    legend: byId("legend"), panelRoot: byId("panel-root")
+  };
+  var phone = window.matchMedia ? window.matchMedia("(max-width: 760px)") : { matches: false };
+
+  // ── Small helpers ────────────────────────────────────────────
+
+  function byId(id) { return document.getElementById(id); }
+
+  function h(tag, attrs, kids) {
+    var node = document.createElement(tag);
+    var key;
+    for (key in attrs || {}) {
+      if (!Object.prototype.hasOwnProperty.call(attrs, key)) continue;
+      var value = attrs[key];
+      if (value === null || value === undefined || value === false) continue;
+      if (key === "class") node.className = value;
+      else if (key === "text") node.textContent = value;
+      else if (key === "html") node.innerHTML = ICON[value] || "";
+      else if (key.indexOf("on") === 0) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? "" : value);
+    }
+    (kids || []).forEach(function (kid) {
+      if (kid === null || kid === undefined || kid === false) return;
+      node.appendChild(typeof kid === "string" ? document.createTextNode(kid) : kid);
     });
+    return node;
   }
 
-  /* Frontmatter + an optional quick-wins bullet list + a markdown table — the only
-     shapes this page reads. Anything richer belongs in the file, not in a parser here. */
-  function parse(text) {
-    var out = { meta: {}, rows: [], cols: [], quickWins: [] };
-    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-    var body = text;
-    if (m) {
-      body = m[2];
-      m[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
-        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+  function icon(name) {
+    var holder = document.createElement("span");
+    holder.innerHTML = ICON[name] || "";
+    return holder.firstChild || holder;
+  }
+
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function text(value) { return typeof value === "string" ? value.trim() : ""; }
+  function lower(value) { return value ? value.charAt(0).toLowerCase() + value.slice(1) : value; }
+  // "The crane company" reads "the crane company" mid-sentence; "Cedar Valley Dental" stays as it is.
+  function midSentence(value) {
+    return /^(The|A|An|Our|Their|His|Her|Its|Some|Two|Three|One)\b/.test(value) ? lower(value) : value;
+  }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  function noStop(value) { return value.replace(/[.\s]+$/, ""); }
+
+  // ── Dates ────────────────────────────────────────────────────
+
+  function ymd(value) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(text(value));
+    return m ? m[1] + "-" + m[2] + "-" + m[3] : null;
+  }
+  function dateOf(value) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+  function instant(value) {
+    var d = value ? new Date(value) : null;
+    return d && !isNaN(d.getTime()) ? d : null;
+  }
+  function daysBetween(later, earlier) {
+    var a = Date.UTC(later.getFullYear(), later.getMonth(), later.getDate());
+    var b = Date.UTC(earlier.getFullYear(), earlier.getMonth(), earlier.getDate());
+    return Math.round((a - b) / 86400000);
+  }
+  function toYmd(d) {
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+  function shortDate(d) { return MONTHS[d.getMonth()] + " " + d.getDate(); }
+  function dayDate(d) { return DAYS[d.getDay()].slice(0, 3) + ", " + shortDate(d); }
+  function clock(d) {
+    var hour = d.getHours() % 12 || 12;
+    return hour + ":" + ("0" + d.getMinutes()).slice(-2);
+  }
+  function partOfDay(d) {
+    var hour = d.getHours();
+    return hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+  }
+
+  function updatedWords(iso) {
+    var d = instant(iso);
+    if (!d) return "";
+    var gap = daysBetween(new Date(), d);
+    if (gap <= 0) return "Updated " + clock(d) + " this " + partOfDay(d);
+    if (gap === 1) return "Updated yesterday " + partOfDay(d);
+    if (gap < 7) return "Updated " + DAYS[d.getDay()];
+    return "Updated " + shortDate(d);
+  }
+
+  function daysLate(p) {
+    var d = dateOf(p.due);
+    if (!d) return 0;
+    return Math.max(0, daysBetween(new Date(), d));
+  }
+
+  function dueCell(p) {
+    var d = dateOf(p.due);
+    if (!d) return { cls: "none", words: "No date" };
+    var gap = daysBetween(d, new Date());
+    if (gap < 0) return { cls: "late", words: -gap + " " + plural(-gap, "day", "days") + " late" };
+    if (gap === 0) return { cls: "", words: "Due today" };
+    if (gap === 1) return { cls: "", words: "Due tomorrow" };
+    if (gap < 7) return { cls: "", words: "Due " + DAYS[d.getDay()] };
+    return { cls: "", words: "Due " + shortDate(d) };
+  }
+
+  function dueLong(value) {
+    var d = dateOf(value);
+    if (!d) return { cls: "none", words: "No date on the page" };
+    var gap = daysBetween(d, new Date());
+    if (gap < 0) return { cls: "late", words: dayDate(d) + ", " + -gap + " " + plural(-gap, "day", "days") + " ago" };
+    if (gap === 0) return { cls: "", words: "Today, " + dayDate(d) };
+    if (gap === 1) return { cls: "", words: "Tomorrow, " + dayDate(d) };
+    return { cls: "", words: dayDate(d) + ", in " + gap + " days" };
+  }
+
+  function editedWords(value) {
+    var d = dateOf(value);
+    if (!d) return "Not known";
+    var gap = daysBetween(new Date(), d);
+    if (gap <= 0) return "Today";
+    if (gap === 1) return "Yesterday";
+    return dayDate(d) + ", " + gap + " days ago";
+  }
+
+  // "Since last week", or what the comparison really was.
+  function sinceWords() {
+    var now = instant(S.data && S.data.generatedAt) || new Date();
+    var before = instant(S.data && S.data.previousAt);
+    if (!before) return null;
+    var gap = daysBetween(now, before);
+    if (gap >= 5 && gap <= 9) return { title: "Since last week", tail: "last week", on: "on " + dayDate(before) };
+    if (gap === 1) return { title: "Since yesterday", tail: "yesterday", on: "on " + dayDate(before) };
+    if (gap > 1 && gap < 5) return { title: "Since " + DAYS[before.getDay()], tail: "on " + DAYS[before.getDay()], on: "on " + dayDate(before) };
+    return { title: "Since " + shortDate(before), tail: "on " + shortDate(before), on: "on " + dayDate(before) };
+  }
+
+  // The example keeps its shape forever: its dates move with today.
+  function freshen(data) {
+    var made = instant(data.generatedAt);
+    if (!made) return data;
+    var shift = daysBetween(new Date(), made);
+    if (!shift) return data;
+    function moveDay(value) {
+      var d = dateOf(value);
+      if (!d) return value;
+      d.setDate(d.getDate() + shift);
+      return toYmd(d);
+    }
+    function moveInstant(value) {
+      var d = instant(value);
+      if (!d) return value;
+      d.setDate(d.getDate() + shift);
+      return d.toISOString();
+    }
+    data.generatedAt = moveInstant(data.generatedAt);
+    data.previousAt = moveInstant(data.previousAt);
+    data.projects.forEach(function (p) {
+      p.due = moveDay(p.due);
+      p.edited = moveDay(p.edited);
+    });
+    return data;
+  }
+
+  // ── Reading the board ────────────────────────────────────────
+
+  function statusOf(value, fallback) {
+    var v = text(value).toLowerCase().replace(/[_\s]+/g, "-");
+    if (v === "late" || v === "overdue" || v === "red") return "late";
+    if (v === "at-risk" || v === "risk" || v === "amber" || v === "blocked" || v === "stuck") return "at-risk";
+    if (v === "on-track" || v === "green" || v === "ok") return "on-track";
+    return fallback;
+  }
+
+  function kindOf(value) {
+    var v = text(value).toLowerCase();
+    return v === "worse" || v === "better" || v === "new" || v === "done" ? v : "other";
+  }
+
+  // Only a link to Notion itself opens; anything else in the file is ignored.
+  function notionLink(value) {
+    try {
+      var url = new URL(text(value));
+      var host = url.hostname.toLowerCase();
+      var ok = host === "notion.so" || /\.notion\.so$/.test(host) || /\.notion\.site$/.test(host) ||
+        host === "notion.com" || /\.notion\.com$/.test(host);
+      return url.protocol === "https:" && ok ? url.href : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function readBoard(raw) {
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.projects)) {
+      throw new Error("This is not a board.");
+    }
+    var projects = parsed.projects
+      .filter(function (p) { return p && typeof p === "object"; })
+      .map(function (p, i) {
+        return {
+          key: "p" + i,
+          name: text(p.name) || "Untitled project",
+          client: text(p.client) || null,
+          status: statusOf(p.status, "at-risk"),
+          lastWeek: statusOf(p.lastWeek, null),
+          owner: text(p.owner) || null,
+          due: ymd(p.due),
+          why: text(p.why),
+          next: text(p.next),
+          blocker: text(p.blocker) || null,
+          edited: ymd(p.edited),
+          where: text(p.where),
+          url: notionLink(p.url)
+        };
       });
-    }
-    /* Bullets live between the frontmatter and the table; "- " never opens a table row,
-       so a plain scan of the whole body is enough. */
-    body.split('\n').forEach(function (line) {
-      var b = line.match(/^\s*-\s+(.*)$/);
-      if (b) out.quickWins.push(b[1].trim());
+    projects.sort(function (a, b) {
+      if (RANK[a.status] !== RANK[b.status]) return RANK[a.status] - RANK[b.status];
+      if (a.due !== b.due) {
+        if (!a.due) return 1;
+        if (!b.due) return -1;
+        return a.due < b.due ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
     });
-    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
-    if (lines.length < 2) return out;
-    function cells(l) {
-      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
+    var changes = null;
+    if (Array.isArray(parsed.changes)) {
+      changes = parsed.changes
+        .map(function (c) {
+          if (typeof c === "string") return { kind: "other", text: text(c), url: null };
+          if (!c || typeof c !== "object") return null;
+          return { kind: kindOf(c.kind), text: text(c.text), url: notionLink(c.url) };
+        })
+        .filter(function (c) { return c && c.text; });
     }
-    out.cols = cells(lines[0]);
-    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
-    return out;
+    return {
+      generatedAt: text(parsed.generatedAt),
+      previousAt: text(parsed.previousAt),
+      business: text(parsed.business) || null,
+      projects: projects,
+      changes: changes
+    };
   }
 
-  /* Status is a closed set of four. Anything else the agent writes still has to render,
-     so it falls back to the quiet grey rather than to a class that does not exist. */
-  function statusClass(cell) {
-    var k = cell.toLowerCase();
-    if (k === 'blocked') return 's-stop';
-    if (k === 'at risk') return 's-warn';
-    if (k === 'on track') return 's-ok';
-    return 's-unk';
+  function counts() {
+    var c = { late: 0, "at-risk": 0, "on-track": 0, all: 0, before: { late: 0, "at-risk": 0, "on-track": 0 }, added: 0 };
+    ((S.data && S.data.projects) || []).forEach(function (p) {
+      c[p.status] += 1;
+      c.all += 1;
+      if (p.lastWeek) c.before[p.lastWeek] += 1;
+      else c.added += 1;
+    });
+    return c;
   }
 
-  /* url never gets a column of its own — it only decides whether a project name links out. */
-  function isUrl(head) { return head === 'url'; }
+  function projects() { return (S.data && S.data.projects) || []; }
 
-  function render(data, name, files) {
-    var meta = data.meta, html = picker(name, files);
+  function shown() {
+    return S.filter ? projects().filter(function (p) { return p.status === S.filter; }) : projects();
+  }
 
-    /* The routine could not reach Notion. It said so rather than writing nothing. */
-    if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">Last run could not reach ' +
-              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
-              '. Showing the previous result.</div>';
+  function findByUrl(url) {
+    if (!url) return null;
+    var list = projects();
+    for (var i = 0; i < list.length; i++) if (list[i].url === url) return list[i];
+    return null;
+  }
+
+  function findByKey(key) {
+    var list = projects();
+    for (var i = 0; i < list.length; i++) if (list[i].key === key) return list[i];
+    return null;
+  }
+
+  function titleOf(p) { return p.client ? p.name + " for " + p.client : p.name; }
+
+  // ── Who may do what here ─────────────────────────────────────
+
+  function state() { return S.notion ? S.notion.state : null; }
+  function isOwner() { return S.role === "owner"; }
+  function canEdit() { return S.role === "owner" || S.role === "editor"; }
+  function canConnect() { return v2 && isOwner() && !!S.notion && !!S.notion.canConnect; }
+  function connected() { return v2 && state() === "connected"; }
+  function canAsk() { return v2 && canEdit() && typeof cab.ask === "function" && connected(); }
+  function canRun() { return v2 && canEdit() && !!S.job && connected(); }
+  function running() { return S.runStarting || !!(S.job && S.job.running); }
+  function linking() { return S.connecting || !!(S.notion && S.notion.busy === "linking"); }
+  function isExample() { return S.kind === "example"; }
+  function firstCheck() { return connected() && (S.kind === "example" || S.kind === "none"); }
+  function whenWords() { return S.job && S.job.when ? S.job.when : "Weekday mornings"; }
+
+  // Why asking is not possible here, in plain words; null when it is.
+  function askBlocked() {
+    if (!v2) return "Asking from this page needs the newest Cabinet.";
+    if (!canEdit()) return "You can look around. Asking is for people who can edit this cabinet.";
+    if (state() === "not-available-here") return "Asking works once Notion can be used here.";
+    if (!connected()) return isOwner() ? "Connect Notion, and you can ask about your own projects." : "Once Notion is connected, you can ask about your own projects.";
+    return null;
+  }
+
+  // ── Talking to Cabinet ───────────────────────────────────────
+
+  function readFile(name) {
+    if (v2) return cab.files.read(S.appDir + "/data/" + name);
+    return fetch("data/" + name, { cache: "no-store" }).then(function (res) {
+      if (!res.ok) {
+        var err = new Error("That file is not there yet.");
+        err.code = res.status === 404 ? "not-found" : "unavailable";
+        throw err;
+      }
+      return res.text();
+    });
+  }
+
+  function loadBoard() {
+    return readFile("latest.json").then(
+      function (raw) {
+        try {
+          S.data = readBoard(raw);
+          S.kind = "real";
+        } catch (err) {
+          S.kind = "broken";
+          S.data = null;
+        }
+      },
+      function () {
+        return readFile("EXAMPLE-latest.json").then(
+          function (raw) {
+            try {
+              S.data = freshen(readBoard(raw));
+              S.kind = "example";
+            } catch (err) {
+              S.kind = "none";
+              S.data = null;
+            }
+          },
+          function () {
+            S.kind = "none";
+            S.data = null;
+          }
+        );
+      }
+    ).then(render);
+  }
+
+  function pickNotion(list) {
+    var found = null;
+    (list || []).forEach(function (c) { if (!found && c && c.id === SERVICE) found = c; });
+    return found;
+  }
+
+  function pickJob(list) {
+    var found = null;
+    (list || []).forEach(function (j) { if (!found && j && j.id === JOB_ID) found = j; });
+    return found || (list && list[0]) || null;
+  }
+
+  function goOld() {
+    v2 = false;
+    loadBoard();
+  }
+
+  function startV2() {
+    Promise.resolve(cab.here())
+      .then(function (here) {
+        if (here && here.role) S.role = here.role;
+        if (here && here.appPath) S.appDir = here.appPath;
+      }, function () { /* the defaults hold */ })
+      .then(function () {
+        cab.connectors.list().then(function (list) {
+          S.notion = pickNotion(list);
+          render();
+        }, function (err) {
+          if (err && (err.code === "old-cabinet" || err.code === "no-cabinet")) { goOld(); return; }
+          S.notionProblem = err && err.message;
+          render();
+        });
+        cab.connectors.onChange(function (list) {
+          var before = state();
+          S.notion = pickNotion(list);
+          if (before !== state()) loadBoard();
+          else render();
+        });
+        cab.jobs.list().then(function (list) {
+          S.job = pickJob(list);
+          render();
+        }, function () { S.job = null; render(); });
+        cab.jobs.onChange(function (list) {
+          var was = running();
+          S.job = pickJob(list);
+          if (was && S.job && !S.job.running) {
+            S.runStarting = false;
+            loadBoard();
+          } else {
+            render();
+          }
+        });
+        try {
+          cab.files.onChange(S.appDir + "/data", function () { loadBoard(); });
+        } catch (err) {
+          /* The board still loads once, and again after every check. */
+        }
+        loadBoard();
+      });
+  }
+
+  function connect() {
+    if (!canConnect() || S.connecting) return;
+    S.connecting = true;
+    S.connectNote = null;
+    render();
+    cab.connectors.connect(SERVICE).then(function (outcome) {
+      S.connecting = false;
+      if (outcome !== "connected") S.connectNote = "Notion isn't connected yet. You can try again any time.";
+      return cab.connectors.list().then(function (list) { S.notion = pickNotion(list); }, function () {});
+    }, function (err) {
+      S.connecting = false;
+      S.connectNote = err && err.message ? err.message : "That didn't work. Try again in a moment.";
+    }).then(function () { return loadBoard(); });
+  }
+
+  function runNow() {
+    if (!canRun() || running()) return;
+    S.runStarting = true;
+    S.runNote = null;
+    render();
+    cab.jobs.run(S.job.id).then(function () {
+      if (S.job) S.job.running = true;
+      render();
+    }, function (err) {
+      S.runStarting = false;
+      if (err && err.code === "busy" && S.job) S.job.running = true;
+      else S.runNote = err && err.message ? err.message : "That didn't start. Try again in a moment.";
+      render();
+    });
+  }
+
+  // Every ask comes from a press. `where` says which part of the page shows the answer.
+  function ask(question, where, done, which) {
+    var words = text(question);
+    if (!words || !canAsk() || S.askBusy) return;
+    S.askBusy = true;
+    S.askNote = { where: where, which: which || null, busy: true };
+    render();
+    cab.ask(words).then(function () {
+      S.askBusy = false;
+      S.askNote = { where: where, which: which || null, ok: true, words: done || "Asked. The answer opens beside this page." };
+      if (where === "box") el.askInput.value = "";
+      render();
+    }, function (err) {
+      S.askBusy = false;
+      S.askNote = { where: where, which: which || null, ok: false, words: err && err.message ? err.message : "That didn't go through. Try again." };
+      render();
+    });
+  }
+
+  function noteFor(where) {
+    return S.askNote && S.askNote.where === where ? S.askNote : null;
+  }
+
+  // ── Drawing: the top bar ─────────────────────────────────────
+
+  function button(label, opts) {
+    opts = opts || {};
+    var node = h("button", {
+      type: "button",
+      class: "btn " + (opts.cls || ""),
+      onclick: opts.onclick,
+      disabled: opts.disabled || null,
+      "aria-busy": opts.busy ? "true" : null,
+      "aria-label": opts.aria || null
+    });
+    if (opts.busy) node.appendChild(h("span", { class: "spin", "aria-hidden": "true" }));
+    else if (opts.icon) node.appendChild(icon(opts.icon));
+    node.appendChild(document.createTextNode(label));
+    return node;
+  }
+
+  function connectButton(label, big) {
+    var node = h("button", { type: "button", class: "btn primary" + (big ? " big" : ""), onclick: connect });
+    node.appendChild(icon("notion"));
+    node.appendChild(document.createTextNode(label));
+    return node;
+  }
+
+  var SAID = {
+    "not-added": "Notion not connected",
+    "needs-sign-in": "Notion needs a fresh sign-in",
+    "needs-you": "Notion needs a quick fix",
+    "not-available-here": "Notion can't be used here yet"
+  };
+
+  function paintConn() {
+    var box = el.conn;
+    clear(box);
+    function words(dot, main, sub, more) {
+      box.appendChild(h("div", { class: "conn-words" }, [
+        h("span", { class: "conn-main" }, [h("span", { class: "dot" + (dot ? " " + dot : "") }), main]),
+        sub ? h("span", { class: "conn-sub" }, [
+          h("span", { text: sub }),
+          more ? h("span", { class: "sep", "aria-hidden": "true", text: " · " }) : null,
+          more ? h("span", { class: "more", text: more }) : null
+        ]) : null
+      ]));
     }
-
-    /* The single most consequential project, in one sentence — absent most days on purpose. */
-    if (meta.lead && meta.verdict) {
-      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
-              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
-              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
-    }
-
-    if (data.quickWins.length) {
-      html += '<div class="card"><span class="qw-tag">Quick wins</span><ul class="qw-list">' +
-              data.quickWins.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') +
-              '</ul></div>';
-    }
-
-    if (!data.rows.length) {
-      html += '<div class="card empty">Nothing to show for this day.</div>';
-      root.innerHTML = html;
-      bind(files);
+    if (linking()) {
+      words("warn", "Connecting Notion", "Finish in the Notion window");
       return;
     }
-
-    var urlCol = data.cols.findIndex(function (c) { return isUrl(c.toLowerCase()); });
-
-    var t = '<div class="card scroll"><table><thead><tr>';
-    data.cols.forEach(function (c) {
-      if (isUrl(c.toLowerCase())) return;
-      t += '<th>' + esc(c) + '</th>';
-    });
-    t += '</tr></thead><tbody>';
-    data.rows.forEach(function (r) {
-      var url = urlCol > -1 ? r[urlCol] : '';
-      t += '<tr>';
-      r.forEach(function (cell, i) {
-        var head = (data.cols[i] || '').toLowerCase();
-        if (isUrl(head)) {
-          return;
-        } else if (head === 'status') {
-          t += '<td><span class="pill ' + statusClass(cell) + '">' + esc(cell) + '</span></td>';
-        } else if (head === 'project' && url) {
-          t += '<td class="name"><a class="deep-link" href="' + esc(url) +
-               '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a></td>';
-        } else if (head === 'project') {
-          t += '<td class="name">' + esc(cell) + '</td>';
-        } else if (head === 'owner') {
-          t += '<td class="who">' + esc(cell) + '</td>';
-        } else {
-          t += '<td>' + esc(cell) + '</td>';
-        }
-      });
-      t += '</tr>';
-    });
-    t += '</tbody></table></div>';
-
-    root.innerHTML = html + t;
-    bind(files);
-  }
-
-  /* ---- the folder of summaries ------------------------------------------------------ */
-
-  /* 2026-08-10T07-00-00-notion-summary.md — the name carries the date, so the picker
-     is built from names alone. EXAMPLE-notion-summary.md is the one file without one. */
-  function stamp(name) {
-    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
-    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
-  }
-
-  function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
-           a.getDate() === b.getDate();
-  }
-
-  function human(d) {
-    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
-           d.getFullYear();
-  }
-
-  function label(name) {
-    var d = stamp(name);
-    if (!d) return 'Notion Daily Example';
-    var now = new Date(), yday = new Date(now.getTime() - 86400000);
-    if (sameDay(d, now)) return 'Today';
-    if (sameDay(d, yday)) return 'Yesterday';
-    return human(d);
-  }
-
-  function picker(current, files) {
-    var html = '';
-    if (files.length) {
-      var opts = files.map(function (f) {
-        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
-               esc(label(f)) + '</option>';
-      }).join('');
-      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+    if (!v2) {
+      words(S.kind === "real" ? "" : "off", S.kind === "real" ? "From Notion" : "Example", S.kind === "real" && S.data ? updatedWords(S.data.generatedAt) : "Made-up projects");
+      return;
     }
-    var next = nextRunText();
-    if (next) html += '<span class="next">' + esc(next) + '</span>';
-    return html ? '<div class="picker">' + html + '</div>' : '';
-  }
-
-  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
-  function bind(files) {
-    var sel = document.getElementById('pick');
-    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
-  }
-
-  function show(name, files) {
-    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      })
-      .then(function (text) { render(parse(text), name, files); })
-      .catch(function (err) {
-        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
-          'in a moment.</div>';
-        bind(files);
-      });
-  }
-
-  /* ---- when the routine next runs ---------------------------------------------------
-     Read straight off this cabinet's own job file, so a user who edits the schedule or
-     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
-     which is the same host the routine runs on. */
-
-  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
-  function field(spec, min, max) {
-    var set = {};
-    spec.split(',').forEach(function (part) {
-      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
-      if (bits[0] !== '*') {
-        var r = bits[0].split('-');
-        lo = +r[0];
-        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+    if (!S.notion) {
+      words("off", S.notionProblem ? "Notion state unknown" : "Checking Notion", S.notionProblem || null);
+      return;
+    }
+    var st = state();
+    if (st === "connected") {
+      if (running()) words("", "Notion connected", "Checking your projects now");
+      else if (S.kind === "real" && S.data) words("", "Notion connected", updatedWords(S.data.generatedAt), whenWords());
+      else words("", "Notion connected", whenWords());
+      var failed = S.job && S.job.lastRun && S.job.lastRun.ok === false && !running();
+      if (S.runNote || failed) box.firstChild.appendChild(h("span", { class: "conn-sub", style: "color:var(--risk)", text: S.runNote || "The last check didn't finish." }));
+      if (canRun() && S.kind === "real") {
+        box.appendChild(button(running() ? "Checking" : "Check now", {
+          icon: "refresh", busy: running(), disabled: running(), onclick: runNow,
+          aria: running() ? "Checking your projects now" : "Check your projects in Notion now"
+        }));
       }
-      for (var v = lo; v <= hi; v += step) set[v] = true;
-    });
-    return set;
+      return;
+    }
+    var dot = st === "not-added" ? "off" : st === "not-available-here" ? "off" : "bad";
+    words(dot, SAID[st] || "Notion", isExample() ? "Showing a made-up example" : S.kind === "real" && S.data ? "Last board " + lower(updatedWords(S.data.generatedAt)) : null);
+    // The banner below carries the same press; the bar offers it once the banner scrolls away.
+    if (canConnect() && !S.noticeInView) {
+      box.appendChild(connectButton(st === "needs-sign-in" ? "Sign in again" : st === "needs-you" ? "Fix it" : "Connect Notion", false));
+    }
   }
 
-  function nextRun(cron, from) {
-    var f = cron.trim().split(/\s+/);
-    if (f.length !== 5) return null;
-    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
-        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
-    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
-    var d = new Date(from.getTime() + 60000);
-    d.setSeconds(0, 0);
-    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
-       stops a schedule that can never match (30 February) from spinning. */
-    for (var i = 0; i < 366 * 1440; i++) {
-      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
-          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
-      d = new Date(d.getTime() + 60000);
+  // ── Drawing: the notice under the top bar ────────────────────
+
+  function noticeFor() {
+    var n = S.notion;
+    var example = S.kind === "example" || S.kind === "none";
+    var real = S.kind === "real";
+    var biz = S.data && S.data.business ? S.data.business : "This company";
+    var lastBoard = real && S.data ? "This is the last board, " + lower(updatedWords(S.data.generatedAt)) + "." : "";
+    var ownerLine = "Ask the owner of this cabinet to connect Notion.";
+    var exampleLine = biz + " is a made-up company. ";
+    if (!v2) {
+      if (!example) return null;
+      return {
+        cls: "example", icon: "notion",
+        title: "This is an example",
+        text: exampleLine + "Connect Notion from Integrations in Cabinet to see your own projects here."
+      };
+    }
+    if (linking()) {
+      return {
+        cls: "", icon: "notion", linking: true,
+        title: "Finish signing in in the Notion window.",
+        text: "Then come back here. This page updates by itself."
+      };
+    }
+    if (!n) {
+      if (!example) return null;
+      return {
+        cls: "example", icon: "notion",
+        title: "This is an example",
+        text: exampleLine + (S.notionProblem || "Connect Notion from Integrations in Cabinet.")
+      };
+    }
+    var problem = n.problem && n.problem.text ? n.problem.text : "";
+    if (n.state === "not-added") {
+      if (!example) {
+        return {
+          cls: "warn", icon: "notion",
+          title: "Notion isn't connected any more.",
+          text: lastBoard + (canConnect() ? " Connect Notion again to keep it up to date." : ""),
+          action: canConnect() ? connectButton("Connect Notion", true) : null,
+          quiet: canConnect() || isOwner() ? null : ownerLine
+        };
+      }
+      return {
+        cls: "example", icon: "notion",
+        title: "This is an example",
+        text: exampleLine + (canConnect()
+          ? "Connect Notion and your own projects take its place."
+          : "Once Notion is connected, your own projects show up here."),
+        quiet: canConnect() ? "Cabinet only reads your projects. It never changes them." : isOwner() ? null : ownerLine,
+        action: canConnect() ? connectButton("Connect Notion", true) : null
+      };
+    }
+    if (n.state === "needs-sign-in") {
+      return {
+        cls: "warn", icon: "notion",
+        title: problem || "Notion signed you out.",
+        text: real ? lastBoard + " Sign in again to keep it up to date." : exampleLine + "Sign in again to see your own projects.",
+        action: canConnect() ? connectButton("Sign in again", true) : null,
+        quiet: canConnect() || isOwner() ? null : ownerLine
+      };
+    }
+    if (n.state === "needs-you") {
+      return {
+        cls: "warn", icon: "notion",
+        title: problem || "Notion needs a quick fix.",
+        text: real ? lastBoard : exampleLine + "Your own projects show up once this is fixed.",
+        action: canConnect() ? connectButton("Fix it", true) : null,
+        quiet: canConnect() || isOwner() ? null : ownerLine
+      };
+    }
+    if (n.state === "not-available-here") {
+      return {
+        cls: "", icon: "hourglass",
+        title: problem || "Notion can't be connected here yet.",
+        text: real ? lastBoard : exampleLine + "You can still look around the example below."
+      };
+    }
+    if (S.kind === "broken") {
+      return {
+        cls: "warn", icon: "hourglass",
+        title: "The last check wrote a board this page can't read.",
+        text: "Check again. If it keeps happening, ask the tracker to look at it.",
+        action: canRun() ? button(running() ? "Checking" : "Check again now", {
+          cls: "primary big", icon: "refresh", busy: running(), disabled: running(), onclick: runNow
+        }) : null
+      };
     }
     return null;
   }
 
-  function nextRunText() {
-    if (!job) return '';
-    if (job.enabled === 'false') return 'Routine paused';
-    if (!job.schedule) return '';
-    var d = nextRun(job.schedule, new Date());
-    if (!d) return '';
-    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    return 'Next run: ' + human(d) + ' at ' + clock;
+  function paintNotice() {
+    var box = el.notice;
+    var model = noticeFor();
+    clear(box);
+    if (!model) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    box.className = "notice" + (model.cls ? " " + model.cls : "");
+    var badge = h("span", { class: "notice-icon" + (model.linking ? " linking" : ""), "aria-hidden": "true" });
+    badge.appendChild(icon(model.icon));
+    box.appendChild(badge);
+    box.appendChild(h("div", { class: "words" }, [
+      h("h2", { text: model.title }),
+      model.text ? h("p", { text: model.text.trim() }) : null,
+      model.quiet ? h("p", { class: "quiet", text: model.quiet }) : null,
+      S.connectNote && !model.linking ? h("p", { class: "quiet", text: S.connectNote }) : null
+    ]));
+    if (model.action) box.appendChild(model.action);
   }
 
-  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
-     tells the page which cabinet it is installed in, whatever the user named it. */
-  function cabinetDir() {
-    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
-    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  // ── Drawing: headline and the big numbers ────────────────────
+
+  function headlineWords(c) {
+    var late = c.late, risk = c["at-risk"];
+    if (!c.all) return "No open projects found";
+    if (late && risk) return late + " " + plural(late, "project is", "projects are") + " late and " + risk + " " + plural(risk, "is", "are") + " at risk";
+    if (late) return late + " " + plural(late, "project is", "projects are") + " late";
+    if (risk) return "Nothing is late. " + risk + " " + plural(risk, "project is", "projects are") + " at risk";
+    return "All " + c.all + " " + plural(c.all, "project is", "projects are") + " on track";
   }
 
-  /* Direct .md children of the folder only — never a nested one.
-     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
-     separately: `path` decides what lives in the folder, `name` is what we fetch. */
-  function listFiles(nodes, dir, out) {
-    (nodes || []).forEach(function (n) {
-      if (!n || !n.path) return;
-      if (n.path.indexOf(dir + '/') === 0 &&
-          n.path.indexOf('/', dir.length + 1) === -1 &&
-          /\.md$/i.test(n.name || '')) out.push(n.name);
-      if (n.children) listFiles(n.children, dir, out);
-    });
-    return out;
+  function subWords(c) {
+    var list = projects();
+    if (!list.length) return "The tracker looks for pages and tables about projects in your Notion. Ask it where yours live.";
+    var top = list[0];
+    if (top.status === "late") {
+      var n = daysLate(top);
+      return titleOf(top) + " is " + (n ? n + " " + plural(n, "day", "days") + " late" : "late") +
+        (top.blocker ? ", waiting on " + midSentence(noStop(top.blocker)) : "") + ".";
+    }
+    if (top.status === "at-risk") {
+      return titleOf(top) + " is at risk" + (top.blocker ? ", waiting on " + midSentence(noStop(top.blocker)) : "") + ".";
+    }
+    var soon = list.filter(function (p) { return p.due; })[0];
+    return soon ? "Next up: " + titleOf(soon) + ", " + lower(dueCell(soon).words) + "." : "Nothing needs you today.";
   }
 
-  /* An empty folder is the normal state before the first run — not an error to shout about.
-     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
-  Promise.all([
-    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }),
-    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
-    fetch('../' + JOB, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .catch(function () { return ''; })
-  ])
-    .then(function (both) {
-      var tree = both[0];
-      job = {};
-      both[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
-      });
-      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
-      if (!files.length) {
-        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
-        return;
+  function deltaWords(now, before, since) {
+    var d = now - before;
+    if (!since) return null;
+    if (d > 0) return { cls: "up", words: d + " more than " + since.tail };
+    if (d < 0) return { cls: "down", words: -d + " fewer than " + since.tail };
+    return { cls: "", words: "Same as " + since.tail };
+  }
+
+  function paintOverview() {
+    var c = counts();
+    var example = isExample();
+    var since = sinceWords();
+    clear(el.eyebrow);
+    clear(el.tiles);
+
+    if (firstCheck()) {
+      el.overview.hidden = true;
+      return;
+    }
+    el.overview.hidden = false;
+
+    if (S.kind === "loading") {
+      el.headline.textContent = "Getting your projects";
+      el.sub.textContent = "";
+    } else if (!S.data) {
+      el.headline.textContent = "No board yet";
+      el.sub.textContent = v2 ? "The board fills in after the first check." : "Open this in Cabinet to see your projects.";
+    } else {
+      var who = S.data.business;
+      if (who) el.eyebrow.appendChild(h("span", { dir: "auto", text: who }));
+      else el.eyebrow.appendChild(h("span", { text: "Your projects in Notion" }));
+      if (example) el.eyebrow.appendChild(h("span", { class: "pill", text: "Example, made up" }));
+      el.headline.textContent = headlineWords(c);
+      el.sub.textContent = subWords(c);
+      el.sub.setAttribute("dir", "auto");
+    }
+
+    var usable = !!S.data && (S.kind === "real" || example);
+    el.tiles.hidden = !usable;
+    var order = ["late", "at-risk", "on-track", "all"];
+    order.forEach(function (key) {
+      var n = key === "all" ? c.all : c[key];
+      var foot;
+      if (key === "all") {
+        foot = { cls: "", words: since && c.added ? c.added + " new " + (since.tail === "last week" ? "this week" : "since " + since.tail.replace(/^on /, "")) : "open in Notion" };
+      } else {
+        foot = deltaWords(n, c.before[key], since) || { cls: "", words: MEANS[key] };
+        if (foot.cls === "up") foot.cls = key === "on-track" ? "down-good" : "up-bad";
+        else if (foot.cls === "down") foot.cls = key === "on-track" ? "up-bad" : "down-good";
       }
-      /* Newest first; the example, having no date, sits at the bottom of the list. */
-      files.sort(function (a, b) {
-        var da = stamp(a), db = stamp(b);
-        if (da && db) return db - da;
-        return da ? -1 : db ? 1 : 0;
-      });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
-    })
-    .catch(function (err) {
-      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
-        esc(err.message) + '). Reload in a moment.</div>';
+      var label = key === "all" ? "Open projects" : WORD[key];
+      var tile = h("button", {
+        type: "button",
+        class: "tile " + key,
+        "aria-pressed": usable && key !== "all" ? (S.filter === key ? "true" : "false") : null,
+        disabled: !usable || null,
+        "aria-label": usable ? label + ": " + n + ". " + foot.words + ". " + (key === "all" ? "Show all projects." : "Show only these.") : label,
+        onclick: function () { setFilter(key === "all" ? null : S.filter === key ? null : key); }
+      }, [
+        h("span", { class: "tile-label" }, [icon(key), label]),
+        h("span", { class: "tile-num num", text: usable ? String(n) : "0" }),
+        h("span", { class: "tile-foot " + foot.cls, text: usable ? foot.words : MEANS[key] || "open in Notion" })
+      ]);
+      el.tiles.appendChild(tile);
     });
+  }
+
+  // ── Drawing: the first check ─────────────────────────────────
+
+  function paintFirstRun() {
+    var box = el.firstrun;
+    clear(box);
+    if (!firstCheck()) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    var failed = S.job && S.job.lastRun && S.job.lastRun.ok === false && !running();
+    var every = lower(whenWords());
+    if (running()) {
+      box.appendChild(h("div", { class: "words" }, [
+        h("h2", { text: "Reading your projects in Notion" }),
+        h("p", { text: "This takes a few minutes. You can leave this page: your projects show up here by themselves when the check is done." }),
+        h("div", { class: "progress", "aria-hidden": "true" }, [h("i")])
+      ]));
+      return;
+    }
+    box.appendChild(h("div", { class: "words" }, [
+      h("h2", { text: failed ? "The first check didn't finish" : "Notion is connected. See your projects now." }),
+      h("p", {
+        text: failed
+          ? "Try again. If it keeps stopping, ask the tracker what went wrong."
+          : "The first check reads your projects and takes a few minutes. After that it runs by itself, " + every + "."
+      }),
+      S.runNote ? h("p", { text: S.runNote }) : null
+    ]));
+    if (canRun()) {
+      box.appendChild(button(failed ? "Try again" : "Check my projects now", { cls: "primary big", icon: "refresh", onclick: runNow }));
+    } else {
+      box.appendChild(h("p", { text: "The first check runs by itself, " + every + "." }));
+    }
+  }
+
+  // ── Drawing: the list and the side column ────────────────────
+
+  function initials(name) {
+    var parts = name.split(/\s+/).filter(Boolean);
+    var first = parts[0] ? Array.from(parts[0])[0] : "";
+    var last = parts.length > 1 ? Array.from(parts[parts.length - 1])[0] : "";
+    return (first + last).toUpperCase();
+  }
+
+  var AVATAR = ["#34507f", "#3d5b4e", "#5a4a7a", "#6a4d3a", "#2f5f6f", "#63415a", "#4a5a2f"];
+  function avatarColor(name) {
+    var sum = 0;
+    for (var i = 0; i < name.length; i++) sum = (sum + name.charCodeAt(i) * (i + 1)) % 997;
+    return AVATAR[sum % AVATAR.length];
+  }
+
+  function ownerCell(p) {
+    if (!p.owner) {
+      return h("span", { class: "owner none" }, [h("span", { class: "avatar none", "aria-hidden": "true", text: "?" }), h("span", { text: "No owner" })]);
+    }
+    return h("span", { class: "owner" }, [
+      h("span", { class: "avatar", "aria-hidden": "true", style: "background:" + avatarColor(p.owner), text: initials(p.owner) }),
+      h("span", { dir: "auto", text: p.owner })
+    ]);
+  }
+
+  function statusCell(status) {
+    return h("span", { class: "status " + status }, [icon(status), WORD[status]]);
+  }
+
+  function paintList() {
+    var list = shown();
+    var all = projects().length;
+    clear(el.list);
+    clear(el.listMeta);
+    if (S.filter) {
+      el.listMeta.appendChild(h("span", { class: "filter-note" }, [
+        list.length + " of " + all + " · " + WORD[S.filter].toLowerCase() + " only",
+        h("button", { type: "button", class: "link-btn", text: "Show all", onclick: function () { setFilter(null); } })
+      ]));
+    } else {
+      el.listMeta.textContent = all + " " + plural(all, "project", "projects");
+    }
+    list.forEach(function (p) {
+      var due = dueCell(p);
+      var label = p.name + (p.client ? ", for " + p.client : "") + ". " + WORD[p.status] + ". " +
+        (p.owner ? "Owner " + p.owner + ". " : "No owner. ") + due.words + ". Show details.";
+      var row = h("button", {
+        type: "button", class: "row", "data-key": p.key,
+        "aria-expanded": S.openKey === p.key ? "true" : "false",
+        "aria-label": label,
+        onclick: function () { openProject(p.key); }
+      }, [
+        statusCell(p.status),
+        h("span", { class: "proj" }, [
+          h("span", { class: "proj-name", dir: "auto", text: p.name }),
+          h("span", { class: "proj-sub", dir: "auto", text: p.client || p.where || "Notion" })
+        ]),
+        h("span", { class: "meta" }, [
+          ownerCell(p),
+          h("span", { class: "due num " + due.cls, text: due.words })
+        ]),
+        icon("chev")
+      ]);
+      el.list.appendChild(h("li", null, [row]));
+    });
+    clear(el.empty);
+    el.empty.hidden = list.length > 0;
+    if (!list.length) {
+      if (S.filter) {
+        el.empty.appendChild(h("p", { text: "No projects are " + WORD[S.filter].toLowerCase() + " right now." }));
+        el.empty.appendChild(button("Show all projects", { onclick: function () { setFilter(null); } }));
+      } else {
+        el.empty.appendChild(h("p", { text: "No open projects turned up in your Notion." }));
+        if (canAsk()) {
+          el.empty.appendChild(button("Ask where our projects live", {
+            icon: "chat",
+            onclick: function () { ask("Where do we keep our projects in Notion? Please look again.", "empty"); }
+          }));
+        }
+      }
+    }
+  }
+
+  function railItem(opts) {
+    var target = opts.project;
+    var kids = [
+      opts.icon ? icon(opts.icon) : null,
+      h("span", { class: "item-text" }, [
+        opts.title ? h("span", { class: "item-title", dir: "auto", text: opts.title }) : null,
+        opts.line ? h("span", { class: "item-line", dir: "auto", text: opts.line }) : null,
+        opts.tags ? h("span", null, opts.tags.map(function (t) { return h("span", { class: "tag", text: t }); })) : null
+      ])
+    ];
+    var node = target
+      ? h("button", { type: "button", class: "item", onclick: function () { openProject(target.key); } }, kids)
+      : h("div", { class: "item" }, kids);
+    return h("li", null, [node]);
+  }
+
+  function paintRail() {
+    var since = sinceWords();
+    var list = projects();
+
+    // Since last week
+    clear(el.changes);
+    el.changesTitle.textContent = since ? since.title : "Since last week";
+    el.changesMeta.textContent = since ? "Compared with " + since.on.replace(/^on /, "") : "";
+    var changes = S.data && S.data.changes;
+    if (!changes) {
+      changes = [];
+      if (since) {
+        list.forEach(function (p) {
+          if (!p.lastWeek) changes.push({ kind: "new", text: titleOf(p) + " is new on the board.", url: p.url });
+          else if (p.lastWeek !== p.status) {
+            changes.push({
+              kind: RANK[p.status] < RANK[p.lastWeek] ? "worse" : "better",
+              text: titleOf(p) + " went from " + WORD[p.lastWeek].toLowerCase() + " to " + WORD[p.status].toLowerCase() + ".",
+              url: p.url
+            });
+          }
+        });
+      }
+    }
+    if (!since && !changes.length) {
+      el.changes.appendChild(h("li", null, [h("p", { class: "rail-empty", text: "What changes from week to week shows up here after a week of checks." })]));
+    } else if (!changes.length) {
+      el.changes.appendChild(h("li", null, [h("p", { class: "rail-empty", text: "Nothing moved. Every project has the same status as " + since.tail + "." })]));
+    } else {
+      changes.slice(0, 8).forEach(function (c) {
+        el.changes.appendChild(railItem({ icon: c.kind, line: c.text, project: findByUrl(c.url) }));
+      });
+    }
+
+    // Waiting on
+    clear(el.waiting);
+    var waiting = list.filter(function (p) { return p.blocker && p.status !== "on-track"; });
+    el.waitingMeta.textContent = waiting.length ? waiting.length + " " + plural(waiting.length, "project", "projects") : "";
+    if (!waiting.length) {
+      el.waiting.appendChild(h("li", null, [h("p", { class: "rail-empty", text: "Nothing is stuck waiting on someone right now." })]));
+    } else {
+      waiting.forEach(function (p) {
+        el.waiting.appendChild(railItem({ icon: p.status, title: titleOf(p), line: p.blocker, project: p }));
+      });
+    }
+
+    // No owner or no date
+    clear(el.gaps);
+    var gaps = list.filter(function (p) { return !p.owner || !p.due; });
+    el.gapsMeta.textContent = gaps.length ? gaps.length + " " + plural(gaps.length, "project", "projects") : "";
+    if (!gaps.length) {
+      el.gaps.appendChild(h("li", null, [h("p", { class: "rail-empty", text: "Every project has an owner and a date." })]));
+    } else {
+      gaps.forEach(function (p) {
+        var tags = [];
+        if (!p.owner) tags.push("No owner");
+        if (!p.due) tags.push("No date");
+        el.gaps.appendChild(railItem({ icon: p.status, title: titleOf(p), tags: tags, project: p }));
+      });
+    }
+  }
+
+  function paintBoard() {
+    var show = !firstCheck() && !!S.data && (S.kind === "real" || S.kind === "example");
+    el.board.hidden = !show;
+    if (!show) return;
+    paintList();
+    paintRail();
+  }
+
+  // ── Drawing: asking and ideas ────────────────────────────────
+
+  function paintAsk() {
+    var show = !!S.data || firstCheck();
+    el.askSection.hidden = !show;
+    if (!show) return;
+    var blocked = askBlocked();
+    el.askInput.disabled = !!blocked || S.askBusy;
+    el.askSend.disabled = !!blocked || S.askBusy;
+    el.askHint.textContent = blocked || "The tracker answers in the chat beside this page.";
+    el.askInput.placeholder = "Ask anything about your projects";
+    clear(el.chips);
+    QUESTIONS.forEach(function (q) {
+      el.chips.appendChild(h("button", {
+        type: "button", class: "chip", text: q, disabled: !!blocked || S.askBusy,
+        onclick: function () { ask(q, "chips"); }
+      }));
+    });
+    var note = noteFor("box") || noteFor("chips") || noteFor("empty");
+    el.askNote.hidden = !note;
+    if (note) {
+      el.askNote.className = "note" + (note.busy ? "" : note.ok ? " ok" : " no");
+      el.askNote.textContent = note.busy ? "Asking the tracker..." : note.words;
+    }
+  }
+
+  function paintIdeas() {
+    clear(el.ideas);
+    var blocked = askBlocked();
+    el.ideasHint.textContent = blocked ? "What Cabinet can do with your projects in Notion." : "What Cabinet can do with your projects in Notion. One tap each.";
+    el.ideasFine.textContent = blocked
+      ? blocked
+      : "Switching one on asks the tracker to set up a routine for it. It shows you the plan in the chat, and nothing runs until you say yes.";
+    IDEAS.forEach(function (idea, i) {
+      var where = "idea" + i;
+      var note = noteFor(where);
+      var busy = !!(note && note.busy);
+      var side;
+      if (!blocked) {
+        side = h("div", { class: "idea-actions" }, [
+          button(busy && note.which === "now" ? "Asking" : "Ask now", {
+            icon: "chat", busy: busy && note.which === "now", disabled: S.askBusy,
+            aria: "Ask now: " + idea.title,
+            onclick: function () { askIdea(i, "now"); }
+          }),
+          idea.every ? button(busy && note.which === "every" ? "Asking" : idea.every, {
+            cls: "ghost", icon: "repeat", busy: busy && note.which === "every", disabled: S.askBusy,
+            aria: "Switch on, " + idea.every.charAt(0).toLowerCase() + idea.every.slice(1) + ": " + idea.title,
+            onclick: function () { askIdea(i, "every"); }
+          }) : null
+        ]);
+      } else {
+        side = h("div", { class: "cadence-box" }, [
+          idea.every ? h("span", { class: "cadence" }, [icon("repeat"), "Can run " + idea.every.charAt(0).toLowerCase() + idea.every.slice(1)]) : null
+        ]);
+      }
+      var kids = [
+        h("span", { class: "idea-icon", "aria-hidden": "true" }, [icon(idea.icon === "done" ? "done_idea" : idea.icon)]),
+        h("div", { class: "idea-words" }, [h("h3", { text: idea.title }), h("p", { text: idea.text })]),
+        side
+      ];
+      if (note && !note.busy) kids.push(h("p", { class: "note " + (note.ok ? "ok" : "no"), role: "status", text: note.words }));
+      el.ideas.appendChild(h("article", { class: "idea" }, kids));
+    });
+  }
+
+  function askIdea(i, which) {
+    var idea = IDEAS[i];
+    var every = which === "every";
+    ask(every ? idea.routine : idea.ask, "idea" + i,
+      every ? "Asked. Say yes in the chat to switch it on." : "Asked. The answer opens beside this page.", which);
+  }
+
+  function paintLegend() {
+    clear(el.legend);
+    STATUSES.forEach(function (s) {
+      el.legend.appendChild(h("span", null, [icon(s), WORD[s] + ": " + MEANS[s]]));
+    });
+  }
+
+  // ── Drawing: one project ─────────────────────────────────────
+
+  var lastOpener = null;
+
+  function openProject(key) {
+    lastOpener = document.activeElement;
+    S.openKey = key;
+    render();
+    var dialog = el.panelRoot.querySelector(".drawer");
+    if (dialog) dialog.focus();
+  }
+
+  function closeProject() {
+    if (!S.openKey) return;
+    S.openKey = null;
+    render();
+    if (lastOpener && document.body.contains(lastOpener)) lastOpener.focus();
+  }
+
+  function paintPanel() {
+    var root = el.panelRoot;
+    clear(root);
+    var p = S.openKey ? findByKey(S.openKey) : null;
+    document.body.style.overflow = p ? "hidden" : "";
+    if (!p) return;
+    var due = dueLong(p.due);
+    var since = sinceWords();
+    var moved = null;
+    if (since && !p.lastWeek) moved = { cls: "", icon: "new", words: "New on the board " + (since.tail === "last week" ? "this week" : "since " + since.tail.replace(/^on /, "")) };
+    else if (since && p.lastWeek !== p.status) {
+      var worse = RANK[p.status] < RANK[p.lastWeek];
+      moved = { cls: worse ? "worse" : "better", icon: worse ? "worse" : "better", words: "Was " + WORD[p.lastWeek].toLowerCase() + " " + since.tail };
+    }
+    var n = daysLate(p);
+    var badgeWords = p.status === "late" && n ? "Late · " + n + " " + plural(n, "day", "days") : WORD[p.status];
+
+    var body = h("div", { class: "drawer-body" }, [
+      h("h2", { id: "panel-title", dir: "auto", text: p.name }),
+      p.client ? h("p", { class: "for", dir: "auto", text: "For " + p.client }) : null,
+      moved ? h("p", { class: "moved " + moved.cls }, [icon(moved.icon), moved.words]) : null,
+      p.blocker ? h("div", { class: "wait " + p.status }, [h("h3", { text: "Waiting on" }), h("p", { dir: "auto", text: p.blocker })]) : null,
+      h("div", { class: "block" }, [h("h3", { text: "Why" }), h("p", { dir: "auto", text: p.why || "The page doesn't say much yet." })]),
+      h("div", { class: "block" }, [h("h3", { text: "What to do next" }), h("p", { class: "next", dir: "auto", text: p.next || "Open the page and decide the next step." })]),
+      h("dl", { class: "facts" }, [
+        h("div", null, [h("dt", { text: "Owner" }), h("dd", { class: p.owner ? null : "none", dir: p.owner ? "auto" : null, text: p.owner || "Nobody owns it yet" })]),
+        h("div", null, [h("dt", { text: "Due" }), h("dd", { class: "num " + due.cls, text: due.words })]),
+        h("div", null, [h("dt", { text: "Last change in Notion" }), h("dd", { class: "num", text: editedWords(p.edited) })]),
+        h("div", null, [h("dt", { text: "Lives in" }), h("dd", { dir: "auto", text: p.where || "Notion" })])
+      ])
+    ]);
+    if (isExample()) {
+      body.appendChild(h("p", { class: "drawer-note", text: "An example project, made up. Your own projects take its place once Notion is connected." }));
+    } else {
+      var actions = h("div", { class: "drawer-actions" });
+      if (p.url) {
+        var link = h("a", { class: "btn primary big", href: p.url, target: "_blank", rel: "noopener noreferrer" });
+        link.appendChild(icon("out"));
+        link.appendChild(document.createTextNode("Open in Notion"));
+        actions.appendChild(link);
+      }
+      if (canAsk()) {
+        var note = noteFor("panel");
+        actions.appendChild(button(note && note.busy ? "Asking" : "Ask about this project", {
+          cls: "big", icon: "chat", busy: note && note.busy, disabled: S.askBusy,
+          onclick: function () { ask("What's going on with \"" + p.name + "\"" + (p.client ? " for " + p.client : "") + ", and what should I do about it?", "panel"); }
+        }));
+      }
+      if (actions.firstChild) body.appendChild(actions);
+      var done = noteFor("panel");
+      if (done && !done.busy) body.appendChild(h("p", { class: "note " + (done.ok ? "ok" : "no"), role: "status", text: done.words }));
+    }
+
+    var drawer = h("section", { class: "drawer", role: "dialog", "aria-modal": "true", "aria-labelledby": "panel-title", tabindex: "-1" }, [
+      h("div", { class: "drawer-top" }, [
+        h("span", { class: "badge " + p.status }, [icon(p.status), badgeWords]),
+        h("button", { type: "button", class: "close", "aria-label": "Close", html: "close", onclick: closeProject })
+      ]),
+      body
+    ]);
+    root.appendChild(h("div", { class: "scrim", onclick: closeProject }));
+    root.appendChild(drawer);
+  }
+
+  // ── Render ───────────────────────────────────────────────────
+
+  function paintNav() {
+    var buttons = document.querySelectorAll(".nav [data-go]");
+    for (var i = 0; i < buttons.length; i++) {
+      var section = byId(buttons[i].getAttribute("data-go"));
+      buttons[i].hidden = !section || section.hidden;
+    }
+  }
+
+  function render() {
+    paintConn();
+    paintNotice();
+    paintOverview();
+    paintFirstRun();
+    paintBoard();
+    paintAsk();
+    paintIdeas();
+    paintLegend();
+    paintPanel();
+    paintNav();
+  }
+
+  function setFilter(status) {
+    S.filter = status;
+    render();
+  }
+
+  document.querySelector(".nav").addEventListener("click", function (event) {
+    var target = event.target.closest ? event.target.closest("[data-go]") : null;
+    var section = target && byId(target.getAttribute("data-go"));
+    if (!section || section.hidden) return;
+    var top = section.getBoundingClientRect().top + window.scrollY - (phone.matches ? 12 : 84);
+    window.scrollTo({ top: top, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  });
+  el.askForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    if (!text(el.askInput.value)) { el.askInput.focus(); return; }
+    ask(el.askInput.value, "box");
+  });
+  document.addEventListener("keydown", function (event) {
+    if (!S.openKey) return;
+    if (event.key === "Escape") { closeProject(); return; }
+    if (event.key === "Tab") {
+      var stops = el.panelRoot.querySelectorAll("button, a[href]");
+      if (!stops.length) return;
+      var first = stops[0];
+      var last = stops[stops.length - 1];
+      var dialog = el.panelRoot.querySelector(".drawer");
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { last.focus(); event.preventDefault(); }
+      else if (!event.shiftKey && document.activeElement === last) { first.focus(); event.preventDefault(); }
+    }
+  });
+  if (phone.addEventListener) phone.addEventListener("change", render);
+  if (window.IntersectionObserver) {
+    new IntersectionObserver(function (entries) {
+      var inView = entries[entries.length - 1].isIntersecting;
+      if (inView === S.noticeInView) return;
+      S.noticeInView = inView;
+      paintConn();
+    }).observe(el.notice);
+  }
+
+  render();
+  if (v2) startV2();
+  else loadBoard();
 })();
 </script>
 </body>

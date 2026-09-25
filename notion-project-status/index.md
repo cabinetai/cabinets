@@ -1,47 +1,76 @@
 ---
 title: Notion Project Status
 created: '2026-08-09T00:00:00Z'
-modified: '2026-09-15T00:00:00Z'
+modified: '2026-09-25T00:00:00Z'
 tags: [notion, projects, status, tracking, showcase]
 order: 1
 ---
 # Notion Project Status
 
-Every morning, which of your Notion projects are on track and which need a look.
+Every open project your team keeps in Notion, at a glance: late, at risk or on track, with who owns
+it, when it is due and what changed since last week.
 
 ## What you get
 
-One page. Every project you have running in Notion gets one line, who owns it, whether it
-is moving or stuck, and the one thing that happens next. The trouble sits at the top: the
-blocked project you forgot you were waiting on is the first thing you read, and the two
-that are quietly fine are at the bottom where they belong.
+**Projects at a glance** opens first. It shows:
+- the big numbers;
+- every project with its owner and due date;
+- what each stuck project is waiting on;
+- the projects with no owner or no date.
 
-Only work in progress is listed. Finished and archived projects drop off, and a page that
-is not a project at all (a reading list, notes from a trip), never appears here. If you
-want the full shelf of everything you shared, that is the Notion Library cabinet, not this
-one.
+Tap a project to see why, and what to do next.
 
-The morning routine only reads. It never creates, edits, comments on or moves anything in
-Notion, and it never writes a status back into your pages.
+Ask anything in the box, or tap an idea: a weekly status email for the team, everything overdue
+and who owns it, a client-ready update. The Project Tracker answers in the chat beside the page.
+It proposes a routine only when you ask for one, and it runs only after you say yes.
 
-## How to look at it
+It only reads Notion. It never changes a page, adds a comment or writes a status back.
 
-Open the **Project Status** app in this cabinet. It comes pre-filled with a made-up example
-so you can see the shape of it straight away. The page says clearly that those projects
-are fake. Your first real report takes its place.
+## Connecting Notion
 
-## Before it can read your real workspace
+Press **Connect Notion** on the page and sign in to Notion. Cabinet can then see the pages you can
+see in the Notion you pick when you sign in. Until then, the page shows a made-up company and says
+so.
 
-Connect Notion from Integrations in Cabinet, or when Cabinet asks.
+To stop, disconnect Notion from Cabinet's Integrations page.
 
-It sees only the pages and databases you share with it, and nothing else: the rest of your
-workspace stays invisible to it, and you can change that list whenever you like in Notion,
-under Settings → Connections.
+## For the curious
 
-Until you connect, the page keeps showing the example.
+The routine, Morning Project Status, runs every weekday at 8:00. **Check now** on the page runs it
+straight away. It writes three files in `project-status/data/`:
+- `latest.json`, which the page draws;
+- `latest.md`, the same board as a page;
+- `history.json`, earlier checks, used to tell what changed.
 
-## What's inside
+`EXAMPLE-latest.json` is the made-up example.
 
-- **Project Tracker**: the one agent. Reads your projects, writes the report.
-- **Morning Project Status**: the one routine. Runs at 08:00 every day.
-- **Project Status**: the one page. Opens on today, with a dropdown for earlier days.
+```json
+{
+  "generatedAt": "2026-09-25T08:02:00-04:00",
+  "previousAt": "2026-09-18T08:01:00-04:00",
+  "business": "Hartwell Heating & Air",
+  "projects": [
+    {
+      "name": "Rooftop unit replacement",
+      "client": "Oakwood Middle School",
+      "status": "late",
+      "lastWeek": "at-risk",
+      "owner": "Tyler Brooks",
+      "due": "2026-09-21",
+      "why": "The new unit is on site, but the crane to lift it onto the roof is not booked.",
+      "next": "Call the crane company and lock in a lift date.",
+      "blocker": "The crane company to confirm a lift date.",
+      "edited": "2026-09-23",
+      "where": "Jobs",
+      "url": "https://www.notion.so/..."
+    }
+  ],
+  "changes": [
+    { "kind": "worse", "text": "Rooftop unit replacement for Oakwood Middle School went from at risk to late.", "url": "https://www.notion.so/..." }
+  ]
+}
+```
+
+`status` and `lastWeek` are `late`, `at-risk` or `on-track`. `client`, `owner`, `due`,
+`blocker`, `lastWeek` and `previousAt` may be `null`. A change's `kind` is `worse`, `better`,
+`new` or `done`.
