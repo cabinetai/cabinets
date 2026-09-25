@@ -1,398 +1,1473 @@
-<!DOCTYPE html>
+<!doctype html>
 <!--
-  notion-library showcase page.
+  Company knowledge: what a small business keeps in Notion, at a glance.
+  The procedures, client pages, policies, projects and meeting notes by area;
+  what changed this week; what may be out of date; a box to ask anything; and
+  ideas the business can use today. One file on purpose: on Cabinet Cloud a
+  sealed frame cannot load anything next to it, so CSS, script and icons are
+  inline, and fonts come from Google Fonts with system fallbacks.
 
-  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
-  The file names carry the timestamp, so the picker is built without opening any of them.
-  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
-  and survive the user renaming the cabinet at install time. The folder listing comes from
-  /api/tree because the assets route serves single files and cannot list a directory.
+  Data: the cabinet's routine writes library/data/latest.json (and latest.md,
+  the readable copy). Until it has, the app shows library/data/EXAMPLE-latest.json,
+  a made-up company, labelled as an example everywhere. It reads through
+  window.cabinet v2 (docs/apps/BRIDGE.md in Cabinet); an older Cabinet gets the
+  same files by a plain relative fetch and a line on where to connect Notion.
 
-  Zero external requests. System fonts, inline CSS, no libraries.
-  Every failure path renders something honest instead of a blank page.
+  The app never changes anything in Notion. Questions and ideas go to the
+  cabinet's chat, where the librarian answers beside the app and asks before
+  setting anything up.
 -->
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Notion Library</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Company knowledge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <style>
-  /* Registry parchment design system — same tokens as book-factory/tracker. */
   :root {
-    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
-    --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
-    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
-    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-3: #676661;
+    --paper: #ffffff;
+    --tint: #f5f6f8;
+    --rule: #e4e5e8;
+    --rule-2: #cfd2d8;
+    /* One colour per area, in this order everywhere. */
+    --a-procedures: #2a78d6;
+    --a-clients: #eb6834;
+    --a-policies: #1baf7a;
+    --a-projects: #eda100;
+    --a-meetings: #e87ba4;
+    --a-other: #aeb2ba;
+    /* States, each shown with a word and an icon, never by colour alone. */
+    --good: #0ca30c;
+    --warn: #fab219;
+    --critical: #d03b3b;
+    --focus: #2a78d6;
+    --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; padding: 48px 24px 64px; background: var(--parchment); color: var(--ink);
-    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 400 17px/1.55 var(--sans); -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
   }
-  .wrap { max-width: 860px; margin: 0 auto; }
+  button, input { font: inherit; color: inherit; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+  .sr {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+
+  /* ── Top bar ─────────────────────────────────────────────────────────── */
+  .top { border-bottom: 1px solid var(--rule); background: var(--paper); }
+  .top-in { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 68px; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand-mark { width: 30px; height: 30px; flex: none; }
+  .brand-name { font-weight: 600; font-size: 17px; letter-spacing: -0.01em; white-space: nowrap; }
+  .brand-sub { color: var(--ink-2); font-size: 16px; white-space: nowrap; }
+  .brand-sep { width: 1px; height: 18px; background: var(--rule-2); }
+  .state { display: flex; align-items: center; gap: 14px; font-size: 16px; color: var(--ink-2); flex-wrap: wrap; justify-content: flex-end; }
+  .state b { color: var(--ink); font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--a-other); display: inline-block; }
+  .dot.good { background: var(--good); }
+  .dot.warn { background: var(--warn); }
+  .dot.critical { background: var(--critical); }
+  .state-words { display: inline-flex; align-items: center; gap: 9px; }
+  .state .short { display: none; }
+
+  /* ── Buttons ─────────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid transparent;
+    font: 600 16px/1.2 var(--sans); text-decoration: none; white-space: nowrap; cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+  .btn[disabled] { cursor: default; opacity: 0.6; }
+  .btn-ink { background: var(--ink); color: #fff; }
+  .btn-ink:not([disabled]):hover { background: #2a2a2a; }
+  .btn-line { background: var(--paper); color: var(--ink); border-color: var(--rule-2); }
+  .btn-line:not([disabled]):hover { border-color: var(--ink); }
+  .btn-white { background: #fff; color: var(--ink); }
+  .btn-white:not([disabled]):hover { background: #ececec; }
+  .btn-big { min-height: 52px; padding: 0 24px; font-size: 17px; border-radius: 12px; }
+  .btn .notion-mark { width: 20px; height: 20px; }
+  .spin { width: 20px; height: 20px; flex: none; animation: turn 0.9s linear infinite; }
+  @keyframes turn { to { transform: rotate(360deg); } }
+
+  /* ── The band: what needs doing now ──────────────────────────────────── */
+  #band:empty { display: none; }
+  .band { background: var(--ink); color: #fff; }
+  .band-in { display: flex; align-items: center; gap: 20px; padding: 18px 40px; max-width: 1200px; margin: 0 auto; }
+  .band-icon { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: none; background: rgba(255, 255, 255, 0.12); }
+  .band-icon .i { width: 22px; height: 22px; stroke-width: 2.1; }
+  .band-icon.good { color: #5ddc5d; } .band-icon.warn { color: var(--warn); } .band-icon.critical { color: #ff7a7a; }
+  .band-text { flex: 1; min-width: 0; }
+  .band-title { margin: 0; font-weight: 600; font-size: 18px; line-height: 1.35; }
+  .band-line { margin: 2px 0 0; color: #d9d8d4; font-size: 16px; line-height: 1.45; }
+  .band-tag {
+    display: inline-block; margin-right: 10px; padding: 2px 9px; border-radius: 6px; vertical-align: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.55); font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  }
+
+  /* ── Hero ────────────────────────────────────────────────────────────── */
+  .hero { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 48px; padding: 52px 0 0; align-items: end; }
+  .overline {
+    display: flex; align-items: center; gap: 10px; margin: 0 0 18px;
+    font-size: 14px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2);
+  }
+  .overline .bars { display: inline-flex; gap: 3px; }
+  .overline .bars span { width: 6px; height: 16px; border-radius: 2px; }
   h1 {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 34px; font-weight: 700; letter-spacing: -0.01em; margin: 0;
-    display: flex; align-items: center; gap: 12px;
+    margin: 0; font: 500 clamp(40px, 4.3vw, 56px) / 1.05 var(--serif);
+    letter-spacing: -0.025em; font-variation-settings: "opsz" 72;
   }
-  /* An inline <svg> with a viewBox and no width fills its container — size it here or
-     the mark renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 30px; height: 30px; flex: none; }
-  .sub { color: var(--muted); margin: 6px 0 0 42px; font-size: 15px; }
-  .card {
-    background: var(--card); border: none; border-radius: 12px;
-    padding: 18px 22px; margin-top: 18px;
-    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+  h1 em { font-style: italic; font-weight: 400; white-space: nowrap; }
+  .intro { margin: 22px 0 0; max-width: 34em; font-size: 19px; line-height: 1.55; color: var(--ink-2); }
+  .intro b { color: var(--ink); font-weight: 600; }
+  .figures { border-top: 2px solid var(--ink); }
+  .figure {
+    display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 16px; width: 100%;
+    min-height: 44px; padding: 16px 0 14px; border: 0; border-bottom: 1px solid var(--rule);
+    background: transparent; text-align: left; cursor: pointer;
   }
-  .banner {
-    border: none;
-    padding: 10px 16px; margin-top: 18px; background: var(--card);
-    border-radius: 12px; font-size: 14px; color: var(--muted);
-    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+  .figure:hover .figure-label { color: var(--ink); }
+  .figure-value { font: 600 48px/1 var(--sans); letter-spacing: -0.03em; }
+  .figure-label { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 16px; line-height: 1.35; }
+  .figure-label .i { width: 18px; height: 18px; }
+  .figure-label .warn-i { color: #b77d00; }
+  .figure-label .good-i { color: var(--good); }
+  .skel { display: inline-block; height: 40px; width: 70px; border-radius: 8px; background: var(--tint); }
+  .figure .skel { animation: breathe 1.8s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+  /* ── Ask ─────────────────────────────────────────────────────────────── */
+  .ask {
+    margin-top: 48px; padding: 30px 32px 26px; border: 1px solid var(--rule); border-radius: 20px;
+    box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04), 0 18px 40px -26px rgba(10, 12, 20, 0.28);
   }
-  /* The one thing worth reading if nothing else. Same card; the tag colour leads the eye. */
-  .lead-tag {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--terracotta); margin-bottom: 6px;
+  .ask-label { display: block; margin: 0 0 16px; font: 500 30px/1.15 var(--serif); letter-spacing: -0.015em; }
+  .ask-row { display: flex; gap: 12px; }
+  .field { position: relative; flex: 1; min-width: 0; }
+  .field .i { position: absolute; left: 20px; top: 50%; margin-top: -11px; width: 22px; height: 22px; color: var(--ink-3); pointer-events: none; }
+  #ask {
+    width: 100%; height: 64px; padding: 0 18px 0 56px; border: 1.5px solid var(--rule-2); border-radius: 14px;
+    background: var(--paper); font-size: 19px; color: var(--ink);
   }
-  .lead-who { font-family: Georgia, serif; font-size: 19px; font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--muted); }
-  table { width: 100%; border-collapse: collapse; }
-  th {
-    text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--muted);
-    padding: 12px 18px; border-bottom: 1px solid var(--line);
+  #ask::placeholder { color: #7a7975; }
+  #ask:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 4px rgba(42, 120, 214, 0.18); }
+  .ask-row .btn { min-height: 64px; padding: 0 30px; font-size: 18px; border-radius: 14px; }
+  .ask-note { margin: 12px 2px 0; font-size: 16px; color: var(--ink-2); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ask-note:empty { display: none; }
+  .ask-note .i { color: var(--good); }
+  .matches { margin: 14px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+  .matches:empty { display: none; }
+  .matches li { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 2px; border-bottom: 1px solid var(--rule); }
+  .matches .m-title { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .matches .m-area { color: var(--ink-2); white-space: nowrap; }
+  .matches a { margin-left: auto; }
+  .matches-head { margin: 16px 2px 0; font-size: 15px; font-weight: 600; color: var(--ink-2); }
+  .try { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+  .try-label { font-size: 16px; font-weight: 600; color: var(--ink-2); margin-right: 4px; }
+  .chip {
+    min-height: 44px; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--rule-2);
+    background: var(--paper); font-size: 16px; line-height: 1.3; text-align: left; cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
-  td { padding: 13px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  .pill {
-    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
-    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+  .chip:hover { border-color: var(--ink); background: var(--tint); }
+
+  /* ── Sections ────────────────────────────────────────────────────────── */
+  .section { margin-top: 80px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; margin-bottom: 24px; }
+  h2 { margin: 0; font: 500 36px/1.1 var(--serif); letter-spacing: -0.02em; }
+  .section-meta { margin: 0; color: var(--ink-2); font-size: 16px; }
+  .eg { display: inline-block; margin-left: 12px; padding: 2px 9px; border-radius: 6px; border: 1px solid var(--rule-2);
+    font: 600 13px/1.4 var(--sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); vertical-align: 6px; }
+
+  /* The areas as one bar, in the first screen; the legend under it names every colour. */
+  .strip { margin-top: 40px; }
+  .strip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .strip-title { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); }
+  .strip-hint { margin: 0; font-size: 15px; color: var(--ink-2); }
+  .bar { display: flex; gap: 2px; margin: 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-top: 6px; }
+  .legend button {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0; border: 0; background: none;
+    font-size: 16px; cursor: pointer; color: var(--ink);
   }
-  /* Recency is the only signal this listing carries, so it is the only thing coloured:
-     fresh → green, this week → gold, older → muted. */
-  .u-today { color: var(--green); } .u-recent { color: var(--gold); } .u-older { color: var(--muted); }
-  /* The title is what the eye scans down; everything else on the row is context. */
-  .name { font-weight: 600; }
-  .where { color: var(--muted); }
-  /* The page title is the deep link, straight back to the page in Notion. */
-  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
-  .deep-link:hover { border-bottom-color: var(--muted); }
-  .empty { color: var(--muted); font-size: 14px; }
-  .empty code { font-size: 13px; }
-  /* The table card: flush edges so hairline rows run the full width, like the reference. */
-  .scroll { overflow-x: auto; padding: 0; }
-  .picker { margin-top: 22px; font-size: 14px; color: var(--muted); }
-  .picker select {
-    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  .legend b { font-weight: 600; }
+  .legend .n { color: var(--ink-2); }
+  .legend button:hover .name { text-decoration: underline; text-underline-offset: 3px; }
+  .seg { position: relative; flex-grow: var(--n); flex-basis: 0; min-width: 6px; height: 34px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+  .seg::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 20px; background: var(--c); }
+  .seg:first-child::before { border-radius: 4px 0 0 4px; }
+  .seg:last-child::before { border-radius: 0 4px 4px 0; }
+  .seg:only-child::before { border-radius: 4px; }
+  .seg .tip {
+    position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); z-index: 5;
+    padding: 6px 10px; border-radius: 8px; background: var(--ink); color: #fff; font-size: 15px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity 0.12s ease;
   }
-  .picker .next { display: block; margin-top: 7px; color: var(--faint); }
+  .seg:hover .tip, .seg:focus-visible .tip { opacity: 1; }
+  .areas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .area {
+    position: relative; display: flex; flex-direction: column; padding: 22px 22px 16px; border: 1px solid var(--rule);
+    border-radius: 16px; background: var(--paper); text-align: left; overflow: hidden;
+  }
+  .area::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--c); }
+  .area-head { display: flex; align-items: center; gap: 10px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; background: var(--c); }
+  .area-name { font-weight: 600; font-size: 17px; }
+  .area-count { margin-left: auto; font: 600 30px/1 var(--sans); letter-spacing: -0.02em; }
+  .area-list { margin: 14px 0 6px; padding: 0; list-style: none; }
+  .area-list li { display: flex; align-items: baseline; gap: 12px; padding: 7px 0; border-top: 1px solid var(--rule); font-size: 16px; }
+  .area-list .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .area-list .d { color: var(--ink-2); white-space: nowrap; }
+  .area-empty { margin: 14px 0 6px; color: var(--ink-2); font-size: 16px; }
+  .area .see { margin-top: auto; align-self: flex-start; min-height: 44px; padding: 0; border: 0; background: none; font-weight: 600; font-size: 16px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--rule-2); }
+  .area .see:hover { text-decoration-color: var(--ink); }
+  .area.ghost { min-height: 210px; background: var(--tint); border-color: var(--tint); }
+  .area.ghost::before { display: none; }
+
+  .two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; margin-top: 80px; }
+  .panel { border: 1px solid var(--rule); border-radius: 20px; padding: 28px 28px 22px; }
+  .panel h2 { font-size: 30px; }
+  .panel .section-head { margin-bottom: 8px; }
+  .rows { margin: 0; padding: 0; list-style: none; }
+  .rows li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; padding: 13px 0; border-top: 1px solid var(--rule); }
+  .rows li:first-child { border-top: 0; }
+  .when { font-weight: 600; font-size: 16px; color: var(--ink); padding-top: 1px; }
+  .row-title { margin: 0; font-weight: 600; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+  .row-title a { text-decoration: none; }
+  .row-title a:hover { text-decoration: underline; }
+  .row-meta { margin: 3px 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; color: var(--ink-2); font-size: 16px; }
+  .row-meta .swatch { width: 10px; height: 10px; }
+  .inline-area { display: inline-flex; align-items: center; gap: 7px; }
+  .stale-rows li { grid-template-columns: minmax(0, 1fr) auto; }
+  .age { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; font-size: 16px; white-space: nowrap; color: var(--ink); }
+  .age .i { width: 18px; height: 18px; color: #b77d00; }
+  .more-line { margin: 10px 0 0; color: var(--ink-2); font-size: 16px; }
+  .panel-foot { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--rule); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .panel-foot p { margin: 0; color: var(--ink-2); font-size: 16px; flex: 1; min-width: 12em; }
+  .calm { margin: 10px 0 0; display: flex; align-items: center; gap: 10px; color: var(--ink-2); }
+  .calm .i { color: var(--good); }
+
+  /* ── Ideas ───────────────────────────────────────────────────────────── */
+  .ideas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+  .idea {
+    display: flex; flex-direction: column; min-height: 270px; padding: 22px 22px 20px;
+    border: 1px solid var(--rule); border-radius: 18px; background: var(--paper);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .idea:hover { border-color: var(--rule-2); box-shadow: 0 16px 32px -24px rgba(10, 12, 20, 0.35); }
+  .idea-kind { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; color: var(--ink-2); font-size: 15px; font-weight: 500; }
+  .idea-kind .swatch { width: 10px; height: 10px; }
+  .idea h3 { margin: 0; font: 600 23px/1.2 var(--serif); letter-spacing: -0.01em; }
+  .idea p { margin: 10px 0 18px; color: var(--ink-2); font-size: 16px; line-height: 1.5; }
+  /* Room for two rows of buttons in every card, so "Ask now" lines up across the row. */
+  .idea-actions { margin-top: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; min-height: 96px; }
+  .idea-actions .btn { padding: 0 14px; }
+  .fine { margin: 18px 2px 0; color: var(--ink-2); font-size: 16px; }
+
+  /* ── All pages ───────────────────────────────────────────────────────── */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+  .filter {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 999px;
+    border: 1px solid var(--rule-2); background: var(--paper); font-size: 16px; cursor: pointer;
+  }
+  .filter .n { color: var(--ink-2); }
+  .filter[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .filter[aria-pressed="true"] .n { color: #d9d8d4; }
+  .table { border-top: 2px solid var(--ink); }
+  .trow { display: grid; grid-template-columns: minmax(0, 1fr) 170px 170px 110px; gap: 20px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .trow.head { padding: 10px 0; font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+  .t-title { margin: 0; font-weight: 600; font-size: 17px; overflow-wrap: anywhere; }
+  .t-title a { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .t-title a:hover { text-decoration: underline; }
+  .t-title .i { width: 16px; height: 16px; color: var(--ink-3); }
+  .t-about { margin: 3px 0 0; color: var(--ink-2); font-size: 16px; }
+  .t-cell { color: var(--ink-2); font-size: 16px; }
+  .t-area { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
+  .table-more { display: flex; justify-content: center; margin-top: 22px; }
+
+  .foot { margin-top: 90px; padding: 28px 0 48px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: 16px; }
+  .foot p { margin: 4px 0; }
+  .loading { padding: 80px 0; text-align: center; color: var(--ink-2); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 20px; z-index: 50; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px; max-width: min(640px, calc(100vw - 32px));
+    padding: 12px 12px 12px 18px; border-radius: 14px; background: var(--ink); color: #fff; font-size: 16px;
+    box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.45);
+  }
+  .toast p { margin: 0; }
+  .toast .btn { flex: none; }
+
+  .wide { display: inline; }
+  @media (max-width: 1100px) {
+    .wide { display: none; }
+    .ideas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hero { grid-template-columns: minmax(0, 1fr) 320px; gap: 40px; }
+  }
+  @media (max-width: 900px) {
+    .wrap, .band-in { padding-left: 24px; padding-right: 24px; }
+    .hero { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-top: 40px; }
+    .areas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .two { grid-template-columns: minmax(0, 1fr); }
+    .trow { grid-template-columns: minmax(0, 1fr) 150px 100px; }
+    .trow .t-editor { display: none; }
+  }
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .wrap, .band-in { padding-left: 16px; padding-right: 16px; }
+    .top-in { min-height: 60px; }
+    .brand-sub, .brand-sep, .state .state-when, .state .long, .strip-hint { display: none; }
+    .state .short { display: inline; }
+    .state .btn { padding: 0 12px; }
+    .state .btn .label { display: none; }
+    .brand-name { font-size: 16px; }
+    .chip { border-radius: 14px; }
+    .area-list li:nth-child(3) { display: none; }
+    .band-in { flex-wrap: wrap; gap: 14px; padding-top: 16px; padding-bottom: 16px; }
+    .band-in .band-icon { display: none; }
+    .band-in .btn { width: 100%; }
+    .hero { padding-top: 28px; gap: 24px; }
+    .overline { font-size: 13px; }
+    .intro { font-size: 17px; margin-top: 16px; }
+    .figure-value { font-size: 40px; }
+    .ask { margin-top: 32px; padding: 20px 16px 18px; border-radius: 16px; }
+    .ask-label { font-size: 25px; }
+    .ask-row { flex-direction: column; }
+    .ask-row .btn { min-height: 56px; }
+    #ask { height: 58px; font-size: 18px; }
+    .chip { width: 100%; }
+    .section { margin-top: 56px; }
+    .two { margin-top: 56px; }
+    h2 { font-size: 30px; }
+    .areas { grid-template-columns: minmax(0, 1fr); }
+    .panel { padding: 20px 16px 16px; border-radius: 16px; }
+    .rows li { grid-template-columns: 76px minmax(0, 1fr); }
+    .stale-rows li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .ideas { grid-template-columns: minmax(0, 1fr); }
+    .idea { min-height: 0; }
+    .idea-actions { min-height: 0; }
+    .trow { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .trow.head { display: none; }
+    .trow .t-cell { font-size: 16px; }
+    .toast { left: 16px; right: 16px; transform: none; flex-wrap: wrap; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.4-4.6L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.4 4.6L20 16"/><path d="M20 20v-4h-4"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.5"/><path d="m11.2 11.8 8.3-8.3M16 7l2.5 2.5M13.8 9.2l2 2"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0z"/><path d="M12 16v5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></symbol>
+    <symbol id="i-sent" viewBox="0 0 24 24"><path d="M21 3 10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></symbol>
+  </defs>
+</svg>
 
-  <header>
-    <h1>
-      <!-- The integration's own mark, inlined so the page still makes
-           zero external requests. -->
-      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M6.017 4.313l55.333 -4.087c6.797 -0.583 8.543 -0.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277 -1.553 6.807 -6.99 7.193L24.467 99.967c-4.08 0.193 -6.023 -0.39 -8.16 -3.113L3.3 79.94c-2.333 -3.113 -3.3 -5.443 -3.3 -8.167V11.113c0 -3.497 1.553 -6.413 6.017 -6.8z" fill="#FAF6F1"/> <path fill-rule="evenodd" clip-rule="evenodd" d="M61.35 0.227l-55.333 4.087C1.553 4.7 0 7.617 0 11.113v60.66c0 2.723 0.967 5.053 3.3 8.167l13.007 16.913c2.137 2.723 4.08 3.307 8.16 3.113l64.257 -3.89c5.433 -0.387 6.99 -2.917 6.99 -7.193V20.64c0 -2.21 -0.873 -2.847 -3.443 -4.733L74.167 3.143c-4.273 -3.107 -6.02 -3.5 -12.817 -2.917zM25.92 19.523c-5.247 0.353 -6.437 0.433 -9.417 -1.99L8.927 11.507c-0.77 -0.78 -0.383 -1.753 1.557 -1.947l53.193 -3.887c4.467 -0.39 6.793 1.167 8.54 2.527l9.123 6.61c0.39 0.197 1.36 1.36 0.193 1.36l-54.933 3.307 -0.68 0.047zM19.803 88.3V30.367c0 -2.53 0.777 -3.697 3.103 -3.893L86 22.78c2.14 -0.193 3.107 1.167 3.107 3.693v57.547c0 2.53 -0.39 4.67 -3.883 4.863l-60.377 3.5c-3.493 0.193 -5.043 -0.97 -5.043 -4.083zm59.6 -54.827c0.387 1.75 0 3.5 -1.75 3.7l-2.91 0.577v42.773c-2.527 1.36 -4.853 2.137 -6.797 2.137 -3.107 0 -3.883 -0.973 -6.21 -3.887l-19.03 -29.94v28.967l6.02 1.363s0 3.5 -4.857 3.5l-13.39 0.777c-0.39 -0.78 0 -2.723 1.357 -3.11l3.497 -0.97v-38.3L30.48 40.667c-0.39 -1.75 0.58 -4.277 3.3 -4.473l14.367 -0.967 19.8 30.327v-26.83l-5.047 -0.58c-0.39 -2.143 1.163 -3.7 3.103 -3.89l13.4 -0.78z" fill="currentColor"/></svg>
-      Notion Library
-    </h1>
-    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
-    <p class="sub">Every morning, a list of the Notion pages you shared, with what each one is actually about.</p>
-  </header>
+<header class="top">
+  <div class="wrap top-in">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 30 30" aria-hidden="true">
+        <rect width="30" height="30" rx="8" fill="#0b0b0b"/>
+        <rect x="8" y="9" width="4" height="12" rx="1" fill="#2a78d6"/>
+        <rect x="13" y="9" width="4" height="12" rx="1" fill="#eb6834"/>
+        <rect x="18" y="9" width="4" height="12" rx="1" fill="#1baf7a"/>
+      </svg>
+      <span class="brand-name">Company knowledge</span>
+      <span class="brand-sep" aria-hidden="true"></span>
+      <span class="brand-sub">from Notion</span>
+    </div>
+    <div class="state" id="state" aria-live="polite"></div>
+  </div>
+</header>
+<div id="band" aria-live="polite"></div>
 
-  <div id="root"><div class="card empty">Loading…</div></div>
+<main class="wrap" id="main">
+  <p class="loading" id="loading">Opening your company's knowledge...</p>
 
-</div>
+  <section class="hero" id="hero" hidden>
+    <div>
+      <p class="overline" id="overline"></p>
+      <h1>Everything your team knows, <br class="wide"><em>at a glance.</em></h1>
+      <p class="intro" id="intro"></p>
+    </div>
+    <div class="figures" id="figures"></div>
+  </section>
+
+  <section class="strip" id="strip" hidden>
+    <div class="strip-head">
+      <p class="strip-title" id="strip-title">Your Notion, by area</p>
+      <p class="strip-hint">Tap an area to see its pages</p>
+    </div>
+    <div class="bar" id="bar" role="group" aria-label="Pages by area"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="ask" id="ask-section" hidden>
+    <form id="ask-form" autocomplete="off">
+      <label class="ask-label" for="ask">Ask your company's Notion anything</label>
+      <div class="ask-row">
+        <div class="field">
+          <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="ask" type="text" enterkeyhint="send" dir="auto" maxlength="600" placeholder="What is our refund policy?">
+        </div>
+        <button class="btn btn-ink" id="ask-btn" type="submit">Ask</button>
+      </div>
+    </form>
+    <p class="ask-note" id="ask-note" aria-live="polite"></p>
+    <div id="matches-wrap"></div>
+    <div class="try" id="try"></div>
+  </section>
+
+  <section class="section" id="glance" hidden>
+    <div class="section-head">
+      <h2 id="glance-title">The latest in each area</h2>
+      <p class="section-meta" id="glance-meta"></p>
+    </div>
+    <div class="areas" id="areas"></div>
+  </section>
+
+  <div class="two" id="two" hidden>
+    <section class="panel" id="changed"></section>
+    <section class="panel" id="stale"></section>
+  </div>
+
+  <section class="section" id="ideas-section" hidden>
+    <div class="section-head">
+      <h2>Ideas for your business</h2>
+      <p class="section-meta">What your team can get from your Notion today.</p>
+    </div>
+    <div class="ideas" id="ideas"></div>
+    <p class="fine" id="ideas-fine"></p>
+  </section>
+
+  <section class="section" id="contents" hidden>
+    <div class="section-head">
+      <h2 id="contents-title">All pages</h2>
+      <p class="section-meta" id="contents-meta"></p>
+    </div>
+    <div class="filters" id="filters" role="group" aria-label="Show pages from"></div>
+    <div class="table" id="table"></div>
+    <div class="table-more" id="table-more" hidden></div>
+  </section>
+
+  <footer class="foot" id="foot"></footer>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
 
 <script>
 (function () {
-  var root = document.getElementById('root');
-  var DIR = 'daily-summaries';
-  var JOB = '.jobs/morning-notion-library.yaml';
-  var job = null;
-  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-                'September', 'October', 'November', 'December'];
+  "use strict";
 
-  function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
+  // ── What this app knows about itself ──────────────────────────────────────
+  var JOB_ID = "morning-notion-library";
+  var CONNECTOR = "notion";
+  var STALE_DAYS = 180;
+  /* The areas every page is filed under, in this order everywhere. */
+  var AREAS = [
+    { id: "Procedures", c: "var(--a-procedures)" },
+    { id: "Clients", c: "var(--a-clients)" },
+    { id: "Policies", c: "var(--a-policies)" },
+    { id: "Projects", c: "var(--a-projects)" },
+    { id: "Meeting notes", c: "var(--a-meetings)" },
+    { id: "Other", c: "var(--a-other)" }
+  ];
+  /* The same words as the ready-made questions in this cabinet's .cabinet file. */
+  var QUESTIONS = [
+    "What is our refund policy?",
+    "What did we decide at our last team meeting?",
+    "How much paid time off does a new hire get?",
+    "Where do we keep our price list?",
+    "What should a new employee read first?"
+  ];
+  /* Business plays. `ask` is the same text as in the .cabinet file; `every` asks for a routine. */
+  var IDEAS = [
+    { area: "Procedures", title: "Find procedures that may be out of date",
+      line: "Procedures and policies nobody has touched in six months, oldest first, with who last edited each.",
+      ask: "Which procedures and policies may be out of date?",
+      every: { label: "Every month", ask: "On the first Monday of every month at 8, list our procedures and policies that may be out of date. Please set this up as a routine." } },
+    { area: "Policies", title: "Build an employee handbook",
+      line: "Your policies and procedures pulled into one handbook a new hire can read on day one.",
+      ask: "Build an employee handbook from our Notion pages" },
+    { area: "Meeting notes", title: "Turn meeting notes into action items",
+      line: "Every decision, owner and due date from this week's meetings, in one list.",
+      ask: "Turn this week's meeting notes into action items with owners",
+      every: { label: "Every Monday", ask: "Every Monday at 8, turn last week's meeting notes into action items with owners. Please set this up as a routine." } },
+    { area: "Clients", title: "Build a client directory",
+      line: "Every client with the contact person, phone, address and last visit, from pages you already keep.",
+      ask: "Build a client directory from our Notion pages" },
+    { area: null, title: "Send the team a Monday update",
+      line: "What changed in your Notion last week, in five short lines you can paste into an email.",
+      ask: "Summarize what changed in our Notion this week for the team",
+      every: { label: "Every Monday", ask: "Every Monday at 8, summarize what changed in our Notion this week for the team. Please set this up as a routine." } },
+    { area: "Policies", title: "Explain a policy in plain words",
+      line: "Refunds, warranties, time off: any policy, the way you would explain it to a customer.",
+      ask: "Explain our refund and warranty policy in plain words" },
+    { area: null, title: "Find pages nobody owns",
+      line: "Pages with no clear owner, or last edited by someone who has left, so nothing important slips.",
+      ask: "Which of our Notion pages have no clear owner?" },
+    { area: null, title: "Find pages that disagree",
+      line: "Two pages that give different prices, steps or phone numbers, so customers always get one answer.",
+      ask: "Find pages in our Notion that contradict each other" }
+  ];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  var cab = window.cabinet;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var S = {
+    mode: "loading",      // "v2": the bridge answers; "old": an older Cabinet, or outside Cabinet
+    role: "owner",
+    appPath: appFolderFromAddress() || "library",
+    connector: null,
+    connectorFailed: false,
+    job: null,
+    runPending: false,
+    runStartedAt: 0,
+    runError: null,
+    loaded: false,
+    real: null,           // library/data/latest.json, once the routine has written it
+    broken: false,
+    readError: null,
+    example: null,        // library/data/EXAMPLE-latest.json, dated to today
+    connecting: false,
+    connectError: null,
+    connectClosed: false,
+    asking: false,
+    lastAsk: null,
+    q: "",
+    area: "All",
+    showAll: false,
+    allIdeas: false
+  };
+
+  // ── Small helpers ─────────────────────────────────────────────────────────
+  function h(tag, props) {
+    var node = document.createElement(tag);
+    if (props) {
+      for (var key in props) {
+        if (!Object.prototype.hasOwnProperty.call(props, key)) continue;
+        var value = props[key];
+        if (value === null || value === undefined || value === false) continue;
+        if (key === "text") node.textContent = value;
+        else if (key === "class") node.className = value;
+        else if (key === "style") node.setAttribute("style", value);
+        else if (key.slice(0, 2) === "on") node.addEventListener(key.slice(2), value);
+        else node.setAttribute(key, value === true ? "" : value);
+      }
+    }
+    for (var i = 2; i < arguments.length; i++) append(node, arguments[i]);
+    return node;
+  }
+  function append(node, child) {
+    if (child === null || child === undefined || child === false) return;
+    if (Array.isArray(child)) { child.forEach(function (c) { append(node, c); }); return; }
+    node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+  }
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function icon(id, cls) {
+    var svg = document.createElementNS(SVGNS, "svg");
+    svg.setAttribute("class", "i" + (cls ? " " + cls : ""));
+    svg.setAttribute("aria-hidden", "true");
+    var use = document.createElementNS(SVGNS, "use");
+    use.setAttribute("href", "#" + id);
+    svg.appendChild(use);
+    return svg;
+  }
+  function spinner() {
+    var svg = document.createElementNS(SVGNS, "svg");
+    svg.setAttribute("class", "spin");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML = '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/>' +
+      '<path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>';
+    return svg;
+  }
+  /* Notion's own mark, for the one button that goes to Notion. */
+  function notionMark() {
+    var svg = document.createElementNS(SVGNS, "svg");
+    svg.setAttribute("class", "notion-mark");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML =
+      '<path d="M6.017 4.313l55.333 -4.087c6.797 -0.583 8.543 -0.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277 -1.553 6.807 -6.99 7.193L24.467 99.967c-4.08 0.193 -6.023 -0.39 -8.16 -3.113L3.3 79.94c-2.333 -3.113 -3.3 -5.443 -3.3 -8.167V11.113c0 -3.497 1.553 -6.413 6.017 -6.8z" fill="#fff"/>' +
+      '<path fill-rule="evenodd" clip-rule="evenodd" fill="#0b0b0b" d="M61.35 0.227l-55.333 4.087C1.553 4.7 0 7.617 0 11.113v60.66c0 2.723 0.967 5.053 3.3 8.167l13.007 16.913c2.137 2.723 4.08 3.307 8.16 3.113l64.257 -3.89c5.433 -0.387 6.99 -2.917 6.99 -7.193V20.64c0 -2.21 -0.873 -2.847 -3.443 -4.733L74.167 3.143c-4.273 -3.107 -6.02 -3.5 -12.817 -2.917zM25.92 19.523c-5.247 0.353 -6.437 0.433 -9.417 -1.99L8.927 11.507c-0.77 -0.78 -0.383 -1.753 1.557 -1.947l53.193 -3.887c4.467 -0.39 6.793 1.167 8.54 2.527l9.123 6.61c0.39 0.197 1.36 1.36 0.193 1.36l-54.933 3.307 -0.68 0.047zM19.803 88.3V30.367c0 -2.53 0.777 -3.697 3.103 -3.893L86 22.78c2.14 -0.193 3.107 1.167 3.107 3.693v57.547c0 2.53 -0.39 4.67 -3.883 4.863l-60.377 3.5c-3.493 0.193 -5.043 -0.97 -5.043 -4.083zm59.6 -54.827c0.387 1.75 0 3.5 -1.75 3.7l-2.91 0.577v42.773c-2.527 1.36 -4.853 2.137 -6.797 2.137 -3.107 0 -3.883 -0.973 -6.21 -3.887l-19.03 -29.94v28.967l6.02 1.363s0 3.5 -4.857 3.5l-13.39 0.777c-0.39 -0.78 0 -2.723 1.357 -3.11l3.497 -0.97v-38.3L30.48 40.667c-0.39 -1.75 0.58 -4.277 3.3 -4.473l14.367 -0.967 19.8 30.327v-26.83l-5.047 -0.58c-0.39 -2.143 1.163 -3.7 3.103 -3.89l13.4 -0.78z"/>';
+    return svg;
+  }
+  function wait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
+  function messageOf(err, fallback) { return (err && err.message) || fallback; }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+
+  /* /api/assets/<cabinet>/<app>/index.html: the folder the page lives in. */
+  function appFolderFromAddress() {
+    var parts = location.pathname.split("/").filter(Boolean);
+    if (parts.length < 2) return null;
+    var last = parts[parts.length - 1];
+    var folder = /\.html?$/i.test(last) ? parts[parts.length - 2] : last;
+    try { return decodeURIComponent(folder); } catch (e) { return folder; }
   }
 
-  /* Frontmatter + markdown table, the only two shapes this page reads.
-     Anything richer belongs in the file, not in a parser here. */
-  function parse(text) {
-    var out = { meta: {}, rows: [], cols: [] };
-    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-    var body = text;
-    if (m) {
-      body = m[2];
-      m[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
-        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
-      });
+  // ── Reading the overview ──────────────────────────────────────────────────
+  var AREA_INDEX = {};
+  AREAS.forEach(function (a, i) { AREA_INDEX[a.id.toLowerCase()] = i; });
+  AREA_INDEX["meetings"] = AREA_INDEX["meeting notes"];
+  AREA_INDEX["meeting"] = AREA_INDEX["meeting notes"];
+  AREA_INDEX["client"] = AREA_INDEX["clients"];
+  AREA_INDEX["procedure"] = AREA_INDEX["procedures"];
+  AREA_INDEX["policy"] = AREA_INDEX["policies"];
+  AREA_INDEX["project"] = AREA_INDEX["projects"];
+
+  function text(value, max) {
+    if (typeof value !== "string") return "";
+    var clean = value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+    return clean.length > max ? clean.slice(0, max - 1).trim() + "..." : clean;
+  }
+  function areaOf(value) {
+    var at = AREA_INDEX[text(value, 40).toLowerCase()];
+    return AREAS[at === undefined ? AREAS.length - 1 : at];
+  }
+  /* Only a real Notion address opens from here. */
+  function notionUrl(value) {
+    if (typeof value !== "string") return null;
+    try {
+      var url = new URL(value.trim());
+      var host = url.hostname.toLowerCase();
+      var ok = url.protocol === "https:" &&
+        (host === "notion.so" || host === "www.notion.so" || host === "notion.site" || /\.notion\.site$/.test(host));
+      return ok ? url.href : null;
+    } catch (e) { return null; }
+  }
+  /* "2026-09-24" (or a full time) as that calendar day, at noon. */
+  function dayOf(value) {
+    if (typeof value !== "string") return null;
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3], 12);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function timeOf(value) {
+    if (typeof value !== "string") return null;
+    var d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function page(p, i) {
+    return {
+      key: i,
+      title: text(p.title, 140) || "Untitled page",
+      type: p.type === "database" ? "database" : "page",
+      area: areaOf(p.area),
+      about: text(p.about, 200),
+      where: text(p.where, 80) || "Top level",
+      edited: dayOf(p.edited),
+      editor: text(p.editor, 60) || null,
+      url: notionUrl(p.url)
+    };
+  }
+  function shapeError() { var e = new Error("shape"); e.code = "shape"; return e; }
+  function normalize(raw) {
+    if (!raw || typeof raw !== "object" || !Array.isArray(raw.pages)) throw shapeError();
+    var pages = raw.pages.filter(function (p) { return p && typeof p === "object"; }).slice(0, 300).map(page);
+    var stale = (Array.isArray(raw.stale) ? raw.stale : []).filter(function (p) { return p && typeof p === "object"; })
+      .slice(0, 100).map(function (p, i) { return page(p, 1000 + i); });
+    var counts = {};
+    var given = raw.areas && typeof raw.areas === "object" ? raw.areas : null;
+    AREAS.forEach(function (a) {
+      var n = given ? given[a.id] : undefined;
+      counts[a.id] = typeof n === "number" && isFinite(n) && n >= 0 ? Math.round(n) : null;
+    });
+    // Without counts from the routine, count what is here.
+    if (AREAS.some(function (a) { return counts[a.id] === null; })) {
+      AREAS.forEach(function (a) { counts[a.id] = 0; });
+      merged(pages, stale).forEach(function (p) { counts[p.area.id] += 1; });
     }
-    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
-    if (lines.length < 2) return out;
-    function cells(l) {
-      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
-    }
-    out.cols = cells(lines[0]);
-    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
+    var sum = AREAS.reduce(function (n, a) { return n + counts[a.id]; }, 0);
+    var total = typeof raw.total === "number" && isFinite(raw.total) && raw.total >= 0 ? Math.round(raw.total) : sum;
+    var staleTotal = typeof raw.staleTotal === "number" && isFinite(raw.staleTotal) && raw.staleTotal >= stale.length
+      ? Math.round(raw.staleTotal) : stale.length;
+    return {
+      generatedAt: timeOf(raw.generatedAt), madeOn: dayOf(raw.generatedAt),
+      company: text(raw.company, 80) || null,
+      total: Math.max(total, sum), counts: counts, pages: pages, stale: stale, staleTotal: staleTotal
+    };
+  }
+  /* Every page once: the newest list, then old pages only the out-of-date list holds. */
+  function merged(pages, stale) {
+    var seen = {};
+    var out = [];
+    pages.concat(stale).forEach(function (p) {
+      var k = p.url || (p.title + "|" + p.where);
+      if (seen[k]) return;
+      seen[k] = true;
+      out.push(p);
+    });
     return out;
   }
-
-  /* Anything that is not Today, Yesterday or This week is a plain date, and they all share
-     one grey class — so a value the agent invents still renders as a legible pill. */
-  function updatedClass(cell) {
-    var k = cell.toLowerCase();
-    if (k === 'today') return 'u-today';
-    if (k === 'yesterday' || k === 'this week') return 'u-recent';
-    return 'u-older';
+  /* The made-up company's dates move with today, so its "this week" is always this week.
+     "{date}" in an example title becomes that page's own date. Never used on real pages. */
+  function shiftToToday(list) {
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
+    var days = list.madeOn ? Math.round((today - list.madeOn) / 86400000) : 0;
+    function move(p) {
+      if (p.edited && days) p.edited = new Date(p.edited.getFullYear(), p.edited.getMonth(), p.edited.getDate() + days, 12);
+      if (p.title.indexOf("{date}") >= 0) {
+        p.title = p.title.replace("{date}", p.edited ? MONTHS[p.edited.getMonth()].slice(0, 3) + " " + p.edited.getDate() : "");
+      }
+    }
+    list.pages.forEach(move);
+    list.stale.forEach(move);
+    if (list.generatedAt && days) list.generatedAt = new Date(list.generatedAt.getTime() + days * 86400000);
+    list.madeOn = today;
+    return list;
   }
 
-  /* url never gets a column of its own — it only decides whether a page links out. */
-  function isUrl(head) { return head === 'url'; }
+  function readText(rel) {
+    if (S.mode === "v2") return cab.files.read(S.appPath + "/" + rel);
+    // An older Cabinet serves the page from the app folder, so the file sits beside it.
+    return fetch("./" + rel, { cache: "no-store" }).then(function (res) {
+      if (res.status === 404) { var e = new Error("Not there yet."); e.code = "not-found"; throw e; }
+      if (!res.ok) { var f = new Error("The overview could not be opened just now."); f.code = "unavailable"; throw f; }
+      return res.text();
+    });
+  }
 
-  function render(data, name, files) {
-    var meta = data.meta, html = picker(name, files);
+  function loadData() {
+    return readText("data/latest.json").then(
+      function (body) {
+        try { S.real = normalize(JSON.parse(body)); S.broken = false; S.readError = null; }
+        catch (e) { S.broken = true; S.real = null; }
+      },
+      function (err) {
+        if (err && err.code === "not-found") { S.real = null; S.broken = false; S.readError = null; return; }
+        S.readError = messageOf(err, "The overview could not be opened just now.");
+      }
+    ).then(function () {
+      if (S.example) return;
+      return readText("data/EXAMPLE-latest.json").then(function (body) {
+        try { S.example = shiftToToday(normalize(JSON.parse(body))); } catch (e) { S.example = null; }
+      }, function () { S.example = null; });
+    }).then(function () {
+      S.loaded = true;
+      render();
+    });
+  }
 
-    /* The routine could not reach Notion. It said so rather than writing nothing. */
-    if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">Last run could not reach ' +
-              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
-              '. Showing the previous result.</div>';
+  // ── Talking to Cabinet ────────────────────────────────────────────────────
+  function pickNotion(list) {
+    if (!Array.isArray(list)) return null;
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === CONNECTOR) return list[i];
+    return null;
+  }
+  function pickJob(list) {
+    if (!Array.isArray(list) || !list.length) return null;
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === JOB_ID) return list[i];
+    return list[0];
+  }
+  function onJobs(list) {
+    var before = S.job;
+    S.job = pickJob(list);
+    if (S.job && S.job.running) S.runPending = false;
+    var finished = before && before.running && S.job && !S.job.running;
+    var answeredPending = S.runPending && S.job && !S.job.running && S.job.lastRun &&
+      timeOf(S.job.lastRun.at) && timeOf(S.job.lastRun.at).getTime() >= S.runStartedAt - 5000;
+    if (answeredPending) S.runPending = false;
+    if (finished || answeredPending) { loadData(); return; }
+    render();
+  }
+
+  function connect() {
+    if (S.connecting || S.mode !== "v2") return;
+    S.connecting = true;
+    S.connectError = null;
+    S.connectClosed = false;
+    hideToast();
+    render();
+    cab.connectors.connect(CONNECTOR).then(function (outcome) {
+      S.connecting = false;
+      if (outcome === "connected") {
+        return cab.connectors.list().then(function (list) {
+          S.connector = pickNotion(list) || S.connector;
+          // Connected from here with nothing made yet: make the first overview straight away.
+          if (!S.real && canRun()) run();
+          else render();
+        }, function () { render(); });
+      }
+      S.connectClosed = true;
+      render();
+    }, function (err) {
+      S.connecting = false;
+      S.connectError = messageOf(err, "Cabinet could not open the Notion sign-in just now.");
+      render();
+    });
+  }
+
+  function run() {
+    if (!S.job || S.runPending || (S.job && S.job.running)) return;
+    S.runPending = true;
+    S.runStartedAt = Date.now();
+    S.runError = null;
+    render();
+    cab.jobs.run(S.job.id).then(function () { render(); }, function (err) {
+      S.runPending = false;
+      if (!(err && err.code === "busy")) S.runError = messageOf(err, "The update could not start just now.");
+      render();
+    });
+    // Never leave the page saying "updating" forever if Cabinet never says it finished.
+    setTimeout(function () { if (S.runPending) { S.runPending = false; render(); } }, 25 * 60 * 1000);
+  }
+
+  var toastTimer = 0;
+  function hideToast() { $("toast").hidden = true; }
+  function toast(message, action) {
+    var node = $("toast");
+    node.textContent = "";
+    append(node, h("p", { text: message }));
+    if (action) append(node, h("button", { class: "btn btn-white", type: "button", onclick: function () { hideToast(); action.run(); } }, action.label));
+    node.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, action ? 9000 : 6000);
+  }
+
+  /* Asking needs Notion connected, so the answer comes from the person's own pages. */
+  function whyNotYet() {
+    var st = state();
+    if (S.mode !== "v2") return "Update Cabinet to ask from here, or ask in the cabinet's chat.";
+    if (!canEdit()) return "Only people who can edit this cabinet can ask from here.";
+    if (st === "not-available-here" || st === "needs-you" || st === "needs-sign-in") {
+      return S.connector && S.connector.problem ? S.connector.problem.text : "Notion needs a hand first.";
     }
-
-    /* The single most consequential page, in one sentence — absent most days on purpose. */
-    if (meta.lead && meta.verdict) {
-      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
-              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
-              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
-    }
-
-    if (!data.rows.length) {
-      html += '<div class="card empty">Nothing to show for this day.</div>';
-      root.innerHTML = html;
-      bind(files);
+    if (st !== "connected") return canConnect() ? "Connect Notion first, so the answer comes from your own pages."
+      : "Ask the cabinet's owner to connect Notion first.";
+    return null;
+  }
+  /* Only ever called from a press: the bridge sends an ask only when the person just pressed something. */
+  function ask(question, kind) {
+    var words = (question || "").trim();
+    if (!words) return;
+    var blocked = whyNotYet();
+    if (blocked) {
+      var st = state();
+      var fix = canConnect() && (st === "not-added" || st === "needs-sign-in" || st === "needs-you")
+        ? { label: st === "needs-sign-in" ? "Sign in again" : st === "needs-you" ? "Fix it" : "Connect Notion", run: connect } : null;
+      toast(blocked, fix);
       return;
     }
-
-    var urlCol = data.cols.findIndex(function (c) { return isUrl(c.toLowerCase()); });
-
-    var t = '<div class="card scroll"><table><thead><tr>';
-    data.cols.forEach(function (c) {
-      if (isUrl(c.toLowerCase())) return;
-      t += '<th>' + esc(c) + '</th>';
+    S.asking = true;
+    renderAskNote();
+    cab.ask(words).then(function () {
+      S.asking = false;
+      S.lastAsk = { words: words, kind: kind || "ask", at: Date.now() };
+      if (kind !== "routine" && $("ask").value.trim() === words) { $("ask").value = ""; S.q = ""; renderMatches(); }
+      renderAskNote();
+      if (kind === "routine") toast("Sent. The librarian proposes the routine in the chat, and you approve it there.");
+    }, function (err) {
+      S.asking = false;
+      renderAskNote();
+      toast(messageOf(err, "That did not go through. Try again in a moment."));
     });
-    t += '</tr></thead><tbody>';
-    data.rows.forEach(function (r) {
-      var url = urlCol > -1 ? r[urlCol] : '';
-      t += '<tr>';
-      r.forEach(function (cell, i) {
-        var head = (data.cols[i] || '').toLowerCase();
-        if (isUrl(head)) {
-          return;
-        } else if (head === 'updated') {
-          t += '<td><span class="pill ' + updatedClass(cell) + '">' + esc(cell) + '</span></td>';
-        } else if (head === 'page' && url) {
-          t += '<td class="name"><a class="deep-link" href="' + esc(url) +
-               '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a></td>';
-        } else if (head === 'page') {
-          t += '<td class="name">' + esc(cell) + '</td>';
-        } else if (head === 'where') {
-          t += '<td class="where">' + esc(cell) + '</td>';
-        } else {
-          t += '<td>' + esc(cell) + '</td>';
-        }
-      });
-      t += '</tr>';
-    });
-    t += '</tbody></table></div>';
-
-    root.innerHTML = html + t;
-    bind(files);
   }
 
-  /* ---- the folder of summaries ------------------------------------------------------ */
-
-  /* 2026-08-10T07-00-00-notion-summary.md — the name carries the date, so the picker
-     is built from names alone. EXAMPLE-notion-summary.md is the one file without one. */
-  function stamp(name) {
-    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
-    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
+  // ── What the page may offer ───────────────────────────────────────────────
+  function state() {
+    if (S.mode !== "v2") return "old";
+    if (S.connector) return S.connector.state;
+    return S.connectorFailed ? "unknown" : "loading";
   }
-
-  function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
-           a.getDate() === b.getDate();
-  }
-
-  function human(d) {
-    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
-           d.getFullYear();
-  }
-
-  function label(name) {
-    var d = stamp(name);
-    if (!d) return 'Notion Daily Example';
-    var now = new Date(), yday = new Date(now.getTime() - 86400000);
-    if (sameDay(d, now)) return 'Today';
-    if (sameDay(d, yday)) return 'Yesterday';
-    return human(d);
-  }
-
-  function picker(current, files) {
-    var html = '';
-    if (files.length) {
-      var opts = files.map(function (f) {
-        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
-               esc(label(f)) + '</option>';
-      }).join('');
-      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
-    }
-    var next = nextRunText();
-    if (next) html += '<span class="next">' + esc(next) + '</span>';
-    return html ? '<div class="picker">' + html + '</div>' : '';
-  }
-
-  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
-  function bind(files) {
-    var sel = document.getElementById('pick');
-    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
-  }
-
-  function show(name, files) {
-    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      })
-      .then(function (text) { render(parse(text), name, files); })
-      .catch(function (err) {
-        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
-          'in a moment.</div>';
-        bind(files);
-      });
-  }
-
-  /* ---- when the routine next runs ---------------------------------------------------
-     Read straight off this cabinet's own job file, so a user who edits the schedule or
-     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
-     which is the same host the routine runs on. */
-
-  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
-  function field(spec, min, max) {
-    var set = {};
-    spec.split(',').forEach(function (part) {
-      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
-      if (bits[0] !== '*') {
-        var r = bits[0].split('-');
-        lo = +r[0];
-        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
-      }
-      for (var v = lo; v <= hi; v += step) set[v] = true;
-    });
-    return set;
-  }
-
-  function nextRun(cron, from) {
-    var f = cron.trim().split(/\s+/);
-    if (f.length !== 5) return null;
-    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
-        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
-    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
-    var d = new Date(from.getTime() + 60000);
-    d.setSeconds(0, 0);
-    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
-       stops a schedule that can never match (30 February) from spinning. */
-    for (var i = 0; i < 366 * 1440; i++) {
-      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
-          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
-      d = new Date(d.getTime() + 60000);
-    }
+  function canEdit() { return S.role === "owner" || S.role === "editor"; }
+  function canConnect() { return S.mode === "v2" && !!(S.connector && S.connector.canConnect); }
+  function canRun() { return S.mode === "v2" && canEdit() && state() === "connected" && !!S.job; }
+  function askable() { return S.mode === "v2" && canEdit() && typeof cab.ask === "function"; }
+  function running() { return S.runPending || !!(S.job && S.job.running); }
+  /* Theirs once written; otherwise the made-up company, but never once Notion is connected. */
+  function shown() {
+    if (S.real) return { d: S.real, example: false };
+    if (state() !== "connected" && S.example) return { d: S.example, example: true };
     return null;
   }
 
-  function nextRunText() {
-    if (!job) return '';
-    if (job.enabled === 'false') return 'Routine paused';
-    if (!job.schedule) return '';
-    var d = nextRun(job.schedule, new Date());
-    if (!d) return '';
-    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    return 'Next run: ' + human(d) + ' at ' + clock;
+  // ── Words for times ───────────────────────────────────────────────────────
+  function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function clock(d) {
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(/\s?[AaPp]\.?\s?[Mm]\.?$/, "");
+  }
+  function updatedWords(d) {
+    var now = new Date();
+    var yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12);
+    if (sameDay(d, now)) return "Updated " + clock(d) + (d.getHours() < 12 ? " this morning" : d.getHours() < 18 ? " this afternoon" : " this evening");
+    if (sameDay(d, yesterday)) return "Updated yesterday at " + clock(d);
+    return "Updated " + DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()];
+  }
+  function fromWords(d) {
+    var now = new Date();
+    var yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12);
+    if (sameDay(d, now)) return "earlier today";
+    if (sameDay(d, yesterday)) return "yesterday";
+    return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()];
+  }
+  function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
+  function reference(d) { return d.madeOn || new Date(); }
+  function whenWord(day, ref) {
+    var n = daysBetween(day, ref);
+    if (n <= 0) return "Today";
+    if (n === 1) return "Yesterday";
+    if (n < 7) return DAYS[day.getDay()].slice(0, 3);
+    return MONTHS[day.getMonth()].slice(0, 3) + " " + day.getDate();
+  }
+  function shortDate(day) { return MONTHS[day.getMonth()].slice(0, 3) + " " + day.getDate() + ", " + day.getFullYear(); }
+  function ageWords(day, ref) {
+    var months = Math.floor(daysBetween(day, ref) / 30.44);
+    if (months < 12) return plural(months, "month", "months");
+    var years = Math.floor(months / 12);
+    var rest = months % 12;
+    return years === 1 && rest === 0 ? "1 year" : years === 1 ? "1 year, " + plural(rest, "month", "months")
+      : plural(years, "year", "years");
   }
 
-  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
-     tells the page which cabinet it is installed in, whatever the user named it. */
-  function cabinetDir() {
-    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
-    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  // ── Views on the data ─────────────────────────────────────────────────────
+  function changedThisWeek(d) {
+    var ref = reference(d);
+    return d.pages.filter(function (p) { return p.edited && daysBetween(p.edited, ref) <= 6; })
+      .sort(function (a, b) { return b.edited - a.edited || a.key - b.key; });
+  }
+  function staleList(d) {
+    return d.stale.slice().sort(function (a, b) { return (a.edited || 0) - (b.edited || 0); });
+  }
+  function freshest(d, area) {
+    return d.pages.filter(function (p) { return p.area.id === area; })
+      .sort(function (a, b) { return (b.edited || 0) - (a.edited || 0) || a.key - b.key; }).slice(0, 3);
+  }
+  function areaName(a) { return a.id; }
+
+  // ── Drawing ───────────────────────────────────────────────────────────────
+  function render() {
+    if (S.mode === "loading" || !S.loaded) return;
+    $("loading").hidden = true;
+    var view = shown();
+    renderState();
+    renderBand();
+    renderHero(view);
+    renderAsk();
+    renderGlance(view);
+    renderWeekAndStale(view);
+    renderIdeas();
+    renderContents(view);
+    renderFoot();
   }
 
-  /* Direct .md children of the folder only — never a nested one.
-     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
-     separately: `path` decides what lives in the folder, `name` is what we fetch. */
-  function listFiles(nodes, dir, out) {
-    (nodes || []).forEach(function (n) {
-      if (!n || !n.path) return;
-      if (n.path.indexOf(dir + '/') === 0 &&
-          n.path.indexOf('/', dir.length + 1) === -1 &&
-          /\.md$/i.test(n.name || '')) out.push(n.name);
-      if (n.children) listFiles(n.children, dir, out);
-    });
-    return out;
+  function renderState() {
+    var box = $("state");
+    box.textContent = "";
+    var st = state();
+    var view = shown();
+    var dot = "", words = null;
+    var short = null;
+    if (st === "connected") { dot = "good"; words = "Notion connected"; short = "Connected"; }
+    else if (st === "needs-sign-in") { dot = "critical"; words = "Signed out of Notion"; short = "Signed out"; }
+    else if (st === "needs-you") { dot = "warn"; words = "Notion needs a hand"; short = "Needs a hand"; }
+    else if (st === "not-available-here") { dot = ""; words = "Notion can't be connected here yet"; short = "Not here yet"; }
+    else if (st === "not-added") { dot = ""; words = "Notion not connected"; short = "Not connected"; }
+    else if (st === "unknown") { dot = "warn"; words = "Could not check Notion"; short = "Not checked"; }
+    if (words) append(box, h("span", { class: "state-words" }, h("span", { class: "dot" + (dot ? " " + dot : "") }),
+      h("b", null, h("span", { class: "long", text: words }), h("span", { class: "short", text: short }))));
+    if (S.real && S.real.generatedAt && !running()) append(box, h("span", { class: "state-when", text: updatedWords(S.real.generatedAt) }));
+    if (running() && S.real) append(box, h("span", { class: "state-words" }, spinner(), "Updating now"));
+    if (S.real && canRun() && !running()) {
+      append(box, h("button", { class: "btn btn-line", type: "button", "aria-label": "Refresh now", onclick: run }, icon("i-refresh"), h("span", { class: "label", text: "Refresh" })));
+    }
+    if (!view && st === "old") append(box, h("span", { text: "Connect Notion from Integrations in Cabinet" }));
   }
 
-  /* An empty folder is the normal state before the first run — not an error to shout about.
-     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
-  Promise.all([
-    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }),
-    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
-    fetch('../' + JOB, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .catch(function () { return ''; })
-  ])
-    .then(function (both) {
-      var tree = both[0];
-      job = {};
-      both[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
-      });
-      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
-      if (!files.length) {
-        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
+  function band(kind, iconId, title, line, action, tag) {
+    return h("div", { class: "band" }, h("div", { class: "band-in" },
+      h("span", { class: "band-icon " + (kind || "") }, iconId === "spin" ? spinner() : icon("i-" + iconId)),
+      h("div", { class: "band-text" },
+        h("p", { class: "band-title" }, tag ? h("span", { class: "band-tag", text: tag }) : null, title),
+        line ? h("p", { class: "band-line", text: line }) : null),
+      action || null));
+  }
+  function connectButton(label) {
+    return h("button", { class: "btn btn-white btn-big", type: "button", onclick: connect }, notionMark(), label);
+  }
+
+  function renderBand() {
+    var box = $("band");
+    box.textContent = "";
+    var st = state();
+    var view = shown();
+    var owner = canConnect();
+    var company = view && view.d.company ? view.d.company : "This company";
+
+    if (S.connecting) {
+      append(box, band("", "spin", "Waiting for you in Notion.",
+        "Sign in to Notion in the window that opened, then come back here. If you have more than one Notion, pick the one your team uses."));
+      return;
+    }
+    if (S.connectError) {
+      append(box, band("critical", "plug", "That did not work.", S.connectError, owner ? connectButton("Try again") : null));
+      return;
+    }
+    if (st === "old") {
+      if (!S.real) append(box, band("", "book", company + " is a made-up company.",
+        "Connect Notion from Integrations in Cabinet to see your own procedures, clients and policies here.", null, "Example"));
+      return;
+    }
+    if (st === "connected") {
+      if (S.real && !S.broken) {
+        if (S.readError) append(box, band("warn", "alert", "The newest overview could not be opened just now.", S.readError));
         return;
       }
-      /* Newest first; the example, having no date, sits at the bottom of the list. */
-      files.sort(function (a, b) {
-        var da = stamp(a), db = stamp(b);
-        if (da && db) return db - da;
-        return da ? -1 : db ? 1 : 0;
+      if (running()) {
+        append(box, band("", "spin", "Reading your Notion...",
+          "This takes a few minutes. You can close this page, the overview will be here when you come back."));
+        return;
+      }
+      if (S.broken) {
+        append(box, band("warn", "alert", "The last overview could not be read.",
+          canRun() ? "Make a new one now. It takes a few minutes." : "A new one comes with the next morning update.",
+          canRun() ? h("button", { class: "btn btn-white btn-big", type: "button", onclick: run }, "Make a new overview") : null));
+        return;
+      }
+      var failed = S.runError || (S.job && S.job.lastRun && S.job.lastRun.ok === false ? "The last try did not finish. Try again." : null);
+      append(box, band("good", "check", "Notion is connected.",
+        failed || (canRun() ? "Make your first overview now: what's in your Notion, what changed, what may be out of date. It takes a few minutes."
+          : "Your first overview appears after the next morning update."),
+        canRun() ? h("button", { class: "btn btn-white btn-big", type: "button", onclick: run }, "Make my overview") : null));
+      return;
+    }
+    if (st === "needs-sign-in") {
+      var since = S.real && S.real.generatedAt ? "What you see is from " + fromWords(S.real.generatedAt) + ". " : "";
+      append(box, band("critical", "key", "Notion signed you out.",
+        since + (owner ? "Sign in again to keep this up to date." : "Ask the cabinet's owner to sign in to Notion again."),
+        owner ? connectButton("Sign in again") : null));
+      return;
+    }
+    if (st === "needs-you") {
+      append(box, band("warn", "plug", "Notion needs a hand.",
+        (S.connector && S.connector.problem ? S.connector.problem.text : "Something stopped Cabinet reading Notion.") +
+          (owner ? "" : " Ask the cabinet's owner to fix it."),
+        owner ? connectButton("Fix it") : null));
+      return;
+    }
+    if (st === "not-available-here") {
+      append(box, band("", "clock", "Notion can't be connected here yet.",
+        (S.connector && S.connector.problem ? S.connector.problem.text + " " : "") +
+          (view && view.example ? "Below is a made-up company, to show what you would get." : "")));
+      return;
+    }
+    if (st === "unknown" && !S.real) {
+      append(box, band("warn", "alert", "Cabinet could not check Notion just now.",
+        "Showing a made-up company for now. This page tries again on its own."));
+      return;
+    }
+    if (view && view.example) {
+      var line = owner
+        ? "Connect Notion and this page shows your own procedures, clients and policies. It only reads."
+        : "Ask the cabinet's owner to connect Notion. Then this page shows your own pages.";
+      if (S.connectClosed && owner) line = "No problem. Connect Notion whenever you are ready.";
+      append(box, band("", "book", company + " is a made-up company.", line, owner ? connectButton("Connect Notion") : null, "Example"));
+    }
+  }
+
+  function renderHero(view) {
+    var hero = $("hero");
+    var st = state();
+    var firstRun = !view && st === "connected";
+    hero.hidden = !view && !firstRun;
+    if (hero.hidden) return;
+    var over = $("overline");
+    over.textContent = "";
+    var bars = h("span", { class: "bars", "aria-hidden": "true" });
+    AREAS.slice(0, 5).forEach(function (a) { append(bars, h("span", { style: "background:" + a.c })); });
+    append(over, bars);
+    if (view && view.d.company) append(over, h("span", { dir: "auto", text: view.d.company + (view.example ? " (example)" : "") }));
+    else append(over, "From your Notion");
+
+    var intro = $("intro");
+    intro.textContent = "";
+    var figs = $("figures");
+    figs.textContent = "";
+    if (!view) {
+      append(intro, "Your procedures, client pages, policies and meeting notes, read from Notion every week. Ask anything, and see what needs a second look.");
+      ["Pages and tables in your Notion", "Changed this week", "May be out of date"].forEach(function (label) {
+        append(figs, h("div", { class: "figure" }, h("span", { class: "skel", "aria-hidden": "true" }), h("span", { class: "figure-label", text: label })));
       });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
-    })
-    .catch(function (err) {
-      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
-        esc(err.message) + '). Reload in a moment.</div>';
+      return;
+    }
+    var d = view.d;
+    var week = changedThisWeek(d).length;
+    append(intro, "Your procedures, client pages, policies and meeting notes, read from Notion every week. ");
+    append(intro, d.staleTotal ? h("b", { text: plural(d.staleTotal, "of them looks", "of them look") + " out of date." }) : "Nothing looks out of date.");
+    function figure(value, label, target, extra) {
+      return h("button", { class: "figure", type: "button", onclick: function () { go(target); } },
+        h("span", { class: "figure-value", text: String(value) }),
+        h("span", { class: "figure-label" }, extra || null, label));
+    }
+    append(figs, figure(d.total, d.total === 1 ? "page or table in your Notion" : "pages and tables in your Notion", "glance"));
+    append(figs, figure(week, week === 1 ? "page changed this week" : "pages changed this week", "changed"));
+    append(figs, d.staleTotal
+      ? figure(d.staleTotal, d.staleTotal === 1 ? "procedure or policy may be out of date" : "procedures and policies may be out of date", "stale", icon("i-alert", "warn-i"))
+      : figure(0, "procedures or policies look out of date", "stale", icon("i-check", "good-i")));
+  }
+  function go(id) {
+    var node = $(id);
+    if (!node || node.hidden) return;
+    var smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  }
+
+  function renderAsk() {
+    var section = $("ask-section");
+    var st = state();
+    // Viewers and an older Cabinet cannot ask from here.
+    section.hidden = !askable() || (!shown() && st !== "connected");
+    if (section.hidden) return;
+    var tryBox = $("try");
+    tryBox.textContent = "";
+    append(tryBox, h("span", { class: "try-label", text: "Try" }));
+    QUESTIONS.forEach(function (question) {
+      append(tryBox, h("button", { class: "chip", type: "button", onclick: function () { ask(question); } }, question));
     });
+    renderAskNote();
+    renderMatches();
+  }
+  function renderAskNote() {
+    var note = $("ask-note");
+    var btn = $("ask-btn");
+    note.textContent = "";
+    btn.disabled = S.asking;
+    btn.textContent = "";
+    if (S.asking) {
+      append(btn, [spinner(), "Asking"]);
+      append(note, "Opening the chat beside this page...");
+      return;
+    }
+    append(btn, "Ask");
+    if (S.lastAsk && S.lastAsk.kind !== "routine" && Date.now() - S.lastAsk.at < 5 * 60 * 1000) {
+      append(note, [icon("i-sent"), h("span", null, "Asked “", h("bdi", { text: text(S.lastAsk.words, 90) }), "”. The answer opens beside this page.")]);
+    }
+  }
+  function fold(s) { return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+  function renderMatches() {
+    var wrap = $("matches-wrap");
+    wrap.textContent = "";
+    var view = shown();
+    var q = fold(S.q.trim());
+    if (!view || q.length < 2) return;
+    var words = q.split(/\s+/).filter(function (w) { return w.length > 1 && ["what", "is", "our", "the", "we", "do", "a", "an", "of", "for", "where", "how", "who"].indexOf(w) < 0; });
+    if (!words.length) return;
+    var hits = merged(view.d.pages, view.d.stale).filter(function (p) {
+      var hay = fold(p.title + " " + p.about + " " + p.where);
+      return words.every(function (w) { return hay.indexOf(w) >= 0; });
+    }).slice(0, 4);
+    if (!hits.length) return;
+    append(wrap, h("p", { class: "matches-head", text: view.example ? "From the example's pages" : "From your pages" }));
+    var list = h("ul", { class: "matches" });
+    hits.forEach(function (p) {
+      append(list, h("li", null,
+        h("span", { class: "swatch", style: "--c:" + p.area.c }),
+        h("span", { class: "m-title", dir: "auto", text: p.title }),
+        h("span", { class: "m-area", text: areaName(p.area) }),
+        p.url && !view.example ? h("a", { class: "btn btn-line", href: p.url, target: "_blank", rel: "noopener noreferrer",
+          "aria-label": "Open " + p.title + " in Notion" }, icon("i-out"), "Open") : null));
+    });
+    append(wrap, list);
+  }
+
+  function exampleTag(view) { return view && view.example ? h("span", { class: "eg", text: "Example" }) : null; }
+
+  function renderGlance(view) {
+    var section = $("glance");
+    var st = state();
+    var firstRun = !view && st === "connected";
+    section.hidden = !view && !firstRun;
+    if (section.hidden) return;
+    var title = $("glance-title");
+    title.textContent = "The latest in each area";
+    append(title, exampleTag(view));
+    var strip = $("strip");
+    var bar = $("bar");
+    var legend = $("legend");
+    var cards = $("areas");
+    bar.textContent = "";
+    legend.textContent = "";
+    cards.textContent = "";
+    strip.hidden = !view;
+    if (!view) {
+      $("glance-meta").textContent = "Ready once your first overview is made.";
+      AREAS.forEach(function () { append(cards, h("div", { class: "area ghost", "aria-hidden": "true" })); });
+      return;
+    }
+    var d = view.d;
+    var shownAreas = AREAS.filter(function (a) { return d.counts[a.id] > 0; });
+    $("glance-meta").textContent = "Tap an area to see all its pages.";
+    shownAreas.forEach(function (a) {
+      var n = d.counts[a.id];
+      append(bar, h("button", { class: "seg", type: "button", style: "--n:" + n + ";--c:" + a.c,
+        "aria-label": a.id + ": " + plural(n, "page", "pages"), onclick: function () { showArea(a.id); } },
+        h("span", { class: "tip", "aria-hidden": "true", text: a.id + ": " + n })));
+      append(legend, h("button", { type: "button", onclick: function () { showArea(a.id); } },
+        h("span", { class: "swatch", style: "--c:" + a.c }), h("b", { class: "name", text: a.id }), h("span", { class: "n", text: String(n) })));
+    });
+    AREAS.forEach(function (a) {
+      var n = d.counts[a.id];
+      var fresh = freshest(d, a.id);
+      var card = h("div", { class: "area", style: "--c:" + a.c },
+        h("div", { class: "area-head" }, h("span", { class: "swatch" }), h("span", { class: "area-name", text: a.id }),
+          h("span", { class: "area-count", text: String(n) })));
+      if (fresh.length) {
+        var list = h("ul", { class: "area-list", "aria-label": "Latest in " + a.id });
+        fresh.forEach(function (p) {
+          append(list, h("li", null, h("span", { class: "t", dir: "auto", text: p.title }),
+            p.edited ? h("span", { class: "d", text: whenWord(p.edited, reference(d)) }) : null));
+        });
+        append(card, list);
+      } else {
+        append(card, h("p", { class: "area-empty", text: n ? "Older pages only." : "Nothing filed here yet." }));
+      }
+      if (n) append(card, h("button", { class: "see", type: "button", onclick: function () { showArea(a.id); } },
+        n > 3 ? "See all " + n : "See " + (n === 1 ? "it" : "them")));
+      append(cards, card);
+    });
+  }
+  function showArea(id) {
+    S.area = id;
+    S.showAll = false;
+    renderContents(shown());
+    go("contents");
+  }
+
+  function metaLine(p, withWhen, ref) {
+    return h("p", { class: "row-meta" },
+      h("span", { class: "inline-area" }, h("span", { class: "swatch", style: "--c:" + p.area.c }), areaName(p.area)),
+      p.editor ? h("span", { dir: "auto", text: (withWhen ? "" : "Last edited by ") + p.editor }) : null,
+      withWhen && p.edited ? h("span", { text: shortDate(p.edited) }) : null);
+  }
+  function titleNode(p, example, cls) {
+    var inner = p.url && !example
+      ? h("a", { href: p.url, target: "_blank", rel: "noopener noreferrer", dir: "auto", title: "Open in Notion" }, p.title)
+      : h("span", { dir: "auto", text: p.title });
+    return h("p", { class: cls }, inner);
+  }
+
+  function renderWeekAndStale(view) {
+    var two = $("two");
+    two.hidden = !view;
+    if (!view) return;
+    var d = view.d;
+    var ref = reference(d);
+    var box = $("changed");
+    box.textContent = "";
+    var week = changedThisWeek(d);
+    append(box, h("div", { class: "section-head" }, h("h2", null, "Changed this week", exampleTag(view))));
+    if (!week.length) {
+      append(box, h("p", { class: "calm" }, icon("i-check"), "Nothing changed in the last seven days."));
+    } else {
+      var rows = h("ul", { class: "rows" });
+      week.slice(0, 8).forEach(function (p) {
+        append(rows, h("li", null, h("span", { class: "when", text: whenWord(p.edited, ref) }),
+          h("div", null, titleNode(p, view.example, "row-title"),
+            h("p", { class: "row-meta" },
+              h("span", { class: "inline-area" }, h("span", { class: "swatch", style: "--c:" + p.area.c }), areaName(p.area)),
+              p.editor ? h("span", { dir: "auto", text: p.editor }) : null))));
+      });
+      append(box, rows);
+      if (week.length > 8) append(box, h("p", { class: "more-line", text: "And " + plural(week.length - 8, "more page", "more pages") + "." }));
+    }
+    var weekIdea = IDEAS[4];
+    if (askable() && week.length) {
+      append(box, h("div", { class: "panel-foot" }, h("p", { text: "Want this for the team, every Monday?" }),
+        h("button", { class: "btn btn-line", type: "button", onclick: function () { ask(weekIdea.ask); } }, "Write the update")));
+    }
+
+    var old = $("stale");
+    old.textContent = "";
+    var list = staleList(d);
+    append(old, h("div", { class: "section-head" }, h("h2", null, "May be out of date", exampleTag(view))));
+    if (!list.length) {
+      append(old, h("p", { class: "calm" }, icon("i-check"), "Every procedure and policy was edited in the last six months."));
+      return;
+    }
+    append(old, h("p", { class: "section-meta", text: "Procedures and policies nobody has touched in over six months. These are the ones most likely to be wrong." }));
+    var rows2 = h("ul", { class: "rows stale-rows" });
+    list.slice(0, 6).forEach(function (p) {
+      append(rows2, h("li", null,
+        h("div", null, titleNode(p, view.example, "row-title"), metaLine(p, false, ref)),
+        p.edited ? h("span", { class: "age", title: "Last edited " + shortDate(p.edited) }, icon("i-alert"), ageWords(p.edited, ref)) : null));
+    });
+    append(old, rows2);
+    if (d.staleTotal > 6) append(old, h("p", { class: "more-line", text: "And " + plural(d.staleTotal - 6, "more", "more") + " in All pages below." }));
+    if (askable()) {
+      append(old, h("div", { class: "panel-foot" }, h("p", { text: "Get a list of who should check each one." }),
+        h("button", { class: "btn btn-ink", type: "button", onclick: function () { ask(IDEAS[0].ask); } }, "Make a review list")));
+    }
+  }
+
+  function renderIdeas() {
+    var section = $("ideas-section");
+    var st = state();
+    section.hidden = !shown() && st !== "connected";
+    if (section.hidden) return;
+    var grid = $("ideas");
+    grid.textContent = "";
+    var acts = askable();
+    // A phone shows four ideas first, so the page stays short.
+    var phone = window.matchMedia("(max-width: 640px)").matches;
+    var list = phone && !S.allIdeas ? IDEAS.slice(0, 4) : IDEAS;
+    list.forEach(function (idea) {
+      var a = idea.area ? AREAS[AREA_INDEX[idea.area.toLowerCase()]] : null;
+      var actions = null;
+      if (acts) {
+        actions = h("div", { class: "idea-actions" },
+          h("button", { class: "btn btn-ink", type: "button", onclick: function () { ask(idea.ask); } }, "Ask now", icon("i-arrow")),
+          idea.every ? h("button", { class: "btn btn-line", type: "button", "aria-label": idea.every.label + ": " + idea.title,
+            onclick: function () { ask(idea.every.ask, "routine"); } }, icon("i-repeat"), idea.every.label) : null);
+      }
+      append(grid, h("article", { class: "idea" },
+        h("p", { class: "idea-kind" }, a ? h("span", { class: "swatch", style: "--c:" + a.c }) : h("span", { class: "swatch", style: "--c:var(--ink)" }),
+          a ? a.id : "Your whole Notion"),
+        h("h3", { text: idea.title }),
+        h("p", { text: idea.line }),
+        actions));
+    });
+    if (list.length < IDEAS.length) {
+      append(grid, h("button", { class: "btn btn-line", type: "button", onclick: function () { S.allIdeas = true; renderIdeas(); } },
+        plural(IDEAS.length - list.length, "more idea", "more ideas")));
+    }
+    $("ideas-fine").textContent = acts
+      ? "“Every Monday” and “Every month” ask the librarian to set it up as a routine. You approve it in the chat."
+      : S.mode === "v2" ? "People who can edit this cabinet can ask for these from here." : "Ask for any of these in the cabinet's chat.";
+  }
+
+  function renderContents(view) {
+    var section = $("contents");
+    section.hidden = !view;
+    if (!view) return;
+    var d = view.d;
+    var all = merged(d.pages, d.stale);
+    var title = $("contents-title");
+    title.textContent = "All pages";
+    append(title, exampleTag(view));
+    var extra = d.total > all.length ? d.total - all.length : 0;
+    $("contents-meta").textContent = extra
+      ? "The " + all.length + " most recent of " + d.total + ", and every one that may be out of date."
+      : plural(all.length, "page", "pages and tables") + ", newest first.";
+    var counts = {};
+    all.forEach(function (p) { counts[p.area.id] = (counts[p.area.id] || 0) + 1; });
+    if (S.area !== "All" && !counts[S.area]) S.area = "All";
+    var filters = $("filters");
+    filters.textContent = "";
+    function filter(id, label, n, c) {
+      return h("button", { class: "filter", type: "button", "aria-pressed": S.area === id ? "true" : "false",
+        onclick: function () { S.area = id; S.showAll = false; renderContents(shown()); } },
+        c ? h("span", { class: "swatch", style: "--c:" + c }) : null, label, h("span", { class: "n", text: String(n) }));
+    }
+    append(filters, filter("All", "All", all.length, null));
+    AREAS.forEach(function (a) { if (counts[a.id]) append(filters, filter(a.id, a.id, counts[a.id], a.c)); });
+
+    var list = all.filter(function (p) { return S.area === "All" || p.area.id === S.area; })
+      .sort(function (a, b) { return (b.edited || 0) - (a.edited || 0) || a.key - b.key; });
+    var table = $("table");
+    table.textContent = "";
+    append(table, h("div", { class: "trow head", "aria-hidden": "true" },
+      h("span", { text: "Page" }), h("span", { text: "Area" }), h("span", { class: "t-editor", text: "Last edited by" }), h("span", { text: "Edited" })));
+    var cap = window.matchMedia("(max-width: 640px)").matches ? 10 : 20;
+    var visible = S.showAll ? list : list.slice(0, cap);
+    visible.forEach(function (p) {
+      var titleEl = p.url && !view.example
+        ? h("a", { href: p.url, target: "_blank", rel: "noopener noreferrer", "aria-label": p.title + ", open in Notion" },
+          h("span", { dir: "auto", text: p.title }), icon("i-out"))
+        : h("span", { dir: "auto", text: p.title });
+      append(table, h("div", { class: "trow" },
+        h("div", null, h("p", { class: "t-title" }, titleEl),
+          p.about ? h("p", { class: "t-about", dir: "auto", text: p.about }) : null),
+        h("span", { class: "t-cell" }, h("span", { class: "t-area" }, h("span", { class: "swatch", style: "--c:" + p.area.c }), areaName(p.area))),
+        h("span", { class: "t-cell t-editor", dir: "auto", text: p.editor || "" }),
+        h("span", { class: "t-cell", text: p.edited ? shortDate(p.edited) : "" })));
+    });
+    var more = $("table-more");
+    more.textContent = "";
+    more.hidden = visible.length >= list.length;
+    if (!more.hidden) {
+      append(more, h("button", { class: "btn btn-line", type: "button", onclick: function () { S.showAll = true; renderContents(shown()); } },
+        "Show all " + list.length));
+    }
+  }
+
+  function lowerFirst(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; }
+  function renderFoot() {
+    var foot = $("foot");
+    foot.textContent = "";
+    append(foot, h("p", { text: "This only reads your Notion. Nothing there is ever changed from here." }));
+    if (S.job && S.job.when && state() !== "not-available-here") append(foot, h("p", { text: "A fresh overview " + lowerFirst(S.job.when) + "." }));
+  }
+
+  // ── Wiring ────────────────────────────────────────────────────────────────
+  var typing = 0;
+  $("ask").addEventListener("input", function (e) {
+    S.q = e.target.value;
+    clearTimeout(typing);
+    typing = setTimeout(renderMatches, 80);
+  });
+  $("ask-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var words = $("ask").value.trim();
+    if (!words) { $("ask").focus(); return; }
+    ask(words);
+  });
+
+  function startV2() {
+    var ready = cab.ready ? Promise.race([cab.ready, wait(4000)]) : Promise.resolve();
+    return ready.then(function () { return Promise.resolve(cab.here()); }).then(function (here) {
+      S.mode = "v2";
+      if (here && typeof here.appPath === "string" && here.appPath) S.appPath = here.appPath;
+      if (here && here.role) S.role = here.role;
+      cab.connectors.onChange(function (list) { S.connector = pickNotion(list) || S.connector; render(); });
+      cab.jobs.onChange(onJobs);
+      try { cab.files.onChange(S.appPath + "/data", function () { loadData(); }); } catch (e) { /* the overview still loads once */ }
+      cab.connectors.list().then(function (list) { S.connector = pickNotion(list); S.connectorFailed = !S.connector; render(); },
+        function () { S.connectorFailed = true; render(); });
+      cab.jobs.list().then(function (list) { S.job = pickJob(list); render(); }, function () { /* no routine to show */ });
+      return loadData();
+    }, function () {
+      // Inside a page that is not in Cabinet, or a Cabinet without v2: read the files directly.
+      return startOld();
+    });
+  }
+  function startOld() {
+    S.mode = "old";
+    setInterval(function () { if (document.visibilityState === "visible") loadData(); }, 5 * 60 * 1000);
+    return loadData();
+  }
+
+  if (cab && cab.connectors && typeof cab.here === "function") startV2();
+  else startOld();
+  // Keeps "Updated 8:02 this morning" true as the day goes on.
+  setInterval(function () { if (S.loaded) renderState(); }, 60 * 1000);
 })();
 </script>
 </body>

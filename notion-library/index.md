@@ -1,42 +1,28 @@
 ---
 title: Notion Library
 created: '2026-08-09T00:00:00Z'
-modified: '2026-09-15T00:00:00Z'
+modified: '2026-09-25T00:00:00Z'
 tags: [notion, pages, documents, library, showcase]
 order: 1
 ---
 # Notion Library
 
-Every morning, a list of the Notion pages you shared, with what each one is actually about.
+Your company's knowledge at a glance: the procedures, client pages, policies, projects and meeting notes your team keeps in Notion. See what changed this week and which procedures and policies may be out of date, and ask anything, like "What is our refund policy?"
 
-## What you get
+Open the **Company knowledge** app to see it. Until Notion is connected, it shows a made-up company, Hartwell Heating & Air, clearly marked as an example.
 
-One page. Every Notion page and database you shared with Cabinet, one line each, most
-recently updated first, where it lives, when it last moved, and a short line saying what
-it holds. It is the shelf, not the reading: you see everything you have without opening
-Notion and clicking down through six nested pages to remember where something went.
+## Connect Notion
 
-The morning routine only reads. It never creates, edits, comments on or moves anything in
-Notion.
+Press **Connect Notion** in the app and sign in to Notion. If you have more than one Notion, pick the one your team uses. Cabinet can then read the pages you can see there. Your first overview is ready a few minutes later, and a fresh one comes every Monday morning. Press Refresh for a new one any time.
 
-## How to look at it
+## Ideas to try
 
-Open the **Library** app in this cabinet. It comes pre-filled with a made-up example so
-you can see the shape of it straight away. The page says clearly that those pages are
-fake. Your first real listing takes its place.
+Build an employee handbook, turn this week's meeting notes into action items, build a client directory, send the team a Monday update, or find pages that contradict each other. Each idea in the app is one press. Some can also run every Monday or every month: the librarian proposes it in the chat, and you approve it there.
 
-## Before it can read your real workspace
+## It only reads
 
-Connect Notion from Integrations in Cabinet, or when Cabinet asks.
+The librarian never creates, changes, moves or deletes anything in Notion. To stop, disconnect Notion on Cabinet's Integrations page.
 
-It sees only the pages and databases you share with it, and nothing else: the rest of your
-workspace stays invisible to it, and you can change that list whenever you like in Notion,
-under Settings → Connections.
+## For the curious
 
-Until you connect, the page keeps showing the example.
-
-## What's inside
-
-- **Notion Librarian**: the one agent. Reads your shared pages, writes the listing.
-- **Morning Notion Library**: the one routine. Runs at 08:00 every day.
-- **Library**: the one page. Opens on today, with a dropdown for earlier days.
+Every Monday the librarian writes `library/data/latest.json` for the app and a short page to read, `library/data/latest.md` (what changed and what may be out of date). The data file holds `generatedAt`, `company` (when Notion shows it), `total`, `areas` (a count per area: Procedures, Clients, Policies, Projects, Meeting notes, Other), `pages` (newest first, at most 40) and `stale` (procedures and policies not edited in 180 days, oldest first). Each page has `title`, `type`, `area`, `about`, `where`, `edited`, `editor` and `url`. The made-up company lives in `library/data/EXAMPLE-latest.json`.
