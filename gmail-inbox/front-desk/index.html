@@ -516,6 +516,11 @@
   }
   function plural(n, one, many) { return n === 1 ? one : many; }
   function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  /** Money as written ("$42.10", "₪450"), or "" when the words hold no number at all. */
+  function amountText(value, max) {
+    var s = text(value, max);
+    return /\d/.test(s) ? s : "";
+  }
 
   function appPathFromUrl() {
     // /api/assets/<cabinet path>/<app folder>/index.html: the folder before the file.
@@ -553,10 +558,17 @@
     if (typeof value !== "string" || !value) return null;
     // A bare date is a calendar day, not midnight in another zone.
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value);
+    // "+0300" as `date +%z` prints it is read like "+03:00".
+    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
     return isNaN(d.getTime()) ? null : d;
   }
   function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  /** When a sort was written, never later than now: a routine's own clock can be wrong. */
+  function writtenAt(value) {
+    var d = parseTime(value);
+    var now = new Date();
+    return d && d > now ? now : d;
+  }
   function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / DAY_MS); }
   function clock(d) { return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
   function bareClock(d) { return clock(d).replace(/\s?[AaPp]\.?\s?[Mm]\.?$/, ""); }
@@ -589,6 +601,7 @@
     if (!d) return "";
     var gap = daysBetween(ref, d);
     if (status === "paid") return '<span class="chip ok">' + icon("i-check") + "Paid " + esc(shortDate(d)) + "</span>";
+    if (status === "autopay" && gap < 0) return '<span class="chip ok">' + icon("i-check") + "Paid automatically " + esc(shortDate(d)) + "</span>";
     if (status === "autopay") return '<span class="chip">' + icon("i-repeat") + "Autopay " + esc(gap === 0 ? "today" : gap === 1 ? "tomorrow" : weekdayDate(d)) + "</span>";
     if (gap < 0) return '<span class="chip hot">' + (-gap) + " " + plural(-gap, "day", "days") + " overdue</span>";
     if (gap === 0) return '<span class="chip hot">Due today</span>';
@@ -683,6 +696,12 @@
     return null;
   }
   function gmailState() { return state.gmail ? state.gmail.state : null; }
+  /** The morning routine's schedule in words, lower case, or "" when it is paused or unknown. */
+  function scheduleWords() {
+    var job = morningJob();
+    var when = job && typeof job.when === "string" ? job.when.trim() : "";
+    return /^every\b/i.test(when) ? when.charAt(0).toLowerCase() + when.slice(1) : "";
+  }
   function askReady() {
     var s = gmailState();
     return !state.gmail || s === "connected" || s === "needs-you" || s === "needs-sign-in";
@@ -840,7 +859,7 @@
 
     var updated = "";
     if (state.data && !state.example) {
-      var g = parseTime(state.data.generatedAt);
+      var g = writtenAt(state.data.generatedAt);
       if (g) updated = '<span class="updated">Updated ' + esc(whenWords(g, new Date())) + "</span>";
     }
     var button = "";
@@ -878,6 +897,7 @@
     var s = gmailState();
     var g = state.gmail;
     var html;
+    var told = false;
 
     if (V2 && s === "not-available-here") {
       var why = g && g.problem && g.problem.text ? g.problem.text : "";
@@ -907,18 +927,24 @@
     } else if (state.running && (state.example || !state.data)) {
       html = cardHero(null, "Sorting your inbox...",
         '<p class="lead">This takes a minute or two. Stay here or come back later: the lanes fill in by themselves.</p>', true);
+    } else if (V2 && s === "connected" && state.example && failureInfo()) {
+      // The very first sort did not work: that is the news, told once, with its fixes.
+      var first = failureInfo();
+      html = cardHero("alert", "Your first sort didn’t work",
+        '<p class="lead">' + esc(first.why) + "</p>" + '<div class="actions">' + failureButtons(true) + "</div>");
+      told = true;
     } else if (V2 && s === "connected" && state.example) {
-      var job = morningJob();
-      var when = job && job.when ? job.when.toLowerCase() : "every morning";
+      var sched = scheduleWords();
       html = cardHero("check", "Gmail is connected. Let’s sort your inbox.",
-        '<p class="lead">Your first sort takes a minute or two. After that it happens by itself, ' + esc(when) + ".</p>" +
+        '<p class="lead">Your first sort takes a minute or two.' +
+        (sched ? " After that it happens by itself, " + esc(sched) + "." : " After that, press Check again whenever you want a fresh one.") + "</p>" +
         (canRun() ? '<div class="actions"><button class="btn primary big" data-act="run">' + icon("i-inbox") + "Sort my inbox now</button></div>" : "") + runNoteHtml());
     } else if (!state.data) {
       html = cardHero(null, "Your inbox shows up here", '<p class="lead">Nothing could be read yet. Try again in a moment.</p>');
     } else {
       html = dataHero();
     }
-    hero.innerHTML = html + failureHtml();
+    hero.innerHTML = html + (told ? "" : failureHtml());
   }
 
   /** `art` is an icon for the picture, or "check", "alert" or null for the envelope's badge. */
@@ -932,7 +958,7 @@
 
   function runNoteHtml() { return state.runNote ? '<div class="notice" style="margin-top:14px">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
   function mailAgeHtml() {
-    var g = state.data && !state.example ? parseTime(state.data.generatedAt) : null;
+    var g = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
     return g ? '<p class="fine">The email below was sorted ' + esc(whenWords(g, new Date())) + ".</p>" : "";
   }
 
@@ -954,7 +980,7 @@
       leadHtml = '<p class="lead">Your inbox is clear of anyone waiting. Have a look at money in and out below.</p>';
     }
     var updated = "";
-    var g = parseTime(d.generatedAt);
+    var g = writtenAt(d.generatedAt);
     if (g && !state.example) updated = '<span class="phone-only">Updated ' + esc(whenWords(g, new Date())) + ". </span>";
     return "<div><h2>" + esc(ex + h) + "</h2>" + leadHtml + (updated ? '<p class="fine">' + updated + "</p>" : "") + runNoteHtml() + "</div>";
   }
@@ -980,8 +1006,8 @@
     var failed = b.filter(function (x) { return x.status === "failed" || x.kind === "failed-payment"; }).length;
     var nextDue = null;
     b.forEach(function (x) { var d2 = parseTime(x.due); if (d2 && x.status !== "autopay" && (!nextDue || d2 < nextDue)) nextDue = d2; });
-    var owedValue = text(t.owed, 20);
-    var billsValue = text(t.billsDue, 20);
+    var owedValue = amountText(t.owed, 20);
+    var billsValue = amountText(t.billsDue, 20);
     var kpis = '<div class="kpis">' +
       (n
         ? '<a class="kpi first" href="#lane-waiting"><span class="label">' + icon("i-reply") + "Waiting on you</span>" +
@@ -1010,24 +1036,32 @@
     el.innerHTML = kpis;
   }
 
-  /** A sort that could not read the mail says so, with the presses that fix it. */
-  function failureHtml() {
-    if (state.running) return "";
-    var tryAt = state.lastTry && state.lastTry.ok === false ? parseTime(state.lastTry.at) : null;
-    var shownAt = state.data && !state.example ? parseTime(state.data.generatedAt) : null;
+  /** The last sort that could not read the mail: when, and why, or null. */
+  function failureInfo() {
+    if (state.running) return null;
+    var tryAt = state.lastTry && state.lastTry.ok === false ? writtenAt(state.lastTry.at) : null;
+    var shownAt = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
     var job = morningJob();
     var jobFail = job && job.lastRun && job.lastRun.ok === false ? parseTime(job.lastRun.at) : null;
     var why = "";
     if (tryAt && (!shownAt || tryAt > shownAt)) why = text(state.lastTry.why, 240) || "The last sort could not read your email.";
     else if (jobFail && (!shownAt || jobFail > shownAt)) why = "The last sort did not finish.";
     // With a connection problem the hero already says what to do; an older Cabinet cannot tell, so it shows.
-    if (!why || (V2 && gmailState() !== "connected")) return "";
+    if (!why || (V2 && gmailState() !== "connected")) return null;
     var at = tryAt || jobFail;
     var words = at ? whenWords(at, new Date()) : "";
-    var head = !words ? "The last sort didn’t work." : "The sort " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work.";
-    var buttons = (canRun() ? '<button class="btn" data-act="run">' + icon("i-refresh") + "Try again</button>" : "") +
-      (state.gmail && state.gmail.canConnect ? '<button class="btn" data-act="connect">' + icon("i-mail") + "Connect Gmail again</button>" : "");
-    return '<div class="notice">' + icon("i-alert") + "<div><p><b>" + esc(head) + "</b> " + esc(why) + "</p>" +
+    return { why: why, head: !words ? "The last sort didn’t work." : "The sort " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work." };
+  }
+  function failureButtons(primary) {
+    return (canRun() ? '<button class="btn' + (primary ? " primary big" : "") + '" data-act="run">' + icon("i-refresh") + "Try again</button>" : "") +
+      (state.gmail && state.gmail.canConnect ? '<button class="btn' + (primary ? " big" : "") + '" data-act="connect">' + icon("i-mail") + "Connect Gmail again</button>" : "");
+  }
+  /** A sort that could not read the mail says so, with the presses that fix it. */
+  function failureHtml() {
+    var fail = failureInfo();
+    if (!fail) return "";
+    var buttons = failureButtons(false);
+    return '<div class="notice">' + icon("i-alert") + "<div><p><b>" + esc(fail.head) + "</b> " + esc(fail.why) + "</p>" +
       (buttons ? '<div class="actions">' + buttons + "</div>" : "") + "</div></div>";
   }
 
@@ -1090,8 +1124,10 @@
     var status = text(item.status, 20);
     var title;
     if (lane === "money") {
-      var kindWord = MONEY_TITLE[item.kind] || "Invoice";
-      title = kindWord + (text(item.number) && item.kind !== "payment" ? " " + text(item.number, 20) : "") + " · " + (text(item.who, 60) || "a customer");
+      var kindWord = MONEY_TITLE[item.kind];
+      title = kindWord
+        ? kindWord + (text(item.number) && item.kind !== "payment" ? " " + text(item.number, 20) : "") + " · " + (text(item.who, 60) || "a customer")
+        : text(item.who, 70) || text(item.from, 70) || "Money in";
     } else {
       title = text(item.from, 70) || "A bill";
     }
@@ -1120,7 +1156,7 @@
     return '<li class="money-card' + cls + '">' +
       '<button class="mc-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
       '<span class="mc-title" dir="auto">' + esc(title) + "</span>" +
-      '<span class="mc-amount num" dir="auto">' + esc(text(item.amount, 24)) + "</span>" +
+      '<span class="mc-amount num" dir="auto">' + esc(amountText(item.amount, 24)) + "</span>" +
       '<span class="mc-what" dir="auto">' + esc(text(item.what, 90)) + "</span>" +
       '<span class="mc-foot">' + chip + "</span>" +
       "</button>" +
@@ -1153,10 +1189,10 @@
     var waitingLane = lane("waiting", "Waiting on you", "i-reply", w.length, "",
       '<ol class="rows">' + w.map(function (item, i) { return waitingRow(item, i, ref); }).join("") + "</ol>",
       "Nobody is waiting on an answer from you.");
-    var moneyLane = lane("money", "Quotes and invoices", "i-dollar", m.length, text(t.owed) ? text(t.owed, 20) + " owed" : "",
+    var moneyLane = lane("money", "Quotes and invoices", "i-dollar", m.length, amountText(t.owed, 20) ? amountText(t.owed, 20) + " owed" : "",
       '<ul class="cards">' + m.map(function (item, i) { return moneyCard(item, i, ref, "money"); }).join("") + "</ul>",
       "No quotes or invoices in this batch.");
-    var billsLane = lane("bills", "Bills to pay", "i-receipt", b.length, text(t.billsDue) ? text(t.billsDue, 20) + " due" : "",
+    var billsLane = lane("bills", "Bills to pay", "i-receipt", b.length, amountText(t.billsDue, 20) ? amountText(t.billsDue, 20) + " due" : "",
       '<ul class="cards">' + b.map(function (item, i) { return moneyCard(item, i, ref, "bills"); }).join("") + "</ul>",
       "No bills in this batch.");
     var moreItems = f.map(function (item) {
