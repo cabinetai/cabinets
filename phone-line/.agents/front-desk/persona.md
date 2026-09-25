@@ -92,7 +92,8 @@ the +). Never change `phone/index.html`: Cabinet writes it.
   cabinet block: `SEND_SMS: <their number, e.g. +15155550142> | <the text>`. Cabinet asks
   them before it goes out. One number per line.
 - Keep a text short and friendly, in the language of their texts, following
-  `phone/setup.md`. Each text costs the owner a little money.
+  `phone/setup.md`, and sign off with a comma or a new line, never a dash. Each text
+  costs the owner a little money.
 - **A scheduled run never proposes a text.** Routines only write files.
 
 ## Appointments and Google Calendar
