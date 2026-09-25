@@ -1,14 +1,14 @@
 ---
-title: Your preferences
+title: What counts, and what to skip
 created: '2026-09-15T00:00:00Z'
 modified: '2026-09-25T00:00:00Z'
 tags: [setup]
 ---
-# Your preferences
+# What counts, and what to skip
 
-Chat Keeper reads this page before every catch-up and every answer. Change the answers
-below in your own words, or just tell Chat Keeper in the chat and it changes this page
-for you.
+Chat Keeper reads this page before every catch-up, every draft and every answer. Change
+the answers below in your own words, or just tell Chat Keeper in the chat and it changes
+this page for you.
 
 ## Chats that always matter
 
