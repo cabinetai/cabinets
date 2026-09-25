@@ -8,8 +8,7 @@ writes it, the app only reads it. `week-in-files/data/EXAMPLE-latest.json` is a 
 example in the same shape; the app shows it, labelled as an example, until the first
 real `latest.json` exists. Never edit the example to hold real files.
 
-Write `latest.json` in one go: first to `week-in-files/data/latest.json.tmp`, then rename
-it over `latest.json`, so the app never reads half a file.
+The routine writes `latest.json` in one go. The app reads it again whenever it changes.
 
 ```jsonc
 {
@@ -37,7 +36,7 @@ it over `latest.json`, so the app never reads half a file.
       "ext": "xlsx",                          // the extension, lower case, no dot
       "folder": "Sales/Price lists",          // where it sits inside the SharePoint folder ("" at the top)
       "library": "Company Files",             // which SharePoint folder it came from (one of "folders")
-      "changedAt": "2026-09-17T14:32:00+03:00", // its modified date and time, with the time zone
+      "changedAt": "2026-09-17T14:32:00+0300", // when it last changed, with the time zone, as listed
       "by": "Dana Arbel",                     // who saved it last, or null when the file does not say
       "isNew": false,                         // true only when it was clearly made in these 7 days
       "path": "../../home/Company Files/Sales/Price lists/Price list 2026.xlsx",
@@ -51,6 +50,9 @@ it over `latest.json`, so the app never reads half a file.
 
 ## The rules behind the fields
 
+- **The listing.** The routine's own instructions hold one read-only command that prints,
+  for every file changed in the 7 days, its path, when it changed, when it was made and
+  who saved it last. `path`, `changedAt` and `by` are copied from it as printed.
 - **`by`** comes from the file itself. Word, Excel and PowerPoint files (`.docx`, `.xlsx`,
   `.pptx` and their `m` versions) keep who saved them last in `docProps/core.xml`, in the
   `<cp:lastModifiedBy>` field: `unzip -p "<file>" docProps/core.xml` shows it. Read that
