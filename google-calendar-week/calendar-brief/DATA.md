@@ -22,6 +22,12 @@ read those.
 | `events[]` | The seven days from today: `id`, `date`, `start`, `end` (24-hour `HH:MM`, null when all day), `allDay`, `lastDate` (multi-day all-day only), `title`, `place`, `people` (names, at most three), `morePeople`, `kind`, `client`, `link` |
 | `clients[]` | Everyone outside the business met in the last 90 days or booked in the next 30: `id`, `name` (company, or the person when there is none), `contact`, `meetings90`, `firstMet`, `lastMet`, `next` (`{date, start, title}` or null), `hoursMonth`, `status` |
 
+The routine also keeps what it needs for the next morning, so each run reads only the
+new days instead of 90 days again: `readThrough` (the last day already read), `rules` (its
+decisions: the business's own domains, who is not a client, company names) and, on each
+client, `met` (the client meetings of the last 90 days, as date, minutes and event id). The
+app ignores these three.
+
 `kind` is `client` (a meeting with someone from outside the business), `team`, `personal`
 or `other` (suppliers, advisers, anything else). A client meeting's `client` is the `id`
 of its row in `clients`. `status` is `new` (first met this month, or booked for the first
