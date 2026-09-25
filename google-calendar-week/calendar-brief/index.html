@@ -972,7 +972,8 @@
       if (real) second = updatedWords(S.real.generatedAt);
     } else if (m === "not-here") {
       dot = "#98a2b3"; first = "Not available here";
-      second = "Showing an example";
+      // A week read before (on a computer, say) is still the person's own, not an example.
+      second = real ? updatedWords(S.real.generatedAt) : "Showing an example";
     } else if (m === "connecting") {
       dot = "var(--amber)"; first = "Connecting…";
     } else if (m === "not-connected") {
@@ -990,9 +991,9 @@
         h("b", { text: first }),
         second ? h("small", { text: second }) : null,
         readOnly ? h("small", null, icon("lock"), "Reads your calendar, never changes it") : null)));
-    // Refresh only helps while the connection works; when it needs the person, the banner's
-    // one button is the fix.
-    if (canRun() && m === "connected") {
+    // Refresh only helps while the connection works, and only once there is a week of the
+    // person's own: before that, the banner's one button ("Show my business", "Try again") runs it.
+    if (canRun() && m === "connected" && (real || S.running)) {
       box.appendChild(h("button", {
         class: "btn", type: "button", disabled: S.running || null, "aria-busy": S.running ? "true" : null, onclick: runNow
       }, S.running ? h("span", { class: "spin", "aria-hidden": "true" }) : icon("refresh"), S.running ? "Updating…" : "Refresh"));
@@ -1032,15 +1033,21 @@
         canConnect ? connectButton(true, true) : null,
         m === "connecting" ? h("p", { class: "note", text: "Finish in the window Cabinet opened. This page updates by itself when you're done." }) : null);
     } else if (m === "not-here") {
-      var why = (c && c.problem && c.problem.text) ||
-        (S.here && S.here.place === "cloud" ? "It works in the Cabinet app on your computer, not in Cabinet Cloud yet."
-          : S.here && S.here.ai === "cabinet-ai" ? "It works when this cabinet uses your own AI on your computer, not Cabinet AI yet."
-          : "It works in the Cabinet app on your computer.");
+      // Where it does work, in our words: Cabinet's own sentence here mostly repeats the
+      // heading. On Cabinet AI its sentence says more ("not ready for your plan yet"), so it leads.
+      var said = c && c.problem && c.problem.text;
+      var why = S.here && S.here.place === "cloud"
+        ? "It works in the Cabinet app on your computer, not in Cabinet Cloud yet."
+        : S.here && S.here.ai === "cabinet-ai"
+          ? (said || "It works when this cabinet uses your own AI on your computer, not Cabinet AI yet.")
+          : "It works in the Cabinet app on your computer.";
       b = h("section", { class: "banner" },
         h("div", { class: "words" },
           h("h2", { text: "Google Calendar can't connect here yet." }),
           h("p", null, own(why)),
-          real ? null : h("p", null, "Below is ", own(exampleWho()), ", a made-up company, so you can see what it does.")));
+          real
+            ? h("p", { text: "Below is your calendar as last read, " + updatedWords(S.real.generatedAt).replace(/^Updated /, "") + "." })
+            : h("p", null, "Below is ", own(exampleWho()), ", a made-up company, so you can see what it does.")));
     } else if (m === "needs") {
       // Cabinet's own sentence is the most exact thing to say; the fix is one press.
       var said = c && c.problem && c.problem.text;
