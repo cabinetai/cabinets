@@ -26,5 +26,5 @@ failed or paid, `due`) and `fyi` (`from`, `gist`). Every card may carry `threadI
 set aside.
 
 The readable pages go to `reports/` beside this folder: one per morning
-(`<YYYY-MM-DD> Morning.md`), one per Friday check (`<YYYY-MM-DD> Still waiting.md`), and
+(`<YYYY-MM-DD>-morning.md`), one per Friday check (`<YYYY-MM-DD>-still-waiting.md`), and
 the lists the owner asks for in the chat.

@@ -4,31 +4,30 @@ enabled: true
 schedule: 0 7 * * *
 provider: claude-code
 adapterType: claude_local
+adapterConfig:
+  model: haiku
+  effort: low
 ownerAgent: inbox-summarizer
 agentSlug: inbox-summarizer
 timeout: 900
 prompt: |-
   Sort this morning's email for the Front desk app.
 
-  Your working directory is the cabinet root. Your persona holds every rule: the lanes,
-  the exact shape of each file, the words, and how to reach Gmail (gws when your
-  Connections line says Sign in with Google, the Gmail skill when it says app password).
-  This prompt only gives the order.
+  Your working directory is the cabinet root. Your persona holds the rules: how to reach
+  Gmail, the lanes, the shape of each file, and how to spend little. Follow its order:
 
-  1. Read `front-desk/setup.md`, then look at `front-desk/data/EXAMPLE-latest.json` for
-     the shape (it is a made-up business: never copy its contents, never change or
-     delete it).
-  2. Read the inbox the way your persona says: the last 24 hours, the people of the last
-     14 days who may still be waiting, the quotes and invoices of the last 45 days that
-     are still open, and the bills of the last 30 days. Read only.
-  3. If your Connections line says Gmail is not connected, or Gmail cannot be read, write
-     only `front-desk/data/status.json` with `ok: false` and a plain `why`, and stop.
-  4. Write `front-desk/data/latest.json` with `"example": false`, then check that it
-     parses as JSON and fix it if not.
-  5. Write today's page, `reports/<YYYY-MM-DD> Morning.md`.
-  6. Write `front-desk/data/status.json` with `ok: true`.
+  1. In one Bash call, print the time with `date '+%Y-%m-%dT%H:%M:%S%z'` and read
+     `front-desk/setup.md` and, if it is there,
+     `front-desk/data/latest.json` (the last sort).
+  2. If your Gmail line says Gmail is not connected, write only
+     `front-desk/data/status.json` with `ok: false` and a plain `why`, and stop.
+  3. Read Gmail: since the last sort when it is under 3 days old, otherwise the wider
+     windows once. At most four searches and three opened emails. When nothing new
+     arrived, keep the last sort's lanes as they are.
+  4. In one Bash call, write `front-desk/data/latest.json` (and check it parses),
+     `reports/<YYYY-MM-DD>-morning.md` and `front-desk/data/status.json` with `ok: true`.
 
-  Never send, reply, draft, label, archive, mark read or delete anything in Gmail.
+  Only read Gmail: never send, reply, draft, label, archive, mark read or delete.
 
   Finish in one or two plain sentences about the email and nothing else: how many people
   are waiting, what money is owed or due, and the one that matters most, if there is one.
