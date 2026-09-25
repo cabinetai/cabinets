@@ -4,45 +4,44 @@ enabled: true
 schedule: 0 18 * * 0
 provider: claude-code
 adapterType: claude_local
+adapterConfig:
+  model: sonnet
+  effort: low
 ownerAgent: chat-keeper
 agentSlug: chat-keeper
 timeout: 900
 prompt: |-
-  Write the week ahead: every plan from the WhatsApp chats for the coming Monday to
-  Sunday.
+  Write the week ahead: every appointment and plan from the WhatsApp chats for the
+  coming Monday to Sunday. Read only what these steps name, and write each file once.
 
-  Your working directory is the cabinet root. Write two files in `today/data/`: a
-  readable page named `<YYYY-MM-DD>T<HH-MM-SS>-week-ahead.md` in this computer's local
-  time, and `week.json`, which the Today app shows beside the morning's plans. Never
-  overwrite, rename or delete another file in `today/data/`; the morning catch-up tidies
-  the folder.
+  Your working directory is the cabinet root. Your persona above says how to read a
+  saved chat line and how to name people. Never change or delete another file.
 
-  1. Read your persona first. It holds the saved chat format, whose line is whose, how
-     to name people, and the exact shape of both files.
-  2. Read `today/setup.md`. Leave out every chat it says to skip.
-  3. List the chat folders: every folder under `whatsapp/` with an `index.md` whose
-     frontmatter has a `whatsapp` block. Never open `whatsapp/all-conversations/`.
+  1. Read `today/setup.md`, and the `plans` in `today/data/latest.json` when it is there.
+  2. Read the last 150 lines of the newest month page of every chat, all in one go (a
+     plan for next week may have been made days ago). A chat is a folder under
+     `whatsapp/`; skip `whatsapp/all-conversations/` and every chat `today/setup.md`
+     says to skip. For example:
+     `for d in whatsapp/*/; do f=$(ls "$d"20*.md 2>/dev/null | tail -n 1); [ -n "$f" ] && { echo "== $f"; tail -n 150 "$f"; }; done`
      If there are no chat folders, write nothing and say: "No chats are picked for this
      cabinet yet, so there is no week to plan from them. Choose chats on the WhatsApp
      page in Integrations." Then stop.
-  4. Read the last 30 days of month pages in every chat folder, and the `plans` in
-     `today/data/latest.json` when it is there.
-  5. Keep only plans whose day falls between tomorrow, Monday, and the Sunday after it:
-     times, places and dates agreed in a chat, from either side. A plan a later line
-     cancels is left out; a plan a later line moves shows the new time. A line that
-     names only a weekday means the first such day after the line was written. When you
-     cannot tell which week a plan is in, leave it out.
-  6. Write the readable page: frontmatter with `headline`, `generated`, `status: ok`,
-     `chats` and `week` (for example `Mon 15 Sep to Sun 21 Sep`), then one
-     `## Plans and dates` table with the columns your persona gives, in time order. Every
-     row names its chat and the date the plan was made, and has its Folder. A week with
-     no plans keeps the heading and header row with no rows, and the headline says the
-     week is clear.
-  7. Write `today/data/week.json` last, in one go, in the shape your persona gives:
-     `weekStart` and `weekEnd` as `YYYY-MM-DD`, the same headline, and the same plans.
-  8. Check that `today/data/week.json` is valid JSON (`node -e` or `python3 -m
-     json.tool`, as in the morning catch-up). If it is not, fix it and check again.
+  3. Keep only plans whose day falls between tomorrow, Monday, and the Sunday after it,
+     from either side. A later line that cancels a plan removes it; one that moves it
+     changes the time. A line that names only a weekday means the first such day after
+     the line was written. When you cannot tell which week a plan is in, leave it out.
+  4. Write `today/data/week.json` in one go, valid JSON, times in local time as
+     `YYYY-MM-DDTHH:MM` (or `YYYY-MM-DD` with no time):
+     `{"version":1,"generatedAt":"2026-09-27T18:00","weekStart":"2026-09-28","weekEnd":"2026-10-04","headline":"...",`
+     `"plans":[{"when":"2026-09-29T08:30","what":"Oil change","where":"At the shop","who":"Moshe Levi","kind":"person","chat":"moshe-levi","said":"2026-09-22T10:31"}]}`
+     `who`, `kind` and `chat` as in the morning catch-up: never a full number, a
+     `chat-<number>` folder written `chat-...4410`. Soonest first. A clear week has
+     `"plans": []` and a headline that says so. Check it is valid JSON and fix it if not.
+  5. Write a short readable page, `today/data/<YYYY-MM-DD>T<HH-MM-SS>-week-ahead.md` in
+     local time: frontmatter `headline`, `generated`, `status: ok`, `chats` and `week`
+     (`Mon 28 Sep to Sun 4 Oct`), then `## Appointments` with one line per plan
+     (`- Tue 29 Sep 08:30: oil change with Moshe Levi, at the shop`).
 
-  Finish with one sentence: how many plans the week holds and the first one.
+  Finish with one sentence: how many appointments the week holds and the first one.
 createdAt: '2026-09-15T00:00:00.000Z'
 updatedAt: '2026-09-25T00:00:00.000Z'

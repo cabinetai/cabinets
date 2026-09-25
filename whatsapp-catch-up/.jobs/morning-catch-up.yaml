@@ -4,77 +4,81 @@ enabled: true
 schedule: 30 7 * * *
 provider: claude-code
 adapterType: claude_local
+adapterConfig:
+  model: sonnet
+  effort: low
 ownerAgent: chat-keeper
 agentSlug: chat-keeper
 timeout: 900
 prompt: |-
-  Write this morning's catch-up from the WhatsApp chats this cabinet reads.
+  Write this morning's catch-up from the WhatsApp chats this cabinet reads. It runs
+  every day on the person's money, so do it in three moves: one shell command that
+  reads everything steps 1 and 2 name (and prints the date and time), one command that
+  writes both files and checks the JSON, then your answer. Keep what yesterday's
+  catch-up already worked out; never read a file twice.
 
-  Your working directory is the cabinet root. Everything you write goes in `today/data/`:
-  a readable page named `<YYYY-MM-DD>T<HH-MM-SS>-catch-up.md` in this computer's local
-  time, and `latest.json`, which the Today app shows. Never overwrite or rename an earlier
-  page, and never touch `today/data/EXAMPLE-latest.json`. Only step 9 deletes.
+  Your working directory is the cabinet root. Your persona above says how to read a
+  saved chat line and how to name people. Never touch `today/data/EXAMPLE-latest.json`.
 
-  1. Read your persona first. It holds the saved chat format, whose line is whose, how
-     to name people, and the exact shape of both files. This prompt does not repeat them.
-  2. Read `today/setup.md`. Leave out every chat it says to skip. Chats that always
-     matter come first in every section they appear in. Its "What counts as waiting for
-     me" narrows the waiting list.
-  3. List the chat folders: every folder under `whatsapp/` with an `index.md` whose
-     frontmatter has a `whatsapp` block. Never open `whatsapp/all-conversations/`.
-     If there are no chat folders, write nothing, delete nothing, and say: "No chats are
-     picked for this cabinet yet, so there is nothing to catch up on. Choose chats on the
-     WhatsApp page in Integrations." Then stop.
-  4. Read, in every chat folder: the month pages changed in the last day, and the newest
-     month page even when it did not change. Also read `today/data/latest.json` when it
-     is there, to carry open rows forward.
-  5. Work out the six parts. Every row names its chat and the date of the line it came
-     from.
-     - **Today's chats:** each chat with lines from the last 24 hours. Who, how many
-       lines, what it is about in six words, the time of its newest line. Busiest first.
-     - **Waiting on your reply:** a direct chat whose newest line (the last line of its
-       newest month page) is not the person's own, and is not only `[sticker]` or
-       `[message deleted]`. A group only when that newest line names the person.
-       Who, what they want in six words and whether it is a quote, an appointment, a
-       question or a problem, a few words quoted from that line, and when it was sent.
-       Oldest first. A chat whose newest line is the person's own is never
-       here, however long ago someone else wrote.
-     - **Plans and dates:** times, places and dates agreed in the lines you read, from
-       either side, with who and when it was said. Keep plans from the previous
-       catch-up whose time is still ahead. A plan a later line cancels is left out; a
-       plan a later line moves shows the new time. Soonest first.
-     - **Quotes and prices:** every amount in the lines you read, with who, what it is
-       for, the amount and currency exactly as written, and when. Keep rows from the
-       previous catch-up that are not agreed yet and are at most 14 days old. A row is
-       agreed when a later line of the person's own accepts that amount. Newest first.
-     - **Files and photos shared:** lines from the last 24 hours that start with
-       `[photo]`, `[video]`, `[voice note]` or `[file]`, with the caption or file name
-       after the label. Leave out `[sticker]`. Newest first.
-     - **You said you would:** the person's own lines that promise something, in any
-       language: to call back, to send a file, to check a price, to pay, to come by.
-       Who it was promised to, what, and when. Keep open rows from the previous
-       catch-up. Drop a promise once a later own line or file line shows it done (the
-       file was sent, the call happened, the price was confirmed). Oldest first.
-  6. Write the readable page: frontmatter with `headline`, `generated`, `status: ok` and
-     `chats` (the number of chat folders you read), then the six sections in order. The
-     headline is the one thing to know first, in the person's language, with no number
-     copied from a chat.
-  7. Write `today/data/latest.json` last, in one go, with the same rows in the shape
-     your persona gives: `example` false, `generatedAt` now, the same headline,
-     `chatsRead`, and the lists `waiting`, `promises`, `plans`, `prices` and `chats`.
-     Dates are `YYYY-MM-DDTHH:MM` in local time, worked out from the lines.
-  8. Check that `today/data/latest.json` is valid JSON, for example with
-     `node -e "JSON.parse(require('fs').readFileSync('today/data/latest.json','utf8'))"`
-     or `python3 -m json.tool today/data/latest.json`. If it is not, fix it and check
-     again.
-  9. Tidy `today/data/`. Among the files named `<YYYY-MM-DD>T<HH-MM-SS>-catch-up.md` or
-     `<YYYY-MM-DD>T<HH-MM-SS>-week-ahead.md`, keep the newest 30 and delete the rest.
-     Then look at `keptFor` in every chat's `index.md`: when the shortest is `30 days`
-     or `90 days`, also delete those files dated more than that many days ago, so a price
-     or a promise never outlives the chat page it came from. `forever` sets no limit.
-     Never delete any other file.
+  1. Read `today/setup.md`, and `today/data/latest.json` when it is there: yesterday's
+     catch-up.
+  2. Read only the chats that changed since then, all in one go. A chat is a folder
+     under `whatsapp/`; skip `whatsapp/all-conversations/` and every chat
+     `today/setup.md` says to skip. Read the last 40 lines of each month page written
+     after `today/data/latest.json`, for example:
+     `find whatsapp -path whatsapp/all-conversations -prune -o -name '20*.md' -newer today/data/latest.json -exec sh -c 'echo "== $1"; tail -n 40 "$1"' _ {} \;`
+     With no `latest.json` yet, read the newest month page of every chat the same way.
+     If there are no chat folders, write nothing and say: "No chats are picked for this
+     cabinet yet, so there is nothing to catch up on. Choose chats on the WhatsApp page
+     in Integrations." Then stop.
+  3. Work out the catch-up. A chat you did not read keeps yesterday's rows as they
+     were. For a chat you read:
+     - **waiting**: a direct chat whose newest line is not the person's own, and is not
+       only `[sticker]` or `[message deleted]`; a group only when its newest line names
+       the person. A chat whose newest line is the person's own is not waiting.
+       `today/setup.md` says what counts, and which chats come first.
+     - **plans**: times, places and dates agreed, from either side. A later line that
+       cancels a plan removes it; one that moves it changes the time. Drop plans whose
+       time has passed.
+     - **prices**: every amount, exactly as written, with what it is for. Agreed when a
+       later line of the person's own accepts it. Drop rows older than 14 days that
+       are not agreed.
+     - **promises**: the person's own lines that promise something (to call back, to
+       send, to check, to pay, to come by). Drop one once a later line shows it done.
+  4. Write `today/data/latest.json` in one go: valid JSON, plain words, times in this
+     computer's local time as `YYYY-MM-DDTHH:MM` (a plan with no time: `YYYY-MM-DD`,
+     worked out from the line; "Friday" in a line from Tue 22 Sep is `2026-09-25`).
+     Every list is present, `[]` when empty, at most 12 rows. The shape:
+     `{"version":1,"example":false,"generatedAt":"2026-09-25T07:30","status":"ok","headline":"...","chatsRead":7,`
+     `"waiting":[{"who":"Dana Levi","kind":"person","chat":"dana-levi","topic":"quote","wants":"A price for front brakes","quote":"How much for the brakes?","since":"2026-09-24T09:14"}],`
+     `"promises":[{"to":"Dana Levi","kind":"person","chat":"dana-levi","what":"Send a photo of the pads","said":"2026-09-23T17:20"}],`
+     `"plans":[{"when":"2026-09-26T08:30","what":"Oil change","where":"At the shop","who":"Moshe Levi","kind":"person","chat":"moshe-levi","said":"2026-09-22T10:31"}],`
+     `"prices":[{"who":"Parts Direct","kind":"person","chat":"parts-direct","for":"Clutch kit","amount":"$389","agreed":false,"said":"2026-09-24T07:05"}],`
+     `"chats":[{"who":"Dana Levi","kind":"person","chat":"dana-levi","messages":3,"about":"Brake noise and a price","last":"2026-09-24T09:14"}]}`
+     - `who`/`to` as your persona names people. `kind` is `person`, `group`, or
+       `number` for a chat with no saved name.
+     - `chat` is the folder name exactly, except a `chat-<number>` or `group-<id>`
+       folder, written with only its last four digits: `chat-...4410`. Never a full
+       number, anywhere. The app joins rows with the same `chat` into one card.
+     - `topic` is `quote`, `appointment`, `question`, `problem` or `other`.
+     - `headline`: one sentence of at most 20 words, the thing to know first, in the
+       person's language, no number copied from a chat. `wants`, `what`, `about`,
+       `for`: six words or so. `quote`: at most 12 words from that chat's newest line,
+       in its own language, or `""`. `amount` exactly as written. `agreed`: true/false.
+     - `chats`: the chats with lines in the last 24 hours, how many and what about.
+     - Order: waiting and promises oldest first, plans soonest first, prices newest
+       first, chats busiest first.
+     Then check it is valid JSON (`python3 -m json.tool today/data/latest.json > /dev/null`
+     or `node -e` with JSON.parse) and fix it if not.
+  5. Write a short readable page, `today/data/<YYYY-MM-DD>T<HH-MM-SS>-catch-up.md` in
+     local time: frontmatter `headline`, `generated` (`YYYY-MM-DD HH:MM`), `status: ok`
+     and `chats` (how many you read), then `## Waiting for you` with one line per
+     waiting chat (`- Dana Levi, since 24 Sep 09:14: a price for front brakes`), then
+     one line: `Also: 2 open quotes, 1 appointment this week, 2 promises to keep.`
+  6. Keep the newest 30 dated pages in `today/data/` (`...-catch-up.md` and
+     `...-week-ahead.md`) and delete older ones. Never delete any other file.
 
-  Finish with one or two sentences: how many chats moved, who is waiting on the person,
-  and the one thing to do first. Name people the way your persona says.
+  Finish with one or two sentences: who is waiting on the person, and the one thing to
+  do first.
 createdAt: '2026-09-15T00:00:00.000Z'
 updatedAt: '2026-09-25T00:00:00.000Z'
