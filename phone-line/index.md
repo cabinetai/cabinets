@@ -42,5 +42,5 @@ Until then, the app shows a made-up dental office, and says so.
   whether anyone picked up. A voicemail or a recorded call shows what was said when your
   Twilio number records it.
 - Twilio works in Cabinet on your computer. It can't be connected in Cabinet in the cloud.
-- Tell Front Desk who a number is ("the number ending 0190 is our parts supplier") and it
+- Tell Front Desk who a number is ("the number ending 0133 is our parts supplier") and it
   keeps that in your preferences.

@@ -29,5 +29,5 @@ quotes        [{ who, for, amount, status, said }] status: asked, sent, accepted
 asks          [{ topic, count }]                   topic: appointment, quote, question, problem, payment, other
 ```
 
-Numbers are written `+15155550142`. Times are local, `YYYY-MM-DDTHH:MM`. Amounts are
+Numbers are written `+15155550146`. Times are local, `YYYY-MM-DDTHH:MM`. Amounts are
 exactly as written in the text. Front Desk's persona holds the full rules.

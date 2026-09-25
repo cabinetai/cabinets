@@ -12,7 +12,7 @@ you.
 
 ## Who is who
 
-Numbers you want named. (One per line, for example: (515) 555-0190 is Keystone Supply, our
+Numbers you want named. (One per line, for example: (515) 555-0133 is Keystone Supply, our
 parts supplier.)
 
 ## Numbers to skip
