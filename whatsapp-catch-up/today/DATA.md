@@ -11,7 +11,7 @@ never talks to WhatsApp; it only reads these files.
 | `latest.json` | Morning Catch-Up, every day at 7:30 | The catch-up the app shows. Each run replaces it. |
 | `week.json` | Sunday Week Ahead, Sundays at 18:00 | The coming week's plans, shown beside the morning's. |
 | `<stamp>-catch-up.md`, `<stamp>-week-ahead.md` | the same routines | The same catch-up as a page you can read. The newest 30 are kept. |
-| `EXAMPLE-latest.json` | nobody, it ships with the cabinet | Made-up people, shown until WhatsApp is connected. |
+| `EXAMPLE-latest.json`, `EXAMPLE-latest.he.json` | nobody, they ship with the cabinet | Made-up people, shown until WhatsApp is connected (the second in Hebrew). |
 
 `latest.json`:
 
@@ -21,7 +21,7 @@ example      false (true only in the example file)
 generatedAt  "2026-09-25T07:30:00", local time
 status       "ok", or a short phrase saying what went wrong
 headline     one sentence, the thing to know first
-chatsRead    number of chats read
+chatsRead    how many chats this cabinet reads
 waiting      [{ who, kind, chat, topic, wants, quote, since }]  oldest first
 promises     [{ to, kind, chat, what, said }]                   oldest first
 plans        [{ when, what, where, who, kind, chat, said }]     soonest first
