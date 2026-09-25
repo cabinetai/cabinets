@@ -518,7 +518,12 @@
       loadData().then(render);
     }
   }
-  function canEdit() { return !st.here || st.here.role === "owner" || st.here.role === "editor"; }
+  // On Cabinet Cloud today only the owner starts a chat or a run (docs/apps/BRIDGE.md, "Who can call what").
+  function canEdit() {
+    if (!st.here) return true;
+    if (st.here.role === "owner") return true;
+    return st.here.role === "editor" && st.here.place !== "cloud";
+  }
   function running() { return !!(st.starting || (st.job && st.job.running)); }
   function canAsk() { return v2 && typeof cab.ask === "function" && canEdit(); }
 
@@ -723,7 +728,7 @@
 
   function askBar() {
     if (!canAsk()) {
-      return '<div class="ask"><p class="asknote">' + (v2 ? "Only people who can edit this cabinet can ask from here." :
+      return '<div class="ask"><p class="asknote">' + (v2 ? (st.here && st.here.place === "cloud" ? "Only the cabinet's owner can ask from here." : "Only people who can edit this cabinet can ask from here.") :
         "To ask about your files, open this cabinet's chat with Site Watcher.") + "</p></div>";
     }
     return '<div class="ask"><form class="askform" data-act="askform"><label class="sr" for="q">Ask about your team\'s files</label>' +
@@ -825,7 +830,7 @@
     var asking = canAsk();
     return '<section class="section ideas" aria-label="Ideas for your business"><div class="shead"><h2>Ideas for your business</h2></div>' +
       '<p class="lede">' + (asking ? "One tap asks Site Watcher now. Switch one on and it comes to you on its own, once you approve it in the chat."
-        : v2 ? "Only people who can edit this cabinet can ask from here." : "Ask any of these in this cabinet's chat with Site Watcher.") + "</p>" +
+        : v2 ? (st.here && st.here.place === "cloud" ? "Only the cabinet's owner can ask from here." : "Only people who can edit this cabinet can ask from here.") : "Ask any of these in this cabinet's chat with Site Watcher.") + "</p>" +
       '<div class="grid">' + IDEAS.map(function (idea, i) {
         var acts = asking
           ? '<div class="acts"><button class="btn" data-act="idea" data-i="' + i + '">' + icon("i-ask") + "Ask now</button>" +
