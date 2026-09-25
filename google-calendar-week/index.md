@@ -10,7 +10,7 @@ order: 1
 Your calendar, working for your business. Every morning at 7 it lays out the week's client
 meetings, keeps a client list built from who you meet, and flags the clients going quiet.
 
-Open **Calendar Brief** to see it.
+The cabinet opens on it: **Your week in business**.
 
 ## What you get
 
