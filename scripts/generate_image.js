@@ -263,6 +263,7 @@ const CABINET_ICONS = {
   'slack-answers':              { object: 'a single speech bubble with a small question mark nested inside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'slack-triage':                { object: 'a small inbox tray with three speech-bubble tags sorted into it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'whatsapp-catch-up':          { object: 'a vintage telephone handset resting inside a rounded speech bubble, with a small clock face beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'phone-line':                 { object: 'a sturdy desk telephone with its handset on the cradle and a coiled cord, beside a short stack of pink while-you-were-out message slips on a spike', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
 };
 
 // Most CABINET_ICONS entries share a generic 'soft warm cream' bgName — that's
@@ -274,6 +275,7 @@ const VIVID_COLOR_OVERRIDES = {
   'gmail-inbox':      { hex: '#e4634b', name: 'warm coral-red' },
   'telegram-digest':  { hex: '#165db8', name: 'vivid sky blue' },
   'hiring-pipeline':  { hex: '#e13c5a', name: 'vivid rose pink' },
+  'phone-line':       { hex: '#ff6a2b', name: 'vivid tangerine orange' },
 };
 
 // bgNames close enough to neutral (cream, taupe, dove gray, parchment) that
