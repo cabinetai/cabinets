@@ -11,7 +11,7 @@ shows the line live, and adds what Front Desk's morning read worked out.
 | `data/line/YYYY-MM-DD.json` | Cabinet, within a minute of a text or call | One day of texts and calls on the line. The last 30 days are kept. |
 | `data/latest.json` | Morning Line Read, every day at 7 | Names, what people want, calls to return, appointments, quotes. |
 | `data/drafts/<digits>.txt` | the morning read, or Front Desk when you ask | A reply draft per number, shown in the reply box. |
-| `../past-days/YYYY-MM-DD.md` | the morning read | The same morning as a page to read. The newest 60 are kept. |
+| `../../past-days/YYYY-MM-DD.md` | the morning read | The same morning as a page to read. The newest 60 are kept. |
 
 `latest.json`:
 
