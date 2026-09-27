@@ -1,401 +1,934 @@
-<!DOCTYPE html>
+<!doctype html>
 <!--
-  sharepoint-week showcase page.
+  Week in Files: the SharePoint Week app, a ledger of what the team changed in SharePoint.
 
-  Reads ../weekly-summaries/, one file per run, written by this cabinet's single routine.
-  The file names carry the timestamp, so the picker is built without opening any of them.
-  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
-  and survive the user renaming the cabinet at install time. The folder listing comes from
-  /api/tree because the assets route serves single files and cannot list a directory.
+  One file on purpose: on Cabinet Cloud a sealed frame cannot load anything that sits next
+  to this page, so the styles, the script and every icon are inline. Fonts come from Google
+  Fonts, with system fallbacks for a computer offline.
 
-  Zero external requests. System fonts, inline CSS, no libraries.
-  Every failure path renders something honest instead of a blank page.
+  Data: the routine writes week-in-files/data/latest.json (shape in DATA.md). Until it exists
+  the app shows data/EXAMPLE-latest.json, labelled as a made-up example. It talks to Cabinet
+  through window.cabinet v2 (connectors, ask, jobs, files); in an older Cabinet it reads the
+  same files by relative URL and says where to connect.
 -->
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SharePoint Week in Files</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week in Files</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap">
 <style>
   :root {
-    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
-    --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
-    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
-    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
+    --teal-950: #042f2d;
+    --teal-900: #073f3c;
+    --teal-800: #0a524e;
+    --teal-700: #0b6863;
+    --teal-600: #0e7f78;
+    --teal-500: #16988f;
+    --teal-400: #34b5aa;
+    --teal-300: #7fd4cb;
+    --teal-200: #b9e8e2;
+    --teal-100: #dcf3f0;
+    --teal-50: #f0faf8;
+    --ink: #0e1d1c;
+    --text: #1d2f2e;
+    --muted: #536a68;
+    --faint: #8aa09e;
+    --line: #dde8e6;
+    --line-strong: #c3d6d3;
+    --canvas: #f6faf9;
+    --amber-800: #92400e;
+    --amber-100: #fdf0d5;
+    --sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --serif: "Instrument Serif", "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --radius: 14px;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; padding: 48px 24px 64px; background: var(--parchment); color: var(--ink);
-    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
+    margin: 0;
+    background: var(--canvas);
+    color: var(--text);
+    font: 400 16px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 30px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
-    display: flex; align-items: center; gap: 12px;
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--teal-400); outline-offset: 2px; border-radius: 8px; }
+  svg.i { width: 20px; height: 20px; flex: none; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 32px; }
+  .grow { flex: 1; }
+
+  /* ---------- the teal band ---------- */
+  .band {
+    color: #fff;
+    background:
+      repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 34px),
+      linear-gradient(135deg, var(--teal-900) 0%, var(--teal-700) 55%, var(--teal-600) 100%);
+    padding: 16px 0 24px;
   }
-  /* An inline <svg> with a viewBox and no width fills its container — size it here or
-     the mark renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 26px; height: 26px; flex: none; }
-  .sub { color: var(--muted); margin: 6px 0 0; font-size: 14px; }
-  .card {
-    background: var(--card); border: none; border-radius: 12px;
-    padding: 18px 22px; margin-top: 18px;
-    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+  .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-height: 48px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; letter-spacing: 0.01em; }
+  .brand .mark {
+    width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+    background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.24);
   }
-  .banner {
-    padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border: none;
-    border-radius: 8px; font-size: 14px; color: var(--muted);
-    box-shadow: 0 1px 2px rgba(59,47,47,0.04);
+  .brand .mark svg { width: 18px; height: 18px; }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.22);
+    font-size: 15px; font-weight: 500;
   }
-  /* The one thing worth reading if nothing else. */
-  .lead-tag {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .12em; color: var(--terracotta); margin-bottom: 6px;
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal-300); box-shadow: 0 0 0 3px rgba(127, 212, 203, 0.25); }
+  .status.off .dot { background: #fbbf24; box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25); }
+  .status.busy .dot { background: #fff; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; align-items: end; margin-top: 18px; }
+  .eyebrow { margin: 0; font-size: 15px; font-weight: 500; color: rgba(255, 255, 255, 0.8); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .tag-example {
+    display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+    background: var(--amber-100); color: var(--amber-800); font-size: 13px; font-weight: 700; letter-spacing: 0.02em;
   }
-  .lead-who { font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--muted); }
-  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
-  .deep-link:hover { border-bottom-color: var(--muted); }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th {
-    text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .1em; color: var(--muted);
-    padding: 0 10px 10px 0; border-bottom: 1px solid var(--line);
+  h1 { margin: 8px 0 0; font: 400 clamp(36px, 4.4vw, 54px)/1.02 var(--serif); letter-spacing: -0.01em; }
+  .sub { margin: 12px 0 0; font-size: 18px; color: rgba(255, 255, 255, 0.86); max-width: 60ch; }
+  .chart { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: var(--radius); padding: 14px 16px 10px; }
+  .chart .cap { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255, 255, 255, 0.75); }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); height: 86px; align-items: end; border-bottom: 1px solid rgba(255, 255, 255, 0.35); margin-top: 8px; }
+  .day { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; outline-offset: -2px; }
+  .day .bar { width: 20px; background: #fff; border-radius: 4px 4px 0 0; opacity: 0.92; }
+  .day .val { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .day .tip {
+    position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%);
+    background: #fff; color: var(--ink); padding: 5px 9px; border-radius: 8px; font-size: 14px; white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(4, 47, 45, 0.25); opacity: 0; pointer-events: none; transition: opacity 120ms ease; z-index: 3;
   }
-  td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  .pill {
-    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
-    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+  .day:hover .tip, .day:focus .tip { opacity: 1; }
+  .daynames { display: grid; grid-template-columns: repeat(7, 1fr); margin-top: 6px; }
+  .daynames span { text-align: center; font-size: 13px; color: rgba(255, 255, 255, 0.78); }
+
+  /* The one thing to do now: connect, take the first look, or fix a problem. */
+  .notice {
+    margin-top: 18px; background: #fff; color: var(--ink); border-radius: var(--radius);
+    padding: 20px 22px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 28px; align-items: center;
+    box-shadow: 0 20px 40px -24px rgba(2, 30, 28, 0.6);
   }
-  /* Whether a change reaches the reader is the only judgement this page makes, so it is
-     the only thing carrying colour — two intensities of one accent, then grey for what
-     does not reach them. t-other is where an off-vocabulary value lands, styled exactly
-     like Unclear, because that is what an unrecognised judgement is. */
-  .t-yours { color: var(--terracotta); background: #FBEAE6; }
-  .t-worked { color: var(--terracotta); }
-  .t-not-yours { color: var(--muted); }
-  .t-unclear { color: var(--faint); border-style: dashed; }
-  .t-other { color: var(--faint); border-style: dashed; }
-  /* The document name is what the eye runs down; the rest of the row is context. */
-  .name { font-weight: 600; }
-  .site, .changed { color: var(--muted); }
-  .empty { color: var(--muted); font-size: 14px; }
-  .empty code { font-size: 13px; }
-  .scroll { overflow-x: auto; }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--muted); }
-  .picker select {
-    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  .notice h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.005em; }
+  .notice p { margin: 6px 0 0; color: var(--muted); font-size: 16px; max-width: 64ch; }
+  .notice .acts { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 240px; }
+  .notice .hint { font-size: 14px; color: var(--muted); text-align: center; }
+  .progress { display: block; height: 4px; border-radius: 4px; background: var(--teal-100); overflow: hidden; margin-top: 14px; max-width: 420px; }
+  .progress span { display: block; height: 100%; width: 35%; background: var(--teal-500); border-radius: 4px; animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+  /* The ask bar: a question box, like a search box, and three quick questions. */
+  .ask { margin-top: 16px; }
+  .askform { display: flex; gap: 10px; }
+  .askfield { position: relative; flex: 1; min-width: 0; }
+  .askfield svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .askfield input {
+    width: 100%; min-height: 54px; padding: 12px 16px 12px 46px; border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.4); background: #fff; color: var(--ink); font-size: 17px;
+    box-shadow: 0 10px 30px -18px rgba(2, 30, 28, 0.7);
   }
-  .picker .next { display: block; margin-top: 7px; color: var(--faint); }
+  .askfield input::placeholder { color: #6b817f; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip {
+    min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1); color: #fff; font-size: 15px; font-weight: 500;
+  }
+  .chip:hover { background: rgba(255, 255, 255, 0.2); }
+  .asknote { margin: 10px 0 0; font-size: 15px; color: rgba(255, 255, 255, 0.82); }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--line-strong);
+    background: #fff; color: var(--teal-800); font-weight: 600; font-size: 15px; text-decoration: none; line-height: 1.2;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  .btn:hover { background: var(--teal-50); border-color: var(--teal-300); }
+  .btn[disabled] { opacity: 0.55; cursor: default; }
+  .btn.primary { background: var(--teal-600); border-color: var(--teal-600); color: #fff; }
+  .btn.primary:hover { background: var(--teal-700); border-color: var(--teal-700); }
+  .btn.big { min-height: 52px; padding: 12px 22px; font-size: 17px; border-radius: 12px; }
+  .btn.onband { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+  .btn.onband:hover { background: rgba(255, 255, 255, 0.22); }
+  .btn.white { background: #fff; border-color: #fff; color: var(--teal-800); }
+  .btn.white:hover { background: var(--teal-50); }
+  .btn img.logo { width: 24px; height: 24px; border-radius: 5px; flex: none; }
+  .btn.icon { width: 44px; padding: 0; }
+
+  /* ---------- the ledger ---------- */
+  main { padding: 24px 0 56px; }
+  .section { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 1px 2px rgba(10, 60, 55, 0.04); overflow: hidden; }
+  .shead { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+  .shead h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.005em; color: var(--ink); }
+  .shead .count { color: var(--muted); font-size: 15px; }
+  .seg { display: inline-flex; padding: 3px; border-radius: 11px; background: var(--teal-50); border: 1px solid var(--line); }
+  .seg button { min-height: 38px; padding: 6px 14px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 600; font-size: 15px; }
+  .seg button[aria-pressed="true"] { background: #fff; color: var(--teal-800); box-shadow: 0 1px 3px rgba(10, 60, 55, 0.14); }
+  .examplenote { margin: 0; padding: 12px 20px; background: var(--amber-100); color: var(--amber-800); font-size: 15px; border-bottom: 1px solid #f3dfb3; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--muted); padding: 12px 12px 10px; border-bottom: 1px solid var(--line); background: #fbfdfd;
+  }
+  thead th:first-child { padding-left: 20px; }
+  thead th:last-child { padding-right: 20px; }
+  tbody tr { border-bottom: 1px solid var(--line); }
+  tbody tr:last-child { border-bottom: 0; }
+  tbody tr:hover { background: var(--teal-50); }
+  td { padding: 12px; vertical-align: middle; }
+  td:first-child { padding-left: 20px; }
+  td:last-child { padding-right: 20px; }
+  tr.lead { background: #fffbf2; }
+  tr.lead:hover { background: #fff6e3; }
+  td.mark { width: 118px; }
+  td.who { width: 196px; }
+  td.when { width: 128px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.go { width: 64px; text-align: right; }
+  tr.group td { padding: 14px 20px 8px; background: #fbfdfd; }
+  .ghead { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ink); }
+  .ghead .n { color: var(--muted); font-weight: 500; }
+  .file { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .ficon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex: none; }
+  .ficon svg { width: 18px; height: 18px; }
+  .fname { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+  .fmeta { color: var(--muted); font-size: 15px; overflow-wrap: break-word; }
+  .why { margin-top: 4px; color: var(--amber-800); font-size: 15px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pill.new { background: var(--teal-600); color: #fff; }
+  .pill.new::before { background: var(--teal-200); }
+  .pill.edited { background: var(--teal-50); color: var(--teal-800); box-shadow: inset 0 0 0 1px var(--teal-200); }
+  .pill.first { background: var(--amber-100); color: var(--amber-800); box-shadow: inset 0 0 0 1px #f5d9a0; }
+  .person { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--teal-900); flex: none; }
+  .avatar.none { background: #eef3f2; color: var(--faint); }
+  .avatar.none svg { width: 14px; height: 14px; }
+  .noname { color: var(--muted); }
+  .crumbs .sep { padding: 0 2px; color: var(--faint); }
+  .quiet { padding: 36px 20px; text-align: center; }
+  .quiet svg { width: 44px; height: 44px; color: var(--teal-500); }
+  .quiet h3 { margin: 8px 0 4px; font: 400 30px/1.2 var(--serif); color: var(--ink); }
+  .quiet p { margin: 0; color: var(--muted); }
+
+  /* ---------- ideas ---------- */
+  .ideas { margin-top: 28px; }
+  .ideas .shead { border-bottom: 0; padding-bottom: 4px; }
+  .ideas .lede { margin: 0; padding: 0 20px 16px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 20px 20px; }
+  .idea { display: flex; align-items: center; gap: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: #fff; }
+  .idea:hover { border-color: var(--teal-300); box-shadow: 0 8px 22px -16px rgba(10, 82, 78, 0.5); }
+  .idea .ic { width: 40px; height: 40px; border-radius: 10px; background: var(--teal-50); color: var(--teal-700); display: grid; place-items: center; flex: none; }
+  .idea .txt { flex: 1; min-width: 0; }
+  .idea h3 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.3; color: var(--ink); }
+  .idea p { margin: 3px 0 0; color: var(--muted); font-size: 16px; }
+  .idea .acts { display: flex; flex-direction: column; gap: 8px; flex: none; width: 176px; }
+  .idea .acts .btn { white-space: nowrap; }
+
+  .foot { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; margin-top: 22px; color: var(--muted); font-size: 15px; }
+  .foot b { color: var(--text); font-weight: 600; margin-right: 6px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); max-width: min(560px, calc(100vw - 32px));
+    background: var(--ink); color: #fff; padding: 13px 18px; border-radius: 12px; font-size: 16px; z-index: 10;
+    box-shadow: 0 16px 36px -16px rgba(0, 0, 0, 0.6);
+  }
+  .toast[hidden] { display: none; }
+  .loading { padding: 80px 0; text-align: center; color: var(--muted); }
+
+  @media (max-width: 1060px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    td.who { width: 170px; }
+  }
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+    .chart { max-width: 460px; }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 0 16px; }
+    .band { padding: 14px 0 22px; }
+    .hero { margin-top: 16px; gap: 20px; }
+    .sub { font-size: 17px; }
+    .days { height: 64px; }
+    .notice { grid-template-columns: minmax(0, 1fr); padding: 18px; }
+    .notice .acts { min-width: 0; }
+    .askform { flex-direction: column; }
+    .shead { padding: 16px; }
+    .seg { width: 100%; }
+    .seg button { flex: 1; padding: 6px 8px; }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; }
+    tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 8px; padding: 14px 16px; }
+    td { padding: 0 !important; width: auto !important; }
+    td.filecell { grid-column: 1; grid-row: 1; }
+    td.go { grid-column: 2; grid-row: 1; align-self: start; }
+    td.mark { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-left: 46px !important; }
+    td.who, td.when { display: none; }
+    .mobile-meta { display: inline-flex !important; align-items: center; gap: 10px; color: var(--muted); font-size: 15px; }
+    tr.group { display: block; padding: 0; }
+    tr.group td { padding: 12px 16px 8px !important; }
+    .grid { padding: 0 16px 16px; }
+    .idea { flex-wrap: wrap; align-items: flex-start; }
+    .idea .txt { flex: 1 1 200px; }
+    .idea .acts { width: 100%; }
+    .ideas .lede { padding: 0 16px 14px; }
+  }
+  .mobile-meta { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-
-  <header>
-    <h1>
-      <!-- The integration's own mark, inlined so the page still makes
-           zero external requests. -->
-      <svg class="mark" viewBox="0 0 1992.333 1946" aria-hidden="true"><circle fill="#036C70" cx="1019.333" cy="556" r="556"/> <circle fill="#1A9BA1" cx="1482.667" cy="1065.667" r="509.667"/> <circle fill="#37C6D0" cx="1088.833" cy="1552.167" r="393.833"/> <path opacity="0.1" enable-background="new " d="M1112,501.79v988.753c-0.23,34.357-21.05,65.222-52.82,78.303 c-10.116,4.279-20.987,6.484-31.97,6.487H695.463c-0.463-7.877-0.463-15.29-0.463-23.167c-0.154-7.734,0.155-15.47,0.927-23.167 c8.48-148.106,99.721-278.782,235.837-337.77v-86.18c-302.932-48.005-509.592-332.495-461.587-635.427 c0.333-2.098,0.677-4.195,1.034-6.289c2.306-15.626,5.556-31.099,9.73-46.333h546.27C1073.964,417.178,1111.822,455.036,1112,501.79 z"/> <path opacity="0.2" enable-background="new " d="M980.877,463.333H471.21c-51.486,302.386,151.908,589.256,454.293,640.742 c9.156,1.559,18.35,2.888,27.573,3.986c-143.633,68.11-248.3,261.552-257.196,420.938c-0.771,7.697-1.081,15.433-0.927,23.167 c0,7.877,0,15.29,0.463,23.167c0.836,15.574,2.85,31.063,6.023,46.333h279.39c34.357-0.23,65.222-21.05,78.303-52.82 c4.279-10.115,6.485-20.987,6.487-31.97V548.123C1065.443,501.387,1027.613,463.537,980.877,463.333z"/> <path opacity="0.2" enable-background="new " d="M980.877,463.333H471.21c-51.475,302.414,151.95,589.297,454.364,640.773 c6.186,1.053,12.389,2.001,18.607,2.844c-139,73.021-239.543,266-248.254,422.05h284.95c46.681-0.353,84.437-38.109,84.79-84.79 V548.123C1065.489,501.369,1027.631,463.511,980.877,463.333z"/> <path opacity="0.2" enable-background="new " d="M934.543,463.333H471.21c-48.606,285.482,130.279,560.404,410.977,631.616 C775.901,1216.384,710.711,1368.301,695.927,1529h238.617c46.754-0.178,84.612-38.036,84.79-84.79V548.123 C1019.308,501.306,981.361,463.359,934.543,463.333z"/> <linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="177.0788" y1="1551.0284" x2="842.2545" y2="398.9716" gradientTransform="matrix(1 0 0 -1 0 1948)"> <stop offset="0" style="stop-color:#058F92"/> <stop offset="0.5" style="stop-color:#038489"/> <stop offset="1" style="stop-color:#026D71"/> </linearGradient> <path fill="url(#SVGID_1_)" d="M84.929,463.333h849.475c46.905,0,84.929,38.024,84.929,84.929v849.475 c0,46.905-38.024,84.929-84.929,84.929H84.929c-46.905,0-84.929-38.024-84.929-84.929V548.262 C0,501.357,38.024,463.333,84.929,463.333z"/> <path fill="#FFFFFF" d="M379.331,962.621c-19.903-13.202-36.528-30.777-48.604-51.384c-11.701-21.542-17.533-45.781-16.912-70.288 c-1.042-33.181,10.155-65.586,31.46-91.045c22.388-25.49,51.326-44.366,83.678-54.581c36.871-12.136,75.49-18.116,114.304-17.699 c51.043-1.865,102.015,5.272,150.583,21.082v106.567c-21.103-12.784-44.088-22.166-68.11-27.8 c-26.065-6.392-52.81-9.597-79.647-9.545c-28.3-1.039-56.419,4.913-81.871,17.329c-19.65,8.475-32.392,27.807-32.433,49.206 c-0.08,12.981,4.907,25.481,13.9,34.843c10.622,11.037,23.187,20.021,37.067,26.503c15.444,7.691,38.611,17.916,69.5,30.673 c3.401,1.075,6.716,2.407,9.915,3.985c30.401,11.881,59.729,26.344,87.663,43.229c21.154,13.043,38.908,30.924,51.801,52.171 c13.218,24.085,19.625,51.315,18.533,78.767c1.509,34.066-8.913,67.591-29.468,94.798c-20.488,25.012-47.88,43.446-78.767,53.005 c-36.329,11.387-74.245,16.892-112.312,16.309c-34.154,0.155-68.258-2.635-101.933-8.34c-28.434-4.653-56.182-12.807-82.612-24.279 v-112.358c25.264,18.043,53.489,31.529,83.4,39.847c29.81,9.289,60.798,14.251,92.018,14.734c28.895,1.83,57.739-4.291,83.4-17.699 c17.976-10.144,28.909-29.358,28.449-49.994c0.12-14.359-5.56-28.158-15.753-38.271c-12.676-12.444-27.352-22.671-43.414-30.256 c-18.533-9.267-45.824-21.483-81.871-36.65C432.618,993.951,405.161,979.594,379.331,962.621z"/></svg>
-      SharePoint Week in Files
-    </h1>
-    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
-    <p class="sub">Every Monday, what your team changed in SharePoint while you weren't looking.</p>
-  </header>
-
-  <div id="root"><div class="card empty">Loading…</div></div>
-
-</div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-ledger" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-sheet" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 9.5h16M4 14.5h16M10 4v16" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v4h4M10 12h5M10 16h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-slides" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 8.5v5l4-2.5z" fill="currentColor"/><path d="M12 17v3M9 20h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 16.5c1.8-.6 3.6-2.6 4.2-5.4.2-1-.9-1.2-1.1-.3-.4 1.8 1.1 4.2 3.4 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-pic" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/><path d="M5 17l4.5-4.5 3 3 2.5-2.5 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-ask" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 15.5L20 20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3M4 11V9a3 3 0 0 1 3-3h13M7 21l-3-3 3-3M20 13v2a3 3 0 0 1-3 3H4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4h8l9 9-8 8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="8.5" r="1.5" fill="currentColor"/></symbol>
+    <symbol id="i-contract" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 17c1-1.6 1.8-1.6 2.6 0 .8 1.4 1.6 1.4 2.9-.3M10 11h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 8h6M9 12h6M9 16h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-copies" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 19c.6-3.2 2.8-4.8 5.5-4.8s4.9 1.6 5.5 4.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15.5 5.6a3 3 0 0 1 0 5.8M17 14.4c1.9.5 3.1 1.9 3.5 4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-report" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 16v-3M12 16V9M16 16v-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-steps" viewBox="0 0 24 24"><path d="M5 6h3M5 12h3M5 18h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M11 6h8M11 12h8M11 18h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 13h4.5l1.5 2.5h4L15.5 13H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+<div id="app"><p class="loading">Opening your team's week...</p></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
 (function () {
-  var root = document.getElementById('root');
-  var DIR = 'weekly-summaries';
-  var JOB = '.jobs/weekly-sharepoint-changes.yaml';
-  var job = null;
-  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-                'September', 'October', 'November', 'December'];
+  "use strict";
 
-  function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  var CONNECTOR = "sharepoint";
+  var JOB = "weekly-sharepoint-changes";
+  // Three quick questions under the ask box, the way an owner asks them.
+  var QUICK = [
+    "What should I look at first?",
+    "Who changed the most this week?",
+    "Which files are new this week?"
+  ];
+  // The Ideas gallery: business plays, each an outcome. `week` names when a routine would run.
+  var IDEAS = [
+    { icon: "i-tag", title: "What changed in our price list?", text: "Who changed prices this week, and what the list says now.",
+      ask: "What changed in our price list this week? Tell me who changed it, when, and what it says now.",
+      week: "Every Monday", routine: "every Monday at 8, tell me if our price list changed this week, who changed it and what it says now." },
+    { icon: "i-contract", title: "Which contracts were edited this month?", text: "Every contract and service agreement someone touched, with who and when.",
+      ask: "Which contracts or service agreements were edited this month? List them with who changed each one and when." },
+    { icon: "i-receipt", title: "List every new quote and invoice", text: "This week's quotes and invoices in one list, newest first.",
+      ask: "List every new quote and invoice from the last 7 days, newest first, with the customer name from the file name.",
+      week: "Every Monday", routine: "every Monday at 8, list every new quote and invoice from the last 7 days." },
+    { icon: "i-steps", title: "Summarize the newest procedure", text: "A short summary your team can read on a phone.",
+      ask: "Find the newest or most recently changed procedure document and write a short summary my team can read on a phone." },
+    { icon: "i-clock", title: "Find files nobody touched in a year", text: "A clean-up list of old files by folder. Nothing gets moved.",
+      ask: "Find documents nobody has changed in over a year. List them by folder. Do not move or delete anything." },
+    { icon: "i-copies", title: "Find duplicate and final v2 copies", text: "Files that look like copies of each other, so everyone uses the right one.",
+      ask: "Find files that look like copies of each other, like final, v2 or copy in the name, and tell me which one is the newest." },
+    { icon: "i-people", title: "What did each person work on?", text: "One line per person, with the files they changed this week.",
+      ask: "What did each person on my team work on this week? One line per person, with the files they changed.",
+      week: "Every Friday", routine: "every Friday at 4, give me one line per person on my team with the files they changed this week." },
+    { icon: "i-report", title: "Weekly files report to forward", text: "What changed and what needs a look, ready to send to a partner or office manager.",
+      ask: "Write a short weekly files report I can forward to my partner or office manager: what changed this week and what needs a look.",
+      week: "Every Monday", routine: "every Monday at 8, write a short files report I can forward: what changed last week and what needs a look." }
+  ];
+  var AVATAR = ["#b9e8e2", "#fde2b3", "#d7e3fb", "#f7d2dc", "#dcd3f6", "#cdeccf", "#fbd7c6"];
+
+  var cab = window.cabinet;
+  var v2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+
+  var st = {
+    here: null,
+    appDir: "week-in-files",
+    conn: null,
+    job: null,
+    real: undefined,
+    readProblem: null,
+    example: null,
+    connecting: false,
+    starting: false,
+    view: "all",
+    hasPast: false,
+    loaded: false
+  };
+
+  var $app = document.getElementById("app");
+  var $toast = document.getElementById("toast");
+  var toastTimer = null;
+
+  // ---------- helpers ----------
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+  function icon(id, cls) {
+    return '<svg class="i ' + (cls || "") + '" aria-hidden="true" focusable="false"><use href="#' + id + '"/></svg>';
+  }
+  function say(text) {
+    $toast.textContent = text;
+    $toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { $toast.hidden = true; }, 6000);
+  }
+  function plainError(error) {
+    return (error && error.message) || "That did not work. Try again in a moment.";
+  }
+  // A time with its own offset reads as the clock it was written in (the routine writes local
+  // time), so a made-up week in Ohio says 2:32 PM wherever it is opened.
+  function toDate(value) {
+    if (!value) return null;
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?[+-]\d{2}:?\d{2}$/.exec(String(value));
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
+    var d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  var DAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function clock(d) {
+    try { return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+    catch (e) { return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  }
+  function dayAndTime(d) { return DAY_SHORT[d.getDay()] + " " + clock(d); }
+  function longWhen(d) { return DAY_LONG[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3) + ", " + clock(d); }
+  function range(from, to) {
+    if (!from || !to) return "The last 7 days";
+    return from.getMonth() === to.getMonth()
+      ? from.getDate() + " to " + to.getDate() + " " + MONTHS[to.getMonth()]
+      : from.getDate() + " " + MONTHS[from.getMonth()] + " to " + to.getDate() + " " + MONTHS[to.getMonth()];
+  }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function kindOf(ext) {
+    ext = String(ext || "").toLowerCase();
+    if (/^(xlsx|xlsm|xls|csv|numbers|ods)$/.test(ext)) return { id: "i-sheet", word: "Spreadsheet", fg: "#0f7a4a", bg: "#e3f4ea" };
+    if (/^(docx|docm|doc|rtf|odt|txt|md|pages)$/.test(ext)) return { id: "i-doc", word: "Document", fg: "#1f5fbf", bg: "#e5eefb" };
+    if (/^(pptx|pptm|ppt|key|odp)$/.test(ext)) return { id: "i-slides", word: "Slides", fg: "#b4541a", bg: "#fbeadf" };
+    if (ext === "pdf") return { id: "i-pdf", word: "PDF", fg: "#b42331", bg: "#fbe6e8" };
+    if (/^(jpg|jpeg|png|gif|heic|webp|tif|tiff|bmp)$/.test(ext)) return { id: "i-pic", word: "Picture", fg: "#7a3fb8", bg: "#efe6fa" };
+    return { id: "i-file", word: "File", fg: "#536a68", bg: "#eef3f2" };
+  }
+  function initials(name) {
+    var parts = String(name).trim().split(/\s+/);
+    var first = parts[0] ? Array.from(parts[0])[0] : "?";
+    var last = parts.length > 1 ? Array.from(parts[parts.length - 1])[0] : "";
+    return (first + last).toUpperCase();
+  }
+  function sameName(a, b) { return !!a && !!b && String(a).trim().toLowerCase() === String(b).trim().toLowerCase(); }
+  var RTL = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
+  var LTR = /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/;
+  function dirOf(text) {
+    var chars = Array.from(String(text || ""));
+    for (var i = 0; i < chars.length; i++) {
+      if (RTL.test(chars[i])) return "rtl";
+      if (LTR.test(chars[i])) return "ltr";
+    }
+    return "ltr";
+  }
+  var manyLibraries = false;
+  function folderParts(change) {
+    var parts = [];
+    if (change.library && (manyLibraries || !change.folder)) parts.push(change.library);
+    String(change.folder || "").split("/").forEach(function (p) { if (p) parts.push(p); });
+    return parts;
+  }
+  function crumbs(parts) {
+    return '<span class="crumbs" dir="' + dirOf(parts.join(" ")) + '">' +
+      parts.map(function (p) { return "<bdi>" + esc(p) + "</bdi>"; }).join(' <span class="sep">›</span> ') + "</span>";
+  }
+  function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+
+  // ---------- reading files ----------
+
+  function readJson(path) {
+    if (v2) {
+      return cab.files.read(st.appDir + "/" + path).then(parseOrThrow, function (error) {
+        if (error && error.code === "not-found") return null;
+        if (error && (error.code === "no-cabinet" || error.code === "old-cabinet")) return fetchJson(path);
+        throw error;
+      });
+    }
+    return fetchJson(path);
+  }
+  function fetchJson(path) {
+    // An older Cabinet: the owner's own frame can read the files next to this page.
+    return fetch(path, { cache: "no-store" }).then(function (res) {
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Cabinet could not open this week's file.");
+      return res.text().then(parseOrThrow);
+    });
+  }
+  function parseOrThrow(text) {
+    try {
+      var data = JSON.parse(text);
+      if (!data || typeof data !== "object" || !Array.isArray(data.changes)) throw new Error("shape");
+      return data;
+    } catch (e) {
+      var err = new Error("This week's file could not be read. The next look writes a fresh one.");
+      err.code = "bad-file";
+      throw err;
+    }
+  }
+  function loadData() {
+    return Promise.all([
+      readJson("data/latest.json").then(function (d) { st.real = d; st.readProblem = null; }, function (e) {
+        if (st.real === undefined) st.real = null;
+        st.readProblem = plainError(e);
+      }),
+      st.example ? null : readJson("data/EXAMPLE-latest.json").then(function (d) { st.example = d; }, function () {})
+    ]).then(function () {
+      if (!v2) return;
+      return cab.files.list("").then(function (rows) {
+        st.hasPast = rows.some(function (r) { return r.isDir && r.name === "past-weeks"; });
+      }, function () {});
     });
   }
 
-  /* Frontmatter + markdown table, the only two shapes this page reads.
-     Anything richer belongs in the file, not in a parser here. */
-  function parse(text) {
-    var out = { meta: {}, rows: [], cols: [] };
-    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-    var body = text;
-    if (m) {
-      body = m[2];
-      m[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
-        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+  // ---------- Cabinet: connection, routine, asking ----------
+
+  function pickConn(list) {
+    st.conn = (list || []).filter(function (c) { return c.id === CONNECTOR; })[0] || null;
+  }
+  function pickJob(list) {
+    var jobs = list || [];
+    var before = st.job;
+    st.job = jobs.filter(function (j) { return j.id === JOB; })[0] || jobs[0] || null;
+    if (st.job && st.job.running) st.starting = false;
+    if (before && before.running && st.job && !st.job.running) {
+      if (st.job.lastRun && st.job.lastRun.ok === false) say("This week's look did not finish. Open the chat to see why, or try again.");
+      loadData().then(render);
+    }
+  }
+  // On Cabinet Cloud today only the owner starts a chat or a run (docs/apps/BRIDGE.md, "Who can call what").
+  function canEdit() {
+    if (!st.here) return true;
+    if (st.here.role === "owner") return true;
+    return st.here.role === "editor" && st.here.place !== "cloud";
+  }
+  function running() { return !!(st.starting || (st.job && st.job.running)); }
+  function canAsk() { return v2 && typeof cab.ask === "function" && canEdit(); }
+
+  function connect() {
+    if (!v2 || st.connecting) return;
+    st.connecting = true;
+    render();
+    cab.connectors.connect(CONNECTOR).then(function (how) {
+      st.connecting = false;
+      if (how === "connected") say("SharePoint is connected. Press Look now to see this week.");
+      return cab.connectors.list().then(pickConn);
+    }, function (error) {
+      st.connecting = false;
+      say(plainError(error));
+    }).then(render, render);
+  }
+  function lookNow() {
+    if (!v2 || !st.job || running()) return;
+    st.starting = true;
+    render();
+    cab.jobs.run(st.job.id).then(function () {
+      return cab.jobs.list().then(pickJob);
+    }, function (error) {
+      st.starting = false;
+      say(plainError(error));
+    }).then(render, render);
+  }
+  function ask(text, done) {
+    text = String(text || "").trim();
+    if (!text) { say("Type a question first."); return; }
+    if (!canAsk()) { say("Ask Site Watcher in this cabinet's chat."); return; }
+    cab.ask(text).then(function () {
+      say(done || "Asked. The answer opens in the chat beside this page.");
+    }, function (error) { say(plainError(error)); });
+  }
+  function changeSetup() {
+    if (!canAsk()) return;
+    cab.ask("Change what the weekly look watches: ", { send: false }).catch(function (error) { say(plainError(error)); });
+  }
+
+  // Where a file opens: its web address when the routine had one, else the file inside Cabinet.
+  function cabinetPathGuess() {
+    if (st.here && typeof st.here.cabinetPath === "string") return st.here.cabinetPath;
+    var p = location.pathname.replace(/^\/+/, "").replace(/^api\/assets\//, "");
+    return p.split("/").slice(0, -2).map(function (s) {
+      try { return decodeURIComponent(s); } catch (e) { return s; }
+    }).join("/");
+  }
+  function openHref(change) {
+    if (change.link && /^https:\/\//i.test(change.link)) return { href: change.link, target: "_blank" };
+    if (!change.path) return null;
+    var parts = cabinetPathGuess().split("/").filter(Boolean);
+    var up = false;
+    String(change.path).replace(/\\/g, "/").split("/").forEach(function (seg) {
+      if (!seg || seg === ".") return;
+      if (seg === "..") { if (parts.length) parts.pop(); else up = true; return; }
+      parts.push(seg);
+    });
+    if (up || !parts.length) return null;
+    var last = parts.length - 1;
+    parts[last] = parts[last].replace(/\.md$/i, "");
+    var sealed = st.here && st.here.role && st.here.role !== "owner";
+    return { href: "/workspace/" + parts.map(encodeURIComponent).join("/"), target: sealed ? "_blank" : "_top" };
+  }
+
+  // ---------- drawing ----------
+
+  function showing() {
+    if (st.real) return { data: st.real, example: st.real.example === true };
+    if (st.example) return { data: st.example, example: true };
+    return { data: null, example: true };
+  }
+
+  function statusPill() {
+    if (st.connecting) return '<span class="status busy"><span class="dot"></span>Connecting SharePoint</span>';
+    if (running()) return '<span class="status busy"><span class="dot"></span>Looking at this week now</span>';
+    var last = st.real && toDate(st.real.generatedAt);
+    if (!v2) return last ? '<span class="status"><span class="dot"></span>Updated ' + esc(longWhen(last)) + "</span>" : "";
+    var c = st.conn;
+    if (!c) return "";
+    if (c.state === "connected") {
+      return '<span class="status"><span class="dot"></span>SharePoint connected' + (last ? " · updated " + esc(longWhen(last)) : "") + "</span>";
+    }
+    if (c.state === "not-available-here") return '<span class="status off"><span class="dot"></span>SharePoint works on a computer</span>';
+    if (c.state === "not-added") return '<span class="status off"><span class="dot"></span>SharePoint not connected</span>';
+    return '<span class="status off"><span class="dot"></span>SharePoint needs you</span>';
+  }
+
+  function band(view) {
+    var d = view.data || {};
+    var changes = d.changes || [];
+    var total = typeof d.total === "number" ? d.total : changes.length;
+    var people = {}, folders = {};
+    changes.forEach(function (ch) {
+      if (ch.by) people[String(ch.by).trim().toLowerCase()] = 1;
+      folders[folderParts(ch).join("/")] = 1;
+    });
+    var nPeople = Object.keys(people).length, nFolders = Object.keys(folders).length;
+    var eyebrow = view.example
+      ? '<span class="tag-example">Example</span><span>' + esc(d.exampleBusiness || "A made-up company") + "</span>"
+      : "<span>" + esc(range(toDate(d.from), toDate(d.to))) + "</span>";
+    var headline = !changes.length && d.status !== "problem"
+      ? "A quiet week in SharePoint"
+      : esc(total) + " " + (total === 1 ? "file" : "files") + " changed this week";
+    var sub = changes.length
+      ? "By " + plural(nPeople, "person", "people") + " in " + plural(nFolders, "folder", "folders") + "."
+      : "";
+    var canRefresh = v2 && st.real && st.real.status !== "problem" && st.conn && st.conn.state === "connected" && canEdit();
+    return '<header class="band"><div class="wrap">' +
+      '<div class="bar"><span class="brand"><span class="mark">' + icon("i-ledger") + "</span>SharePoint Week</span>" +
+      statusPill() + '<span class="grow"></span>' +
+      (canRefresh ? '<button class="btn onband" data-act="look"' + (running() ? " disabled" : "") + ">" + icon("i-refresh") +
+        (running() ? "Looking..." : "Look again") + "</button>" : "") + "</div>" +
+      '<div class="hero"><div><p class="eyebrow">' + eyebrow + "</p><h1>" + headline + "</h1>" +
+      (sub ? '<p class="sub">' + esc(sub) + "</p>" : "") + "</div>" + (changes.length ? chart(d) : "") + "</div>" +
+      notice() + askBar() + "</div></header>";
+  }
+
+  // Changes per day of the week, starting on the day the look began. One series: no legend.
+  function chart(d) {
+    var from = toDate(d.from) || new Date(Date.now() - 7 * 864e5);
+    var start = from.getDay();
+    var counts = [0, 0, 0, 0, 0, 0, 0];
+    (d.changes || []).forEach(function (ch) {
+      var at = toDate(ch.changedAt);
+      if (at) counts[(at.getDay() - start + 7) % 7] += 1;
+    });
+    var max = Math.max.apply(null, counts);
+    var top = counts.indexOf(max);
+    var cols = "", names = "";
+    for (var i = 0; i < 7; i++) {
+      var dow = (start + i) % 7, n = counts[i];
+      var label = DAY_LONG[dow] + ": " + plural(n, "file", "files");
+      cols += '<div class="day" tabindex="0" role="img" aria-label="' + esc(label) + '"><span class="tip">' + esc(label) + "</span>" +
+        (i === top && max > 0 ? '<span class="val">' + n + "</span>" : "") +
+        '<span class="bar" style="height:' + (max ? Math.round((n / max) * 58) : 0) + 'px"></span></div>';
+      names += "<span>" + DAY_SHORT[dow] + "</span>";
+    }
+    return '<div class="chart"><div class="cap">Files changed each day</div><div class="days">' + cols +
+      '</div><div class="daynames" aria-hidden="true">' + names + "</div></div>";
+  }
+
+  // The one thing to do now, when there is one.
+  function notice() {
+    var c = st.conn;
+    var logo = c && c.logo ? '<img class="logo" alt="" src="' + esc(c.logo) + '">' : icon("i-link");
+    if (!v2) {
+      if (st.real) return "";
+      return card("See your own team's files here.",
+        "This is a made-up example. Connect SharePoint from Integrations in Cabinet, and every Monday this page shows what your team changed.", "");
+    }
+    if (c && c.state === "not-available-here") {
+      if (st.here && st.here.place === "cloud") {
+        return card("SharePoint works in Cabinet on a computer.",
+          "It reads your team's SharePoint folders through the OneDrive app on a computer, so it is not ready on Cabinet Cloud yet. Below is a made-up example of what it shows.", "");
+      }
+      return card("SharePoint is not ready here yet.",
+        (c.problem && c.problem.text ? esc(c.problem.text) + " " : "") + "Below is a made-up example of what it shows.", "");
+    }
+    if (c && (c.state === "needs-sign-in" || c.state === "needs-you")) {
+      return card("SharePoint needs you for a moment.",
+        esc((c.problem && c.problem.text) || "Cabinet cannot reach your SharePoint folders right now."),
+        c.canConnect ? '<button class="btn primary big" data-act="connect">' + logo + "Fix it</button>"
+          : '<span class="hint">Ask the owner of this cabinet to fix it.</span>');
+    }
+    if (st.connecting) {
+      return card("Connecting SharePoint...", "Finish the steps in the window Cabinet opened. This page fills in when you are done." + bar(), "");
+    }
+    if (!c || c.state === "not-added") {
+      if (!c) return "";
+      return card(st.real ? "SharePoint is not connected right now." : "See your own team's files here.",
+        st.real ? "This is the last week Cabinet saw. Connect SharePoint again to keep it up to date."
+          : "Connect SharePoint on this computer and every Monday this page shows what your team changed: price lists, contracts, procedures.",
+        c.canConnect
+          ? '<button class="btn primary big" data-act="connect">' + logo + "Connect SharePoint</button>" +
+            '<span class="hint">A few minutes, with the OneDrive app</span>'
+          : '<span class="hint">Ask the owner of this cabinet to connect SharePoint.</span>');
+    }
+    if (!st.real) {
+      if (running()) return card("Looking at your team's files now...", "It takes a minute or two, and this page fills in by itself." + bar(), "");
+      // The routine's schedule in Cabinet's own words ("Monday mornings at 8:00", or "Paused"), shown as given.
+      var when = (st.job && st.job.when) || "Every Monday at 8";
+      return card("SharePoint is connected.",
+        "Take the first look at your team's week now. Until then, below is a made-up example.",
+        (canEdit() && st.job ? '<button class="btn primary big" data-act="look">' + icon("i-search") + "Look now</button>"
+          : "") + '<span class="hint">Looks by itself: ' + esc(when) + "</span>");
+    }
+    if (st.real.status === "problem") {
+      return card("The last look could not read SharePoint.",
+        '<span dir="auto">' + esc(st.real.problem || "Something went wrong while reading the folders.") + "</span>",
+        canEdit() && st.job ? '<button class="btn primary big" data-act="look"' + (running() ? " disabled" : "") + ">" + icon("i-refresh") +
+          (running() ? "Looking..." : "Try again") + "</button>" : "");
+    }
+    if (st.readProblem) return card("This week's page could not be opened.", esc(st.readProblem), "");
+    return "";
+    function card(title, text, actions) {
+      return '<section class="notice" aria-live="polite"><div><h2>' + esc(title) + "</h2><p>" + text + "</p></div>" +
+        (actions ? '<div class="acts">' + actions + "</div>" : "") + "</section>";
+    }
+    function bar() { return '<span class="progress"><span></span></span>'; }
+  }
+
+  function askBar() {
+    if (!canAsk()) {
+      return '<div class="ask"><p class="asknote">' + (v2 ? (st.here && st.here.place === "cloud" ? "Only the cabinet's owner can ask from here." : "Only people who can edit this cabinet can ask from here.") :
+        "To ask about your files, open this cabinet's chat with Site Watcher.") + "</p></div>";
+    }
+    return '<div class="ask"><form class="askform" data-act="askform"><label class="sr" for="q">Ask about your team\'s files</label>' +
+      '<div class="askfield">' + icon("i-search") + '<input id="q" name="q" autocomplete="off" dir="auto" maxlength="600" placeholder="Ask about your team\'s files"></div>' +
+      '<button class="btn white big" type="submit">' + icon("i-ask") + "Ask</button></form>" +
+      '<div class="chips">' + QUICK.map(function (q) { return '<button class="chip" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>"; }).join("") +
+      "</div></div>";
+  }
+
+  function openButton(change, example) {
+    if (example) return '<button class="btn icon" data-act="example-open" aria-label="Open it (example)" title="Open it">' + icon("i-open") + "</button>";
+    var to = change && openHref(change);
+    if (!to) return "";
+    return '<a class="btn icon" href="' + esc(to.href) + '" target="' + to.target + '"' + (to.target === "_blank" ? ' rel="noopener noreferrer"' : "") +
+      ' aria-label="Open ' + esc(change.name) + '" title="Open it">' + icon("i-open") + "</a>";
+  }
+
+  function person(name, you) {
+    if (!name) return '<span class="person"><span class="avatar none" aria-hidden="true">' + icon("i-file") + '</span><span class="noname">No name on file</span></span>';
+    var label = sameName(name, you) ? "You" : String(name).trim();
+    var colour = AVATAR[Math.abs(hash(String(name).toLowerCase())) % AVATAR.length];
+    return '<span class="person"><span class="avatar" style="background:' + colour + '" aria-hidden="true">' + esc(initials(name)) +
+      "</span><bdi>" + esc(label) + "</bdi></span>";
+  }
+
+  function row(ch, view, lead) {
+    var kind = kindOf(ch.ext);
+    var at = toDate(ch.changedAt);
+    var you = view.data.settings && view.data.settings.you;
+    var marker = lead ? '<span class="pill first">Look first</span>' : ch.isNew ? '<span class="pill new">New</span>' : '<span class="pill edited">Edited</span>';
+    var when = at ? esc(dayAndTime(at)) : "";
+    return "<tr" + (lead ? ' class="lead"' : "") + ">" +
+      '<td class="filecell"><div class="file"><span class="ficon" style="background:' + kind.bg + ";color:" + kind.fg + '" role="img" aria-label="' + esc(kind.word) + '">' +
+      icon(kind.id) + '</span><div style="min-width:0"><div class="fname"><bdi>' + esc(ch.name || "Untitled") + '</bdi></div><div class="fmeta">' +
+      crumbs(folderParts(ch)) + "</div>" + (lead && view.data.lead.why ? '<div class="why" dir="auto">' + esc(view.data.lead.why) + "</div>" : "") +
+      "</div></div></td>" +
+      '<td class="mark">' + marker + '<span class="mobile-meta">' + person(ch.by, you) + "<span>" + when + "</span></span></td>" +
+      '<td class="who">' + person(ch.by, you) + "</td>" +
+      '<td class="when"' + (at ? ' title="' + esc(longWhen(at)) + '"' : "") + ">" + when + "</td>" +
+      '<td class="go">' + openButton(ch, view.example) + "</td></tr>";
+  }
+
+  function ledger(view) {
+    var d = view.data;
+    var changes = (d.changes || []).slice().sort(function (a, b) { return (toDate(b.changedAt) || 0) - (toDate(a.changedAt) || 0); });
+    var total = typeof d.total === "number" ? d.total : changes.length;
+    if (!changes.length) {
+      if (d.status === "problem") return "";
+      return '<section class="section"><div class="quiet">' + icon("i-inbox") + "<h3>A quiet week</h3><p>Nobody changed a file in these SharePoint folders between " +
+        esc(range(toDate(d.from), toDate(d.to)).replace(" to ", " and ")) + ".</p></div></section>";
+    }
+    var leadName = d.lead && d.lead.name;
+    var leadRow = leadName ? changes.filter(function (ch) { return ch.name === leadName; })[0] : null;
+    var head = '<div class="shead"><h2>Team files ledger</h2><span class="count">' +
+      esc(plural(total, "change", "changes") + (total > changes.length ? ", newest " + changes.length + " shown" : "")) + '</span><span class="grow"></span>' +
+      '<div class="seg" role="group" aria-label="Show the files">' +
+      ["all", "person", "folder"].map(function (v) {
+        return '<button data-act="view" data-view="' + v + '" aria-pressed="' + (st.view === v) + '">' + { all: "All changes", person: "By person", folder: "By folder" }[v] + "</button>";
+      }).join("") + "</div></div>";
+    var note = view.example ? '<p class="examplenote">This is a made-up week, so you can see how it works. Your own team\'s files show here once SharePoint is connected.</p>' : "";
+    var body = "";
+    if (st.view === "all") {
+      if (leadRow) body += row(leadRow, view, true);
+      changes.forEach(function (ch) { if (ch !== leadRow) body += row(ch, view, false); });
+    } else {
+      var groups = [], byKey = {};
+      var you = d.settings && d.settings.you;
+      changes.forEach(function (ch) {
+        var key = st.view === "person" ? (ch.by ? String(ch.by).trim().toLowerCase() : "") : folderParts(ch).join("/").toLowerCase();
+        if (!byKey[key]) {
+          byKey[key] = { key: key, rows: [], label: st.view === "person" ? "No name on these files" : folderParts(ch) };
+          groups.push(byKey[key]);
+        }
+        byKey[key].rows.push(ch);
+      });
+      var first = ((d.settings && d.settings.first) || []).map(function (f) { return String(f).toLowerCase(); });
+      groups.sort(function (a, b) {
+        if (st.view === "person" && !a.key !== !b.key) return a.key ? -1 : 1;
+        if (st.view === "folder") {
+          var fa = first.some(function (f) { return a.key.indexOf(f) >= 0; }), fb = first.some(function (f) { return b.key.indexOf(f) >= 0; });
+          if (fa !== fb) return fa ? -1 : 1;
+        }
+        return b.rows.length - a.rows.length;
+      });
+      groups.forEach(function (g) {
+        var title = st.view === "person"
+          ? (g.key ? person(g.rows[0].by, you) : '<span class="noname">' + esc(g.label) + "</span>")
+          : icon("i-folder") + crumbs(g.label);
+        body += '<tr class="group"><td colspan="5"><div class="ghead">' + title + '<span class="n">' + esc(plural(g.rows.length, "file", "files")) + "</span></div></td></tr>";
+        g.rows.forEach(function (ch) { body += row(ch, view, ch === leadRow); });
       });
     }
-    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
-    if (lines.length < 2) return out;
-    function cells(l) {
-      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
-    }
-    out.cols = cells(lines[0]);
-    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
-    return out;
+    return '<section class="section" aria-label="Team files ledger">' + head + note +
+      '<table><thead><tr><th>File</th><th>Change</th><th>Changed by</th><th>When</th><th><span class="sr">Open</span></th></tr></thead><tbody>' +
+      body + "</tbody></table></section>";
   }
 
-  /* Four words, and every one of them has a rule above. A value the agent invents still
-     has to render, so it lands on t-other rather than on a class that does not exist. */
-  function touchClass(cell) {
-    var k = String(cell).trim().toLowerCase();
-    if (k === 'yours') return 't-yours';
-    if (k === 'worked on it') return 't-worked';
-    if (k === 'not yours') return 't-not-yours';
-    if (k === 'unclear') return 't-unclear';
-    return 't-other';
+  function ideas() {
+    var asking = canAsk();
+    return '<section class="section ideas" aria-label="Ideas for your business"><div class="shead"><h2>Ideas for your business</h2></div>' +
+      '<p class="lede">' + (asking ? "One tap asks Site Watcher now. Switch one on and it comes to you on its own, once you approve it in the chat."
+        : v2 ? (st.here && st.here.place === "cloud" ? "Only the cabinet's owner can ask from here." : "Only people who can edit this cabinet can ask from here.") : "Ask any of these in this cabinet's chat with Site Watcher.") + "</p>" +
+      '<div class="grid">' + IDEAS.map(function (idea, i) {
+        var acts = asking
+          ? '<div class="acts"><button class="btn" data-act="idea" data-i="' + i + '">' + icon("i-ask") + "Ask now</button>" +
+            (idea.week ? '<button class="btn" data-act="routine" data-i="' + i + '">' + icon("i-repeat") + esc(idea.week) + "</button>" : "") + "</div>"
+          : "";
+        return '<article class="idea"><span class="ic">' + icon(idea.icon) + '</span><div class="txt"><h3>' + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p></div>" + acts + "</article>";
+      }).join("") + "</div></section>";
   }
 
-  function render(data, name, files) {
-    var meta = data.meta, html = picker(name, files);
-
-    /* The routine could not reach SharePoint. It said so rather than writing nothing. */
-    if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">Last run could not reach ' +
-              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
-              '. Showing the previous result.</div>';
+  function footer(view) {
+    var d = view.data || {};
+    var s = d.settings || {};
+    var bits = [];
+    if (!view.example && d.folders && d.folders.length) bits.push("<span><b>Watching</b>" + d.folders.map(function (f) { return "<bdi>" + esc(f) + "</bdi>"; }).join(", ") + "</span>");
+    if (!view.example && s.first && s.first.length) bits.push("<span><b>First</b>" + s.first.map(function (f) { return "<bdi>" + esc(f) + "</bdi>"; }).join(", ") + "</span>");
+    if (!view.example && s.skip && s.skip.length) bits.push("<span><b>Skipping</b>" + s.skip.map(function (f) { return "<bdi>" + esc(f) + "</bdi>"; }).join(", ") + "</span>");
+    var html = '<footer class="foot">' + bits.join("") + '<span class="grow"></span>';
+    if (st.hasPast && st.here) {
+      var past = "/workspace/" + st.here.cabinetPath.split("/").map(encodeURIComponent).join("/") + "/past-weeks";
+      html += '<a class="btn" href="' + esc(past) + '" target="' + (st.here.role === "owner" ? "_top" : "_blank") + '">' + icon("i-folder") + "Past weeks</a>";
     }
+    if (canAsk() && !view.example) html += '<button class="btn" data-act="setup">Change what it watches</button>';
+    return html + "</footer>";
+  }
 
-    /* The single most consequential change, in one sentence — absent most weeks on purpose. */
-    if (meta.lead && meta.verdict) {
-      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
-              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
-              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
-    }
-
-    if (!data.rows.length) {
-      html += '<div class="card empty">Nothing to show for this day.</div>';
-      root.innerHTML = html;
-      bind(files);
+  function render() {
+    var view = showing();
+    if (!view.data) {
+      $app.innerHTML = '<p class="loading">' + (st.loaded ? "The example is missing from this app's folder." : "Opening your team's week...") + "</p>";
       return;
     }
-
-    var urlCol = data.cols.findIndex(function (c) { return c.toLowerCase() === 'url'; });
-
-    var t = '<div class="card scroll"><table><thead><tr>';
-    data.cols.forEach(function (c) {
-      if (c.toLowerCase() === 'url') return;
-      t += '<th>' + esc(c) + '</th>';
-    });
-    t += '</tr></thead><tbody>';
-    data.rows.forEach(function (r) {
-      var url = urlCol > -1 ? r[urlCol] : '';
-      t += '<tr>';
-      r.forEach(function (cell, i) {
-        var head = (data.cols[i] || '').toLowerCase();
-        if (head === 'url') {
-          return;
-        } else if (head === 'touches you') {
-          t += '<td><span class="pill ' + touchClass(cell) + '">' + esc(cell) + '</span></td>';
-        } else if (head === 'file') {
-          var text = url ? '<a class="deep-link" href="' + esc(url) +
-            '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a>' : esc(cell);
-          t += '<td class="name">' + text + '</td>';
-        } else if (head === 'site') {
-          t += '<td class="site">' + esc(cell) + '</td>';
-        } else if (head === 'changed') {
-          t += '<td class="changed">' + esc(cell) + '</td>';
-        } else {
-          t += '<td>' + esc(cell) + '</td>';
-        }
-      });
-      t += '</tr>';
-    });
-    t += '</tbody></table></div>';
-
-    root.innerHTML = html + t;
-    bind(files);
+    var libs = {};
+    (view.data.changes || []).forEach(function (ch) { if (ch.library) libs[ch.library] = 1; });
+    manyLibraries = Object.keys(libs).length > 1;
+    // A redraw while someone types keeps their words and their place.
+    var typing = document.activeElement && document.activeElement.id === "q" ? document.activeElement.value : null;
+    $app.innerHTML = band(view) + '<main class="wrap">' + ledger(view) + ideas() + footer(view) + "</main>";
+    if (typing !== null) { var q = document.getElementById("q"); if (q) { q.value = typing; q.focus(); } }
   }
 
-  /* ---- the folder of summaries ------------------------------------------------------ */
+  // ---------- presses ----------
 
-  /* 2026-08-10T07-00-00-sharepoint-summary.md — the name carries the date, so the picker
-     is built from names alone. EXAMPLE-sharepoint-summary.md is the one file without one. */
-  function stamp(name) {
-    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
-    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
-  }
-
-  function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
-           a.getDate() === b.getDate();
-  }
-
-  function human(d) {
-    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
-           d.getFullYear();
-  }
-
-  function label(name) {
-    var d = stamp(name);
-    if (!d) return 'SharePoint Weekly Example';
-    var now = new Date(), yday = new Date(now.getTime() - 86400000);
-    if (sameDay(d, now)) return 'This week';
-    if (sameDay(d, yday)) return 'Last week';
-    return human(d);
-  }
-
-  function picker(current, files) {
-    var html = '';
-    if (files.length) {
-      var opts = files.map(function (f) {
-        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
-               esc(label(f)) + '</option>';
-      }).join('');
-      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+  $app.addEventListener("click", function (event) {
+    var el = event.target.closest("[data-act]");
+    if (!el || el.tagName === "FORM") return;
+    var act = el.getAttribute("data-act");
+    if (act === "connect") connect();
+    else if (act === "look") lookNow();
+    else if (act === "ask") ask(el.getAttribute("data-q"));
+    else if (act === "idea") ask(IDEAS[+el.getAttribute("data-i")].ask);
+    else if (act === "routine") {
+      var idea = IDEAS[+el.getAttribute("data-i")];
+      ask("Please set this up as a routine for this cabinet: " + idea.routine + " Show it to me first so I can approve it.",
+        "Asked. Approve the new routine in the chat beside this page.");
     }
-    var next = nextRunText();
-    if (next) html += '<span class="next">' + esc(next) + '</span>';
-    return html ? '<div class="picker">' + html + '</div>' : '';
-  }
-
-  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
-  function bind(files) {
-    var sel = document.getElementById('pick');
-    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
-  }
-
-  function show(name, files) {
-    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      })
-      .then(function (text) { render(parse(text), name, files); })
-      .catch(function (err) {
-        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
-          'in a moment.</div>';
-        bind(files);
-      });
-  }
-
-  /* ---- when the routine next runs ---------------------------------------------------
-     Read straight off this cabinet's own job file, so a user who edits the schedule or
-     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
-     which is the same host the routine runs on. */
-
-  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
-  function field(spec, min, max) {
-    var set = {};
-    spec.split(',').forEach(function (part) {
-      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
-      if (bits[0] !== '*') {
-        var r = bits[0].split('-');
-        lo = +r[0];
-        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
-      }
-      for (var v = lo; v <= hi; v += step) set[v] = true;
-    });
-    return set;
-  }
-
-  function nextRun(cron, from) {
-    var f = cron.trim().split(/\s+/);
-    if (f.length !== 5) return null;
-    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
-        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
-    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
-    var d = new Date(from.getTime() + 60000);
-    d.setSeconds(0, 0);
-    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
-       stops a schedule that can never match (30 February) from spinning. */
-    for (var i = 0; i < 366 * 1440; i++) {
-      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
-          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
-      d = new Date(d.getTime() + 60000);
+    else if (act === "view") { st.view = el.getAttribute("data-view"); render(); }
+    else if (act === "setup") changeSetup();
+    else if (act === "example-open") {
+      say(st.conn && st.conn.canConnect && st.conn.state !== "connected"
+        ? "This is a made-up example file. Connect SharePoint to open your own."
+        : "This is a made-up example file, so there is nothing to open.");
     }
-    return null;
-  }
+  });
+  $app.addEventListener("submit", function (event) {
+    var form = event.target.closest("[data-act='askform']");
+    if (!form) return;
+    event.preventDefault();
+    var input = form.querySelector("input");
+    ask(input.value);
+    input.value = "";
+  });
 
-  function nextRunText() {
-    if (!job) return '';
-    if (job.enabled === 'false') return 'Routine paused';
-    if (!job.schedule) return '';
-    var d = nextRun(job.schedule, new Date());
-    if (!d) return '';
-    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    return 'Next run: ' + human(d) + ' at ' + clock;
-  }
+  // ---------- start ----------
 
-  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
-     tells the page which cabinet it is installed in, whatever the user named it. */
-  function cabinetDir() {
-    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
-    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  function start() {
+    if (!v2) {
+      loadData().then(function () { st.loaded = true; render(); });
+      return;
+    }
+    Promise.resolve(cab.ready).then(function () { return cab.here(); }).then(function (here) {
+      st.here = here;
+      if (here && here.appPath) st.appDir = here.appPath;
+    }, function (error) {
+      // Opened outside Cabinet: read the files next to this page, as an older Cabinet would.
+      if (error && (error.code === "no-cabinet" || error.code === "old-cabinet")) v2 = false;
+    }).then(function () {
+      if (!v2) return loadData();
+      cab.connectors.onChange(function (list) { pickConn(list); render(); });
+      cab.jobs.onChange(function (list) { pickJob(list); render(); });
+      cab.files.onChange(st.appDir + "/data", function () { loadData().then(render); });
+      return Promise.all([
+        cab.connectors.list().then(pickConn, function () {}),
+        cab.jobs.list().then(pickJob, function () {}),
+        loadData()
+      ]);
+    }).then(function () { st.loaded = true; render(); }, function () { st.loaded = true; render(); });
   }
-
-  /* Direct .md children of the folder only — never a nested one.
-     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
-     separately: `path` decides what lives in the folder, `name` is what we fetch. */
-  function listFiles(nodes, dir, out) {
-    (nodes || []).forEach(function (n) {
-      if (!n || !n.path) return;
-      if (n.path.indexOf(dir + '/') === 0 &&
-          n.path.indexOf('/', dir.length + 1) === -1 &&
-          /\.md$/i.test(n.name || '')) out.push(n.name);
-      if (n.children) listFiles(n.children, dir, out);
-    });
-    return out;
-  }
-
-  /* An empty folder is the normal state before the first run — not an error to shout about.
-     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
-  Promise.all([
-    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }),
-    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
-    fetch('../' + JOB, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .catch(function () { return ''; })
-  ])
-    .then(function (both) {
-      var tree = both[0];
-      job = {};
-      both[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
-      });
-      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
-      if (!files.length) {
-        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
-        return;
-      }
-      /* Newest first; the example, having no date, sits at the bottom of the list. */
-      files.sort(function (a, b) {
-        var da = stamp(a), db = stamp(b);
-        if (da && db) return db - da;
-        return da ? -1 : db ? 1 : 0;
-      });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
-    })
-    .catch(function (err) {
-      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
-        esc(err.message) + '). Reload in a moment.</div>';
-    });
+  start();
 })();
 </script>
 </body>

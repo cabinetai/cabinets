@@ -4,37 +4,58 @@ enabled: true
 schedule: 0 8 * * 1
 provider: claude-code
 adapterType: claude_local
+adapterConfig:
+  model: sonnet
+  effort: low
 ownerAgent: site-watcher
 agentSlug: site-watcher
 timeout: 900
 prompt: |-
-  Write this Monday's page of what changed in SharePoint.
+  Look at what changed in the team's SharePoint folders in the last 7 days and write it
+  down for the Week in Files app. You only read SharePoint. You write exactly two files,
+  both in this cabinet's folder, and nothing anywhere else.
 
-  Your working directory is the cabinet root. Every summary lives in `weekly-summaries/`,
-  one file per run, named `<YYYY-MM-DD>T<HH-MM-SS>-sharepoint-summary.md`: the local time
-  you ran, then that exact postfix. The page reads the folder, sorts by the name and opens
-  the newest, so a name in any other shape is a summary nobody will see. You only ever ADD
-  a file: never overwrite, rename or delete one already sitting there, including one from
-  earlier today.
+  1. The "Connections this cabinet uses" part of your instructions names the SharePoint
+     folders: "the files under <path>", relative to this cabinet's folder. Read the
+     person's settings and list those files in one command, run from this cabinet's
+     folder, once per <path>. On a Mac:
 
-  1. Read your persona before anything else. It holds the frontmatter shape, the table
-     columns, the `Changed` and `Touches you` vocabularies, the row order and the tone.
-     This prompt does not repeat them.
-  2. Look through the SharePoint folders in this cabinet's sidebar, or your Microsoft 365
-     tools if that is how it is connected, and list every file changed in the last seven
-     days. File dates say when; Office files already on this computer name who saved
-     them last. Drop every change the user made themselves. This page is about everyone
-     else.
-  3. This run is read only. Do not edit, rename, move, share or delete a document, and do
-     not send mail, touch a calendar event or post to Teams.
-  4. If a read fails, say which way in you tried and what it said, touch no file, and stop.
-     Leave `weekly-summaries/` exactly as you found it, example and all.
-  5. A week in which nobody else changed anything is a real result. Write the file with an
-     empty table and a headline saying so. Never pad it with the user's own edits, and
-     never reach further back than seven days to fill it out.
-  6. On the first run that does reach SharePoint, write your dated file and then delete
-     `weekly-summaries/EXAMPLE-sharepoint-summary.md`. It is a demo, not a past summary,
-     and it must not sit in the date list beside real ones. Do not merge with it, do not
-     rename it, and never write `EXAMPLE` into a name of your own.
+     cat week-in-files/setup.md; find "<path>" -name '.*' -prune -o -type f -mtime -7 ! -name '~$*' -exec sh -c 'for f; do by=$(unzip -p "$f" docProps/core.xml 2>/dev/null | sed -n "s#.*<cp:lastModifiedBy>\([^<]*\)</cp:lastModifiedBy>.*#\1#p" | head -n 1); printf "%s\t%s\t%s\t%s\n" "$f" "$(stat -f %Sm -t %Y-%m-%dT%H:%M:%S%z "$f")" "$(stat -f %SB -t %Y-%m-%dT%H:%M:%S%z "$f")" "$by"; done' sh {} +
+
+     On Windows, get the same four things with PowerShell. Each line is: the file's path,
+     when it last changed, when it was made, and who saved it last. Only Word, Excel and
+     PowerPoint files say who; an empty last column means not known. That command only
+     reads; run nothing else inside the SharePoint folders.
+
+  2. Write `week-in-files/data/latest.json`, newest change first, at most 60 changes:
+     {"version": 1, "generatedAt": <now, ISO with time zone>, "from": <now minus 7 days>,
+      "to": <now>, "status": "ok", "problem": null, "way": "folder",
+      "folders": [<the last folder name of each <path>>], "total": <count of all changes>,
+      "lead": {"name": <one file name>, "why": <one short sentence>} or null,
+      "settings": {"you": <name at work or null>, "first": [<folders>], "skip": [<folders>]},
+      "changes": [{"name": <file name without extension>, "ext": <extension, lower case>,
+        "folder": <the folders between <path> and the file, joined by "/", "" at the top>,
+        "library": <the last folder name of <path>>, "changedAt": <second column as it is>,
+        "by": <last column, or null when empty>, "isNew": <true only when the third column
+        is inside the 7 days and differs from most other files' third column>,
+        "path": <first column, exactly as printed>, "link": null}]}
+     Leave out every file under a folder the settings skip. Pick `lead` from the folders
+     that matter most when one of them changed; write null when nothing stands out.
+     Copy names and paths exactly as the command printed them: never guess, translate or
+     shorten a name.
+
+  3. Write `past-weeks/<today as YYYY-MM-DD>.md` (it replaces that day's page if there is
+     one; leave `past-weeks/index.md` alone). Frontmatter holds only `title`, the dates
+     in words, for example `title: 14 to 21 September 2026`. Then, in plain sentences: how
+     many files changed, the one to look at first and why, then the files under a heading
+     per folder, each with when and who.
+
+  If a SharePoint folder cannot be read, or your instructions say SharePoint is not
+  connected, write only latest.json, with "status": "problem", one plain sentence in
+  "problem" that the person can act on, and an empty "changes" list. Then stop.
+
+  A week with no changes is a real answer: write it with an empty list. Never quote what
+  a document says. Never use a long dash in either file; use a comma or a colon.
+  `week-in-files/DATA.md` explains every field if you need more.
 createdAt: '2026-09-01T11:33:24.906Z'
-updatedAt: '2026-09-01T11:33:24.906Z'
+updatedAt: '2026-09-25T00:00:00.000Z'
