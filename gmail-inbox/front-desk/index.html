@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<!--
+  Gmail Inbox: the front desk. The cabinet opens on this page.
+
+  For a small business owner: who is waiting on an answer (leads and customers first),
+  quotes and invoices, bills to pay, one tap to a drafted reply, and an Ideas gallery of
+  business plays, each one tap to ask now or to switch on as a routine.
+
+  Where the words come from: the morning routine reads Gmail and writes data/latest.json
+  next to this page (the shape is data/EXAMPLE-latest.json: a made-up HVAC company, always
+  labelled as an example here). The Friday routine writes data/loose-ends.json. A routine
+  that could not read the mail writes data/status.json with ok:false and why. setup.md
+  holds what the owner told the cabinet about the business.
+
+  How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
+  routine, read files). In an older Cabinet it reads the same files over the page's own
+  address and says to connect Gmail from Integrations. It never changes anything in
+  Gmail: replies and routines go through the chat, where the agent asks first.
+
+  One file on purpose: a sealed frame cannot load files next to it. Plus Jakarta Sans
+  from Google Fonts with system fallbacks; icons are inline SVG.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Front desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --page: #ffffff;
+    --panel: #f6f7f9;
+    --panel-2: #eef0f4;
+    --line: #e5e7ec;
+    --line-2: #d4d8df;
+    --ink: #101217;
+    --ink-2: #3e4450;
+    --ink-3: #626a78;
+
+    --red: #ea4335;
+    --red-ink: #c5221f;
+    --red-deep: #a8191a;
+    --red-tint: #fdecea;
+    --blue: #1a73e8;
+    --blue-ink: #1558b0;
+    --blue-tint: #e8f0fe;
+    --green: #1e8e3e;
+    --green-ink: #137333;
+    --green-tint: #e6f4ea;
+    --amber: #f9ab00;
+    --amber-ink: #8a5a00;
+    --amber-tint: #fef7e0;
+
+    --shadow-1: 0 1px 2px rgba(16, 18, 23, .06);
+    --shadow-2: 0 1px 2px rgba(16, 18, 23, .05), 0 14px 36px -18px rgba(16, 18, 23, .28);
+    --radius: 14px;
+    --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--blue-ink); }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 2px; border-radius: 10px; }
+  .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ── Top bar ─────────────────────────────────────────────────────────── */
+  .bar { border-top: 4px solid var(--red); border-bottom: 1px solid var(--line); background: var(--page); }
+  .bar-in { max-width: 1280px; margin: 0 auto; padding: 16px 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark { width: 40px; height: 40px; border-radius: 11px; background: var(--red); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 16px -8px rgba(234, 67, 53, .8); flex: none; }
+  .mark .icon { width: 22px; height: 22px; stroke-width: 2.1; }
+  .brand h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+  .brand p { margin: 0; color: var(--ink-3); font-size: 14px; }
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: var(--panel); font-weight: 600; font-size: 14px; }
+  .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); }
+  .pill.ok { background: var(--green-tint); color: var(--green-ink); }
+  .pill.ok .dot { background: var(--green); }
+  .pill.warn { background: var(--amber-tint); color: var(--amber-ink); }
+  .pill.warn .dot { background: var(--amber); }
+  .pill.off { background: var(--red-tint); color: var(--red-ink); }
+  .pill.off .dot { background: var(--red); }
+  .updated { color: var(--ink-3); font-size: 14px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px;
+    border-radius: 11px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink);
+    font-weight: 600; font-size: 15px; text-decoration: none; white-space: nowrap;
+    box-shadow: var(--shadow-1); transition: background .15s ease, border-color .15s ease, transform .1s ease;
+  }
+  .btn:hover { background: var(--panel); border-color: #c3c8d1; }
+  .btn:active { transform: translateY(1px); }
+  .btn[disabled] { cursor: default; opacity: .6; transform: none; }
+  .btn.primary { background: var(--red); border-color: var(--red); color: #fff; box-shadow: 0 8px 18px -10px rgba(234, 67, 53, .9); }
+  .btn.primary:hover { background: #d93b2d; border-color: #d93b2d; }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.dark:hover { background: #262a33; }
+  .btn.big { min-height: 52px; padding: 13px 24px; font-size: 17px; border-radius: 13px; }
+  .btn.quiet { border-color: transparent; box-shadow: none; background: transparent; color: var(--blue-ink); padding-inline: 10px; }
+  .btn.quiet:hover { background: var(--blue-tint); }
+
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 26px 28px 40px; }
+  .main { display: flex; flex-direction: column; gap: 26px; }
+
+  /* ── Hero: the one answer and the numbers ────────────────────────────── */
+  .hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .hero h2 { margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
+  .hero .lead { margin: 10px 0 0; font-size: 18px; color: var(--ink-2); max-width: 70ch; }
+  .hero .lead b { color: var(--ink); font-weight: 700; }
+  .hero .fine { margin: 8px 0 0; font-size: 15px; color: var(--ink-3); }
+  .hero .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .kpi {
+    display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; border-radius: var(--radius);
+    border: 1px solid var(--line); background: var(--page); box-shadow: var(--shadow-1); text-decoration: none; color: inherit; min-height: 44px;
+  }
+  .kpi:hover { border-color: var(--line-2); box-shadow: var(--shadow-2); }
+  .kpi .label { font-size: 14px; font-weight: 600; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+  .kpi .value { font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+  .kpi .sub { font-size: 14px; color: var(--ink-3); }
+  .kpi.first { background: var(--red); border-color: var(--red); color: #fff; box-shadow: 0 16px 34px -18px rgba(234, 67, 53, .95); }
+  .kpi.first .label, .kpi.first .sub { color: rgba(255, 255, 255, .88); }
+  .kpi.first:hover { background: #df3e30; }
+  .kpi.calm { background: var(--green-tint); border-color: #bfe3cb; color: var(--green-ink); box-shadow: var(--shadow-1); }
+  .kpi.calm .label, .kpi.calm .sub { color: var(--green-ink); }
+  .kpi.calm:hover { background: #d8efe0; }
+  .kpi .value.none, .kpi.money .value.none { color: var(--ink-3); }
+  .kpi.money .value { color: var(--green-ink); }
+  .kpi.bills .value { color: var(--ink); }
+  .kpi .sub .hot { color: var(--red-ink); font-weight: 700; }
+
+  /* The panel under a connection problem or before the first sort. */
+  .card-hero {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center;
+    padding: 26px 28px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fff, #fbfbfc);
+    box-shadow: var(--shadow-2);
+  }
+  .art { width: 132px; height: 104px; }
+  .card-hero h2 { font-size: clamp(24px, 2.8vw, 32px); }
+  .steps { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; padding: 0; list-style: none; color: var(--ink-2); font-size: 15px; }
+  .steps li { display: flex; align-items: center; gap: 8px; }
+  .steps .icon { color: var(--green); width: 18px; height: 18px; }
+
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: var(--red-tint); color: var(--ink); border: 1px solid #f6c7c2; }
+  .notice .icon { color: var(--red-ink); margin-top: 2px; }
+  .notice p { margin: 0; }
+  .notice .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border-radius: 12px; background: var(--amber-tint); border: 1px solid #f5dfa0; }
+  .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .tag-example { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+  /* ── The board: the priority lane and the money ──────────────────────── */
+  .board {
+    display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
+    grid-template-areas: "main side" "ask side"; gap: 22px; align-items: start;
+  }
+  .b-main { grid-area: main; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  .side { grid-area: side; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  .board > .ask { grid-area: ask; }
+  .lane { border: 1px solid var(--line); border-radius: 18px; background: var(--page); box-shadow: var(--shadow-1); overflow: hidden; }
+  .lane-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  .lane-head h3 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; flex: 1; }
+  .lane-head .count { min-width: 28px; height: 28px; padding: 0 9px; border-radius: 999px; display: grid; place-items: center; font-size: 14px; font-weight: 800; background: var(--panel); color: var(--ink-2); }
+  .lane-head .total { font-size: 15px; font-weight: 700; color: var(--ink-2); }
+  .lane.waiting .lane-head { border-top: 3px solid var(--red); }
+  .lane.waiting .count { background: var(--red); color: #fff; }
+  .lane.waiting .count.zero { background: var(--panel); color: var(--ink-2); }
+  .lane.money .lane-head { border-top: 3px solid var(--green); }
+  .lane.bills .lane-head { border-top: 3px solid var(--amber); }
+  .lane.more .lane-head { border-top: 3px solid var(--blue); }
+  .lane-head .lane-icon { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; }
+  .lane.waiting .lane-icon { background: var(--red-tint); color: var(--red-ink); }
+  .lane.money .lane-icon { background: var(--green-tint); color: var(--green-ink); }
+  .lane.bills .lane-icon { background: var(--amber-tint); color: var(--amber-ink); }
+  .lane.more .lane-icon { background: var(--blue-tint); color: var(--blue-ink); }
+  .lane-empty { padding: 18px; color: var(--ink-3); margin: 0; }
+
+  .rows { list-style: none; margin: 0; padding: 0; }
+  .row { border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; width: 100%; text-align: start; padding: 16px 18px; border: 0; background: transparent; }
+  .row-main:hover { background: var(--panel); }
+  .row.open .row-main { background: var(--panel); }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #fff; grid-row: span 2; }
+  .who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+  .who b { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+  .who .co { color: var(--ink-3); font-size: 14px; }
+  .when { font-size: 14px; color: var(--ink-3); white-space: nowrap; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; grid-row: span 2; }
+  .drafted { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; color: var(--green-ink); }
+  .drafted .icon { width: 14px; height: 14px; }
+  .gist { grid-column: 2; color: var(--ink-2); font-size: 16px; overflow-wrap: anywhere; }
+  .chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700; letter-spacing: .02em; background: var(--panel-2); color: var(--ink-2); white-space: nowrap; }
+  .chip .icon { width: 13px; height: 13px; stroke-width: 2.2; }
+  .chip.lead { background: var(--red-tint); color: var(--red-ink); }
+  .chip.customer { background: var(--blue-tint); color: var(--blue-ink); }
+  .chip.vendor { background: var(--panel-2); color: var(--ink-2); }
+  .chip.hot { background: var(--red); color: #fff; }
+  .chip.wait { background: var(--amber-tint); color: var(--amber-ink); }
+  .chip.ok { background: var(--green-tint); color: var(--green-ink); }
+  .chip.soon { background: var(--amber-tint); color: var(--amber-ink); }
+  .chip.open { background: var(--blue-tint); color: var(--blue-ink); }
+
+  .row-body { padding: 0 18px 18px 72px; background: var(--panel); }
+  .row-body .short { margin: 0; color: var(--ink); font-size: 16px; line-height: 1.55; }
+  .row-body .subject { margin: 0 0 8px; font-size: 14px; color: var(--ink-3); }
+  .draft { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: var(--page); border: 1px solid var(--line); }
+  .draft h4 { margin: 0 0 8px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .draft p { margin: 0; white-space: pre-line; font-size: 16px; }
+  .draft mark { background: var(--amber-tint); box-shadow: inset 0 -2px 0 var(--amber); color: var(--ink); padding: 0 2px; border-radius: 3px; }
+  .draft .hint { margin-top: 10px; font-size: 14px; color: var(--ink-3); white-space: normal; }
+  .row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .reply-btn { grid-column: 3; grid-row: 2; justify-self: end; }
+
+  .cards { list-style: none; margin: 0; padding: 12px; display: grid; gap: 10px; }
+  .money-card { border: 1px solid var(--line); border-radius: 12px; background: var(--page); }
+  .money-card .mc-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; width: 100%; text-align: start; padding: 14px 14px 12px; border: 0; background: transparent; border-radius: 12px; }
+  .money-card .mc-main:hover { background: var(--panel); }
+  .mc-title { font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
+  .mc-what { color: var(--ink-3); font-size: 14px; grid-column: 1; overflow-wrap: anywhere; }
+  .mc-amount { font-size: 20px; font-weight: 800; grid-row: 1 / span 2; grid-column: 2; align-self: center; text-align: end; }
+  .mc-foot { grid-column: 1 / -1; margin-top: 6px; }
+  .money-card.overdue { border-color: #f3b8b2; }
+  .money-card.overdue .mc-amount { color: var(--red-ink); }
+  .money-card.paid .mc-amount { color: var(--green-ink); }
+  .mc-body { padding: 0 14px 14px; }
+  .mc-body p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .mc-body .row-actions { margin-top: 12px; }
+
+  .mini { list-style: none; margin: 0; padding: 6px 18px 14px; }
+  .mini li { display: flex; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .mini li:last-child { border-bottom: 0; }
+  .mini b { font-weight: 700; white-space: nowrap; }
+  .mini span { color: var(--ink-2); }
+
+  /* ── Ideas ───────────────────────────────────────────────────────────── */
+  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 14px; }
+  .section-head h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .section-head p { margin: 0; color: var(--ink-3); font-size: 15px; }
+  .idea-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); box-shadow: var(--shadow-1); }
+  .idea:hover { box-shadow: var(--shadow-2); border-color: var(--line-2); }
+  .idea .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; }
+  .idea h3 { margin: 0; font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
+  .idea p { margin: 0; color: var(--ink-2); font-size: 15px; flex: 1; }
+  .idea .go { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 4px; }
+  .idea .go .btn { min-height: 44px; padding: 8px 12px; font-size: 14px; }
+  .ic.red { background: var(--red-tint); color: var(--red-ink); }
+  .ic.green { background: var(--green-tint); color: var(--green-ink); }
+  .ic.blue { background: var(--blue-tint); color: var(--blue-ink); }
+  .ic.amber { background: var(--amber-tint); color: var(--amber-ink); }
+
+  /* ── Ask ─────────────────────────────────────────────────────────────── */
+  .ask { padding: 22px; border-radius: 18px; background: var(--ink); color: #fff; }
+  .ask h2 { margin: 0 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .ask > p { margin: 0 0 14px; color: #c8ccd4; font-size: 15px; }
+  .ask form { display: flex; gap: 10px; }
+  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 12px; border: 1px solid #3a3f4b; background: #1b1e25; color: #fff; padding: 10px 14px; font-size: 16px; }
+  .ask input::placeholder { color: #8f96a3; }
+  .ask input:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px rgba(234, 67, 53, .35); }
+  .ask .btn.primary { min-height: 50px; }
+  .qs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .q { min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid #3a3f4b; background: #1b1e25; color: #e9ebef; font-size: 14.5px; font-weight: 600; text-align: start; }
+  .q:hover { background: #262a33; border-color: #50566280; }
+  .ask .note { margin: 12px 0 0; font-size: 14px; color: #aeb4bf; min-height: 1.5em; }
+  .ask.waiting .q, .ask.waiting input, .ask.waiting .btn { opacity: .5; cursor: default; }
+  .ask.waiting .note { color: #fff; font-weight: 600; }
+
+  .extras { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .extras:empty { display: none; }
+  .extras > :only-child { grid-column: 1 / -1; }
+  .panel { padding: 18px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); }
+  .panel h3 { margin: 0 0 6px; font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+  .panel h3 .icon { color: var(--ink-3); }
+  .panel > p { margin: 0 0 12px; color: var(--ink-2); font-size: 15px; }
+  .panel.friday { grid-column: 1 / -1; border-color: #f3b8b2; background: #fffafa; }
+  .panel dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .panel dl div { padding: 10px 12px; border-radius: 10px; background: var(--panel); }
+  .panel dt { font-weight: 700; font-size: 14px; }
+  .panel dd { margin: 2px 0 0; color: var(--ink-2); font-size: 15px; }
+  .panel dd.unset { color: var(--ink-3); font-style: italic; }
+  .panel .btn { margin-top: 12px; }
+
+  .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
+  .foot .icon { color: var(--green); }
+  .foot p { margin: 0; }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0; background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 15px; box-shadow: var(--shadow-2); transition: opacity .2s ease, transform .2s ease; z-index: 50; max-width: calc(100% - 40px); text-align: center; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .spin { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; animation-delay: var(--d, 0ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
+
+  /* ── Narrow screens ──────────────────────────────────────────────────── */
+  @media (max-width: 1100px) {
+    .idea-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 920px) {
+    .board { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "main" "side" "ask"; }
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel dl { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .bar-in { padding: 12px 16px; }
+    .wrap { padding: 18px 16px 32px; }
+    .main { gap: 20px; }
+    .status { width: 100%; }
+    .updated { display: none; }
+    .hero h2 { font-size: 27px; }
+    .hero .lead { font-size: 16.5px; }
+    .kpi { padding: 13px 14px; }
+    .kpi .value { font-size: 24px; }
+    .card-hero { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; gap: 14px; }
+    .art { width: 104px; height: 82px; }
+    .card-hero .btn.big { width: 100%; }
+    .row-main { grid-template-columns: auto minmax(0, 1fr); padding: 14px 14px; }
+    .when { grid-column: 2; grid-row: auto; flex-direction: row; align-items: center; gap: 10px; }
+    .reply-btn { grid-column: 2; grid-row: auto; justify-self: start; }
+    .row-body { padding: 0 14px 16px 14px; }
+    .idea-grid { grid-template-columns: minmax(0, 1fr); }
+    .ask { padding: 18px 16px; }
+    .ask form { flex-direction: column; }
+    .phone-only { display: inline; }
+  }
+  .phone-only { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M3.5 7.5l8.5 6 8.5-6" /></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 13l2.6-7.2A2 2 0 0 1 7.5 4.5h9a2 2 0 0 1 1.9 1.3L21 13v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M3 13h5l1.5 2.5h5L16 13h5" /></symbol>
+  <symbol id="i-reply" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5A5.5 5.5 0 0 1 20 14.5V19" /></symbol>
+  <symbol id="i-dollar" viewBox="0 0 24 24"><path d="M12 2.5v19" /><path d="M16.5 6.5H10a3 3 0 0 0 0 6h4a3 3 0 0 1 0 6H7" /></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M5 3h14v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21z" /><path d="M9 8h6M9 12h6M9 16h4" /></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></symbol>
+  <symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M19 8v6M16 11h6" /></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></symbol>
+  <symbol id="i-alarm" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5" /><path d="M12 9.5V13l2.5 1.5M5 3.5L2.5 6M19 3.5L21.5 6" /></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></symbol>
+  <symbol id="i-quiet" viewBox="0 0 24 24"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.5L3.5 21l1.5-4.6A8.5 8.5 0 1 1 21 12z" /><path d="M9 12h6" /></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10.5 13.5" /><path d="M21 3l-6.5 18-4-7.5L3 9.5z" /></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3 3-3 3" /><path d="M4 11V9.5a4 4 0 0 1 4-4h12" /><path d="M7 21.5l-3-3 3-3" /><path d="M20 13v1.5a4 4 0 0 1-4 4H4" /></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9" /><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" /></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9-4.3-4.1 5.9-.8z" /></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9a4.8 4.8 0 0 1-.6 9.5z" /></symbol>
+</svg>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg class="icon"><use href="#i-inbox" /></svg></span>
+      <div>
+        <h1>Front desk</h1>
+        <p id="subtitle">Your Gmail, sorted for the business</p>
+      </div>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <main class="main">
+    <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your front desk...</p></section>
+    <div id="ribbon"></div>
+    <div id="kpis"></div>
+    <section class="board" id="board" aria-label="Your inbox, by priority">
+      <div class="b-main" id="board-main"></div>
+      <div class="side" id="board-side"></div>
+    <section class="ask" id="ask" aria-labelledby="ask-title">
+      <h2 id="ask-title">Ask about your email</h2>
+      <p>Anything from "did the bank write?" to "what did we quote the Hartwells?"</p>
+      <form id="ask-form" autocomplete="off">
+        <label for="ask-input" class="sr">Your question</label>
+        <input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about customers, quotes, bills..." />
+        <button type="submit" class="btn primary"><svg class="icon" aria-hidden="true"><use href="#i-send" /></svg>Ask</button>
+      </form>
+      <div class="qs" id="questions"></div>
+      <p class="note" id="ask-note">The answer comes up in the chat next to this page.</p>
+    </section>
+    </section>
+    <section id="ideas" aria-labelledby="ideas-title"></section>
+    <section class="extras" id="extras"></section>
+    <footer class="foot">
+      <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
+      <p>Your front desk only reads your email. It never sends, deletes or moves anything in Gmail on its own. Replies and routines are set up in the chat, and nothing goes out without your OK.</p>
+    </footer>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var MORNING = "morning-inbox-summary";
+  var POLL_MS = 60000;
+
+  /** Ready-made questions, the way an owner asks them. */
+  var QUESTIONS = [
+    "Who’s waiting on a reply?",
+    "Any unpaid invoices?",
+    "What bills are due this week?",
+    "Did any new customers write?",
+    "Anything from the bank?"
+  ];
+
+  /** Business plays: one tap to ask now, or to switch on as a routine. */
+  var IDEAS = [
+    { icon: "i-user-plus", tint: "red", title: "List every new lead this week",
+      text: "Who asked about your services, what they need, and how to reach them.",
+      ask: "List every new lead from the past 7 days: who they are, what they need, when they wrote, and how to reach them. Put the newest first.",
+      when: "Every Monday", at: "every Monday at 8 am" },
+    { icon: "i-alarm", tint: "red", title: "Which invoices are overdue?",
+      text: "Who owes you, how much, how late, with a polite reminder ready to send.",
+      ask: "Which of my invoices are overdue? For each one: the customer, the amount, how many days late, and a short, polite reminder I could send.",
+      when: "Every Monday", at: "every Monday at 8 am" },
+    { icon: "i-users", tint: "blue", title: "Build my customer list from my email",
+      text: "Every customer with their contact details and when you last worked together.",
+      ask: "Build my customer list from my email: every customer, their company, email and phone if they gave one, what we did for them, and when we last emailed. Save it as a page in reports.",
+      when: "Every month", at: "on the 1st of every month at 8 am" },
+    { icon: "i-reply", tint: "amber", title: "Draft replies to everyone waiting 2+ days",
+      text: "Short replies in your voice, ready for you to check and send.",
+      ask: "Draft a short reply to everyone who has been waiting on me for more than 2 days, in my voice. Show them to me one by one so I can check them before anything is sent.",
+      when: "Every morning", at: "every weekday at 8 am" },
+    { icon: "i-chart", tint: "green", title: "Weekly summary for my partner",
+      text: "New leads, money in and out, and what’s still open, on one page.",
+      ask: "Write a one-page summary of this week for my business partner: new leads, quotes sent and won, invoices paid and still open, bills paid and due, and anything that needs a decision. Save it as a page in reports.",
+      when: "Every Friday", at: "every Friday at 4 pm" },
+    { icon: "i-receipt", tint: "green", title: "Receipts for my bookkeeper",
+      text: "This month’s receipts and bills with amounts, in one list.",
+      ask: "List every receipt and bill from this month with the vendor, the amount, the date and whether it’s paid, ready for my bookkeeper. Save it as a page in reports.",
+      when: "Every month", at: "on the 1st of every month at 9 am" },
+    { icon: "i-quiet", tint: "blue", title: "Customers who’ve gone quiet",
+      text: "Regulars you haven’t heard from in 60 days, worth a call.",
+      ask: "Which regular customers have I not heard from in the last 60 days? For each: when we last emailed, what we did for them, and a line I could use to check in.",
+      when: "Every month", at: "on the 15th of every month at 8 am" },
+    { icon: "i-doc", tint: "amber", title: "Follow up on open quotes",
+      text: "Quotes with no answer after a week, with a friendly nudge drafted.",
+      ask: "Find the quotes I sent that have had no answer for a week or more. For each: who, what, the amount, when I sent it, and a friendly follow-up I could send.",
+      when: "Every Monday", at: "every Monday at 9 am" }
+  ];
+
+  var KIND_WORDS = { lead: "New lead", customer: "Customer", vendor: "Supplier", partner: "Partner", other: "" };
+  var AVATAR_COLORS = ["#ea4335", "#1a73e8", "#1e8e3e", "#e37400", "#9334e6", "#d01884", "#12a4af", "#5f6368"];
+
+  var state = {
+    appPath: appPathFromUrl(),
+    here: null,
+    gmail: null,
+    jobs: [],
+    loaded: false,
+    data: null,
+    example: true,
+    loose: null,
+    lastTry: null,
+    setup: null,
+    connecting: false,
+    connectNote: "",
+    running: false,
+    runNote: "",
+    open: {},
+    animate: true
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── Small helpers ──────────────────────────────────────────────────────
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function icon(id, cls) {
+    return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+  }
+  function text(value, max) {
+    var s = typeof value === "string" ? value.trim() : "";
+    return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  /** Money as written ("$42.10", "₪450"), or "" when the words hold no number at all. */
+  function amountText(value, max) {
+    var s = text(value, max);
+    return /\d/.test(s) ? s : "";
+  }
+
+  function appPathFromUrl() {
+    // /api/assets/<cabinet path>/<app folder>/index.html: the folder before the file.
+    var parts = location.pathname.split("/").filter(Boolean);
+    var at = parts.length - 2;
+    return at >= 0 ? decodeURIComponent(parts[at]) : "front-desk";
+  }
+
+  var toastTimer = 0;
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
+  }
+
+  function initials(name) {
+    var words = String(name || "").replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return "?";
+    var first = Array.from(words[0])[0] || "";
+    var last = words.length > 1 ? Array.from(words[words.length - 1])[0] || "" : "";
+    return (first + last).toUpperCase();
+  }
+  function colorFor(name) {
+    var h = 0, s = String(name || "");
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return AVATAR_COLORS[h % AVATAR_COLORS.length];
+  }
+
+  // ── Dates, in the person's own clock ───────────────────────────────────
+
+  var DAY_MS = 86400000;
+  function parseTime(value) {
+    if (typeof value !== "string" || !value) return null;
+    // A bare date is a calendar day, not midnight in another zone.
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    // "+0300" as `date +%z` prints it is read like "+03:00".
+    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  /** When a sort was written, never later than now: a routine's own clock can be wrong. */
+  function writtenAt(value) {
+    var d = parseTime(value);
+    var now = new Date();
+    return d && d > now ? now : d;
+  }
+  function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / DAY_MS); }
+  function clock(d) { return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+  function bareClock(d) { return clock(d).replace(/\s?[AaPp]\.?\s?[Mm]\.?$/, ""); }
+  function shortDate(d) { return d.toLocaleDateString([], { month: "short", day: "numeric" }); }
+  function weekdayDate(d) { return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }); }
+
+  /** "7:02 this morning", "yesterday at 7:02 AM", "Tuesday at 7:02 AM", "Sep 12". */
+  function whenWords(d, now) {
+    var gap = daysBetween(d, now);
+    if (gap === 0) {
+      var h = d.getHours();
+      return bareClock(d) + (h < 12 ? " this morning" : h < 18 ? " this afternoon" : " this evening");
+    }
+    if (gap === 1) return "yesterday at " + clock(d);
+    if (gap > 1 && gap < 7) return d.toLocaleDateString([], { weekday: "long" }) + " at " + clock(d);
+    return shortDate(d);
+  }
+  /** The time on a row: "6:52 AM" today, "Yesterday", "Tue", or "Sep 12". */
+  function rowTime(value, ref) {
+    var d = parseTime(value);
+    if (!d) return "";
+    var gap = daysBetween(d, ref);
+    if (gap <= 0) return clock(d);
+    if (gap === 1) return "Yesterday";
+    if (gap < 7) return d.toLocaleDateString([], { weekday: "short" });
+    return shortDate(d);
+  }
+  function dueChip(value, ref, status) {
+    var d = parseTime(value);
+    if (!d) return "";
+    var gap = daysBetween(ref, d);
+    if (status === "paid") return '<span class="chip ok">' + icon("i-check") + "Paid " + esc(shortDate(d)) + "</span>";
+    if (status === "autopay" && gap < 0) return '<span class="chip ok">' + icon("i-check") + "Paid automatically " + esc(shortDate(d)) + "</span>";
+    if (status === "autopay") return '<span class="chip">' + icon("i-repeat") + "Autopay " + esc(gap === 0 ? "today" : gap === 1 ? "tomorrow" : weekdayDate(d)) + "</span>";
+    if (gap < 0) return '<span class="chip hot">' + (-gap) + " " + plural(-gap, "day", "days") + " overdue</span>";
+    if (gap === 0) return '<span class="chip hot">Due today</span>';
+    if (gap === 1) return '<span class="chip soon">Due tomorrow</span>';
+    if (gap < 7) return '<span class="chip soon">Due ' + esc(d.toLocaleDateString([], { weekday: "long" })) + "</span>";
+    return '<span class="chip open">Due ' + esc(shortDate(d)) + "</span>";
+  }
+  function waitingDays(value, ref) {
+    var d = parseTime(value);
+    if (!d) return 0;
+    return daysBetween(d, ref);
+  }
+
+  // ── Reading the files the routines write ───────────────────────────────
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  function readText(rel) {
+    if (V2) return cab.files.read(state.appPath + "/" + rel);
+    // An older Cabinet: the files sit next to this page on the same address.
+    return fetch(rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+      if (r.status === 404) throw notFound();
+      if (!r.ok) throw new Error("Could not read " + rel + ".");
+      return r.text();
+    });
+  }
+  function readJson(rel) { return readText(rel).then(function (t) { return JSON.parse(t); }); }
+  function maybe(promise) {
+    return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; });
+  }
+  function quiet(promise) { return promise.catch(function () { return null; }); }
+  function usable(d) { return d && typeof d === "object" && (Array.isArray(d.waiting) || Array.isArray(d.money) || Array.isArray(d.bills)); }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = Promise.all([
+      maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
+      quiet(maybe(readJson("data/loose-ends.json"))),
+      quiet(maybe(readJson("data/status.json"))),
+      quiet(maybe(readText("setup.md")))
+    ]).then(function (got) {
+      var latest = got[0];
+      state.loose = got[1] && Array.isArray(got[1].waiting) ? got[1] : null;
+      state.lastTry = got[2] && typeof got[2] === "object" ? got[2] : null;
+      state.setup = typeof got[3] === "string" ? parseSetup(got[3]) : null;
+      if (usable(latest) && latest.example !== true) {
+        state.data = latest;
+        state.example = false;
+        return null;
+      }
+      // A file half written a moment ago keeps what is on screen; the next change reloads it.
+      if (latest === "broken" && state.data && !state.example) return null;
+      return maybe(readJson("data/EXAMPLE-latest.json")).then(function (ex) {
+        state.data = usable(ex) ? ex : null;
+        state.example = true;
+      });
+    }).catch(function () {
+      if (!state.data) state.data = null;
+    }).then(function () {
+      state.loaded = true;
+      loading = null;
+      paint();
+    });
+    return loading;
+  }
+
+  /** setup.md: every "**Label:** answer" paragraph. An answer in brackets is a hint, not an answer. */
+  function parseSetup(md) {
+    var body = md.replace(/^---[\s\S]*?\n---[^\n]*\n/, "");
+    var out = [];
+    body.split(/\n\s*\n/).forEach(function (para) {
+      var m = /^\s*\*\*([^*]+?):\*\*\s*([\s\S]*)$/.exec(para);
+      if (!m) return;
+      var value = m[2].replace(/\s+/g, " ").trim();
+      out.push({ label: m[1].trim(), value: value, unset: !value || /^\(/.test(value) });
+    });
+    return out.length ? out : null;
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAsk() { return V2 && role() !== "viewer"; }
+  function canRun() { return V2 && role() !== "viewer"; }
+  function morningJob() {
+    for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === MORNING) return state.jobs[i];
+    return null;
+  }
+  function pickGmail(items) {
+    if (!Array.isArray(items)) return null;
+    for (var i = 0; i < items.length; i++) if (items[i] && items[i].id === "gmail") return items[i];
+    return null;
+  }
+  function gmailState() { return state.gmail ? state.gmail.state : null; }
+  /** The morning routine's schedule in words, lower case, or "" when it is paused or unknown. */
+  function scheduleWords() {
+    var job = morningJob();
+    var when = job && typeof job.when === "string" ? job.when.trim() : "";
+    return /^every\b/i.test(when) ? when.charAt(0).toLowerCase() + when.slice(1) : "";
+  }
+  function askReady() {
+    var s = gmailState();
+    return !state.gmail || s === "connected" || s === "needs-you" || s === "needs-sign-in";
+  }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var wasRunning = state.running;
+    state.jobs = items;
+    var job = morningJob();
+    state.running = !!(job && job.running);
+    if (wasRunning && !state.running) load();
+    paint();
+  }
+
+  function connect() {
+    if (!V2 || state.connecting) return;
+    state.connecting = true;
+    state.connectNote = "";
+    paint();
+    cab.connectors.connect("gmail").then(function (result) {
+      state.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        state.gmail = pickGmail(items) || state.gmail;
+        paint();
+        // The first sort starts straight away, so the next thing they see is their own mail.
+        if (result === "connected" && state.example && canRun()) runNow();
+      });
+    }).catch(function (e) {
+      state.connecting = false;
+      state.connectNote = e && e.message ? e.message : "That did not work. Try again.";
+      paint();
+    });
+  }
+
+  function runNow() {
+    if (!V2 || state.running) return;
+    state.running = true;
+    state.runNote = "";
+    paint();
+    cab.jobs.run(MORNING).then(function () {
+      watchRun();
+    }).catch(function (e) {
+      if (e && e.code === "busy") { watchRun(); return; }
+      state.running = false;
+      state.runNote = e && e.message ? e.message : "The sort did not start. Try again.";
+      paint();
+    });
+  }
+
+  // jobs.onChange says when the run ends; this is the fallback if a change is ever missed.
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!state.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+
+  function ask(question) {
+    var q = text(question, 3900);
+    if (!q) return;
+    if (!V2) { toast("Open this cabinet in Cabinet to ask about your email."); return; }
+    // Before Gmail is connected there is nothing to read yet: the press leads to connecting.
+    if (!askReady()) {
+      if (state.gmail && state.gmail.canConnect) { toast("Connect Gmail first. It takes a minute or two."); connect(); }
+      else toast(gmailState() === "not-available-here" ? "Gmail can’t be connected here yet." : "Ask the person who owns this cabinet to connect Gmail.");
+      return;
+    }
+    var note = $("ask-note");
+    note.textContent = "Asking...";
+    cab.ask(q, { send: true }).then(function () {
+      note.textContent = "Asked. The answer is coming in the chat next to this page.";
+      toast("Asked. The answer is coming in the chat.");
+      $("ask-input").value = "";
+    }).catch(function (e) {
+      note.textContent = e && e.message ? e.message : "That did not go through. Try again.";
+      toast(note.textContent);
+    });
+  }
+
+  function copyText(value) {
+    var clean = String(value).replace(/\[([^\]]{1,120})\]/g, "$1");
+    var done = function () { toast("Reply copied. Paste it into your answer in Gmail."); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(clean).then(done, function () { fallbackCopy(clean) ? done() : toast("Copying did not work here. Select the words and copy them."); });
+    } else if (fallbackCopy(clean)) done();
+    else toast("Copying did not work here. Select the words and copy them.");
+  }
+  function fallbackCopy(value) {
+    try {
+      var area = document.createElement("textarea");
+      area.value = value;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(area);
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  /** A link that opens the conversation in Gmail, when the routine kept its id. */
+  function gmailLink(item) {
+    var acct = state.data && typeof state.data.account === "string" && /^[^\s@]+@[^\s@]+$/.test(state.data.account) ? state.data.account : "";
+    var base = "https://mail.google.com/mail/" + (acct ? "?authuser=" + encodeURIComponent(acct) : "u/0/");
+    if (typeof item.threadId === "string" && /^[0-9a-f]{8,24}$/i.test(item.threadId)) return base + "#all/" + item.threadId.toLowerCase();
+    if (typeof item.messageId === "string" && item.messageId.length < 300 && /@/.test(item.messageId)) {
+      return base + "#search/" + encodeURIComponent("rfc822msgid:" + item.messageId.replace(/^<|>$/g, ""));
+    }
+    return "";
+  }
+
+  // ── Painting ───────────────────────────────────────────────────────────
+
+  function waiting() { return state.data ? list(state.data.waiting) : []; }
+  function money() { return state.data ? list(state.data.money) : []; }
+  function bills() { return state.data ? list(state.data.bills) : []; }
+  function fyi() { return state.data ? list(state.data.fyi) : []; }
+  function refDate() {
+    var g = state.data ? parseTime(state.data.generatedAt) : null;
+    return state.example && g ? g : new Date();
+  }
+  function findItem(id) {
+    var all = waiting().concat(money(), bills(), fyi());
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
+    return null;
+  }
+
+  function paint() {
+    paintStatus();
+    paintHero();
+    paintRibbon();
+    paintKpis();
+    paintBoard();
+    paintIdeas();
+    paintAsk();
+    paintExtras();
+    state.animate = false;
+  }
+
+  function paintStatus() {
+    var s = gmailState();
+    var pill;
+    // An older Cabinet cannot say whether Gmail is connected: plain words, no state dot.
+    if (!V2) pill = '<span class="updated">Connect Gmail from Integrations in Cabinet.</span>';
+    else if (!state.gmail) pill = '<span class="pill"><span class="dot pulse"></span>Checking Gmail</span>';
+    else if (s === "connected") pill = '<span class="pill ok"><span class="dot"></span>Gmail connected</span>';
+    else if (s === "not-available-here") pill = '<span class="pill"><span class="dot"></span>Gmail not available here</span>';
+    else if (s === "needs-sign-in" || s === "needs-you") pill = '<span class="pill warn"><span class="dot"></span>Gmail needs you</span>';
+    else pill = '<span class="pill off"><span class="dot"></span>Gmail not connected</span>';
+
+    var updated = "";
+    if (state.data && !state.example) {
+      var g = writtenAt(state.data.generatedAt);
+      if (g) updated = '<span class="updated">Updated ' + esc(whenWords(g, new Date())) + "</span>";
+    }
+    var button = "";
+    if (s === "connected" && canRun() && state.data && !state.example) {
+      button = state.running
+        ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Checking...</button>"
+        : '<button class="btn" data-act="run">' + icon("i-refresh") + "Check again</button>";
+    }
+    $("status").innerHTML = pill + updated + button;
+
+    var job = morningJob();
+    var when = job && typeof job.when === "string" && job.when ? job.when : "";
+    $("subtitle").textContent = /^every\b/i.test(when)
+      ? "Your Gmail, sorted for the business. " + when.charAt(0).toUpperCase() + when.slice(1) + "."
+      : "Your Gmail, sorted for the business";
+  }
+
+  /** The envelope, with a badge that matches the state: a tick once connected, an alert when it needs fixing. */
+  function artMail(badge) {
+    var mark = badge === "check"
+      ? '<circle cx="108" cy="24" r="14" fill="#1e8e3e"/><path d="M101 24l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+      : badge === "alert"
+        ? '<circle cx="108" cy="24" r="14" fill="#f9ab00"/><path d="M108 16.5v9M108 30.5v.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>'
+        : "";
+    return '<svg class="art" viewBox="0 0 132 104" aria-hidden="true">' +
+      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#fdecea"/>' +
+      '<rect x="20" y="26" width="92" height="60" rx="9" fill="#fff" stroke="#ea4335" stroke-width="3"/>' +
+      '<path d="M22 30l44 30 44-30" fill="none" stroke="#ea4335" stroke-width="3" stroke-linejoin="round"/>' +
+      mark + "</svg>";
+  }
+
+  function paintHero() {
+    var hero = $("hero");
+    if (!state.loaded) { hero.innerHTML = '<p class="skeleton">Opening your front desk...</p>'; return; }
+    var s = gmailState();
+    var g = state.gmail;
+    var html;
+    var told = false;
+
+    if (V2 && s === "not-available-here") {
+      var why = g && g.problem && g.problem.text ? g.problem.text : "";
+      var cloud = state.here && state.here.place === "cloud";
+      html = cardHero(icon("i-cloud"), "Gmail can’t be connected here yet",
+        (why ? '<p class="lead">' + esc(why) + "</p>" : "") +
+        "<p class=\"fine\">" + (cloud ? "For now, Gmail works in the Cabinet app on a computer." : "For now, Gmail works when this cabinet runs on this computer with your own AI.") +
+        " Below is an example from a made-up business.</p>");
+    } else if (V2 && (s === "needs-sign-in" || s === "needs-you")) {
+      html = cardHero("alert", "Gmail needs you",
+        '<p class="lead">' + esc(g && g.problem && g.problem.text ? g.problem.text : "Gmail stopped letting Cabinet in.") + "</p>" +
+        (g && g.canConnect
+          ? '<div class="actions"><button class="btn primary big" data-act="connect">' + icon(state.connecting ? "i-refresh" : "i-mail", state.connecting ? "spin" : "") + (state.connecting ? "Fixing..." : "Fix the connection") + "</button></div>"
+          : '<p class="fine">Ask the person who owns this cabinet to fix the Gmail connection.</p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") + mailAgeHtml());
+    } else if (V2 && s === "not-added") {
+      var canConnect = g && g.canConnect;
+      html = cardHero(null, "See who’s waiting on you, what you’re owed and what’s due",
+        '<p class="lead">Connect Gmail and your front desk sorts your inbox every morning: leads and customers first, then quotes, invoices and bills.</p>' +
+        (canConnect
+          ? '<div class="actions"><button class="btn primary big" data-act="connect"' + (state.connecting ? " disabled" : "") + ">" +
+            icon(state.connecting ? "i-refresh" : "i-mail", state.connecting ? "spin" : "") + (state.connecting ? "Connecting..." : "Connect Gmail") + "</button>" +
+            '<span class="fine">' + (state.connecting ? "Finish in the window Cabinet opened." : "Takes a minute or two. Cabinet shows you each step.") + "</span></div>"
+          : '<p class="fine"><b>Ask the person who owns this cabinet to connect Gmail.</b></p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
+        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never sends on its own</li><li>" + icon("i-check") + "Every morning at 7</li><li>" + icon("i-check") + "Below: an example from a made-up business</li></ul>");
+    } else if (state.running && (state.example || !state.data)) {
+      html = cardHero(null, "Sorting your inbox...",
+        '<p class="lead">This takes a minute or two. Stay here or come back later: the lanes fill in by themselves.</p>', true);
+    } else if (V2 && s === "connected" && state.example && failureInfo()) {
+      // The very first sort did not work: that is the news, told once, with its fixes.
+      var first = failureInfo();
+      html = cardHero("alert", "Your first sort didn’t work",
+        '<p class="lead">' + esc(first.why) + "</p>" + '<div class="actions">' + failureButtons(true) + "</div>");
+      told = true;
+    } else if (V2 && s === "connected" && state.example) {
+      var sched = scheduleWords();
+      html = cardHero("check", "Gmail is connected. Let’s sort your inbox.",
+        '<p class="lead">Your first sort takes a minute or two.' +
+        (sched ? " After that it happens by itself, " + esc(sched) + "." : " After that, press Check again whenever you want a fresh one.") + "</p>" +
+        (canRun() ? '<div class="actions"><button class="btn primary big" data-act="run">' + icon("i-inbox") + "Sort my inbox now</button></div>" : "") + runNoteHtml());
+    } else if (!state.data) {
+      html = cardHero(null, "Your inbox shows up here", '<p class="lead">Nothing could be read yet. Try again in a moment.</p>');
+    } else {
+      html = dataHero();
+    }
+    hero.innerHTML = html + (told ? "" : failureHtml());
+  }
+
+  /** `art` is an icon for the picture, or "check", "alert" or null for the envelope's badge. */
+  function cardHero(art, title, body, busy) {
+    var picture = busy
+      ? '<div class="art" aria-hidden="true" style="display:grid;place-items:center">' + icon("i-refresh", "spin") + "</div>"
+      : art && art.indexOf("<svg") === 0 ? '<div class="art" aria-hidden="true" style="display:grid;place-items:center;border-radius:18px;background:var(--panel)">' + art.replace('class="icon"', 'class="icon" style="width:44px;height:44px;color:var(--ink-3)"') + "</div>"
+      : artMail(art);
+    return '<div class="card-hero">' + picture + "<div><h2>" + esc(title) + "</h2>" + body + "</div></div>";
+  }
+
+  function runNoteHtml() { return state.runNote ? '<div class="notice" style="margin-top:14px">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
+  function mailAgeHtml() {
+    var g = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
+    return g ? '<p class="fine">The email below was sorted ' + esc(whenWords(g, new Date())) + ".</p>" : "";
+  }
+
+  function dataHero() {
+    var d = state.data;
+    var w = waiting();
+    var n = w.length;
+    var ex = state.example ? "Example: " : "";
+    var h = n === 0 ? "Nobody is waiting on you" : n + " " + plural(n, "person is", "people are") + " waiting on you";
+    var lead = d.lead && typeof d.lead === "object" ? d.lead : null;
+    var leadItem = lead ? findItem(lead.id) : null;
+    var leadHtml = "";
+    if (leadItem && text(lead.why)) {
+      leadHtml = '<p class="lead"><b dir="auto">' + esc(text(leadItem.from || leadItem.who, 80)) + ":</b> " +
+        '<span dir="auto">' + esc(text(leadItem.gist || leadItem.what, 140)) + ".</span> " + '<span dir="auto">' + esc(text(lead.why, 220)) + "</span></p>";
+    } else if (n > 0) {
+      leadHtml = '<p class="lead"><b dir="auto">' + esc(text(w[0].from, 80)) + ":</b> " + '<span dir="auto">' + esc(text(w[0].gist, 160)) + ".</span></p>";
+    } else {
+      leadHtml = '<p class="lead">Your inbox is clear of anyone waiting. Have a look at money in and out below.</p>';
+    }
+    var updated = "";
+    var g = writtenAt(d.generatedAt);
+    if (g && !state.example) updated = '<span class="phone-only">Updated ' + esc(whenWords(g, new Date())) + ". </span>";
+    return "<div><h2>" + esc(ex + h) + "</h2>" + leadHtml + (updated ? '<p class="fine">' + updated + "</p>" : "") + runNoteHtml() + "</div>";
+  }
+
+
+  /** The four numbers an owner looks for first; shown for the example too, labelled by the ribbon. */
+  function paintKpis() {
+    var el = $("kpis");
+    if (!state.loaded || !state.data) { el.innerHTML = ""; return; }
+    var d = state.data;
+    var w = waiting();
+    var n = w.length;
+    var leads = w.filter(function (x) { return x.kind === "lead"; }).length;
+    var t = d.totals && typeof d.totals === "object" ? d.totals : {};
+    var m = money();
+    var owedItems = m.filter(function (x) { return x.status === "open" || x.status === "overdue"; });
+    var overdue = typeof t.overdue === "number" ? t.overdue : m.filter(function (x) { return x.status === "overdue"; }).length;
+    var b = bills().filter(function (x) { return x.status !== "paid"; });
+    var byDate = parseTime(t.billsDueBy);
+    var arrived = typeof d.arrived === "number" ? d.arrived : null;
+    var left = d.leftOut && typeof d.leftOut.count === "number" ? d.leftOut.count : 0;
+
+    var failed = b.filter(function (x) { return x.status === "failed" || x.kind === "failed-payment"; }).length;
+    var nextDue = null;
+    b.forEach(function (x) { var d2 = parseTime(x.due); if (d2 && x.status !== "autopay" && (!nextDue || d2 < nextDue)) nextDue = d2; });
+    var owedValue = amountText(t.owed, 20);
+    var billsValue = amountText(t.billsDue, 20);
+    var kpis = '<div class="kpis">' +
+      (n
+        ? '<a class="kpi first" href="#lane-waiting"><span class="label">' + icon("i-reply") + "Waiting on you</span>" +
+          '<span class="value num">' + n + '</span><span class="sub">' + (leads ? leads + " new " + plural(leads, "lead", "leads") : "No new leads") + "</span></a>"
+        : '<a class="kpi calm" href="#lane-waiting"><span class="label">' + icon("i-check") + "Waiting on you</span>" +
+          '<span class="value num">0</span><span class="sub">Everyone has an answer</span></a>') +
+      '<a class="kpi money" href="#lane-money"><span class="label">' + icon("i-dollar") + "Owed to you</span>" +
+        (owedValue || owedItems.length
+          ? '<span class="value num" dir="auto">' + esc(owedValue || String(owedItems.length)) + '</span><span class="sub">' +
+            (overdue ? '<span class="hot">' + overdue + " overdue</span>" : owedItems.length + " open " + plural(owedItems.length, "invoice", "invoices")) + "</span>"
+          : '<span class="value none">None</span><span class="sub">No open invoices</span>') + "</a>" +
+      '<a class="kpi bills" href="#lane-bills"><span class="label">' + icon("i-receipt") + "Bills to pay</span>" +
+        (billsValue || b.length
+          ? '<span class="value num" dir="auto">' + esc(billsValue || String(b.length)) + '</span><span class="sub">' +
+            (failed ? '<span class="hot">' + failed + " " + plural(failed, "card declined", "cards declined") + "</span>"
+              : byDate ? "Due by " + esc(shortDate(byDate))
+              : nextDue ? "Next due " + esc(shortDate(nextDue))
+              : b.length + " not paid yet") + "</span>"
+          : '<span class="value none">None</span><span class="sub">Nothing due</span>') + "</a>" +
+      (arrived === null
+        ? '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + "Set aside</span>" +
+          '<span class="value num">' + left + '</span><span class="sub">Newsletters and ads</span></a>'
+        : '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + "Since yesterday</span>" +
+          '<span class="value num">' + arrived + '</span><span class="sub">' + (left ? left + " newsletters and ads set aside" : "emails in") + "</span></a>") +
+      "</div>";
+    el.innerHTML = kpis;
+  }
+
+  /** The last sort that could not read the mail: when, and why, or null. */
+  function failureInfo() {
+    if (state.running) return null;
+    var tryAt = state.lastTry && state.lastTry.ok === false ? writtenAt(state.lastTry.at) : null;
+    var shownAt = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
+    var job = morningJob();
+    var jobFail = job && job.lastRun && job.lastRun.ok === false ? parseTime(job.lastRun.at) : null;
+    var why = "";
+    if (tryAt && (!shownAt || tryAt > shownAt)) why = text(state.lastTry.why, 240) || "The last sort could not read your email.";
+    else if (jobFail && (!shownAt || jobFail > shownAt)) why = "The last sort did not finish.";
+    // With a connection problem the hero already says what to do; an older Cabinet cannot tell, so it shows.
+    if (!why || (V2 && gmailState() !== "connected")) return null;
+    var at = tryAt || jobFail;
+    var words = at ? whenWords(at, new Date()) : "";
+    return { why: why, head: !words ? "The last sort didn’t work." : "The sort " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work." };
+  }
+  function failureButtons(primary) {
+    return (canRun() ? '<button class="btn' + (primary ? " primary big" : "") + '" data-act="run">' + icon("i-refresh") + "Try again</button>" : "") +
+      (state.gmail && state.gmail.canConnect ? '<button class="btn' + (primary ? " big" : "") + '" data-act="connect">' + icon("i-mail") + "Connect Gmail again</button>" : "");
+  }
+  /** A sort that could not read the mail says so, with the presses that fix it. */
+  function failureHtml() {
+    var fail = failureInfo();
+    if (!fail) return "";
+    var buttons = failureButtons(false);
+    return '<div class="notice">' + icon("i-alert") + "<div><p><b>" + esc(fail.head) + "</b> " + esc(fail.why) + "</p>" +
+      (buttons ? '<div class="actions">' + buttons + "</div>" : "") + "</div></div>";
+  }
+
+  function paintRibbon() {
+    var el = $("ribbon");
+    if (!state.loaded || !state.data || !state.example) { el.innerHTML = ""; return; }
+    var biz = text(state.data.business, 80);
+    el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
+      (biz ? "<b>" + esc(biz) + "</b>, a made-up business. " : "A made-up business. ") +
+      "None of this is your email. Connect Gmail and your own front desk replaces it.</p></div>";
+  }
+
+  // The priority lane: people waiting on an answer.
+  function waitingRow(item, index, ref) {
+    var id = text(item.id, 60) || "w" + index;
+    var open = !!state.open[id];
+    var name = text(item.from, 80) || "Someone";
+    var kind = KIND_WORDS[item.kind] || "";
+    var chips = [];
+    if (kind) chips.push('<span class="chip ' + esc(item.kind) + '">' + esc(kind) + "</span>");
+    var days = waitingDays(item.waitingSince, ref);
+    if (item.urgent === true) chips.push('<span class="chip hot">Answer today</span>');
+    else if (days >= 2) chips.push('<span class="chip wait">Waiting ' + days + " days</span>");
+    if (item.urgent === true && days >= 2) chips.push('<span class="chip wait">Waiting ' + days + " days</span>");
+    var link = state.example ? "" : gmailLink(item);
+    var hasReply = !!text(item.reply);
+    var actions = [];
+    if (hasReply) actions.push('<button class="btn dark" data-act="copy" data-id="' + esc(id) + '">' + icon("i-copy") + "Copy the reply</button>");
+    if (canAsk()) actions.push('<button class="btn" data-act="reply" data-id="' + esc(id) + '">' + icon("i-pen") + (hasReply ? "Change it" : "Draft a reply") + "</button>");
+    if (link) actions.push('<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Gmail</a>");
+    var style = state.animate ? ' style="--d:' + Math.min(index, 6) * 50 + 'ms"' : "";
+    return '<li class="row' + (open ? " open" : "") + (state.animate ? " rise" : "") + '"' + style + ">" +
+      '<button class="row-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
+      '<span class="avatar" style="background:' + colorFor(name) + '" aria-hidden="true">' + esc(initials(name)) + "</span>" +
+      '<span class="who"><b dir="auto">' + esc(name) + "</b>" + (text(item.company) ? '<span class="co" dir="auto">' + esc(text(item.company, 60)) + "</span>" : "") +
+      '<span class="chips">' + chips.join("") + "</span></span>" +
+      '<span class="when">' + esc(rowTime(item.receivedAt, ref)) + (hasReply ? '<span class="drafted">' + icon("i-pen") + "Reply drafted</span>" : "") + "</span>" +
+      '<span class="gist" dir="auto">' + esc(text(item.gist, 160) || text(item.subject, 160)) + "</span>" +
+      "</button>" +
+      '<div class="row-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" +
+      (text(item.subject) ? '<p class="subject">Subject: <span dir="auto">' + esc(text(item.subject, 160)) + "</span></p>" : "") +
+      '<p class="short" dir="auto">' + esc(text(item.short, 700) || text(item.gist, 200)) + "</p>" +
+      (hasReply ? draftHtml(text(item.reply, 1500)) : "") +
+      (actions.length ? '<div class="row-actions">' + actions.join("") + "</div>" : "") +
+      "</div></li>";
+  }
+
+  function draftHtml(value) {
+    var safe = esc(value).replace(/\[([^\]]{1,120})\]/g, "<mark>$1</mark>");
+    var marked = /\[[^\]]{1,120}\]/.test(value);
+    return '<div class="draft"><h4>Reply, drafted in your voice</h4><p dir="auto">' + safe + "</p>" +
+      (marked ? '<p class="hint">Check the highlighted words before you send it.</p>' : "") + "</div>";
+  }
+
+  // Quotes and invoices, and bills: cards with the amount first.
+  var MONEY_TITLE = { invoice: "Invoice", quote: "Quote", payment: "Payment received", order: "Order" };
+  function moneyCard(item, index, ref, lane) {
+    var id = text(item.id, 60) || lane + index;
+    var open = !!state.open[id];
+    var status = text(item.status, 20);
+    var title;
+    if (lane === "money") {
+      var kindWord = MONEY_TITLE[item.kind];
+      title = kindWord
+        ? kindWord + (text(item.number) && item.kind !== "payment" ? " " + text(item.number, 20) : "") + " · " + (text(item.who, 60) || "a customer")
+        : text(item.who, 70) || text(item.from, 70) || "Money in";
+    } else {
+      title = text(item.from, 70) || "A bill";
+    }
+    var chip = "";
+    if (lane === "money") {
+      if (status === "overdue") chip = dueChip(item.due, ref, "due");
+      else if (status === "paid") chip = dueChip(item.date || item.due, ref, "paid");
+      else if (status === "waiting") {
+        var since = waitingDays(item.date, ref);
+        chip = '<span class="chip open">Waiting for a yes' + (since >= 1 ? " · " + since + " " + plural(since, "day", "days") : "") + "</span>";
+      } else chip = dueChip(item.due, ref, "due");
+    } else {
+      if (status === "failed" || item.kind === "failed-payment") chip = '<span class="chip hot">' + icon("i-alert") + "Card declined</span>";
+      else if (status === "paid" && !parseTime(item.due) && !parseTime(item.date)) chip = '<span class="chip ok">' + icon("i-check") + "Paid</span>";
+      else chip = dueChip(item.due || item.date, ref, status === "paid" ? "paid" : status === "autopay" ? "autopay" : "due");
+    }
+    var cls = status === "overdue" || status === "failed" ? " overdue" : status === "paid" ? " paid" : "";
+    var link = state.example ? "" : gmailLink(item);
+    var actions = [];
+    if (canAsk()) {
+      if (lane === "money" && status === "overdue") actions.push('<button class="btn" data-act="nudge" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft a reminder</button>");
+      else if (lane === "money" && status === "waiting") actions.push('<button class="btn" data-act="followup" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft a follow-up</button>");
+      else actions.push('<button class="btn" data-act="more" data-id="' + esc(id) + '">' + icon("i-chat") + "Ask about this</button>");
+    }
+    if (link) actions.push('<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Gmail</a>");
+    return '<li class="money-card' + cls + '">' +
+      '<button class="mc-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
+      '<span class="mc-title" dir="auto">' + esc(title) + "</span>" +
+      '<span class="mc-amount num" dir="auto">' + esc(amountText(item.amount, 24)) + "</span>" +
+      '<span class="mc-what" dir="auto">' + esc(text(item.what, 90)) + "</span>" +
+      '<span class="mc-foot">' + chip + "</span>" +
+      "</button>" +
+      '<div class="mc-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" +
+      (text(item.short) ? '<p dir="auto">' + esc(text(item.short, 500)) + "</p>" : "") +
+      (actions.length ? '<div class="row-actions">' + actions.join("") + "</div>" : "") +
+      "</div></li>";
+  }
+
+  function lane(key, title, iconId, count, total, inner, emptyText) {
+    return '<section class="lane ' + key + '" id="lane-' + key + '" aria-labelledby="lane-' + key + '-h">' +
+      '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="lane-' + key + '-h">' + esc(title) + "</h3>" +
+      (total ? '<span class="total num" dir="auto">' + esc(total) + "</span>" : "") +
+      '<span class="count num' + (count ? "" : " zero") + '">' + count + "</span></div>" +
+      (count ? inner : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</section>";
+  }
+
+  function paintBoard() {
+    var main = $("board-main");
+    var side = $("board-side");
+    $("board").hidden = !state.loaded || !state.data;
+    if (!state.loaded || !state.data) { main.innerHTML = ""; side.innerHTML = ""; return; }
+    var ref = refDate();
+    var w = waiting();
+    var m = money();
+    var b = bills();
+    var f = fyi();
+    var t = state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {};
+    var left = state.data.leftOut && typeof state.data.leftOut === "object" ? state.data.leftOut : null;
+    var waitingLane = lane("waiting", "Waiting on you", "i-reply", w.length, "",
+      '<ol class="rows">' + w.map(function (item, i) { return waitingRow(item, i, ref); }).join("") + "</ol>",
+      "Nobody is waiting on an answer from you.");
+    var moneyLane = lane("money", "Quotes and invoices", "i-dollar", m.length, amountText(t.owed, 20) ? amountText(t.owed, 20) + " owed" : "",
+      '<ul class="cards">' + m.map(function (item, i) { return moneyCard(item, i, ref, "money"); }).join("") + "</ul>",
+      "No quotes or invoices in this batch.");
+    var billsLane = lane("bills", "Bills to pay", "i-receipt", b.length, amountText(t.billsDue, 20) ? amountText(t.billsDue, 20) + " due" : "",
+      '<ul class="cards">' + b.map(function (item, i) { return moneyCard(item, i, ref, "bills"); }).join("") + "</ul>",
+      "No bills in this batch.");
+    var moreItems = f.map(function (item) {
+      return '<li><b dir="auto">' + esc(text(item.from, 60)) + '</b><span dir="auto">' + esc(text(item.gist, 140)) + "</span></li>";
+    });
+    if (left && left.count) {
+      var senders = list(left.senders).slice(0, 4).map(function (s) { return text(s.name, 40) + " " + (s.count || ""); }).join(", ");
+      moreItems.push('<li><b>' + left.count + " set aside</b><span dir=\"auto\">Newsletters and ads" + (senders ? ": " + esc(senders) : "") + ". Still in Gmail.</span></li>");
+    }
+    var moreLane = moreItems.length
+      ? '<section class="lane more" id="lane-more" aria-labelledby="lane-more-h"><div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon("i-bell") +
+        '</span><h3 id="lane-more-h">Also worth a look</h3></div><ul class="mini">' + moreItems.join("") + "</ul></section>"
+      : "";
+    main.innerHTML = waitingLane + moreLane;
+    side.innerHTML = moneyLane + billsLane;
+  }
+
+  function paintIdeas() {
+    var el = $("ideas");
+    if (!state.loaded) { el.innerHTML = ""; return; }
+    var can = canAsk();
+    el.innerHTML = '<div class="section-head"><h2 id="ideas-title">Ideas for your business</h2>' +
+      "<p>" + (!V2 ? "Ask for any of these in the cabinet’s chat." : !askReady() ? "Connect Gmail and each of these is one tap away." : "One tap to ask now, or to have it done for you on a schedule.") + "</p></div>" +
+      '<div class="idea-grid">' + IDEAS.map(function (idea, i) {
+        return '<article class="idea' + (state.animate ? " rise" : "") + '"' + (state.animate ? ' style="--d:' + (i * 40) + 'ms"' : "") + ">" +
+          '<span class="ic ' + idea.tint + '" aria-hidden="true">' + icon(idea.icon) + "</span>" +
+          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
+          '<div class="go"><button class="btn dark" data-act="idea-now" data-i="' + i + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
+          '<button class="btn" data-act="idea-routine" data-i="' + i + '"' + (can ? "" : " disabled") + ' aria-label="' + esc(idea.when + ": " + idea.title) + '">' + icon("i-repeat") + esc(idea.when) + "</button></div>" +
+          "</article>";
+      }).join("") + "</div>";
+  }
+
+  /** Asking reads the mail, so it waits until Gmail is connected; a viewer cannot ask at all. */
+  function paintAsk() {
+    var box = $("ask");
+    var note = $("ask-note");
+    box.hidden = !canAsk();
+    var ready = askReady();
+    var s = gmailState();
+    note.textContent = ready
+      ? "The answer comes up in the chat next to this page."
+      : s === "not-available-here"
+        ? "Once Gmail works here, you can ask things like these."
+        : "Connect Gmail first, then ask anything. A question here takes you to connecting.";
+  }
+
+  function paintExtras() {
+    var el = $("extras");
+    if (!state.loaded) { el.innerHTML = ""; return; }
+    var parts = [];
+
+    // The Friday check, for the week it was made in.
+    var loose = state.loose;
+    var looseAt = loose ? parseTime(loose.generatedAt) : null;
+    if (!state.example && loose && looseAt && loose.waiting.length && (Date.now() - looseAt.getTime()) < 7 * DAY_MS) {
+      var ref = new Date();
+      parts.push('<section class="panel friday"><h3>' + icon("i-alarm") + esc(text(loose.headline, 120) || "Still waiting on you") + "</h3>" +
+        "<p>Friday check, " + esc(whenWords(looseAt, ref)) + ". Clear these before the weekend.</p>" +
+        '<ul class="mini" style="padding:0">' + loose.waiting.slice(0, 15).map(function (x, i) {
+          var days = waitingDays(x.waitingSince, ref);
+          return '<li><b dir="auto">' + esc(text(x.from, 80)) + '</b><span dir="auto">' + esc(text(x.gist, 140) || text(x.subject, 140)) +
+            (days >= 1 ? " · " + days + " " + plural(days, "day", "days") : "") + "</span>" +
+            (canAsk() ? '<button class="btn quiet" style="margin-inline-start:auto" data-act="loose" data-i="' + i + '">' + icon("i-pen") + "Draft a reply</button>" : "") + "</li>";
+        }).join("") + "</ul></section>");
+    }
+
+    // What the owner told the cabinet about the business, from setup.md.
+    if (state.setup) {
+      var anySet = state.setup.some(function (a) { return !a.unset; });
+      if (!anySet) {
+        parts.push('<section class="panel"><h3>' + icon("i-sliders") + "Tell your front desk about the business</h3>" +
+          "<p>What you do, whose email always matters, what to set aside, and how your replies sound. Two minutes here makes every sort sharper.</p>" +
+          (canAsk() && askReady() ? '<button class="btn" data-act="ask" data-q="I want to tell you about my business so you can sort my email better.">' + icon("i-pen") + "Tell it now</button>" : "") +
+          "</section>");
+      } else {
+        parts.push('<section class="panel"><h3>' + icon("i-sliders") + "What your front desk knows</h3>" +
+          "<dl>" + state.setup.slice(0, 5).map(function (a) {
+            return "<div><dt>" + esc(a.label) + "</dt><dd" + (a.unset ? ' class="unset"' : "") + ' dir="auto">' + esc(a.unset ? "Not set yet" : text(a.value, 240)) + "</dd></div>";
+          }).join("") + "</dl>" +
+          (canAsk() && askReady() ? '<button class="btn" data-act="ask" data-q="I want to change what you know about my business.">' + icon("i-pen") + "Change this</button>" : "") +
+          "</section>");
+      }
+    }
+    el.innerHTML = parts.join("");
+  }
+
+  function paintQuestions() {
+    $("questions").innerHTML = QUESTIONS.map(function (q) {
+      return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+    }).join("");
+  }
+
+  // ── Presses ────────────────────────────────────────────────────────────
+
+  function about(item) {
+    var who = text(item.from || item.who, 90);
+    var what = text(item.subject, 140) || text(item.what, 140) || text(item.gist, 140);
+    return who + (what ? ' about "' + what + '"' : "");
+  }
+
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest ? event.target.closest("[data-act]") : null;
+    if (!el || el.disabled) return;
+    var act = el.getAttribute("data-act");
+    var id = el.getAttribute("data-id");
+    var item = id ? findItem(id) : null;
+    if (act === "toggle") {
+      state.open[id] = !state.open[id];
+      paintBoard();
+      var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+      if (again) again.focus();
+    } else if (act === "connect") connect();
+    else if (act === "run") runNow();
+    else if (act === "ask") ask(el.getAttribute("data-q"));
+    else if (act === "copy" && item) copyText(text(item.reply));
+    else if (act === "reply" && item) {
+      ask((text(item.reply) ? "Change the reply you drafted to " : "Draft a short reply to ") + about(item) + ". Show it to me before anything is sent.");
+    } else if (act === "nudge" && item) {
+      ask("Draft a short, polite payment reminder for " + (text(item.who, 90) || "this customer") + " about invoice " + (text(item.number, 30) || "") + " (" + text(item.amount, 30) + "). Show it to me before anything is sent.");
+    } else if (act === "followup" && item) {
+      ask("Draft a friendly follow-up to " + (text(item.who, 90) || "this customer") + " about quote " + (text(item.number, 30) || "") + " (" + text(item.what, 90) + ", " + text(item.amount, 30) + "). Show it to me before anything is sent.");
+    } else if (act === "more" && item) {
+      ask("Tell me more about the email from " + about(item) + ".");
+    } else if (act === "idea-now") {
+      var idea = IDEAS[+el.getAttribute("data-i")];
+      if (idea) ask(idea.ask);
+    } else if (act === "idea-routine") {
+      var r = IDEAS[+el.getAttribute("data-i")];
+      if (r) ask("Set this up as a routine that runs " + r.at + ": " + r.ask + " Show me the routine so I can approve it before it starts.");
+    } else if (act === "loose" && state.loose) {
+      var x = state.loose.waiting[+el.getAttribute("data-i")];
+      if (x) ask("Draft a short reply to " + about(x) + ". Show it to me before anything is sent.");
+    }
+  });
+
+  $("ask-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    ask($("ask-input").value);
+  });
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  paintQuestions();
+  paint();
+
+  if (V2) {
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      // The routine's data and the owner's setup.md both live in this app's folder.
+      try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+    cab.connectors.list().then(function (items) {
+      state.gmail = pickGmail(items) || { id: "gmail", state: "not-available-here", problem: null, canConnect: false };
+      paint();
+    }).catch(function () {
+      state.gmail = { id: "gmail", state: "not-available-here", problem: null, canConnect: false };
+      paint();
+    });
+    cab.connectors.onChange(function (items) { var g = pickGmail(items); if (g) { state.gmail = g; paint(); } });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    load();
+    // No live changes in an older Cabinet: look again now and then while the page is in view.
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") load(); });
+  }
+})();
+</script>
+</body>
+</html>
