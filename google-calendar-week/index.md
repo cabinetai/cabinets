@@ -1,53 +1,38 @@
 ---
 title: Google Calendar Week
 created: '2026-08-09T00:00:00Z'
-modified: '2026-09-15T00:00:00Z'
-tags: [google-calendar, calendar, schedule, summary, showcase]
+modified: '2026-09-25T00:00:00Z'
+tags: [google-calendar, calendar, clients, small-business, showcase]
 order: 1
 ---
 # Google Calendar Week
 
-Every morning, what's on your calendar today, with the rest of the week behind it.
+Your calendar, working for your business. Every morning at 7 it lays out the week's client
+meetings, keeps a client list built from who you meet, and flags the clients going quiet.
+
+The cabinet opens on it: **Your week in business**.
 
 ## What you get
 
-One page. Today's events sit at the top, one line each, with the time, who is coming and
-where it is. The rest of the week follows underneath, so nothing on Thursday can surprise
-you on Thursday morning. You glance at it over coffee and you know how your day actually
-looks.
+- **Your week in business**: client meetings, hours with clients, new clients, and the best
+  open time for sales calls.
+- **Every client meeting**, with "Prep me" before it and "Draft follow-up" after it.
+- **Clients**: a client list built from your meetings. Who you met, how often, when last,
+  what is next, hours this month, and who is going quiet. Each client also gets a page in
+  **Clients**, with room for your own notes.
+- **Ideas**: plays to try, like "Hours per client this month, for invoices". Ask once, or
+  switch one on to run every morning or every Monday.
 
-The morning routine only reads. It never creates, moves or cancels anything.
+## Getting started
 
-## You can also just ask it
+1. In Calendar Brief, press **Connect Google Calendar**. You do it once.
+2. A minute later your own week and clients are there. They update every morning at 7.
 
-The same agent sits in Cabinet's chat. Ask it in plain words:
+Until then, the app shows a made-up heating and cooling company, and says so.
 
-- "When am I free on Wednesday?"
-- "What's my busiest day this week?"
-- "Who am I meeting on Thursday?"
+## It only reads, unless you ask
 
-It answers from what is on your calendar.
-
-## How to look at it
-
-Open the **Calendar Brief** app in this cabinet. It comes pre-filled with a made-up
-example so you can see the shape of it straight away, and the page says clearly that
-those events are fake. Your first real brief takes its place.
-
-## Before it can read your real calendar
-
-Connect Google Calendar when Cabinet asks, or later from Integrations. You do it once,
-and there is nothing to install and no developer account to make.
-
-Cabinet's own way in is a private address: Google Calendar's settings give every calendar
-a secret web address, and you copy one and paste it in. The Google Calendar page in
-Integrations shows you where it is. Your team can then read your calendar. It cannot
-change anything in it.
-
-Until it is connected, the page keeps showing the example.
-
-## What's inside
-
-- **Calendar Briefer**: the one agent. Writes the brief, and answers you in chat.
-- **Morning Calendar Brief**: the one routine. Runs at 07:00 every day.
-- **Calendar Brief**: the one page. Opens on today, with a dropdown for earlier days.
+The morning update never adds, moves or deletes anything, and never sends anything.
+Drafts are written for you to send yourself. If you ask in the chat to move an event, it
+says exactly what will change and waits for your yes. Connected with your calendar's
+secret address, it can read your meetings but not change them.

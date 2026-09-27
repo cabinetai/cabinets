@@ -1,390 +1,1589 @@
 <!DOCTYPE html>
 <!--
-  google-calendar-week showcase page.
+  Calendar Brief: the Google Calendar Week cabinet's app, for a small business.
 
-  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
-  The file names carry the timestamp, so the picker is built without opening any of them.
-  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
-  and survive the user renaming the cabinet at install time. The folder listing comes from
-  /api/tree because the assets route serves single files and cannot list a directory.
+  Draws data/latest.json, which the cabinet's morning routine writes: the week ahead and
+  a client list built from the calendar. Until the first real update it shows
+  data/EXAMPLE-latest.json, a made-up heating and cooling company, always labelled.
+  It never calls Google: the routine reads the calendar, and a change to an event only
+  ever happens in the chat, where the agent asks first. DATA.md describes the file.
 
-  Zero external requests. System fonts, inline CSS, no libraries.
-  Every failure path renders something honest instead of a blank page.
+  Talks to Cabinet through window.cabinet v2: the connection state and its Connect
+  button, Refresh (runs the routine), asks (only from a press), and file reads. An older
+  Cabinet without v2 still gets the week, read from the files beside this page.
+
+  One file on purpose: a sealed frame (anyone but the owner) cannot load files next to
+  it. Fonts come from Google Fonts, with system fallbacks.
 -->
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Google Calendar Brief</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Your week in business</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap">
 <style>
   :root {
-    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
-    --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
-    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
-    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
-    /* Role aliases kept from the old skin so every rule reads the same way. */
-    --bg: var(--parchment); --dim: var(--muted); --accent: var(--blue); --mid: var(--gold);
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --surface-2: #f3f5f8;
+    --line: #e2e6ec;
+    --line-2: #cfd6df;
+    --ink: #0e1b3d;
+    --ink-2: #334060;
+    --ink-3: #566178;
+    --blue: #1a73e8;
+    --blue-ink: #1558c0;
+    --blue-soft: #eaf1fd;
+    --blue-line: #c6d9fa;
+    --amber: #f2a93b;
+    --amber-ink: #8a5300;
+    --amber-soft: #fdf3e1;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(14, 27, 61, .04), 0 10px 28px -16px rgba(14, 27, 61, .16);
+    --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
+
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; padding: 48px 24px 64px; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font: 400 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 860px; margin: 0 auto; }
-  h1 {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 34px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
-    display: flex; align-items: center; gap: 12px;
-  }
-  /* An inline <svg> with a viewBox and no width fills its container — size it here or
-     the mark renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 28px; height: 28px; flex: none; }
-  .sub { color: var(--dim); margin: 6px 0 0; }
-  .card {
-    background: var(--card); border: none; border-radius: 12px;
-    padding: 18px 22px; margin-top: 18px;
-    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
-  }
-  .banner {
-    padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border: none;
-    border-radius: 12px; font-size: 14px; color: var(--dim);
-    box-shadow: 0 1px 2px rgba(59,47,47,0.04);
-  }
-  /* The one thing worth reading if nothing else. */
-  .lead-tag {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--accent); margin-bottom: 6px;
-  }
-  .lead-who { font-family: Georgia, serif; font-size: 20px; font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--dim); }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th {
-    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--dim); font-weight: 700; padding: 0 10px 10px 0; border-bottom: 1px solid var(--line);
-  }
-  td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .page { max-width: 1320px; margin: 0 auto; padding: 28px 32px 64px; }
+  @media (max-width: 700px) { .page { padding: 22px 16px 48px; } }
+
+  /* Icons are drawn here, never emoji. */
+  .ic { display: inline-flex; width: 1em; height: 1em; flex: none; }
+  .ic svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Header ─────────────────────────────────────────── */
+  .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px 28px; }
+  .eyebrow { margin: 0 0 8px; font-weight: 600; font-size: 16px; line-height: 1.3; color: var(--blue-ink); letter-spacing: .01em; }
+  .eyebrow .tag { display: inline-block; margin-left: 10px; padding: 0 9px; border-radius: 6px; background: var(--amber-soft); color: var(--amber-ink); }
+  h1 { margin: 0; font: 500 46px/1.04 var(--serif); letter-spacing: -.015em; color: var(--ink); }
+  .dates { margin: 10px 0 0; color: var(--ink-3); font-size: 17px; }
+  @media (max-width: 560px) { h1 { font-size: 36px; } }
+
+  .status { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
   .pill {
-    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
-    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 16px 6px 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow);
   }
-  /* Today is the point of the page; the rest of the week is context and reads quieter. */
-  .d-today { color: var(--accent); } .d-tomorrow { color: var(--mid); } .d-later { color: var(--faint); }
-  /* A start and end time reads as a quantity, not as prose. */
-  .time { color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
-  .deep-link:hover { border-bottom-color: var(--dim); }
-  .empty { color: var(--dim); font-size: 14px; }
-  .empty code { font-size: 13px; }
-  .scroll { overflow-x: auto; }
-  .picker { margin-top: 22px; font-size: 14px; color: var(--dim); }
-  .picker select {
-    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  .pill .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .pill b { display: block; font-weight: 600; font-size: 16px; line-height: 1.25; color: var(--ink); }
+  .pill small { display: block; font-size: 16px; line-height: 1.25; color: var(--ink-3); }
+  .pill small .ic { font-size: 14px; margin-right: 4px; vertical-align: -1px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 18px;
+    border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink);
+    font-weight: 600; font-size: 16px; line-height: 1; text-decoration: none; white-space: nowrap;
+    transition: background-color .15s ease, border-color .15s ease;
   }
-  .picker .next { display: block; margin-top: 7px; color: var(--faint); font-size: 13px; }
+  .btn:hover { border-color: #b7c1ce; background: #fbfcfd; }
+  .btn .ic { font-size: 18px; }
+  .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn.primary:hover { background: #1765cc; border-color: #1765cc; }
+  .btn.light { background: #fff; border-color: #fff; color: var(--ink); }
+  .btn.light:hover { background: #eef3fb; }
+  .btn.big { min-height: 56px; padding: 0 22px; font-size: 17px; border-radius: 14px; }
+  .btn.blue-line { border-color: var(--blue-line); color: var(--blue-ink); background: #fff; }
+  .btn.blue-line:hover { background: var(--blue-soft); }
+  .btn[disabled] { opacity: .7; cursor: default; }
+  .btn img { width: 26px; height: 26px; }
+  .btn:focus-visible, .q:focus-visible, .seg button:focus-visible, .ev-main:focus-visible, .cl-name:focus-visible,
+  .ask-input:focus-visible, .send:focus-visible, .close:focus-visible, .ccard:focus-visible {
+    outline: 3px solid rgba(26, 115, 232, .45); outline-offset: 2px;
+  }
+  .spin { display: inline-block; width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; }
+  @media (prefers-reduced-motion: no-preference) { .spin { animation: turn .8s linear infinite; } }
+  @keyframes turn { to { transform: rotate(360deg); } }
+
+  /* ── Banners ────────────────────────────────────────── */
+  .banner {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin: 22px 0 0; padding: 18px 22px;
+    border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .banner .words { flex: 1 1 380px; min-width: 0; }
+  .banner h2 { margin: 0 0 4px; font: 500 24px/1.2 var(--serif); color: var(--ink); }
+  .banner p { margin: 0; color: var(--ink-2); font-size: 16.5px; }
+  .banner p + p { margin-top: 4px; }
+  .banner.example { background: var(--ink); border-color: var(--ink); }
+  .banner.example h2 { color: #fff; }
+  .banner.example p { color: #c9d2e3; }
+  .banner .label {
+    display: inline-block; margin-right: 12px; padding: 0 10px; border-radius: 6px; vertical-align: 3px;
+    background: var(--amber); color: #2b1a00; font: 700 16px/1.6 var(--sans); letter-spacing: .05em; text-transform: uppercase;
+  }
+  .banner.alert { border-left: 4px solid var(--amber); }
+  .banner.calm { background: var(--blue-soft); border-color: var(--blue-line); }
+  .banner .note { flex-basis: 100%; margin: 0; font-size: 16px; }
+  @media (max-width: 560px) { .banner .btn.big { width: 100%; } }
+
+  /* ── The week in numbers ────────────────────────────── */
+  .kpis {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 22px 0 0; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+  }
+  .kpi { padding: 20px 22px 18px; border-left: 1px solid var(--line); min-width: 0; }
+  .kpi:first-child { border-left: 0; }
+  .kpi .label { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-weight: 500; font-size: 16px; }
+  .kpi .label .ic { font-size: 18px; color: var(--blue); }
+  .kpi .value { margin-top: 8px; font-weight: 600; font-size: 38px; line-height: 1.05; letter-spacing: -.025em; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .kpi .value.words { font: 500 27px/1.15 var(--serif); letter-spacing: -.005em; }
+  .kpi .sub { margin-top: 6px; color: var(--ink-3); font-size: 16px; }
+  .kpi.open { background: var(--blue-soft); }
+  .kpi.open .value { color: var(--blue-ink); }
+  @media (max-width: 960px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kpi:nth-child(3) { border-left: 0; }
+    .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }
+  }
+  /* A phone reads the numbers as rows: the figure, then what it means. */
+  @media (max-width: 560px) {
+    .kpis { grid-template-columns: minmax(0, 1fr); }
+    .kpi {
+      display: grid; grid-template-columns: 84px minmax(0, 1fr); grid-template-areas: "value label" "value sub";
+      align-items: center; column-gap: 12px; padding: 14px 16px; border-left: 0; border-top: 1px solid var(--line);
+    }
+    .kpi:first-child { border-top: 0; }
+    .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }
+    .kpi .label { grid-area: label; }
+    .kpi .label .ic { display: none; }
+    .kpi .value { grid-area: value; margin-top: 0; font-size: 32px; }
+    .kpi .sub { grid-area: sub; margin-top: 0; }
+    .kpi.open { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "value" "sub"; row-gap: 4px; }
+    .kpi.open .value.words { font-size: 24px; }
+  }
+
+  .worth {
+    display: flex; align-items: flex-start; gap: 12px; margin: 14px 0 0; padding: 14px 18px;
+    background: var(--amber-soft); border: 1px solid #f1dcb3; border-radius: 12px; color: #4a3200; font-size: 16.5px;
+  }
+  .worth .ic { font-size: 20px; color: #b56d00; margin-top: 2px; }
+  .worth b { color: #3a2700; }
+
+  /* ── Ask ────────────────────────────────────────────── */
+  .ask { margin: 18px 0 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .ask form { display: flex; gap: 10px; }
+  .ask-input {
+    flex: 1; min-width: 0; min-height: 58px; padding: 0 18px; border: 1px solid var(--line-2); border-radius: 12px;
+    background: #fff; color: var(--ink); font-size: 18px;
+  }
+  .ask-input::placeholder { color: #69738a; }
+  .ask-input:focus { border-color: var(--blue); }
+  .send { width: 58px; min-height: 58px; flex: none; display: grid; place-items: center; border: 0; border-radius: 12px; background: var(--blue); color: #fff; }
+  .send:hover { background: #1765cc; }
+  .send .ic { font-size: 24px; }
+  .qs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .q {
+    min-height: 44px; padding: 8px 15px; border-radius: 999px; border: 1px solid var(--line-2); background: #fff;
+    color: var(--ink-2); font-weight: 500; font-size: 16px; text-align: start; transition: background-color .15s ease, border-color .15s ease;
+  }
+  .q:hover { border-color: var(--blue-line); background: var(--blue-soft); color: var(--blue-ink); }
+  .asknote { margin: 10px 2px 0; color: var(--ink-3); font-size: 16px; }
+  .asknote:empty { display: none; }
+  .asknote.bad { color: #a4291f; font-weight: 500; }
+  .quiet-line { margin: 0; color: var(--ink-3); font-size: 16px; }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  .main {
+    display: grid; grid-template-columns: minmax(0, 1.72fr) minmax(340px, 1fr); gap: 24px; align-items: start; margin-top: 24px;
+    grid-template-areas: "week ideas" "clients clients";
+  }
+  #week { grid-area: week; }
+  #ideas { grid-area: ideas; }
+  #clients { grid-area: clients; }
+  @media (max-width: 1100px) {
+    .main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "week" "clients" "ideas"; }
+  }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); min-width: 0; }
+  .panel-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 16px; padding: 22px 22px 14px; }
+  .panel-head h2 { margin: 0; font: 500 29px/1.12 var(--serif); letter-spacing: -.01em; color: var(--ink); }
+  .panel-head p { margin: 4px 0 0; color: var(--ink-3); font-size: 16px; }
+
+  /* ── This week ──────────────────────────────────────── */
+  .day { padding: 14px 22px 16px; border-top: 1px solid var(--line); }
+  .dayhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 10px; }
+  .dayhead .name { font-weight: 600; font-size: 17px; color: var(--ink); }
+  .dayhead .name.today { color: var(--blue-ink); }
+  .dayhead .date { color: var(--ink-3); font-size: 16px; }
+  .dayhead .count { margin-left: auto; color: var(--ink-3); font-size: 16px; }
+  .items { display: flex; flex-direction: column; gap: 8px; }
+
+  .ev { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 14px; }
+  .ev-main {
+    display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 2px 14px; align-items: start; width: 100%;
+    padding: 0; border: 0; background: none; text-align: start; min-height: 44px;
+  }
+  .ev .time { color: var(--ink-2); font-weight: 500; font-size: 16px; font-variant-numeric: tabular-nums; padding-top: 1px; }
+  .ev .what { display: block; font-size: 16px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .ev .kindword { color: var(--ink-3); }
+
+  .ev.client {
+    padding: 12px 14px 12px 12px; border: 1px solid var(--blue-line); border-left: 3px solid var(--blue);
+    border-radius: 12px; background: #fbfdff; transition: background-color .15s ease;
+  }
+  .ev.client:hover { background: #f3f7fe; }
+  .ev.client .co { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-weight: 600; font-size: 17px; color: var(--ink); line-height: 1.3; }
+  .ev.client .sub { display: block; margin-top: 2px; color: var(--ink-2); font-size: 16px; overflow-wrap: anywhere; }
+  .ev.client .place { display: flex; align-items: center; gap: 6px; margin-top: 2px; color: var(--ink-3); font-size: 16px; overflow-wrap: anywhere; }
+  .ev.client .place .ic { font-size: 16px; }
+  .ev.client .time { color: var(--ink); font-weight: 600; }
+  .ev.quiet { padding: 0 14px 0 15px; }
+  .ev.quiet .ev-main { align-items: center; }
+  .ev.past { opacity: .6; }
+  .ev .now { display: inline-block; margin-left: 8px; padding: 0 8px; border-radius: 6px; background: var(--blue); color: #fff; font-weight: 600; font-size: 14.5px; line-height: 1.6; vertical-align: 1px; }
+  .open-slot {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 44px; padding: 8px 14px 8px 15px;
+    border: 1px dashed var(--line-2); border-radius: 12px; color: var(--ink-3); font-size: 16px;
+  }
+  .open-slot .ic { font-size: 18px; }
+  .open-slot.best { border-color: var(--blue-line); background: #f7faff; color: var(--blue-ink); }
+  .open-slot.best .ic { color: var(--blue); }
+  .open-slot.best b { font-weight: 600; }
+  .none { margin: 0; color: var(--ink-3); font-size: 16px; }
+  .notyet { margin: 0; padding: 12px 14px; border: 1px dashed var(--line-2); border-radius: 12px; color: var(--ink-3); font-size: 16px; }
+  @media (max-width: 640px) {
+    .ev.client { grid-template-columns: minmax(0, 1fr); }
+    .ev.client .act { width: 100%; }
+    .ev-main { grid-template-columns: 78px minmax(0, 1fr); }
+    .day { padding: 12px 16px 14px; }
+    .panel-head { padding: 18px 16px 12px; }
+  }
+
+  /* ── Ideas ──────────────────────────────────────────── */
+  .ideas .idea { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 2px 14px; padding: 16px 22px; border-top: 1px solid var(--line); }
+  .idea .ico { grid-row: span 3; width: 40px; height: 40px; border-radius: 10px; background: var(--blue-soft); color: var(--blue-ink); display: grid; place-items: center; }
+  .idea .ico .ic { font-size: 20px; }
+  .idea h3 { margin: 0; font-weight: 600; font-size: 16.5px; line-height: 1.35; color: var(--ink); }
+  .idea p { margin: 2px 0 10px; color: var(--ink-3); font-size: 16px; }
+  .idea .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .idea .acts .btn { min-height: 44px; padding: 0 14px; border-radius: 10px; }
+  .idea .acts .btn .ic { font-size: 17px; }
+  @media (max-width: 640px) { .ideas .idea { padding: 14px 16px; } }
+
+  /* ── Clients ────────────────────────────────────────── */
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button {
+    min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line-2); background: #fff;
+    color: var(--ink-2); font-weight: 500; font-size: 16px;
+  }
+  .seg button .n { margin-left: 6px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .seg button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .seg button[aria-pressed="true"] .n { color: #c9d2e3; }
+  .cl-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 0 22px 16px; }
+  .cl-tools > .btn { white-space: normal; text-align: start; line-height: 1.3; padding: 10px 16px; max-width: 100%; }
+  @media (max-width: 900px) { .cl-tools > .btn { width: 100%; justify-content: flex-start; } }
+  .ctable { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .ctable th {
+    padding: 12px 16px; background: var(--surface-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    color: var(--ink-3); font-weight: 500; font-size: 16px; text-align: start;
+  }
+  .ctable th:first-child, .ctable td:first-child { padding-left: 22px; }
+  .ctable th:last-child, .ctable td:last-child { padding-right: 22px; }
+  .ctable td { padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--ink-2); font-size: 16px; vertical-align: middle; }
+  .ctable tr:last-child td { border-bottom: 0; }
+  .ctable .r { text-align: end; font-variant-numeric: tabular-nums; }
+  .ctable tbody tr:hover td { background: #fafbfd; }
+  .cl-name { display: block; min-height: 44px; padding: 2px 0; border: 0; background: none; text-align: start; }
+  .cl-name b { display: block; font-weight: 600; font-size: 16.5px; color: var(--ink); line-height: 1.35; }
+  .cl-name span { display: block; color: var(--ink-3); font-size: 16px; }
+  .cl-name:hover b { color: var(--blue-ink); text-decoration: underline; text-underline-offset: 3px; }
+  .muted { color: var(--ink-3); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 999px; font-weight: 600; font-size: 16px; line-height: 1.65; white-space: nowrap; }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .chip.new { background: var(--blue-soft); color: var(--blue-ink); }
+  .chip.active { background: #edf0f4; color: var(--ink-2); }
+  .chip.quiet { background: var(--amber-soft); color: var(--amber-ink); }
+  .cl-empty { margin: 0; padding: 18px 22px 22px; color: var(--ink-3); font-size: 16px; border-top: 1px solid var(--line); }
+  .ccards { display: none; }
+  @media (max-width: 900px) {
+    .ctable { display: none; }
+    .ccards { display: flex; flex-direction: column; gap: 10px; padding: 0 16px 16px; }
+    .cl-tools { padding: 0 16px 14px; }
+  }
+  .ccard { display: block; width: 100%; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; text-align: start; }
+  .ccard .top-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ccard b { font-weight: 600; font-size: 17px; color: var(--ink); }
+  .ccard .who { display: block; margin-top: 2px; color: var(--ink-2); font-size: 16px; }
+  .ccard .facts2 { display: block; margin-top: 6px; color: var(--ink-3); font-size: 16px; }
+
+  .foot { margin: 36px 0 0; text-align: center; color: var(--ink-3); font-size: 16px; }
+  .foot b { color: var(--ink-2); font-weight: 600; }
+
+  /* ── One thing, opened ──────────────────────────────── */
+  .scrim { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(14, 27, 61, .42); }
+  .sheet {
+    position: relative; width: min(540px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 26px 24px 22px;
+    background: #fff; border-radius: 20px; box-shadow: 0 30px 80px -20px rgba(14, 27, 61, .45);
+  }
+  @media (max-width: 600px) {
+    .scrim { align-items: flex-end; padding: 0; }
+    .sheet { width: 100%; max-height: 90vh; border-radius: 20px 20px 0 0; }
+  }
+  .sheet .kicker { margin: 0 56px 6px 0; color: var(--blue-ink); font-weight: 600; font-size: 16px; }
+  .sheet h2 { margin: 0 56px 14px 0; font: 500 30px/1.15 var(--serif); color: var(--ink); overflow-wrap: anywhere; }
+  .sheet .subtitle { margin: -8px 0 14px; color: var(--ink-2); font-size: 16.5px; }
+  .facts { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 10px; }
+  .facts li { display: flex; gap: 12px; align-items: flex-start; color: var(--ink-2); font-size: 16.5px; overflow-wrap: anywhere; }
+  .facts .ic { font-size: 20px; margin-top: 2px; color: var(--ink-3); }
+  .acts { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sheet .acts .btn { flex: 1 1 220px; }
+  .close { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink-2); }
+  .close .ic { font-size: 20px; }
+  .madeup { margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; background: var(--amber-soft); color: #4a3200; font-size: 16px; }
+
+  .loading { padding: 64px 20px; text-align: center; color: var(--ink-3); font: 500 22px/1.3 var(--serif); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-
-  <header>
-    <h1>
-      <!-- The integration's own mark, inlined so the page still makes
-           zero external requests. -->
-      <svg class="mark" viewBox="0 0 200 200" aria-hidden="true"><g> <g transform="translate(3.75 3.75)"> <path fill="#FFFFFF" d="M148.882,43.618l-47.368-5.263l-57.895,5.263L38.355,96.25l5.263,52.632l52.632,6.579l52.632-6.579 l5.263-53.947L148.882,43.618z"/> <path fill="#1A73E8" d="M65.211,125.276c-3.934-2.658-6.658-6.539-8.145-11.671l9.132-3.763c0.829,3.158,2.276,5.605,4.342,7.342 c2.053,1.737,4.553,2.592,7.474,2.592c2.987,0,5.553-0.908,7.697-2.724s3.224-4.132,3.224-6.934c0-2.868-1.132-5.211-3.395-7.026 s-5.105-2.724-8.5-2.724h-5.276v-9.039H76.5c2.921,0,5.382-0.789,7.382-2.368c2-1.579,3-3.737,3-6.487 c0-2.447-0.895-4.395-2.684-5.855s-4.053-2.197-6.803-2.197c-2.684,0-4.816,0.711-6.395,2.145s-2.724,3.197-3.447,5.276 l-9.039-3.763c1.197-3.395,3.395-6.395,6.618-8.987c3.224-2.592,7.342-3.895,12.342-3.895c3.697,0,7.026,0.711,9.974,2.145 c2.947,1.434,5.263,3.421,6.934,5.947c1.671,2.539,2.5,5.382,2.5,8.539c0,3.224-0.776,5.947-2.329,8.184 c-1.553,2.237-3.461,3.947-5.724,5.145v0.539c2.987,1.25,5.421,3.158,7.342,5.724c1.908,2.566,2.868,5.632,2.868,9.211 s-0.908,6.776-2.724,9.579c-1.816,2.803-4.329,5.013-7.513,6.618c-3.197,1.605-6.789,2.421-10.776,2.421 C73.408,129.263,69.145,127.934,65.211,125.276z"/> <path fill="#1A73E8" d="M121.25,79.961l-9.974,7.25l-5.013-7.605l17.987-12.974h6.895v61.197h-9.895L121.25,79.961z"/> <path fill="#EA4335" d="M148.882,196.25l47.368-47.368l-23.684-10.526l-23.684,10.526l-10.526,23.684L148.882,196.25z"/> <path fill="#34A853" d="M33.092,172.566l10.526,23.684h105.263v-47.368H43.618L33.092,172.566z"/> <path fill="#4285F4" d="M12.039-3.75C3.316-3.75-3.75,3.316-3.75,12.039v136.842l23.684,10.526l23.684-10.526V43.618h105.263 l10.526-23.684L148.882-3.75H12.039z"/> <path fill="#188038" d="M-3.75,148.882v31.579c0,8.724,7.066,15.789,15.789,15.789h31.579v-47.368H-3.75z"/> <path fill="#FBBC04" d="M148.882,43.618v105.263h47.368V43.618l-23.684-10.526L148.882,43.618z"/> <path fill="#1967D2" d="M196.25,43.618V12.039c0-8.724-7.066-15.789-15.789-15.789h-31.579v47.368H196.25z"/> </g> </g></svg>
-      Google Calendar Brief
-    </h1>
-    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
-    <p class="sub">Every morning, what's on your calendar today, with the rest of the week behind it.</p>
+<div class="page">
+  <header class="top">
+    <div>
+      <p class="eyebrow" id="eyebrow">Google Calendar</p>
+      <h1>Your week in business</h1>
+      <p class="dates" id="dates"></p>
+    </div>
+    <div class="status" id="status"></div>
   </header>
-
-  <div id="root"><div class="card empty">Loading…</div></div>
-
+  <div id="banner"></div>
+  <section id="numbers" aria-label="Your week in numbers"></section>
+  <section id="ask" class="ask" aria-labelledby="ask-label"></section>
+  <div class="main">
+    <section class="panel" id="week" aria-labelledby="week-title"><div class="loading">Opening your week…</div></section>
+    <section class="panel clients" id="clients" aria-labelledby="clients-title"></section>
+    <section class="panel ideas" id="ideas" aria-labelledby="ideas-title"></section>
+  </div>
+  <p class="foot" id="foot"></p>
 </div>
+<div id="layer"></div>
 
 <script>
 (function () {
-  var root = document.getElementById('root');
-  var DIR = 'daily-summaries';
-  var JOB = '.jobs/morning-calendar-brief.yaml';
-  var job = null;
-  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-                'September', 'October', 'November', 'December'];
+  "use strict";
 
-  function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-  }
+  var APP_DEFAULT = "calendar-brief";
+  var JOB_ID = "morning-calendar-brief";
+  var CONNECTOR = "google-calendar";
+  var WORK_FROM = 8 * 60;      // open time for sales calls: 8:00 ...
+  var WORK_TO = 17 * 60;       // ... to 17:00 on weekdays
+  var MIN_OPEN = 90;           // minutes: a shorter stretch is not worth calling open
+  var MIN_SHOWN = 180;         // minutes: in the week itself, only half a day or the best stretch shows
 
-  /* Frontmatter + markdown table, the only two shapes this page reads.
-     Anything richer belongs in the file, not in a parser here. */
-  function parse(text) {
-    var out = { meta: {}, rows: [], cols: [] };
-    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-    var body = text;
-    if (m) {
-      body = m[2];
-      m[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
-        if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
-      });
-    }
-    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
-    if (lines.length < 2) return out;
-    function cells(l) {
-      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
-    }
-    out.cols = cells(lines[0]);
-    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
-    return out;
-  }
+  var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var KIND_WORDS = { client: "Client", team: "Team", personal: "Personal", other: "Other" };
+  var STATUS = {
+    "new": { label: "New", cls: "new" },
+    active: { label: "Active", cls: "active" },
+    quiet: { label: "Going quiet", cls: "quiet" }
+  };
 
-  /* Any day that is not Today or Tomorrow falls back to one shared class, so a value the
-     agent invents still renders as a legible grey pill rather than an unstyled one. */
-  function dayClass(cell) {
-    var k = cell.toLowerCase();
-    return (k === 'today' || k === 'tomorrow') ? 'd-' + k : 'd-later';
-  }
+  var ICONS = {
+    refresh: '<path d="M19.5 12a7.5 7.5 0 0 1-13.3 4.8"/><path d="M4.5 12a7.5 7.5 0 0 1 13.3-4.8"/><path d="M18.5 3.5v4h-4M5.5 20.5v-4h4"/>',
+    send: '<path d="M5 12h13"/><path d="M13 6.5 18.5 12 13 17.5"/>',
+    pin: '<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
+    people: '<circle cx="9" cy="8.5" r="3.3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M15.5 5.5a3.3 3.3 0 0 1 0 6.3M17.5 14.3A6 6 0 0 1 21 20"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    lock: '<rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/>',
+    out: '<path d="M14 4h6v6M20 4l-8.5 8.5"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+    close: '<path d="M6 6l12 12M18 6 6 18"/>',
+    chat: '<path d="M4.5 5.5h15v10h-9l-4.5 4v-4h-1.5z"/>',
+    move: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M9 15h6M13 13l2 2-2 2"/>',
+    plug: '<path d="M9 3.5v4M15 3.5v4"/><path d="M6.5 7.5h11V11a5.5 5.5 0 0 1-11 0z"/><path d="M12 16.5v4"/>',
+    repeat: '<path d="M17 3.5 20 6.5 17 9.5"/><path d="M4 11.5v-1a4 4 0 0 1 4-4h12"/><path d="M7 20.5 4 17.5 7 14.5"/><path d="M20 12.5v1a4 4 0 0 1-4 4H4"/>',
+    notes: '<path d="M7 3.5h8l4 4v13H7z"/><path d="M15 3.5v4h4"/><path d="M10 12h6M10 15.5h6"/>',
+    reply: '<path d="M9.5 7 4.5 12l5 5"/><path d="M4.5 12H14a5.5 5.5 0 0 1 5.5 5.5V19"/>',
+    list: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="2.6"/>',
+    users: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+    receipt: '<path d="M6 3.5h12v17l-2.5-1.6L13 20.5l-2.5-1.6L8 20.5l-2-1.6z"/><path d="M9 8.5h6M9 12h6"/>',
+    hourglass: '<path d="M7 3.5h10M7 20.5h10"/><path d="M8 3.5c0 5 8 5 8 8.5s-8 3.5-8 8.5M16 3.5c0 5-8 5-8 8.5s8 3.5 8 8.5"/>',
+    report: '<rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 16v-3M12 16V9M16 16v-5"/>',
+    phone: '<path d="M6.5 3.5h3l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2 2A16.5 16.5 0 0 1 4.5 5.5a2 2 0 0 1 2-2z"/>',
+    calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    briefcase: '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.5A2 2 0 0 1 10.5 3.5h3a2 2 0 0 1 2 2V7M3 12.5h18"/>',
+    alert: '<path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5M12 17.4h.01" stroke-width="2.4"/>'
+  };
 
-  /* url never gets a column of its own — it only decides whether the event links out. */
-  function isUrl(head) { return head === 'url'; }
+  // The Google Calendar mark, for the Connect button when Cabinet gives no logo.
+  var GCAL_LOGO = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><g transform="translate(3.75 3.75)"><path fill="#fff" d="M148.882 43.618l-47.368-5.263-57.895 5.263-5.264 52.632 5.263 52.632 52.632 6.579 52.632-6.579 5.263-53.947z"/><path fill="#1A73E8" d="M65.211 125.276c-3.934-2.658-6.658-6.539-8.145-11.671l9.132-3.763c.829 3.158 2.276 5.605 4.342 7.342 2.053 1.737 4.553 2.592 7.474 2.592 2.987 0 5.553-.908 7.697-2.724s3.224-4.132 3.224-6.934c0-2.868-1.132-5.211-3.395-7.026s-5.105-2.724-8.5-2.724h-5.276v-9.039H76.5c2.921 0 5.382-.789 7.382-2.368 2-1.579 3-3.737 3-6.487 0-2.447-.895-4.395-2.684-5.855s-4.053-2.197-6.803-2.197c-2.684 0-4.816.711-6.395 2.145s-2.724 3.197-3.447 5.276l-9.039-3.763c1.197-3.395 3.395-6.395 6.618-8.987 3.224-2.592 7.342-3.895 12.342-3.895 3.697 0 7.026.711 9.974 2.145 2.947 1.434 5.263 3.421 6.934 5.947 1.671 2.539 2.5 5.382 2.5 8.539 0 3.224-.776 5.947-2.329 8.184-1.553 2.237-3.461 3.947-5.724 5.145v.539c2.987 1.25 5.421 3.158 7.342 5.724 1.908 2.566 2.868 5.632 2.868 9.211s-.908 6.776-2.724 9.579c-1.816 2.803-4.329 5.013-7.513 6.618-3.197 1.605-6.789 2.421-10.776 2.421-4.618.013-8.881-1.316-12.815-3.974z"/><path fill="#1A73E8" d="M121.25 79.961l-9.974 7.25-5.013-7.605 17.987-12.974h6.895v61.197h-9.895z"/><path fill="#EA4335" d="M148.882 196.25l47.368-47.368-23.684-10.526-23.684 10.526-10.526 23.684z"/><path fill="#34A853" d="M33.092 172.566l10.526 23.684h105.263v-47.368H43.618z"/><path fill="#4285F4" d="M12.039-3.75C3.316-3.75-3.75 3.316-3.75 12.039v136.842l23.684 10.526 23.684-10.526V43.618h105.263l10.526-23.684L148.882-3.75z"/><path fill="#188038" d="M-3.75 148.882v31.579c0 8.724 7.066 15.789 15.789 15.789h31.579v-47.368z"/><path fill="#FBBC04" d="M148.882 43.618v105.263h47.368V43.618l-23.684-10.526z"/><path fill="#1967D2" d="M196.25 43.618V12.039c0-8.724-7.066-15.789-15.789-15.789h-31.579v47.368z"/></g></svg>');
 
-  function render(data, name, files) {
-    var meta = data.meta, html = picker(name, files);
+  // What Cabinet can do with a calendar: each one an outcome, one tap to ask or to make a routine.
+  var IDEAS = [
+    { icon: "users", title: "Build my client list from my calendar",
+      line: "Everyone from outside your business you met in 90 days, by company.",
+      ask: "Build my client list from my Google Calendar: everyone from outside my business I met in the last 90 days, grouped by company, with the main contact, how many meetings we had, when we last met and when we meet next." },
+    { icon: "list", title: "List every client meeting this month",
+      line: "Who, when and how long, with the total at the end.",
+      ask: "List every client meeting I have this month, with the client, the day, the time and how long it is. Put the total hours at the end." },
+    { icon: "notes", title: "Prep notes before each client meeting",
+      line: "Who they are, what you did last time, what to bring.",
+      ask: "Prep me for today's client meetings: for each one, who they are, when we last met and what it was about, and anything I should bring or check first.",
+      every: "Every morning", routine: "every weekday morning at 7, write prep notes for each client meeting that day: who they are, when we last met and what it was about, and what to bring" },
+    { icon: "reply", title: "Draft follow-ups after meetings",
+      line: "A short thank-you and next steps. Drafts only, never sent.",
+      ask: "Draft a short follow-up email for each client meeting I had today: thank them, recap what we agreed and the next step. Write them as drafts; don't send anything.",
+      every: "Every evening", routine: "every weekday at 5 PM, draft a short follow-up email for each client meeting I had that day, as drafts I send myself" },
+    { icon: "receipt", title: "Hours per client this month, for invoices",
+      line: "Time spent with each client, ready to bill.",
+      ask: "Add up the hours I spent in meetings with each client this month, from my calendar, so I can invoice them. One line per client, and the total.",
+      every: "1st of the month", routine: "on the 1st of every month at 8 AM, total last month's meeting hours per client from my calendar, ready for invoices" },
+    { icon: "hourglass", title: "Clients I haven't seen in 60 days",
+      line: "Who to call before they forget you.",
+      ask: "Which clients haven't I met in the last 60 days? Show each one with the last time we met and a one-line idea for reaching out.",
+      every: "Every Monday", routine: "every Monday at 8 AM, list the clients I haven't met in 60 days, with when we last met and a one-line idea for reaching out" },
+    { icon: "report", title: "Weekly report for my team or partner",
+      line: "The week's client work and next week's plan, on one page.",
+      ask: "Write a short weekly report for my team: this week's client meetings, what's booked for next week, and any client going quiet.",
+      every: "Every Friday", routine: "every Friday at 3 PM, write a short weekly report for my team: this week's client meetings, next week's bookings, and clients going quiet" },
+    { icon: "phone", title: "Find open slots for sales calls next week",
+      line: "Your best free hours for calls and visits.",
+      ask: "Find my best open slots next week for sales calls and visits: weekdays between 8 AM and 5 PM, at least an hour long." }
+  ];
 
-    /* The routine could not reach the calendar. It said so rather than writing nothing. */
-    if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">Last run could not reach ' +
-              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
-              '. Showing the previous result.</div>';
-    }
+  var QUESTIONS = [
+    "Who haven't I seen in 60 days?",
+    "How many hours did each client take this month?",
+    "When can I fit two sales calls next week?"
+  ];
 
-    /* The single most consequential event, in one sentence — absent most days on purpose. */
-    if (meta.lead && meta.verdict) {
-      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
-              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
-              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
-    }
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.jobs && cab.files && typeof cab.ask === "function");
+  var appDir = APP_DEFAULT;
 
-    if (!data.rows.length) {
-      html += '<div class="card empty">Nothing to show for this day.</div>';
-      root.innerHTML = html;
-      bind(files);
-      return;
-    }
+  var S = {
+    here: null,
+    conn: null,          // this cabinet's Google Calendar entry, live
+    job: null,           // the morning routine, live
+    real: null,          // data/latest.json, normalised
+    realProblem: null,   // why it could not be read, when it exists but did not parse
+    example: null,       // data/EXAMPLE-latest.json, normalised
+    connecting: false,
+    running: false,
+    runNote: null,
+    askNote: null,
+    filter: "all",
+    open: null           // what the open sheet shows: { event } or { client }
+  };
 
-    var urlCol = data.cols.findIndex(function (c) { return isUrl(c.toLowerCase()); });
+  // ── Small helpers ───────────────────────────────────────────
 
-    var t = '<div class="card scroll"><table><thead><tr>';
-    data.cols.forEach(function (c) {
-      if (isUrl(c.toLowerCase())) return;
-      t += '<th>' + esc(c) + '</th>';
-    });
-    t += '</tr></thead><tbody>';
-    data.rows.forEach(function (r) {
-      var url = urlCol > -1 ? r[urlCol] : '';
-      t += '<tr>';
-      r.forEach(function (cell, i) {
-        var head = (data.cols[i] || '').toLowerCase();
-        if (isUrl(head)) {
-          return;
-        } else if (head === 'day') {
-          t += '<td><span class="pill ' + dayClass(cell) + '">' + esc(cell) + '</span></td>';
-        } else if (head === 'time') {
-          t += '<td class="time">' + esc(cell) + '</td>';
-        } else if (head === 'event' && url) {
-          t += '<td><a class="deep-link" href="' + esc(url) +
-               '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a></td>';
-        } else {
-          t += '<td>' + esc(cell) + '</td>';
-        }
-      });
-      t += '</tr>';
-    });
-    t += '</tbody></table></div>';
-
-    root.innerHTML = html + t;
-    bind(files);
-  }
-
-  /* ---- the folder of summaries ------------------------------------------------------ */
-
-  /* 2026-08-10T07-00-00-calendar-summary.md — the name carries the date, so the picker
-     is built from names alone. EXAMPLE-calendar-summary.md is the one file without one. */
-  function stamp(name) {
-    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
-    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
-  }
-
-  function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
-           a.getDate() === b.getDate();
-  }
-
-  function human(d) {
-    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
-           d.getFullYear();
-  }
-
-  function label(name) {
-    var d = stamp(name);
-    if (!d) return 'Calendar Daily Example';
-    var now = new Date(), yday = new Date(now.getTime() - 86400000);
-    if (sameDay(d, now)) return 'Today';
-    if (sameDay(d, yday)) return 'Yesterday';
-    return human(d);
-  }
-
-  function picker(current, files) {
-    var html = '';
-    if (files.length) {
-      var opts = files.map(function (f) {
-        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
-               esc(label(f)) + '</option>';
-      }).join('');
-      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
-    }
-    var next = nextRunText();
-    if (next) html += '<span class="next">' + esc(next) + '</span>';
-    return html ? '<div class="picker">' + html + '</div>' : '';
-  }
-
-  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
-  function bind(files) {
-    var sel = document.getElementById('pick');
-    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
-  }
-
-  function show(name, files) {
-    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      })
-      .then(function (text) { render(parse(text), name, files); })
-      .catch(function (err) {
-        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
-          'in a moment.</div>';
-        bind(files);
-      });
-  }
-
-  /* ---- when the routine next runs ---------------------------------------------------
-     Read straight off this cabinet's own job file, so a user who edits the schedule or
-     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
-     which is the same host the routine runs on. */
-
-  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
-  function field(spec, min, max) {
-    var set = {};
-    spec.split(',').forEach(function (part) {
-      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
-      if (bits[0] !== '*') {
-        var r = bits[0].split('-');
-        lo = +r[0];
-        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+  function h(tag, props) {
+    var el = document.createElement(tag);
+    if (props) {
+      for (var key in props) {
+        var value = props[key];
+        if (value === null || value === undefined || value === false) continue;
+        if (key === "class") el.className = value;
+        else if (key === "text") el.textContent = value;
+        else if (key === "svg") el.innerHTML = value; // only ever our own icon strings
+        else if (key.slice(0, 2) === "on") el.addEventListener(key.slice(2), value);
+        else if (key === "vars") for (var v in value) el.style.setProperty(v, value[v]);
+        else el.setAttribute(key, value === true ? "" : String(value));
       }
-      for (var v = lo; v <= hi; v += step) set[v] = true;
-    });
-    return set;
+    }
+    for (var i = 2; i < arguments.length; i++) add(el, arguments[i]);
+    return el;
+  }
+  function add(el, kid) {
+    if (kid === null || kid === undefined || kid === false) return;
+    if (Array.isArray(kid)) { kid.forEach(function (k) { add(el, k); }); return; }
+    el.appendChild(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  function icon(name) {
+    return h("span", { class: "ic", "aria-hidden": "true", svg: '<svg viewBox="0 0 24 24">' + (ICONS[name] || "") + "</svg>" });
+  }
+  // Words from the person's calendar can be Hebrew, Arabic or anything else: each piece
+  // is isolated, so it never drags the words around it into its own direction.
+  function own(words) { return h("bdi", { dir: "auto", text: words }); }
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function parseDay(value) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function startOfToday() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  function daysBetween(a, b) { return Math.round((addDays(b, 0) - addDays(a, 0)) / 86400000); }
+  function nowMinutes() { var n = new Date(); return n.getHours() * 60 + n.getMinutes(); }
+  function clockToMin(value) {
+    var m = /^(\d{1,2}):(\d{2})$/.exec(value || "");
+    if (!m || +m[1] > 24 || +m[2] > 59) return null;
+    return +m[1] * 60 + +m[2];
   }
 
-  function nextRun(cron, from) {
-    var f = cron.trim().split(/\s+/);
-    if (f.length !== 5) return null;
-    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
-        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
-    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
-    var d = new Date(from.getTime() + 60000);
-    d.setSeconds(0, 0);
-    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
-       stops a schedule that can never match (30 February) from spinning. */
-    for (var i = 0; i < 366 * 1440; i++) {
-      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
-          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
-      d = new Date(d.getTime() + 60000);
+  var clockFmt = (function () {
+    try { return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }); }
+    catch (e) { return null; }
+  })();
+  function clock(min) {
+    var d = new Date(2000, 0, 1, Math.floor(min / 60) % 24, min % 60);
+    return clockFmt ? clockFmt.format(d) : pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  function clockOf(date) { return clock(date.getHours() * 60 + date.getMinutes()); }
+
+  function dayWord(d, today) {
+    var diff = daysBetween(today, d);
+    if (diff === 0) return "Today";
+    if (diff === 1) return "Tomorrow";
+    return DAYS[d.getDay()];
+  }
+  function longDate(d) { return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()]; }
+  function shortDate(d) { return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3); }
+  function dayDate(d) { return d.getDate() + " " + MONTHS[d.getMonth()]; }
+
+  /** "Today 2:00 PM", "Tomorrow 9:00 AM", "Tuesday 9:00 AM", "Thu 8 Oct, 9:00 AM". */
+  function whenShort(dayKey, startMin, today) {
+    var d = parseDay(dayKey);
+    if (!d) return "";
+    var diff = daysBetween(today, d);
+    var at = startMin === null || startMin === undefined ? "" : clock(startMin);
+    if (diff === 0) return "Today" + (at ? " " + at : "");
+    if (diff === 1) return "Tomorrow" + (at ? " " + at : "");
+    if (diff > 1 && diff < 7) return DAYS[d.getDay()] + (at ? " " + at : "");
+    return DAYS[d.getDay()].slice(0, 3) + " " + shortDate(d) + (at ? ", " + at : "");
+  }
+  function sinceWords(dayKey, today) {
+    var d = parseDay(dayKey);
+    if (!d) return "";
+    var diff = daysBetween(d, today);
+    if (diff <= 0) return "Today";
+    if (diff === 1) return "Yesterday";
+    if (diff < 7) return diff + " days ago";
+    return shortDate(d);
+  }
+
+  function updatedWords(iso) {
+    var d = new Date(iso);
+    if (!iso || isNaN(d.getTime())) return "";
+    var diff = daysBetween(new Date(d.getFullYear(), d.getMonth(), d.getDate()), startOfToday());
+    var at = clockOf(d);
+    if (diff <= 0) {
+      var hour = d.getHours();
+      return "Updated " + at + (hour < 12 ? " this morning" : hour < 18 ? " this afternoon" : " this evening");
     }
+    if (diff === 1) return "Updated yesterday at " + at;
+    if (diff < 7) return "Updated " + DAYS[d.getDay()] + " at " + at;
+    return "Updated " + d.getDate() + " " + MONTHS[d.getMonth()];
+  }
+
+  function hoursWords(hours) {
+    var r = Math.round(hours * 2) / 2;
+    return (r % 1 === 0 ? String(r) : r.toFixed(1)) + " h";
+  }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function endOf(e) { return e.end === null ? e.start + 30 : e.end <= e.start ? 24 * 60 : e.end; }
+  function words(v, max) { return typeof v === "string" && v.trim() ? v.trim().slice(0, max || 120) : null; }
+
+  // ── Reading the week ────────────────────────────────────────
+
+  /** The file as the app uses it; anything malformed is dropped rather than drawn wrong. */
+  function normalise(raw, isExample) {
+    if (!raw || typeof raw !== "object") return null;
+    var today = startOfToday();
+    var fileToday = parseDay(raw.today);
+    // The example is a made-up week keyed by weekday: each event lands on the same
+    // weekday in the coming seven days, and client dates move by the same number of days
+    // as the example's own "today", so the example always reads like this week.
+    var exact = isExample && fileToday ? daysBetween(fileToday, today) : 0;
+    function moved(dayKey) {
+      var d = parseDay(dayKey);
+      return d ? ymd(addDays(d, exact)) : null;
+    }
+
+    var events = [];
+    (Array.isArray(raw.events) ? raw.events : []).forEach(function (e, i) {
+      if (!e || typeof e !== "object") return;
+      var date = parseDay(e.date);
+      var title = words(e.title);
+      if (!date || !title) return;
+      var shift = 0;
+      if (isExample) {
+        var landed = addDays(today, (date.getDay() - today.getDay() + 7) % 7);
+        shift = daysBetween(date, landed);
+        date = landed;
+      }
+      var allDay = e.allDay === true || (e.start == null && e.end == null);
+      var start = allDay ? null : clockToMin(e.start);
+      if (!allDay && start === null) return;
+      var end = allDay ? null : clockToMin(e.end);
+      var last = allDay && parseDay(e.lastDate) ? addDays(parseDay(e.lastDate), shift) : date;
+      var people = Array.isArray(e.people) ? e.people.filter(function (p) { return typeof p === "string" && p.trim(); }).slice(0, 3) : [];
+      var link = typeof e.link === "string" && /^https:\/\/(www\.google\.com\/calendar|calendar\.google\.com)\//.test(e.link) ? e.link : null;
+      events.push({
+        id: String(e.id || "event-" + i),
+        day: ymd(date),
+        lastDay: ymd(last < date ? date : last),
+        allDay: allDay,
+        start: start,
+        end: end,
+        title: title,
+        place: words(e.place),
+        people: people,
+        more: Math.max(0, Math.min(999, parseInt(e.morePeople, 10) || 0)),
+        kind: KIND_WORDS[e.kind] ? e.kind : "other",
+        client: typeof e.client === "string" && e.client ? e.client : null,
+        link: link
+      });
+    });
+    events.sort(function (a, b) {
+      if (a.day !== b.day) return a.day < b.day ? -1 : 1;
+      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+      return (a.start || 0) - (b.start || 0);
+    });
+
+    var clients = [];
+    (Array.isArray(raw.clients) ? raw.clients : []).forEach(function (c, i) {
+      if (!c || typeof c !== "object") return;
+      var name = words(c.name);
+      if (!name) return;
+      var next = null;
+      if (c.next && typeof c.next === "object" && parseDay(c.next.date)) {
+        next = { day: isExample ? moved(c.next.date) : c.next.date, start: clockToMin(c.next.start), title: words(c.next.title) };
+      }
+      // A client who is a person, not a company, is their own contact: name them once.
+      var contact = words(c.contact);
+      if (contact && contact.toLowerCase() === name.toLowerCase()) contact = null;
+      clients.push({
+        id: String(c.id || "client-" + i),
+        name: name,
+        contact: contact,
+        meetings: Math.max(0, parseInt(c.meetings90, 10) || 0),
+        firstMet: isExample ? moved(c.firstMet) : (parseDay(c.firstMet) ? c.firstMet : null),
+        lastMet: isExample ? moved(c.lastMet) : (parseDay(c.lastMet) ? c.lastMet : null),
+        next: next,
+        hours: Math.max(0, Number(c.hoursMonth) || 0),
+        status: STATUS[c.status] ? c.status : "active"
+      });
+    });
+
+    var data = {
+      example: !!isExample,
+      generatedAt: typeof raw.generatedAt === "string" ? raw.generatedAt : null,
+      checkedAt: typeof raw.checkedAt === "string" ? raw.checkedAt : null,
+      status: words(raw.status, 300) || "ok",
+      today: isExample ? ymd(today) : (fileToday ? ymd(fileToday) : null),
+      canChange: typeof raw.canChange === "boolean" ? raw.canChange : null,
+      business: words(raw.business, 80),
+      headline: words(raw.headline, 200) || "",
+      note: words(raw.note, 300) || "",
+      events: events,
+      clients: clients
+    };
+    if (isExample) nextFromWeek(data);
+    return data;
+  }
+
+  /** A client's next meeting, from the week shown when it has one that has not ended. */
+  function nextFromWeek(data) {
+    var todayKey = ymd(startOfToday());
+    var nowMin = nowMinutes();
+    data.clients.forEach(function (c) {
+      var soon = data.events.filter(function (e) {
+        return e.client === c.id && !e.allDay && (e.day > todayKey || (e.day === todayKey && endOf(e) > nowMin));
+      })[0];
+      if (soon) c.next = { day: soon.day, start: soon.start, title: soon.title };
+    });
+  }
+
+  function hasWeek(d) { return !!(d && d.generatedAt && d.today); }
+
+  function readFile(name) {
+    if (V2) return cab.files.read(appDir + "/data/" + name);
+    // An older Cabinet: the files sit next to this page.
+    return fetch("data/" + name, { cache: "no-store" }).then(function (r) {
+      if (!r.ok) { var e = new Error("Not there yet"); e.code = r.status === 404 ? "not-found" : "unavailable"; throw e; }
+      return r.text();
+    });
+  }
+
+  function loadReal(retried) {
+    return readFile("latest.json").then(function (body) {
+      S.real = normalise(JSON.parse(body), false);
+      S.realProblem = null;
+    }, function (e) {
+      if (e && e.code === "not-found") { S.real = null; S.realProblem = null; return; }
+      S.realProblem = (e && e.message) || "Couldn't open this week's list.";
+    }).catch(function () {
+      // Half written: the routine is still saving it. Try once more in a moment.
+      if (!retried) return new Promise(function (r) { setTimeout(r, 1500); }).then(function () { return loadReal(true); });
+      S.realProblem = "This week's list could not be read. Press Refresh to write it again.";
+    });
+  }
+
+  function loadExample() {
+    if (S.example) return Promise.resolve();
+    return readFile("EXAMPLE-latest.json").then(function (body) {
+      S.example = normalise(JSON.parse(body), true);
+    }).catch(function () { S.example = null; });
+  }
+
+  function loadData() { return Promise.all([loadReal(false), loadExample()]); }
+
+  // ── Talking to Cabinet ──────────────────────────────────────
+
+  function setConnectors(list) {
+    S.conn = null;
+    (list || []).forEach(function (c) { if (c && c.id === CONNECTOR) S.conn = c; });
+  }
+
+  function setJobs(list) {
+    var wasRunning = S.running;
+    S.job = null;
+    (list || []).forEach(function (j) { if (j && j.id === JOB_ID) S.job = j; });
+    if (!S.job && list && list.length) S.job = list[0];
+    S.running = !!(S.job && S.job.running);
+    if (wasRunning && !S.running) {
+      if (S.job && S.job.lastRun && S.job.lastRun.ok === false) S.runNote = "The update didn't finish. Try again in a minute.";
+      loadData().then(render);
+    }
+  }
+
+  function role() { return (S.here && S.here.role) || "owner"; }
+  function canRun() { return V2 && !!S.job && role() !== "viewer"; }
+  function canAsk() { return V2 && role() !== "viewer"; }
+
+  function connect() {
+    if (S.connecting) return;
+    S.connecting = true;
+    S.runNote = null;
+    render();
+    cab.connectors.connect(CONNECTOR).then(function (how) {
+      S.connecting = false;
+      return cab.connectors.list().then(setConnectors, function () {}).then(function () {
+        // Connected from here, and nothing of theirs yet: read it now, so it shows up.
+        if (how === "connected" && !hasWeek(S.real) && canRun()) runNow();
+        render();
+      });
+    }, function (e) {
+      S.connecting = false;
+      S.runNote = e && e.message;
+      render();
+    });
+  }
+
+  function runNow() {
+    if (!canRun() || S.running) return;
+    S.runNote = null;
+    S.running = true;
+    render();
+    cab.jobs.run(S.job.id).catch(function (e) {
+      if (e && e.code === "busy") return;
+      S.running = false;
+      S.runNote = (e && e.message) || "Couldn't start the update. Try again in a minute.";
+      render();
+    });
+  }
+
+  function ask(request, opts) {
+    if (!canAsk() || !request) return;
+    cab.ask(request, opts || {}).then(function () {
+      S.askNote = { bad: false, text: opts && opts.send === false
+        ? "It's waiting in the chat box beside this page. Finish it there."
+        : "Asked. The answer opens in the chat beside this page." };
+      paintAskNote();
+    }, function (e) {
+      S.askNote = { bad: true, text: (e && e.message) || "That didn't go through. Try again." };
+      paintAskNote();
+    });
+  }
+
+  function askRoutine(idea) {
+    ask("Set up a routine for me: " + idea.routine + ". Show it to me here so I can approve it before it starts.");
+  }
+
+  // ── What to show ────────────────────────────────────────────
+
+  function shown() {
+    if (hasWeek(S.real)) return S.real;
+    return S.example;
+  }
+
+  /** The connection in one word, for the header and the banner. */
+  function mode() {
+    if (!V2) return "old";
+    var c = S.conn;
+    if (!c) return "unknown";
+    if (c.state === "not-available-here") return "not-here";
+    if (S.connecting) return "connecting";
+    if (c.state === "not-added") return "not-connected";
+    if (c.state === "needs-sign-in" || c.state === "needs-you") return "needs";
+    return "connected";
+  }
+
+  /** Offer "Reschedule" only when the connection can change events. Cabinet's word wins;
+      an older Cabinet leaves it to what the routine wrote. */
+  function changeAllowed(data) {
+    if (S.conn && typeof S.conn.canChange === "boolean") return S.conn.canChange;
+    return !!(data && data.canChange === true);
+  }
+
+  /** What went wrong with the last update, in the routine's or Cabinet's own words. */
+  function updateProblem() {
+    if (S.runNote) return S.runNote;
+    if (S.realProblem) return S.realProblem;
+    if (S.real && S.real.status !== "ok") return S.real.status;
     return null;
   }
 
-  function nextRunText() {
-    if (!job) return '';
-    if (job.enabled === 'false') return 'Routine paused';
-    if (!job.schedule) return '';
-    var d = nextRun(job.schedule, new Date());
-    if (!d) return '';
-    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    return 'Next run: ' + human(d) + ' at ' + clock;
+  function clientOf(data, e) {
+    if (!e.client) return null;
+    for (var i = 0; i < data.clients.length; i++) if (data.clients[i].id === e.client) return data.clients[i];
+    return null;
   }
 
-  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
-     tells the page which cabinet it is installed in, whatever the user named it. */
-  function cabinetDir() {
-    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
-    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  /** The seven days from today, each with its events; a day the file does not reach says so. */
+  function weekOf(data) {
+    var today = startOfToday();
+    var days = [];
+    for (var i = 0; i < 7; i++) {
+      var d = addDays(today, i);
+      var key = ymd(d);
+      var outside = !data.example && !!data.today && (key < data.today || daysBetween(parseDay(data.today), d) > 6);
+      days.push({
+        date: d, key: key, outside: outside,
+        events: outside ? [] : data.events.filter(function (e) {
+          return e.day === key || (e.allDay && e.day < key && e.lastDay >= key);
+        })
+      });
+    }
+    return days;
   }
 
-  /* Direct .md children of the folder only — never a nested one.
-     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
-     separately: `path` decides what lives in the folder, `name` is what we fetch. */
-  function listFiles(nodes, dir, out) {
-    (nodes || []).forEach(function (n) {
-      if (!n || !n.path) return;
-      if (n.path.indexOf(dir + '/') === 0 &&
-          n.path.indexOf('/', dir.length + 1) === -1 &&
-          /\.md$/i.test(n.name || '')) out.push(n.name);
-      if (n.children) listFiles(n.children, dir, out);
+  /** Free stretches between 8:00 and 17:00 on a weekday, from now on for today. */
+  function openStretches(day, isToday) {
+    var dow = day.date.getDay();
+    if (dow === 0 || dow === 6 || day.outside) return [];
+    var busy = day.events.filter(function (e) { return !e.allDay; })
+      .map(function (e) { return [e.start, endOf(e)]; })
+      .sort(function (a, b) { return a[0] - b[0]; });
+    var from = WORK_FROM;
+    if (isToday) from = Math.max(from, Math.ceil(nowMinutes() / 15) * 15);
+    var out = [];
+    var cursor = from;
+    busy.forEach(function (b) {
+      if (b[1] <= cursor) return;
+      if (b[0] > cursor && Math.min(b[0], WORK_TO) - cursor >= MIN_OPEN) out.push({ start: cursor, end: Math.min(b[0], WORK_TO) });
+      cursor = Math.max(cursor, b[1]);
     });
+    if (WORK_TO - cursor >= MIN_OPEN) out.push({ start: cursor, end: WORK_TO });
     return out;
   }
 
-  /* An empty folder is the normal state before the first run — not an error to shout about.
-     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
-  Promise.all([
-    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }),
-    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
-    fetch('../' + JOB, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .catch(function () { return ''; })
-  ])
-    .then(function (both) {
-      var tree = both[0];
-      job = {};
-      both[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+  function stretchWords(day, slot, today) {
+    var part = slot.end <= 12 * 60 + 30 ? "morning" : slot.start >= 12 * 60 ? "afternoon" : "";
+    var name = dayWord(day.date, today);
+    if (name === "Today") return part ? "This " + part : "Today";
+    if (!part) return name;
+    return name + " " + part;
+  }
+
+  /** The week in numbers, worked out from what is shown. */
+  function numbers(data, days) {
+    var today = startOfToday();
+    var meetings = 0, minutes = 0, seen = {}, met = {};
+    days.forEach(function (d) {
+      d.events.forEach(function (e) {
+        if (e.kind !== "client" || e.allDay || seen[e.id]) return;
+        seen[e.id] = true;
+        meetings += 1;
+        minutes += endOf(e) - e.start;
+        met[e.client || e.title] = true;
       });
-      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
-      if (!files.length) {
-        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
-        return;
-      }
-      /* Newest first; the example, having no date, sits at the bottom of the list. */
-      files.sort(function (a, b) {
-        var da = stamp(a), db = stamp(b);
-        if (da && db) return db - da;
-        return da ? -1 : db ? 1 : 0;
-      });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
-    })
-    .catch(function (err) {
-      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
-        esc(err.message) + '). Reload in a moment.</div>';
     });
+    var best = null;
+    days.forEach(function (d, i) {
+      openStretches(d, i === 0).forEach(function (s) {
+        if (!best || s.end - s.start > best.slot.end - best.slot.start) best = { day: d, slot: s };
+      });
+    });
+    return {
+      meetings: meetings,
+      hours: minutes / 60,
+      clientCount: Object.keys(met).length,
+      fresh: data.clients.filter(function (c) { return c.status === "new"; }).length,
+      quiet: data.clients.filter(function (c) { return c.status === "quiet"; }).length,
+      best: best,
+      bestWords: best ? stretchWords(best.day, best.slot, today) : null
+    };
+  }
+
+  // ── Drawing ─────────────────────────────────────────────────
+
+  function render() {
+    var data = shown();
+    var today = startOfToday();
+    var days = data ? weekOf(data) : null;
+    var nums = data ? numbers(data, days) : null;
+    paintHeader(data, today);
+    paintStatus();
+    paintBanner();
+    paintNumbers(data, nums);
+    paintAsk();
+    paintWeek(data, days, nums, today);
+    paintIdeas();
+    paintClients(data, today);
+    paintFoot();
+    paintSheet();
+  }
+
+  function paintHeader(data, today) {
+    var eyebrow = document.getElementById("eyebrow");
+    eyebrow.textContent = "";
+    add(eyebrow, data && data.business ? own(data.business) : "Google Calendar");
+    if (data && data.example) add(eyebrow, h("span", { class: "tag", text: "Example" }));
+    var last = addDays(today, 6);
+    document.getElementById("dates").textContent = window.innerWidth < 560
+      ? shortDate(today) + " to " + shortDate(last)
+      : longDate(today) + " to " + longDate(last);
+  }
+
+  function paintStatus() {
+    var box = document.getElementById("status");
+    box.textContent = "";
+    var m = mode();
+    var real = hasWeek(S.real);
+    var dot = "var(--blue)", first, second = "";
+    if (m === "connected") {
+      first = "Google Calendar connected";
+      if (real) second = updatedWords(S.real.generatedAt);
+      else if (S.running) second = "Reading your calendar now";
+      else if (updateProblem()) second = "The last update didn't work";
+    } else if (m === "needs") {
+      dot = "var(--amber)"; first = "Google Calendar needs you";
+      if (real) second = updatedWords(S.real.generatedAt);
+    } else if (m === "not-here") {
+      dot = "#98a2b3"; first = "Not available here";
+      // A week read before (on a computer, say) is still the person's own, not an example.
+      second = real ? updatedWords(S.real.generatedAt) : "Showing an example";
+    } else if (m === "connecting") {
+      dot = "var(--amber)"; first = "Connecting…";
+    } else if (m === "not-connected") {
+      dot = "var(--amber)"; first = "Not connected yet";
+      second = "Showing an example";
+    } else {
+      dot = real ? "var(--blue)" : "var(--amber)";
+      first = real ? "Your calendar" : "Showing an example";
+      if (real) second = updatedWords(S.real.generatedAt);
+    }
+    var readOnly = (m === "connected" || m === "needs") && S.conn && S.conn.canChange === false;
+    box.appendChild(h("div", { class: "pill", role: "status" },
+      h("span", { class: "dot", vars: { background: dot } }),
+      h("span", null,
+        h("b", { text: first }),
+        second ? h("small", { text: second }) : null,
+        readOnly ? h("small", null, icon("lock"), "Reads your calendar, never changes it") : null)));
+    // Refresh only helps while the connection works, and only once there is a week of the
+    // person's own: before that, the banner's one button ("Show my business", "Try again") runs it.
+    if (canRun() && m === "connected" && (real || S.running)) {
+      box.appendChild(h("button", {
+        class: "btn", type: "button", disabled: S.running || null, "aria-busy": S.running ? "true" : null, onclick: runNow
+      }, S.running ? h("span", { class: "spin", "aria-hidden": "true" }) : icon("refresh"), S.running ? "Updating…" : "Refresh"));
+    }
+  }
+
+  function connectButton(big, light) {
+    var busy = S.connecting;
+    return h("button", {
+      class: "btn " + (light ? "light" : "primary") + (big ? " big" : ""), type: "button",
+      disabled: busy || null, "aria-busy": busy ? "true" : null, onclick: connect
+    }, busy ? h("span", { class: "spin", "aria-hidden": "true" }) : h("img", { src: (S.conn && S.conn.logo) || GCAL_LOGO, alt: "" }),
+      busy ? "Connecting…" : "Connect Google Calendar");
+  }
+
+  function exampleWho() {
+    var ex = S.example;
+    return ex && ex.business ? ex.business : "a heating and cooling company";
+  }
+
+  function paintBanner() {
+    var box = document.getElementById("banner");
+    box.textContent = "";
+    var m = mode();
+    var real = hasWeek(S.real);
+    var c = S.conn;
+    var b = null;
+
+    if (!real && (m === "not-connected" || m === "connecting")) {
+      var canConnect = !!(c && c.canConnect);
+      b = h("section", { class: "banner example", "aria-label": "Example" },
+        h("div", { class: "words" },
+          h("h2", null, h("span", { class: "label", text: "Example" }), "This is ", own(exampleWho()), ", a made-up company."),
+          h("p", { text: canConnect
+            ? "Connect your Google Calendar to see your own clients, meetings and open time."
+            : "Ask the owner of this cabinet to connect Google Calendar. Then your own clients and week show up here." })),
+        canConnect ? connectButton(true, true) : null,
+        m === "connecting" ? h("p", { class: "note", text: "Finish in the window Cabinet opened. This page updates by itself when you're done." }) : null);
+    } else if (m === "not-here") {
+      // Where it does work, in our words: Cabinet's own sentence here mostly repeats the
+      // heading. On Cabinet AI its sentence says more ("not ready for your plan yet"), so it leads.
+      var said = c && c.problem && c.problem.text;
+      var why = S.here && S.here.place === "cloud"
+        ? "It works in the Cabinet app on your computer, not in Cabinet Cloud yet."
+        : S.here && S.here.ai === "cabinet-ai"
+          ? (said || "It works when this cabinet uses your own AI on your computer, not Cabinet AI yet.")
+          : "It works in the Cabinet app on your computer.";
+      b = h("section", { class: "banner" },
+        h("div", { class: "words" },
+          h("h2", { text: "Google Calendar can't connect here yet." }),
+          h("p", null, own(why)),
+          real
+            ? h("p", { text: "Below is your calendar as last read, " + updatedWords(S.real.generatedAt).replace(/^Updated /, "") + "." })
+            : h("p", null, "Below is ", own(exampleWho()), ", a made-up company, so you can see what it does.")));
+    } else if (m === "needs") {
+      // Cabinet's own sentence is the most exact thing to say; the fix is one press.
+      var said = c && c.problem && c.problem.text;
+      b = h("section", { class: "banner alert", role: "alert" },
+        h("div", { class: "words" },
+          said ? h("h2", null, own(said)) : h("h2", { text: "Google Calendar needs you for a moment." }),
+          h("p", { text: c && c.canConnect
+            ? "Press Fix it and follow the steps. Your week comes back by itself."
+            : "Ask the owner of this cabinet to fix it. Your week comes back by itself." }),
+          real ? null : h("p", { text: "Until then, below is a made-up example." })),
+        c && c.canConnect ? h("button", { class: "btn primary big", type: "button", onclick: connect }, icon("plug"), "Fix it") : null);
+    } else if (m === "connected" && !real) {
+      var failed = updateProblem();
+      if (S.running) {
+        b = h("section", { class: "banner calm", role: "status" },
+          h("span", { class: "spin", "aria-hidden": "true" }),
+          h("div", { class: "words" },
+            h("h2", { text: "Reading your calendar now…" }),
+            h("p", { text: "Your own week and client list show up here in about a minute. The example stays until then." })));
+      } else if (failed) {
+        // The routine ran and could not read the calendar: say so, never "all is well".
+        b = h("section", { class: "banner alert", role: "alert" },
+          h("div", { class: "words" },
+            h("h2", { text: "Your calendar couldn't be read." }),
+            h("p", null, own(failed)),
+            h("p", { text: "Until it works, below is a made-up example." })),
+          canRun() ? h("button", { class: "btn primary big", type: "button", onclick: runNow }, icon("refresh"), "Try again") : null);
+      } else {
+        b = h("section", { class: "banner calm" },
+          h("div", { class: "words" },
+            h("h2", { text: "Your Google Calendar is connected." }),
+            h("p", { text: canRun() ? "Bring in your own week and client list. It takes about a minute." : "Your week shows up here after the next morning update." })),
+          canRun() ? h("button", { class: "btn primary big", type: "button", onclick: runNow }, icon("refresh"), "Show my business") : null);
+      }
+    } else if (m === "old" && !real) {
+      b = h("section", { class: "banner example" },
+        h("div", { class: "words" },
+          h("h2", null, h("span", { class: "label", text: "Example" }), "This is ", own(exampleWho()), ", a made-up company."),
+          h("p", { text: "Connect Google Calendar from Integrations in Cabinet. Your own week and client list show up here after the next morning update." })));
+    }
+    if (b) box.appendChild(b);
+
+    // Your own week is showing, but the last update failed: say so above it.
+    var problem = updateProblem();
+    if (real && problem && !S.running && m !== "needs" && m !== "not-here") {
+      box.appendChild(h("section", { class: "banner alert", role: "alert" },
+        h("div", { class: "words" },
+          h("h2", { text: "This morning's update didn't work." }),
+          h("p", null, own(problem)),
+          h("p", { text: "Below is what was read " + updatedWords(S.real.generatedAt).replace(/^Updated /, "") + "." })),
+        canRun() ? h("button", { class: "btn", type: "button", onclick: runNow }, icon("refresh"), "Try again") : null));
+    }
+  }
+
+  function paintNumbers(data, nums) {
+    var box = document.getElementById("numbers");
+    box.textContent = "";
+    if (!data) return;
+    box.appendChild(h("div", { class: "kpis" },
+      h("div", { class: "kpi" },
+        h("div", { class: "label" }, icon("briefcase"), "Client meetings"),
+        h("div", { class: "value", text: String(nums.meetings) }),
+        h("div", { class: "sub", text: nums.clientCount ? "with " + plural(nums.clientCount, "client", "clients") + " this week" : "this week" })),
+      h("div", { class: "kpi" },
+        h("div", { class: "label" }, icon("clock"), "With clients"),
+        h("div", { class: "value", text: hoursWords(nums.hours) }),
+        h("div", { class: "sub", text: "of meetings this week" })),
+      h("div", { class: "kpi" },
+        h("div", { class: "label" }, icon("users"), "New clients"),
+        h("div", { class: "value", text: String(nums.fresh) }),
+        h("div", { class: "sub", text: nums.quiet ? "this month, and " + nums.quiet + " going quiet" : "this month" })),
+      h("div", { class: "kpi open" },
+        h("div", { class: "label" }, icon("phone"), "Open for sales calls"),
+        h("div", { class: "value words", text: nums.best ? nums.bestWords : "No long gap" }),
+        h("div", { class: "sub", text: nums.best ? clock(nums.best.slot.start) + " to " + clock(nums.best.slot.end) : "Weekdays are full, 8 to 5" }))));
+    if (data.note) {
+      box.appendChild(h("p", { class: "worth" }, icon("alert"), h("span", null, h("b", { text: "Worth a call: " }), own(data.note))));
+    }
+  }
+
+  // ── Asking ──────────────────────────────────────────────────
+
+  var askForm = null;
+  var askInput = null;
+
+  function paintAsk() {
+    var box = document.getElementById("ask");
+    box.textContent = "";
+    box.appendChild(h("h2", { class: "sr", id: "ask-label", text: "Ask anything about your clients and your calendar" }));
+    if (!canAsk()) {
+      box.appendChild(h("p", { class: "quiet-line", text: V2
+        ? "Only people who can edit this cabinet can ask it questions."
+        : "Ask in this cabinet's chat, for example: “Which clients haven't I seen in 60 days?”" }));
+      return;
+    }
+    if (!askForm) {
+      askInput = h("input", { class: "ask-input", type: "text", name: "q", autocomplete: "off", dir: "auto", maxlength: "600",
+        placeholder: "Ask anything about your clients and your calendar", "aria-label": "Ask anything about your clients and your calendar" });
+      askForm = h("form", {
+        onsubmit: function (ev) {
+          ev.preventDefault();
+          var request = askInput.value.trim();
+          if (!request) { askInput.focus(); return; }
+          ask(request);
+          askInput.value = "";
+        }
+      }, askInput, h("button", { class: "send", type: "submit", "aria-label": "Ask" }, icon("send")));
+    }
+    box.appendChild(askForm);
+    var qs = h("div", { class: "qs" });
+    QUESTIONS.forEach(function (q) {
+      qs.appendChild(h("button", { class: "q", type: "button", onclick: function () { ask(q); } }, q));
+    });
+    box.appendChild(qs);
+    box.appendChild(h("p", { class: "asknote", id: "asknote", role: "status", "aria-live": "polite" }));
+    paintAskNote();
+  }
+
+  var askNoteTimer = null;
+  function paintAskNote() {
+    var el = document.getElementById("asknote");
+    if (!el) return;
+    el.textContent = S.askNote ? S.askNote.text : "";
+    el.className = "asknote" + (S.askNote && S.askNote.bad ? " bad" : "");
+    clearTimeout(askNoteTimer);
+    if (S.askNote) askNoteTimer = setTimeout(function () { S.askNote = null; paintAskNote(); }, 7000);
+  }
+
+  // ── This week ───────────────────────────────────────────────
+
+  function peopleNodes(e) {
+    var names = e.people;
+    var out = [];
+    for (var i = 0; i < names.length; i++) {
+      if (i > 0) out.push(!e.more && i === names.length - 1 ? " and " : ", ");
+      out.push(own(names[i]));
+    }
+    if (e.more) out.push(names.length ? " and " + e.more + " more" : plural(e.more, "guest", "guests"));
+    return out;
+  }
+
+  function timeWords(e) { return e.allDay ? "All day" : clock(e.start); }
+
+  function prepAsk(e, client) {
+    var d = parseDay(e.day);
+    var today = startOfToday();
+    var name = dayWord(d, today);
+    var when = (name === DAYS[d.getDay()] ? "on " + longDate(d) : name.toLowerCase()) + " at " + clock(e.start);
+    var who = client ? client.name + (client.contact ? " (" + client.contact + ")" : "") : e.title;
+    return "Prep me for my meeting with " + who + " " + when + ": “" + e.title + "”. Tell me who they are, when we last met and what it was about, and what I should bring or check first.";
+  }
+
+  function followAsk(e, client) {
+    var to = (client && client.contact) || e.people[0] || (client && client.name) || "the client";
+    var co = client ? " at " + client.name : "";
+    return "Draft a short follow-up email to " + to + co + " after our meeting “" + e.title + "”: thank them, recap what we agreed and the next step. Write it as a draft; don't send anything.";
+  }
+
+  function hasEnded(e) {
+    var todayKey = ymd(startOfToday());
+    if (e.day < todayKey) return true;
+    return e.day === todayKey && !e.allDay && endOf(e) <= nowMinutes();
+  }
+  function isNow(e) {
+    var n = nowMinutes();
+    return e.day === ymd(startOfToday()) && !e.allDay && e.start <= n && n < endOf(e);
+  }
+
+  function openEvent(e) { return function () { S.open = { event: e }; paintSheet(); }; }
+
+  function clientRow(data, e) {
+    var client = clientOf(data, e);
+    var ended = hasEnded(e);
+    var name = client ? client.name : (e.people[0] || e.title);
+    var who = client && client.contact ? [own(client.contact)] : (client ? [] : []);
+    if (!client && e.people.length > 1) who = peopleNodes({ people: e.people.slice(1), more: e.more });
+    var main = h("button", { class: "ev-main", type: "button", onclick: openEvent(e) },
+      h("span", { class: "time" }, timeWords(e), isNow(e) ? h("span", { class: "now", text: "Now" }) : null),
+      h("span", null,
+        h("span", { class: "co" }, own(name), client && client.status === "new" ? h("span", { class: "chip new", text: "New" }) : null),
+        h("span", { class: "sub" }, who.length ? [who, " · "] : null, own(e.title)),
+        e.place ? h("span", { class: "place" }, icon("pin"), own(e.place)) : null));
+    var act = null;
+    var label = ended ? "Draft follow-up" : "Prep me";
+    if (data.example) {
+      // On the example the buttons show what is possible; a press explains instead.
+      act = h("button", { class: "btn blue-line act", type: "button", onclick: openEvent(e) }, icon(ended ? "reply" : "notes"), label);
+    } else if (canAsk()) {
+      act = h("button", { class: "btn blue-line act", type: "button", onclick: function () {
+        ask(ended ? followAsk(e, client) : prepAsk(e, client));
+      } }, icon(ended ? "reply" : "notes"), label);
+    }
+    return h("div", { class: "ev client" + (ended ? " past" : "") }, main, act);
+  }
+
+  function quietRow(e) {
+    return h("div", { class: "ev quiet" + (hasEnded(e) ? " past" : "") },
+      h("button", { class: "ev-main", type: "button", onclick: openEvent(e) },
+        h("span", { class: "time" }, timeWords(e)),
+        h("span", { class: "what" }, own(e.title), h("span", { class: "kindword", text: " · " + KIND_WORDS[e.kind] }))));
+  }
+
+  function paintWeek(data, days, nums, today) {
+    var box = document.getElementById("week");
+    box.textContent = "";
+    box.appendChild(h("div", { class: "panel-head" },
+      h("div", null,
+        h("h2", { id: "week-title", text: "This week" }),
+        data ? h("p", { text: "Prep notes before each client meeting, a follow-up after it." }) : null)));
+    if (!data) {
+      box.appendChild(h("div", { class: "loading", text: "Nothing to show yet. Your week appears here after the first morning update." }));
+      return;
+    }
+    days.forEach(function (day, i) {
+      var sec = h("div", { class: "day" });
+      var clientCount = day.events.filter(function (e) { return e.kind === "client"; }).length;
+      var name = dayWord(day.date, today);
+      sec.appendChild(h("div", { class: "dayhead" },
+        h("span", { class: "name" + (i === 0 ? " today" : ""), text: name }),
+        h("span", { class: "date", text: name === DAYS[day.date.getDay()] ? dayDate(day.date) : DAYS[day.date.getDay()] + " " + dayDate(day.date) }),
+        clientCount ? h("span", { class: "count", text: plural(clientCount, "client meeting", "client meetings") }) : null));
+      var list = h("div", { class: "items" });
+      if (day.outside) {
+        list.appendChild(h("p", { class: "notyet", text: "Not in this list yet. Refresh to read it." }));
+      } else {
+        var rows = day.events.map(function (e) { return { at: e.allDay ? -1 : e.start, ev: e }; });
+        openStretches(day, i === 0).forEach(function (s) {
+          var isBest = nums.best && nums.best.day === day && nums.best.slot.start === s.start;
+          if (isBest || s.end - s.start >= MIN_SHOWN) rows.push({ at: s.start - 0.5, slot: s });
+        });
+        rows.sort(function (a, b) { return a.at - b.at; });
+        rows.forEach(function (r) {
+          if (r.slot) {
+            var best = nums.best && nums.best.day === day && nums.best.slot.start === r.slot.start;
+            list.appendChild(h("div", { class: "open-slot" + (best ? " best" : "") },
+              icon("phone"),
+              best ? h("b", { text: "Best time for sales calls" }) : null,
+              h("span", { text: "Open " + clock(r.slot.start) + " to " + clock(r.slot.end) })));
+          } else {
+            list.appendChild(r.ev.kind === "client" ? clientRow(data, r.ev) : quietRow(r.ev));
+          }
+        });
+        if (!rows.length) list.appendChild(h("p", { class: "none", text: "No meetings." }));
+      }
+      sec.appendChild(list);
+      box.appendChild(sec);
+    });
+  }
+
+  // ── Ideas ───────────────────────────────────────────────────
+
+  function paintIdeas() {
+    var box = document.getElementById("ideas");
+    box.textContent = "";
+    box.appendChild(h("div", { class: "panel-head" },
+      h("div", null,
+        h("h2", { id: "ideas-title", text: "What Cabinet can do with your calendar" }),
+        h("p", { text: canAsk() ? "Ask once, or make it a routine. You approve every routine in the chat." : "Ask any of these in this cabinet's chat." }))));
+    IDEAS.forEach(function (idea) {
+      var acts = null;
+      if (canAsk()) {
+        acts = h("div", { class: "acts" },
+          h("button", { class: "btn blue-line", type: "button", onclick: function () { ask(idea.ask); } }, icon("chat"), "Ask now"),
+          idea.routine ? h("button", { class: "btn", type: "button", onclick: function () { askRoutine(idea); } }, icon("repeat"), idea.every) : null);
+      }
+      box.appendChild(h("div", { class: "idea" },
+        h("span", { class: "ico" }, icon(idea.icon)),
+        h("h3", { text: idea.title }),
+        h("p", { text: idea.line }),
+        acts));
+    });
+  }
+
+  // ── Clients ─────────────────────────────────────────────────
+
+  var FILTERS = [
+    { id: "all", label: "All" },
+    { id: "quiet", label: "Going quiet" },
+    { id: "new", label: "New this month" },
+    { id: "active", label: "Active" }
+  ];
+
+  function sortedClients(data) {
+    return data.clients.slice().sort(function (a, b) {
+      var an = a.next ? a.next.day + "T" + pad(a.next.start || 0) : null;
+      var bn = b.next ? b.next.day + "T" + pad(b.next.start || 0) : null;
+      if (an && bn) return an < bn ? -1 : an > bn ? 1 : 0;
+      if (an) return -1;
+      if (bn) return 1;
+      var al = a.lastMet || "", bl = b.lastMet || "";
+      return al > bl ? -1 : al < bl ? 1 : 0;
+    });
+  }
+
+  function nextWords(c, today) { return c.next ? whenShort(c.next.day, c.next.start, today) : null; }
+
+  function statusChip(c) {
+    var s = STATUS[c.status];
+    return h("span", { class: "chip " + s.cls, text: s.label });
+  }
+
+  function checkInAsk(list) {
+    return "Draft a short, friendly check-in email for each client going quiet: " + list.map(function (c) {
+      return c.name + (c.contact ? " (" + c.contact + ")" : "");
+    }).join(", ") + ". Mention when we last met and offer a time to catch up. Write them as drafts; don't send anything.";
+  }
+
+  function paintClients(data, today) {
+    var box = document.getElementById("clients");
+    box.textContent = "";
+    if (!data) return;
+    var all = sortedClients(data);
+    var counts = { all: all.length, quiet: 0, "new": 0, active: 0 };
+    all.forEach(function (c) { counts[c.status] += 1; });
+    if (S.filter !== "all" && !counts[S.filter]) S.filter = "all";
+    var list = all.filter(function (c) { return S.filter === "all" || c.status === S.filter; });
+    var quiet = all.filter(function (c) { return c.status === "quiet"; });
+
+    box.appendChild(h("div", { class: "panel-head" },
+      h("div", null,
+        h("h2", { id: "clients-title", text: "Clients" }),
+        h("p", { text: "Built from your calendar: everyone from outside your business you met in the last 90 days." }))));
+
+    var seg = h("div", { class: "seg", role: "group", "aria-label": "Show clients" });
+    FILTERS.forEach(function (f) {
+      seg.appendChild(h("button", {
+        type: "button", "aria-pressed": S.filter === f.id ? "true" : "false",
+        onclick: function () { S.filter = f.id; render(); }
+      }, f.label, h("span", { class: "n", text: String(counts[f.id] || 0) })));
+    });
+    var action = null;
+    if (quiet.length && (data.example || canAsk())) {
+      action = h("button", { class: "btn blue-line", type: "button", onclick: data.example
+        ? function () { S.open = { client: quiet[0] }; paintSheet(); }
+        : function () { ask(checkInAsk(quiet)); } }, icon("reply"), "Draft check-in emails for everyone going quiet");
+    }
+    box.appendChild(h("div", { class: "cl-tools" }, seg, action));
+
+    if (!all.length) {
+      box.appendChild(h("p", { class: "cl-empty", text: "No meetings with anyone outside your business in the last 90 days." }));
+      return;
+    }
+
+    var body = h("tbody");
+    var cards = h("div", { class: "ccards" });
+    list.forEach(function (c) {
+      var open = function () { S.open = { client: c }; paintSheet(); };
+      var next = nextWords(c, today);
+      body.appendChild(h("tr", null,
+        h("td", null, h("button", { class: "cl-name", type: "button", onclick: open },
+          h("b", null, own(c.name)),
+          c.contact ? h("span", null, own(c.contact)) : null)),
+        h("td", { class: "r", text: String(c.meetings) }),
+        h("td", null, c.lastMet ? sinceWords(c.lastMet, today) : h("span", { class: "muted", text: "Not yet" })),
+        h("td", null, next || h("span", { class: "muted", text: "Nothing booked" })),
+        h("td", { class: "r", text: hoursWords(c.hours) }),
+        h("td", null, statusChip(c))));
+      var last = c.lastMet ? sinceWords(c.lastMet, today) : null;
+      cards.appendChild(h("button", { class: "ccard", type: "button", onclick: open },
+        h("span", { class: "top-line" }, h("b", null, own(c.name)), statusChip(c)),
+        c.contact ? h("span", { class: "who" }, own(c.contact)) : null,
+        h("span", { class: "facts2" },
+          next ? "Next: " + next : "Nothing booked",
+          " · ",
+          last ? "Last met " + (/^(Today|Yesterday)$/.test(last) ? last.toLowerCase() : last) : "Not met yet",
+          " · ",
+          plural(c.meetings, "meeting", "meetings") + " in 90 days")));
+    });
+    box.appendChild(h("table", { class: "ctable" },
+      h("thead", null, h("tr", null,
+        h("th", { scope: "col", text: "Client" }),
+        h("th", { scope: "col", class: "r", text: "Meetings, 90 days" }),
+        h("th", { scope: "col", text: "Last met" }),
+        h("th", { scope: "col", text: "Next meeting" }),
+        h("th", { scope: "col", class: "r", text: "Hours this month" }),
+        h("th", { scope: "col", text: "Status" }))),
+      body));
+    box.appendChild(cards);
+  }
+
+  // ── One thing, opened ───────────────────────────────────────
+
+  var lastFocus = null;
+
+  function closeSheet() {
+    S.open = null;
+    paintSheet();
+    if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+  }
+
+  function aboutAsk(client) {
+    return "What should I know about " + client.name + "? Our meetings in the last 90 days, what they were about, and what's coming up.";
+  }
+
+  function sheetEvent(data, e) {
+    var today = startOfToday();
+    var d = parseDay(e.day);
+    var client = clientOf(data, e);
+    var name = dayWord(d, today);
+    var when = (name === DAYS[d.getDay()] ? longDate(d) : name + ", " + longDate(d)) +
+      (e.allDay ? ", all day" : ", " + clock(e.start) + (e.end !== null ? " to " + clock(e.end) : ""));
+    var facts = h("ul", { class: "facts" },
+      h("li", null, icon("clock"), h("span", { text: when })),
+      client && client.contact ? h("li", null, icon("users"), h("span", null, own(client.contact), " at ", own(client.name))) : null,
+      !client && (e.people.length || e.more) ? h("li", null, icon("people"), h("span", null, peopleNodes(e))) : null,
+      e.place ? h("li", null, icon("pin"), own(e.place)) : null);
+    var acts = h("div", { class: "acts" });
+    if (!data.example && canAsk()) {
+      if (e.kind === "client") {
+        acts.appendChild(hasEnded(e)
+          ? h("button", { class: "btn primary", type: "button", onclick: function () { ask(followAsk(e, client)); closeSheet(); } }, icon("reply"), "Draft follow-up")
+          : h("button", { class: "btn primary", type: "button", onclick: function () { ask(prepAsk(e, client)); closeSheet(); } }, icon("notes"), "Prep me"));
+        if (client) acts.appendChild(h("button", { class: "btn", type: "button", onclick: function () { ask(aboutAsk(client)); closeSheet(); } }, icon("chat"), "About this client"));
+      } else {
+        acts.appendChild(h("button", { class: "btn primary", type: "button", onclick: function () {
+          ask("Tell me about “" + e.title + "” on " + longDate(d) + (e.allDay ? "" : " at " + clock(e.start)) + ".");
+          closeSheet();
+        } }, icon("chat"), "Ask about this"));
+      }
+      if (changeAllowed(data) && !e.allDay) {
+        acts.appendChild(h("button", { class: "btn", type: "button", onclick: function () {
+          ask("Move my “" + e.title + "”" + (client ? " with " + client.name : "") + " on " + longDate(d) + " at " + clock(e.start) + " to ", { send: false });
+          closeSheet();
+        } }, icon("move"), "Reschedule"));
+      }
+    }
+    if (e.link && !data.example) acts.appendChild(h("a", { class: "btn", href: e.link, target: "_blank", rel: "noopener noreferrer" }, icon("out"), "Open in Google Calendar"));
+    return { kicker: e.kind === "client" ? "Client meeting" : KIND_WORDS[e.kind], title: client ? client.name : e.title, sub: client ? e.title : null, facts: facts, acts: acts };
+  }
+
+  function sheetClient(data, c) {
+    var today = startOfToday();
+    var next = nextWords(c, today);
+    var facts = h("ul", { class: "facts" },
+      c.contact ? h("li", null, icon("users"), h("span", null, "Main contact: ", own(c.contact))) : null,
+      h("li", null, icon("calendar"), h("span", { text: plural(c.meetings, "meeting", "meetings") + " in the last 90 days" + (c.lastMet ? ", last on " + longDate(parseDay(c.lastMet)) : "") })),
+      h("li", null, icon("clock"), h("span", null, next ? ["Next: ", next, c.next.title ? [", ", own(c.next.title)] : null] : "Nothing booked")),
+      h("li", null, icon("receipt"), h("span", { text: c.hours ? hoursWords(c.hours) + " of meetings this month" : "No meetings this month" })));
+    var acts = h("div", { class: "acts" });
+    if (!data.example && canAsk()) {
+      acts.appendChild(h("button", { class: "btn primary", type: "button", onclick: function () { ask(aboutAsk(c)); closeSheet(); } }, icon("chat"), "What should I know"));
+      if (c.status === "quiet") {
+        acts.appendChild(h("button", { class: "btn", type: "button", onclick: function () {
+          ask("Draft a short, friendly check-in email to " + (c.contact || "the main contact") + " at " + c.name + ". Mention when we last met and offer a time to catch up. Write it as a draft; don't send anything.");
+          closeSheet();
+        } }, icon("reply"), "Draft a check-in"));
+      } else if (c.next) {
+        acts.appendChild(h("button", { class: "btn", type: "button", onclick: function () {
+          ask("Prep me for my next meeting with " + c.name + (c.contact ? " (" + c.contact + ")" : "") + ": who they are, what we did last time, and what to bring.");
+          closeSheet();
+        } }, icon("notes"), "Prep me for the next one"));
+      }
+    }
+    var kicker = c.status === "quiet" ? "Client going quiet" : c.status === "new" ? "New client" : "Active client";
+    return { kicker: kicker, title: c.name, sub: null, facts: facts, acts: acts };
+  }
+
+  function paintSheet() {
+    var layer = document.getElementById("layer");
+    if (!S.open) { layer.textContent = ""; return; }
+    if (!layer.childNodes.length) lastFocus = document.activeElement;
+    layer.textContent = "";
+    var data = shown();
+    if (!data) return;
+    var part = S.open.event ? sheetEvent(data, S.open.event) : sheetClient(data, S.open.client);
+    if (data.example && mode() === "not-connected" && S.conn && S.conn.canConnect) part.acts.appendChild(connectButton(false, false));
+    var sheet = h("div", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-labelledby": "sheet-title" },
+      h("button", { class: "close", type: "button", "aria-label": "Close", onclick: closeSheet }, icon("close")),
+      h("p", { class: "kicker", text: part.kicker }),
+      h("h2", { id: "sheet-title" }, own(part.title)),
+      part.sub ? h("p", { class: "subtitle" }, own(part.sub)) : null,
+      data.example ? h("p", { class: "madeup", text: "This is from the made-up example. Connect Google Calendar and these buttons work on your own clients: prep notes, follow-ups and check-ins." }) : null,
+      part.facts,
+      part.acts.childNodes.length ? part.acts : null);
+    var scrim = h("div", { class: "scrim", onclick: function (ev) { if (ev.target === scrim) closeSheet(); } }, sheet);
+    layer.appendChild(scrim);
+    var first = sheet.querySelector(".acts .btn") || sheet.querySelector(".close");
+    if (first) first.focus();
+  }
+
+  document.addEventListener("keydown", function (ev) {
+    if (!S.open) return;
+    if (ev.key === "Escape") { ev.preventDefault(); closeSheet(); return; }
+    if (ev.key !== "Tab") return;
+    // Keep the keyboard inside the open sheet.
+    var items = Array.prototype.slice.call(document.querySelectorAll("#layer button, #layer a[href]"));
+    if (!items.length) return;
+    var first = items[0], last = items[items.length - 1];
+    if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+  });
+
+  function paintFoot() {
+    var foot = document.getElementById("foot");
+    foot.textContent = "";
+    var when = S.job && S.job.when ? S.job.when : "Every morning at 7";
+    // The bridge's words for the schedule can be "Paused" too, so they stand as a label.
+    add(foot, [h("b", { text: "Updates: " }), when, ". Cabinet reads your Google Calendar and updates this page and your client list. It never changes your calendar on its own."]);
+  }
+
+  // ── Start ───────────────────────────────────────────────────
+
+  var resizeTimer = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { paintHeader(shown(), startOfToday()); }, 150);
+  });
+
+  // Meetings end and open time moves on as the day goes.
+  setInterval(function () { if (!S.open) render(); }, 5 * 60 * 1000);
+
+  function start() {
+    if (!V2) {
+      loadData().then(render);
+      // No change events in an older Cabinet: look again when the page comes back into view.
+      document.addEventListener("visibilitychange", function () { if (!document.hidden) loadData().then(render); });
+      return;
+    }
+    Promise.resolve(cab.here()).then(function (here) {
+      S.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath && here.appPath.indexOf("..") < 0) appDir = here.appPath;
+    }, function () {}).then(function () {
+      return Promise.all([
+        cab.connectors.list().then(setConnectors, function () {}),
+        cab.jobs.list().then(setJobs, function () {}),
+        loadData()
+      ]);
+    }).then(function () {
+      render();
+      cab.connectors.onChange(function (list) { setConnectors(list); render(); });
+      cab.jobs.onChange(function (list) { setJobs(list); render(); });
+      cab.files.onChange(appDir + "/data", function () { loadData().then(render); });
+    });
+  }
+
+  start();
 })();
 </script>
 </body>
