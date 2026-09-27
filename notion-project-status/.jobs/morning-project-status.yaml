@@ -1,33 +1,124 @@
 id: morning-project-status
 name: Morning Project Status
 enabled: true
-schedule: 0 8 * * *
+schedule: 0 8 * * 1-5
 provider: claude-code
 adapterType: claude_local
 ownerAgent: project-tracker
 agentSlug: project-tracker
-timeout: 600
+timeout: 1200
+adapterConfig:
+  model: sonnet
+  effort: low
 prompt: |-
-  Write this morning's project status report.
+  Check the team's projects in Notion and update this cabinet's "Projects at a glance" page.
+  Your persona, above, says what counts as a project, how to tell late, at risk and on track
+  apart (including Notion's own status words), and how to write each line.
 
-  Your working directory is the cabinet root. Every summary lives in `daily-summaries/`,
-  one file per run, named `<YYYY-MM-DD>T<HH-MM-SS>-notion-summary.md`: the local time you
-  ran, then that exact postfix. The page reads the folder, sorts by the name and opens the
-  newest, so a name in any other shape is a summary nobody will see. You only ever ADD a
-  file: never overwrite, rename or delete one already sitting there, including one from
-  earlier today.
+  This runs every weekday morning, so keep it small and cheap: reuse what the last check worked
+  out, read from Notion only what is new or changed, and use as few steps as you can.
 
-  1. Read your persona before anything else. It holds what counts as a project, the
-     frontmatter shape, the table columns, the `Status` vocabulary and the tone. This
-     prompt does not repeat them.
-  2. With your Notion tools, search the pages and databases shared with this connection
-     for work in progress, and query any database that carries a status property. Open
-     each candidate far enough to judge it, no further.
-  3. This run is read only. Do not create a page, update a database, or add a comment,
-     and above all do not write a status back into Notion.
-  4. If a Notion call fails, say what you tried and what it said, touch no file, and stop.
-     Leave `daily-summaries/` exactly as you found it, example and all.
-  5. On the first run that does reach Notion, write your dated file and then delete
-     `daily-summaries/EXAMPLE-notion-summary.md`. It is a demo, not a past summary, and it
-     must not sit in the date list beside real ones. Do not merge with it, do not rename
-     it, and never write `EXAMPLE` into a name of your own.
+  Your working directory is the cabinet root. Everything you write goes in
+  `project-status/data/`.
+
+  1. Read `project-status/data/latest.json` and `project-status/data/history.json` if they are
+     there: the last check, and the status of every project at each earlier check, newest first.
+  2. Find the project tables. The last check lists them in `latest.json` under `sources`, each
+     with its data source address (it starts with `collection://`). Use those. Only when there
+     are none yet, or today is Monday, look for tables again: run these `notion-search` searches
+     in one step if your assistant can: projects, project, jobs, tracker, status. (Some
+     assistants show the tools as cabinet-notion followed by the name; they are the same tools.)
+     A table that tracks work has a status, stage, owner or due property: `notion-fetch` it to
+     get its data source address. If Notion says to wait, wait the time it gives.
+  3. Read each table's rows with `notion-query-data-sources` in rows mode (limit 100). A row that
+     is not finished is a project. Each row gives its status, owner, due date and the day it
+     last changed.
+  4. For each open project:
+     - The last check has it (same url) and its last-changed day is the same: keep its why,
+       next, blocker, client and where exactly as they were. Do not open it. Only work out its
+       status again from the row and today's date (a due date passes by itself).
+     - New, or changed since: `notion-fetch` its page, only far enough to judge it and write its
+       lines. Open at most 12 pages in a check, several in one step when you can.
+     - A project the last check listed from a page outside any table stays as it was, with its
+       status worked out again from today's date, unless Notion says it is gone or finished.
+  5. This check only reads. Never create, edit, move or comment on anything in Notion, and never
+     write a status back into Notion.
+  6. Only what you read from Notion in this check, and what the last check wrote, goes into the
+     files. Never copy the made-up example (`EXAMPLE-latest.json`) into them, and never make up
+     a project. Write the files yourself, directly: no scripts or programs. Stay inside this
+     cabinet's folder. Use the Notion tools you were given: if you cannot find them, or Notion
+     asks you to sign in, refuses, or cannot be reached, stop there: write nothing, and end
+     with one plain sentence saying what failed.
+  7. Work out last week. From `history.json`, take the check closest to 7 days before today (on
+     a tie, the older one). Its `at` is `previousAt`, and each project's status in it is that
+     project's `lastWeek`: `null` for a project that was not open then. With no earlier check,
+     `previousAt` is `null` and every `lastWeek` is `null`.
+  8. Write `project-status/data/latest.json` in one go, replacing the old file. It must be valid
+     JSON in UTF-8, with nothing else in the file:
+
+     {
+       "generatedAt": "<now, ISO 8601 with your time zone offset, e.g. 2026-09-25T08:02:00-04:00>",
+       "previousAt": "<the at of the check you compared with, or null>",
+       "business": "<the company's name as the pages give it, or null>",
+       "projects": [
+         {
+           "name": "<the project's title as it reads in Notion>",
+           "client": "<the customer it is for, or null>",
+           "status": "<late, at-risk or on-track>",
+           "lastWeek": "<late, at-risk, on-track, or null>",
+           "owner": "<a person's name, or null>",
+           "due": "<YYYY-MM-DD, or null>",
+           "why": "<one plain sentence>",
+           "next": "<the next real action, under ten words>",
+           "blocker": "<who or what it is waiting on, or null>",
+           "edited": "<YYYY-MM-DD, the day the page last changed>",
+           "where": "<the database or page it lives in>",
+           "url": "<the page's own Notion link, exactly as the tool gave it>"
+         }
+       ],
+       "changes": [
+         { "kind": "<worse, better, new or done>", "text": "<one plain sentence>", "url": "<the project's url, or null>" }
+       ],
+       "sources": [
+         { "name": "<the table's name>", "url": "<the table's Notion link>", "dataSource": "<its collection:// address>" }
+       ]
+     }
+
+     Order the projects late first, then at risk, then on track, and within each the soonest
+     due date first, with no date last. At most 40 projects: when more are open, keep the most
+     urgent. A check with no open projects is `"projects": []`.
+     `changes` compares now with `previousAt`, at most 8, the most important first: a project
+     that got worse, one that got better, one that is new, one that got done (it is in the old
+     check, and Notion now shows it finished). With no earlier check, `changes` is `[]`.
+  9. Write `project-status/data/history.json` in one go: `{ "checks": [ ... ] }`, this check
+     first as `{ "at": "<generatedAt>", "status": { "<url>": "<status>" } }` for every open
+     project, then the earlier checks. Keep one check per day (today's replaces an earlier one
+     from today) and at most 7, enough to reach back a week.
+  10. Write `project-status/data/latest.md`, replacing the old file: a short page a person can
+     read, in this shape (leave out a heading with nothing under it). Write `latest.json`,
+     `history.json` and `latest.md` together, in one step if your assistant can.
+
+     ---
+     title: Projects at a glance
+     ---
+     # Projects at a glance, <weekday, month and day>
+
+     <One line with the counts, e.g. "2 late, 3 at risk, 5 on track.">
+
+     ## Late
+     - **<name>**, <owner, or No owner>, due <date>. Next: <next> [Open in Notion](<url>)
+
+     ## At risk
+     - ...
+
+     ## On track
+     <The names only, comma separated.>
+
+     ## Since last week
+     - <each change>
+
+     ## No owner or no date
+     - <name>: <No owner, No date, or both>
+
+  11. Never touch `project-status/data/EXAMPLE-latest.json` (the made-up example the page shows
+      before the first check), and never touch any other file.

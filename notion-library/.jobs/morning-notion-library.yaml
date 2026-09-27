@@ -1,31 +1,58 @@
 id: morning-notion-library
-name: Morning Notion Library
+name: Monday Notion Library
 enabled: true
-schedule: 0 8 * * *
+schedule: 0 7 * * 1
 provider: claude-code
 adapterType: claude_local
 ownerAgent: notion-librarian
 agentSlug: notion-librarian
-timeout: 600
+timeout: 1200
+adapterConfig:
+  model: sonnet
+  effort: low
 prompt: |-
-  Write this morning's listing of the Notion pages the user shared.
+  Update this cabinet's overview of what the business keeps in Notion: what
+  is there, by area; what changed this week; and which procedures and policies
+  may be out of date. The Company knowledge app shows it. Your persona, above,
+  has the six areas, the words to use and the exact shape of both files.
 
-  Your working directory is the cabinet root. Every summary lives in `daily-summaries/`,
-  one file per run, named `<YYYY-MM-DD>T<HH-MM-SS>-notion-summary.md`: the local time you
-  ran, then that exact postfix. The page reads the folder, sorts by the name and opens the
-  newest, so a name in any other shape is a summary nobody will see. You only ever ADD a
-  file: never overwrite, rename or delete one already sitting there, including one from
-  earlier today.
+  This runs every Monday morning, and whenever someone presses Refresh, so keep
+  it small and cheap: reuse what the last run worked out, read from Notion only
+  what is new or changed, and use as few steps as you can.
 
-  1. Read your persona before anything else. It holds the frontmatter shape, the table
-     columns, the `Updated` vocabulary and the tone. This prompt does not repeat them.
-  2. With your Notion tools, list every page and database shared with this connection.
-     Open each one far enough to say in one short line what it holds, no further.
-  3. This run is read only. Do not create, edit, comment on or move anything in Notion,
-     however tempting the tidy-up looks.
-  4. If a Notion call fails, say what you tried and what it said, touch no file, and stop.
-     Leave `daily-summaries/` exactly as you found it, example and all.
-  5. On the first run that does reach Notion, write your dated file and then delete
-     `daily-summaries/EXAMPLE-notion-summary.md`. It is a demo, not a past summary, and it
-     must not sit in the date list beside real ones. Do not merge with it, do not rename
-     it, and never write `EXAMPLE` into a name of your own.
+  Your working directory is this cabinet's folder.
+
+  1. Read library/data/latest.json if it is there. It is the last run's work:
+     each page it lists already has its area, its line and its editor.
+  2. Search Notion with notion-search, all of these in one step if your
+     assistant can run several at once: procedure, checklist, policy,
+     handbook, client, customer, project, meeting, notes, price, and this
+     year's number. Each search needs words and gives at most 50 results; put
+     the results together by their link. (Some assistants show the tool as
+     cabinet-notion followed by its name. It is the same tool.) If Notion says
+     to wait, wait the time it gives, then carry on.
+  3. For every page the searches found:
+     - Last run has it, with the same last-edited day: keep its area, line and
+       editor exactly as they were. Do not open it.
+     - New, or edited since: give it an area, and write its line from the
+       search result's title and snippet when they make it plain. Open it with
+       notion-fetch only when they do not, and only far enough to write the
+       line. Open at most 12 pages in a run, several in one step when you can.
+     - A page the last run listed but no search found today stays, as it was,
+       unless Notion says it is gone.
+  4. Read only. Never create, edit, move, comment on or delete anything in
+     Notion.
+  5. Write two files, each one whole, both in one step, replacing the old ones:
+     - library/data/latest.json, in the shape your persona gives. It must be
+       valid JSON.
+     - library/data/latest.md, the short page your persona gives.
+     Never touch library/data/EXAMPLE-latest.json, and write nothing else.
+  6. Only what you read from Notion in this run, and what the last run
+     wrote, goes into the files. Never copy the made-up example
+     (library/data/EXAMPLE-latest.json) into them, and never make up pages.
+     Write the files yourself, directly: no scripts or programs. Stay inside
+     this cabinet's folder.
+  7. Use the Notion tools you were given. If you cannot find them, or Notion
+     cannot be reached, or it asks you to sign in, change no file.
+     End with one plain sentence saying what went wrong, for example: "Notion
+     asked me to sign in again, so I left the overview as it was."
