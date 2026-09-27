@@ -4,69 +4,78 @@ enabled: true
 schedule: 30 7 * * *
 provider: claude-code
 adapterType: claude_local
+adapterConfig:
+  model: sonnet
+  effort: low
 ownerAgent: chat-keeper
 agentSlug: chat-keeper
 timeout: 900
 prompt: |-
-  Write this morning's catch-up from the WhatsApp chats this cabinet reads.
+  Write this morning's catch-up from the WhatsApp chats this cabinet reads, for the
+  Conversations app: who is waiting and a short reply drafted for each, the quotes,
+  appointments and promises in the chats. It runs every day on the person's money, so
+  do it in three moves: the one shell command step 1 gives, one command that writes the
+  file and checks it, then your answer. Keep what yesterday's catch-up already worked
+  out; never read a file twice.
 
-  Your working directory is the cabinet root. Each run adds one file to `catch-up/`,
-  named `<YYYY-MM-DD>T<HH-MM-SS>-catch-up.md` in this computer's local time. The page
-  opens the newest name, so a name in any other shape is a catch-up nobody sees. Never
-  overwrite or rename a catch-up, including one from earlier today. Only steps 7 and 8 delete.
+  Your working directory is the cabinet root. Your persona above says how to read a
+  saved chat line and how to name people. Never send or propose a message, and never
+  touch the `whatsapp/all-conversations/EXAMPLE-*` files.
 
-  1. Read your persona first. It holds the saved chat format, whose line is whose, how
-     to name people, and the exact shape of the file. This prompt does not repeat them.
-  2. Read `setup.md`. Leave out every chat it says to skip. Chats that always matter
-     come first in every section they appear in. Its "What counts as waiting on me"
-     narrows section 2.
-  3. List the chat folders: every folder under `whatsapp/` with an `index.md` whose
-     frontmatter has a `whatsapp` block. Never open `whatsapp/all-conversations/`.
-     If there are no chat folders, write nothing, delete nothing, and say: "No chats are
-     picked for this cabinet yet, so there is nothing to catch up on. Choose chats on the
-     WhatsApp page in Integrations." Then stop.
-  4. Read, in every chat folder: the month pages changed in the last day, and the newest
-     month page even when it did not change. Also read the newest earlier
-     `*-catch-up.md` in `catch-up/` (never the example), to carry open rows forward.
-  5. Fill the six sections. Every row cites its chat and date, and has its Folder.
-     - **Today's chats:** each chat with lines from the last 24 hours. Who, how many
-       lines, what it is about in six words, the date. Busiest first.
-     - **Waiting on your reply:** a direct chat whose newest line (the last line of its
-       newest month page) is not the person's own, and is not only `[sticker]` or
-       `[message deleted]`. A group only when that newest line names the person.
-       Who, what they want in six words, and the date of that line
-       under Since. Oldest first. A chat whose newest line is the person's own is never
-       here, however long ago someone else wrote.
-     - **Plans and dates:** times, places and dates agreed in the lines you read, from
-       either side, with who and the date it was said. Keep plans from the previous
-       catch-up whose time is still ahead. A plan a later line cancels is left out; a
-       plan a later line moves shows the new time. Soonest first.
-     - **Quotes and prices:** every amount in the lines you read, with who, what it is
-       for, the amount and currency exactly as written, and the date. Keep rows from the
-       previous catch-up that are not agreed yet and are at most 14 days old. Write
-       `agreed` when a later line of the person's own accepts that amount. Newest first.
-     - **Files and photos shared:** lines from the last 24 hours that start with
-       `[photo]`, `[video]`, `[voice note]` or `[file]`, with the caption or file name
-       after the label. Leave out `[sticker]`. Newest first.
-     - **You said you would:** the person's own lines that promise something, in any
-       language: to call back, to send a file, to check a price, to pay, to come by.
-       Who it was promised to, what, and the date. Keep open rows from the previous
-       catch-up. Drop a promise once a later own line or file line shows it done (the
-       file was sent, the call happened, the price was confirmed). Oldest first.
-  6. Write the file: frontmatter with `headline`, `generated`, `status: ok` and `chats`
-     (the number of chat folders you read), then the six sections in order. The headline
-     is the one thing to know first, in the person's language, with no number copied
-     from a chat.
-  7. On the first run that reads real chats, delete `catch-up/EXAMPLE-catch-up.md` after
-     your file is written. It is a demo, not a morning that happened.
-  8. Tidy `catch-up/`. Among the files named `<YYYY-MM-DD>T<HH-MM-SS>-catch-up.md` or
-     `<YYYY-MM-DD>T<HH-MM-SS>-week-ahead.md`, keep the newest 30 and delete the rest.
-     Then look at `keptFor` in every chat's `index.md`: when the shortest is `30 days`
-     or `90 days`, also delete those files dated more than that many days ago, so a price
-     or a promise never outlives the chat page it came from. `forever` sets no limit.
-     Never delete any other file.
+  1. Read everything with this one command, as it is: the date and time,
+     `whatsapp/setup.md`, the chat folders, yesterday's catch-up
+     (`whatsapp/all-conversations/catch-up.json`) and the last 40 lines of every month
+     page written after it (with no catch-up yet, of every chat's newest page):
+     `date '+%Y-%m-%dT%H:%M'; cat whatsapp/setup.md; ls whatsapp; C=whatsapp/all-conversations/catch-up.json; if [ -f $C ]; then echo "== $C"; cat $C; find whatsapp -path whatsapp/all-conversations -prune -o -name '20*.md' -newer $C -exec sh -c 'echo "== $1"; tail -n 40 "$1"' _ {} \;; else for d in whatsapp/*/; do f=$(ls "$d"20*.md 2>/dev/null | tail -n 1); [ -n "$f" ] && { echo "== $f"; tail -n 40 "$f"; }; done; fi`
+     A chat is a folder under `whatsapp/`; `whatsapp/all-conversations/` is not one, and
+     leave out every chat `whatsapp/setup.md` says to skip. If there are no chat folders,
+     write nothing and say: "No chats are picked for this cabinet yet, so there is
+     nothing to catch up on. Choose chats on the WhatsApp page in Integrations." Then stop.
+  2. Work out the catch-up. A chat you did not read keeps yesterday's rows as they
+     were. For a chat you read:
+     - **waiting**: a direct chat whose newest line is not the person's own, and is not
+       only `[sticker]` or `[message deleted]`; a group only when its newest line names
+       the person. A chat whose newest line is the person's own is not waiting.
+       `whatsapp/setup.md` says what counts, and which chats come first. For each one,
+       draft the reply the person would send: short, in the chat's own language, in the
+       tone `whatsapp/setup.md` asks for. Never claim a price, a time, a service or a
+       promise the chats do not show: where the reply needs one, ask it back or leave it
+       in [brackets] for the person to fill.
+     - **plans**: times, places and dates agreed, from either side. A later line that
+       cancels a plan removes it; one that moves it changes the time. Drop plans whose
+       time has passed.
+     - **prices**: every amount, exactly as written, with what it is for. Agreed when a
+       later line of the person's own accepts it. Drop rows older than 14 days that
+       are not agreed.
+     - **promises**: the person's own lines that promise something (to call back, to
+       send, to check, to pay, to come by). Drop one once a later line shows it done.
+  3. Write `whatsapp/all-conversations/catch-up.json` in one go: valid JSON, plain
+     words, times in this computer's local time as `YYYY-MM-DDTHH:MM` (a plan with no
+     time: `YYYY-MM-DD`, worked out from the line; "Friday" in a line from Tue 22 Sep is
+     `2026-09-25`). `chatsRead` is how many chats this cabinet reads (its chat folders).
+     Every list is present, `[]` when empty, at most 12 rows. The shape:
+     `{"version":1,"generatedAt":"2026-09-25T07:30","status":"ok","headline":"...","chatsRead":7,`
+     `"waiting":[{"who":"Dana Levi","kind":"person","chat":"dana-levi","topic":"quote","wants":"A price for front brakes","quote":"How much for the brakes?","since":"2026-09-24T09:14","draft":"Hi Dana, front brakes come to ..."}],`
+     `"promises":[{"to":"Dana Levi","kind":"person","chat":"dana-levi","what":"Send a photo of the pads","said":"2026-09-23T17:20"}],`
+     `"plans":[{"when":"2026-09-26T08:30","what":"Oil change","where":"At the shop","who":"Moshe Levi","kind":"person","chat":"moshe-levi","said":"2026-09-22T10:31"}],`
+     `"prices":[{"who":"Parts Direct","kind":"person","chat":"parts-direct","for":"Clutch kit","amount":"$389","agreed":false,"said":"2026-09-24T07:05"}]}`
+     - `who`/`to` as your persona names people. `kind` is `person`, `group`, or
+       `number` for a chat with no saved name.
+     - `chat` is the folder name exactly, except a `chat-<number>` or `group-<id>`
+       folder, written with only its last four digits: `chat-...4410`. Never a full
+       number, anywhere. The app finds each chat by it.
+     - `topic` is `quote`, `appointment`, `question`, `problem` or `other`.
+     - `headline`: one sentence of at most 20 words, the thing to know first, in the
+       person's language, no number copied from a chat. `wants`, `what`, `for`: six
+       words or so. `quote`: at most 12 words from that chat's newest line, in its own
+       language, or `""`. `since`: when the oldest line still unanswered was written.
+       `draft`: at most 60 words. `amount` exactly as written. `agreed`: true/false.
+     - Order: waiting and promises oldest first, plans soonest first, prices newest
+       first.
+     Then check it is valid JSON (`python3 -m json.tool whatsapp/all-conversations/catch-up.json > /dev/null`
+     or `node -e` with JSON.parse) and fix it if not.
 
-  Finish with one or two sentences: how many chats moved, who is waiting on the person,
-  and the one thing to do first. Name people the way your persona says.
+  Finish with one or two sentences: who is waiting on the person, and the one thing to
+  do first.
 createdAt: '2026-09-15T00:00:00.000Z'
-updatedAt: '2026-09-15T00:00:00.000Z'
+updatedAt: '2026-09-25T00:00:00.000Z'
