@@ -1,0 +1,78 @@
+id: morning-line
+name: Morning Line Read
+enabled: true
+schedule: 0 7 * * *
+provider: claude-code
+adapterType: claude_local
+adapterConfig:
+  model: sonnet
+  effort: low
+ownerAgent: front-desk
+agentSlug: front-desk
+timeout: 900
+prompt: |-
+  Read the business phone line and write this morning's notes for the Phone line app. It
+  runs every day on the owner's money, so do it in three moves: one shell command that
+  reads everything steps 1 and 2 name (and prints the date and time), one command that
+  writes every file and checks the JSON, then your answer. Keep what the last read already
+  worked out; never read a file twice.
+
+  Your working directory is the cabinet root. Your persona says how the day files look and
+  how to name people. Never change `twilio/sms-conversations/index.html` or anything in `twilio/sms-conversations/data/line/`.
+
+  1. Read `setup.md`, and `twilio/sms-conversations/data/latest.json` when it is there: the last read.
+  2. Read the day files written since then, all in one go:
+     `find twilio/sms-conversations/data/line -name '20*.json' -newer twilio/sms-conversations/data/latest.json | sort | xargs cat`
+     With no `latest.json` yet, read the newest three: `ls twilio/sms-conversations/data/line/20*.json | tail -n 3 | xargs cat`.
+     If there is no day file at all, write nothing and say: "Your phone line has no texts
+     or calls yet. Connect Twilio in the Phone line app." Then stop.
+  3. Work it out. Anyone you did not read about keeps the last read's rows as they were,
+     so in `about`, `summary` and `what` name a day by weekday or date ("Fri 9:00"), never
+     "today", "tomorrow" or "yesterday". For everyone you read about:
+     - **people**: a name only when a text, a transcript or `setup.md` gives one, and
+       a kind (`customer`, `new`, `supplier`, `team`, `personal`, `spam`, `other`).
+     - **threads**, one per conversation with texts: `about` (six words or so: what they
+       want), `topic` (`appointment`, `quote`, `question`, `problem`, `payment`, `other`),
+       `needsReply` (true when their line is the last one and asks for something; a
+       thanks, an ok or a supplier's notice is false), `urgent` (no heat, a leak, pain,
+       someone hurt, a deadline today).
+     - **calls**, one per call you read: `summary` (one line from its transcript or
+       summary, `""` when it has neither), `topic`, `callBack` (missed or voicemail, and no
+       later call or text to that number).
+     - **appointments**: every day and time agreed or asked for, in a text or a transcript.
+       `when` in local time, worked out from the line's own date ("Friday" in a text from
+       Tue 22 Sep is 2026-09-25), `status` `confirmed`, `asked` or `moving`, `from` `text`
+       or `call`. Drop ones already past.
+     - **quotes**: every price asked for or given. `amount` exactly as written, `status`
+       `asked`, `sent` or `accepted`. Drop ones older than 14 days that are not accepted.
+     - **asks**: this week's count per topic, texts and calls together. A call with nothing
+       said (missed, no transcript) is not an ask.
+  4. Write `twilio/sms-conversations/data/latest.json` in one go: valid JSON, plain words, times local as
+     `YYYY-MM-DDTHH:MM`, numbers as in the day files (`+15155550146`). Every list is
+     present, `[]` when empty, at most 20 rows. The shape:
+     `{"version":1,"example":false,"generatedAt":"2026-09-25T07:02","status":"ok","headline":"...",`
+     `"people":[{"number":"+15155550146","name":"Dana Ruiz","kind":"customer"}],`
+     `"threads":[{"with":"+15155550146","about":"Water heater leaking in the basement","topic":"problem","needsReply":true,"urgent":true}],`
+     `"calls":[{"id":"CA...","with":"+15155550184","summary":"Wants a price on a second AC unit upstairs","topic":"quote","callBack":true}],`
+     `"appointments":[{"when":"2026-09-29T10:00","who":"+15155550146","what":"Look at the water heater","status":"confirmed","from":"text"}],`
+     `"quotes":[{"who":"+15155550153","for":"New 50 gallon water heater","amount":"$1,450 to $1,900","status":"sent","said":"2026-09-23"}],`
+     `"asks":[{"topic":"appointment","count":4}]}`
+     `id` is the call's `id` from the day file. `headline`: one sentence of at most 25
+     words, the thing to know first, in the owner's language.
+  5. For each thread you read with `needsReply` true, write a reply draft to
+     `twilio/sms-conversations/data/drafts/<digits>.txt` (the number's digits, no +): only the text, short and
+     friendly, in the language of their texts, following `setup.md`. Delete the
+     drafts of threads that no longer need a reply, and leave the rest alone. A draft is
+     text in a file: never send anything.
+  6. Write a page for people to read, `past-days/<YYYY-MM-DD>.md`: frontmatter `title`
+     (`Phone line, 25 Sep`), then `## Waiting for a text back` (one line each: who, since
+     when, what they want), `## Calls to return` (one line each), and one line:
+     `Also: 3 appointments mentioned, 1 open quote.` Keep the newest 60 pages in
+     `past-days/`, and never delete `past-days/index.md`.
+  7. Check `twilio/sms-conversations/data/latest.json` parses (`python3 -m json.tool twilio/sms-conversations/data/latest.json > /dev/null`
+     or `node -e` with JSON.parse) and fix it if not.
+
+  Finish with one or two sentences: who is waiting on the owner, and the one thing to do
+  first.
+createdAt: '2026-09-25T00:00:00.000Z'
+updatedAt: '2026-09-25T00:00:00.000Z'
