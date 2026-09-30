@@ -1,7 +1,7 @@
 ---
 title: WhatsApp Catch-Up
 created: '2026-09-15T00:00:00Z'
-modified: '2026-09-25T00:00:00Z'
+modified: '2026-09-30T00:00:00Z'
 tags: [whatsapp, chats, customers, catch-up, business, showcase]
 order: 1
 ---
@@ -37,8 +37,6 @@ every customer who asked for a quote", "Customers I haven't answered in 24 hours
 - WhatsApp doesn't officially support linking Cabinet this way, so keep it to your own
   chats. Lots of automatic messages can get a number blocked. Cabinet isn't responsible
   if that happens. Cabinet never sends on its own here: only your Send does.
-- WhatsApp links to Cabinet on your computer. It can't be linked from Cabinet in the
-  cloud.
 - The people in the chats you pick are not told that Cabinet reads them.
 - Tell Chat Keeper what matters and what to skip ("from now on, skip the family group"),
   and it keeps that in **whatsapp**, on the page called "What counts, and what to skip".
