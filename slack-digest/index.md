@@ -16,11 +16,14 @@ channel, how many messages piled up in it, what it actually wants from you, and 
 that is. The loudest channel does not win. The ones waiting on an answer sit at the top,
 and the sixty-message thread about lunch sits at the bottom where it belongs.
 
-**All of your channels, not a chosen few.** You never pick channels or keep a list up to
-date. The routine reads every channel it can see in your workspace, so the quiet one you
-forgot you were in still turns up on the morning it needs you.
+**All of your channels, not a chosen few.** You pick channels once when you connect Slack,
+and every public channel is ticked by default. The routine reads what moved in them, so the
+quiet one you forgot you were in still turns up on the morning it needs you.
 
-Direct messages are left out on purpose. This is the workspace, not your DMs.
+**Your direct messages too.** A question someone sent you directly usually needs you most,
+so the digest includes your direct and group messages. It names who wrote, never quotes
+them. To leave them out, open the routine and change `Include direct messages: yes` to
+`no`.
 
 Nothing is posted, replied to, reacted to or marked read. It only reads.
 
@@ -33,9 +36,9 @@ invented. Your first real digest takes its place.
 ## Before it can read your real Slack
 
 Connect Slack on Cabinet's integrations screen. Slack has no one press sign in, so the
-screen walks you through making a small Slack app of your own: it shows you the five things
-you will press in Slack's own console, hands you the two values to paste there, and then
-asks for the app's two keys. Set aside about two minutes once.
+screen walks you through making a small Slack app of your own: it shows you each thing
+you will press in Slack's own console, one step at a time, hands you each value to paste
+there, and then asks for the app's two keys. Set aside about two minutes once.
 
 Cabinet keeps both keys in a locked file on your own machine, and writes them down only
 after the sign-in has actually worked. When you connect, it also asks which channels your

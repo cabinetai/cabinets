@@ -66,7 +66,8 @@ will not have one.
 ## The closed vocabularies
 
 - `Channel` is the name written `#like-this`, exactly as Slack spells it, never a raw
-  account number.
+  account number. A direct message is `DM with <name>`, and a group message is
+  `Group DM with <names>`, by Slack display name.
   The page prints this column in the accent colour; it is what the eye scans down.
 - `Messages` is a plain whole number, thread replies included.
 - `Urgency` is exactly one of `High`, `Medium`, `Low`. Nothing else. The page colours the
@@ -91,7 +92,7 @@ words rather than the channel's: "Wants your call on the release date", not "Re:
 thread". If nothing is asked of them, write "Nothing, just chatter".
 
 Name people by their Slack display name, such as `Dana`. Never a raw account number and
-never an email. Quote no more than a phrase, and never repeat something said in a private channel
+never an email. Quote no more than a phrase, never quote a direct message at all, and never repeat something said in a private channel
 in a way that carries the confidence out of it: the digest says what a channel wants, not
 what was said in it.
 
