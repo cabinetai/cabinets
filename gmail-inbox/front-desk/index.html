@@ -1552,34 +1552,38 @@
     Object.keys(boxEls).forEach(function (id) {
       var el = boxEls[id];
       if (!el.isConnected || el === skip || el.hidden) return;
-      var a = before[id];
-      if (!a) { enter(el); return; }
-      var b = el.getBoundingClientRect();
-      var dx = a.left - b.left;
-      var dy = a.top - b.top;
-      var resized = Math.abs(a.width - b.width) >= 1 || Math.abs(a.height - b.height) >= 1;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && !resized) return;
-      var from = { transform: "translate(" + dx + "px, " + dy + "px)" };
-      var to = { transform: "none" };
-      if (resized) {
-        from.width = a.width + "px";
-        from.height = a.height + "px";
-        to.width = b.width + "px";
-        to.height = b.height + "px";
-        // While it grows, the box is not drawn again at every in-between size.
-        el.setAttribute("data-gliding", "");
-      }
-      var anim = el.animate([from, to], { duration: MOVE_MS, easing: SPRING });
-      anim.id = "glide";
-      anim.onfinish = anim.oncancel = function () {
-        if (!el.hasAttribute("data-gliding")) return;
-        el.removeAttribute("data-gliding");
-        if (el.isConnected && el.offsetWidth) {
-          if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
-          else fitBox(el);
-        }
-      };
+      if (before[id]) glideFrom(el, before[id], true, MOVE_MS);
+      else enter(el);
     });
+  }
+  /** One element glides from the rectangle `a` to where it is now, growing for real if its size changed. */
+  function glideFrom(el, a, isBox, ms) {
+    var b = el.getBoundingClientRect();
+    var dx = a.left - b.left;
+    var dy = a.top - b.top;
+    var resized = Math.abs(a.width - b.width) >= 1 || Math.abs(a.height - b.height) >= 1;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && !resized) return;
+    var from = { transform: "translate(" + dx + "px, " + dy + "px)" };
+    var to = { transform: "none" };
+    if (resized) {
+      from.width = a.width + "px";
+      from.height = a.height + "px";
+      to.width = b.width + "px";
+      to.height = b.height + "px";
+      // While it grows, the box is not drawn again at every in-between size.
+      if (isBox) el.setAttribute("data-gliding", "");
+    }
+    var anim = el.animate([from, to], { duration: ms, easing: SPRING });
+    anim.id = "glide";
+    if (!isBox) return;
+    anim.onfinish = anim.oncancel = function () {
+      if (!el.hasAttribute("data-gliding")) return;
+      el.removeAttribute("data-gliding");
+      if (el.isConnected && el.offsetWidth) {
+        if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+        else fitBox(el);
+      }
+    };
   }
   function enter(el) {
     if (!motionOK()) return;
@@ -1590,9 +1594,14 @@
   function fadeIn(el) {
     if (el && motionOK()) el.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 320, easing: "ease-out" });
   }
-  /** A box held by the hand lets go of its offset, so the glide can carry it home. */
+  /** A box held by the hand lets go of its offset and its free size, so the glide can carry it home. */
   function letGo() {
-    Object.keys(boxEls).forEach(function (id) { boxEls[id].style.transform = ""; });
+    Object.keys(boxEls).forEach(function (id) {
+      var s = boxEls[id].style;
+      s.transform = "";
+      s.width = "";
+      s.height = "";
+    });
   }
 
   // Numbers count up to a new value ("$0" to "$5,530") the first time they show and when
@@ -1641,6 +1650,7 @@
       if (!el.isConnected || !el.offsetWidth || el.hasAttribute("data-gliding")) return;
       if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
       else fitBox(el);
+      sizeTag(el);
     });
   }) : null;
 
@@ -2332,9 +2342,13 @@
     }
     return el;
   }
+  /** Puts the outline (or the size label) on a spot; once shown, it glides from spot to spot. */
   function placeOverlay(el, s) {
+    var was = el.style.gridColumn && motionOK() ? el.getBoundingClientRect() : null;
+    if (was) el.getAnimations().forEach(function (a) { a.cancel(); });
     el.style.gridColumn = s.x + 1 + " / span " + s.w;
     el.style.gridRow = s.y + 1 + " / span " + s.h;
+    if (was) glideFrom(el, was, false, 300);
   }
   function clearOverlays() {
     Array.prototype.slice.call($("grid").querySelectorAll(".drop-spot, .size-tag")).forEach(function (el) { el.parentNode.removeChild(el); });
@@ -2372,8 +2386,8 @@
     } else {
       drag.sx = spot.x;
       drag.sy = spot.y;
-      drag.w0 = spot.w;
-      drag.h0 = spot.h;
+      drag.pw0 = r.width;
+      drag.ph0 = r.height;
     }
     el.classList.add(kind === "size" ? "sizing" : "lifted");
     $("grid").classList.add("arranging");
@@ -2409,25 +2423,33 @@
     drag.el.style.transform = "translate(" + (left - (m.left + tx * m.col)) + "px," + (top - (m.top + ty * m.row)) + "px)";
   }
 
+  // The box follows the hand pixel by pixel; the outline shows the grid size it will take,
+  // the neighbours make room for that size, and letting go glides the box into it.
   function resizeOnGrid() {
     var m = gridMetrics();
     var min = minSize(drag.id);
     var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
-    var w = clamp(drag.w0 + Math.round((drag.x - drag.x0) / m.col), min.w, COLS - drag.sx);
-    var h = clamp(drag.h0 + Math.round(dy / m.row), min.h, 40);
+    var pw = clamp(drag.pw0 + drag.x - drag.x0, min.w * m.col - GAP, (COLS - drag.sx) * m.col - GAP);
+    var ph = clamp(drag.ph0 + dy, min.h * m.row - GAP, 40 * m.row - GAP);
+    drag.el.style.width = pw + "px";
+    drag.el.style.height = ph + "px";
+    var w = clamp(Math.round((pw + GAP) / m.col), min.w, COLS - drag.sx);
+    var h = clamp(Math.round((ph + GAP) / m.row), min.h, 40);
     if (drag.spots && drag.w === w && drag.h === h) return;
     drag.w = w;
     drag.h = h;
-    var before = snapshot();
+    var before = snapshot(drag.el);
     drag.spots = previewWith(drag.id, drag.sx, drag.sy, w, h);
     showSpots(drag.spots);
-    // The box draws again at its new size right away, so what it shows changes under the hand;
-    // it then grows or shrinks to that size, and its neighbours glide.
-    drawBox(drag.el);
-    glide(before);
-    var tag = overlay("size-tag");
-    placeOverlay(tag, spotIn(drag.spots, drag.id));
-    tag.textContent = sizeWords(drag.el);
+    glide(before, drag.el);
+    var spot = spotIn(drag.spots, drag.id);
+    placeOverlay(overlay("drop-spot"), spot);
+    placeOverlay(overlay("size-tag"), spot);
+  }
+  /** The label names what the box shows at the size it has under the hand. */
+  function sizeTag(el) {
+    var tag = drag && drag.kind === "size" && drag.el === el ? $("grid").querySelector(".size-tag") : null;
+    if (tag) tag.textContent = sizeWords(el);
   }
 
   function moveInColumn() {
