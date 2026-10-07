@@ -411,6 +411,15 @@
   body.is-sizing, body.is-sizing * { cursor: nwse-resize !important; user-select: none; }
   .box.lifted { z-index: 30; box-shadow: 0 26px 50px -18px rgba(16, 18, 23, .45); will-change: transform; }
   .box.sizing { z-index: 30; }
+  /* Motion: edit mode lifts the boxes a little, and the handles pop in once. */
+  .grid.editing .box:not(.headline):not(.lifted) { box-shadow: 0 14px 30px -18px rgba(16, 18, 23, .35); }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } }
+  .grid.fresh .box-x, .grid.fresh .box-resize, .grid.fresh .box-size { animation: pop .45s var(--spring, ease-out) both; }
+  .cheer { width: .82em; height: .82em; margin-inline-end: 12px; vertical-align: -.06em; fill: none; stroke: var(--green); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+  .cheer circle { stroke-dasharray: 107; animation: draw-ring .7s ease-out both; }
+  .cheer path { stroke-dasharray: 23; animation: draw-tick .45s .55s ease-out both; }
+  @keyframes draw-ring { from { stroke-dashoffset: 107; } }
+  @keyframes draw-tick { from { stroke-dashoffset: 23; } }
   .grid.stack.editing { gap: 36px; padding-top: 8px; }
   .grid.stack.editing .box.headline { padding-top: 24px; }
   .grid.stack.arranging .box:not(.lifted) { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
@@ -1497,10 +1506,139 @@
     return levelFor(el.offsetWidth);
   }
 
+  // ── Motion ─────────────────────────────────────────────────────────────
+  // Boxes glide to new places on a spring with a small, quick bounce. Before a change the
+  // page notes where every box is (and stops what is still moving); after it, each box
+  // starts where it was and glides to where it is now. A box that changes size grows or
+  // shrinks for real, so its words never stretch. People who asked their system for less
+  // motion get the change at once.
+
+  var MOVE_MS = 460;
+  var ENTER_MS = 380;
+  var lessMotion = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function motionOK() { return !(lessMotion && lessMotion.matches) && typeof document.body.animate === "function"; }
+
+  /** A damped spring as a CSS easing: about 4% past the mark, settled by the end. */
+  function springEasing(zeta, omega, steps) {
+    var wd = omega * Math.sqrt(1 - zeta * zeta);
+    var pts = [];
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      var v = 1 - Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + (zeta * omega / wd) * Math.sin(wd * t));
+      pts.push(i === steps ? 1 : Math.round(v * 1000) / 1000);
+    }
+    return "linear(" + pts.join(", ") + ")";
+  }
+  var SPRING = window.CSS && CSS.supports && CSS.supports("transition-timing-function", "linear(0, 1)")
+    ? springEasing(0.72, 10, 32)
+    : "cubic-bezier(.34, 1.3, .64, 1)";
+  document.documentElement.style.setProperty("--spring", SPRING);
+
+  /** Where every box is now, then stops what is still gliding so the change starts clean. */
+  function snapshot(skip) {
+    var at = {};
+    if (!motionOK()) return at;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip) return;
+      at[id] = el.getBoundingClientRect();
+      el.getAnimations().forEach(function (a) { if (a.id === "glide" || a.id === "enter") a.cancel(); });
+    });
+    return at;
+  }
+  /** Each box glides from where the snapshot saw it to where it is now; a new box grows in. */
+  function glide(before, skip) {
+    if (!motionOK() || !before) return;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip || el.hidden) return;
+      var a = before[id];
+      if (!a) { enter(el); return; }
+      var b = el.getBoundingClientRect();
+      var dx = a.left - b.left;
+      var dy = a.top - b.top;
+      var resized = Math.abs(a.width - b.width) >= 1 || Math.abs(a.height - b.height) >= 1;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && !resized) return;
+      var from = { transform: "translate(" + dx + "px, " + dy + "px)" };
+      var to = { transform: "none" };
+      if (resized) {
+        from.width = a.width + "px";
+        from.height = a.height + "px";
+        to.width = b.width + "px";
+        to.height = b.height + "px";
+        // While it grows, the box is not drawn again at every in-between size.
+        el.setAttribute("data-gliding", "");
+      }
+      var anim = el.animate([from, to], { duration: MOVE_MS, easing: SPRING });
+      anim.id = "glide";
+      anim.onfinish = anim.oncancel = function () {
+        if (!el.hasAttribute("data-gliding")) return;
+        el.removeAttribute("data-gliding");
+        if (el.isConnected && el.offsetWidth) {
+          if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+          else fitBox(el);
+        }
+      };
+    });
+  }
+  function enter(el) {
+    if (!motionOK()) return;
+    var anim = el.animate([{ opacity: 0, transform: "scale(.94)" }, { opacity: 1, transform: "none" }], { duration: ENTER_MS, easing: SPRING });
+    anim.id = "enter";
+  }
+  /** Something new inside a box (the next idea) fades up into place. */
+  function fadeIn(el) {
+    if (el && motionOK()) el.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 320, easing: "ease-out" });
+  }
+  /** A box held by the hand lets go of its offset, so the glide can carry it home. */
+  function letGo() {
+    Object.keys(boxEls).forEach(function (id) { boxEls[id].style.transform = ""; });
+  }
+
+  // Numbers count up to a new value ("$0" to "$5,530") the first time they show and when
+  // they change; the same number drawn again stays still.
+  var shownNumbers = {};
+  function countUp() {
+    var els = $("grid").querySelectorAll(".kpi .value.num, .sum .value.num");
+    Array.prototype.forEach.call(els, function (el) {
+      var box = el.closest(".box");
+      var kpi = el.closest(".kpi");
+      var key = box.getAttribute("data-box") + (kpi ? kpi.getAttribute("href") : "");
+      var m = /^(\D*?)(\d[\d,]*(?:\.\d+)?)(\D*)$/.exec(el.textContent);
+      if (!m) return;
+      var target = parseFloat(m[2].replace(/,/g, ""));
+      var from = shownNumbers[key];
+      shownNumbers[key] = target;
+      if (from === target || !motionOK()) return;
+      var decimals = (m[2].split(".")[1] || "").length;
+      var commas = m[2].indexOf(",") >= 0;
+      var start = null;
+      var show = function (v) {
+        var s = commas
+          ? v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+          : v.toFixed(decimals);
+        el.textContent = m[1] + s + m[3];
+      };
+      from = from == null ? 0 : from;
+      var done = false;
+      show(from);
+      requestAnimationFrame(function tick(now) {
+        if (done) return;
+        if (start === null) start = now;
+        var p = Math.min(1, (now - start) / 900);
+        show(from + (target - from) * (1 - Math.pow(1 - p, 3)));
+        if (p < 1 && el.isConnected) requestAnimationFrame(tick);
+        else done = true;
+      });
+      // A page that draws no frames (a hidden tab) still shows the real number, never a stale one.
+      setTimeout(function () { if (!done) { done = true; show(target); } }, 1000);
+    });
+  }
+
   var sizeWatch = window.ResizeObserver ? new ResizeObserver(function (entries) {
     entries.forEach(function (entry) {
       var el = entry.target;
-      if (!el.isConnected || !el.offsetWidth) return;
+      if (!el.isConnected || !el.offsetWidth || el.hasAttribute("data-gliding")) return;
       if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
       else fitBox(el);
     });
@@ -1567,6 +1705,7 @@
     var spots = placeBoxes();
     $("grid-empty").hidden = spots.length > 0;
     spots.forEach(function (spot) { drawBox(boxEl(spot.id)); });
+    countUp();
   }
 
   /** Draws one box at the level its width gives it; what someone was typing survives. */
@@ -1662,11 +1801,15 @@
   function totals() { return state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {}; }
 
   function drawHeadline(level) {
+    var n = waiting().length;
+    // A quiet reward when nobody is waiting on the owner: a green check that draws itself.
+    var cheer = !n && !state.example
+      ? '<svg class="cheer" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" /><path d="M12.5 20.5l5 5 10-11" /></svg>'
+      : "";
     if (level === "S") {
-      var n = waiting().length;
-      return "<div><h2>" + esc((state.example ? "Example: " : "") + (n ? n + " waiting on you" : "Nobody is waiting")) + "</h2></div>";
+      return "<div><h2>" + cheer + esc((state.example ? "Example: " : "") + (n ? n + " waiting on you" : "Nobody is waiting")) + "</h2></div>";
     }
-    return "<div>" + dataHero() + (level === "L" ? kpisHtml() : "") + "</div>";
+    return "<div>" + dataHero().replace("<h2>", "<h2>" + cheer) + (level === "L" ? kpisHtml() : "") + "</div>";
   }
 
   function drawWaiting(level) {
@@ -1961,9 +2104,15 @@
   }
 
   function setIdeaHidden(id, hidden) {
+    var before = snapshot();
     if (hidden) state.hiddenIdeas[id] = true;
     else delete state.hiddenIdeas[id];
     paintGrid();
+    glide(before);
+    // The idea that takes its place fades up.
+    var idea = ideaById(id);
+    var home = idea && boxEls[idea.box];
+    if (home && home.isConnected) fadeIn(home.querySelector(".nudge"));
     if (state.drawerOpen) paintDrawer();
     toast(hidden ? "Hidden. You can always find it under Ideas." : "It’s back on your page when it fits your day.");
     if (V2 && cab.mine && typeof cab.mine.set === "function") {
@@ -2020,6 +2169,10 @@
     state.undo = [];
     paint();
     paintEditbar();
+    // The remove and resize handles pop in once, as edit mode starts.
+    var grid = $("grid");
+    grid.classList.add("fresh");
+    setTimeout(function () { grid.classList.remove("fresh"); }, 700);
     toast(phone() ? "Hold a box to move it. Pick its size on top." : "Drag a box to move it. Pull its corner to resize it.");
   }
   function doneEdit() {
@@ -2044,11 +2197,14 @@
     });
   }
   function changeLayout(next) {
+    var before = snapshot();
+    letGo();
     state.undo.push(copyLayout(state.layout || DEFAULT_LAYOUT));
     if (state.undo.length > 30) state.undo.shift();
     state.layout = next;
     saveLayout();
     paintGrid();
+    glide(before);
     paintEditbar();
     if (state.drawerOpen) paintDrawer();
   }
@@ -2094,9 +2250,11 @@
   }
   function undoLayout() {
     if (!state.undo.length) return;
+    var before = snapshot();
     state.layout = state.undo.pop();
     saveLayout();
     paintGrid();
+    glide(before);
     paintEditbar();
     if (state.drawerOpen) paintDrawer();
   }
@@ -2150,9 +2308,16 @@
     });
     // Compared as the page shows them, so a drop back in the same place is no change.
     var shown = function (l) { return JSON.stringify(placed(l).map(function (s) { return [s.id, s.x, s.y, s.w, s.h]; })); };
-    if (shown(next) === shown(before)) { paintGrid(); return false; }
+    if (shown(next) === shown(before)) { settleBack(); return false; }
     changeLayout(next);
     return true;
+  }
+  /** Nothing changed: every box glides back to the place it already had. */
+  function settleBack() {
+    var before = snapshot();
+    letGo();
+    paintGrid();
+    glide(before);
   }
 
   // The outline where a moving box lands, and the size a resized box has reached.
@@ -2235,8 +2400,10 @@
     if (!drag.spots || drag.tx !== tx || drag.ty !== ty) {
       drag.tx = tx;
       drag.ty = ty;
+      var before = snapshot(drag.el);
       drag.spots = previewWith(drag.id, tx, ty, drag.w, drag.h);
       showSpots(drag.spots);
+      glide(before, drag.el);
       placeOverlay(overlay("drop-spot"), spotIn(drag.spots, drag.id));
     }
     drag.el.style.transform = "translate(" + (left - (m.left + tx * m.col)) + "px," + (top - (m.top + ty * m.row)) + "px)";
@@ -2251,10 +2418,13 @@
     if (drag.spots && drag.w === w && drag.h === h) return;
     drag.w = w;
     drag.h = h;
+    var before = snapshot();
     drag.spots = previewWith(drag.id, drag.sx, drag.sy, w, h);
     showSpots(drag.spots);
-    // The box draws again at its new size right away, so what it shows changes under the hand.
+    // The box draws again at its new size right away, so what it shows changes under the hand;
+    // it then grows or shrinks to that size, and its neighbours glide.
     drawBox(drag.el);
+    glide(before);
     var tag = overlay("size-tag");
     placeOverlay(tag, spotIn(drag.spots, drag.id));
     tag.textContent = sizeWords(drag.el);
@@ -2301,21 +2471,19 @@
     $("grid").classList.remove("arranging");
     document.body.classList.remove("is-moving", "is-sizing");
     d.el.classList.remove("lifted", "sizing");
+    // The held box and the ones that made room keep their offsets until the glide takes over.
     if (d.kind === "stack") {
-      d.boxes.forEach(function (b) { b.style.transform = ""; });
-      if (!cancelled && d.to !== d.from) {
-        var ids = d.boxes.map(function (b) { return b.getAttribute("data-box"); });
-        ids.splice(d.to, 0, ids.splice(d.from, 1)[0]);
-        changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
-          var at = ids.indexOf(b.id);
-          if (at >= 0) b.o = at;
-          return b;
-        }));
-      }
+      if (cancelled || d.to === d.from) { settleBack(); return; }
+      var ids = d.boxes.map(function (b) { return b.getAttribute("data-box"); });
+      ids.splice(d.to, 0, ids.splice(d.from, 1)[0]);
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+        var at = ids.indexOf(b.id);
+        if (at >= 0) b.o = at;
+        return b;
+      }));
       return;
     }
-    d.el.style.transform = "";
-    if (cancelled || !d.spots) { paintGrid(); return; }
+    if (cancelled || !d.spots) { settleBack(); return; }
     if (keepSpots(d.spots) && d.kind === "size") {
       requestAnimationFrame(function () { toast(BOXES[d.id].title + ": " + sizeWords(d.el)); });
     }
@@ -2501,16 +2669,20 @@
     var id = el.getAttribute("data-id");
     var item = id ? findItem(id) : null;
     if (act === "toggle") {
+      var was = snapshot();
       state.open[id] = !state.open[id];
       paintGrid();
+      glide(was);
       var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
       if (again) again.focus();
     } else if (act === "connect") connect();
     else if (act === "run") runNow();
     else if (act === "more-rows") {
       var boxId = el.closest(".box").getAttribute("data-box");
+      var shown = snapshot();
       state.expanded[boxId] = !state.expanded[boxId];
       fitBox(boxEl(boxId));
+      glide(shown);
     }
     else if (act === "ask") ask(el.getAttribute("data-q"));
     else if (act === "copy" && item) copyText(text(item.reply));
