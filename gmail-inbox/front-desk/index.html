@@ -304,7 +304,8 @@
 
   .spin { animation: spin 1.2s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; animation-delay: var(--d, 0ms); }
+  /* "backwards": hidden until its turn, then it lets go, so it never holds a box still when dragged. */
+  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: var(--d, 0ms); }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .pulse { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .45; } }
@@ -414,7 +415,7 @@
   /* Motion: edit mode lifts the boxes a little, and the handles pop in once. */
   .grid.editing .box:not(.headline):not(.lifted) { box-shadow: 0 14px 30px -18px rgba(16, 18, 23, .35); }
   @keyframes pop { from { transform: scale(.4); opacity: 0; } }
-  .grid.fresh .box-x, .grid.fresh .box-resize, .grid.fresh .box-size { animation: pop .45s var(--spring, ease-out) both; }
+  .grid.fresh .box-x, .grid.fresh .box-resize, .grid.fresh .box-size { animation: pop .45s var(--spring, ease-out) backwards; }
   .cheer { width: .82em; height: .82em; margin-inline-end: 12px; vertical-align: -.06em; fill: none; stroke: var(--green); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
   .cheer circle { stroke-dasharray: 107; animation: draw-ring .7s ease-out both; }
   .cheer path { stroke-dasharray: 23; animation: draw-tick .45s .55s ease-out both; }
@@ -1667,6 +1668,7 @@
       el.setAttribute("data-box", id);
       if (BOXES[id].list) el.setAttribute("aria-labelledby", "h-" + id);
       boxEls[id] = el;
+      el.addEventListener("animationend", function (e) { if (e.animationName === "rise") el.classList.remove("rise"); });
       if (sizeWatch) sizeWatch.observe(el);
     }
     return boxEls[id];
@@ -2179,6 +2181,8 @@
     state.need = {};
     state.editing = true;
     state.undo = [];
+    // The page's opening fade ends here, so no box is caught half way into it while moving.
+    Object.keys(boxEls).forEach(function (id) { boxEls[id].classList.remove("rise"); });
     paint();
     paintEditbar();
     // The remove and resize handles pop in once, as edit mode starts.
@@ -2391,6 +2395,10 @@
       drag.pw0 = r.width;
       drag.ph0 = r.height;
     }
+    // Whatever was still animating this box lets go of it, or it would hold the box still
+    // while the hand moves.
+    el.classList.remove("rise");
+    el.getAnimations().forEach(function (a) { a.cancel(); });
     el.classList.add(kind === "size" ? "sizing" : "lifted");
     $("grid").classList.add("arranging");
     document.body.classList.add(kind === "size" ? "is-sizing" : "is-moving");
