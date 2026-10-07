@@ -1533,6 +1533,8 @@
     ? springEasing(0.72, 10, 32)
     : "cubic-bezier(.34, 1.3, .64, 1)";
   document.documentElement.style.setProperty("--spring", SPRING);
+  /** No bounce: what the hand moves glides smoothly, so nothing seems to jump under it. */
+  var SMOOTH = "cubic-bezier(.22, 1, .36, 1)";
 
   /** Where every box is now, then stops what is still gliding so the change starts clean. */
   function snapshot(skip) {
@@ -1547,17 +1549,17 @@
     return at;
   }
   /** Each box glides from where the snapshot saw it to where it is now; a new box grows in. */
-  function glide(before, skip) {
+  function glide(before, skip, easing) {
     if (!motionOK() || !before) return;
     Object.keys(boxEls).forEach(function (id) {
       var el = boxEls[id];
       if (!el.isConnected || el === skip || el.hidden) return;
-      if (before[id]) glideFrom(el, before[id], true, MOVE_MS);
+      if (before[id]) glideFrom(el, before[id], true, MOVE_MS, easing);
       else enter(el);
     });
   }
   /** One element glides from the rectangle `a` to where it is now, growing for real if its size changed. */
-  function glideFrom(el, a, isBox, ms) {
+  function glideFrom(el, a, isBox, ms, easing) {
     var b = el.getBoundingClientRect();
     var dx = a.left - b.left;
     var dy = a.top - b.top;
@@ -1573,7 +1575,7 @@
       // While it grows, the box is not drawn again at every in-between size.
       if (isBox) el.setAttribute("data-gliding", "");
     }
-    var anim = el.animate([from, to], { duration: ms, easing: SPRING });
+    var anim = el.animate([from, to], { duration: ms, easing: easing || SPRING });
     anim.id = "glide";
     if (!isBox) return;
     anim.onfinish = anim.oncancel = function () {
@@ -2206,7 +2208,7 @@
       toast("Your page could not be saved. It goes back to how it was next time.");
     });
   }
-  function changeLayout(next) {
+  function changeLayout(next, easing) {
     var before = snapshot();
     letGo();
     state.undo.push(copyLayout(state.layout || DEFAULT_LAYOUT));
@@ -2214,7 +2216,7 @@
     state.layout = next;
     saveLayout();
     paintGrid();
-    glide(before);
+    glide(before, null, easing);
     paintEditbar();
     if (state.drawerOpen) paintDrawer();
   }
@@ -2307,7 +2309,7 @@
     });
   }
   /** Keeps the places a move or resize ended on; nothing is kept when nothing moved. */
-  function keepSpots(spots) {
+  function keepSpots(spots, easing) {
     var at = {};
     spots.forEach(function (s) { at[s.id] = s; });
     var before = copyLayout(state.layout || DEFAULT_LAYOUT);
@@ -2318,16 +2320,16 @@
     });
     // Compared as the page shows them, so a drop back in the same place is no change.
     var shown = function (l) { return JSON.stringify(placed(l).map(function (s) { return [s.id, s.x, s.y, s.w, s.h]; })); };
-    if (shown(next) === shown(before)) { settleBack(); return false; }
-    changeLayout(next);
+    if (shown(next) === shown(before)) { settleBack(easing); return false; }
+    changeLayout(next, easing);
     return true;
   }
   /** Nothing changed: every box glides back to the place it already had. */
-  function settleBack() {
+  function settleBack(easing) {
     var before = snapshot();
     letGo();
     paintGrid();
-    glide(before);
+    glide(before, null, easing);
   }
 
   // The outline where a moving box lands, and the size a resized box has reached.
@@ -2348,7 +2350,7 @@
     if (was) el.getAnimations().forEach(function (a) { a.cancel(); });
     el.style.gridColumn = s.x + 1 + " / span " + s.w;
     el.style.gridRow = s.y + 1 + " / span " + s.h;
-    if (was) glideFrom(el, was, false, 300);
+    if (was) glideFrom(el, was, false, 300, SMOOTH);
   }
   function clearOverlays() {
     Array.prototype.slice.call($("grid").querySelectorAll(".drop-spot, .size-tag")).forEach(function (el) { el.parentNode.removeChild(el); });
@@ -2409,15 +2411,19 @@
     var m = gridMetrics();
     var left = drag.x - drag.grabX;
     var top = drag.y - drag.grabY;
-    var tx = clamp(Math.round((left - m.left) / m.col), 0, COLS - drag.w);
-    var ty = Math.max(0, Math.round((top - m.top) / m.row));
+    // The spot only changes once the box is clearly past a border (two thirds of a cell),
+    // so a hand resting near the line does not flip it back and forth.
+    var fx = (left - m.left) / m.col;
+    var fy = (top - m.top) / m.row;
+    var tx = drag.spots && Math.abs(fx - drag.tx) < 0.65 ? drag.tx : clamp(Math.round(fx), 0, COLS - drag.w);
+    var ty = drag.spots && Math.abs(fy - drag.ty) < 0.65 ? drag.ty : Math.max(0, Math.round(fy));
     if (!drag.spots || drag.tx !== tx || drag.ty !== ty) {
       drag.tx = tx;
       drag.ty = ty;
       var before = snapshot(drag.el);
       drag.spots = previewWith(drag.id, tx, ty, drag.w, drag.h);
       showSpots(drag.spots);
-      glide(before, drag.el);
+      glide(before, drag.el, SMOOTH);
       placeOverlay(overlay("drop-spot"), spotIn(drag.spots, drag.id));
     }
     drag.el.style.transform = "translate(" + (left - (m.left + tx * m.col)) + "px," + (top - (m.top + ty * m.row)) + "px)";
@@ -2433,15 +2439,17 @@
     var ph = clamp(drag.ph0 + dy, min.h * m.row - GAP, 40 * m.row - GAP);
     drag.el.style.width = pw + "px";
     drag.el.style.height = ph + "px";
-    var w = clamp(Math.round((pw + GAP) / m.col), min.w, COLS - drag.sx);
-    var h = clamp(Math.round((ph + GAP) / m.row), min.h, 40);
+    var fw = (pw + GAP) / m.col;
+    var fh = (ph + GAP) / m.row;
+    var w = drag.spots && Math.abs(fw - drag.w) < 0.65 ? drag.w : clamp(Math.round(fw), min.w, COLS - drag.sx);
+    var h = drag.spots && Math.abs(fh - drag.h) < 0.65 ? drag.h : clamp(Math.round(fh), min.h, 40);
     if (drag.spots && drag.w === w && drag.h === h) return;
     drag.w = w;
     drag.h = h;
     var before = snapshot(drag.el);
     drag.spots = previewWith(drag.id, drag.sx, drag.sy, w, h);
     showSpots(drag.spots);
-    glide(before, drag.el);
+    glide(before, drag.el, SMOOTH);
     var spot = spotIn(drag.spots, drag.id);
     placeOverlay(overlay("drop-spot"), spot);
     placeOverlay(overlay("size-tag"), spot);
@@ -2495,18 +2503,18 @@
     d.el.classList.remove("lifted", "sizing");
     // The held box and the ones that made room keep their offsets until the glide takes over.
     if (d.kind === "stack") {
-      if (cancelled || d.to === d.from) { settleBack(); return; }
+      if (cancelled || d.to === d.from) { settleBack(SMOOTH); return; }
       var ids = d.boxes.map(function (b) { return b.getAttribute("data-box"); });
       ids.splice(d.to, 0, ids.splice(d.from, 1)[0]);
       changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
         var at = ids.indexOf(b.id);
         if (at >= 0) b.o = at;
         return b;
-      }));
+      }), SMOOTH);
       return;
     }
-    if (cancelled || !d.spots) { settleBack(); return; }
-    if (keepSpots(d.spots) && d.kind === "size") {
+    if (cancelled || !d.spots) { settleBack(SMOOTH); return; }
+    if (keepSpots(d.spots, SMOOTH) && d.kind === "size") {
       requestAnimationFrame(function () { toast(BOXES[d.id].title + ": " + sizeWords(d.el)); });
     }
   }
