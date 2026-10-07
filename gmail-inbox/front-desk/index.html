@@ -310,6 +310,53 @@
   @keyframes pulse { 50% { opacity: .45; } }
   .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
 
+  /* ── The grid of boxes ───────────────────────────────────────────────── */
+  /* Each box sits on a 12 column grid at the place its layout gives it, and draws itself
+     small, medium or large by its own width (data-level). A list shows the rows that fit,
+     then "+N more". */
+  .grid { --row: 64px; --gap: 16px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: var(--row); gap: var(--gap); }
+  .box { display: flex; flex-direction: column; min-width: 0; min-height: 0; transition: box-shadow .2s ease; }
+  .box > .box-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .box-more { display: flex; justify-content: center; width: 100%; padding: 10px 14px; border: 0; border-top: 1px solid var(--line); background: var(--page); color: var(--blue-ink); font-weight: 700; font-size: 14px; }
+  .box-more:hover { background: var(--blue-tint); }
+  .box .cards { padding: 8px; gap: 6px; }
+  .box[data-level="M"] .money-card .mc-main { padding: 9px 12px; }
+  .box[data-level="M"] .mc-foot { margin-top: 4px; }
+  .box[data-level="M"] .mc-amount { font-size: 18px; }
+  .box[data-level="M"] .mc-what { display: none; }
+
+  /* Small: one number and one line under it. */
+  .sum { display: flex; flex-direction: column; gap: 2px; padding: 14px 18px; }
+  .sum .value { font-size: 32px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+  .sum .value.none { color: var(--ink-3); }
+  .sum .sub { color: var(--ink-3); font-size: 14px; }
+  .sum .sub .hot { color: var(--red-ink); font-weight: 700; }
+  .sum .line { margin-top: 6px; color: var(--ink-2); font-size: 15px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  /* The headline: words on the page, no card around them. */
+  .box.headline { justify-content: center; }
+  .box.headline h2 { margin: 0; font-size: clamp(26px, 3vw, 36px); line-height: 1.12; font-weight: 800; letter-spacing: -.03em; }
+  .box.headline .lead { margin: 8px 0 0; font-size: 17px; color: var(--ink-2); max-width: 75ch; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .box.headline .lead b { color: var(--ink); font-weight: 700; }
+  .box.headline .fine { margin: 6px 0 0; font-size: 15px; color: var(--ink-3); }
+  .box.headline .kpis { margin-top: 14px; gap: 10px; }
+  .box.headline .kpi { padding: 10px 14px; flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; }
+  .box.headline .kpi .label { flex-basis: 100%; font-size: 13px; }
+  .box.headline .kpi .value { font-size: 22px; }
+  .box.headline .kpi .sub { font-size: 13px; }
+  .box.headline[data-level="S"] h2 { font-size: 24px; }
+
+  /* Ask: the dark box. Small keeps only the field. */
+  .box.ask { padding: 20px 22px; overflow: hidden; justify-content: center; }
+  .box.ask h2 { font-size: 20px; }
+  .box.ask .qs { margin-top: 10px; }
+  .box.ask .note { margin-top: 8px; }
+  .box.ask[data-level="S"] form { flex-direction: column; }
+
+  /* On a phone the boxes stack in their order and grow to fit. */
+  .grid.stack { display: flex; flex-direction: column; gap: 16px; }
+  .grid.stack .box { flex: none; }
+
   /* ── Narrow screens ──────────────────────────────────────────────────── */
   @media (max-width: 1100px) {
     .idea-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -395,24 +442,7 @@
   <main class="main">
     <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your front desk...</p></section>
     <div id="ribbon"></div>
-    <div id="kpis"></div>
-    <section class="board" id="board" aria-label="Your inbox, by priority">
-      <div class="b-main" id="board-main"></div>
-      <div class="side" id="board-side"></div>
-    <section class="ask" id="ask" aria-labelledby="ask-title">
-      <h2 id="ask-title">Ask about your email</h2>
-      <p>Anything from "did the bank write?" to "what did we quote the Hartwells?"</p>
-      <form id="ask-form" autocomplete="off">
-        <label for="ask-input" class="sr">Your question</label>
-        <input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about customers, quotes, bills..." />
-        <button type="submit" class="btn primary"><svg class="icon" aria-hidden="true"><use href="#i-send" /></svg>Ask</button>
-      </form>
-      <div class="qs" id="questions"></div>
-      <p class="note" id="ask-note">The answer comes up in the chat next to this page.</p>
-    </section>
-    </section>
-    <section id="ideas" aria-labelledby="ideas-title"></section>
-    <section class="extras" id="extras"></section>
+    <section class="grid" id="grid" aria-label="Your inbox, by priority" hidden></section>
     <footer class="foot">
       <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
       <p>Your front desk only reads your email. It never sends, deletes or moves anything in Gmail on its own. Replies and routines are set up in the chat, and nothing goes out without your OK.</p>
@@ -494,7 +524,11 @@
     connectNote: "",
     running: false,
     runNote: "",
+    askNote: "",
     open: {},
+    layout: null,
+    expanded: {},
+    need: {},
     animate: true
   };
 
@@ -772,16 +806,20 @@
       else toast(gmailState() === "not-available-here" ? "Gmail can’t be connected here yet." : "Ask the person who owns this cabinet to connect Gmail.");
       return;
     }
-    var note = $("ask-note");
-    note.textContent = "Asking...";
+    setAskNote("Asking...");
     cab.ask(q, { send: true }).then(function () {
-      note.textContent = "Asked. The answer is coming in the chat next to this page.";
+      setAskNote("Asked. The answer is coming in the chat next to this page.");
       toast("Asked. The answer is coming in the chat.");
-      $("ask-input").value = "";
+      if ($("ask-input")) $("ask-input").value = "";
     }).catch(function (e) {
-      note.textContent = e && e.message ? e.message : "That did not go through. Try again.";
-      toast(note.textContent);
+      setAskNote(e && e.message ? e.message : "That did not go through. Try again.");
+      toast(state.askNote);
     });
+  }
+  /** The line under the Ask box; it lives in state because the box can be drawn again. */
+  function setAskNote(words) {
+    state.askNote = words;
+    if ($("ask-note")) $("ask-note").textContent = words;
   }
 
   function copyText(value) {
@@ -838,12 +876,8 @@
     paintStatus();
     paintHero();
     paintRibbon();
-    paintKpis();
-    paintBoard();
-    paintIdeas();
-    paintAsk();
-    paintExtras();
-    state.animate = false;
+    paintGrid();
+    if (state.loaded && state.data) state.animate = false;
   }
 
   function paintStatus() {
@@ -942,9 +976,12 @@
     } else if (!state.data) {
       html = cardHero(null, "Your inbox shows up here", '<p class="lead">Nothing could be read yet. Try again in a moment.</p>');
     } else {
-      html = dataHero();
+      // The headline is a box on the grid now; up here only what went wrong.
+      html = runNoteHtml();
     }
-    hero.innerHTML = html + (told ? "" : failureHtml());
+    html += told ? "" : failureHtml();
+    hero.innerHTML = html;
+    hero.hidden = !html;
   }
 
   /** `art` is an icon for the picture, or "check", "alert" or null for the envelope's badge. */
@@ -982,14 +1019,12 @@
     var updated = "";
     var g = writtenAt(d.generatedAt);
     if (g && !state.example) updated = '<span class="phone-only">Updated ' + esc(whenWords(g, new Date())) + ". </span>";
-    return "<div><h2>" + esc(ex + h) + "</h2>" + leadHtml + (updated ? '<p class="fine">' + updated + "</p>" : "") + runNoteHtml() + "</div>";
+    return "<h2>" + esc(ex + h) + "</h2>" + leadHtml + (updated ? '<p class="fine">' + updated + "</p>" : "");
   }
 
 
   /** The four numbers an owner looks for first; shown for the example too, labelled by the ribbon. */
-  function paintKpis() {
-    var el = $("kpis");
-    if (!state.loaded || !state.data) { el.innerHTML = ""; return; }
+  function kpisHtml() {
     var d = state.data;
     var w = waiting();
     var n = w.length;
@@ -1033,7 +1068,7 @@
         : '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + "Since yesterday</span>" +
           '<span class="value num">' + arrived + '</span><span class="sub">' + (left ? left + " newsletters and ads set aside" : "emails in") + "</span></a>") +
       "</div>";
-    el.innerHTML = kpis;
+    return kpis;
   }
 
   /** The last sort that could not read the mail: when, and why, or null. */
@@ -1174,40 +1209,282 @@
       (count ? inner : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</section>";
   }
 
-  function paintBoard() {
-    var main = $("board-main");
-    var side = $("board-side");
-    $("board").hidden = !state.loaded || !state.data;
-    if (!state.loaded || !state.data) { main.innerHTML = ""; side.innerHTML = ""; return; }
-    var ref = refDate();
+  // ── The grid of boxes ──────────────────────────────────────────────────
+  // Each box is drawn by its own function at one of three levels, picked by its width on
+  // screen: S (one number), M (the rows that fit), L (everything, with more detail). The
+  // layout is a list of { id, x, y, w, h } on a 12 column grid of fixed rows; each person's
+  // own layout is kept in cabinet.mine, so it follows them to any computer.
+
+  var COLS = 12;
+  var ROW = 64;
+  var GAP = 16;
+  var PHONE_ROWS = 3;
+  var LAYOUT_KEY = "front-desk-layout@1";
+  var DEFAULT_LAYOUT = [
+    { id: "headline", x: 0, y: 0, w: 12, h: 3 },
+    { id: "waiting", x: 0, y: 3, w: 7, h: 6 },
+    { id: "money", x: 7, y: 3, w: 5, h: 5 },
+    { id: "bills", x: 7, y: 8, w: 5, h: 5 },
+    { id: "ask", x: 0, y: 9, w: 7, h: 4 }
+  ];
+  var BOXES = {
+    headline: { cls: "headline", draw: drawHeadline },
+    waiting: { cls: "lane waiting", list: true, draw: drawWaiting },
+    money: { cls: "lane money", list: true, draw: drawMoney },
+    bills: { cls: "lane bills", list: true, draw: drawBills },
+    ask: { cls: "ask", draw: drawAsk, show: canAsk }
+  };
+  var PHONE = window.matchMedia ? window.matchMedia("(max-width: 720px)") : null;
+
+  function phone() { return !!(PHONE && PHONE.matches); }
+  function levelFor(width) { return width < 320 ? "S" : width < 640 ? "M" : "L"; }
+  function whole(n) { return typeof n === "number" && n === Math.floor(n) && n >= 0; }
+
+  /** A saved layout, keeping only entries that name a box we have and fit the grid. */
+  function cleanLayout(value) {
+    if (!Array.isArray(value)) return null;
+    var seen = {};
+    var out = value.filter(function (b) {
+      var ok = !!(b && BOXES[b.id] && !seen[b.id] && whole(b.x) && whole(b.y) && whole(b.w) && whole(b.h) &&
+        b.w >= 1 && b.h >= 1 && b.x + b.w <= COLS && b.h <= 40);
+      if (ok) seen[b.id] = true;
+      return ok;
+    }).map(function (b) { return { id: b.id, x: b.x, y: b.y, w: b.w, h: b.h }; });
+    return out.length ? out : null;
+  }
+
+  /**
+   * Where the boxes land: each keeps its columns, is pushed down past any box above it that
+   * it would overlap (an opened list grows), then rises into the space left above it, so a
+   * hidden or shorter box never leaves a hole.
+   */
+  function placed() {
+    var out = [];
+    function hits(b, y, h) {
+      return out.some(function (o) { return b.x < o.x + o.w && o.x < b.x + b.w && y < o.y + o.h && o.y < y + h; });
+    }
+    (state.layout || DEFAULT_LAYOUT)
+      .filter(function (b) { return !BOXES[b.id].show || BOXES[b.id].show(); })
+      .slice().sort(function (a, b) { return a.y - b.y || a.x - b.x; })
+      .forEach(function (b) {
+        var h = Math.max(b.h, state.need[b.id] || 0);
+        var y = b.y;
+        while (hits(b, y, h)) y++;
+        while (y > 0 && !hits(b, y - 1, h)) y--;
+        out.push({ id: b.id, x: b.x, y: y, w: b.w, h: h });
+      });
+    return out.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+  }
+
+  var sizeWatch = window.ResizeObserver ? new ResizeObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var el = entry.target;
+      if (!el.isConnected || !el.offsetWidth) return;
+      if (el.getAttribute("data-level") !== levelFor(el.offsetWidth)) drawBox(el);
+      else fitBox(el);
+    });
+  }) : null;
+
+  var boxEls = {};
+  /** What each box last drew, so a repaint that changes nothing leaves it (and its input) alone. */
+  var drawn = {};
+  function boxEl(id) {
+    if (!boxEls[id]) {
+      var el = document.createElement("section");
+      el.className = "box " + BOXES[id].cls;
+      el.id = "lane-" + id;
+      el.setAttribute("data-box", id);
+      if (BOXES[id].list) el.setAttribute("aria-labelledby", "h-" + id);
+      boxEls[id] = el;
+      if (sizeWatch) sizeWatch.observe(el);
+    }
+    return boxEls[id];
+  }
+
+  /** Puts every box in its place and order, without drawing what is inside. */
+  function placeBoxes() {
+    var grid = $("grid");
+    var stack = phone();
+    grid.classList.toggle("stack", stack);
+    grid.style.setProperty("--row", ROW + "px");
+    grid.style.setProperty("--gap", GAP + "px");
+    var spots = placed();
+    var keep = {};
+    spots.forEach(function (spot, i) {
+      keep[spot.id] = true;
+      var el = boxEl(spot.id);
+      if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null);
+      el.style.gridColumn = stack ? "" : spot.x + 1 + " / span " + spot.w;
+      el.style.gridRow = stack ? "" : spot.y + 1 + " / span " + spot.h;
+      if (state.animate) {
+        el.classList.add("rise");
+        el.style.setProperty("--d", i * 70 + "ms");
+      }
+    });
+    Array.prototype.slice.call(grid.children).forEach(function (el) {
+      if (!keep[el.getAttribute("data-box")]) grid.removeChild(el);
+    });
+    return spots;
+  }
+
+  function paintGrid() {
+    var grid = $("grid");
+    var show = state.loaded && !!state.data;
+    grid.hidden = !show;
+    if (!show) return;
+    placeBoxes().forEach(function (spot) { drawBox(boxEl(spot.id)); });
+  }
+
+  /** Draws one box at the level its width gives it; what someone was typing survives. */
+  function drawBox(el) {
+    var id = el.getAttribute("data-box");
+    var level = levelFor(el.offsetWidth);
+    var html = BOXES[id].draw(level);
+    el.setAttribute("data-level", level);
+    if (drawn[id] !== html) {
+      var input = el.querySelector("input");
+      var typed = input ? input.value : "";
+      var focused = !!input && document.activeElement === input;
+      el.innerHTML = html;
+      drawn[id] = html;
+      var again = el.querySelector("input");
+      if (again && typed) again.value = typed;
+      if (again && focused) again.focus();
+    }
+    fitBox(el);
+  }
+
+  /**
+   * A list shows the rows that fit its box, then "+N more". Opened (by that button, or by
+   * opening one of its rows) it shows them all and the box grows to hold them.
+   */
+  function fitBox(el) {
+    var id = el.getAttribute("data-box");
+    var body = el.querySelector(".box-body");
+    var more = el.querySelector(".box-more");
+    if (!body || !more) return;
+    var rows = Array.prototype.slice.call(body.querySelectorAll(".rows > li, .cards > li"));
+    var open = !!state.expanded[id] || !!body.querySelector(".row.open, .mc-body:not([hidden])");
+    var stack = phone();
+    var cut = 0;
+    rows.forEach(function (r) { r.hidden = false; });
+    more.hidden = true;
+    if (!open && stack) {
+      rows.forEach(function (r, i) { if (i >= PHONE_ROWS) { r.hidden = true; cut++; } });
+    } else if (!open && body.scrollHeight > body.clientHeight + 1) {
+      more.hidden = false;
+      for (var i = rows.length - 1; i > 0 && body.scrollHeight > body.clientHeight + 1; i--) { rows[i].hidden = true; cut++; }
+    }
+    more.hidden = !cut && !state.expanded[id];
+    more.textContent = cut ? "+" + cut + " more" : "Show less";
+    more.setAttribute("aria-expanded", String(!cut));
+
+    var need = 0;
+    if (open && !stack) {
+      var head = el.querySelector(".lane-head");
+      var total = (head ? head.offsetHeight : 0) + body.scrollHeight + (more.hidden ? 0 : more.offsetHeight) + 2;
+      need = Math.ceil((total + GAP) / (ROW + GAP));
+    }
+    if ((state.need[id] || 0) !== need) {
+      state.need[id] = need;
+      placeBoxes();
+    }
+  }
+
+  function boxHead(key, title, iconId, total, count) {
+    return '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="h-' + key + '">' + esc(title) + "</h3>" +
+      (total ? '<span class="total num" dir="auto">' + esc(total) + "</span>" : "") +
+      (count === null ? "" : '<span class="count num' + (count ? "" : " zero") + '">' + count + "</span>") + "</div>";
+  }
+  function listBox(key, title, iconId, total, count, rowsHtml, emptyText) {
+    return boxHead(key, title, iconId, total, count) +
+      '<div class="box-body">' + (count ? rowsHtml : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
+  }
+  /** The small level: one number, a line under it, and the one that matters most. */
+  function sumBox(key, title, iconId, value, subHtml, lineHtml) {
+    return boxHead(key, title, iconId, "", null) +
+      '<div class="sum"><span class="value num' + (value ? "" : " none") + '" dir="auto">' + esc(value || "None") + "</span>" +
+      '<span class="sub">' + subHtml + "</span>" + (lineHtml ? '<span class="line" dir="auto">' + lineHtml + "</span>" : "") + "</div>";
+  }
+  function totals() { return state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {}; }
+
+  function drawHeadline(level) {
+    if (level === "S") {
+      var n = waiting().length;
+      return "<div><h2>" + esc((state.example ? "Example: " : "") + (n ? n + " waiting on you" : "Nobody is waiting")) + "</h2></div>";
+    }
+    return "<div>" + dataHero() + (level === "L" ? kpisHtml() : "") + "</div>";
+  }
+
+  function drawWaiting(level) {
     var w = waiting();
-    var m = money();
-    var b = bills();
-    var f = fyi();
-    var t = state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {};
-    var left = state.data.leftOut && typeof state.data.leftOut === "object" ? state.data.leftOut : null;
-    var waitingLane = lane("waiting", "Waiting on you", "i-reply", w.length, "",
+    var ref = refDate();
+    if (level === "S") {
+      var urgent = w.filter(function (x) { return x.urgent === true; }).length;
+      var top = w[0];
+      return sumBox("waiting", "Waiting on you", "i-reply", String(w.length),
+        urgent ? '<span class="hot">' + urgent + " to answer today</span>" : w.length ? plural(w.length, "person", "people") + " waiting" : "Everyone has an answer",
+        top ? "<b>" + esc(text(top.from, 60)) + ":</b> " + esc(text(top.gist, 120)) : "");
+    }
+    return listBox("waiting", "Waiting on you", "i-reply", "", w.length,
       '<ol class="rows">' + w.map(function (item, i) { return waitingRow(item, i, ref); }).join("") + "</ol>",
       "Nobody is waiting on an answer from you.");
-    var moneyLane = lane("money", "Quotes and invoices", "i-dollar", m.length, amountText(t.owed, 20) ? amountText(t.owed, 20) + " owed" : "",
+  }
+
+  function drawMoney(level) {
+    var m = money();
+    var ref = refDate();
+    var owed = amountText(totals().owed, 20);
+    if (level === "S") {
+      var open = m.filter(function (x) { return x.status === "open" || x.status === "overdue"; });
+      var overdue = m.filter(function (x) { return x.status === "overdue"; });
+      var first = overdue[0] || open[0];
+      return sumBox("money", "Quotes and invoices", "i-dollar", owed || (open.length ? String(open.length) : ""),
+        overdue.length ? '<span class="hot">' + overdue.length + " overdue</span>" : open.length ? open.length + " open " + plural(open.length, "invoice", "invoices") : "No open invoices",
+        first ? esc(text(first.who, 60)) + (amountText(first.amount, 24) ? ", " + esc(amountText(first.amount, 24)) : "") : "");
+    }
+    return listBox("money", "Quotes and invoices", "i-dollar", owed ? owed + " owed" : "", m.length,
       '<ul class="cards">' + m.map(function (item, i) { return moneyCard(item, i, ref, "money"); }).join("") + "</ul>",
       "No quotes or invoices in this batch.");
-    var billsLane = lane("bills", "Bills to pay", "i-receipt", b.length, amountText(t.billsDue, 20) ? amountText(t.billsDue, 20) + " due" : "",
+  }
+
+  function drawBills(level) {
+    var b = bills();
+    var ref = refDate();
+    var due = amountText(totals().billsDue, 20);
+    if (level === "S") {
+      var unpaid = b.filter(function (x) { return x.status !== "paid"; });
+      var failed = unpaid.filter(function (x) { return x.status === "failed" || x.kind === "failed-payment"; }).length;
+      var next = null;
+      unpaid.forEach(function (x) { var d = parseTime(x.due); if (d && x.status !== "autopay" && (!next || d < next)) next = d; });
+      return sumBox("bills", "Bills to pay", "i-receipt", due || (unpaid.length ? String(unpaid.length) : ""),
+        failed ? '<span class="hot">' + failed + " " + plural(failed, "card declined", "cards declined") + "</span>"
+          : next ? "Next due " + esc(shortDate(next)) : unpaid.length ? unpaid.length + " not paid yet" : "Nothing due",
+        "");
+    }
+    return listBox("bills", "Bills to pay", "i-receipt", due ? due + " due" : "", b.length,
       '<ul class="cards">' + b.map(function (item, i) { return moneyCard(item, i, ref, "bills"); }).join("") + "</ul>",
       "No bills in this batch.");
-    var moreItems = f.map(function (item) {
-      return '<li><b dir="auto">' + esc(text(item.from, 60)) + '</b><span dir="auto">' + esc(text(item.gist, 140)) + "</span></li>";
-    });
-    if (left && left.count) {
-      var senders = list(left.senders).slice(0, 4).map(function (s) { return text(s.name, 40) + " " + (s.count || ""); }).join(", ");
-      moreItems.push('<li><b>' + left.count + " set aside</b><span dir=\"auto\">Newsletters and ads" + (senders ? ": " + esc(senders) : "") + ". Still in Gmail.</span></li>");
-    }
-    var moreLane = moreItems.length
-      ? '<section class="lane more" id="lane-more" aria-labelledby="lane-more-h"><div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon("i-bell") +
-        '</span><h3 id="lane-more-h">Also worth a look</h3></div><ul class="mini">' + moreItems.join("") + "</ul></section>"
-      : "";
-    main.innerHTML = waitingLane + moreLane;
-    side.innerHTML = moneyLane + billsLane;
+  }
+
+  /** Asking reads the mail, so it waits until Gmail is connected; a viewer never sees the box. */
+  function drawAsk(level) {
+    var qs = level === "L" ? QUESTIONS : level === "M" ? QUESTIONS.slice(0, 3) : [];
+    return (level === "S" ? "" : '<h2 id="ask-title">Ask about your email</h2>') +
+      '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about customers, quotes, bills..." />' +
+      '<button type="submit" class="btn primary">' + icon("i-send") + "Ask</button></form>" +
+      (qs.length ? '<div class="qs">' + qs.map(function (q) {
+        return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+      }).join("") + "</div>" : "") +
+      (level === "S" ? "" : '<p class="note" id="ask-note">' + esc(state.askNote || askHint()) + "</p>");
+  }
+  function askHint() {
+    if (askReady()) return "The answer comes up in the chat next to this page.";
+    return gmailState() === "not-available-here"
+      ? "Once Gmail works here, you can ask things like these."
+      : "Connect Gmail first, then ask anything. A question here takes you to connecting.";
   }
 
   function paintIdeas() {
@@ -1224,20 +1501,6 @@
           '<button class="btn" data-act="idea-routine" data-i="' + i + '"' + (can ? "" : " disabled") + ' aria-label="' + esc(idea.when + ": " + idea.title) + '">' + icon("i-repeat") + esc(idea.when) + "</button></div>" +
           "</article>";
       }).join("") + "</div>";
-  }
-
-  /** Asking reads the mail, so it waits until Gmail is connected; a viewer cannot ask at all. */
-  function paintAsk() {
-    var box = $("ask");
-    var note = $("ask-note");
-    box.hidden = !canAsk();
-    var ready = askReady();
-    var s = gmailState();
-    note.textContent = ready
-      ? "The answer comes up in the chat next to this page."
-      : s === "not-available-here"
-        ? "Once Gmail works here, you can ask things like these."
-        : "Connect Gmail first, then ask anything. A question here takes you to connecting.";
   }
 
   function paintExtras() {
@@ -1280,12 +1543,6 @@
     el.innerHTML = parts.join("");
   }
 
-  function paintQuestions() {
-    $("questions").innerHTML = QUESTIONS.map(function (q) {
-      return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
-    }).join("");
-  }
-
   // ── Presses ────────────────────────────────────────────────────────────
 
   function about(item) {
@@ -1302,11 +1559,16 @@
     var item = id ? findItem(id) : null;
     if (act === "toggle") {
       state.open[id] = !state.open[id];
-      paintBoard();
+      paintGrid();
       var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
       if (again) again.focus();
     } else if (act === "connect") connect();
     else if (act === "run") runNow();
+    else if (act === "more-rows") {
+      var boxId = el.closest(".box").getAttribute("data-box");
+      state.expanded[boxId] = !state.expanded[boxId];
+      fitBox(boxEl(boxId));
+    }
     else if (act === "ask") ask(el.getAttribute("data-q"));
     else if (act === "copy" && item) copyText(text(item.reply));
     else if (act === "reply" && item) {
@@ -1329,17 +1591,36 @@
     }
   });
 
-  $("ask-form").addEventListener("submit", function (event) {
+  // The Ask box is drawn again as it changes size, so its form is listened to from here.
+  document.addEventListener("submit", function (event) {
+    if (!event.target || event.target.id !== "ask-form") return;
     event.preventDefault();
     ask($("ask-input").value);
   });
 
   // ── Start ──────────────────────────────────────────────────────────────
 
-  paintQuestions();
   paint();
 
+  if (PHONE) {
+    var onPhoneChange = function () { if (state.loaded && state.data) paintGrid(); };
+    if (PHONE.addEventListener) PHONE.addEventListener("change", onPhoneChange);
+    else if (PHONE.addListener) PHONE.addListener(onPhoneChange);
+  }
+  // Rows are measured to fit their boxes; the web font changes their height once it arrives.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      Object.keys(boxEls).forEach(function (id) { if (boxEls[id].isConnected) fitBox(boxEls[id]); });
+    });
+  }
+
   if (V2) {
+    // This person's own layout, if they changed it; the default otherwise.
+    Promise.resolve(cab.ready).then(function () {
+      var saved = cab.mine && typeof cab.mine.get === "function" ? cab.mine.get(LAYOUT_KEY) : null;
+      var clean = cleanLayout(saved);
+      if (clean) { state.layout = clean; paint(); }
+    }).catch(function () {});
     Promise.resolve(cab.here()).then(function (here) {
       state.here = here || null;
       if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
