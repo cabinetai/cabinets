@@ -383,6 +383,11 @@
   .box.headline .meta .icon { width: 16px; height: 16px; }
   .box.headline .fine { margin: 6px 0 0; font-size: 15px; color: var(--ink-3); }
   .box.headline[data-level="S"] h2 { font-size: 24px; }
+  /* The headline holds the inbox mark, and on the right the connection and the buttons. */
+  .hl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .hl-row h2 { flex: 1 1 340px; min-width: 0; }
+  .hl-status { flex: none; justify-content: flex-end; }
+  .box.headline .mark { align-self: flex-start; margin-top: 2px; }
 
   /* Ask: the dark box. Small keeps only the field. */
   .box.ask { padding: 20px 22px; overflow: hidden; justify-content: flex-start; }
@@ -588,14 +593,11 @@
   <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2" /><rect x="13" y="3" width="8" height="6" rx="2" /><rect x="13" y="11" width="8" height="10" rx="2" /><rect x="3" y="15" width="8" height="6" rx="2" /></symbol>
 </svg>
 
-<header class="bar">
+<header class="bar" id="topbar" hidden>
   <div class="bar-in">
     <div class="brand">
       <span class="mark" aria-hidden="true"><svg class="icon"><use href="#i-inbox" /></svg></span>
-      <div>
-        <h1>Front desk</h1>
-        <p id="subtitle">Your Gmail, sorted for the business</p>
-      </div>
+      <h1 class="sr">Front desk</h1>
     </div>
     <div class="status" id="status" aria-live="polite"></div>
   </div>
@@ -1072,7 +1074,17 @@
     if (state.loaded && state.data) state.animate = false;
   }
 
+  /**
+   * The connection and the page's buttons. They sit in the headline box; only when that box
+   * is not on the page (removed, or nothing loaded yet) do they show in a slim bar of their
+   * own, so Edit layout can always be reached.
+   */
   function paintStatus() {
+    var inHeadline = !!(state.loaded && state.data && onPage("headline"));
+    $("topbar").hidden = inHeadline;
+    $("status").innerHTML = inHeadline ? "" : statusHtml();
+  }
+  function statusHtml() {
     var s = gmailState();
     var pill;
     // An older Cabinet cannot say whether Gmail is connected: plain words, no state dot.
@@ -1100,13 +1112,7 @@
     var ideas = '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-bulb") + "Ideas</button>";
     var edit = state.loaded && state.data && !state.editing
       ? '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Edit layout</button>" : "";
-    $("status").innerHTML = pill + updated + button + ideas + edit;
-
-    var job = morningJob();
-    var when = job && typeof job.when === "string" && job.when ? job.when : "";
-    $("subtitle").textContent = /^every\b/i.test(when)
-      ? "Your Gmail, sorted for the business. " + when.charAt(0).toUpperCase() + when.slice(1) + "."
-      : "Your Gmail, sorted for the business";
+    return pill + updated + button + ideas + edit;
   }
 
   /** The envelope, with a badge that matches the state: a tick once connected, an alert when it needs fixing. */
@@ -1217,7 +1223,7 @@
     var updated = "";
     var g = writtenAt(d.generatedAt);
     if (g && !state.example) updated = '<span class="phone-only">Updated ' + esc(whenWords(g, new Date())) + ". </span>";
-    return "<h2>" + esc(ex + h) + "</h2>" + leadHtml + (updated ? '<p class="fine">' + updated + "</p>" : "");
+    return headlineTop("<h2>" + esc(ex + h) + "</h2>") + leadHtml + (updated ? '<p class="fine">' + updated + "</p>" : "");
   }
 
 
@@ -1866,10 +1872,15 @@
       ? '<svg class="cheer" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" /><path d="M12.5 20.5l5 5 10-11" /></svg>'
       : "";
     if (level === "S") {
-      return "<div><h2>" + cheer + esc((state.example ? "Example: " : "") + (n ? n + " waiting on you" : "Nobody is waiting")) + "</h2></div>";
+      return "<div>" + headlineTop("<h2>" + cheer + esc((state.example ? "Example: " : "") + (n ? n + " waiting on you" : "Nobody is waiting")) + "</h2>") + "</div>";
     }
     var pill = cheer ? '<span class="calm-pill">' + cheer + "All caught up</span>" : "";
     return "<div>" + pill + dataHero() + mailMeta() + "</div>";
+  }
+  /** The headline's first row: the inbox mark, the words, and on the right the connection and the buttons. */
+  function headlineTop(h2) {
+    return '<div class="hl-row"><span class="mark" aria-hidden="true">' + icon("i-inbox") + "</span>" + h2 +
+      '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>";
   }
   /** One quiet line: how much mail came in and how much was set aside. */
   function mailMeta() {
