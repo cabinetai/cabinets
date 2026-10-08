@@ -593,7 +593,8 @@
   .strip .ev b { font-weight: 600; }
   .ev.k-client { background: var(--sage-tint); color: var(--sage-ink); }
   .ev.k-team { background: var(--slate-tint); color: var(--slate-ink); }
-  .ev.k-personal { background: var(--sand-tint); color: var(--sand-ink); }
+  .ev.k-personal { background: var(--panel); color: var(--ink-3); }
+  .dayrow.k-personal .w { color: var(--ink-3); }
   .ev.k-other { background: var(--panel); color: var(--ink-2); }
   .ev.past { opacity: .5; }
   .ev.now { box-shadow: inset 0 0 0 2px var(--sage); }
@@ -816,25 +817,25 @@
       text: "Block your longest free stretch for focus, before it fills up.",
       ask: "Find my longest free stretch this week on a weekday and help me keep it for focused work. Show me what you would add to my calendar and wait for my yes.",
       when: "Every Monday", at: "every Monday at 8 AM" },
-    { id: "quiet", box: "people", icon: "i-hourglass", tint: "blue", title: "People you haven't seen in 60 days",
+    { id: "quiet", box: "people", icon: "i-hourglass", tint: "blue", title: "Clients you haven't met in 60 days",
       text: "Who to get back in touch with, with a line to start.",
-      ask: "Who haven't I met in the last 60 days that I used to meet? Show each one with when we last met and a one-line idea for getting back in touch.",
+      ask: "Which clients haven't I met in the last 60 days that I used to meet? Show each one with when we last met and a one-line idea for getting back in touch.",
       when: "Every Monday", at: "every Monday at 8 AM" },
-    { id: "weekly", box: "ask", icon: "i-chart", tint: "green", title: "A summary of my week",
-      text: "What happened this week and what's next, on one page.",
-      ask: "Write a short summary of my week from my calendar: what happened, who I met, and what's booked for next week. Save it as a page.",
+    { id: "weekly", box: "ask", icon: "i-chart", tint: "green", title: "Client summary for my partner",
+      text: "Who you met this week, what's booked next, on one page.",
+      ask: "Write a short summary of my work week from my calendar for my business partner: which clients I met, new clients, what's booked for next week, and anything that needs a decision. Leave personal events out. Save it as a page.",
       when: "Every Friday", at: "every Friday at 4 PM" },
     { id: "nextweek", box: "ask", icon: "i-calendar", tint: "amber", title: "Plan next week",
       text: "What's coming, what to prepare, and where you're free.",
       ask: "Look at next week on my calendar: what's coming, what I should prepare, where I'm free, and anything that clashes.",
       when: "Every Sunday", at: "every Sunday at 6 PM" },
-    { id: "people", box: "ask", icon: "i-users", tint: "blue", title: "Who I meet, by company or person",
-      text: "Everyone you met in 90 days, with how often and when you meet next.",
-      ask: "From my Google Calendar, list everyone I met in the last 90 days, grouped by company or person, with how many times we met, when we last met and when we meet next.",
+    { id: "people", box: "ask", icon: "i-users", tint: "blue", title: "My clients, by company",
+      text: "Every client you met in 90 days, how often, and when you meet next.",
+      ask: "From my Google Calendar, list every client I met in the last 90 days, grouped by company, with how many times we met, when we last met and when we meet next.",
       when: "Every month", at: "on the 1st of every month at 8 AM" },
-    { id: "hours", box: "ask", icon: "i-receipt", tint: "blue", title: "Hours with each person or company",
-      text: "Time spent with each this month. Handy for invoices or reports.",
-      ask: "Add up the hours I spent in meetings with each person or company this month, from my calendar. One line each, and the total.",
+    { id: "hours", box: "ask", icon: "i-receipt", tint: "blue", title: "Hours with each client",
+      text: "Time spent with each client this month. Handy for reports.",
+      ask: "Add up the hours I spent in meetings with each client this month, from my calendar. One line each, and the total.",
       when: "Every month", at: "on the 1st of every month at 8 AM" }
   ];
 
@@ -1588,13 +1589,18 @@
   var ROW = 64;
   var GAP = 16;
   var PHONE_ROWS = 3;
-  var LAYOUT_KEY = "calendar-week-layout@1";
+  // The first page changed for business (Before and after and the clients come onto it), so
+  // layouts kept under the first key are left behind and everyone starts on the new page.
+  var LAYOUT_KEY = "calendar-week-layout@2";
   var DEFAULT_LAYOUT = [
     { id: "headline", x: 0, y: 0, w: 12, h: 2 },
     { id: "today", x: 0, y: 2, w: 7, h: 7 },
     { id: "free", x: 7, y: 2, w: 5, h: 7 },
-    { id: "week", x: 0, y: 9, w: 12, h: 7 },
-    { id: "ask", x: 0, y: 16, w: 12, h: 5 }
+    { id: "ready", x: 0, y: 9, w: 7, h: 4 },
+    { id: "quiet", x: 7, y: 9, w: 5, h: 4 },
+    { id: "week", x: 0, y: 13, w: 12, h: 7 },
+    { id: "people", x: 0, y: 20, w: 12, h: 6 },
+    { id: "ask", x: 0, y: 26, w: 12, h: 5 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -1617,13 +1623,13 @@
     balance: { cls: "lane balance", draw: drawBalance, group: "week", icon: "i-pie", w: 6, h: 4, min: [3, 3],
       title: "Your time", desc: "Hours with others, with your team and for yourself, and your free time." },
     people: { cls: "lane people", list: true, draw: drawPeople, group: "people", icon: "i-users", w: 12, h: 6, min: [4, 3],
-      title: "People you meet", desc: "Everyone you met in the last 90 days, by company or person: how often, last time, next." },
+      title: "Clients", desc: "Every client you met in the last 90 days, by company: how often, last time, next." },
     quiet: { cls: "lane quiet", list: true, draw: drawQuiet, group: "people", icon: "i-hourglass", w: 6, h: 4, min: [3, 3],
-      title: "Going quiet", desc: "People you used to meet and haven't seen in a while, with a check-in ready." },
+      title: "Clients going quiet", desc: "Clients you used to meet and haven't seen in a while, with a check-in ready." },
     "n-events": { cls: "nbox", draw: function () { return numberCard("n-events"); }, group: "numbers", icon: "i-calendar", w: 3, h: 2, min: [2, 2],
       title: "Events this week", desc: "How many events in the next 7 days, and how many today." },
     "n-hours": { cls: "nbox", draw: function () { return numberCard("n-hours"); }, group: "numbers", icon: "i-clock", w: 3, h: 2, min: [2, 2],
-      title: "Hours in meetings", desc: "Time in meetings this week, not counting personal events." },
+      title: "Hours in meetings", desc: "Time in meetings this week, not counting personal time." },
     "n-free": { cls: "nbox", draw: function () { return numberCard("n-free"); }, group: "numbers", icon: "i-sun", w: 3, h: 2, min: [2, 2],
       title: "Free hours", desc: "Free time on weekdays, 8 to 5, and your longest stretch." },
     "n-busiest": { cls: "nbox", draw: function () { return numberCard("n-busiest"); }, group: "numbers", icon: "i-chart", w: 3, h: 2, min: [2, 2],
@@ -1640,7 +1646,7 @@
   });
   var GROUPS = [
     { id: "week", title: "Your week" },
-    { id: "people", title: "People" },
+    { id: "people", title: "Clients" },
     { id: "numbers", title: "Numbers" },
     { id: "ask", title: "Ask and ideas" },
     { id: "single", title: "One idea" }
@@ -2061,7 +2067,9 @@
   function drawHeadline(level) {
     var f = state.facts;
     var ex = state.example ? "Example: " : "";
-    var main = f.events ? count(f.events, "event", "events") + " this week" : "Nothing on your calendar this week";
+    var clientMeetings = f.days.reduce(function (n, d) { return n + d.events.filter(function (e) { return e.kind === "client"; }).length; }, 0);
+    var main = clientMeetings ? count(clientMeetings, "client meeting", "client meetings") + " this week"
+      : f.events ? count(f.events, "event", "events") + " this week" : "Nothing on your calendar this week";
     var top = function (h2) {
       return '<div class="hl-row"><span class="mark" aria-hidden="true">' + icon("i-calendar") + "</span>" + h2 +
         '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>";
@@ -2072,7 +2080,7 @@
     var lead = "";
     if (f.conflicts.length) {
       var c = f.conflicts[0];
-      lead = '<p class="lead"><b>' + esc(dayWord(c.day.date, f.today)) + " at " + esc(clock(c.from)) + ":</b> " + bdi(c.a.title) + " and " + bdi(c.b.title) + " overlap.</p>";
+      lead = '<p class="lead"><b>' + esc(dayWord(c.day.date, f.today)) + " at " + esc(clock(c.from)) + ":</b> " + bdi(shownTitle(c.a)) + " and " + bdi(shownTitle(c.b)) + " overlap.</p>";
     } else if (state.data.note) {
       lead = '<p class="lead">' + bdi(state.data.note) + "</p>";
     }
@@ -2080,21 +2088,27 @@
     return "<div>" + top("<h2>" + esc(ex + main + ".") + (free ? '<span class="h2-free">' + esc(free) + "</span>" : "") + "</h2>") + lead + meta + "</div>";
   }
 
+  /**
+   * A work calendar keeps private life private: a personal event shows only as "Busy" on
+   * the page (pressing it still shows its details to the person).
+   */
+  function shownTitle(e) { return e.kind === "personal" ? "Busy" : e.title; }
+
   /** One event as a row: its time, its name, who or what kind; a press opens it. */
   function dayRow(e, withDay) {
-    var who = whoWords(e);
+    var who = e.kind === "personal" ? "" : whoWords(e);
     var kind = e.kind !== "client" ? KIND_WORDS[e.kind] : "";
     var sub = who || kind;
     return '<button type="button" class="dayrow k-' + e.kind + (hasEnded(e) ? " past" : "") + (isNow(e) ? " now" : "") + '" data-act="event" data-id="' + esc(e.id) + '">' +
       '<span class="t num">' + esc(e.allDay ? "All day" : clock(e.start)) + "</span>" +
-      '<span class="w">' + bdi(e.title) + (sub ? "<small>" + bdi(sub) + (withDay ? "" : "") + "</small>" : "") + "</span></button>";
+      '<span class="w">' + bdi(shownTitle(e)) + (sub ? "<small>" + bdi(sub) + (withDay ? "" : "") + "</small>" : "") + "</span></button>";
   }
 
   function nowCard(e, nowM) {
     var end = endOf(e);
     var pct = Math.max(0, Math.min(100, Math.round((nowM - e.start) / Math.max(1, end - e.start) * 100)));
     return '<div class="nowcard"><span class="tagline"><span class="live"></span>Now</span>' +
-      '<button type="button" class="evtitle" data-act="event" data-id="' + esc(e.id) + '">' + bdi(e.title) + "</button>" +
+      '<button type="button" class="evtitle" data-act="event" data-id="' + esc(e.id) + '">' + bdi(shownTitle(e)) + "</button>" +
       '<span class="evmeta">Until ' + esc(clock(end)) + " · " + esc(lengthWords(end - nowM)) + " left" + (e.place ? " · " + bdi(e.place) : "") + "</span>" +
       '<span class="progress" aria-hidden="true"><span style="width:' + pct + '%"></span></span></div>';
   }
@@ -2106,7 +2120,7 @@
     acts += '<button type="button" class="btn small" data-act="event" data-id="' + esc(e.id) + '">Details</button>';
     return '<div class="nextcard"><span class="tagline">Next · ' + esc(inWords(e.start - nowM)) + "</span>" +
       '<span class="evtime num">' + esc(clock(e.start)) + (e.end !== null ? " to " + esc(clock(endOf(e))) : "") + "</span>" +
-      '<button type="button" class="evtitle" data-act="event" data-id="' + esc(e.id) + '">' + bdi(e.title) + "</button>" +
+      '<button type="button" class="evtitle" data-act="event" data-id="' + esc(e.id) + '">' + bdi(shownTitle(e)) + "</button>" +
       (who || e.place ? '<span class="evmeta">' + (who ? icon("i-users") + bdi(who) : "") + (e.place ? (who ? "<span>·</span>" : "") + icon("i-pin") + bdi(e.place) : "") + "</span>" : "") +
       '<div class="nudge-actions">' + acts + "</div></div>";
   }
@@ -2117,16 +2131,16 @@
     var nowM = nowMinutes();
     var n = f.days[0].events.length;
     if (level === "S") {
-      var line = f.now.length ? "<b>Now:</b> " + bdi(f.now[0].title)
-        : f.next ? "<b>" + esc(cap(inWords(f.next.start - nowM))) + ":</b> " + bdi(f.next.title)
-        : f.tomorrowFirst ? "<b>Tomorrow " + esc(clock(f.tomorrowFirst.start)) + ":</b> " + bdi(f.tomorrowFirst.title)
+      var line = f.now.length ? "<b>Now:</b> " + bdi(shownTitle(f.now[0]))
+        : f.next ? "<b>" + esc(cap(inWords(f.next.start - nowM))) + ":</b> " + bdi(shownTitle(f.next))
+        : f.tomorrowFirst ? "<b>Tomorrow " + esc(clock(f.tomorrowFirst.start)) + ":</b> " + bdi(shownTitle(f.tomorrowFirst))
         : "Nothing else today";
       return sumBox("today", "Today", "i-clock", String(n), n ? plural(n, "event", "events") + " today" : "A free day", line);
     }
     var body = "";
     if (f.allDayToday.length) {
       body += '<div class="allday">' + f.allDayToday.map(function (e) {
-        return '<button type="button" class="tag-ev" data-act="event" data-id="' + esc(e.id) + '">' + icon("i-calendar") + bdi(e.title) + "</button>";
+        return '<button type="button" class="tag-ev" data-act="event" data-id="' + esc(e.id) + '">' + icon("i-calendar") + bdi(shownTitle(e)) + "</button>";
       }).join("") + "</div>";
     }
     f.now.forEach(function (e) { body += nowCard(e, nowM); });
@@ -2198,7 +2212,7 @@
       }
       var items = d.events.map(function (e) {
         return { at: e.allDay ? -1 : e.start, html: '<button type="button" class="ev k-' + e.kind + (hasEnded(e) ? " past" : "") + (isNow(e) ? " now" : "") + (clash[e.id] ? " clash" : "") + '" data-act="event" data-id="' + esc(e.id) + '"' + (clash[e.id] ? ' title="Overlaps another event"' : "") + ">" +
-          '<span class="num">' + esc(e.allDay ? "All day" : clock(e.start)) + "</span><b>" + bdi(e.title) + "</b></button>" };
+          '<span class="num">' + esc(e.allDay ? "All day" : clock(e.start)) + "</span><b>" + bdi(shownTitle(e)) + "</b></button>" };
       });
       var best = f.best && f.best.day === d ? f.best : null;
       if (best) items.push({ at: best.slot.start - 0.5, html: '<span class="ev freeslot">' + icon("i-sun") + "Free " + esc(clock(best.slot.start)) + " to " + esc(clock(best.slot.end)) + "</span>" });
@@ -2217,11 +2231,11 @@
     var list = f.conflicts;
     if (level === "S") {
       return sumBox("conflicts", "Double bookings", "i-overlap", String(list.length), list.length ? plural(list.length, "overlap", "overlaps") + " this week" : "None this week",
-        list[0] ? "<b>" + esc(dayWord(list[0].day.date, f.today)) + ":</b> " + bdi(list[0].a.title) : "");
+        list[0] ? "<b>" + esc(dayWord(list[0].day.date, f.today)) + ":</b> " + bdi(shownTitle(list[0].a)) : "");
     }
     var rows = list.map(function (c) {
       return '<li><span class="cday">' + esc(dayWord(c.day.date, f.today) + " " + clock(c.from)) + "</span>" +
-        '<span class="cwhat">' + bdi(c.a.title) + " <i>and</i> " + bdi(c.b.title) + "<small>overlap by " + esc(lengthWords(c.minutes)) + "</small></span>" +
+        '<span class="cwhat">' + bdi(shownTitle(c.a)) + " <i>and</i> " + bdi(shownTitle(c.b)) + "<small>overlap by " + esc(lengthWords(c.minutes)) + "</small></span>" +
         '<button type="button" class="btn small" data-act="fix-overlap" data-a="' + esc(c.a.id) + '" data-b="' + esc(c.b.id) + '">Help me fix it</button></li>';
     }).join("");
     return listBox("conflicts", "Double bookings", "i-overlap", "", list.length, '<ol class="rows clashes">' + rows + "</ol>", "No double bookings this week.");
@@ -2279,7 +2293,7 @@
     var f = state.facts;
     var all = sortedPeople(state.data);
     if (level === "S") {
-      return sumBox("people", "People you meet", "i-users", String(all.length), "in the last 90 days",
+      return sumBox("people", "Clients", "i-users", String(all.length), "in the last 90 days",
         f.quiet.length ? '<span class="hot">' + f.quiet.length + " going quiet</span>" : "");
     }
     var counts = { all: all.length, quiet: 0, "new": 0, active: 0 };
@@ -2304,23 +2318,23 @@
         '<span class="pline">' + esc((next ? "Next: " + next : "Nothing booked") + " · " + (last ? "Last met " + (/^(Today|Yesterday)$/.test(last) ? last.toLowerCase() : last) : "Not met yet") + " · " + count(c.meetings, "meeting", "meetings") + " in 90 days") + "</span></button></li>";
     }).join("");
     var headRow = wide ? '<div class="phead"><span>Person or company</span><span class="r">Meetings, 90 days</span><span>Last met</span><span>Next</span><span class="r">Hours this month</span><span>Status</span></div>' : "";
-    return boxHead("people", "People you meet", "i-users", count(all.length, "person or company", "people and companies"), null) +
+    return boxHead("people", "Clients", "i-users", count(all.length, "client", "clients"), null) +
       '<div class="ptools">' + seg + checkAll + "</div>" +
-      '<div class="box-body">' + (all.length ? headRow + '<ol class="rows plist' + (wide ? " wide" : "") + '">' + rows + "</ol>" : '<p class="lane-empty">No meetings with other people in the last 90 days.</p>') + "</div>" + moreButton() + nudgeHtml(boxIdea("people"));
+      '<div class="box-body">' + (all.length ? headRow + '<ol class="rows plist' + (wide ? " wide" : "") + '">' + rows + "</ol>" : '<p class="lane-empty">No client meetings in the last 90 days.</p>') + "</div>" + moreButton() + nudgeHtml(boxIdea("people"));
   }
 
   function drawQuiet(level) {
     var f = state.facts;
     var list = f.quiet;
     if (level === "S") {
-      return sumBox("quiet", "Going quiet", "i-hourglass", String(list.length), list.length ? plural(list.length, "person", "people") + " to get back to" : "Nobody", list[0] ? bdi(list[0].name) : "");
+      return sumBox("quiet", "Going quiet", "i-hourglass", String(list.length), list.length ? plural(list.length, "client", "clients") + " to get back to" : "Nobody", list[0] ? bdi(list[0].name) : "");
     }
     var rows = list.map(function (c) {
       var last = c.lastMet ? sinceWords(c.lastMet, f.today) : "";
       return '<li><span class="pname"><b>' + bdi(c.name) + "</b><small>" + esc(last ? "Last met " + last : "Not met in 90 days") + "</small></span>" +
         (canAsk() ? '<button type="button" class="btn small" data-act="checkin" data-id="' + esc(c.id) + '">' + icon("i-reply") + "Draft a check-in</button>" : "") + "</li>";
     }).join("");
-    return listBox("quiet", "Going quiet", "i-hourglass", "", list.length, '<ol class="rows quietlist">' + rows + "</ol>", "Nobody is going quiet. You've seen everyone recently.");
+    return listBox("quiet", "Clients going quiet", "i-hourglass", "", list.length, '<ol class="rows quietlist">' + rows + "</ol>", "No client is going quiet. You've met everyone recently.");
   }
 
   // ── Before and after ───────────────────────────────────────────────────
@@ -2510,7 +2524,7 @@
     quiet: function (f) {
       var n = f.quiet.length;
       if (!n) return null;
-      return { line: count(n, "person", "people") + " you used to meet " + plural(n, "has", "have") + " gone quiet.", act: "Draft check-ins", q: state.example ? "" : checkInAsk(f.quiet) };
+      return { line: count(n, "client", "clients") + " you used to meet " + plural(n, "has", "have") + " gone quiet.", act: "Draft check-ins", q: state.example ? "" : checkInAsk(f.quiet) };
     },
     weekly: function (f) {
       var dow = f.today.getDay();
