@@ -11,11 +11,12 @@ ownerAgent: calendar-briefer
 agentSlug: calendar-briefer
 timeout: 900
 prompt: |-
-  Update the Calendar Brief app and the client pages from the person's Google Calendar.
+  Update the Your week page and the people pages from the person's Google Calendar.
 
-  You write only `calendar-brief/data/latest.json` (the app draws it; it also keeps what
-  you need for tomorrow) and pages in `clients/`. Never touch any other file. Your persona
-  says who is a client, the kinds, and the shape of the pages. Work in as few steps as you
+  You write only `calendar-brief/data/latest.json` (the page draws it; it also keeps what
+  you need for tomorrow) and the people pages: `people/`, or `clients/` in a cabinet set up
+  before `people/` existed (your persona says which). Never touch any other file. Your
+  persona says who counts as people you meet, the kinds, and the shape of the pages. Work in as few steps as you
   can: a short script (Python or JavaScript) for reading, merging and the numbers is best.
 
   1. Find today's date, the time now and the calendar's time zone. Read
@@ -50,30 +51,31 @@ prompt: |-
        allowed to read your calendar."
      - `429` or a code of 500 or more: try once more after a few seconds; then, or on
        anything else: "Couldn't reach Google Calendar this morning."
-  5. Update the clients. `rules` in the file is what you decided before: `ownDomains`
-     (the business's own), `notClients` (domains or names that are not clients: suppliers,
-     advisers, family) and `names` (a domain to its company name). Apply it as it is; only
+  5. Update the people you meet (the `clients` list). `rules` in the file is what you
+     decided before: `ownDomains` (the person's own circle), `notClients` (domains or names
+     that are not people to keep in touch with: services, family, close friends) and
+     `names` (a domain to its company name). Apply it as it is; only
      decide guests it does not cover yet, and add those decisions to it.
-     - Each client row keeps `met`: its client meetings that have ended in the last 90 days,
+     - Each row keeps `met`: its meetings with others that have ended in the last 90 days,
        as [date, minutes, event id]. Add the ended meetings you just read (skip an id that
        is already there), then drop entries older than 90 days.
      - From `met`: `meetings90` is the count, `lastMet` the latest date, `hoursMonth` the
        hours since the 1st of this month (to the nearest half hour). `firstMet` is the
        earliest meeting that has ended, from before or from `met` (keep an older one); null
-       while the client has only a booking. `next` is the first client meeting from now on,
+       while there is only a booking. `next` is the first meeting with them from now on,
        from what you just read, as {"date", "start", "title"}, or null.
      - `status`: `quiet` when there is no meeting in the last 45 days and none booked;
        `new` when the first meeting, or the first booking, is this month; else `active`.
-     Keep every client from before, even one with nothing new. Sort new first, then active
+     Keep every row from before, even one with nothing new. Sort new first, then active
      by next meeting, then quiet by last met. At most 60.
   6. Replace `calendar-brief/data/latest.json` with this shape (every date and time in
      the calendar's own time zone, times as 24-hour HH:MM):
 
      {"generatedAt": "<now, with offset>", "checkedAt": "<now>", "status": "ok",
       "timeZone": "America/New_York", "today": "2026-09-25", "readThrough": "<yesterday>",
-      "canChange": false, "business": "Prairie Air Heating & Cooling",
-      "headline": "9 client meetings this week, and Thursday afternoon is open.",
-      "note": "Kessler & Sons hasn't been on your calendar since July.",
+      "canChange": false, "business": null,
+      "headline": "14 events this week, and Thursday afternoon is free.",
+      "note": "You haven't met Kessler & Sons since July.",
       "events": [{"id": "...", "date": "2026-09-25", "start": "09:30", "end": "10:30",
         "allDay": false, "title": "Office AC replacement quote", "place": "2200 Main St",
         "people": ["Greg Novak"], "morePeople": 0, "kind": "client",
@@ -88,13 +90,15 @@ prompt: |-
 
      - `canChange`: true only when your Connections line for Google Calendar says "may read
        and change events"; false when it says read only, as the secret address always does.
-     - `business`: the owner's business name when the calendar shows it, else null.
-     - `headline`: the week in business, at most 80 characters. `note`: the one thing worth
-       acting on, like a good client going quiet; leave it out when nothing stands out.
-     - `events`: every event of the seven days from today, with its `kind`; a client
-       meeting's `client` is its row's `id`. An all-day event has `allDay: true`, `start`
+     - `business`: the person's business name only when the calendar plainly is a
+       business's, else null.
+     - `headline`: the week in plain words, at most 80 characters. `note`: the one thing
+       worth knowing, like someone they used to meet going quiet, or two events that
+       overlap; leave it out when nothing stands out.
+     - `events`: every event of the seven days from today, with its `kind`; a meeting
+       with others has its row's `id` in `client`. An all-day event has `allDay: true`, `start`
        and `end` null, and `lastDate` when it covers more than one day. At most 80.
-  7. Client pages, in the shapes your persona gives: create `clients/<id>.md` for a new
-     client; on an existing page rewrite only the frontmatter and the summary line, and
-     only when that client's numbers changed; rewrite `clients/index.md`. Never delete or
+  7. People pages, in the shapes your persona gives, in `people/` (or `clients/`, as above):
+     create `<id>.md` for someone new; on an existing page rewrite only the frontmatter and
+     the summary line, and only when their numbers changed; rewrite `index.md` there. Never delete or
      rename a page, and never change anything from `## Notes` down.

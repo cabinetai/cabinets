@@ -620,6 +620,8 @@
   .ev.k-other { background: var(--panel); color: var(--ink-2); }
   .ev.past { opacity: .5; }
   .ev.now { box-shadow: inset 0 0 0 2px var(--sage); }
+  .ev.clash { box-shadow: inset 3px 0 0 var(--terra); }
+  .ev.now.clash { box-shadow: inset 0 0 0 2px var(--sage), inset 4px 0 0 var(--terra); }
   button.ev:hover { filter: brightness(.97); }
   .ev.freeslot { display: flex; align-items: center; gap: 6px; border: 1.5px dashed var(--sage-line); background: transparent; color: var(--sage-ink); font-weight: 600; }
   .ev.freeslot .icon { width: 14px; height: 14px; flex: none; }
@@ -1590,7 +1592,7 @@
     if (!state.loaded || !state.data || !state.example) { el.innerHTML = ""; return; }
     var who = state.data.business;
     el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
-      (who ? "<b>" + bdi(who) + "</b>, a made-up week. " : "A made-up week. ") +
+      (who ? "A made-up week for <b>" + bdi(who) + "</b>. " : "A made-up week. ") +
       "None of this is your calendar. Connect Google Calendar and your own week replaces it.</p></div>";
   }
 
@@ -2052,6 +2054,11 @@
 
   // ── Drawing the boxes ──────────────────────────────────────────────────
 
+  /** "today", "tomorrow", "on Tuesday": a day inside a sentence. */
+  function onDay(d, today) {
+    var w = dayWord(d, today);
+    return w === "Today" || w === "Tomorrow" ? w.toLowerCase() : "on " + w;
+  }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function moreButton() { return '<button type="button" class="box-more" data-act="more-rows" hidden></button>'; }
   function kpi(iconId, label, value, sub, cls) {
@@ -2075,7 +2082,8 @@
     var ex = state.example ? "Example: " : "";
     var main = f.events ? count(f.events, "event", "events") + " this week" : "Nothing on your calendar this week";
     if (level === "S") return "<div><h2>" + esc(ex + main) + "</h2></div>";
-    var free = f.best && f.best.slot.end - f.best.slot.start >= 120 ? " " + freeWords(f) + "." : "";
+    // A whole empty week is simply clear; naming one free day in it would add nothing.
+    var free = f.events && f.best && f.best.slot.end - f.best.slot.start >= 120 ? " " + freeWords(f) + "." : "";
     var lead = "";
     if (f.conflicts.length) {
       var c = f.conflicts[0];
@@ -2197,12 +2205,14 @@
       });
       return head + '<div class="box-body"><ol class="rows weeklist">' + html + "</ol></div>" + moreButton() + nudgeHtml(boxIdea("week"));
     }
+    var clash = {};
+    f.conflicts.forEach(function (c) { clash[c.a.id] = clash[c.b.id] = true; });
     var cols = f.days.map(function (d, i) {
       if (d.outside) {
         return '<div class="col"><span class="dname">' + esc(DAYS[d.date.getDay()].slice(0, 3)) + '</span><span class="dnum num">' + d.date.getDate() + '</span><span class="ev-more">Not read yet</span></div>';
       }
       var items = d.events.map(function (e) {
-        return { at: e.allDay ? -1 : e.start, html: '<button type="button" class="ev k-' + e.kind + (hasEnded(e) ? " past" : "") + (isNow(e) ? " now" : "") + '" data-act="event" data-id="' + esc(e.id) + '">' +
+        return { at: e.allDay ? -1 : e.start, html: '<button type="button" class="ev k-' + e.kind + (hasEnded(e) ? " past" : "") + (isNow(e) ? " now" : "") + (clash[e.id] ? " clash" : "") + '" data-act="event" data-id="' + esc(e.id) + '"' + (clash[e.id] ? ' title="Overlaps another event"' : "") + ">" +
           '<span class="num">' + esc(e.allDay ? "All day" : clock(e.start)) + "</span><b>" + bdi(e.title) + "</b></button>" };
       });
       var best = f.best && f.best.day === d ? f.best : null;
@@ -2494,7 +2504,7 @@
     overlap: function (f) {
       var c = f.conflicts[0];
       if (!c) return null;
-      return { line: (f.conflicts.length === 1 ? "Two events overlap" : f.conflicts.length + " overlaps this week, the first") + " on " + dayWord(c.day.date, f.today) + " at " + clock(c.from) + ".",
+      return { line: (f.conflicts.length === 1 ? "Two events overlap" : f.conflicts.length + " overlaps this week, the first") + " " + onDay(c.day.date, f.today) + " at " + clock(c.from) + ".",
         act: "Help me fix it", q: state.example ? "" : fixAsk(c.a, c.b) };
     },
     protect: function (f) {
