@@ -2820,8 +2820,12 @@
   // shows where it lands. The corner handle resizes it on the grid, naming the size it
   // reaches. On a phone a box moves up and down its column; its size is a switch.
 
-  var HOLD_MS = 450;
+  var HOLD_MS = 600;
   var SLOP = 8;
+  /** How far a mouse moves, pressed, before the box comes along: a slip of the hand is not a move. */
+  var DRAG_START = 10;
+  /** How far past a border (in cells) the moving box must be before the others make room. */
+  var STICK = 0.8;
   var drag = null;
   var press = null;
   var hold = null;
@@ -2957,12 +2961,12 @@
     var m = gridMetrics();
     var left = drag.x - drag.grabX;
     var top = drag.y - drag.grabY;
-    // The spot only changes once the box is clearly past a border (two thirds of a cell),
+    // The spot only changes once the box is well past a border (four fifths of a cell),
     // so a hand resting near the line does not flip it back and forth.
     var fx = (left - m.left) / m.col;
     var fy = (top - m.top) / m.row;
-    var tx = drag.spots && Math.abs(fx - drag.tx) < 0.65 ? drag.tx : clamp(Math.round(fx), 0, COLS - drag.w);
-    var ty = drag.spots && Math.abs(fy - drag.ty) < 0.65 ? drag.ty : Math.max(0, Math.round(fy));
+    var tx = drag.spots && Math.abs(fx - drag.tx) < STICK ? drag.tx : clamp(Math.round(fx), 0, COLS - drag.w);
+    var ty = drag.spots && Math.abs(fy - drag.ty) < STICK ? drag.ty : Math.max(0, Math.round(fy));
     if (!drag.spots || drag.tx !== tx || drag.ty !== ty) {
       drag.tx = tx;
       drag.ty = ty;
@@ -2987,8 +2991,8 @@
     drag.el.style.height = ph + "px";
     var fw = (pw + GAP) / m.col;
     var fh = (ph + GAP) / m.row;
-    var w = drag.spots && Math.abs(fw - drag.w) < 0.65 ? drag.w : clamp(Math.round(fw), min.w, COLS - drag.sx);
-    var h = drag.spots && Math.abs(fh - drag.h) < 0.65 ? drag.h : clamp(Math.round(fh), min.h, 40);
+    var w = drag.spots && Math.abs(fw - drag.w) < STICK ? drag.w : clamp(Math.round(fw), min.w, COLS - drag.sx);
+    var h = drag.spots && Math.abs(fh - drag.h) < STICK ? drag.h : clamp(Math.round(fh), min.h, 40);
     if (drag.spots && drag.w === w && drag.h === h) return;
     drag.w = w;
     drag.h = h;
@@ -3015,8 +3019,8 @@
     var bottom = top + drag.step - drag.gap;
     var to = drag.from;
     drag.mids.forEach(function (mid, i) {
-      if (i > drag.from && bottom > mid) to++;
-      if (i < drag.from && top < mid) to--;
+      if (i > drag.from && bottom > mid + 24) to++;
+      if (i < drag.from && top < mid - 24) to--;
     });
     drag.to = to;
     drag.boxes.forEach(function (b, i) {
@@ -3026,13 +3030,25 @@
     });
   }
 
-  /** Near the top or bottom of the window, the page scrolls while something is held. */
-  function edgeScroll() {
+  /**
+   * Near the top or bottom of the window, the page scrolls while something is held: only
+   * after it has rested there for a moment, slowly at first and never fast, so a box carried
+   * past the edge does not send the page racing.
+   */
+  var EDGE = 56;
+  var EDGE_WAIT_MS = 300;
+  var EDGE_MAX = 7;
+  function edgeScroll(now) {
     if (!drag) return;
-    var edge = 72;
-    var v = drag.y < edge ? -Math.ceil((edge - drag.y) / 4) : drag.y > window.innerHeight - edge ? Math.ceil((drag.y - window.innerHeight + edge) / 4) : 0;
-    if (v) {
-      window.scrollBy(0, v);
+    var into = drag.y < EDGE ? -(EDGE - drag.y) : drag.y > window.innerHeight - EDGE ? drag.y - window.innerHeight + EDGE : 0;
+    if (!into) drag.edgeSince = 0;
+    else if (!drag.edgeSince) drag.edgeSince = now || performance.now();
+    var waited = drag.edgeSince ? (now || performance.now()) - drag.edgeSince : 0;
+    if (into && waited > EDGE_WAIT_MS) {
+      // Speed grows with how deep into the edge the hand is and how long it has stayed.
+      var ramp = Math.min(1, (waited - EDGE_WAIT_MS) / 600);
+      var v = Math.max(1, Math.round(Math.min(EDGE_MAX, Math.abs(into) / 6) * ramp));
+      window.scrollBy(0, into < 0 ? -v : v);
       moveDrag(drag.x, drag.y);
     }
     drag.raf = requestAnimationFrame(edgeScroll);
@@ -3081,7 +3097,7 @@
   });
   document.addEventListener("pointermove", function (e) {
     if (drag && !drag.touch) { moveDrag(e.clientX, e.clientY); return; }
-    if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > 4) {
+    if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > DRAG_START) {
       var p = press;
       press = null;
       beginDrag(phone() ? "stack" : "move", p.el, e.clientX, e.clientY, false);
