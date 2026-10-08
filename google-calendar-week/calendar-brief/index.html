@@ -2349,9 +2349,13 @@
     var f = state.facts;
     var pre = state.example ? "example:" : "";
     var out = [];
+    // A routine that happens on three or more days this week (a daily standup) needs no
+    // preparing or following up; and a meeting under way is past preparing for.
+    var times = {};
+    f.days.forEach(function (d) { d.events.forEach(function (e) { var k = e.title.toLowerCase(); times[k] = (times[k] || 0) + 1; }); });
     f.days.slice(0, 2).forEach(function (d, di) {
       d.events.forEach(function (e) {
-        if (!withPeople(e) || e.day !== d.key) return;
+        if (!withPeople(e) || e.day !== d.key || times[e.title.toLowerCase()] >= 3 || isNow(e)) return;
         var who = whoWords(e);
         if (!hasEnded(e)) {
           out.push({ key: pre + "prep:" + e.id + ":" + e.day, rank: 0, order: di * 1440 + e.start, title: "Prepare for " + e.title,
