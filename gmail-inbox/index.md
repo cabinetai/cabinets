@@ -2,7 +2,7 @@
 title: Gmail for Business
 created: '2026-08-09T00:00:00Z'
 modified: '2026-10-08T00:00:00Z'
-tags: [gmail, business, customers, clients, leads, email, small-business, showcase]
+tags: [gmail, business, customers, clients, leads, email, small-business]
 order: 1
 ---
 # Gmail for Business
@@ -37,5 +37,5 @@ it writes the reply in the chat, and nothing goes out without your OK.
 ## Inside
 
 - **Front desk**: the app this cabinet opens on, and what you told it about the business.
-- **Reports**: one page per morning, the Friday list of who is still waiting, and the
-  lists you ask for, like your customer list.
+- **Reports**: one page per morning, the Friday list of who is still waiting, the Monday
+  list of regulars who went quiet, and the lists you ask for, like your customer list.
