@@ -38,4 +38,4 @@ reply in the chat, and nothing goes out without your OK.
 ## Inside
 
 - **My inbox**: the app this cabinet opens on, and what you told it about yourself.
-- **Reports**: one page per morning, and the lists you ask for.
+- **Reports**: one page per morning, the week ahead every Sunday, and the lists you ask for.

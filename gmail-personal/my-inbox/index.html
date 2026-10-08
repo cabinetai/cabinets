@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <!--
-  Gmail Inbox: the front desk. The cabinet opens on this page.
+  Gmail for Personal: my inbox. The cabinet opens on this page.
 
-  For a small business owner: who is waiting on an answer (leads and customers first),
-  quotes and invoices, bills to pay, one tap to a drafted reply, and an Ideas gallery of
-  business plays, each one tap to ask now or to switch on as a routine.
+  For anyone, their own inbox made calm: the people who wait for an answer (with a reply
+  ready), home bills and subscriptions, appointments and bookings coming up, and packages
+  on the way. Newsletters and ads are counted and set aside, never deleted. Business
+  customers, quotes and invoices are Gmail for Business's and Gmail for Finance's.
 
   Where the words come from: the morning routine reads Gmail and writes data/latest.json
-  next to this page (the shape is data/EXAMPLE-latest.json: a made-up HVAC company, always
-  labelled as an example here). The Friday routine writes data/loose-ends.json. A routine
-  that could not read the mail writes data/status.json with ok:false and why. setup.md
-  holds what the owner told the cabinet about the business.
+  next to this page (the shape is data/EXAMPLE-latest.json: a made-up parent, always
+  labelled as an example here). A routine that could not read the mail writes
+  data/status.json with ok:false and why. setup.md holds what the person told the cabinet
+  about themselves.
 
   How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
   routine, read files). In an older Cabinet it reads the same files over the page's own
@@ -24,7 +25,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Front desk</title>
+<title>My inbox</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -302,6 +303,11 @@
   .mini li:last-child { border-bottom: 0; }
   .mini b { font-weight: 700; white-space: nowrap; }
   .mini span { color: var(--ink-2); }
+  .lane.coming .lane-head, .lane.deliveries .lane-head { border-top: 3px solid var(--slate); }
+  .lane.coming .lane-icon, .lane.deliveries .lane-icon { background: var(--slate-tint); color: var(--slate-ink); }
+  .lane.coming .mini li, .lane.deliveries .mini li { flex-wrap: wrap; }
+  .lane.coming .mini .btn, .lane.deliveries .mini .chip { margin-inline-start: auto; }
+  .lane.deliveries .mini li.delivered { opacity: .6; }
 
   /* ── Ideas ───────────────────────────────────────────────────────────── */
   .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); box-shadow: var(--shadow-1); }
@@ -597,7 +603,7 @@
   <div class="bar-in">
     <div class="brand">
       <span class="mark" aria-hidden="true"><svg class="icon"><use href="#i-inbox" /></svg></span>
-      <h1 class="sr">Front desk</h1>
+      <h1 class="sr">My inbox</h1>
     </div>
     <div class="status" id="status" aria-live="polite"></div>
   </div>
@@ -605,7 +611,7 @@
 
 <div class="wrap">
   <main class="main">
-    <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your front desk...</p></section>
+    <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your inbox...</p></section>
     <div id="ribbon"></div>
     <div class="editbar" id="editbar" role="region" aria-label="Editing your page" hidden>
       <div class="editbar-actions">
@@ -622,7 +628,7 @@
     </div>
     <footer class="foot">
       <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
-      <p>Your front desk only reads your email. It never sends, deletes or moves anything in Gmail on its own. Replies and routines are set up in the chat, and nothing goes out without your OK.</p>
+      <p>This page only reads your email. It never sends, deletes or moves anything in Gmail on its own. Replies and routines are set up in the chat, and nothing goes out without your OK.</p>
     </footer>
   </main>
 </div>
@@ -650,50 +656,42 @@
 
   var cab = window.cabinet;
   var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
-  var MORNING = "morning-inbox-summary";
+  var MORNING = "morning-inbox-sort";
   var POLL_MS = 60000;
 
   /**
-   * Business plays: one tap to ask now, or to switch on as a routine. Each one belongs to a
-   * box and offers itself there when today's mail says it would help (see IDEA_FITS); all of
-   * them are always in the Ideas panel.
+   * Things your email can do for you: one tap to ask now, or to switch on as a routine. Each
+   * one belongs to a box and offers itself there when today's mail says it would help (see
+   * IDEA_FITS); all of them are always in the Ideas panel.
    */
   var IDEAS = [
-    { id: "leads", box: "waiting", icon: "i-user-plus", tint: "red", title: "List every new lead this week",
-      text: "Who asked about your services, what they need, and how to reach them.",
-      ask: "List every new lead from the past 7 days: who they are, what they need, when they wrote, and how to reach them. Put the newest first.",
-      when: "Every Monday", at: "every Monday at 8 am" },
-    { id: "overdue", box: "money", icon: "i-alarm", tint: "red", title: "Which invoices are overdue?",
-      text: "Who owes you, how much, how late, with a polite reminder ready to send.",
-      ask: "Which of my invoices are overdue? For each one: the customer, the amount, how many days late, and a short, polite reminder I could send.",
-      when: "Every Monday", at: "every Monday at 8 am" },
-    { id: "customers", box: "ask", icon: "i-users", tint: "blue", title: "Build my customer list from my email",
-      text: "Every customer with their contact details and when you last worked together.",
-      ask: "Build my customer list from my email: every customer, their company, email and phone if they gave one, what we did for them, and when we last emailed. Save it as a page in reports.",
-      when: "Every month", at: "on the 1st of every month at 8 am" },
-    { id: "replies", box: "waiting", icon: "i-reply", tint: "amber", title: "Draft replies to everyone waiting 2+ days",
+    { id: "replies", box: "waiting", icon: "i-reply", tint: "amber", title: "Reply to everyone waiting 3+ days",
       text: "Short replies in your voice, ready for you to check and send.",
-      ask: "Draft a short reply to everyone who has been waiting on me for more than 2 days, in my voice. Show them to me one by one so I can check them before anything is sent.",
-      when: "Every morning", at: "every weekday at 8 am" },
-    { id: "weekly", box: "ask", icon: "i-chart", tint: "green", title: "Weekly summary for my partner",
-      text: "New leads, money in and out, and what’s still open, on one page.",
-      ask: "Write a one-page summary of this week for my business partner: new leads, quotes sent and won, invoices paid and still open, bills paid and due, and anything that needs a decision. Save it as a page in reports.",
-      when: "Every Friday", at: "every Friday at 4 pm" },
-    { id: "receipts", box: "bills", icon: "i-receipt", tint: "green", title: "Receipts for my bookkeeper",
-      text: "This month’s receipts and bills with amounts, in one list.",
-      ask: "List every receipt and bill from this month with the vendor, the amount, the date and whether it’s paid, ready for my bookkeeper. Save it as a page in reports.",
+      ask: "Draft a short reply to everyone who has been waiting on me for more than 3 days, in my voice. Show them to me one by one so I can check them before anything is sent.",
+      when: "Every morning", at: "every day at 8 am" },
+    { id: "school", box: "coming", icon: "i-calendar", tint: "blue", title: "School emails this week",
+      text: "Dates, trips, forms to sign and things to bring, in one list.",
+      ask: "From this week's email, list everything from school: dates, trips, forms to sign, money to pay and things to bring, by day. Save it as a page in reports.",
+      when: "Every Sunday", at: "every Sunday at 6 pm" },
+    { id: "subs", box: "bills", icon: "i-repeat", tint: "green", title: "What do I pay for every month?",
+      text: "Every subscription and bill that charges you, and what it costs.",
+      ask: "From my email, list every subscription and regular bill that charges me: what it is, how much, how often, and when it last charged. Mark any I may not use any more. Save it as a page in reports.",
       when: "Every month", at: "on the 1st of every month at 9 am" },
-    { id: "quiet", box: "ask", icon: "i-quiet", tint: "blue", title: "Customers who’ve gone quiet",
-      text: "Regulars you haven’t heard from in 60 days, worth a call.",
-      ask: "Which regular customers have I not heard from in the last 60 days? For each: when we last emailed, what we did for them, and a line I could use to check in.",
-      when: "Every month", at: "on the 15th of every month at 8 am" },
-    { id: "quotes", box: "money", icon: "i-doc", tint: "amber", title: "Follow up on open quotes",
-      text: "Quotes with no answer after a week, with a friendly nudge drafted.",
-      ask: "Find the quotes I sent that have had no answer for a week or more. For each: who, what, the amount, when I sent it, and a friendly follow-up I could send.",
-      when: "Every Monday", at: "every Monday at 9 am" }
+    { id: "travel", box: "coming", icon: "i-open", tint: "blue", title: "My trips and bookings in one place",
+      text: "Flights, hotels and tickets, with dates and booking numbers.",
+      ask: "Find every flight, hotel, car and ticket booking in my email for the coming months. For each: what, when, where, and the booking number. Save it as a page in reports.",
+      when: "Every month", at: "on the 1st of every month at 8 am" },
+    { id: "warranty", box: "ask", icon: "i-doc", tint: "green", title: "Find a warranty or a receipt",
+      text: "Tell it what you bought, and it finds the email with the proof.",
+      ask: "Help me find a warranty or a receipt in my email. Ask me what I bought and roughly when, then find the email and tell me the store, the date, the price and how long the warranty lasts.",
+      when: "Every month", at: "on the 1st of every month at 9 am" },
+    { id: "newsletters", box: "more", icon: "i-inbox", tint: "blue", title: "Newsletters I never open",
+      text: "Which senders fill your inbox most, and which you never read.",
+      ask: "From the last 60 days of my email, which newsletters and stores email me most, and which do I never open? List them with how many emails each sent, so I can decide what to unsubscribe from. Don't unsubscribe from anything.",
+      when: "Every month", at: "on the 15th of every month at 8 am" }
   ];
 
-  var KIND_WORDS = { lead: "New lead", customer: "Customer", vendor: "Supplier", partner: "Partner", other: "" };
+  var KIND_WORDS = { family: "Family", friend: "Friend", school: "School", work: "Work", service: "Service", other: "" };
   var AVATAR_COLORS = ["#3a6351", "#505b6e", "#a8654a", "#7a6a4f", "#4f6f7a", "#6b5b7a", "#8a6d3b", "#5f6b62"];
 
   var state = {
@@ -704,7 +702,6 @@
     loaded: false,
     data: null,
     example: true,
-    loose: null,
     lastTry: null,
     setup: null,
     connecting: false,
@@ -753,7 +750,7 @@
     // /api/assets/<cabinet path>/<app folder>/index.html: the folder before the file.
     var parts = location.pathname.split("/").filter(Boolean);
     var at = parts.length - 2;
-    return at >= 0 ? decodeURIComponent(parts[at]) : "front-desk";
+    return at >= 0 ? decodeURIComponent(parts[at]) : "my-inbox";
   }
 
   var toastTimer = 0;
@@ -859,21 +856,19 @@
     return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; });
   }
   function quiet(promise) { return promise.catch(function () { return null; }); }
-  function usable(d) { return d && typeof d === "object" && (Array.isArray(d.waiting) || Array.isArray(d.money) || Array.isArray(d.bills)); }
+  function usable(d) { return d && typeof d === "object" && (Array.isArray(d.waiting) || Array.isArray(d.bills) || Array.isArray(d.events) || Array.isArray(d.deliveries)); }
 
   var loading = null;
   function load() {
     if (loading) return loading;
     loading = Promise.all([
       maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
-      quiet(maybe(readJson("data/loose-ends.json"))),
       quiet(maybe(readJson("data/status.json"))),
       quiet(maybe(readText("setup.md")))
     ]).then(function (got) {
       var latest = got[0];
-      state.loose = got[1] && Array.isArray(got[1].waiting) ? got[1] : null;
-      state.lastTry = got[2] && typeof got[2] === "object" ? got[2] : null;
-      state.setup = typeof got[3] === "string" ? parseSetup(got[3]) : null;
+      state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
+      state.setup = typeof got[2] === "string" ? parseSetup(got[2]) : null;
       if (usable(latest) && latest.example !== true) {
         state.data = latest;
         state.example = false;
@@ -1052,15 +1047,36 @@
   // ── Painting ───────────────────────────────────────────────────────────
 
   function waiting() { return state.data ? list(state.data.waiting) : []; }
-  function money() { return state.data ? list(state.data.money) : []; }
-  function bills() { return state.data ? list(state.data.bills) : []; }
+  /** Bills not paid yet: failed payments first, then the soonest due. */
+  function bills() {
+    var failed = function (x) { return x.status === "failed" || x.kind === "failed-payment" ? 0 : 1; };
+    return list(state.data ? state.data.bills : null).filter(function (x) { return x.status !== "paid" && x.kind !== "receipt"; })
+      .sort(function (a, b) {
+        var da = parseTime(a.due), db = parseTime(b.due);
+        return failed(a) - failed(b) || (da ? da.getTime() : 9e15) - (db ? db.getTime() : 9e15);
+      });
+  }
+  /** Appointments and bookings from today on, soonest first. */
+  function events() {
+    var today = startOfDay(refDate());
+    return list(state.data ? state.data.events : null).filter(function (x) { var d = parseTime(x.at); return d && startOfDay(d) >= today; })
+      .sort(function (a, b) { return parseTime(a.at) - parseTime(b.at); });
+  }
+  /** Packages on the way first, by when they arrive; delivered ones last. */
+  function deliveries() {
+    var done = function (x) { return x.status === "delivered" ? 1 : 0; };
+    return list(state.data ? state.data.deliveries : null).sort(function (a, b) {
+      var da = parseTime(a.eta), db = parseTime(b.eta);
+      return done(a) - done(b) || (da ? da.getTime() : 9e15) - (db ? db.getTime() : 9e15);
+    });
+  }
   function fyi() { return state.data ? list(state.data.fyi) : []; }
   function refDate() {
     var g = state.data ? parseTime(state.data.generatedAt) : null;
     return state.example && g ? g : new Date();
   }
   function findItem(id) {
-    var all = waiting().concat(money(), bills(), fyi());
+    var all = waiting().concat(bills(), events(), deliveries(), fyi());
     for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
     return null;
   }
@@ -1131,7 +1147,7 @@
 
   function paintHero() {
     var hero = $("hero");
-    if (!state.loaded) { hero.innerHTML = '<p class="skeleton">Opening your front desk...</p>'; return; }
+    if (!state.loaded) { hero.innerHTML = '<p class="skeleton">Opening your inbox...</p>'; return; }
     var s = gmailState();
     var g = state.gmail;
     var html;
@@ -1143,7 +1159,7 @@
       html = cardHero(icon("i-cloud"), "Gmail can’t be connected here yet",
         (why ? '<p class="lead">' + esc(why) + "</p>" : "") +
         "<p class=\"fine\">" + (cloud ? "For now, Gmail works in the Cabinet app on a computer." : "For now, Gmail works when this cabinet runs on this computer with your own AI.") +
-        " Below is an example from a made-up business.</p>");
+        " Below is an example from a made-up person.</p>");
     } else if (V2 && (s === "needs-sign-in" || s === "needs-you")) {
       html = cardHero("alert", "Gmail needs you",
         '<p class="lead">' + esc(g && g.problem && g.problem.text ? g.problem.text : "Gmail stopped letting Cabinet in.") + "</p>" +
@@ -1153,15 +1169,15 @@
         (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") + mailAgeHtml());
     } else if (V2 && s === "not-added") {
       var canConnect = g && g.canConnect;
-      html = cardHero(null, "See who’s waiting on you, what you’re owed and what’s due",
-        '<p class="lead">Connect Gmail and your front desk sorts your inbox every morning: leads and customers first, then quotes, invoices and bills.</p>' +
+      html = cardHero(null, "See who’s waiting for you, what’s due and what’s coming up",
+        '<p class="lead">Connect Gmail and every morning your inbox is sorted for you: people to answer first, then bills, appointments and deliveries. Ads stay out of sight.</p>' +
         (canConnect
           ? '<div class="actions"><button class="btn primary big" data-act="connect"' + (state.connecting ? " disabled" : "") + ">" +
             icon(state.connecting ? "i-refresh" : "i-mail", state.connecting ? "spin" : "") + (state.connecting ? "Connecting..." : "Connect Gmail") + "</button>" +
             '<span class="fine">' + (state.connecting ? "Finish in the window Cabinet opened." : "Takes a minute or two. Cabinet shows you each step.") + "</span></div>"
           : '<p class="fine"><b>Ask the person who owns this cabinet to connect Gmail.</b></p>') +
         (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
-        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never sends on its own</li><li>" + icon("i-check") + "Every morning at 7</li><li>" + icon("i-check") + "Below: an example from a made-up business</li></ul>");
+        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never sends on its own</li><li>" + icon("i-check") + "Every morning at 7</li><li>" + icon("i-check") + "Below: an example from a made-up person</li></ul>");
     } else if (state.running && (state.example || !state.data)) {
       html = cardHero(null, "Sorting your inbox...",
         '<p class="lead">This takes a minute or two. Stay here or come back later: the lanes fill in by themselves.</p>', true);
@@ -1208,17 +1224,17 @@
     var w = waiting();
     var n = w.length;
     var ex = state.example ? "Example: " : "";
-    var h = n === 0 ? "Nobody is waiting on you" : n + " " + plural(n, "person is", "people are") + " waiting on you";
+    var h = n === 0 ? "Nobody is waiting for your answer" : n + " " + plural(n, "person is", "people are") + " waiting for your answer";
     var lead = d.lead && typeof d.lead === "object" ? d.lead : null;
     var leadItem = lead ? findItem(lead.id) : null;
     var leadHtml = "";
     if (leadItem && text(lead.why)) {
-      leadHtml = '<p class="lead"><b dir="auto">' + esc(text(leadItem.from || leadItem.who, 80)) + ":</b> " +
-        '<span dir="auto">' + esc(text(leadItem.gist || leadItem.what, 140)) + ".</span> " + '<span dir="auto">' + esc(text(lead.why, 220)) + "</span></p>";
+      leadHtml = '<p class="lead"><b dir="auto">' + esc(text(leadItem.from || leadItem.title, 80)) + ":</b> " +
+        '<span dir="auto">' + esc(text(leadItem.gist || leadItem.what || leadItem.where, 140)) + ".</span> " + '<span dir="auto">' + esc(text(lead.why, 220)) + "</span></p>";
     } else if (n > 0) {
       leadHtml = '<p class="lead"><b dir="auto">' + esc(text(w[0].from, 80)) + ":</b> " + '<span dir="auto">' + esc(text(w[0].gist, 160)) + ".</span></p>";
     } else {
-      leadHtml = '<p class="lead">Your inbox is clear of anyone waiting. Have a look at money in and out below.</p>';
+      leadHtml = '<p class="lead">Nobody is waiting for you. Have a look at what’s coming up below.</p>';
     }
     var updated = "";
     var g = writtenAt(d.generatedAt);
@@ -1227,45 +1243,37 @@
   }
 
 
-  /** The four numbers an owner looks for first, each a card; shown for the example too, labelled by the ribbon. */
+  /** The numbers to look at first, each a card; shown for the example too, labelled by the ribbon. */
   function kpiCards() {
     var d = state.data;
     var w = waiting();
     var n = w.length;
-    var leads = w.filter(function (x) { return x.kind === "lead"; }).length;
-    var t = d.totals && typeof d.totals === "object" ? d.totals : {};
-    var m = money();
-    var owedItems = m.filter(function (x) { return x.status === "open" || x.status === "overdue"; });
-    var overdue = typeof t.overdue === "number" ? t.overdue : m.filter(function (x) { return x.status === "overdue"; }).length;
-    var b = bills().filter(function (x) { return x.status !== "paid"; });
-    var byDate = parseTime(t.billsDueBy);
-    var arrived = typeof d.arrived === "number" ? d.arrived : null;
-    var left = d.leftOut && typeof d.leftOut.count === "number" ? d.leftOut.count : 0;
-
+    var urgent = w.filter(function (x) { return x.urgent === true; }).length;
+    var t = totals();
+    var b = bills();
     var failed = b.filter(function (x) { return x.status === "failed" || x.kind === "failed-payment"; }).length;
     var nextDue = null;
     b.forEach(function (x) { var d2 = parseTime(x.due); if (d2 && x.status !== "autopay" && (!nextDue || d2 < nextDue)) nextDue = d2; });
-    var owedValue = amountText(t.owed, 20);
     var billsValue = amountText(t.billsDue, 20);
+    var ev = events();
+    var ref = refDate();
+    var weekEv = ev.filter(function (x) { return daysBetween(ref, parseTime(x.at)) <= 6; }).length;
+    var arrived = typeof d.arrived === "number" ? d.arrived : null;
+    var left = d.leftOut && typeof d.leftOut.count === "number" ? d.leftOut.count : 0;
     return {
       waiting: n
-        ? '<a class="kpi first" href="#lane-waiting"><span class="label">' + icon("i-reply") + "Waiting on you</span>" +
-          '<span class="value num">' + n + '</span><span class="sub">' + (leads ? leads + " new " + plural(leads, "lead", "leads") : "No new leads") + "</span></a>"
-        : '<a class="kpi calm" href="#lane-waiting"><span class="label">' + icon("i-check") + "Waiting on you</span>" +
+        ? '<a class="kpi first" href="#lane-waiting"><span class="label">' + icon("i-reply") + "To answer</span>" +
+          '<span class="value num">' + n + '</span><span class="sub">' + (urgent ? urgent + " today" : plural(n, "person", "people") + " waiting") + "</span></a>"
+        : '<a class="kpi calm" href="#lane-waiting"><span class="label">' + icon("i-check") + "To answer</span>" +
           '<span class="value num">0</span><span class="sub">Everyone has an answer</span></a>',
-      owed: '<a class="kpi money" href="#lane-money"><span class="label">' + icon("i-dollar") + "Owed to you</span>" +
-        (owedValue || owedItems.length
-          ? '<span class="value num" dir="auto">' + esc(owedValue || String(owedItems.length)) + '</span><span class="sub">' +
-            (overdue ? '<span class="hot">' + overdue + " overdue</span>" : owedItems.length + " open " + plural(owedItems.length, "invoice", "invoices")) + "</span>"
-          : '<span class="value none">None</span><span class="sub">No open invoices</span>') + "</a>",
-      bills: '<a class="kpi bills" href="#lane-bills"><span class="label">' + icon("i-receipt") + "Bills to pay</span>" +
+      bills: '<a class="kpi bills" href="#lane-bills"><span class="label">' + icon("i-receipt") + "Bills</span>" +
         (billsValue || b.length
           ? '<span class="value num" dir="auto">' + esc(billsValue || String(b.length)) + '</span><span class="sub">' +
-            (failed ? '<span class="hot">' + failed + " " + plural(failed, "card declined", "cards declined") + "</span>"
-              : byDate ? "Due by " + esc(shortDate(byDate))
-              : nextDue ? "Next due " + esc(shortDate(nextDue))
-              : b.length + " not paid yet") + "</span>"
+            (failed ? '<span class="hot">' + failed + " " + plural(failed, "payment failed", "payments failed") + "</span>"
+              : nextDue ? "Next due " + esc(shortDate(nextDue)) : b.length + " not paid yet") + "</span>"
           : '<span class="value none">None</span><span class="sub">Nothing due</span>') + "</a>",
+      coming: '<a class="kpi" href="#lane-coming"><span class="label">' + icon("i-calendar") + "Coming up</span>" +
+        '<span class="value num">' + weekEv + '</span><span class="sub">' + plural(weekEv, "date", "dates") + " this week</span></a>",
       arrived: arrived === null
         ? '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + "Set aside</span>" +
           '<span class="value num">' + left + '</span><span class="sub">Newsletters and ads</span></a>'
@@ -1308,8 +1316,8 @@
     if (!state.loaded || !state.data || !state.example) { el.innerHTML = ""; return; }
     var biz = text(state.data.business, 80);
     el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
-      (biz ? "<b>" + esc(biz) + "</b>, a made-up business. " : "A made-up business. ") +
-      "None of this is your email. Connect Gmail and your own front desk replaces it.</p></div>";
+      (biz ? "<b>" + esc(biz) + "</b>, a made-up person. " : "A made-up person. ") +
+      "None of this is your email. Connect Gmail and your own inbox replaces it.</p></div>";
   }
 
   // The priority lane: people waiting on an answer.
@@ -1354,42 +1362,20 @@
       (marked ? '<p class="hint">Check the highlighted words before you send it.</p>' : "") + "</div>";
   }
 
-  // Quotes and invoices, and bills: cards with the amount first.
-  var MONEY_TITLE = { invoice: "Invoice", quote: "Quote", payment: "Payment received", order: "Order" };
+  // Bills: cards with the amount first.
   function moneyCard(item, index, ref, lane) {
     var id = text(item.id, 60) || lane + index;
     var open = !!state.open[id];
     var status = text(item.status, 20);
-    var title;
-    if (lane === "money") {
-      var kindWord = MONEY_TITLE[item.kind];
-      title = kindWord
-        ? kindWord + (text(item.number) && item.kind !== "payment" ? " " + text(item.number, 20) : "") + " · " + (text(item.who, 60) || "a customer")
-        : text(item.who, 70) || text(item.from, 70) || "Money in";
-    } else {
-      title = text(item.from, 70) || "A bill";
-    }
-    var chip = "";
-    if (lane === "money") {
-      if (status === "overdue") chip = dueChip(item.due, ref, "due");
-      else if (status === "paid") chip = dueChip(item.date || item.due, ref, "paid");
-      else if (status === "waiting") {
-        var since = waitingDays(item.date, ref);
-        chip = '<span class="chip open">Waiting for a yes' + (since >= 1 ? " · " + since + " " + plural(since, "day", "days") : "") + "</span>";
-      } else chip = dueChip(item.due, ref, "due");
-    } else {
-      if (status === "failed" || item.kind === "failed-payment") chip = '<span class="chip hot">' + icon("i-alert") + "Card declined</span>";
-      else if (status === "paid" && !parseTime(item.due) && !parseTime(item.date)) chip = '<span class="chip ok">' + icon("i-check") + "Paid</span>";
-      else chip = dueChip(item.due || item.date, ref, status === "paid" ? "paid" : status === "autopay" ? "autopay" : "due");
-    }
+    var title = text(item.from, 70) || "A bill";
+    var chip;
+    if (status === "failed" || item.kind === "failed-payment") chip = '<span class="chip hot">' + icon("i-alert") + "Payment failed</span>";
+    else if (status === "renews") chip = dueChip(item.due, ref, "autopay").replace("Autopay", "Renews");
+    else chip = dueChip(item.due || item.date, ref, status === "autopay" ? "autopay" : "due");
     var cls = status === "overdue" || status === "failed" ? " overdue" : status === "paid" ? " paid" : "";
     var link = state.example ? "" : gmailLink(item);
     var actions = [];
-    if (canAsk()) {
-      if (lane === "money" && status === "overdue") actions.push('<button class="btn" data-act="nudge" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft a reminder</button>");
-      else if (lane === "money" && status === "waiting") actions.push('<button class="btn" data-act="followup" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft a follow-up</button>");
-      else actions.push('<button class="btn" data-act="more" data-id="' + esc(id) + '">' + icon("i-chat") + "Ask about this</button>");
-    }
+    if (canAsk()) actions.push('<button class="btn" data-act="more" data-id="' + esc(id) + '">' + icon("i-chat") + "Ask about this</button>");
     if (link) actions.push('<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Gmail</a>");
     return '<li class="money-card' + cls + '">' +
       '<button class="mc-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
@@ -1414,17 +1400,17 @@
   var ROW = 64;
   var GAP = 16;
   var PHONE_ROWS = 3;
-  // The first page changed (the next 3 things and the week replace the four numbers), so
-  // layouts kept under the first key are left behind and everyone starts on the new page.
-  var LAYOUT_KEY = "front-desk-layout@2";
+  var LAYOUT_KEY = "my-inbox-layout@1";
   var DEFAULT_LAYOUT = [
     { id: "headline", x: 0, y: 0, w: 12, h: 2 },
     { id: "next", x: 0, y: 2, w: 7, h: 4 },
     { id: "week", x: 7, y: 2, w: 5, h: 4 },
     { id: "waiting", x: 0, y: 6, w: 7, h: 6 },
-    { id: "money", x: 7, y: 6, w: 5, h: 5 },
+    { id: "coming", x: 7, y: 6, w: 5, h: 5 },
     { id: "bills", x: 7, y: 11, w: 5, h: 6 },
-    { id: "ask", x: 0, y: 12, w: 7, h: 5 }
+    { id: "deliveries", x: 0, y: 12, w: 7, h: 4 },
+    { id: "ask", x: 0, y: 16, w: 7, h: 5 },
+    { id: "more", x: 7, y: 17, w: 5, h: 4 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -1433,28 +1419,27 @@
    */
   var BOXES = {
     headline: { cls: "headline", draw: drawHeadline, group: "email", icon: "i-inbox", w: 12, h: 2, min: [4, 2],
-      title: "Headline", desc: "How many are waiting on you, and the email that matters most." },
+      title: "Headline", desc: "How many people wait for your answer, and the email that matters most." },
     next: { cls: "lane next", list: true, draw: drawNext, group: "email", icon: "i-check", w: 7, h: 4, min: [3, 3],
       title: "Your next 3 things", desc: "The three things to do first, from all your email, each one tap away. Tick them off." },
     week: { cls: "lane week", list: true, draw: drawWeek, group: "email", icon: "i-calendar", w: 5, h: 4, min: [3, 3],
-      title: "This week", desc: "What falls due in the next 7 days: bills, payments coming in, and promised dates." },
+      title: "This week", desc: "The next 7 days from your email: appointments, bills and deliveries." },
     waiting: { cls: "lane waiting", list: true, draw: drawWaiting, group: "email", icon: "i-reply", w: 7, h: 6,
-      title: "Waiting on you", desc: "People who need an answer, most urgent first, with replies drafted." },
-    money: { cls: "lane money", list: true, draw: drawMoney, group: "email", icon: "i-dollar", w: 5, h: 5,
-      title: "Quotes and invoices", desc: "What you are owed, what is overdue, and quotes with no answer." },
+      title: "People to answer", desc: "Family, friends, school and the people you deal with, with a reply ready." },
+    coming: { cls: "lane coming", list: true, draw: drawComing, group: "email", icon: "i-calendar", w: 5, h: 5, min: [3, 3],
+      title: "Coming up", desc: "Appointments, bookings and school dates from your email." },
     bills: { cls: "lane bills", list: true, draw: drawBills, group: "email", icon: "i-receipt", w: 5, h: 6,
-      title: "Bills to pay", desc: "What is due and when, and payments that failed." },
-    more: { cls: "lane more", list: true, draw: drawMore, group: "email", icon: "i-bell", w: 6, h: 4, min: [3, 2],
-      title: "Also worth a look", desc: "Reviews, permits and other news, and the newsletters set aside." },
-    friday: { cls: "lane waiting", list: true, draw: drawFriday, group: "email", icon: "i-alarm", w: 6, h: 4, min: [3, 2],
-      title: "Friday check", desc: "Who is still waiting on you at the end of the week.",
-      show: function () { return !!looseFresh(); }, when: "Shows up after a Friday check finds someone still waiting." },
+      title: "Bills and money", desc: "Home bills, subscriptions that renew, and payments that failed." },
+    deliveries: { cls: "lane deliveries", list: true, draw: drawDeliveries, group: "email", icon: "i-inbox", w: 7, h: 4, min: [3, 2],
+      title: "On the way", desc: "Packages and orders, and when they arrive." },
+    more: { cls: "lane more", list: true, draw: drawMore, group: "email", icon: "i-bell", w: 5, h: 4, min: [3, 2],
+      title: "Also worth a look", desc: "Letters from the bank and others, and the newsletters set aside." },
     "n-waiting": { cls: "nbox", draw: function () { return kpiCards().waiting; }, group: "numbers", icon: "i-reply", w: 3, h: 2, min: [2, 2],
-      title: "Waiting on you", desc: "How many people wait for an answer, and how many are new leads." },
-    "n-owed": { cls: "nbox", draw: function () { return kpiCards().owed; }, group: "numbers", icon: "i-dollar", w: 3, h: 2, min: [2, 2],
-      title: "Owed to you", desc: "The money customers owe you, and how much is overdue." },
+      title: "To answer", desc: "How many people wait for your answer." },
     "n-bills": { cls: "nbox", draw: function () { return kpiCards().bills; }, group: "numbers", icon: "i-receipt", w: 3, h: 2, min: [2, 2],
-      title: "Bills to pay", desc: "The bills not paid yet, and the next due date." },
+      title: "Bills", desc: "The bills not paid yet, and the next due date." },
+    "n-coming": { cls: "nbox", draw: function () { return kpiCards().coming; }, group: "numbers", icon: "i-calendar", w: 3, h: 2, min: [2, 2],
+      title: "Coming up", desc: "How many dates you have this week." },
     "n-arrived": { cls: "nbox", draw: function () { return kpiCards().arrived; }, group: "numbers", icon: "i-inbox", w: 3, h: 2, min: [2, 2],
       title: "New email", desc: "How much email came in, and how much was set aside." },
     ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-chat", w: 7, h: 5,
@@ -1463,7 +1448,7 @@
     ideas: { cls: "lane ideas", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 6, h: 5,
       title: "All ideas", desc: "Every idea in one box, one tap each." },
     setup: { cls: "lane setup", draw: drawSetup, group: "business", icon: "i-sliders", w: 6, h: 4,
-      title: "What your front desk knows", desc: "What you told it about the business, and a button to change it.",
+      title: "What your inbox knows", desc: "What you told it about yourself, and a button to change it.",
       show: function () { return !!state.setup; }, when: "Shows up once the setup page is in this cabinet." }
   };
   IDEAS.forEach(function (idea) {
@@ -1475,7 +1460,7 @@
     { id: "numbers", title: "Numbers" },
     { id: "ask", title: "Ask and ideas" },
     { id: "single", title: "One idea" },
-    { id: "business", title: "About the business" }
+    { id: "business", title: "About you" }
   ];
   var PHONE = window.matchMedia ? window.matchMedia("(max-width: 720px)") : null;
 
@@ -1872,7 +1857,7 @@
       ? '<svg class="cheer" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" /><path d="M12.5 20.5l5 5 10-11" /></svg>'
       : "";
     if (level === "S") {
-      return "<div>" + headlineTop("<h2>" + cheer + esc((state.example ? "Example: " : "") + (n ? n + " waiting on you" : "Nobody is waiting")) + "</h2>") + "</div>";
+      return "<div>" + headlineTop("<h2>" + cheer + esc((state.example ? "Example: " : "") + (n ? n + " to answer" : "Nobody is waiting")) + "</h2>") + "</div>";
     }
     var pill = cheer ? '<span class="calm-pill">' + cheer + "All caught up</span>" : "";
     return "<div>" + pill + dataHero() + mailMeta() + "</div>";
@@ -1898,7 +1883,7 @@
   // each with its press ready. "Done" takes a thing off the list for good (kept per person in
   // cabinet.mine) and the next one moves up.
 
-  var DONE_KEY = "front-desk-done@1";
+  var DONE_KEY = "my-inbox-done@1";
   function todayKey() {
     var d = new Date();
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -1914,9 +1899,9 @@
   }
 
   /**
-   * The order: someone stuck or a deadline today, a failed payment, an overdue invoice, a
-   * bill due within two days, a new lead, then the others waiting, then quotes with no
-   * answer for a week. Within a step, the longest waiting or latest first.
+   * The order: someone who needs an answer today, a failed payment, something today or
+   * tomorrow (an appointment, a delivery), a bill due within two days, then the others
+   * waiting. Within a step, the longest waiting or the soonest first.
    */
   function nextThings() {
     var ref = refDate();
@@ -1929,39 +1914,38 @@
       var days = waitingDays(w.waitingSince, ref);
       var kind = KIND_WORDS[w.kind] ? KIND_WORDS[w.kind].toLowerCase() : "";
       var why = [kind, days >= 2 ? "waiting " + days + " days" : wroteWords(w.receivedAt, ref)].filter(Boolean).join(", ");
-      add(w.urgent === true ? 0 : w.kind === "lead" ? 4 : 5, -days, "reply", w, "Reply to " + (text(w.from, 60) || "someone"), why,
+      add(w.urgent === true ? 0 : 5, -days, "reply", w, "Answer " + (text(w.from, 60) || "someone"), why,
         text(w.reply) ? { label: "Copy the reply", act: "copy", id: id } : { label: "Draft a reply", act: "reply", id: id });
     });
     bills().forEach(function (b) {
       var from = text(b.from, 60) || "a bill";
       var amount = amountText(b.amount, 20);
       if (b.status === "failed" || b.kind === "failed-payment") {
-        add(1, 0, "bill", b, "Fix the declined payment", from + (amount ? ", " + amount : ""),
-          { label: "What do I do?", act: "ask", q: "A payment to " + from + (amount ? " (" + amount + ")" : "") + " was declined. What do I need to do to fix it?" });
+        add(1, 0, "bill", b, "Fix the failed payment", from + (amount ? ", " + amount : ""),
+          { label: "What do I do?", act: "ask", q: "A payment to " + from + (amount ? " (" + amount + ")" : "") + " failed. What do I need to do to fix it?" });
         return;
       }
       var due = parseTime(b.due);
       var inDays = due ? daysBetween(ref, due) : null;
-      if (b.status !== "paid" && b.status !== "autopay" && inDays !== null && inDays <= 2) {
+      if (b.status !== "autopay" && b.status !== "renews" && inDays !== null && inDays <= 2) {
         add(3, inDays, "bill", b, "Pay " + from, (amount ? amount + ", " : "") + (inDays < 0 ? -inDays + " " + plural(-inDays, "day", "days") + " late" : inDays === 0 ? "due today" : inDays === 1 ? "due tomorrow" : "due in 2 days"),
           { label: "Ask about it", act: "more", id: text(b.id, 60) });
       }
     });
-    money().forEach(function (m) {
-      var who = text(m.who, 60) || "a customer";
-      var amount = amountText(m.amount, 20);
-      if (m.status === "overdue") {
-        var due = parseTime(m.due);
-        var late = due ? daysBetween(due, ref) : 0;
-        add(2, -late, "invoice", m, "Remind " + who, (amount ? amount + ", " : "") + (late > 0 ? late + " " + plural(late, "day", "days") + " late" : "overdue"),
-          { label: "Draft a reminder", act: "nudge", id: text(m.id, 60) });
-      } else if (m.kind === "quote" && m.status === "waiting") {
-        var since = waitingDays(m.date, ref);
-        if (since >= 7) {
-          add(6, -since, "quote", m, "Follow up with " + who, (amount ? amount + " quote, " : "") + "no answer for " + since + " days",
-            { label: "Draft a follow-up", act: "followup", id: text(m.id, 60) });
-        }
-      }
+    events().forEach(function (e) {
+      var at = parseTime(e.at);
+      var inDays = daysBetween(ref, at);
+      if (inDays > 1) return;
+      var hasTime = /T\d/.test(String(e.at));
+      add(2, at.getTime(), "event", e, (text(e.title, 60) || "An appointment") + (inDays === 0 ? " today" : " tomorrow"),
+        [hasTime ? clock(at) : "", text(e.where, 60)].filter(Boolean).join(", ") || "from your email",
+        { label: "Ask about it", act: "more", id: text(e.id, 60) });
+    });
+    deliveries().forEach(function (d) {
+      var eta = parseTime(d.eta);
+      if (d.status === "delivered" || !eta || daysBetween(ref, eta) !== 0) return;
+      add(4, 0, "delivery", d, "A package arrives today", [text(d.from, 40), text(d.what, 60)].filter(Boolean).join(", "),
+        { label: "Ask about it", act: "more", id: text(d.id, 60) });
     });
     return out.sort(function (a, b) { return a.rank - b.rank || a.order - b.order; });
   }
@@ -2041,9 +2025,9 @@
   }
 
   // ── This week ──────────────────────────────────────────────────────────
-  // What falls due in the next seven days: bills to pay, invoices customers should pay, and
-  // the deadlines people asked for. Small: how many and the next; medium: a list by day;
-  // large: a strip of seven days.
+  // The next seven days from the email: appointments and bookings, bills, and the day a
+  // package arrives. Small: how many and the next; medium: a list by day; large: a strip of
+  // seven days.
 
   function weekItems() {
     var start = startOfDay(refDate());
@@ -2056,33 +2040,34 @@
       if (at < 0 || at > 6) return;
       out.push({ at: at, d: d, title: title, amount: amount, tone: tone });
     }
+    events().forEach(function (e) {
+      var t = parseTime(e.at);
+      add(e.at, (/T\d/.test(String(e.at)) ? bareClock(t) + " " : "") + (text(e.title, 50) || "An appointment"), "", "person");
+    });
     bills().forEach(function (b) {
-      if (b.status === "paid" || b.status === "failed") return;
-      add(b.due, text(b.from, 40) || "A bill", amountText(b.amount, 20), b.status === "autopay" ? "auto" : "out");
+      if (b.status === "failed") return;
+      add(b.due, text(b.from, 40) || "A bill", amountText(b.amount, 20), b.status === "autopay" || b.status === "renews" ? "auto" : "out");
     });
-    money().forEach(function (m) {
-      if (m.status === "open") add(m.due, (text(m.who, 40) || "A customer") + " pays", amountText(m.amount, 20), "in");
-    });
-    waiting().forEach(function (w) {
-      if (w.due) add(w.due, (text(w.from, 40) || "Someone") + (text(w.gist) ? ": " + text(w.gist, 60) : ""), "", "person");
+    deliveries().forEach(function (d) {
+      if (d.status !== "delivered") add(d.eta, (text(d.from, 30) || "A package") + (text(d.what) ? ": " + text(d.what, 40) : ""), "", "in");
     });
     return out.sort(function (a, b) { return a.at - b.at; });
   }
   function dayWords(at, d) {
     return at === 0 ? "Today" : at === 1 ? "Tomorrow" : d.toLocaleDateString([], { weekday: "short", day: "numeric" });
   }
-  var TONE_WORDS = { out: "to pay", auto: "pays itself", in: "coming in", person: "promised" };
+  var TONE_WORDS = { out: "to pay", auto: "pays itself", in: "arrives", person: "appointment" };
 
   function drawWeek(level) {
     var items = weekItems();
     if (level === "S") {
       var first = items[0];
-      return sumBox("week", "This week", "i-calendar", String(items.length), items.length ? "due in the next 7 days" : "Nothing due",
+      return sumBox("week", "This week", "i-calendar", String(items.length), items.length ? "in the next 7 days" : "A quiet week",
         first ? "<b>" + esc(dayWords(first.at, first.d)) + ":</b> " + esc(first.title) : "");
     }
     var head = boxHead("week", "This week", "i-calendar", "", items.length || null);
     if (!items.length) {
-      return head + '<div class="box-body"><p class="lane-empty">Nothing falls due in the next 7 days.</p></div>' +
+      return head + '<div class="box-body"><p class="lane-empty">Nothing planned in the next 7 days.</p></div>' +
         '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
     }
     if (level === "M") {
@@ -2114,30 +2099,62 @@
     if (level === "S") {
       var urgent = w.filter(function (x) { return x.urgent === true; }).length;
       var top = w[0];
-      return sumBox("waiting", "Waiting on you", "i-reply", String(w.length),
+      return sumBox("waiting", "To answer", "i-reply", String(w.length),
         urgent ? '<span class="hot">' + urgent + " to answer today</span>" : w.length ? plural(w.length, "person", "people") + " waiting" : "Everyone has an answer",
         top ? "<b>" + esc(text(top.from, 60)) + ":</b> " + esc(text(top.gist, 120)) : "");
     }
-    return listBox("waiting", "Waiting on you", "i-reply", "", w.length,
+    return listBox("waiting", "People to answer", "i-reply", "", w.length,
       '<ol class="rows">' + w.map(function (item, i) { return waitingRow(item, i, ref); }).join("") + "</ol>",
-      "Nobody is waiting on an answer from you.") + nudgeHtml(boxIdea("waiting"));
+      "Nobody is waiting for your answer.") + nudgeHtml(boxIdea("waiting"));
   }
 
-  function drawMoney(level) {
-    var m = money();
+  /** Appointments and bookings, soonest first, each with its day and time. */
+  function drawComing(level) {
+    var ev = events();
     var ref = refDate();
-    var owed = amountText(totals().owed, 20);
-    if (level === "S") {
-      var open = m.filter(function (x) { return x.status === "open" || x.status === "overdue"; });
-      var overdue = m.filter(function (x) { return x.status === "overdue"; });
-      var first = overdue[0] || open[0];
-      return sumBox("money", "Quotes and invoices", "i-dollar", owed || (open.length ? String(open.length) : ""),
-        overdue.length ? '<span class="hot">' + overdue.length + " overdue</span>" : open.length ? open.length + " open " + plural(open.length, "invoice", "invoices") : "No open invoices",
-        first ? esc(text(first.who, 60)) + (amountText(first.amount, 24) ? ", " + esc(amountText(first.amount, 24)) : "") : "");
+    function when(e) {
+      var d = parseTime(e.at);
+      var gap = daysBetween(ref, d);
+      var day = gap === 0 ? "Today" : gap === 1 ? "Tomorrow" : gap < 7 ? d.toLocaleDateString([], { weekday: "long" }) : shortDate(d);
+      return day + (/T\d/.test(String(e.at)) ? ", " + clock(d) : "");
     }
-    return listBox("money", "Quotes and invoices", "i-dollar", owed ? owed + " owed" : "", m.length,
-      '<ul class="cards">' + m.map(function (item, i) { return moneyCard(item, i, ref, "money"); }).join("") + "</ul>",
-      "No quotes or invoices in this batch.") + nudgeHtml(boxIdea("money"));
+    if (level === "S") {
+      var top = ev[0];
+      return sumBox("coming", "Coming up", "i-calendar", String(ev.length), ev.length ? plural(ev.length, "date", "dates") + " ahead" : "Nothing planned",
+        top ? "<b>" + esc(when(top)) + ":</b> " + esc(text(top.title, 80)) : "");
+    }
+    return listBox("coming", "Coming up", "i-calendar", "", ev.length,
+      '<ul class="mini rows">' + ev.map(function (e) {
+        var link = state.example ? "" : gmailLink(e);
+        return '<li><b dir="auto">' + esc(text(e.title, 80) || "An appointment") + '</b><span dir="auto">' + esc([when(e), text(e.where, 60)].filter(Boolean).join(" · ")) + "</span>" +
+          (link ? '<a class="btn quiet small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open</a>" : "") + "</li>";
+      }).join("") + "</ul>", "Nothing planned in your email.") + nudgeHtml(boxIdea("coming"));
+  }
+
+  /** Packages: on the way first, by when they arrive. */
+  var DELIVERY_WORDS = { shipped: "On the way", "out-for-delivery": "Out for delivery", delivered: "Delivered", delayed: "Delayed" };
+  function drawDeliveries(level) {
+    var all = deliveries();
+    var ref = refDate();
+    var coming = all.filter(function (x) { return x.status !== "delivered"; });
+    function eta(x) {
+      var d = parseTime(x.eta);
+      if (!d) return "";
+      var gap = daysBetween(ref, d);
+      return gap === 0 ? "today" : gap === 1 ? "tomorrow" : gap > 1 && gap < 7 ? d.toLocaleDateString([], { weekday: "long" }) : shortDate(d);
+    }
+    if (level === "S") {
+      var top = coming[0];
+      return sumBox("deliveries", "On the way", "i-inbox", String(coming.length), plural(coming.length, "package", "packages") + " on the way",
+        top ? esc(text(top.from, 40)) + (eta(top) ? ", " + esc(eta(top)) : "") : "");
+    }
+    return listBox("deliveries", "On the way", "i-inbox", "", coming.length,
+      '<ul class="mini rows">' + all.map(function (x) {
+        var word = DELIVERY_WORDS[x.status] || "On the way";
+        var when = eta(x);
+        return '<li class="' + esc(x.status || "") + '"><b dir="auto">' + esc(text(x.from, 50) || "A package") + '</b><span dir="auto">' + esc(text(x.what, 90)) + "</span>" +
+          '<span class="chip ' + (x.status === "delayed" ? "hot" : x.status === "delivered" ? "ok" : "open") + '">' + esc(word + (when && x.status !== "delivered" ? ", " + when : "")) + "</span></li>";
+      }).join("") + "</ul>", "No package on the way.");
   }
 
   function drawBills(level) {
@@ -2149,14 +2166,14 @@
       var failed = unpaid.filter(function (x) { return x.status === "failed" || x.kind === "failed-payment"; }).length;
       var next = null;
       unpaid.forEach(function (x) { var d = parseTime(x.due); if (d && x.status !== "autopay" && (!next || d < next)) next = d; });
-      return sumBox("bills", "Bills to pay", "i-receipt", due || (unpaid.length ? String(unpaid.length) : ""),
-        failed ? '<span class="hot">' + failed + " " + plural(failed, "card declined", "cards declined") + "</span>"
+      return sumBox("bills", "Bills", "i-receipt", due || (unpaid.length ? String(unpaid.length) : ""),
+        failed ? '<span class="hot">' + failed + " " + plural(failed, "payment failed", "payments failed") + "</span>"
           : next ? "Next due " + esc(shortDate(next)) : unpaid.length ? unpaid.length + " not paid yet" : "Nothing due",
         "");
     }
-    return listBox("bills", "Bills to pay", "i-receipt", due ? due + " due" : "", b.length,
+    return listBox("bills", "Bills and money", "i-receipt", due ? due + " due" : "", b.length,
       '<ul class="cards">' + b.map(function (item, i) { return moneyCard(item, i, ref, "bills"); }).join("") + "</ul>",
-      "No bills in this batch.") + nudgeHtml(boxIdea("bills"));
+      "No bill waiting to be paid.") + nudgeHtml(boxIdea("bills"));
   }
 
   /** Asking reads the mail, so it waits until Gmail is connected; a viewer never sees the box. */
@@ -2175,50 +2192,25 @@
       var senders = list(left.senders).slice(0, 4).map(function (s) { return text(s.name, 40) + " " + (s.count || ""); }).join(", ");
       rows.push("<li><b>" + aside + " set aside</b><span dir=\"auto\">Newsletters and ads" + (senders ? ": " + esc(senders) : "") + ". Still in Gmail.</span></li>");
     }
-    return listBox("more", "Also worth a look", "i-bell", "", rows.length, '<ul class="mini rows">' + rows.join("") + "</ul>", "Nothing else worth a look today.");
+    return listBox("more", "Also worth a look", "i-bell", "", rows.length, '<ul class="mini rows">' + rows.join("") + "</ul>", "Nothing else worth a look today.") + nudgeHtml(boxIdea("more"));
   }
 
-  /** The Friday check, for the week it was made in, or null. */
-  function looseFresh() {
-    var loose = state.loose;
-    var at = loose ? parseTime(loose.generatedAt) : null;
-    return !state.example && loose && at && loose.waiting.length && (Date.now() - at.getTime()) < 7 * DAY_MS ? loose : null;
-  }
-  function drawFriday(level) {
-    var loose = looseFresh();
-    if (!loose) return "";
-    var ref = new Date();
-    var title = text(loose.headline, 120) || "Still waiting on you";
-    if (level === "S") {
-      var top = loose.waiting[0];
-      return sumBox("friday", "Friday check", "i-alarm", String(loose.waiting.length), "still waiting on you",
-        top ? "<b>" + esc(text(top.from, 60)) + ":</b> " + esc(text(top.gist, 100) || text(top.subject, 100)) : "");
-    }
-    return listBox("friday", title, "i-alarm", "", loose.waiting.length,
-      '<ul class="mini rows">' + loose.waiting.slice(0, 15).map(function (x, i) {
-        var days = waitingDays(x.waitingSince, ref);
-        return '<li><b dir="auto">' + esc(text(x.from, 80)) + '</b><span dir="auto">' + esc(text(x.gist, 140) || text(x.subject, 140)) +
-          (days >= 1 ? " · " + days + " " + plural(days, "day", "days") : "") + "</span>" +
-          (canAsk() ? '<button class="btn quiet" style="margin-inline-start:auto" data-act="loose" data-i="' + i + '">' + icon("i-pen") + "Draft a reply</button>" : "") + "</li>";
-      }).join("") + "</ul>", "");
-  }
-
-  /** What the owner told the cabinet about the business, from setup.md. */
+  /** What the person told the cabinet about themselves, from setup.md. */
   function drawSetup(level) {
     var items = state.setup || [];
     var set = items.filter(function (a) { return !a.unset; }).length;
     var btn = canAsk() && askReady()
-      ? '<button class="btn small" data-act="ask" data-q="' + esc(set ? "I want to change what you know about my business." : "I want to tell you about my business so you can sort my email better.") + '">' +
+      ? '<button class="btn small" data-act="ask" data-q="' + esc(set ? "I want to change what you know about me." : "I want to tell you about myself so you can sort my email better.") + '">' +
         icon("i-pen") + (set ? "Change this" : "Tell it now") + "</button>"
       : "";
     if (level === "S") {
       return sumBox("setup", "What it knows", "i-sliders", set + " of " + items.length, "answers given", "") + (btn ? '<div class="box-pad">' + btn + "</div>" : "");
     }
     if (!set) {
-      return boxHead("setup", "Tell your front desk about the business", "i-sliders", "", null) +
-        '<div class="box-pad"><p>What you do, whose email always matters, what to set aside, and how your replies sound. Two minutes here makes every sort sharper.</p>' + btn + "</div>";
+      return boxHead("setup", "Tell your inbox about yourself", "i-sliders", "", null) +
+        '<div class="box-pad"><p>Who is in your family, whose email always matters, what to set aside, and how your replies sound. Two minutes here makes every sort sharper.</p>' + btn + "</div>";
     }
-    return boxHead("setup", "What your front desk knows", "i-sliders", "", null) +
+    return boxHead("setup", "What your inbox knows", "i-sliders", "", null) +
       '<div class="box-pad"><dl class="facts">' + items.slice(0, 5).map(function (a) {
         return "<div><dt>" + esc(a.label) + "</dt><dd" + (a.unset ? ' class="unset"' : "") + ' dir="auto">' + esc(a.unset ? "Not set yet" : text(a.value, 240)) + "</dd></div>";
       }).join("") + "</dl>" + btn + "</div>";
@@ -2264,7 +2256,7 @@
     var note = state.askNote || (askReady() ? "" : askHint());
     return (level === "S" ? "" : '<h2 id="ask-title">Ask, or try an idea</h2>') +
       '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
-      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about customers, quotes, bills..." />' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about people, bills, bookings..." />' +
       '<button type="submit" class="btn primary">' + icon("i-send") + "Ask</button></form>" +
       (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
       (more.length ? '<p class="qs-label">More ideas</p><div class="qs">' + more.map(function (idea) {
@@ -2284,19 +2276,21 @@
   // numbers, at most one per box. "Hide" takes it off the page for good (kept per person
   // in cabinet.mine); the Ideas panel in the top bar always has every one.
 
-  var HIDDEN_IDEAS_KEY = "front-desk-hidden-ideas@1";
+  var HIDDEN_IDEAS_KEY = "my-inbox-hidden-ideas@1";
 
   /** What today's mail says, counted once for every idea. */
   function ideaFacts() {
     var ref = refDate();
     var w = waiting();
-    var m = money();
+    var ev = events();
+    var left = state.data && state.data.leftOut && typeof state.data.leftOut.count === "number" ? state.data.leftOut.count : 0;
     return {
       ref: ref,
-      longWait: w.filter(function (x) { return waitingDays(x.waitingSince, ref) >= 2; }).length,
-      leads: w.filter(function (x) { return x.kind === "lead"; }).length,
-      overdue: m.filter(function (x) { return x.status === "overdue"; }),
-      oldQuotes: m.filter(function (x) { return x.kind === "quote" && x.status === "waiting" && waitingDays(x.date, ref) >= 7; }).length
+      longWait: w.filter(function (x) { return waitingDays(x.waitingSince, ref) >= 3; }).length,
+      school: ev.filter(function (x) { return x.kind === "school"; }).length + w.filter(function (x) { return x.kind === "school"; }).length,
+      travel: ev.filter(function (x) { return x.kind === "travel"; }).length,
+      subs: bills().filter(function (x) { return x.kind === "subscription"; }).length,
+      left: left
     };
   }
 
@@ -2304,38 +2298,21 @@
   var IDEA_FITS = {
     replies: function (f) {
       var n = f.longWait;
-      return n ? { line: n + " " + plural(n, "person has", "people have") + " waited 2 days or more.", act: n === 1 ? "Draft the reply" : "Draft their replies" } : null;
+      return n ? { line: n + " " + plural(n, "person has", "people have") + " waited 3 days or more.", act: n === 1 ? "Draft the reply" : "Draft their replies" } : null;
     },
-    leads: function (f) {
-      var n = f.leads;
-      return n ? { line: n + " new " + plural(n, "lead", "leads") + " wrote.", act: "List them with contact details" } : null;
+    school: function (f) {
+      return f.school ? { line: "School wrote this week. See the dates and forms in one list?", act: "List what school needs" } : null;
     },
-    overdue: function (f) {
-      var n = f.overdue.length;
-      if (!n) return null;
-      var one = f.overdue[0];
-      var due = parseTime(one.due);
-      var late = due ? daysBetween(due, f.ref) : 0;
-      var line = n === 1 && late > 0
-        ? (text(one.number) ? "Invoice " + text(one.number, 20) : "One invoice") + " is " + late + " " + plural(late, "day", "days") + " overdue."
-        : n + " " + plural(n, "invoice is", "invoices are") + " overdue.";
-      return { line: line, act: n === 1 ? "Draft a reminder" : "Draft reminders" };
+    subs: function (f) {
+      return f.subs ? { line: f.subs + " " + plural(f.subs, "subscription renews", "subscriptions renew") + " soon. Worth a look at what you still use?", act: "List what I pay for" } : null;
     },
-    quotes: function (f) {
-      var n = f.oldQuotes;
-      return n ? { line: n + " " + plural(n, "quote has", "quotes have") + " had no answer for a week or more.", act: n === 1 ? "Draft a follow-up" : "Draft follow-ups" } : null;
+    travel: function (f) {
+      return f.travel ? { line: "You have a trip coming up. Keep the bookings in one place?", act: "Gather my bookings" } : null;
     },
-    receipts: function (f) {
-      return f.ref.getDate() >= 25 ? { line: "The month is ending. Your bookkeeper will want this month’s receipts.", act: "Gather them in one list" } : null;
-    },
-    weekly: function (f) {
-      var day = f.ref.getDay();
-      return day === 4 || day === 5
-        ? { line: "It’s " + f.ref.toLocaleDateString([], { weekday: "long" }) + ". Send your partner this week’s summary?", act: "Write the summary" }
-        : null;
-    },
-    quiet: function () { return { line: "Some regulars may have gone quiet. Worth a call?", act: "Find who to call" }; },
-    customers: function () { return { line: "Your email already holds your customer list.", act: "Build my customer list" }; }
+    warranty: function () { return { line: "Your email keeps every receipt and warranty. Need one?", act: "Find it for me" }; },
+    newsletters: function (f) {
+      return f.left >= 10 ? { line: f.left + " newsletters and ads came in since yesterday. See which you never read?", act: "Show me" } : null;
+    }
   };
 
   function ideaById(id) {
@@ -2364,7 +2341,7 @@
   /** Ideas the list boxes on the page are showing right now. */
   function shownIdeas() {
     var shown = {};
-    ["waiting", "money", "bills"].forEach(function (id) {
+    ["waiting", "coming", "bills", "more"].forEach(function (id) {
       var el = boxEls[id];
       if (!onPage(id) || (el && el.getAttribute("data-level") === "S")) return;
       var f = boxIdea(id);
@@ -2975,7 +2952,7 @@
 
   function about(item) {
     var who = text(item.from || item.who, 90);
-    var what = text(item.subject, 140) || text(item.what, 140) || text(item.gist, 140);
+    var what = text(item.subject, 140) || text(item.what, 140) || text(item.gist, 140) || text(item.title, 140);
     return who + (what ? ' about "' + what + '"' : "");
   }
 
@@ -3005,12 +2982,8 @@
     else if (act === "copy" && item) copyText(text(item.reply));
     else if (act === "reply" && item) {
       ask((text(item.reply) ? "Change the reply you drafted to " : "Draft a short reply to ") + about(item) + ". Show it to me before anything is sent.");
-    } else if (act === "nudge" && item) {
-      ask("Draft a short, polite payment reminder for " + (text(item.who, 90) || "this customer") + " about invoice " + (text(item.number, 30) || "") + " (" + text(item.amount, 30) + "). Show it to me before anything is sent.");
-    } else if (act === "followup" && item) {
-      ask("Draft a friendly follow-up to " + (text(item.who, 90) || "this customer") + " about quote " + (text(item.number, 30) || "") + " (" + text(item.what, 90) + ", " + text(item.amount, 30) + "). Show it to me before anything is sent.");
     } else if (act === "more" && item) {
-      ask("Tell me more about the email from " + about(item) + ".");
+      ask("Tell me more about " + about(item) + ".");
     } else if (act === "idea-now") {
       var idea = ideaById(el.getAttribute("data-idea"));
       if (idea) { closeDrawer(); ask(idea.ask); }
@@ -3049,9 +3022,6 @@
       resetLayout();
     } else if (act === "drawer-close") {
       closeDrawer();
-    } else if (act === "loose" && state.loose) {
-      var x = state.loose.waiting[+el.getAttribute("data-i")];
-      if (x) ask("Draft a short reply to " + about(x) + ". Show it to me before anything is sent.");
     }
   });
 
