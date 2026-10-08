@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <!--
-  Gmail Inbox: the front desk. The cabinet opens on this page.
+  Gmail for Business: the front desk. The cabinet opens on this page.
 
   For a small business owner: who is waiting on an answer (leads and customers first),
-  quotes and invoices, bills to pay, one tap to a drafted reply, and an Ideas gallery of
-  business plays, each one tap to ask now or to switch on as a routine.
+  quotes with no answer yet, regular customers who have gone quiet, one tap to a drafted
+  reply, and an Ideas gallery of business plays, each one tap to ask now or to switch on
+  as a routine. Invoices, payments and bills are Gmail for Finance's, not this page's.
 
   Where the words come from: the morning routine reads Gmail and writes data/latest.json
   next to this page (the shape is data/EXAMPLE-latest.json: a made-up HVAC company, always
-  labelled as an example here). The Friday routine writes data/loose-ends.json. A routine
+  labelled as an example here). The Friday routine writes data/loose-ends.json, the Monday
+  routine data/gone-quiet.json (its example is data/EXAMPLE-gone-quiet.json). A routine
   that could not read the mail writes data/status.json with ok:false and why. setup.md
   holds what the owner told the cabinet about the business.
 
@@ -219,7 +221,7 @@
   .agenda .t { min-width: 0; overflow-wrap: anywhere; }
   .agenda .t small { display: block; color: var(--ink-3); font-size: 12.5px; }
   .agenda .amt { font-weight: 700; }
-  .agenda .in .amt { color: var(--sage-ink); }
+  .agenda .quote .amt { color: var(--sage-ink); }
   .agenda .person .t small { color: var(--terra-ink); }
   .strip { flex: 1; min-height: 0; overflow: hidden; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .strip .col { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 10px 8px; border-inline-end: 1px solid var(--line); }
@@ -230,18 +232,17 @@
   .strip .col.today .dnum, .strip .col.today .dname { color: var(--sage); }
   .ev { display: block; padding: 6px 8px; border-radius: 10px; background: var(--slate-tint); color: var(--slate-ink); font-size: 12.5px; line-height: 1.3; overflow-wrap: anywhere; }
   .ev b { display: block; font-weight: 700; }
-  .ev.in { background: var(--sage-tint); color: var(--sage-ink); }
+  .ev.quote { background: var(--sage-tint); color: var(--sage-ink); }
   .ev.person { background: var(--terra-tint); color: var(--terra-ink); }
-  .ev.auto { background: var(--panel); color: var(--ink-3); }
   .ev-more { font-size: 12px; color: var(--ink-3); padding-inline-start: 4px; }
   .lane.waiting .count.zero { background: var(--panel); color: var(--ink-2); }
   .lane.money .lane-head { border-top: 3px solid var(--sage); }
-  .lane.bills .lane-head { border-top: 3px solid var(--slate); }
+  .lane.quiet .lane-head { border-top: 3px solid var(--slate); }
   .lane.more .lane-head { border-top: 3px solid var(--slate); }
   .lane-head .lane-icon { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; }
   .lane.waiting .lane-icon { background: var(--terra-tint); color: var(--terra-ink); }
   .lane.money .lane-icon { background: var(--sage-tint); color: var(--sage-ink); }
-  .lane.bills .lane-icon { background: var(--slate-tint); color: var(--slate-ink); }
+  .lane.quiet .lane-icon { background: var(--slate-tint); color: var(--slate-ink); }
   .lane.more .lane-icon { background: var(--slate-tint); color: var(--slate-ink); }
   .lane-empty { padding: 18px; color: var(--ink-3); margin: 0; }
 
@@ -302,6 +303,10 @@
   .mini li:last-child { border-bottom: 0; }
   .mini b { font-weight: 700; white-space: nowrap; }
   .mini span { color: var(--ink-2); }
+  .lane.quiet .mini li { flex-direction: column; align-items: stretch; gap: 2px; }
+  .lane.quiet .mini b { white-space: normal; }
+  .lane.quiet .mini .co { color: var(--ink-3); font-weight: 500; }
+  .quiet-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-inline-start: -10px; margin-top: 2px; }
 
   /* ── Ideas ───────────────────────────────────────────────────────────── */
   .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); box-shadow: var(--shadow-1); }
@@ -663,10 +668,6 @@
       text: "Who asked about your services, what they need, and how to reach them.",
       ask: "List every new lead from the past 7 days: who they are, what they need, when they wrote, and how to reach them. Put the newest first.",
       when: "Every Monday", at: "every Monday at 8 am" },
-    { id: "overdue", box: "money", icon: "i-alarm", tint: "red", title: "Which invoices are overdue?",
-      text: "Who owes you, how much, how late, with a polite reminder ready to send.",
-      ask: "Which of my invoices are overdue? For each one: the customer, the amount, how many days late, and a short, polite reminder I could send.",
-      when: "Every Monday", at: "every Monday at 8 am" },
     { id: "customers", box: "ask", icon: "i-users", tint: "blue", title: "Build my customer list from my email",
       text: "Every customer with their contact details and when you last worked together.",
       ask: "Build my customer list from my email: every customer, their company, email and phone if they gave one, what we did for them, and when we last emailed. Save it as a page in reports.",
@@ -676,18 +677,14 @@
       ask: "Draft a short reply to everyone who has been waiting on me for more than 2 days, in my voice. Show them to me one by one so I can check them before anything is sent.",
       when: "Every morning", at: "every weekday at 8 am" },
     { id: "weekly", box: "ask", icon: "i-chart", tint: "green", title: "Weekly summary for my partner",
-      text: "New leads, money in and out, and what’s still open, on one page.",
-      ask: "Write a one-page summary of this week for my business partner: new leads, quotes sent and won, invoices paid and still open, bills paid and due, and anything that needs a decision. Save it as a page in reports.",
+      text: "New leads, quotes sent and won, and who is still waiting, on one page.",
+      ask: "Write a one-page summary of this week for my business partner: new leads, quotes sent and won, customers still waiting on an answer, and anything that needs a decision. Save it as a page in reports.",
       when: "Every Friday", at: "every Friday at 4 pm" },
-    { id: "receipts", box: "bills", icon: "i-receipt", tint: "green", title: "Receipts for my bookkeeper",
-      text: "This month’s receipts and bills with amounts, in one list.",
-      ask: "List every receipt and bill from this month with the vendor, the amount, the date and whether it’s paid, ready for my bookkeeper. Save it as a page in reports.",
-      when: "Every month", at: "on the 1st of every month at 9 am" },
     { id: "quiet", box: "ask", icon: "i-quiet", tint: "blue", title: "Customers who’ve gone quiet",
       text: "Regulars you haven’t heard from in 60 days, worth a call.",
       ask: "Which regular customers have I not heard from in the last 60 days? For each: when we last emailed, what we did for them, and a line I could use to check in.",
       when: "Every month", at: "on the 15th of every month at 8 am" },
-    { id: "quotes", box: "money", icon: "i-doc", tint: "amber", title: "Follow up on open quotes",
+    { id: "quotes", box: "quotes", icon: "i-doc", tint: "amber", title: "Follow up on open quotes",
       text: "Quotes with no answer after a week, with a friendly nudge drafted.",
       ask: "Find the quotes I sent that have had no answer for a week or more. For each: who, what, the amount, when I sent it, and a friendly follow-up I could send.",
       when: "Every Monday", at: "every Monday at 9 am" }
@@ -705,6 +702,7 @@
     data: null,
     example: true,
     loose: null,
+    goneQuiet: null,
     lastTry: null,
     setup: null,
     connecting: false,
@@ -859,7 +857,8 @@
     return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; });
   }
   function quiet(promise) { return promise.catch(function () { return null; }); }
-  function usable(d) { return d && typeof d === "object" && (Array.isArray(d.waiting) || Array.isArray(d.money) || Array.isArray(d.bills)); }
+  function usable(d) { return d && typeof d === "object" && (Array.isArray(d.waiting) || Array.isArray(d.quotes) || Array.isArray(d.money)); }
+  function quietList(d) { return d && typeof d === "object" && Array.isArray(d.people) ? d : null; }
 
   var loading = null;
   function load() {
@@ -868,7 +867,8 @@
       maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
       quiet(maybe(readJson("data/loose-ends.json"))),
       quiet(maybe(readJson("data/status.json"))),
-      quiet(maybe(readText("setup.md")))
+      quiet(maybe(readText("setup.md"))),
+      quiet(maybe(readJson("data/gone-quiet.json")))
     ]).then(function (got) {
       var latest = got[0];
       state.loose = got[1] && Array.isArray(got[1].waiting) ? got[1] : null;
@@ -877,12 +877,17 @@
       if (usable(latest) && latest.example !== true) {
         state.data = latest;
         state.example = false;
+        state.goneQuiet = quietList(got[4]);
         return null;
       }
       // A file half written a moment ago keeps what is on screen; the next change reloads it.
       if (latest === "broken" && state.data && !state.example) return null;
-      return maybe(readJson("data/EXAMPLE-latest.json")).then(function (ex) {
-        state.data = usable(ex) ? ex : null;
+      return Promise.all([
+        maybe(readJson("data/EXAMPLE-latest.json")),
+        quiet(maybe(readJson("data/EXAMPLE-gone-quiet.json")))
+      ]).then(function (ex) {
+        state.data = usable(ex[0]) ? ex[0] : null;
+        state.goneQuiet = quietList(ex[1]);
         state.example = true;
       });
     }).catch(function () {
@@ -1052,15 +1057,29 @@
   // ── Painting ───────────────────────────────────────────────────────────
 
   function waiting() { return state.data ? list(state.data.waiting) : []; }
-  function money() { return state.data ? list(state.data.money) : []; }
-  function bills() { return state.data ? list(state.data.bills) : []; }
+  /** Quotes the owner sent with no yes yet. An older sort kept them among its invoices, as `money`. */
+  function quotes() {
+    if (!state.data) return [];
+    var own = Array.isArray(state.data.quotes);
+    return list(own ? state.data.quotes : state.data.money).filter(function (x) {
+      return (own || x.kind === "quote") && x.status !== "won" && x.status !== "lost";
+    });
+  }
   function fyi() { return state.data ? list(state.data.fyi) : []; }
+  /** The Monday list of regulars who went quiet, for the week it was made in (the example always). */
+  function goneQuiet() {
+    var g = state.goneQuiet;
+    if (!g) return [];
+    var at = parseTime(g.generatedAt);
+    if (!state.example && (!at || Date.now() - at.getTime() > 8 * DAY_MS)) return [];
+    return list(g.people).slice(0, 12);
+  }
   function refDate() {
     var g = state.data ? parseTime(state.data.generatedAt) : null;
     return state.example && g ? g : new Date();
   }
   function findItem(id) {
-    var all = waiting().concat(money(), bills(), fyi());
+    var all = waiting().concat(quotes(), fyi());
     for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
     return null;
   }
@@ -1153,8 +1172,8 @@
         (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") + mailAgeHtml());
     } else if (V2 && s === "not-added") {
       var canConnect = g && g.canConnect;
-      html = cardHero(null, "See who’s waiting on you, what you’re owed and what’s due",
-        '<p class="lead">Connect Gmail and your front desk sorts your inbox every morning: leads and customers first, then quotes, invoices and bills.</p>' +
+      html = cardHero(null, "See which customers are waiting on you, and which quotes need a nudge",
+        '<p class="lead">Connect Gmail and your front desk sorts your inbox every morning: leads and customers first, then the quotes with no answer, and once a week the regulars who went quiet.</p>' +
         (canConnect
           ? '<div class="actions"><button class="btn primary big" data-act="connect"' + (state.connecting ? " disabled" : "") + ">" +
             icon(state.connecting ? "i-refresh" : "i-mail", state.connecting ? "spin" : "") + (state.connecting ? "Connecting..." : "Connect Gmail") + "</button>" +
@@ -1218,7 +1237,7 @@
     } else if (n > 0) {
       leadHtml = '<p class="lead"><b dir="auto">' + esc(text(w[0].from, 80)) + ":</b> " + '<span dir="auto">' + esc(text(w[0].gist, 160)) + ".</span></p>";
     } else {
-      leadHtml = '<p class="lead">Your inbox is clear of anyone waiting. Have a look at money in and out below.</p>';
+      leadHtml = '<p class="lead">Your inbox is clear of anyone waiting. Have a look at your quotes below.</p>';
     }
     var updated = "";
     var g = writtenAt(d.generatedAt);
@@ -1227,45 +1246,30 @@
   }
 
 
-  /** The four numbers an owner looks for first, each a card; shown for the example too, labelled by the ribbon. */
+  /** The numbers an owner looks for first, each a card; shown for the example too, labelled by the ribbon. */
   function kpiCards() {
     var d = state.data;
     var w = waiting();
     var n = w.length;
     var leads = w.filter(function (x) { return x.kind === "lead"; }).length;
-    var t = d.totals && typeof d.totals === "object" ? d.totals : {};
-    var m = money();
-    var owedItems = m.filter(function (x) { return x.status === "open" || x.status === "overdue"; });
-    var overdue = typeof t.overdue === "number" ? t.overdue : m.filter(function (x) { return x.status === "overdue"; }).length;
-    var b = bills().filter(function (x) { return x.status !== "paid"; });
-    var byDate = parseTime(t.billsDueBy);
+    var q = quotes();
+    var ref = refDate();
+    var oldest = 0;
+    q.forEach(function (x) { oldest = Math.max(oldest, waitingDays(x.date, ref)); });
+    var quotesValue = amountText(totals().quotes, 20);
     var arrived = typeof d.arrived === "number" ? d.arrived : null;
     var left = d.leftOut && typeof d.leftOut.count === "number" ? d.leftOut.count : 0;
-
-    var failed = b.filter(function (x) { return x.status === "failed" || x.kind === "failed-payment"; }).length;
-    var nextDue = null;
-    b.forEach(function (x) { var d2 = parseTime(x.due); if (d2 && x.status !== "autopay" && (!nextDue || d2 < nextDue)) nextDue = d2; });
-    var owedValue = amountText(t.owed, 20);
-    var billsValue = amountText(t.billsDue, 20);
     return {
       waiting: n
         ? '<a class="kpi first" href="#lane-waiting"><span class="label">' + icon("i-reply") + "Waiting on you</span>" +
           '<span class="value num">' + n + '</span><span class="sub">' + (leads ? leads + " new " + plural(leads, "lead", "leads") : "No new leads") + "</span></a>"
         : '<a class="kpi calm" href="#lane-waiting"><span class="label">' + icon("i-check") + "Waiting on you</span>" +
           '<span class="value num">0</span><span class="sub">Everyone has an answer</span></a>',
-      owed: '<a class="kpi money" href="#lane-money"><span class="label">' + icon("i-dollar") + "Owed to you</span>" +
-        (owedValue || owedItems.length
-          ? '<span class="value num" dir="auto">' + esc(owedValue || String(owedItems.length)) + '</span><span class="sub">' +
-            (overdue ? '<span class="hot">' + overdue + " overdue</span>" : owedItems.length + " open " + plural(owedItems.length, "invoice", "invoices")) + "</span>"
-          : '<span class="value none">None</span><span class="sub">No open invoices</span>') + "</a>",
-      bills: '<a class="kpi bills" href="#lane-bills"><span class="label">' + icon("i-receipt") + "Bills to pay</span>" +
-        (billsValue || b.length
-          ? '<span class="value num" dir="auto">' + esc(billsValue || String(b.length)) + '</span><span class="sub">' +
-            (failed ? '<span class="hot">' + failed + " " + plural(failed, "card declined", "cards declined") + "</span>"
-              : byDate ? "Due by " + esc(shortDate(byDate))
-              : nextDue ? "Next due " + esc(shortDate(nextDue))
-              : b.length + " not paid yet") + "</span>"
-          : '<span class="value none">None</span><span class="sub">Nothing due</span>') + "</a>",
+      quotes: '<a class="kpi money" href="#lane-quotes"><span class="label">' + icon("i-doc") + "Quotes waiting</span>" +
+        (q.length
+          ? '<span class="value num">' + q.length + '</span><span class="sub" dir="auto">' +
+            (quotesValue ? esc(quotesValue) + " in all" : oldest >= 1 ? "Oldest " + oldest + " " + plural(oldest, "day", "days") : "Waiting for a yes") + "</span>"
+          : '<span class="value none">None</span><span class="sub">No quote waiting</span>') + "</a>",
       arrived: arrived === null
         ? '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + "Set aside</span>" +
           '<span class="value num">' + left + '</span><span class="sub">Newsletters and ads</span></a>'
@@ -1354,42 +1358,17 @@
       (marked ? '<p class="hint">Check the highlighted words before you send it.</p>' : "") + "</div>";
   }
 
-  // Quotes and invoices, and bills: cards with the amount first.
-  var MONEY_TITLE = { invoice: "Invoice", quote: "Quote", payment: "Payment received", order: "Order" };
-  function moneyCard(item, index, ref, lane) {
-    var id = text(item.id, 60) || lane + index;
+  // Quotes waiting for a yes: cards with the amount first. A week with no answer turns warm.
+  function quoteCard(item, index, ref) {
+    var id = text(item.id, 60) || "q" + index;
     var open = !!state.open[id];
-    var status = text(item.status, 20);
-    var title;
-    if (lane === "money") {
-      var kindWord = MONEY_TITLE[item.kind];
-      title = kindWord
-        ? kindWord + (text(item.number) && item.kind !== "payment" ? " " + text(item.number, 20) : "") + " · " + (text(item.who, 60) || "a customer")
-        : text(item.who, 70) || text(item.from, 70) || "Money in";
-    } else {
-      title = text(item.from, 70) || "A bill";
-    }
-    var chip = "";
-    if (lane === "money") {
-      if (status === "overdue") chip = dueChip(item.due, ref, "due");
-      else if (status === "paid") chip = dueChip(item.date || item.due, ref, "paid");
-      else if (status === "waiting") {
-        var since = waitingDays(item.date, ref);
-        chip = '<span class="chip open">Waiting for a yes' + (since >= 1 ? " · " + since + " " + plural(since, "day", "days") : "") + "</span>";
-      } else chip = dueChip(item.due, ref, "due");
-    } else {
-      if (status === "failed" || item.kind === "failed-payment") chip = '<span class="chip hot">' + icon("i-alert") + "Card declined</span>";
-      else if (status === "paid" && !parseTime(item.due) && !parseTime(item.date)) chip = '<span class="chip ok">' + icon("i-check") + "Paid</span>";
-      else chip = dueChip(item.due || item.date, ref, status === "paid" ? "paid" : status === "autopay" ? "autopay" : "due");
-    }
-    var cls = status === "overdue" || status === "failed" ? " overdue" : status === "paid" ? " paid" : "";
+    var title = "Quote" + (text(item.number) ? " " + text(item.number, 20) : "") + " · " + (text(item.who, 60) || "a customer");
+    var since = waitingDays(item.date, ref);
+    var chip = '<span class="chip ' + (since >= 7 ? "wait" : "open") + '">Waiting for a yes' + (since >= 1 ? " · " + since + " " + plural(since, "day", "days") : "") + "</span>";
+    var cls = since >= 7 ? " overdue" : "";
     var link = state.example ? "" : gmailLink(item);
     var actions = [];
-    if (canAsk()) {
-      if (lane === "money" && status === "overdue") actions.push('<button class="btn" data-act="nudge" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft a reminder</button>");
-      else if (lane === "money" && status === "waiting") actions.push('<button class="btn" data-act="followup" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft a follow-up</button>");
-      else actions.push('<button class="btn" data-act="more" data-id="' + esc(id) + '">' + icon("i-chat") + "Ask about this</button>");
-    }
+    if (canAsk()) actions.push('<button class="btn" data-act="followup" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft a follow-up</button>");
     if (link) actions.push('<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Gmail</a>");
     return '<li class="money-card' + cls + '">' +
       '<button class="mc-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
@@ -1414,16 +1393,17 @@
   var ROW = 64;
   var GAP = 16;
   var PHONE_ROWS = 3;
-  // The first page changed (the next 3 things and the week replace the four numbers), so
-  // layouts kept under the first key are left behind and everyone starts on the new page.
-  var LAYOUT_KEY = "front-desk-layout@2";
+  // The first page changed twice (the next 3 things and the week replaced the four numbers,
+  // then quotes and the quiet regulars replaced invoices and bills), so layouts kept under an
+  // older key are left behind and everyone starts on the new page.
+  var LAYOUT_KEY = "front-desk-layout@3";
   var DEFAULT_LAYOUT = [
     { id: "headline", x: 0, y: 0, w: 12, h: 2 },
     { id: "next", x: 0, y: 2, w: 7, h: 4 },
     { id: "week", x: 7, y: 2, w: 5, h: 4 },
     { id: "waiting", x: 0, y: 6, w: 7, h: 6 },
-    { id: "money", x: 7, y: 6, w: 5, h: 5 },
-    { id: "bills", x: 7, y: 11, w: 5, h: 6 },
+    { id: "quotes", x: 7, y: 6, w: 5, h: 5 },
+    { id: "quiet", x: 7, y: 11, w: 5, h: 6 },
     { id: "ask", x: 0, y: 12, w: 7, h: 5 }
   ];
   /**
@@ -1437,13 +1417,14 @@
     next: { cls: "lane next", list: true, draw: drawNext, group: "email", icon: "i-check", w: 7, h: 4, min: [3, 3],
       title: "Your next 3 things", desc: "The three things to do first, from all your email, each one tap away. Tick them off." },
     week: { cls: "lane week", list: true, draw: drawWeek, group: "email", icon: "i-calendar", w: 5, h: 4, min: [3, 3],
-      title: "This week", desc: "What falls due in the next 7 days: bills, payments coming in, and promised dates." },
+      title: "This week", desc: "What falls due in the next 7 days: dates you promised, and quotes to follow up." },
     waiting: { cls: "lane waiting", list: true, draw: drawWaiting, group: "email", icon: "i-reply", w: 7, h: 6,
       title: "Waiting on you", desc: "People who need an answer, most urgent first, with replies drafted." },
-    money: { cls: "lane money", list: true, draw: drawMoney, group: "email", icon: "i-dollar", w: 5, h: 5,
-      title: "Quotes and invoices", desc: "What you are owed, what is overdue, and quotes with no answer." },
-    bills: { cls: "lane bills", list: true, draw: drawBills, group: "email", icon: "i-receipt", w: 5, h: 6,
-      title: "Bills to pay", desc: "What is due and when, and payments that failed." },
+    quotes: { cls: "lane money", list: true, draw: drawQuotes, group: "email", icon: "i-doc", w: 5, h: 5,
+      title: "Quotes waiting", desc: "The quotes you sent with no yes yet, and a follow-up one tap away." },
+    quiet: { cls: "lane quiet", list: true, draw: drawQuiet, group: "email", icon: "i-quiet", w: 5, h: 6, min: [3, 3],
+      title: "Gone quiet", desc: "Regular customers you have not heard from in 60 days, worth a call.",
+      show: function () { return goneQuiet().length > 0; }, when: "Shows up after the Monday check finds a regular who went quiet." },
     more: { cls: "lane more", list: true, draw: drawMore, group: "email", icon: "i-bell", w: 6, h: 4, min: [3, 2],
       title: "Also worth a look", desc: "Reviews, permits and other news, and the newsletters set aside." },
     friday: { cls: "lane waiting", list: true, draw: drawFriday, group: "email", icon: "i-alarm", w: 6, h: 4, min: [3, 2],
@@ -1451,10 +1432,8 @@
       show: function () { return !!looseFresh(); }, when: "Shows up after a Friday check finds someone still waiting." },
     "n-waiting": { cls: "nbox", draw: function () { return kpiCards().waiting; }, group: "numbers", icon: "i-reply", w: 3, h: 2, min: [2, 2],
       title: "Waiting on you", desc: "How many people wait for an answer, and how many are new leads." },
-    "n-owed": { cls: "nbox", draw: function () { return kpiCards().owed; }, group: "numbers", icon: "i-dollar", w: 3, h: 2, min: [2, 2],
-      title: "Owed to you", desc: "The money customers owe you, and how much is overdue." },
-    "n-bills": { cls: "nbox", draw: function () { return kpiCards().bills; }, group: "numbers", icon: "i-receipt", w: 3, h: 2, min: [2, 2],
-      title: "Bills to pay", desc: "The bills not paid yet, and the next due date." },
+    "n-quotes": { cls: "nbox", draw: function () { return kpiCards().quotes; }, group: "numbers", icon: "i-doc", w: 3, h: 2, min: [2, 2],
+      title: "Quotes waiting", desc: "How many quotes wait for a yes, and what they add up to." },
     "n-arrived": { cls: "nbox", draw: function () { return kpiCards().arrived; }, group: "numbers", icon: "i-inbox", w: 3, h: 2, min: [2, 2],
       title: "New email", desc: "How much email came in, and how much was set aside." },
     ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-chat", w: 7, h: 5,
@@ -1914,9 +1893,9 @@
   }
 
   /**
-   * The order: someone stuck or a deadline today, a failed payment, an overdue invoice, a
-   * bill due within two days, a new lead, then the others waiting, then quotes with no
-   * answer for a week. Within a step, the longest waiting or latest first.
+   * The order: someone stuck or a deadline today, a new lead, then the others waiting, then
+   * quotes with no answer for a week, then a regular who went quiet. Within a step, the
+   * longest waiting first.
    */
   function nextThings() {
     var ref = refDate();
@@ -1932,42 +1911,26 @@
       add(w.urgent === true ? 0 : w.kind === "lead" ? 4 : 5, -days, "reply", w, "Reply to " + (text(w.from, 60) || "someone"), why,
         text(w.reply) ? { label: "Copy the reply", act: "copy", id: id } : { label: "Draft a reply", act: "reply", id: id });
     });
-    bills().forEach(function (b) {
-      var from = text(b.from, 60) || "a bill";
-      var amount = amountText(b.amount, 20);
-      if (b.status === "failed" || b.kind === "failed-payment") {
-        add(1, 0, "bill", b, "Fix the declined payment", from + (amount ? ", " + amount : ""),
-          { label: "What do I do?", act: "ask", q: "A payment to " + from + (amount ? " (" + amount + ")" : "") + " was declined. What do I need to do to fix it?" });
-        return;
-      }
-      var due = parseTime(b.due);
-      var inDays = due ? daysBetween(ref, due) : null;
-      if (b.status !== "paid" && b.status !== "autopay" && inDays !== null && inDays <= 2) {
-        add(3, inDays, "bill", b, "Pay " + from, (amount ? amount + ", " : "") + (inDays < 0 ? -inDays + " " + plural(-inDays, "day", "days") + " late" : inDays === 0 ? "due today" : inDays === 1 ? "due tomorrow" : "due in 2 days"),
-          { label: "Ask about it", act: "more", id: text(b.id, 60) });
-      }
-    });
-    money().forEach(function (m) {
-      var who = text(m.who, 60) || "a customer";
+    quotes().forEach(function (m, i) {
+      var since = waitingDays(m.date, ref);
+      if (since < 7) return;
       var amount = amountText(m.amount, 20);
-      if (m.status === "overdue") {
-        var due = parseTime(m.due);
-        var late = due ? daysBetween(due, ref) : 0;
-        add(2, -late, "invoice", m, "Remind " + who, (amount ? amount + ", " : "") + (late > 0 ? late + " " + plural(late, "day", "days") + " late" : "overdue"),
-          { label: "Draft a reminder", act: "nudge", id: text(m.id, 60) });
-      } else if (m.kind === "quote" && m.status === "waiting") {
-        var since = waitingDays(m.date, ref);
-        if (since >= 7) {
-          add(6, -since, "quote", m, "Follow up with " + who, (amount ? amount + " quote, " : "") + "no answer for " + since + " days",
-            { label: "Draft a follow-up", act: "followup", id: text(m.id, 60) });
-        }
-      }
+      add(6, -since, "quote", m, "Follow up with " + (text(m.who, 60) || "a customer"), (amount ? amount + " quote, " : "") + "no answer for " + since + " days",
+        { label: "Draft a follow-up", act: "followup", id: text(m.id, 60) || "q" + i });
+    });
+    goneQuiet().forEach(function (p, i) {
+      var last = parseTime(p.lastAt);
+      var days = last ? daysBetween(last, ref) : 0;
+      add(7, -days, "quiet", { threadId: p.threadId, from: p.name, subject: p.company }, "Check in with " + (text(p.name, 60) || "a regular"),
+        [text(p.company, 60), days ? "quiet " + days + " days" : ""].filter(Boolean).join(", "),
+        { label: "Draft a check-in", act: "checkin", i: i });
     });
     return out.sort(function (a, b) { return a.rank - b.rank || a.order - b.order; });
   }
 
   function actionButton(a) {
     return '<button type="button" class="btn small" data-act="' + a.act + '"' + (a.id ? ' data-id="' + esc(a.id) + '"' : "") +
+      (typeof a.i === "number" ? ' data-i="' + a.i + '"' : "") +
       (a.q ? ' data-q="' + esc(a.q) + '"' : "") + (canAsk() || a.act === "copy" ? "" : " disabled") + ">" + esc(a.label) + "</button>";
   }
 
@@ -2041,9 +2004,9 @@
   }
 
   // ── This week ──────────────────────────────────────────────────────────
-  // What falls due in the next seven days: bills to pay, invoices customers should pay, and
-  // the deadlines people asked for. Small: how many and the next; medium: a list by day;
-  // large: a strip of seven days.
+  // What falls due in the next seven days: the deadlines people asked for, and the day each
+  // quote reaches a week with no answer. Small: how many and the next; medium: a list by
+  // day; large: a strip of seven days.
 
   function weekItems() {
     var start = startOfDay(refDate());
@@ -2056,22 +2019,23 @@
       if (at < 0 || at > 6) return;
       out.push({ at: at, d: d, title: title, amount: amount, tone: tone });
     }
-    bills().forEach(function (b) {
-      if (b.status === "paid" || b.status === "failed") return;
-      add(b.due, text(b.from, 40) || "A bill", amountText(b.amount, 20), b.status === "autopay" ? "auto" : "out");
-    });
-    money().forEach(function (m) {
-      if (m.status === "open") add(m.due, (text(m.who, 40) || "A customer") + " pays", amountText(m.amount, 20), "in");
-    });
     waiting().forEach(function (w) {
       if (w.due) add(w.due, (text(w.from, 40) || "Someone") + (text(w.gist) ? ": " + text(w.gist, 60) : ""), "", "person");
+    });
+    // A quote that is already a week old is in Your next 3 things; this shows the ones about to be.
+    quotes().forEach(function (m) {
+      var sent = parseTime(m.date);
+      if (!sent || waitingDays(m.date, start) >= 7) return;
+      var week = new Date(sent.getFullYear(), sent.getMonth(), sent.getDate() + 7);
+      var day = week.getFullYear() + "-" + String(week.getMonth() + 1).padStart(2, "0") + "-" + String(week.getDate()).padStart(2, "0");
+      add(day, "Follow up with " + (text(m.who, 40) || "a customer"), amountText(m.amount, 20), "quote");
     });
     return out.sort(function (a, b) { return a.at - b.at; });
   }
   function dayWords(at, d) {
     return at === 0 ? "Today" : at === 1 ? "Tomorrow" : d.toLocaleDateString([], { weekday: "short", day: "numeric" });
   }
-  var TONE_WORDS = { out: "to pay", auto: "pays itself", in: "coming in", person: "promised" };
+  var TONE_WORDS = { person: "promised", quote: "a week with no answer" };
 
   function drawWeek(level) {
     var items = weekItems();
@@ -2123,40 +2087,45 @@
       "Nobody is waiting on an answer from you.") + nudgeHtml(boxIdea("waiting"));
   }
 
-  function drawMoney(level) {
-    var m = money();
+  /** Oldest first: the quote waiting longest is the one most likely to slip away. */
+  function drawQuotes(level) {
     var ref = refDate();
-    var owed = amountText(totals().owed, 20);
+    var q = quotes().slice().sort(function (a, b) { return waitingDays(b.date, ref) - waitingDays(a.date, ref); });
+    var sum = amountText(totals().quotes, 20);
     if (level === "S") {
-      var open = m.filter(function (x) { return x.status === "open" || x.status === "overdue"; });
-      var overdue = m.filter(function (x) { return x.status === "overdue"; });
-      var first = overdue[0] || open[0];
-      return sumBox("money", "Quotes and invoices", "i-dollar", owed || (open.length ? String(open.length) : ""),
-        overdue.length ? '<span class="hot">' + overdue.length + " overdue</span>" : open.length ? open.length + " open " + plural(open.length, "invoice", "invoices") : "No open invoices",
+      var old = q.filter(function (x) { return waitingDays(x.date, ref) >= 7; }).length;
+      var first = q[0];
+      return sumBox("quotes", "Quotes waiting", "i-doc", q.length ? String(q.length) : "",
+        old ? '<span class="hot">' + old + " with no answer for a week</span>" : q.length ? (sum ? esc(sum) + " in all" : "waiting for a yes") : "No quote waiting",
         first ? esc(text(first.who, 60)) + (amountText(first.amount, 24) ? ", " + esc(amountText(first.amount, 24)) : "") : "");
     }
-    return listBox("money", "Quotes and invoices", "i-dollar", owed ? owed + " owed" : "", m.length,
-      '<ul class="cards">' + m.map(function (item, i) { return moneyCard(item, i, ref, "money"); }).join("") + "</ul>",
-      "No quotes or invoices in this batch.") + nudgeHtml(boxIdea("money"));
+    return listBox("quotes", "Quotes waiting", "i-doc", sum ? sum + " in all" : "", q.length,
+      '<ul class="cards">' + q.map(function (item, i) { return quoteCard(item, i, ref); }).join("") + "</ul>",
+      "No quote is waiting for an answer.") + nudgeHtml(boxIdea("quotes"));
   }
 
-  function drawBills(level) {
-    var b = bills();
+  /** Regulars the owner has not heard from in 60 days, from the Monday check. */
+  function drawQuiet(level) {
+    var people = goneQuiet();
     var ref = refDate();
-    var due = amountText(totals().billsDue, 20);
     if (level === "S") {
-      var unpaid = b.filter(function (x) { return x.status !== "paid"; });
-      var failed = unpaid.filter(function (x) { return x.status === "failed" || x.kind === "failed-payment"; }).length;
-      var next = null;
-      unpaid.forEach(function (x) { var d = parseTime(x.due); if (d && x.status !== "autopay" && (!next || d < next)) next = d; });
-      return sumBox("bills", "Bills to pay", "i-receipt", due || (unpaid.length ? String(unpaid.length) : ""),
-        failed ? '<span class="hot">' + failed + " " + plural(failed, "card declined", "cards declined") + "</span>"
-          : next ? "Next due " + esc(shortDate(next)) : unpaid.length ? unpaid.length + " not paid yet" : "Nothing due",
-        "");
+      var top = people[0];
+      return sumBox("quiet", "Gone quiet", "i-quiet", String(people.length), plural(people.length, "regular", "regulars") + " to call",
+        top ? "<b>" + esc(text(top.name, 60)) + "</b>" + (text(top.company) ? ", " + esc(text(top.company, 60)) : "") : "");
     }
-    return listBox("bills", "Bills to pay", "i-receipt", due ? due + " due" : "", b.length,
-      '<ul class="cards">' + b.map(function (item, i) { return moneyCard(item, i, ref, "bills"); }).join("") + "</ul>",
-      "No bills in this batch.") + nudgeHtml(boxIdea("bills"));
+    return listBox("quiet", "Gone quiet", "i-quiet", "", people.length,
+      '<ul class="mini rows">' + people.map(function (p, i) {
+        var last = parseTime(p.lastAt);
+        var days = last ? daysBetween(last, ref) : 0;
+        var who = text(p.name, 80) || text(p.company, 80) || "A regular";
+        var link = state.example ? "" : gmailLink(p);
+        return '<li><b dir="auto">' + esc(who) + (text(p.company) && text(p.name) ? ' <span class="co">' + esc(text(p.company, 60)) + "</span>" : "") + "</b>" +
+          '<span dir="auto">' + esc([text(p.what, 100), last ? "last email " + shortDate(last) + (days ? ", " + days + " days ago" : "") : ""].filter(Boolean).join(" · ")) + "</span>" +
+          '<span class="quiet-actions">' +
+          (canAsk() ? '<button class="btn quiet small" data-act="checkin" data-i="' + i + '">' + icon("i-pen") + "Draft a check-in</button>" : "") +
+          (link ? '<a class="btn quiet small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Gmail</a>" : "") +
+          "</span></li>";
+      }).join("") + "</ul>", "Nobody has gone quiet.");
   }
 
   /** Asking reads the mail, so it waits until Gmail is connected; a viewer never sees the box. */
@@ -2264,7 +2233,7 @@
     var note = state.askNote || (askReady() ? "" : askHint());
     return (level === "S" ? "" : '<h2 id="ask-title">Ask, or try an idea</h2>') +
       '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
-      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about customers, quotes, bills..." />' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about customers, leads, quotes..." />' +
       '<button type="submit" class="btn primary">' + icon("i-send") + "Ask</button></form>" +
       (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
       (more.length ? '<p class="qs-label">More ideas</p><div class="qs">' + more.map(function (idea) {
@@ -2290,13 +2259,12 @@
   function ideaFacts() {
     var ref = refDate();
     var w = waiting();
-    var m = money();
     return {
       ref: ref,
       longWait: w.filter(function (x) { return waitingDays(x.waitingSince, ref) >= 2; }).length,
       leads: w.filter(function (x) { return x.kind === "lead"; }).length,
-      overdue: m.filter(function (x) { return x.status === "overdue"; }),
-      oldQuotes: m.filter(function (x) { return x.kind === "quote" && x.status === "waiting" && waitingDays(x.date, ref) >= 7; }).length
+      oldQuotes: quotes().filter(function (x) { return waitingDays(x.date, ref) >= 7; }).length,
+      quiet: goneQuiet().length
     };
   }
 
@@ -2310,23 +2278,9 @@
       var n = f.leads;
       return n ? { line: n + " new " + plural(n, "lead", "leads") + " wrote.", act: "List them with contact details" } : null;
     },
-    overdue: function (f) {
-      var n = f.overdue.length;
-      if (!n) return null;
-      var one = f.overdue[0];
-      var due = parseTime(one.due);
-      var late = due ? daysBetween(due, f.ref) : 0;
-      var line = n === 1 && late > 0
-        ? (text(one.number) ? "Invoice " + text(one.number, 20) : "One invoice") + " is " + late + " " + plural(late, "day", "days") + " overdue."
-        : n + " " + plural(n, "invoice is", "invoices are") + " overdue.";
-      return { line: line, act: n === 1 ? "Draft a reminder" : "Draft reminders" };
-    },
     quotes: function (f) {
       var n = f.oldQuotes;
       return n ? { line: n + " " + plural(n, "quote has", "quotes have") + " had no answer for a week or more.", act: n === 1 ? "Draft a follow-up" : "Draft follow-ups" } : null;
-    },
-    receipts: function (f) {
-      return f.ref.getDate() >= 25 ? { line: "The month is ending. Your bookkeeper will want this month’s receipts.", act: "Gather them in one list" } : null;
     },
     weekly: function (f) {
       var day = f.ref.getDay();
@@ -2334,7 +2288,8 @@
         ? { line: "It’s " + f.ref.toLocaleDateString([], { weekday: "long" }) + ". Send your partner this week’s summary?", act: "Write the summary" }
         : null;
     },
-    quiet: function () { return { line: "Some regulars may have gone quiet. Worth a call?", act: "Find who to call" }; },
+    // The Gone quiet box already names them once the Monday check has run.
+    quiet: function (f) { return f.quiet ? null : { line: "Some regulars may have gone quiet. Worth a call?", act: "Find who to call" }; },
     customers: function () { return { line: "Your email already holds your customer list.", act: "Build my customer list" }; }
   };
 
@@ -2364,7 +2319,7 @@
   /** Ideas the list boxes on the page are showing right now. */
   function shownIdeas() {
     var shown = {};
-    ["waiting", "money", "bills"].forEach(function (id) {
+    ["waiting", "quotes", "quiet"].forEach(function (id) {
       var el = boxEls[id];
       if (!onPage(id) || (el && el.getAttribute("data-level") === "S")) return;
       var f = boxIdea(id);
@@ -3005,10 +2960,18 @@
     else if (act === "copy" && item) copyText(text(item.reply));
     else if (act === "reply" && item) {
       ask((text(item.reply) ? "Change the reply you drafted to " : "Draft a short reply to ") + about(item) + ". Show it to me before anything is sent.");
-    } else if (act === "nudge" && item) {
-      ask("Draft a short, polite payment reminder for " + (text(item.who, 90) || "this customer") + " about invoice " + (text(item.number, 30) || "") + " (" + text(item.amount, 30) + "). Show it to me before anything is sent.");
     } else if (act === "followup" && item) {
-      ask("Draft a friendly follow-up to " + (text(item.who, 90) || "this customer") + " about quote " + (text(item.number, 30) || "") + " (" + text(item.what, 90) + ", " + text(item.amount, 30) + "). Show it to me before anything is sent.");
+      var about1 = [text(item.what, 90), amountText(item.amount, 30)].filter(Boolean).join(", ");
+      ask("Draft a friendly follow-up to " + (text(item.who, 90) || "this customer") + " about quote" + (text(item.number) ? " " + text(item.number, 30) : "") +
+        (about1 ? " (" + about1 + ")" : "") + ". Show it to me before anything is sent.");
+    } else if (act === "checkin") {
+      var p = goneQuiet()[+el.getAttribute("data-i")];
+      if (p) {
+        ask("Draft a short, friendly check-in to " + (text(p.name, 90) || text(p.company, 90) || "this customer") +
+          (text(p.company) && text(p.name) ? " at " + text(p.company, 90) : "") +
+          ". We last emailed " + (text(p.lastAt, 20) || "a while ago") + (text(p.what) ? " about " + text(p.what, 120) : "") +
+          ". Show it to me before anything is sent.");
+      }
     } else if (act === "more" && item) {
       ask("Tell me more about the email from " + about(item) + ".");
     } else if (act === "idea-now") {
