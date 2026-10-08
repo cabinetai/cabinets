@@ -168,7 +168,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [security-questionnaire](./security-questionnaire) | Professional Services | 3 | 2 | 0 | Auto-answers customer and vendor security questionnaires using your existing policies, SOC2 docs, and past answers |
 | [seo-content](./seo-content) | Media | 2 | 3 | 0 | Keyword research, content briefs, rankings tracking, and refresh tasks — all in one workspace |
 | [sharepoint-week](./sharepoint-week) | Operations | 1 | 1 | 0 | Every Monday, what your team changed in SharePoint while you weren't looking |
-| [slack-digest](./slack-digest) | Operations | 1 | 1 | 0 | Every morning, what moved in all your Slack channels in the last 24 hours, and which of it wants you |
+| [slack-digest](./slack-digest) | Operations | 1 | 1 | 0 | Every morning, who is waiting on you in Slack, what moved in each channel, and what your team decided |
 | [snowflake-brief](./snowflake-brief) | Marketing | 1 | 1 | 0 | Every Monday, the numbers out of your warehouse, in plain words |
 | [spend-policy](./spend-policy) | Professional Services | 2 | 2 | 0 | Answers "can I expense this?" instantly, flags anomalous transactions before month-end, and keeps department spend summaries current — so… |
 | [sprint-planning](./sprint-planning) | Software | 2 | 2 | 0 | Automated sprint preparation and daily standup digest for engineering teams |
