@@ -1,23 +1,25 @@
 ---
-title: Gmail Inbox
+title: Gmail for Business
 created: '2026-08-09T00:00:00Z'
-modified: '2026-09-25T00:00:00Z'
-tags: [gmail, email, inbox, small-business, showcase]
+modified: '2026-10-08T00:00:00Z'
+tags: [gmail, business, customers, clients, leads, email, small-business, showcase]
 order: 1
 ---
-# Gmail Inbox
+# Gmail for Business
 
 A front desk for your business inbox. Every morning at 7 it pulls out:
 
 - **Waiting on you**: leads and customers who need an answer, most urgent first, with
   replies already drafted in your voice.
-- **Quotes and invoices**: what you're owed, what's overdue, and quotes with no answer yet.
-- **Bills to pay**: what's due and when, and payments that failed.
+- **Quotes with no answer**: the quotes you sent that nobody has said yes to yet, with a
+  friendly nudge ready.
+- **Gone quiet**: regular customers you have not heard from in a while, worth a call.
 
 Newsletters and ads are set aside and counted. The **Ideas** on the front desk go further:
-list every new lead this week, see which invoices are overdue, build your customer list
-from your email, or send your partner a weekly summary. Each one is a tap, now or on a
-schedule.
+list every new lead this week, build your customer list from your email, or send your
+partner a weekly summary. Each one is a tap, now or on a schedule.
+
+Invoices, payments and bills live in **Gmail for Finance**.
 
 ## To start
 
