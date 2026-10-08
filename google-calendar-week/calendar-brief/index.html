@@ -556,6 +556,11 @@
   button.ev, .dayrow, .prow, .evtitle, .tag-ev { font: inherit; color: inherit; text-align: start; cursor: pointer; }
   button.ev, .dayrow, .prow, .evtitle { border: 0; background: none; padding: 0; }
   .h2-free { color: var(--sage); }
+  /* The headline holds the calendar mark, and on the right the connection and the buttons. */
+  .hl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .hl-row h2 { flex: 1 1 340px; min-width: 0; }
+  .hl-status { flex: none; justify-content: flex-end; }
+  .box.headline .mark { align-self: flex-start; margin-top: 2px; }
 
   .lane.today .lane-head, .lane.free .lane-head { border-top: 3px solid var(--sage); }
   .lane.today .lane-icon, .lane.free .lane-icon { background: var(--sage-tint); color: var(--sage-ink); }
@@ -739,14 +744,11 @@
   <symbol id="i-pie" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5H12z" /><path d="M15 3.8A8.5 8.5 0 0 1 20.2 9H15z" /></symbol>
 </svg>
 
-<header class="bar">
+<header class="bar" id="topbar" hidden>
   <div class="bar-in">
     <div class="brand">
       <span class="mark" aria-hidden="true"><svg class="icon"><use href="#i-calendar" /></svg></span>
-      <div>
-        <h1>Your week</h1>
-        <p id="subtitle">Google Calendar</p>
-      </div>
+      <h1 class="sr">Your week</h1>
     </div>
     <div class="status" id="status" aria-live="polite"></div>
   </div>
@@ -1470,7 +1472,17 @@
     if (state.loaded && state.data) state.animate = false;
   }
 
+  /**
+   * The connection and the page's buttons. They sit in the headline box; only when that box
+   * is not on the page (removed, or nothing loaded yet) do they show in a slim bar of their
+   * own, so Edit layout can always be reached.
+   */
   function paintStatus() {
+    var inHeadline = !!(state.loaded && state.data && onPage("headline"));
+    $("topbar").hidden = inHeadline;
+    $("status").innerHTML = inHeadline ? "" : statusHtml();
+  }
+  function statusHtml() {
     var m = mode();
     var real = hasWeek(state.real);
     var when = real ? whenRead(state.real.generatedAt) : "";
@@ -1494,10 +1506,7 @@
     var ideas = '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-bulb") + "Ideas</button>";
     var edit = state.loaded && state.data && !state.editing
       ? '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Edit layout</button>" : "";
-    $("status").innerHTML = pill + refresh + ideas + edit;
-    var today = startOfToday();
-    var last = addDays(today, 6);
-    $("subtitle").textContent = (window.innerWidth < 560 ? shortDate(today) + " to " + shortDate(last) : longDate(today) + " to " + longDate(last));
+    return pill + refresh + ideas + edit;
   }
 
   /** The calendar page, with a badge that matches the state: a tick once connected, an alert to fix. */
@@ -2081,7 +2090,11 @@
     var f = state.facts;
     var ex = state.example ? "Example: " : "";
     var main = f.events ? count(f.events, "event", "events") + " this week" : "Nothing on your calendar this week";
-    if (level === "S") return "<div><h2>" + esc(ex + main) + "</h2></div>";
+    var top = function (h2) {
+      return '<div class="hl-row"><span class="mark" aria-hidden="true">' + icon("i-calendar") + "</span>" + h2 +
+        '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>";
+    };
+    if (level === "S") return "<div>" + top("<h2>" + esc(ex + main) + "</h2>") + "</div>";
     // A whole empty week is simply clear; naming one free day in it would add nothing.
     var free = f.events && f.best && f.best.slot.end - f.best.slot.start >= 120 ? " " + freeWords(f) + "." : "";
     var lead = "";
@@ -2092,7 +2105,7 @@
       lead = '<p class="lead">' + bdi(state.data.note) + "</p>";
     }
     var meta = '<p class="meta">' + icon("i-clock") + esc(hoursWords(f.meetHours) + " in meetings · " + hoursWords(f.freeHours) + " free on weekdays, 8 to 5") + "</p>";
-    return "<div><h2>" + esc(ex + main + ".") + (free ? '<span class="h2-free">' + esc(free) + "</span>" : "") + "</h2>" + lead + meta + "</div>";
+    return "<div>" + top("<h2>" + esc(ex + main + ".") + (free ? '<span class="h2-free">' + esc(free) + "</span>" : "") + "</h2>") + lead + meta + "</div>";
   }
 
   /** One event as a row: its time, its name, who or what kind; a press opens it. */
