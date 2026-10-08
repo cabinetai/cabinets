@@ -1,30 +1,34 @@
 ---
-title: Google Calendar Week
+title: Calendar for Business
 created: '2026-08-09T00:00:00Z'
 modified: '2026-10-08T00:00:00Z'
-tags: [google-calendar, calendar, week, planning, showcase]
+tags: [google-calendar, business, clients, meetings, calendar, schedule, small-business]
 order: 1
 ---
-# Google Calendar Week
+# Calendar for Business
 
-Your week at a glance, for anyone with a Google Calendar. It shows what is on now and next,
-when you are free, and helps you before and after every meeting. It reads your calendar
-every morning at 7, and the page keeps time all day.
+Your work week with clients, from your Google Calendar. It shows what is on now and next,
+helps you before and after every client meeting, and keeps track of the people you work
+with. It reads your calendar every morning at 7, and the page keeps time all day.
 
 The cabinet opens on it: **Your week**.
 
 ## What you get
 
-- **Today**: what is on now, what is next with a live countdown, the rest of your day, and
-  when you are free again.
-- **Free time**: your longest free stretches this week, so you can keep them free.
+- **Today**: the meeting on now, the next one with a live countdown, and the rest of your
+  working day.
+- **Before and after**: meetings to prepare for, with a short brief ready, and follow-ups
+  to send after them.
+- **Free time**: your longest free stretches this week, for new clients or deep work.
 - **This week**: your seven days, as a list by day or as a real week view.
-- **Ideas** where they help: "Prep me" before a meeting, a follow-up draft after it, a fix
-  for two events that overlap. Ask once, or switch one on to run every morning or every
-  Monday. Every idea is also under **Ideas** at the top.
-- **Your own page**: press **Edit layout** to add, remove, move and resize the boxes. Add
-  **Before and after**, **Double bookings**, **Your time**, **People you meet**, **Going
-  quiet** and more. Your layout is yours; it follows you to any computer.
+- **Clients you meet**: who you met, how often, and when you meet them next. **Going
+  quiet** names the clients you have not seen in a while, with a check-in ready.
+- **Double bookings**: meetings that overlap, with help to fix them.
+
+Press **Edit layout** to add, remove, move and resize the boxes. Your layout is yours.
+
+For your own life (family, school, appointments), use **Calendar for Personal**. For hours
+you bill to clients, use **Calendar for Freelancers**.
 
 ## Getting started
 
