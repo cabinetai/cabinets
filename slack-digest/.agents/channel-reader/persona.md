@@ -57,9 +57,16 @@ Never write anything else, and never touch `EXAMPLE-latest.json`.
   "waiting": [ ... ],
   "channels": [ ... ],
   "decisions": [ ... ],
-  "promises": [ ... ]
+  "promises": [ ... ],
+  "me": { "name": "Sahar", "id": "U0123ABCD" },
+  "known": [ { "id": "C0123ABCD", "name": "#eng" }, { "id": "D0123ABCD", "name": "DM with Hila" } ]
 }
 ```
+
+`me` and `known` are for the next catch-up, and the page never shows them. `me` is the
+person's display name and Slack user id. `known` is every channel and conversation that had
+a message in any catch-up, newest first, at most 60: keep the last catch-up's list, add
+today's, and drop one that has had no message for 30 days.
 
 Every item in the four lists has an `id`: `w1`, `w2` for waiting, `c1` for channels, `d1`
 for decisions, `p1` for promises. `lead` names the single most consequential item by its

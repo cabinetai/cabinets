@@ -19,7 +19,9 @@ the page shows them. The full rules for each field are in the agent's persona
 `waiting` (`who`, `where`, `kind` mention, question or dm, `gist`, `short`, `since`,
 `urgent`, `url`), `channels` (`name`, `messages`, `urgency` High, Medium or Low, `gist`,
 `wants`, `url`), `decisions` (`what`, `where`, `who`, `at`, `url`) and `promises` (`what`,
-`to`, `where`, `at`, `url`). Every item has an `id`. A `url` on Slack's own address becomes
+`to`, `where`, `at`, `url`). Every item has an `id`. `me` (the person's Slack name and id) and `known` (the
+conversations seen before, read directly next time so nothing search misses is lost) are
+for the routine; the page ignores them. A `url` on Slack's own address becomes
 an "Open in Slack" link.
 
 Decisions are also kept in `decisions/index.md`, the Decision log, one row per decision,
