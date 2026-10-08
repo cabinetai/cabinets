@@ -24,27 +24,38 @@ prompt: |-
      `your-slack/data/latest.json` if it is there.
   2. If Slack is not connected, write only `your-slack/data/status.json` with `ok: false`
      and `why` "Slack isn't connected yet.", and stop.
-  3. Find what moved with a search, not a channel list. Slack's `after:` date filter
-     excludes the date it names, so search with `after:` set to the day before yesterday,
-     then keep only messages from the last 24 hours. A search with only the date filter
-     returns nothing, so always pair it with a broad, non-empty search phrase and sort by
-     newest first. Page through the results until they are older than 24 hours, or ten
-     pages, whichever comes first. The channels those messages sit in are the channels
-     that moved; a channel with no message in that window gets no row. Never look
-     channels up by searching their names one letter at a time: Slack rate-limits it long
-     before the sweep is done.
-  4. For each channel that moved, read its last 24 hours, thread replies included, one
+  3. Find out who the person is in Slack: their display name and their user id (`U...`).
+     Run the search that covers private conversations with only the filter
+     `is:dm after:<a week ago>`: every result lists its participants with their ids, and
+     the person is the one in every direct message. If they have no direct messages that
+     week, find them with the user search tool by the name your memory or the cabinet
+     gives. You need the id for the searches below; never show it to them.
+  4. Find what moved with searches that use filters only, no search words. A single
+     common word ("the", "a", "you") matches almost nothing, and a date filter alone
+     returns nothing, but a date filter together with a person or conversation filter
+     returns every message. Slack's `after:` excludes the date it names, so set it to the
+     day before yesterday, sort by newest first, and keep only messages from the last 24
+     hours. Page through each search until the results are older than 24 hours, or ten
+     pages, whichever comes first:
+     - Other people's messages: `after:<date> -from:<@USER_ID>`. The channels and
+       conversations these sit in are what moved; one with no message in the window gets
+       no row.
+     - The person's own messages: `after:<date> from:<@USER_ID>`. These are where
+       promises come from, and they tell you which questions they already answered.
+     Never look channels up by searching their names one letter at a time: Slack
+     rate-limits it long before the sweep is done.
+  5. For each channel that moved, read its last 24 hours, thread replies included, one
      channel at a time. From that, write its channel row, and note anything waiting on the
      person and any decision.
-  5. Search the person's own messages of the last 24 hours (`from:` the person) for
-     promises, and to see which questions they already answered.
-  6. If "Include direct messages" above says yes, also search the last 24 hours of the
-     person's direct and group messages the same way, using the search that covers
-     private conversations too (not the public-only one), and read each conversation that
-     moved. A conversation waiting on them goes in `waiting`. If it says no, leave them out
-     entirely. If Slack refuses access to direct messages, the Slack connection was made
-     before it allowed them: skip them, write the rest, and set `why` in status.json to
-     "Direct messages not included: reconnect Slack to allow them" with `ok: true`.
+  6. If "Include direct messages" above says yes, use the search that covers private
+     conversations too (not the public-only one) for the searches in step 4, and also run
+     `is:dm after:<date>` and `is:mpim after:<date>` so no direct or group message is
+     missed. Read each conversation that moved. A conversation waiting on them goes in
+     `waiting`. If it says no, use the public-only search and leave direct and group
+     messages out entirely. If Slack refuses access to direct messages, the Slack
+     connection was made before it allowed them: skip them, write the rest, and set `why`
+     in status.json to "Direct messages not included: reconnect Slack to allow them" with
+     `ok: true`.
   7. This run is read only. Do not post, reply in a thread, react, or mark anything read,
      however obvious the one-line answer looks.
   8. If Slack rate-limits a call, wait about a minute and try that call again, up to three
