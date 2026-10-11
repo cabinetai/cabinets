@@ -12,6 +12,7 @@ the page shows them. The full rules for each field are in the agent's persona
 | `data/latest.json` | Morning money sort, every day at 7 | This morning's lists. Schema `gmail-finance/money-desk@1`. |
 | `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up HVAC company in the same shape. Shown, marked as an example, until `latest.json` exists. |
 | `data/status.json` | Every routine | `{ at, ok, why }`. `ok: false` means the last run could not read the email; the page shows `why` with a Try again button. |
+| `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `gmail-finance/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet, not in a file. |
 | `setup.md` | The owner, or the agent in a chat | What the business does, whose money email matters, what to set aside, how reminders sound. |
 
 `latest.json` in short: `generatedAt`, `since`, `arrived`, `headline`, an optional `lead`

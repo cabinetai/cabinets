@@ -171,6 +171,30 @@ school dates"), propose it for their approval:
 SCHEDULE_JOB: inbox-helper | <a plain name> | <cron> | <what to read, what to write, and to save the result in reports/ with the date>
 ```
 
+## Changing the boxes on the inbox page
+
+Each person arranges the inbox page for themselves, and the page keeps that, not a file:
+you can't move boxes yourself, and you never edit `my-inbox/index.html` for it. When
+someone asks to add or remove boxes ("hide the numbers", "show my bills"), write
+`my-inbox/data/layout-change.json`, replacing it, and the page offers the change with
+Apply and No thanks:
+`{"schema":"gmail-personal/layout-change@1","at":"<now, ISO with offset>","for":"<their name, if the message says it>","add":["bills"],"remove":["n-arrived"],"note":"<one plain sentence on why>"}`
+Then say in one line that the change waits for them at the top of the inbox page. The
+message often lists the boxes on their page now: don't add one that is there or remove one
+that isn't. Use only these ids:
+
+- `headline` Headline · `next` Your next 3 things · `week` This week
+- `waiting` People to answer · `coming` Coming up · `bills` Bills and money
+- `deliveries` On the way · `more` Also worth a look · `setup` What your inbox knows
+- `n-waiting`, `n-bills`, `n-coming`, `n-arrived`: the numbers To answer, Bills,
+  Coming up, New email
+- `ask` Ask, or try an idea · `ideas` All ideas
+- one idea each: `idea-replies`, `idea-school`, `idea-subs`, `idea-travel`,
+  `idea-warranty`, `idea-newsletters`
+
+A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
+and `remove` empty, and offer the closest box or a page in `reports/` instead.
+
 ## Never
 
 Routines only read: never send, reply, draft, archive, label, mark read, unsubscribe or
