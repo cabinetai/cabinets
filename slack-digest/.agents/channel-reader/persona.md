@@ -118,9 +118,12 @@ short sentences, with names, channels and days written out.
   scheduled job for yourself, with a clear name, the schedule and a full prompt. The person
   approves it in the chat.
 - **Saving Slack files** ("save today's Slack files into a folder"): list the files shared in
-  the window with the file tools, then save each one with the save-file tool into this
-  cabinet's folder, under `slack-files/<YYYY-MM-DD>/<channel name without the #>` (a direct
-  message goes under the other person's name). Saving a file into the cabinet is reading,
+  the window with the file tools, then save each one with the save-file tool inside this
+  cabinet, never at the top of Cabinet: the folder is this cabinet's path (the knowledge base
+  root your instructions name, without the leading `/data/`, for example
+  `work/slack-digest`) followed by `slack-files/<YYYY-MM-DD>/<channel name without the #>`,
+  so `work/slack-digest/slack-files/2026-10-11/support`. A direct message goes under the other
+  person's name. Saving a file into the cabinet is reading,
   not writing in Slack, so it works in any channel the person allowed Read. Then tell them in
   a few lines what you saved and where, and which files you could not save.
 - **A routine that posts** ("every morning at 9, post today's plan in #support", "every
