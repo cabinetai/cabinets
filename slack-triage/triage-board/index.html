@@ -8,7 +8,8 @@
   and survive the user renaming the cabinet at install time. The folder listing comes from
   /api/tree because the assets route serves single files and cannot list a directory.
 
-  Zero external requests. System fonts, inline CSS, no libraries.
+  Looks like Slack Digest's Your Slack page: the same Plus Jakarta Sans from Google Fonts
+  (system fonts when it can't load), colors and top bar. Inline CSS, no libraries.
   Every failure path renders something honest instead of a blank page.
 -->
 <html lang="en">
@@ -16,95 +17,90 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Slack Triage Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
-    --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
-    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
-    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
+    --page: #ffffff; --panel: #f7f6f8; --line: #e7e4ea; --line-2: #d6d1dc;
+    --ink: #1d1c1d; --ink-2: #454245; --ink-3: #696469;
+    --plum: #4a154b; --plum-2: #611f69;
+    --red: #e01e5a; --red-ink: #b3134a; --red-tint: #fdeaf0;
+    --green: #2eb67d; --green-ink: #1a7a52;
+    --amber: #ecb22e; --amber-ink: #7d5a00;
+    --blue-ink: #1264a3;
+    --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 48px 24px 64px; background: var(--parchment); color: var(--ink);
-    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 30px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
-    display: flex; align-items: center; gap: 12px;
-  }
-  /* An inline <svg> with a viewBox and no width fills its container — size it here or
-     the mark renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 26px; height: 26px; flex: none; }
-  .card {
-    background: var(--card); border: none; border-radius: 12px;
-    padding: 18px 22px; margin-top: 18px;
-    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
-  }
-  .banner {
-    padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border-radius: 8px; font-size: 14px; color: var(--muted);
-    box-shadow: 0 1px 2px rgba(59,47,47,0.04);
-  }
-  .lead { margin-top: 18px; }
-  .lead-who { font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--muted); }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th {
-    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--muted); font-weight: 700; padding: 0 10px 10px 0; border-bottom: 1px solid var(--line);
-  }
-  td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  .pill {
-    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
-    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
-  }
-  .u-new { color: var(--terracotta); } .u-owned { color: var(--blue); } .u-waiting { color: var(--orange); } .u-done { color: var(--green); } .u-low { color: var(--muted); }
-  /* The item is what the eye runs down the board for, so it gets the accent. */
-  .key { color: var(--blue); font-weight: 600; }
-  /* An owner is a name, and a name never wraps mid-word. */
-  .num { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  /* The item links back to the message that raised it, so it reads as clickable. */
-  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
-  .deep-link:hover { border-bottom-color: var(--blue); }
-  .empty { color: var(--muted); font-size: 14px; }
-  .empty code { font-size: 13px; }
+  select, input { font: inherit; color: inherit; }
+
+  /* ── Top bar ─────────────────────────────────────────────────────────── */
+  .bar { border-top: 4px solid var(--plum); border-bottom: 1px solid var(--line); }
+  .bar-in { max-width: 1080px; margin: 0 auto; padding: 16px 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .mark { width: 40px; height: 40px; border-radius: 11px; background: var(--plum); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 16px -8px rgba(74, 21, 75, .8); flex: none; }
+  .mark svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .brand h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+  .picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; font-size: 14px; color: var(--ink-3); }
+  .picker label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .picker select { min-height: 40px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--page); font-size: 14px; font-weight: 600; max-width: 100%; }
+
+  /* ── The page ────────────────────────────────────────────────────────── */
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 30px 28px 48px; }
+  .lead h2 { margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
+  .lead p { margin: 10px 0 0; font-size: 18px; color: var(--ink-2); max-width: 70ch; }
+  .banner { margin-top: 18px; padding: 12px 16px; border-radius: 12px; background: var(--red-tint); color: var(--ink); font-size: 15px; }
+  .empty { color: var(--ink-3); margin-top: 18px; }
+  .empty code { font-size: 14px; }
   .scroll { overflow-x: auto; }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
-  .picker select {
-    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
-  }
-  .picker .next { color: var(--faint); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 28px; }
+  th { text-align: left; font-size: 14px; font-weight: 700; color: var(--ink-3); padding: 0 16px 10px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 16px 16px 16px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  /* The item is what the eye runs down the board for. */
+  .key { color: var(--ink); font-weight: 700; width: 32%; }
+  .deep-link { color: inherit; text-decoration: none; }
+  .deep-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+  /* An owner is a name, and a name never wraps mid-word. */
+  .num { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Where it stands: a dot and the word, quieter than a badge. */
+  .pill { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .u-new { color: var(--red-ink); } .u-owned { color: var(--blue-ink); } .u-waiting { color: var(--amber-ink); } .u-done { color: var(--green-ink); } .u-low { color: var(--ink-3); }
+
   /* On a phone four columns squeeze each word onto its own line, so each item stacks:
      what it is, what it needs, then who has it and where it stands. */
   @media (max-width: 560px) {
+    .bar-in { padding: 12px 16px; }
+    .wrap { padding: 22px 16px 36px; }
+    .lead h2 { font-size: 27px; }
+    .lead p { font-size: 16.5px; }
     thead { display: none; }
-    tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--line); }
-    tr:last-child { border-bottom: 0; }
-    td { display: block; padding: 2px 0; border-bottom: 0; }
-    td.num, td.num + td { display: inline-block; margin-top: 6px; }
-    td.num { margin-right: 10px; }
+    tr { display: block; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    td, .key { display: block; padding: 2px 0; border-bottom: 0; width: auto; }
+    td.num, td.num + td { display: inline-flex; margin-top: 6px; }
+    td.num { margin-right: 12px; }
     td.num:empty { display: none; }
   }
 </style>
 </head>
 <body>
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></svg></span>
+      <h1>Triage Board</h1>
+    </div>
+    <div id="status"></div>
+  </div>
+</header>
+
 <div class="wrap">
-
-  <header>
-    <h1>
-      <!-- The integration's own mark, inlined so the page still makes
-           zero external requests. -->
-      <svg class="mark" viewBox="0 0 127 127" aria-hidden="true"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2C6.7 93.2.8 87.3.8 80c0-7.3 5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/> <path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2C33.8 6.5 39.7.6 47 .6c7.3 0 13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H13.9C6.6 60.1.7 54.2.7 46.9c0-7.3 5.9-13.2 13.2-13.2H47z" fill="#36C5F0"/> <path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V13.8C66.9 6.5 72.8.6 80.1.6c7.3 0 13.2 5.9 13.2 13.2v33.1z" fill="#2EB67D"/> <path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2 0-7.3 5.9-13.2 13.2-13.2h33.1c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H80.1z" fill="#ECB22E"/></svg>
-      Slack Triage Board
-    </h1>
-  </header>
-
-  <div id="root"><div class="card empty">Loading…</div></div>
-
+  <main id="root"><p class="empty">Loading...</p></main>
 </div>
 
 <script>
@@ -154,7 +150,7 @@
   }
 
   function render(data, name, files) {
-    var meta = data.meta, html = picker(name, files);
+    var meta = data.meta, html = head(name, files);
 
     /* The routine could not reach Slack. It said so rather than writing nothing. */
     if (meta.status && meta.status !== 'ok') {
@@ -163,15 +159,20 @@
               '. Showing the previous result.</div>';
     }
 
-    /* The single most consequential channel, in one sentence — absent most days on purpose. */
+    /* The one headline: the item that matters most and why, or how many are still open. */
+    var statusCol = data.cols.findIndex(function (c) { return c.toLowerCase() === 'status'; });
+    var open = data.rows.filter(function (r) {
+      return statusCol < 0 || String(r[statusCol] || '').toLowerCase() !== 'done';
+    }).length;
     if (meta.lead && meta.verdict) {
-      html += '<div class="lead">' +
-              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
-              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
+      html = '<section class="lead"><h2>' + esc(meta.lead) + '</h2><p>' + esc(meta.verdict) + '</p></section>' + html;
+    } else if (data.rows.length) {
+      html = '<section class="lead"><h2>' + (open ? open + (open === 1 ? ' item' : ' items') +
+             ' still open' : 'Everything is done') + '</h2></section>' + html;
     }
 
     if (!data.rows.length) {
-      html += '<div class="card empty">Nothing to show for this day.</div>';
+      html += '<div class="empty">Nothing to show for this day.</div>';
       root.innerHTML = html;
       bind(files);
       return;
@@ -179,7 +180,7 @@
 
     var urlCol = data.cols.findIndex(function (c) { return c.toLowerCase() === 'url'; });
 
-    var t = '<div class="card scroll"><table><thead><tr>';
+    var t = '<div class="scroll"><table><thead><tr>';
     data.cols.forEach(function (c) {
       if (c.toLowerCase() === 'url') return;
       t += '<th>' + esc(c) + '</th>';
@@ -247,11 +248,17 @@
         return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
                esc(label(f)) + '</option>';
       }).join('');
-      html = '<span><label for="pick">Date:</label><select id="pick">' + opts + '</select></span>';
+      html = '<label for="pick">Day</label><select id="pick">' + opts + '</select>';
     }
     var next = nextRunText();
     if (next) html += '<span class="next">' + esc(next) + '</span>';
     return html ? '<div class="picker">' + html + '</div>' : '';
+  }
+
+  /* The day picker and the next run sit in the top bar, so the page itself opens on the board. */
+  function head(current, files) {
+    document.getElementById('status').innerHTML = picker(current, files);
+    return '';
   }
 
   /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
@@ -268,7 +275,7 @@
       })
       .then(function (text) { render(parse(text), name, files); })
       .catch(function (err) {
-        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
+        root.innerHTML = head(name, files) + '<div class="empty">Could not read <code>' +
           esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
           'in a moment.</div>';
         bind(files);
@@ -365,7 +372,7 @@
       });
       var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
       if (!files.length) {
-        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
+        root.innerHTML = head('', []) + '<div class="empty">Nothing yet. This page ' +
           'fills in after the routine runs for the first time.</div>';
         return;
       }
@@ -383,7 +390,7 @@
       show(today || files[0], files);
     })
     .catch(function (err) {
-      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+      root.innerHTML = '<div class="empty">Could not list <code>' + DIR + '/</code> (' +
         esc(err.message) + '). Reload in a moment.</div>';
     });
 })();
