@@ -1,27 +1,22 @@
 ---
 title: Slack Digest
 created: '2026-08-09T00:00:00Z'
-modified: '2026-10-08T00:00:00Z'
+modified: '2026-10-11T00:00:00Z'
 tags: [slack, channels, messages, digest, decisions, showcase]
 order: 1
 ---
 # Slack Digest
 
-Every morning, who is waiting on you in Slack, what moved in each channel, and what your
-team decided.
+Every morning, what moved in each of your Slack channels, the ones that need you first.
 
 The cabinet opens on it: **Your Slack**.
 
 ## What you get
 
-- **Waiting on you**: everyone who mentioned you, asked you something or wrote to you
-  directly and has no answer yet, with how long they have waited. One press drafts a reply
-  for you to send yourself.
 - **Catch up**: one line per channel that moved, the ones that need you first. The
   sixty-message thread about lunch sits at the bottom, folded away.
-- **Decided**: what the team agreed, with who and where. Every decision is also kept in the
-  **Decision log** page, so it is still there next month.
-- **You promised**: what you said you would do ("I'll send it tomorrow"), so nothing slips.
+- **Ask about your Slack**: who mentioned you, what a channel talked about, what the team
+  decided. The answer comes up in the chat.
 - **Ideas**: draft your standup from Slack, catch up after lunch, a weekly summary for your
   manager. Ask once, or switch one on to run on a schedule.
 
@@ -29,9 +24,8 @@ The cabinet opens on it: **Your Slack**.
 and every public channel is ticked by default, so the quiet one you forgot you were in
 still turns up on the morning it needs you.
 
-**Your direct messages too.** A question someone sent you directly usually needs you most.
-The page names who wrote, never quotes them. To leave them out, open the routine and change
-`Include direct messages: yes` to `no`.
+**Your direct messages too.** They count in the catch-up, and the page never quotes them.
+To leave them out, open the routine and change `Include direct messages: yes` to `no`.
 
 ## Getting started
 
@@ -49,7 +43,7 @@ own machine, and writes them down only after the sign-in has actually worked.
 
 ## What's inside
 
-- **Channel Reader** is the one agent. Reads your Slack, writes the page and the Decision log.
+- **Channel Reader** is the one agent. Reads your Slack and writes the page.
 - **Morning Slack Digest** is the one routine. Runs at 09:00 every day.
 - **Your Slack** is the page the cabinet opens on, with earlier days in its date picker.
-- **Decision log** keeps every decision, newest first.
+- **Decision log** keeps decisions from earlier catch-ups. The morning catch-up no longer adds to it.

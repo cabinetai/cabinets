@@ -2,16 +2,15 @@
 <!--
   Slack Digest: Your Slack. The cabinet opens on this page.
 
-  For someone in more Slack channels than they can follow: who is waiting on them, what
-  happened in each channel, what the team decided, and what they promised to do, each one
-  tap from a drafted reply or a question to the cabinet's agent, plus Ideas they can ask
-  for once or switch on as a routine.
+  For someone in more Slack channels than they can follow: what happened in each channel,
+  the ones that need them first, each one tap from a question to the cabinet's agent, plus
+  Ideas they can ask for once or switch on as a routine.
 
   Where the words come from: the morning routine reads Slack and writes data/latest.json
   next to this page (the shape is data/EXAMPLE-latest.json: a made-up team, always labelled
   as an example here), a copy of it in data/days/<YYYY-MM-DD>.json for the date picker, and
-  data/status.json with ok:false and why when it could not read Slack. Decisions also go to
-  the Decision log page in the cabinet (decisions/index.md); this page does not read it.
+  data/status.json with ok:false and why when it could not read Slack. An older catch-up may
+  still carry waiting, decisions and promises lists; this page ignores them.
 
   How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
   routine, read and list files). In an older Cabinet it reads the same files over the
@@ -147,13 +146,14 @@
   .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
   .tag-example { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 
-  /* ── The board: who waits, each channel, and what was decided ────────── */
+  /* ── The board: each channel that moved, with the Ask box beside it ──── */
   .board {
-    display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
-    grid-template-areas: "main side" "ask side"; gap: 22px; align-items: start;
+    display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    grid-template-areas: "main ask"; gap: 22px; align-items: start;
   }
+  /* A viewer has no Ask box: Catch up takes the whole width. */
+  .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
   .b-main { grid-area: main; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-  .side { grid-area: side; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
   .board > .ask { grid-area: ask; }
   .lane { min-width: 0; }
   .lane-head { padding: 0 18px 10px; border-bottom: 1px solid var(--line); }
@@ -162,25 +162,6 @@
   .lane-foot { margin: 0; padding: 12px 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; display: flex; align-items: center; gap: 8px; }
   .lane-foot .icon { width: 16px; height: 16px; color: var(--green); }
 
-  .rows { list-style: none; margin: 0; padding: 0; }
-  .row { border-bottom: 1px solid var(--line); }
-  .row:last-child { border-bottom: 0; }
-  .row-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; width: 100%; text-align: start; padding: 16px 18px; border: 0; background: transparent; }
-  .row-main:hover { background: var(--panel); }
-  .row.open .row-main { background: var(--panel); }
-  .avatar { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #fff; grid-row: span 2; }
-  .who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
-  .who b { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
-  .when { font-size: 14px; color: var(--ink-3); white-space: nowrap; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; grid-row: span 2; }
-  .gist { grid-column: 2; color: var(--ink-2); font-size: 16px; overflow-wrap: anywhere; }
-  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700; letter-spacing: .02em; background: var(--panel-2); color: var(--ink-2); white-space: nowrap; }
-  .chip .icon { width: 13px; height: 13px; stroke-width: 2.2; }
-  .chip.where { background: var(--plum-tint); color: var(--plum); }
-  .chip.dm { background: var(--blue-tint); color: var(--blue-ink); }
-  .chip.hot { background: var(--red); color: #fff; }
-  .chip.wait { background: var(--amber-tint); color: var(--amber-ink); }
-  .row-body { padding: 0 18px 18px 72px; background: var(--panel); }
-  .row-body .short { margin: 0; color: var(--ink); font-size: 16px; line-height: 1.55; }
   .row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 
   /* Channels: one line each, the busiest bar drawn against the busiest channel. */
@@ -204,18 +185,6 @@
   .chan-body .row-actions { margin-top: 0; }
   .fold { width: 100%; padding: 12px 18px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--plum-2); font-weight: 700; font-size: 14.5px; text-align: start; display: flex; align-items: center; gap: 8px; }
   .fold:hover { background: var(--plum-tint); }
-
-  /* Decided and promised: short lists with who and where. */
-  .notes { list-style: none; margin: 0; padding: 4px 0; }
-  .note-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; padding: 12px 18px; }
-  .note-item + .note-item { border-top: 1px solid var(--line); }
-  .note-item .tick { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; grid-row: span 2; }
-  .note-item .tick .icon { width: 15px; height: 15px; stroke-width: 2.4; }
-  .lane.decided .tick { background: var(--green-tint); color: var(--green-ink); }
-  .lane.promised .tick { background: var(--amber-tint); color: var(--amber-ink); }
-  .note-item p { margin: 0; font-weight: 600; font-size: 15.5px; overflow-wrap: anywhere; }
-  .note-item small { color: var(--ink-3); font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
-  .note-item small .btn.quiet { min-height: 32px; padding: 4px 8px; font-size: 14px; }
 
   /* ── Ideas ───────────────────────────────────────────────────────────── */
   .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 14px; }
@@ -269,7 +238,7 @@
     .idea-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 920px) {
-    .board { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "main" "side" "ask"; }
+    .board, .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "ask"; }
   }
   @media (max-width: 560px) {
     .bar-in { padding: 12px 16px; }
@@ -282,9 +251,6 @@
     .card-hero { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; gap: 14px; }
     .art { width: 104px; height: 82px; }
     .card-hero .btn.big { width: 100%; }
-    .row-main { grid-template-columns: auto minmax(0, 1fr); padding: 14px 14px; }
-    .when { grid-column: 2; grid-row: auto; flex-direction: row; align-items: center; gap: 10px; }
-    .row-body { padding: 0 14px 16px 14px; }
     .chan-body { padding: 0 14px 14px 32px; }
     .idea-grid { grid-template-columns: minmax(0, 1fr); }
     .ask { padding: 18px 16px; }
@@ -306,8 +272,6 @@
   <symbol id="i-reply" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5A5.5 5.5 0 0 1 20 14.5V19" /></symbol>
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
   <symbol id="i-gavel" viewBox="0 0 24 24"><path d="M14.5 3.5l6 6M12 6l6 6M13.5 4.5l-6 6 6 6 6-6zM10.5 13.5L3.5 20.5" /></symbol>
-  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4" /><path d="M5 4h11l-2 4 2 4H5" /></symbol>
-  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10.5 13.5" /><path d="M21 3l-6.5 18-4-7.5L3 9.5z" /></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
   <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3 3-3 3" /><path d="M4 11V9.5a4 4 0 0 1 4-4h12" /><path d="M7 21.5l-3-3 3-3" /><path d="M20 13v1.5a4 4 0 0 1-4 4H4" /></symbol>
@@ -340,7 +304,6 @@
     <div id="ribbon"></div>
     <section class="board" id="board" aria-label="Your Slack, by what needs you">
       <div class="b-main" id="board-main"></div>
-      <div class="side" id="board-side"></div>
       <section class="ask" id="ask" aria-labelledby="ask-title">
         <h2 id="ask-title">Ask about your Slack</h2>
         <p>Anything from "did anyone mention me?" to "what did #eng decide about the release?"</p>
@@ -411,9 +374,7 @@
       when: "Every Monday", at: "every Monday at 9:30 am" }
   ];
 
-  var KIND_WORDS = { mention: "Mentioned you", question: "Asked you", dm: "Direct message" };
   var URGENCY_ORDER = { High: 0, Medium: 1, Low: 2 };
-  var AVATAR_COLORS = ["#4a154b", "#1d9bd1", "#2eb67d", "#e01e5a", "#c4860a", "#611f69", "#0b7f8a", "#5d5a5d"];
 
   var state = {
     appPath: appPathFromUrl(),
@@ -471,23 +432,9 @@
     toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
   }
 
-  function initials(name) {
-    var words = String(name || "").replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).filter(Boolean);
-    if (!words.length) return "?";
-    var first = Array.from(words[0])[0] || "";
-    var last = words.length > 1 ? Array.from(words[words.length - 1])[0] || "" : "";
-    return (first + last).toUpperCase();
-  }
-  function colorFor(name) {
-    var h = 0, s = String(name || "");
-    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return AVATAR_COLORS[h % AVATAR_COLORS.length];
-  }
-
   // ── Dates, in the person's own clock ───────────────────────────────────
 
   var DAY_MS = 86400000;
-  var HOUR_MS = 3600000;
   function parseTime(value) {
     if (typeof value !== "string" || !value) return null;
     // A bare date is a calendar day, not midnight in another zone.
@@ -519,30 +466,6 @@
     if (gap > 1 && gap < 7) return d.toLocaleDateString([], { weekday: "long" }) + " at " + clock(d);
     return shortDate(d);
   }
-  /** How long someone has waited: "Just now", "5 h", "2 days". */
-  function waited(value, ref) {
-    var d = parseTime(value);
-    if (!d) return "";
-    var ms = ref - d;
-    if (ms < HOUR_MS) return "Just now";
-    if (ms < DAY_MS) return Math.floor(ms / HOUR_MS) + " h";
-    var days = Math.floor(ms / DAY_MS);
-    return days + " " + plural(days, "day", "days");
-  }
-  function waitedHours(value, ref) {
-    var d = parseTime(value);
-    return d ? (ref - d) / HOUR_MS : 0;
-  }
-  /** The time on a note: "4:40 PM" today, "Yesterday", "Tue", or "Sep 12". */
-  function noteTime(value, ref) {
-    var d = parseTime(value);
-    if (!d) return "";
-    var gap = daysBetween(d, ref);
-    if (gap <= 0) return clock(d);
-    if (gap === 1) return "Yesterday";
-    if (gap < 7) return d.toLocaleDateString([], { weekday: "short" });
-    return shortDate(d);
-  }
   /** "2026-10-07" from a day file's name, as words for the picker. */
   function dayWords(name) {
     var d = parseTime(name.replace(/\.json$/, ""));
@@ -570,7 +493,7 @@
     return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; });
   }
   function quiet(promise) { return promise.catch(function () { return null; }); }
-  function usable(d) { return d && typeof d === "object" && (Array.isArray(d.waiting) || Array.isArray(d.channels)); }
+  function usable(d) { return d && typeof d === "object" && Array.isArray(d.channels); }
 
   /** The days kept for the picker, newest first. Only a Cabinet that can list files offers them. */
   function listDays() {
@@ -725,7 +648,6 @@
 
   // ── Painting ───────────────────────────────────────────────────────────
 
-  function waiting() { return state.data ? list(state.data.waiting) : []; }
   function channels() {
     var c = state.data ? list(state.data.channels) : [];
     return c.slice().sort(function (a, b) {
@@ -733,14 +655,8 @@
       return u || (count(b.messages) || 0) - (count(a.messages) || 0);
     });
   }
-  function decisions() { return state.data ? list(state.data.decisions) : []; }
-  function promises() { return state.data ? list(state.data.promises) : []; }
-  function refDate() {
-    var g = state.data ? parseTime(state.data.generatedAt) : null;
-    return (state.example || state.day) && g ? g : new Date();
-  }
   function findItem(id) {
-    var all = waiting().concat(channels(), decisions(), promises());
+    var all = channels();
     for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
     return null;
   }
@@ -826,8 +742,8 @@
         (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") + ageHtml());
     } else if (V2 && s === "not-added") {
       var canConnect = g && g.canConnect;
-      html = cardHero(null, "See who’s waiting on you in Slack",
-        '<p class="lead">Connect Slack and every morning this page shows who needs an answer, what happened in each channel, and what the team decided.</p>' +
+      html = cardHero(null, "See what moved in your Slack",
+        '<p class="lead">Connect Slack and every morning this page shows what happened in each channel, the ones that need you first.</p>' +
         (canConnect
           ? '<div class="actions"><button class="btn primary big" data-act="connect"' + (state.connecting ? " disabled" : "") + ">" +
             icon(state.connecting ? "i-refresh" : "i-hash", state.connecting ? "spin" : "") + (state.connecting ? "Connecting..." : "Connect Slack") + "</button>" +
@@ -880,22 +796,34 @@
     return g ? '<p class="fine">What is below was read ' + esc(whenWords(g, new Date())) + ".</p>" : "";
   }
 
+  /** "since yesterday", "today", or "since Oct 7": how far back the catch-up reads. */
+  function sinceWords(d) {
+    var from = parseTime(d.since);
+    var to = parseTime(d.generatedAt);
+    if (!from || !to) return "since the last catch-up";
+    var gap = daysBetween(from, to);
+    return gap <= 0 ? "today" : gap === 1 ? "since yesterday" : "since " + shortDate(from);
+  }
+
   function dataHero() {
     var d = state.data;
-    var w = waiting();
-    var n = w.length;
+    var c = channels();
+    var t = d.totals && typeof d.totals === "object" ? d.totals : {};
     var ex = state.example ? "Example: " : "";
-    var h = n === 0 ? "Nobody is waiting on you in Slack" : n + " " + plural(n, "person is", "people are") + " waiting on you";
+    var h = c.length ? "Here is what moved in your Slack" : "Your Slack was quiet";
+    var messages = count(t.messages);
+    if (messages == null) messages = c.reduce(function (m, x) { return m + (count(x.messages) || 0); }, 0);
+    var moved = count(t.channels);
+    if (moved == null) moved = c.length;
+    var leadHtml = c.length
+      ? '<p class="lead">' + messages + " " + plural(messages, "message", "messages") + " in " + moved + " " + plural(moved, "channel", "channels") + " " + esc(sinceWords(d)) + ".</p>"
+      : '<p class="lead">Nothing moved in your channels since the last catch-up. Nothing needs you.</p>';
+    // The routine may name the one channel that matters most today, with why.
     var lead = d.lead && typeof d.lead === "object" ? d.lead : null;
     var leadItem = lead ? findItem(lead.id) : null;
-    var leadHtml = "";
     if (leadItem && text(lead.why)) {
-      leadHtml = '<p class="lead"><b dir="auto">' + esc(text(leadItem.who || leadItem.name, 80)) + (text(leadItem.where) ? " in " + esc(text(leadItem.where, 60)) : "") + ":</b> " +
+      leadHtml += '<p class="lead"><b dir="auto">' + esc(text(leadItem.name, 80)) + ":</b> " +
         '<span dir="auto">' + esc(text(leadItem.gist, 140)) + ".</span> " + '<span dir="auto">' + esc(text(lead.why, 220)) + "</span></p>";
-    } else if (n > 0) {
-      leadHtml = '<p class="lead"><b dir="auto">' + esc(text(w[0].who, 80)) + ":</b> " + '<span dir="auto">' + esc(text(w[0].gist, 160)) + ".</span></p>";
-    } else {
-      leadHtml = '<p class="lead">' + (channels().length ? "Nobody asked you anything that is still open. Here is what moved in your channels." : "Your Slack was quiet since the last catch-up. Nothing needs you.") + "</p>";
     }
     var fine = "";
     var g = writtenAt(d.generatedAt);
@@ -942,36 +870,6 @@
       "None of this is your Slack. " + (slackState() === "connected" ? "Your first catch-up replaces it." : "Connect Slack and your own catch-up replaces it.") + "</p></div>";
   }
 
-  // Waiting on you: one row per person, the one waiting longest on a direct ask first.
-  function waitingRow(item, index, ref) {
-    var id = text(item.id, 60) || "w" + index;
-    var open = !!state.open[id];
-    var name = text(item.who, 80) || "Someone";
-    var where = text(item.where, 60);
-    var chips = [];
-    if (where) chips.push('<span class="chip ' + (item.kind === "dm" ? "dm" : "where") + '" dir="auto">' + esc(item.kind === "dm" && where === "DM" ? "Direct message" : where) + "</span>");
-    else if (KIND_WORDS[item.kind]) chips.push('<span class="chip">' + esc(KIND_WORDS[item.kind]) + "</span>");
-    if (item.urgent === true) chips.push('<span class="chip hot">Answer today</span>');
-    else if (waitedHours(item.since, ref) >= 24) chips.push('<span class="chip wait">Waiting ' + esc(waited(item.since, ref)) + "</span>");
-    var link = state.example ? "" : slackLink(item);
-    var actions = [];
-    if (canAsk()) actions.push('<button class="btn dark" data-act="reply" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft a reply</button>");
-    if (canAsk()) actions.push('<button class="btn" data-act="more" data-id="' + esc(id) + '">' + icon("i-chat") + "What’s the context?</button>");
-    if (link) actions.push('<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Slack</a>");
-    var style = state.animate ? ' style="--d:' + Math.min(index, 6) * 50 + 'ms"' : "";
-    return '<li class="row' + (open ? " open" : "") + (state.animate ? " rise" : "") + '"' + style + ">" +
-      '<button class="row-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
-      '<span class="avatar" style="background:' + colorFor(name) + '" aria-hidden="true">' + esc(initials(name)) + "</span>" +
-      '<span class="who"><b dir="auto">' + esc(name) + "</b>" + chips.join("") + "</span>" +
-      '<span class="when">' + esc(waited(item.since, ref)) + "</span>" +
-      '<span class="gist" dir="auto">' + esc(text(item.gist, 160)) + "</span>" +
-      "</button>" +
-      '<div class="row-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" +
-      (text(item.short) ? '<p class="short" dir="auto">' + esc(text(item.short, 600)) + "</p>" : "") +
-      (actions.length ? '<div class="row-actions">' + actions.join("") + "</div>" : "") +
-      "</div></li>";
-  }
-
   // Catch up: every channel that moved, the ones that need you first, the quiet ones folded.
   function channelRow(item, index, max) {
     var id = text(item.id, 60) || "c" + index;
@@ -1002,47 +900,12 @@
       (count ? inner : '<p class="lane-empty">' + esc(emptyText) + "</p>") + (foot || "") + "</section>";
   }
 
-  function noteItem(item, ref, kind) {
-    var id = text(item.id, 60);
-    var where = text(item.where, 60);
-    var people = kind === "decided"
-      ? (Array.isArray(item.who) ? item.who.filter(function (x) { return typeof x === "string" && x.trim(); }).slice(0, 3).join(", ") : text(item.who, 60))
-      : text(item.to, 60);
-    var bits = [];
-    if (kind === "promised" && people) bits.push((people.charAt(0) === "#" ? "In " : "To ") + esc(people));
-    if (kind === "decided" && people) bits.push(esc(people));
-    if (where && !(kind === "promised" && where === people) && where !== "DM") bits.push("in " + esc(where));
-    var t = noteTime(item.at, ref);
-    if (t) bits.push(esc(t));
-    var link = state.example ? "" : slackLink(item);
-    var press = "";
-    if (canAsk() && id) {
-      press = kind === "promised"
-        ? '<button class="btn quiet" data-act="promise" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft the update</button>"
-        : '<button class="btn quiet" data-act="decision" data-id="' + esc(id) + '">' + icon("i-chat") + "Ask about it</button>";
-    }
-    if (link) press += '<a class="btn quiet" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open</a>";
-    return '<li class="note-item"><span class="tick" aria-hidden="true">' + icon(kind === "promised" ? "i-flag" : "i-check") + "</span>" +
-      '<p dir="auto">' + esc(text(item.what, 160)) + "</p>" +
-      "<small>" + bits.join(" · ") + press + "</small></li>";
-  }
-
   function paintBoard() {
     var main = $("board-main");
-    var side = $("board-side");
     $("board").hidden = !state.loaded || !state.data;
-    if (!state.loaded || !state.data) { main.innerHTML = ""; side.innerHTML = ""; return; }
-    var ref = refDate();
-    var w = waiting();
+    if (!state.loaded || !state.data) { main.innerHTML = ""; return; }
     var c = channels();
-    var dec = decisions();
-    var pro = promises();
     var t = state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {};
-
-    var waitingLane = lane("waiting", "Waiting on you", w.length,
-      '<ol class="rows">' + w.map(function (item, i) { return waitingRow(item, i, ref); }).join("") + "</ol>",
-      "Nobody is waiting on an answer from you.");
-
     var loud = c.filter(function (x) { return x.urgency !== "Low"; });
     var calm = c.filter(function (x) { return x.urgency === "Low"; });
     var max = c.reduce(function (m, x) { return Math.max(m, count(x.messages) || 0); }, 0);
@@ -1054,17 +917,7 @@
         : state.showQuiet && calm.length && loud.length ? '<button class="fold" data-act="quiet" aria-expanded="true">' + icon("i-down") + "Show only the ones that need you</button>" : "");
     var chanFoot = quietMore ? '<p class="lane-foot">' + icon("i-check") + quietMore + " more " + plural(quietMore, "channel was", "channels were") + " quiet.</p>" : "";
     var channelsLane = lane("channels", "Catch up", c.length, chanInner, "No channel moved since the last catch-up.", chanFoot);
-
-    var decidedLane = lane("decided", "Decided", dec.length,
-      '<ul class="notes">' + dec.map(function (item) { return noteItem(item, ref, "decided"); }).join("") + "</ul>",
-      "Nothing was decided in your channels.",
-      dec.length ? '<p class="lane-foot">' + icon("i-check") + "Kept in the Decision log page in this cabinet.</p>" : "");
-    var promisedLane = lane("promised", "You promised", pro.length,
-      '<ul class="notes">' + pro.map(function (item) { return noteItem(item, ref, "promised"); }).join("") + "</ul>",
-      "Nothing you said you would do is still open.");
-
-    main.innerHTML = waitingLane + channelsLane;
-    side.innerHTML = decidedLane + promisedLane;
+    main.innerHTML = channelsLane;
   }
 
   function paintIdeas() {
@@ -1105,12 +958,6 @@
 
   // ── Presses ────────────────────────────────────────────────────────────
 
-  function about(item) {
-    var who = text(item.who, 90);
-    var where = text(item.where, 60);
-    return (who || "someone") + (where === "DM" ? " in a direct message" : where ? " in " + where : "") + (text(item.gist) ? ' ("' + text(item.gist, 140) + '")' : "");
-  }
-
   document.addEventListener("click", function (event) {
     var el = event.target.closest ? event.target.closest("[data-act]") : null;
     if (!el || el.disabled) return;
@@ -1128,16 +975,8 @@
     } else if (act === "connect") connect();
     else if (act === "run") runNow();
     else if (act === "ask") ask(el.getAttribute("data-q"));
-    else if (act === "reply" && item) {
-      ask("Draft a short reply to " + about(item) + ", in my voice. Show it to me so I can copy it into Slack myself. Don't post anything.");
-    } else if (act === "more" && item) {
-      ask("Give me the context on the message from " + about(item) + ": what led up to it and what they need from me, in a few short lines.");
-    } else if (act === "channel" && item) {
+    else if (act === "channel" && item) {
       ask("Catch me up on " + (text(item.name, 60) || "this channel") + " from the last day: what happened, what was decided, and what is still open, in a few short lines.");
-    } else if (act === "decision" && item) {
-      ask('Tell me about the decision "' + text(item.what, 160) + '"' + (text(item.where) ? " in " + text(item.where, 60) : "") + ": who agreed, why, and what happens next.");
-    } else if (act === "promise" && item) {
-      ask('I said I would "' + text(item.what, 160) + '"' + (text(item.to) ? " for " + text(item.to, 60) : "") + ". Draft a short update I can send about it. Show it to me so I can post it myself.");
     } else if (act === "idea-now") {
       var idea = IDEAS[+el.getAttribute("data-i")];
       if (idea) ask(idea.ask);
