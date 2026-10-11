@@ -161,6 +161,13 @@
   .lane-empty { padding: 18px; color: var(--ink-3); margin: 0; }
   .lane-foot { margin: 0; padding: 12px 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; display: flex; align-items: center; gap: 8px; }
   .lane-foot .icon { width: 16px; height: 16px; color: var(--green); }
+  button.lane-foot { width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; font: inherit; text-align: start; cursor: pointer; }
+  button.lane-foot:hover { background: var(--plum-tint); }
+  button.lane-foot .more { margin-inline-start: auto; width: 16px; height: 16px; color: var(--ink-3); transition: transform .15s; }
+  button.lane-foot[aria-expanded="true"] .more { transform: rotate(180deg); }
+  .quiet-list { list-style: none; margin: 0; padding: 0 18px 12px 42px; }
+  .quiet-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 14px; color: var(--ink-2); }
+  .quiet-list li span { color: var(--ink-3); }
 
   .row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 
@@ -915,7 +922,16 @@
     var chanInner = '<ul class="chans">' + shown.map(function (item, i) { return channelRow(item, i, max); }).join("") + "</ul>" +
       (hidden ? '<button class="fold" data-act="quiet" aria-expanded="false">' + icon("i-down") + "Show " + hidden + " more " + plural(hidden, "channel", "channels") + " that can wait</button>"
         : state.showQuiet && calm.length && loud.length ? '<button class="fold" data-act="quiet" aria-expanded="true">' + icon("i-down") + "Show only the ones that need you</button>" : "");
-    var chanFoot = quietMore ? '<p class="lane-foot">' + icon("i-check") + quietMore + " more " + plural(quietMore, "channel was", "channels were") + " quiet.</p>" : "";
+    var quietNames = Array.isArray(state.data.quietChannels)
+      ? state.data.quietChannels.map(function (n) { return text(n, 60); }).filter(Boolean).slice(0, 50)
+      : [];
+    var quietLine = icon("i-check") + quietMore + " more " + plural(quietMore, "channel was", "channels were") + " quiet.";
+    // A catch-up that names its quiet channels lets the person open the list; an older one only counts them.
+    var chanFoot = !quietMore ? ""
+      : !quietNames.length ? '<p class="lane-foot">' + quietLine + "</p>"
+      : '<button class="lane-foot" data-act="quiet-list" aria-expanded="' + !!state.showQuietList + '" aria-controls="quiet-list">' + quietLine + icon("i-down", "more") + "</button>" +
+        '<ul class="quiet-list" id="quiet-list"' + (state.showQuietList ? "" : " hidden") + ">" +
+        quietNames.map(function (n) { return '<li><b dir="auto">' + esc(n) + "</b><span>No messages</span></li>"; }).join("") + "</ul>";
     var channelsLane = lane("channels", "Catch up", c.length, chanInner, "No channel moved since the last catch-up.", chanFoot);
     main.innerHTML = channelsLane;
   }
@@ -969,6 +985,11 @@
       paintBoard();
       var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
       if (again) again.focus();
+    } else if (act === "quiet-list") {
+      state.showQuietList = !state.showQuietList;
+      paintBoard();
+      var foot = document.querySelector('[data-act="quiet-list"]');
+      if (foot) foot.focus();
     } else if (act === "quiet") {
       state.showQuiet = !state.showQuiet;
       paintBoard();

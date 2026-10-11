@@ -52,6 +52,7 @@ Never write anything else, and never touch `EXAMPLE-latest.json`.
   "headline": "Here is what moved in your Slack",
   "lead": { "id": "c1", "why": "<one short, concrete sentence: what happens if they ignore it>" },
   "totals": { "messages": 214, "channels": 9, "quiet": 4, "mentions": 3, "dms": 2 },
+  "quietChannels": ["#general", "#random", "#hiring", "#office"],
   "channels": [ ... ],
   "me": { "name": "Sahar", "id": "U0123ABCD" },
   "known": [ { "id": "C0123ABCD", "name": "#eng" }, { "id": "D0123ABCD", "name": "DM with Hila" } ]
@@ -74,6 +75,10 @@ Never write `waiting`, `decisions` or `promises` lists: the page no longer shows
 `totals`: `messages` read in the window (thread replies included), `channels` that moved,
 `quiet` channels you can see that did not move, `mentions` of the person, `dms` direct and
 group conversations that moved.
+
+`quietChannels`: the names of the channels counted in `totals.quiet`, as Slack shows them
+(`#general`), at most 50. The page lists them when the person opens "N more channels were
+quiet".
 
 ### channels: what moved
 

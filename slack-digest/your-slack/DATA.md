@@ -16,6 +16,7 @@ the page shows them. The full rules for each field are in the agent's persona
 
 `latest.json` in short: `generatedAt`, `since`, `workspace`, `headline`, an optional `lead`
 `{ id, why }` naming one channel, `totals` `{ messages, channels, quiet, mentions, dms }`,
+`quietChannels` (the names behind `totals.quiet`, listed when the person opens that line),
 and `channels` (`name`, `messages`, `urgency` High, Medium or Low, `gist`, `wants`, `url`).
 Every channel has an `id`. `me` (the person's Slack name and id) and `known` (the
 conversations seen before, read directly next time so nothing search misses is lost) are
