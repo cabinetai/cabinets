@@ -186,8 +186,6 @@
   .chan-count { font-size: 14px; color: var(--ink-3); white-space: nowrap; align-self: center; }
   .chan-gist { grid-column: 1 / -1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; padding-inline-start: 18px; }
   .chan-wants { grid-column: 1 / -1; padding-inline-start: 18px; font-size: 14.5px; font-weight: 700; color: var(--red-ink); }
-  .heat { grid-column: 1 / -1; margin-inline-start: 18px; height: 4px; border-radius: 4px; background: var(--panel-2); overflow: hidden; }
-  .heat i { display: block; height: 100%; border-radius: 4px; background: var(--blue); opacity: .55; }
   .chan-body { padding: 0 18px 16px 36px; background: var(--panel); }
   .chan-body .row-actions { margin-top: 0; }
   .fold { width: 100%; padding: 12px 18px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--plum-2); font-weight: 700; font-size: 14.5px; text-align: start; display: flex; align-items: center; gap: 8px; }
@@ -878,7 +876,7 @@
   }
 
   // Catch up: every channel that moved, the ones that need you first, the quiet ones folded.
-  function channelRow(item, index, max) {
+  function channelRow(item, index) {
     var id = text(item.id, 60) || "c" + index;
     var open = !!state.open[id];
     var name = text(item.name, 60) || "A channel";
@@ -895,7 +893,6 @@
       '<span class="chan-count num">' + (n != null ? n + " " + plural(n, "message", "messages") : "") + "</span>" +
       '<span class="chan-gist" dir="auto">' + esc(text(item.gist, 160)) + "</span>" +
       (text(item.wants) ? '<span class="chan-wants" dir="auto">' + esc(text(item.wants, 120)) + "</span>" : "") +
-      (n != null && max ? '<span class="heat" aria-hidden="true"><i style="width:' + Math.max(4, Math.round(n / max * 100)) + '%"></i></span>' : "") +
       "</button>" +
       (actions.length ? '<div class="chan-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + '><div class="row-actions">' + actions.join("") + "</div></div>" : "") +
       "</li>";
@@ -915,11 +912,10 @@
     var t = state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {};
     var loud = c.filter(function (x) { return x.urgency !== "Low"; });
     var calm = c.filter(function (x) { return x.urgency === "Low"; });
-    var max = c.reduce(function (m, x) { return Math.max(m, count(x.messages) || 0); }, 0);
     var shown = state.showQuiet || !loud.length ? c : loud;
     var hidden = shown === c ? 0 : calm.length;
     var quietMore = count(t.quiet) || 0;
-    var chanInner = '<ul class="chans">' + shown.map(function (item, i) { return channelRow(item, i, max); }).join("") + "</ul>" +
+    var chanInner = '<ul class="chans">' + shown.map(function (item, i) { return channelRow(item, i); }).join("") + "</ul>" +
       (hidden ? '<button class="fold" data-act="quiet" aria-expanded="false">' + icon("i-down") + "Show " + hidden + " more " + plural(hidden, "channel", "channels") + " that can wait</button>"
         : state.showQuiet && calm.length && loud.length ? '<button class="fold" data-act="quiet" aria-expanded="true">' + icon("i-down") + "Show only the ones that need you</button>" : "");
     var quietNames = Array.isArray(state.data.quietChannels)
