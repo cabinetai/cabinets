@@ -53,6 +53,7 @@
   .btn:hover { background: var(--panel); }
   .btn[disabled] { cursor: default; opacity: .6; }
   .btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .ask-btn { display: flex; margin-top: 12px; }
   .run-note { font-size: 14px; color: var(--red-ink); }
   .spin { animation: spin 1.2s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -137,6 +138,7 @@
   var CAN = !!(cab && cab.jobs && typeof cab.jobs.run === 'function');
   var JOB_ID = 'nightly-answer-sweep';
   var viewer = false, running = false, runNote = '';
+  var CHAT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.8 7L3 21l2-6.2A8 8 0 1 1 21 12z" /></svg>';
   var REFRESH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></svg>';
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
@@ -317,8 +319,29 @@
       p.id = 'nohits';
       p.className = 'empty';
       p.textContent = 'Nothing written down for that yet.';
+      /* Not in the book yet: the Answer Keeper can still look for it in Slack, in the chat. */
+      if (cab && typeof cab.ask === 'function' && !viewer) {
+        var b = document.createElement('button');
+        b.className = 'btn ask-btn';
+        b.type = 'button';
+        b.innerHTML = CHAT + 'Ask in chat';
+        b.addEventListener('click', function () { askFor(find.value.trim(), b); });
+        p.appendChild(b);
+      }
       root.appendChild(p);
     }
+  }
+
+  function askFor(question, b) {
+    if (!question) return;
+    b.disabled = true;
+    cab.ask('Look in Slack for the answer to this question, and tell me who answered it and ' +
+      'where: ' + question, { agent: 'answer-keeper', send: true }).then(function () {
+      b.textContent = 'Asked. The answer is coming in the chat.';
+    }).catch(function (e) {
+      b.disabled = false;
+      b.textContent = e && e.message ? e.message : 'That did not go through. Try again.';
+    });
   }
 
   function show(name, files) {
