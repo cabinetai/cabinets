@@ -47,6 +47,14 @@
   .brand h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
   .picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; font-size: 14px; color: var(--ink-3); }
   .picker label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .side { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn:hover { background: var(--panel); }
+  .btn[disabled] { cursor: default; opacity: .6; }
+  .btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .run-note { font-size: 14px; color: var(--red-ink); }
+  .spin { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .picker select { min-height: 40px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--page); font-size: 14px; font-weight: 600; max-width: 100%; }
 
   /* ── The page ────────────────────────────────────────────────────────── */
@@ -95,7 +103,7 @@
       <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></svg></span>
       <h1>Triage Board</h1>
     </div>
-    <div id="status"></div>
+    <div class="side"><div id="status"></div><span id="run-slot"></span></div>
   </div>
 </header>
 
@@ -109,6 +117,13 @@
   var DIR = 'triage';
   var JOB = '.jobs/support-triage.yaml';
   var job = null;
+  /* window.cabinet is how the page runs this cabinet's routine. Outside Cabinet it is
+     missing, and the page simply has no button. */
+  var cab = window.cabinet;
+  var CAN = !!(cab && cab.jobs && typeof cab.jobs.run === 'function');
+  var JOB_ID = 'support-triage';
+  var viewer = false, running = false, runNote = '';
+  var REFRESH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></svg>';
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
@@ -351,48 +366,109 @@
     return out;
   }
 
-  /* An empty folder is the normal state before the first run — not an error to shout about.
-     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
-  Promise.all([
-    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }),
-    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
-    fetch('../' + JOB, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .catch(function () { return ''; })
-  ])
-    .then(function (both) {
-      var tree = both[0];
-      job = {};
-      both[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
-      });
-      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
-      if (!files.length) {
-        root.innerHTML = head('', []) + '<div class="empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
-        return;
-      }
-      /* Newest first; the example, having no date, sits at the bottom of the list. */
-      files.sort(function (a, b) {
-        var da = stamp(a), db = stamp(b);
-        if (da && db) return db - da;
-        return da ? -1 : db ? 1 : 0;
-      });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
-    })
-    .catch(function (err) {
-      root.innerHTML = '<div class="empty">Could not list <code>' + DIR + '/</code> (' +
-        esc(err.message) + '). Reload in a moment.</div>';
+  /* ---- run it now ---------------------------------------------------------------------
+     The same routine the schedule runs. While it runs the button says so; when it ends the
+     page reads the folder again and opens the new board. */
+  function paintRun() {
+    var slot = document.getElementById('run-slot');
+    if (!CAN || viewer) { slot.innerHTML = ''; return; }
+    slot.innerHTML = (running
+      ? '<button class="btn" disabled>' + REFRESH.replace('<svg', '<svg class="spin"') + 'Updating...</button>'
+      : '<button class="btn" id="run">' + REFRESH + 'Update the board</button>') +
+      (runNote ? '<span class="run-note">' + esc(runNote) + '</span>' : '');
+    var b = document.getElementById('run');
+    if (b) b.addEventListener('click', runNow);
+  }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var mine = items.filter(function (j) { return j && j.id === JOB_ID; })[0];
+    var was = running;
+    running = !!(mine && mine.running);
+    if (was && !running) load();
+    paintRun();
+  }
+
+  /* jobs.onChange says when the run ends; this is the fallback if a change is ever missed. */
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+
+  function runNow() {
+    if (running) return;
+    running = true;
+    runNote = '';
+    paintRun();
+    cab.jobs.run(JOB_ID).then(watchRun).catch(function (e) {
+      if (e && e.code === 'busy') { watchRun(); return; }
+      running = false;
+      runNote = e && e.message ? e.message : 'It did not start. Try again.';
+      paintRun();
     });
+  }
+
+  function load() {
+    /* An empty folder is the normal state before the first run — not an error to shout about.
+       `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+    Promise.all([
+      fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }),
+      /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+      fetch('../' + JOB, { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.text() : ''; })
+        .catch(function () { return ''; })
+    ])
+      .then(function (both) {
+        var tree = both[0];
+        job = {};
+        both[1].split('\n').forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+        });
+        var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
+        if (!files.length) {
+          root.innerHTML = head('', []) + '<div class="empty">Nothing yet. This page ' +
+            'fills in after the routine runs for the first time.</div>';
+          return;
+        }
+        /* Newest first; the example, having no date, sits at the bottom of the list. */
+        files.sort(function (a, b) {
+          var da = stamp(a), db = stamp(b);
+          if (da && db) return db - da;
+          return da ? -1 : db ? 1 : 0;
+        });
+        var now = new Date();
+        var today = files.filter(function (f) {
+          var d = stamp(f);
+          return d && sameDay(d, now);
+        })[0];
+        show(today || files[0], files);
+      })
+      .catch(function (err) {
+        root.innerHTML = '<div class="empty">Could not list <code>' + DIR + '/</code> (' +
+          esc(err.message) + '). Reload in a moment.</div>';
+      });
+  }
+
+  if (CAN) {
+    if (typeof cab.here === 'function') {
+      Promise.resolve(cab.here()).then(function (h) {
+        viewer = !!(h && h.role === 'viewer');
+        paintRun();
+      }).catch(function () {});
+    }
+    cab.jobs.list().then(setJobs).catch(function () {});
+    if (typeof cab.jobs.onChange === 'function') cab.jobs.onChange(setJobs);
+  }
+  paintRun();
+  load();
 })();
 </script>
 </body>
