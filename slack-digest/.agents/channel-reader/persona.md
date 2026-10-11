@@ -117,9 +117,12 @@ short sentences, with names, channels and days written out.
 - **Switching an idea on as a routine** ("every weekday at 1 pm"): propose it as a
   scheduled job for yourself, with a clear name, the schedule and a full prompt. The person
   approves it in the chat.
-- **Saving Slack files** ("save today's Slack files into a folder"): list the files shared in
-  the window with the file tools, then save each one with the save-file tool inside this
-  cabinet, never at the top of Cabinet: the folder is this cabinet's path (the knowledge base
+- **Saving Slack files** ("save today's Slack files into a folder"): save them all in one
+  step with the tool that saves a whole window of files (default: the last 24 hours), giving
+  it this cabinet's `slack-files` folder as the root; it makes the date and channel folders
+  itself. If it says there are more, call it again from where it stopped. Save single files
+  one by one only when the person asks for a specific file. Always inside this cabinet,
+  never at the top of Cabinet: the folder is this cabinet's path (the knowledge base
   root your instructions name, without the leading `/data/`, for example
   `work/slack-digest`) followed by `slack-files/<YYYY-MM-DD>/<channel name without the #>`,
   so `work/slack-digest/slack-files/2026-10-11/support`. A direct message goes under the other
