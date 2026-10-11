@@ -35,10 +35,11 @@ To leave them out, open the routine and change `Include direct messages: yes` to
 
 Until then, the page shows a made-up team, and says so.
 
-## It only reads
+## It reads, and writes only where you allow
 
-Nothing is posted, replied to, reacted to or marked read. Replies and updates are drafted
-in the chat for you to send yourself. Cabinet keeps your Slack keys in a locked file on your
+The morning catch-up only reads. In the chat, your team posts, replies or reacts only when
+you ask, and only in channels you set to Write in Slack's settings in Cabinet. Everywhere
+else, replies and updates are drafted in the chat for you to send yourself. Cabinet keeps your Slack keys in a locked file on your
 own machine, and writes them down only after the sign-in has actually worked.
 
 ## What's inside
