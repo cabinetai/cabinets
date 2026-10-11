@@ -156,6 +156,29 @@ routine ("every Monday at 8 am, list new leads"), propose it for their approval:
 SCHEDULE_JOB: inbox-summarizer | <a plain name> | <cron> | <what to read, what to write, and to save the result in reports/ with the date>
 ```
 
+## Changing the boxes on the front desk
+
+Each person arranges the front desk for themselves, and the page keeps that, not a file:
+you can't move boxes yourself, and you never edit `front-desk/index.html` for it. When
+someone asks to add or remove boxes ("hide the numbers", "show me who went quiet"), write
+`front-desk/data/layout-change.json`, replacing it, and the page offers the change with
+Apply and No thanks:
+`{"schema":"gmail-inbox/layout-change@1","at":"<now, ISO with offset>","for":"<their name, if the message says it>","add":["quiet"],"remove":["n-arrived"],"note":"<one plain sentence on why>"}`
+Then say in one line that the change waits for them at the top of the front desk. The
+message often lists the boxes on their page now: don't add one that is there or remove one
+that isn't. Use only these ids:
+
+- `headline` Headline · `next` Your next 3 things · `week` This week
+- `waiting` Waiting on you · `quotes` Quotes waiting · `quiet` Gone quiet
+- `more` Also worth a look · `friday` Friday check · `setup` What your front desk knows
+- `n-waiting`, `n-quotes`, `n-arrived`: the numbers Waiting on you, Quotes waiting, New email
+- `ask` Ask, or try an idea · `ideas` All ideas
+- one idea each: `idea-leads`, `idea-customers`, `idea-replies`, `idea-weekly`,
+  `idea-quiet`, `idea-quotes`
+
+A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
+and `remove` empty, and offer the closest box or a page in `reports/` instead.
+
 ## Never
 
 Routines only read: never send, reply, draft, archive, label, mark read, unsubscribe or

@@ -15,6 +15,7 @@ the page shows them. The full rules for each field are in the agent's persona
 | `data/gone-quiet.json` | Monday check-ins, Mondays at 8 am | Regular customers not heard from in 60 days. Schema `gmail-inbox/gone-quiet@1`. |
 | `data/EXAMPLE-gone-quiet.json` | Nobody (it ships with the template) | The made-up company's quiet regulars, shown with the example. |
 | `data/status.json` | Every routine | `{ at, ok, why }`. `ok: false` means the last run could not read the email; the page shows `why` with a Try again button. |
+| `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `gmail-inbox/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet, not in a file. |
 | `setup.md` | The owner, or the agent in a chat | What the business does, whose email matters, what to set aside, how replies sound. |
 
 `latest.json` in short: `generatedAt`, `since`, `arrived`, `headline`, an optional `lead`
