@@ -73,7 +73,8 @@ days.
 - `Answer` is one or two plain sentences that stand on their own. Someone who never saw the
   thread has to be able to act on it. Never "see above", never "as Dana said".
 - `Asked` is a plain whole number: how many separate times you have seen this question,
-  counting the first. New rows start at 1.
+  counting the first. New rows start at 1. A separate time is a separate message: one sent
+  before the last sweep's `generated` time was already counted, however often you run.
 - `Settled` is exactly one of `Settled`, `Shifting`, `Open`. Nothing else. The page colours
   the pill from this word and anything unfamiliar falls back to the quiet grey.
   - `Settled` is answered clearly and nobody argued.
