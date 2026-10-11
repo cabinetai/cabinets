@@ -239,7 +239,12 @@
   .ev.auto { background: var(--panel); color: var(--ink-3); }
   .ev-more { font-size: 12px; color: var(--ink-3); padding-inline-start: 4px; }
   .lane.waiting .count.zero { color: var(--ink-3); }
-  .lane-empty { padding: 18px; color: var(--ink-3); margin: 0; }
+  /* An empty box says so in words; a 0 beside its title adds nothing. */
+  .lane-head .count.zero { display: none; }
+  /* A quiet box: its icon in the colour of the sun, and one calm line. */
+  .lane-empty { display: flex; align-items: center; gap: 12px; margin: 0; padding: 4px 20px 16px; color: var(--ink-2); font-size: 15px; }
+  .lane-empty .icon { width: 24px; height: 24px; flex: none; stroke-width: 1.8; color: color-mix(in srgb, var(--sky-orb) 80%, var(--ink-2)); }
+  .lane-empty.all-done, .lane-empty.all-done .icon { color: var(--sage-ink); }
 
   .rows { list-style: none; margin: 0; padding: 0; }
   .row { border-bottom: 1px solid var(--line); }
@@ -1585,6 +1590,9 @@
     boxes.forEach(function (b) {
       if (b.id === pinId) return;
       var h = Math.max(b.h, state.need[b.id] || 0);
+      // An empty box shrinks to its title and one line, so a quiet morning has no white holes.
+      // While editing it keeps its size, so it can still be moved and resized.
+      if (state.fit && state.fit[b.id] && !state.editing) h = Math.min(h, state.fit[b.id]);
       var y = b.y;
       while (hits(b, y, h)) y++;
       while (y > 0 && !hits(b, y - 1, h)) y--;
@@ -1900,6 +1908,21 @@
     more.textContent = cut ? "+" + cut + " more" : "Show less";
     more.setAttribute("aria-expanded", String(!cut));
 
+    // An empty list: remember how many rows its title and its one line need.
+    var fit = 0;
+    if (!stack && !rows.length && body.querySelector(".lane-empty")) {
+      var used = 2;
+      Array.prototype.forEach.call(el.children, function (child) {
+        if (child.matches(".box-x, .box-resize, .box-size")) return;
+        used += child === body ? contentHeight(body) : child.hidden ? 0 : child.offsetHeight;
+      });
+      fit = Math.max(2, Math.ceil((used + GAP) / (ROW + GAP)));
+    }
+    state.fit = state.fit || {};
+    if ((state.fit[id] || 0) !== fit) {
+      state.fit[id] = fit;
+      placeBoxes();
+    }
     var need = 0;
     if (open && !stack) {
       var total = 2;
@@ -1923,7 +1946,7 @@
   }
   function listBox(key, title, iconId, total, count, rowsHtml, emptyText) {
     return boxHead(key, title, iconId, total, count) +
-      '<div class="box-body">' + (count ? rowsHtml : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</div>" +
+      '<div class="box-body">' + (count ? rowsHtml : '<p class="lane-empty">' + icon(iconId) + "<span>" + esc(emptyText) + "</span></p>") + "</div>" +
       '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
   }
   /** The small level: one number, a line under it, and the one that matters most. */
@@ -2229,7 +2252,7 @@
     }
     var head = boxHead("week", "This week", "i-calendar", "", items.length || null);
     if (!items.length) {
-      return head + '<div class="box-body"><p class="lane-empty">Nothing planned in the next 7 days.</p></div>' +
+      return head + '<div class="box-body"><p class="lane-empty">' + icon("i-calendar") + '<span>Nothing planned in the next 7 days. A free week.</span></p></div>' +
         '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
     }
     if (level === "M") {
