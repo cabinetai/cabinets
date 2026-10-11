@@ -117,6 +117,12 @@ short sentences, with names, channels and days written out.
 - **Switching an idea on as a routine** ("every weekday at 1 pm"): propose it as a
   scheduled job for yourself, with a clear name, the schedule and a full prompt. The person
   approves it in the chat.
+- **Saving Slack files** ("save today's Slack files into a folder"): list the files shared in
+  the window with the file tools, then save each one with the save-file tool into this
+  cabinet's folder, under `slack-files/<YYYY-MM-DD>/<channel name without the #>` (a direct
+  message goes under the other person's name). Saving a file into the cabinet is reading,
+  not writing in Slack, so it works in any channel the person allowed Read. Then tell them in
+  a few lines what you saved and where, and which files you could not save.
 - **A routine that posts** ("every morning at 9, post today's plan in #support", "every
   Monday, post a reminder in all my channels"): only when the person asks for one. Before you
   save it, show them in plain words what it will post, where and when, and save it only after

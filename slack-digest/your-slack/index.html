@@ -199,6 +199,16 @@
   .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); box-shadow: var(--shadow-1); }
   .idea:hover { box-shadow: var(--shadow-2); border-color: var(--line-2); }
   .idea .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; }
+  .peek { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 112px; padding: 12px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.3; }
+  .peek.plum { background: var(--plum-tint); --peek-ink: var(--plum); }
+  .peek.blue { background: var(--blue-tint); --peek-ink: var(--blue-ink); }
+  .peek.green { background: var(--green-tint); --peek-ink: var(--green-ink); }
+  .peek.amber { background: var(--amber-tint); --peek-ink: var(--amber-ink); }
+  .peek-title { display: flex; align-items: center; gap: 6px; font-weight: 800; color: var(--peek-ink); }
+  .peek-title .icon { width: 14px; height: 14px; }
+  .peek-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; align-items: center; padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, .72); }
+  .peek-row b { font-weight: 700; color: var(--peek-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .peek-row span { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .idea h3 { margin: 0; font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
   .idea p { margin: 0; color: var(--ink-2); font-size: 15px; flex: 1; }
   .idea .go { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 4px; }
@@ -289,6 +299,7 @@
   <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></symbol>
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></symbol>
   <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9a4.8 4.8 0 0 1-.6 9.5z" /></symbol>
   <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 13l2.6-7.2A2 2 0 0 1 7.5 4.5h9a2 2 0 0 1 1.9 1.3L21 13v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M3 13h5l1.5 2.5h5L16 13h5" /></symbol>
 </svg>
@@ -348,32 +359,33 @@
     "Did anyone mention me yesterday?",
     "What did the team decide this week?",
     "Which channel was busiest?",
-    "What did I promise to do?"
+    "What did I promise to do?",
+    "Save today's Slack files into a folder"
   ];
 
   /** Slack plays: one tap to ask now, or to switch on as a routine. */
   var IDEAS = [
-    { icon: "i-sun", tint: "plum", title: "Draft my standup from Slack",
+    { icon: "i-sun", tint: "plum", preview: { title: null, rows: [["Yesterday", "Shipped the login fix"], ["Today", "Review the new icons"], ["Blocked", "Waiting on Dana"]] }, title: "Draft my standup from Slack",
       text: "What you did yesterday, what is next, and what is blocking you, from your own messages.",
       ask: "Draft my standup update from my Slack messages of the last working day: what I did, what I'm doing next, and anything blocking me. Keep it to three short lines I can paste.",
       when: "Every weekday", at: "every weekday at 8:45 am" },
-    { icon: "i-refresh", tint: "blue", title: "Catch me up after lunch",
+    { icon: "i-refresh", tint: "blue", preview: { title: "Since 9:00", rows: [["#eng", "4 new, release moved"], ["#design", "2 new, icons posted"], ["Dana", "Asked you about Thursday"]] }, title: "Catch me up after lunch",
       text: "A second look at noon: who wrote since the morning, and what needs you before evening.",
       ask: "Catch me up on Slack since 9 this morning: who is waiting on me, any new mentions, and what needs me before the end of the day.",
       when: "Every weekday", at: "every weekday at 1 pm" },
-    { icon: "i-gavel", tint: "green", title: "This week's decisions on one page",
+    { icon: "i-gavel", tint: "green", preview: { title: "Decided this week", rows: [["Tue", "Ship on Thursday, #eng"], ["Wed", "New icon set, #design"], ["Thu", "Hire two designers"]] }, title: "This week's decisions on one page",
       text: "Everything the team agreed this week, with who and where, saved as a page.",
       ask: "List every decision the team made in Slack this week: what was decided, who agreed, in which channel, and when. Save it as a page in this cabinet.",
       when: "Every Friday", at: "every Friday at 4 pm" },
-    { icon: "i-doc", tint: "amber", title: "Weekly summary for my manager",
+    { icon: "i-doc", tint: "amber", preview: { title: "Week of 6 Oct", rows: [["Moved", "Release on track"], ["Decided", "Icons approved"], ["Stuck", "Test server, needs a hand"]] }, title: "Weekly summary for my manager",
       text: "What moved, what was decided and what is stuck, ready to paste or send.",
       ask: "Write a short weekly summary of my Slack for my manager: what moved in my channels, what was decided, what is stuck and needs a hand. Keep it under 150 words.",
       when: "Every Friday", at: "every Friday at 3 pm" },
-    { icon: "i-at", tint: "plum", title: "Everyone I still owe an answer",
-      text: "Every mention and direct question from this week that you haven't answered yet.",
-      ask: "Find every message from the last 7 days where someone mentioned me or asked me something directly and I haven't answered. For each: who, where, what they want and how long they've waited, oldest first.",
-      when: "Every Monday", at: "every Monday at 9 am" },
-    { icon: "i-hash", tint: "blue", title: "Catch up on one channel",
+    { icon: "i-folder", tint: "amber", preview: { title: "Slack files, 11 Oct", rows: [["#support", "report.pdf, notes.docx"], ["#design", "icons.png, logo.svg"], ["Dana", "contract.pdf"]] }, title: "Keep every Slack file in one folder",
+      text: "Every file shared in your Slack today, saved here in a folder per channel, so nothing gets lost in the scroll.",
+      ask: "Save today's Slack files into a folder: every file shared in my channels and direct messages in the last 24 hours, saved in this cabinet under slack-files, then today's date, then one folder per channel. Then tell me what you saved.",
+      when: "Every evening", at: "every day at 6 pm" },
+    { icon: "i-hash", tint: "blue", preview: { title: "#eng this week", rows: [["1", "Release moved to Thursday"], ["2", "Flaky test fixed"], ["3", "Still open: the login bug"]] }, title: "Catch up on one channel",
       text: "The story of a busy channel in five lines, so you can skip the scroll.",
       ask: "Which channel moved the most this week? Summarize it in five short lines: what happened, what was decided, and what is still open.",
       when: "Every Monday", at: "every Monday at 9:30 am" }
@@ -932,6 +944,16 @@
     main.innerHTML = channelsLane;
   }
 
+  /** A small made-up example of what the idea gives back, so the card shows the result, not an icon. */
+  function preview(idea) {
+    var p = idea.preview;
+    return '<div class="peek ' + idea.tint + '" aria-hidden="true">' +
+      (p.title ? '<span class="peek-title">' + icon(idea.icon) + esc(p.title) + "</span>" : "") +
+      p.rows.map(function (row) {
+        return '<span class="peek-row"><b>' + esc(row[0]) + "</b><span>" + esc(row[1]) + "</span></span>";
+      }).join("") + "</div>";
+  }
+
   function paintIdeas() {
     var el = $("ideas");
     if (!state.loaded) { el.innerHTML = ""; return; }
@@ -940,7 +962,7 @@
       "<p>" + (!V2 ? "Ask for any of these in the cabinet’s chat." : !askReady() ? "Connect Slack and each of these is one tap away." : "One tap to ask now, or to have it done for you on a schedule.") + "</p></div>" +
       '<div class="idea-grid">' + IDEAS.map(function (idea, i) {
         return '<article class="idea' + (state.animate ? " rise" : "") + '"' + (state.animate ? ' style="--d:' + (i * 40) + 'ms"' : "") + ">" +
-          '<span class="ic ' + idea.tint + '" aria-hidden="true">' + icon(idea.icon) + "</span>" +
+          preview(idea) +
           "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
           '<div class="go"><button class="btn dark" data-act="idea-now" data-i="' + i + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
           '<button class="btn" data-act="idea-routine" data-i="' + i + '"' + (can ? "" : " disabled") + ' aria-label="' + esc(idea.when + ": " + idea.title) + '">' + icon("i-repeat") + esc(idea.when) + "</button></div>" +
