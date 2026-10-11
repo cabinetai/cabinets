@@ -155,22 +155,9 @@
   .b-main { grid-area: main; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
   .side { grid-area: side; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
   .board > .ask { grid-area: ask; }
-  .lane { border: 1px solid var(--line); border-radius: 18px; background: var(--page); box-shadow: var(--shadow-1); overflow: hidden; }
-  .lane-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
-  .lane-head h3 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; flex: 1; }
-  .lane-head .count { min-width: 28px; height: 28px; padding: 0 9px; border-radius: 999px; display: grid; place-items: center; font-size: 14px; font-weight: 800; background: var(--panel); color: var(--ink-2); }
-  .lane-head .total { font-size: 14px; font-weight: 600; color: var(--ink-3); }
-  .lane-head .lane-icon { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; }
-  .lane.waiting .lane-head { border-top: 3px solid var(--plum); }
-  .lane.waiting .count { background: var(--plum); color: #fff; }
-  .lane.waiting .count.zero { background: var(--panel); color: var(--ink-2); }
-  .lane.waiting .lane-icon { background: var(--plum-tint); color: var(--plum); }
-  .lane.channels .lane-head { border-top: 3px solid var(--blue); }
-  .lane.channels .lane-icon { background: var(--blue-tint); color: var(--blue-ink); }
-  .lane.decided .lane-head { border-top: 3px solid var(--green); }
-  .lane.decided .lane-icon { background: var(--green-tint); color: var(--green-ink); }
-  .lane.promised .lane-head { border-top: 3px solid var(--amber); }
-  .lane.promised .lane-icon { background: var(--amber-tint); color: var(--amber-ink); }
+  .lane { min-width: 0; }
+  .lane-head { padding: 0 18px 10px; border-bottom: 1px solid var(--line); }
+  .lane-head h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
   .lane-empty { padding: 18px; color: var(--ink-3); margin: 0; }
   .lane-foot { margin: 0; padding: 12px 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; display: flex; align-items: center; gap: 8px; }
   .lane-foot .icon { width: 16px; height: 16px; color: var(--green); }
@@ -1009,11 +996,9 @@
       "</li>";
   }
 
-  function lane(key, title, iconId, count, total, inner, emptyText, foot) {
+  function lane(key, title, count, inner, emptyText, foot) {
     return '<section class="lane ' + key + '" id="lane-' + key + '" aria-labelledby="lane-' + key + '-h">' +
-      '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="lane-' + key + '-h">' + esc(title) + "</h3>" +
-      (total ? '<span class="total num">' + esc(total) + "</span>" : "") +
-      '<span class="count num' + (count ? "" : " zero") + '">' + count + "</span></div>" +
+      '<div class="lane-head"><h3 id="lane-' + key + '-h">' + esc(title) + "</h3></div>" +
       (count ? inner : '<p class="lane-empty">' + esc(emptyText) + "</p>") + (foot || "") + "</section>";
   }
 
@@ -1054,7 +1039,7 @@
     var pro = promises();
     var t = state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {};
 
-    var waitingLane = lane("waiting", "Waiting on you", "i-reply", w.length, "",
+    var waitingLane = lane("waiting", "Waiting on you", w.length,
       '<ol class="rows">' + w.map(function (item, i) { return waitingRow(item, i, ref); }).join("") + "</ol>",
       "Nobody is waiting on an answer from you.");
 
@@ -1068,13 +1053,13 @@
       (hidden ? '<button class="fold" data-act="quiet" aria-expanded="false">' + icon("i-down") + "Show " + hidden + " more " + plural(hidden, "channel", "channels") + " that can wait</button>"
         : state.showQuiet && calm.length && loud.length ? '<button class="fold" data-act="quiet" aria-expanded="true">' + icon("i-down") + "Show only the ones that need you</button>" : "");
     var chanFoot = quietMore ? '<p class="lane-foot">' + icon("i-check") + quietMore + " more " + plural(quietMore, "channel was", "channels were") + " quiet.</p>" : "";
-    var channelsLane = lane("channels", "Catch up", "i-hash", c.length, "", chanInner, "No channel moved since the last catch-up.", chanFoot);
+    var channelsLane = lane("channels", "Catch up", c.length, chanInner, "No channel moved since the last catch-up.", chanFoot);
 
-    var decidedLane = lane("decided", "Decided", "i-gavel", dec.length, "",
+    var decidedLane = lane("decided", "Decided", dec.length,
       '<ul class="notes">' + dec.map(function (item) { return noteItem(item, ref, "decided"); }).join("") + "</ul>",
       "Nothing was decided in your channels.",
       dec.length ? '<p class="lane-foot">' + icon("i-check") + "Kept in the Decision log page in this cabinet.</p>" : "");
-    var promisedLane = lane("promised", "You promised", "i-flag", pro.length, "",
+    var promisedLane = lane("promised", "You promised", pro.length,
       '<ul class="notes">' + pro.map(function (item) { return noteItem(item, ref, "promised"); }).join("") + "</ul>",
       "Nothing you said you would do is still open.");
 
