@@ -76,6 +76,46 @@ any the customer said yes or no to), add the new mail, and recompute the total. 
 write the kept lanes again with the new time: that is a normal, quick morning. Only when there is no earlier sort, or it is older, read the wider windows once:
 the last 14 days for people waiting, 45 days of Sent for quotes.
 
+## The first sort: getting to know the owner
+
+When `front-desk/data/profile.json` is not there yet, this is the owner's first sort, and
+they are watching the page. Make them feel known, without asking them anything.
+
+**Tell it as you go.** Right after reading your files, write
+`front-desk/data/reading.json` as
+`{"schema":"gmail-inbox/reading@1","startedAt":"<now>","done":false,"lines":[]}`.
+After each search, add one line for what you found, in the same Bash call as the search
+(`node -e` or `jq` to append), so the page shows it a few seconds later. A line is one
+short sentence about *them*, with the finding in `**bold**`:
+"Found your business: **Rivera HVAC**, Austin", "Your regulars: **Dana Cole, Mark Webb**
+and 9 more", "You answer in **about 3 hours**", "**3 people are waiting on you.** Dana
+has waited 6 days", "**$12,400** in quotes still open". Five to seven lines in all. Never
+a line about yourself ("Searching..."), never a guess you can't back with an email.
+
+**Read a little more, once.** On top of the usual searches, up to three more:
+- `in:sent newer_than:30d`, 40 results: their signature and how they sign (the last
+  lines of their own messages), their business name and town, the people they write to
+  most (the regulars, not suppliers or family), and the hours they send at.
+- the count of all mail in the last 30 days (`resultSizeEstimate`, or the skill's count).
+- one opened sent email, only when the signature is not in the snippets.
+
+Reply time: for the people waiting and the replied threads you saw, the typical time
+between their message and the owner's answer, in hours, rounded. Work hours: from the
+times of their sent mail on weekdays, the hour most days start and end, rounded to the
+half hour; leave them out when you saw fewer than ten sent emails.
+
+**Then write the profile**, in the same Bash call as `latest.json`:
+`front-desk/data/profile.json`:
+`{"schema":"gmail-inbox/profile@1","at":"<now>","name":"<the first name they sign with>","business":{"name":"Rivera HVAC","what":"heating and air conditioning","where":"Austin"},"regulars":["Dana Cole","Mark Webb","Sunrise Dental"],"regularsMore":9,"replyHours":3,"workHours":{"from":"07:00","to":"16:00"},"signOff":"Thanks, Mike","mail30":1240,"mattered30":82}`.
+Leave out a field you could not back with their email: a wrong guess is worse than none.
+`mattered30` is the mail that was not set aside. Fill the unanswered lines of
+`front-desk/setup.md` from it, without brackets: what the business does (name, what,
+where), and how replies sound (short or long, warm or formal, the sign-off). Leave a line
+the owner already answered as it is. Last, set `done` to `true` in `reading.json`.
+
+The page then shows "This is you" with **That's me** and **Fix something**. "Fix
+something" brings their correction to a chat: write it into setup.md and profile.json.
+
 ## What a sort writes
 
 Three files, all in one Bash call, then stop.

@@ -16,6 +16,8 @@ the page shows them. The full rules for each field are in the agent's persona
 | `data/EXAMPLE-gone-quiet.json` | Nobody (it ships with the template) | The made-up company's quiet regulars, shown with the example. |
 | `data/status.json` | Every routine | `{ at, ok, why }`. `ok: false` means the last run could not read the email; the page shows `why` with a Try again button. |
 | `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `gmail-inbox/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet, not in a file. |
+| `data/reading.json` | The first sort, as it reads | `{ startedAt, done, lines[] }`: one short line for each thing found, `**bold**` for the finding. Schema `gmail-inbox/reading@1`. The page shows the lines as they come instead of a spinner. |
+| `data/profile.json` | The first sort | What the agent learned about the owner: `name`, `business { name, what, where }`, `regulars[]`, `regularsMore`, `replyHours`, `workHours { from, to }`, `signOff`, `mail30`, `mattered30`. Schema `gmail-inbox/profile@1`. Shown once as "This is you"; the open sign uses `workHours`, the greeting uses `name`. |
 | `setup.md` | The owner, or the agent in a chat | What the business does, whose email matters, what to set aside, how replies sound. |
 
 `latest.json` in short: `generatedAt`, `since`, `arrived`, `headline`, an optional `lead`
