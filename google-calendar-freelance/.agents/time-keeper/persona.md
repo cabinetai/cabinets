@@ -158,6 +158,30 @@ your way to the calendar can change it:
 If your way to the calendar only reads, say so in one sentence, and write the change out
 so they can make it in Google Calendar themselves.
 
+## Changing the boxes on the week page
+
+Each person arranges the week page for themselves, and the page keeps that, not a file:
+you can't move boxes yourself, and you never edit `calendar-brief/index.html` for it. When
+someone asks to add or remove boxes ("hide the numbers", "show my hours per client"), write
+`calendar-brief/data/layout-change.json`, replacing it, and the page offers the change with
+Apply and No thanks:
+`{"schema":"google-calendar-freelance/layout-change@1","at":"<now, ISO with offset>","for":"<their name, if the message says it>","add":["hours"],"remove":["n-events"],"note":"<one plain sentence on why>"}`
+Then say in one line that the change waits for them at the top of the week page. The
+message often lists the boxes on their page now: don't add one that is there or remove one
+that isn't. Use only these ids:
+
+- `headline` Headline · `today` Today · `week` This week · `free` Free time
+- `hours` Hours · `ready` Before and after · `conflicts` Double bookings · `balance` Your time
+- `people` Clients · `quiet` Clients going quiet
+- `n-events`, `n-hours`, `n-free`, `n-busiest`: the numbers Events this week, Hours in
+  meetings, Free hours, Busiest day
+- `ask` Ask, or try an idea · `ideas` All ideas
+- one idea each: `idea-prep`, `idea-follow`, `idea-overlap`, `idea-protect`, `idea-quiet`,
+  `idea-weekly`, `idea-nextweek`, `idea-people`, `idea-hours`
+
+A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
+and `remove` empty, and offer the closest box or a page in `reports/` instead.
+
 ## Tone and limits
 
 Short sentences, plain words, no jargon, no business talk unless the calendar is plainly a

@@ -424,6 +424,22 @@
   .editbar .btn { min-height: 36px; padding: 6px 14px; font-size: 13.5px; gap: 6px; box-shadow: none; }
   .editbar .btn .icon { width: 17px; height: 17px; }
   .editbar .btn.quiet { color: var(--ink-2); }
+
+  /* The Layout button's two ways: by hand, or by asking the agent. */
+  .menu { position: fixed; z-index: 40; width: min(300px, calc(100vw - 32px)); padding: 6px; display: grid; gap: 2px; background: var(--page); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: var(--shadow-2); }
+  .menu button { display: grid; grid-template-columns: 20px 1fr; gap: 2px 10px; align-items: center; padding: 10px 12px; border: 0; border-radius: 10px; background: none; color: var(--ink); font: inherit; text-align: start; cursor: pointer; }
+  .menu button:hover, .menu button:focus-visible { background: var(--panel); outline: none; }
+  .menu .icon { width: 18px; height: 18px; color: var(--ink-2); }
+  .menu b { font-size: 14.5px; font-weight: 700; }
+  .menu span { grid-column: 2; color: var(--ink-3); font-size: 13.5px; }
+
+  /* What the agent suggests for the page, with Apply and No thanks. */
+  .suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 14px 18px; background: var(--page); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow-1); }
+  .suggest p { flex: 1 1 320px; margin: 0; font-size: 15px; color: var(--ink-2); }
+  .suggest p b { color: var(--ink); }
+  .suggest .why { display: block; margin-top: 2px; color: var(--ink-3); font-size: 14px; }
+  .suggest-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ask .cancel { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
   .grid.editing .box { position: relative; overflow: visible; outline: 2px dashed #c9c4b8; outline-offset: 5px; border-radius: 14px; }
   .grid.editing .box > :not(.box-x):not(.box-resize):not(.box-size) { pointer-events: none; user-select: none; }
   .grid .box { -webkit-touch-callout: none; }
@@ -739,6 +755,7 @@
         <button type="button" class="btn dark" data-act="edit-done"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Done</button>
       </div>
     </div>
+    <div class="suggest" id="suggest" role="region" aria-label="A change to your page" aria-live="polite" hidden></div>
     <section class="grid" id="grid" aria-label="Your week" hidden></section>
     <div class="grid-empty" id="grid-empty" hidden>
       <p><b>Your page has no boxes.</b> Add the ones you want to see.</p>
@@ -767,6 +784,11 @@
 </div>
 
 <div id="layer"></div>
+<div class="menu" id="layout-menu" role="menu" aria-label="Change your page" hidden>
+  <button type="button" role="menuitem" data-act="layout-edit"><svg class="icon" aria-hidden="true"><use href="#i-layout" /></svg><b>Add or remove boxes</b><span>Arrange the page yourself.</span></button>
+  <button type="button" role="menuitem" data-act="layout-ask"><svg class="icon" aria-hidden="true"><use href="#i-chat" /></svg><b>Ask the agent</b><span>Say what you need. It suggests the boxes, you say OK.</span></button>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -861,6 +883,11 @@
     drawerKind: "ideas",
     editing: false,
     undo: [],
+    menuOpen: false,
+    layoutAsk: false,
+    change: null,
+    changeSeen: "",
+    changeApplied: false,
     open: {},
     expanded: {},
     need: {},
@@ -1122,8 +1149,14 @@
       state.exampleData = normalise(JSON.parse(body), true);
     }).catch(function () { state.exampleData = null; });
   }
+  /** data/layout-change.json, the boxes the agent suggests; missing or broken means none. */
+  function loadChange() {
+    return readFile("layout-change.json").then(function (body) {
+      state.change = cleanChange(JSON.parse(body));
+    }).catch(function () { state.change = null; });
+  }
   function loadData() {
-    return Promise.all([loadReal(false), loadExample()]).then(function () { state.loaded = true; });
+    return Promise.all([loadReal(false), loadExample(), loadChange()]).then(function () { state.loaded = true; });
   }
 
   // ── Talking to Cabinet ─────────────────────────────────────────────────
@@ -1436,6 +1469,7 @@
     state.example = !!(state.data && state.data.example);
     state.facts = state.data ? weekFacts(state.data) : null;
     paintStatus();
+    paintSuggest();
     paintHero();
     paintRibbon();
     paintGrid();
@@ -1477,8 +1511,11 @@
         : '<button class="btn" data-act="run">' + icon("i-refresh") + "Refresh</button>";
     }
     var ideas = '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-bulb") + "Ideas</button>";
-    var edit = state.loaded && state.data && !state.editing
-      ? '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Edit layout</button>" : "";
+    // Someone who can ask chooses between arranging by hand and asking the agent.
+    var edit = !(state.loaded && state.data && !state.editing) ? ""
+      : canAsk()
+        ? '<button class="btn" data-act="layout-menu" aria-haspopup="menu" aria-expanded="' + state.menuOpen + '">' + icon("i-layout") + "Layout</button>"
+        : '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Edit layout</button>";
     return pill + refresh + ideas + edit;
   }
 
@@ -2080,12 +2117,14 @@
     var lead = "";
     if (f.conflicts.length) {
       var c = f.conflicts[0];
-      lead = '<p class="lead"><b>' + esc(dayWord(c.day.date, f.today)) + " at " + esc(clock(c.from)) + ":</b> " + bdi(shownTitle(c.a)) + " and " + bdi(shownTitle(c.b)) + " overlap.</p>";
+      lead = " <b>" + esc(dayWord(c.day.date, f.today)) + " at " + esc(clock(c.from)) + ":</b> " + bdi(shownTitle(c.a)) + " and " + bdi(shownTitle(c.b)) + " overlap.";
     } else if (state.data.note) {
-      lead = '<p class="lead">' + bdi(state.data.note) + "</p>";
+      lead = " " + bdi(state.data.note);
     }
+    // The title is the page's name; the week's count leads the line under it.
+    lead = '<p class="lead"><b>' + esc(ex + main + ".") + "</b>" + (free ? '<span class="h2-free">' + esc(free) + "</span>" : "") + lead + "</p>";
     var meta = '<p class="meta">' + icon("i-clock") + esc(hoursWords(f.meetHours) + " in meetings · " + hoursWords(f.freeHours) + " free on weekdays, 8 to 5") + "</p>";
-    return "<div>" + top("<h2>" + esc(ex + main + ".") + (free ? '<span class="h2-free">' + esc(free) + "</span>" : "") + "</h2>") + lead + meta + "</div>";
+    return "<div>" + top("<h2>Your week</h2>") + lead + meta + "</div>";
   }
 
   /**
@@ -2433,6 +2472,7 @@
 
   // Ask, or try an idea: the idea for today on top, a few more under it as chips.
   function drawAsk(level) {
+    if (state.layoutAsk) return drawLayoutAsk(level);
     var featured = level === "S" ? null : askIdea();
     var shownNow = shownIdeas();
     if (featured) shownNow[featured.idea.id] = true;
@@ -2447,6 +2487,16 @@
         return '<button type="button" class="q" data-act="idea-now" data-idea="' + idea.id + '">' + esc(idea.title) + "</button>";
       }).join("") + "</div>" : "") +
       (level !== "S" && note ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "");
+  }
+  /** The Ask box while it takes a request about the boxes, from the Layout button. */
+  function drawLayoutAsk(level) {
+    var note = state.askNote || "The agent suggests the boxes. Nothing changes until you press Apply.";
+    return (level === "S" ? "" : '<h2 id="ask-title">Ask the agent about your boxes</h2>') +
+      '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">What you want on your page</label>' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="For example: hide the numbers, show double bookings" />' +
+      '<button type="submit" class="btn primary">' + icon("i-send") + "Send</button></form>" +
+      '<p class="note" id="ask-note">' + esc(note) + "</p>" +
+      '<p class="note"><button type="button" class="cancel" data-act="layout-ask-cancel">Back to asking about your week</button></p>';
   }
   function askHint() {
     if (askReady()) return "The answer opens in the chat beside this page.";
@@ -2788,8 +2838,8 @@
     }, 200);
   }
   /** The first place, reading left to right and top down, where a w by h box touches nothing. */
-  function freeSpot(w, h) {
-    var spots = placed();
+  function freeSpot(w, h, source) {
+    var spots = placed(source);
     for (var y = 0; ; y++) {
       for (var x = 0; x + w <= COLS; x++) {
         var hit = spots.some(function (o) { return x < o.x + o.w && o.x < x + w && y < o.y + o.h && o.y < y + h; });
@@ -2825,6 +2875,157 @@
     glide(before);
     paintEditbar();
     if (state.drawerOpen) paintDrawer();
+  }
+
+  // ── Asking the agent to change the page ────────────────────────────────
+  // The agent cannot reach a person's layout (it lives in cabinet.mine), so it writes what
+  // to add and remove into data/layout-change.json. The page shows that with Apply and
+  // No thanks, and remembers in cabinet.mine which change it last showed.
+
+  var CHANGE_SEEN_KEY = "calendar-week-layout-change-seen@1";
+  var CHANGE_DAYS = 2;
+
+  function openMenu(button) {
+    var menu = $("layout-menu");
+    var r = button.getBoundingClientRect();
+    state.menuOpen = true;
+    menu.hidden = false;
+    menu.style.top = r.bottom + 6 + "px";
+    menu.style.left = Math.max(16, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 16)) + "px";
+    button.setAttribute("aria-expanded", "true");
+    menu.querySelector("button").focus();
+  }
+  function closeMenu() {
+    if (!state.menuOpen) return;
+    state.menuOpen = false;
+    $("layout-menu").hidden = true;
+    var button = document.querySelector('[data-act="layout-menu"]');
+    if (button) { button.setAttribute("aria-expanded", "false"); button.focus(); }
+  }
+
+  /** The words sent with a layout request: the boxes on the page now and who is asking. */
+  function layoutWords(wish) {
+    var on = placed().map(function (spot) { return BOXES[spot.id].title; });
+    var me = myName();
+    return "Change the boxes on my Your week page." + (me ? " I am " + me + "." : "") +
+      " On it now: " + (on.length ? on.join(", ") : "no boxes") + ". What I want: " + wish;
+  }
+  function myName() {
+    var me = V2 && typeof cab.me === "function" ? cab.me() : null;
+    return me && typeof me.name === "string" ? me.name.trim() : "";
+  }
+  /** When a note was written, from its ISO time; null when it is not a time. */
+  function writtenAt(iso) {
+    if (typeof iso !== "string") return null;
+    var d = new Date(iso);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  /** The Ask box takes the request when it is on the page; otherwise the chat's own box does. */
+  function askAboutLayout() {
+    var el = boxEls.ask;
+    if (onPage("ask") && el && el.isConnected) {
+      state.layoutAsk = true;
+      setAskNote("");
+      drawBox(el);
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if ($("ask-input")) $("ask-input").focus({ preventScroll: true });
+      return;
+    }
+    cab.ask(layoutWords(""), { send: false }).then(function () {
+      toast("Finish the sentence in the chat. The agent's suggestion shows up on this page.");
+    }).catch(function (e) { toast(e && e.message ? e.message : "The chat could not be opened. Try again."); });
+  }
+  function sendLayoutAsk(wish) {
+    var words = text(wish, 600);
+    if (!words) return;
+    setAskNote("Sending...");
+    cab.ask(layoutWords(words), { send: true }).then(function () {
+      state.layoutAsk = false;
+      if ($("ask-input")) $("ask-input").value = "";
+      setAskNote("Sent. The agent's suggestion shows up at the top of this page.");
+      if (boxEls.ask) drawBox(boxEls.ask);
+    }).catch(function (e) {
+      setAskNote(e && e.message ? e.message : "That did not go through. Try again.");
+    });
+  }
+  function stopLayoutAsk() {
+    state.layoutAsk = false;
+    setAskNote("");
+    if (boxEls.ask) drawBox(boxEls.ask);
+  }
+
+  /** data/layout-change.json, keeping only box ids the page knows. */
+  function cleanChange(d) {
+    if (!d || typeof d !== "object" || !writtenAt(d.at)) return null;
+    function ids(list) {
+      return Array.isArray(list) ? list.filter(function (id, i) { return typeof id === "string" && BOXES[id] && list.indexOf(id) === i; }) : [];
+    }
+    return { at: d.at, for: text(d.for, 80), add: ids(d.add), remove: ids(d.remove), note: text(d.note, 300) };
+  }
+  /** The change to offer now: new, recent, meant for this person, and not done already. */
+  function pendingChange() {
+    var c = state.change;
+    if (!c || !canAsk() || state.editing || c.at === state.changeSeen) return null;
+    if (daysBetween(writtenAt(c.at), new Date()) > CHANGE_DAYS) return null;
+    var me = myName();
+    if (c.for && me && c.for.toLowerCase() !== me.toLowerCase()) return null;
+    // A box waiting for its data counts as there: it is in the layout, only not drawn yet.
+    var add = c.add.filter(function (id) { return !entryOf(id) && c.remove.indexOf(id) < 0; });
+    var remove = c.remove.filter(function (id) { return !!entryOf(id); });
+    if (!add.length && !remove.length && !c.note) return null;
+    return { at: c.at, add: add, remove: remove, note: c.note };
+  }
+  // A number box can sound like a list ("Free hours", "Free time"), so it says it is the number.
+  function titles(ids) {
+    return ids.map(function (id) { return BOXES[id].title + (BOXES[id].group === "numbers" ? " (number)" : ""); }).join(", ");
+  }
+  function paintSuggest() {
+    var el = $("suggest");
+    if (state.changeApplied) {
+      el.hidden = false;
+      el.innerHTML = "<p><b>Your page changed.</b></p>" +
+        '<div class="suggest-actions"><button type="button" class="btn" data-act="change-undo">' + icon("i-undo") + "Undo</button>" +
+        '<button type="button" class="btn dark" data-act="change-ok">OK</button></div>';
+      return;
+    }
+    var c = state.loaded ? pendingChange() : null;
+    el.hidden = !c;
+    if (!c) { el.innerHTML = ""; return; }
+    var parts = [];
+    if (c.add.length) parts.push("add " + titles(c.add));
+    if (c.remove.length) parts.push("remove " + titles(c.remove));
+    var waits = c.add.filter(function (id) { return BOXES[id].show && !BOXES[id].show(); });
+    var why = [c.note].concat(waits.map(function (id) { return BOXES[id].title + ": " + BOXES[id].when; })).filter(Boolean).join(" ");
+    el.innerHTML = "<p>" + (parts.length ? "<b>The agent suggests:</b> " + esc(parts.join(", and ")) + "." : "<b>From the agent:</b>") +
+      (why ? '<span class="why" dir="auto">' + esc(why) + "</span>" : "") + "</p>" +
+      '<div class="suggest-actions">' + (parts.length
+        ? '<button type="button" class="btn primary" data-act="change-apply">' + icon("i-check") + "Apply</button>" +
+          '<button type="button" class="btn" data-act="change-skip">No thanks</button>'
+        : '<button type="button" class="btn" data-act="change-skip">OK</button>') + "</div>";
+  }
+  function markChangeSeen(at) {
+    state.changeSeen = at;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(CHANGE_SEEN_KEY, at).catch(function () {});
+  }
+  function applyChange() {
+    var c = pendingChange();
+    if (!c) return;
+    var next = copyLayout(state.layout || DEFAULT_LAYOUT).filter(function (b) { return c.remove.indexOf(b.id) < 0; });
+    c.add.forEach(function (id) {
+      var box = BOXES[id];
+      var w = Math.min(box.w, COLS);
+      var at = freeSpot(w, box.h, next);
+      next.push({ id: id, x: at.x, y: at.y, w: w, h: box.h });
+    });
+    markChangeSeen(c.at);
+    state.changeApplied = true;
+    changeLayout(next);
+    paintSuggest();
+  }
+  function skipChange() {
+    var c = pendingChange();
+    if (c) markChangeSeen(c.at);
+    paintSuggest();
   }
 
   // ── Moving and resizing ────────────────────────────────────────────────
@@ -3263,6 +3464,17 @@
 
   // ── Presses ────────────────────────────────────────────────────────────
 
+  // A press anywhere outside the Layout menu closes it.
+  document.addEventListener("pointerdown", function (event) {
+    if (!state.menuOpen || !event.target.closest) return;
+    if (event.target.closest("#layout-menu, [data-act='layout-menu']")) return;
+    state.menuOpen = false;
+    $("layout-menu").hidden = true;
+    var button = document.querySelector('[data-act="layout-menu"]');
+    if (button) button.setAttribute("aria-expanded", "false");
+  });
+  window.addEventListener("resize", function () { if (state.menuOpen) { state.menuOpen = false; $("layout-menu").hidden = true; } });
+
   document.addEventListener("click", function (event) {
     var el = event.target.closest ? event.target.closest("[data-act]") : null;
     if (!el || el.disabled) return;
@@ -3347,6 +3559,28 @@
       var size = el.getAttribute("data-size");
       changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) { if (b.id === sized) b.p = size; return b; }));
       if (boxEls[sized]) { var sb = boxEls[sized].querySelector('[data-size="' + size + '"]'); if (sb) sb.focus(); }
+    } else if (act === "layout-menu") {
+      if (state.menuOpen) closeMenu(); else openMenu(el);
+    } else if (act === "layout-edit") {
+      closeMenu();
+      startEdit();
+    } else if (act === "layout-ask") {
+      closeMenu();
+      askAboutLayout();
+    } else if (act === "layout-ask-cancel") {
+      stopLayoutAsk();
+    } else if (act === "change-apply") {
+      applyChange();
+    } else if (act === "change-skip") {
+      skipChange();
+    } else if (act === "change-undo") {
+      state.changeApplied = false;
+      undoLayout();
+      paintSuggest();
+      toast("Your page is back to how it was.");
+    } else if (act === "change-ok") {
+      state.changeApplied = false;
+      paintSuggest();
     } else if (act === "remove-box") {
       removeBox(el.closest(".box").getAttribute("data-box"));
     } else if (act === "edit-start") {
@@ -3365,6 +3599,7 @@
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") {
       if (drag) endDrag(true);
+      else if (state.menuOpen) closeMenu();
       else if (state.sheet) closeSheet();
       else if (state.drawerOpen) closeDrawer();
       else if (state.editing) doneEdit();
@@ -3383,7 +3618,8 @@
   document.addEventListener("submit", function (event) {
     if (!event.target || event.target.id !== "ask-form") return;
     event.preventDefault();
-    ask($("ask-input").value);
+    if (state.layoutAsk) sendLayoutAsk($("ask-input").value);
+    else ask($("ask-input").value);
   });
 
   // ── Start ──────────────────────────────────────────────────────────────
@@ -3438,6 +3674,8 @@
       if (!mine) return;
       var clean = cleanLayout(mine.get(LAYOUT_KEY));
       if (clean) state.layout = clean;
+      var seen = mine.get(CHANGE_SEEN_KEY);
+      if (typeof seen === "string") state.changeSeen = seen;
       var hidden = mine.get(HIDDEN_IDEAS_KEY);
       if (Array.isArray(hidden)) hidden.forEach(function (hid) { if (ideaById(hid)) state.hiddenIdeas[hid] = true; });
       var done = mine.get(DONE_KEY);

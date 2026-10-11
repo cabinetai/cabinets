@@ -38,3 +38,8 @@ calendar's own days; `hoursMonth` counts meeting time with them since the 1st of
 The page works the week out itself: now and next, free time (the free stretches between
 8:00 and 17:00 on weekdays), events that overlap, and hours by kind. The example's events
 are keyed by weekday: the page shows each one on the matching day of the coming week.
+
+`data/layout-change.json` is written by the agent in a chat: boxes someone asked to `add`
+or `remove`, with `at`, `for` and a `note`. Schema `google-calendar-freelance/layout-change@1`.
+The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet,
+not in a file.

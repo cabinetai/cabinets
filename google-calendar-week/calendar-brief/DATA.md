@@ -29,6 +29,11 @@ names) and, on each row of `clients`, `met` (its meetings of the last 90 days, a
 minutes and event id). The
 app ignores these three.
 
+`data/layout-change.json` is written by the agent in a chat, when someone asks it to
+change the boxes: the box ids to `add` or `remove`, with `at`, `for` and a `note`. Schema
+`google-calendar-week/layout-change@1`. The page offers it with Apply and No thanks; each
+person's layout itself stays in Cabinet, not in a file.
+
 `kind` is `client` (a meeting with someone from outside the person's own circle; the key
 keeps its first name), `team`, `personal` or `other` (services, appointments, anything
 else). A meeting with others has its row's `id` in `client`. `status` is `new` (first met this month, or booked for the first

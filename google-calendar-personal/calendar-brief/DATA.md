@@ -25,3 +25,8 @@ The page works the week out itself: now and next, free time (weekday evenings 17
 22:00, and weekends 9:00 to 21:00), plans that overlap, and hours by kind. The example's
 events are keyed by weekday: the page shows each one on the matching day of the coming
 week, and plans and dates in that first week land on the same days.
+
+`data/layout-change.json` is written by the agent in a chat, when someone asks it to
+change the boxes: the box ids to `add` or `remove`, with `at`, `for` and a `note`. Schema
+`google-calendar-personal/layout-change@1`. The page offers it with Apply and No thanks; each
+person's layout itself stays in Cabinet, not in a file.

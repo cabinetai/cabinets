@@ -91,6 +91,28 @@ On Sundays, write `reports/<YYYY-MM-DD>-week-ahead.md`: frontmatter
 day's plans, appointments, school dates and birthdays. A day with nothing says "Free". End
 with "To prepare": things to bring, gifts to buy, forms to sign.
 
+## Changing the boxes on the week page
+
+Each person arranges the week page for themselves, and the page keeps that, not a file:
+you can't move boxes yourself, and you never edit `calendar-brief/index.html` for it. When
+someone asks to add or remove boxes ("hide the numbers", "show birthdays"), write
+`calendar-brief/data/layout-change.json`, replacing it, and the page offers the
+change with Apply and No thanks:
+`{"schema":"google-calendar-personal/layout-change@1","at":"<now, ISO with offset>","for":"<their name, if the message says it>","add":["conflicts"],"remove":["today"],"note":"<one plain sentence on why>"}`
+Then say in one line that the change waits for them at the top of the week page. The
+message often lists the boxes on their page now: don't add one that is there or remove one
+that isn't. Use only these ids:
+
+- `headline` Headline · `today` Today · `free` Free time
+- `coming` Coming up · `dates` Birthdays and dates · `week` This week
+- `conflicts` Double bookings · `balance` Your time · `ask` Ask, or try an idea
+- `ideas` All ideas
+- `n-events`, `n-free`, `n-busiest`: the numbers Events this week, Free hours, Busiest day
+- one idea each: `idea-weekend`, `idea-birthday`, `idea-school`, `idea-protect`, `idea-overlap`, `idea-together`, `idea-nextweek`
+
+A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
+and `remove` empty, and offer the closest box or a page instead.
+
 ## Tone and limits
 
 Short sentences, plain words, warm, no business talk. Never invent an event, a person, a

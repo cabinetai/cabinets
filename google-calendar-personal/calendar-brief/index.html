@@ -28,12 +28,20 @@
 <title>My week</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&display=swap" rel="stylesheet" />
 <style>
   /* "Morning calm": warm cream paper, white boxes. Sage means calm, done, good news;
      terracotta only what needs the owner; slate the details; sand the gentle extras. */
   :root {
     --serif: "Fraunces", Georgia, "Times New Roman", serif;
+    --display: "Bricolage Grotesque", ui-rounded, "Segoe UI Variable Display", system-ui, sans-serif;
+
+    /* Today's sky, the same band as My inbox's. These are the first-light values; the
+       script moves them with the hour. */
+    --sky-top: #dfeaee; --sky-mid: #edf0ea; --sky-low: #f8ead8;
+    --sky-orb: #f4a259; --sky-orb-core: #ffd29a; --sky-halo: rgba(255, 210, 154, .28);
+    --sky-x: 78%; --sky-y: 70%;
+    --sky-ink: #1b2528; --sky-ink-2: #3f4b4f; --sky-greet: #224b3a;
     --canvas: #faf9f6;
     --page: #ffffff;
     --panel: #f4f3f0;
@@ -357,17 +365,72 @@
   .sum .sub .hot { color: var(--terra-ink); font-weight: 700; }
   .sum .line { margin-top: 6px; color: var(--ink-2); font-size: 15px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
-  /* The headline: words on the page, no card around them. */
-  .box.headline { justify-content: flex-start; }
-  .box.headline h2 { margin: 0; font-size: clamp(26px, 3vw, 36px); line-height: 1.12; font-weight: 800; letter-spacing: -.03em; }
-  .box.headline .lead { margin: 8px 0 0; font-size: 17px; color: var(--ink-2); max-width: 110ch; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .box.headline .lead b { color: var(--ink); font-weight: 700; }
-  .calm-pill { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 4px 12px; border-radius: 999px; background: var(--sage-tint); color: var(--sage-ink); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  /* ── The sky: the headline box is a band in the colours of the hour ──────── */
+  /* The script moves --sky-* with the clock (night, first light, morning, afternoon, golden
+     hour, evening). The sun or moon sits on its arc at --sky-x / --sky-y; text takes
+     --sky-ink, light at night. Glass buttons read on every sky. */
+  .box.headline {
+    position: relative; isolation: isolate; overflow: hidden; justify-content: flex-start;
+    padding: 20px clamp(20px, 2.6vw, 36px) 22px; border-radius: 26px; color: var(--sky-ink);
+    background:
+      radial-gradient(90% 120% at var(--sky-x) 108%, color-mix(in srgb, var(--sky-low) 90%, #fff) 0, transparent 60%),
+      linear-gradient(176deg, var(--sky-top) 0%, var(--sky-mid) 52%, var(--sky-low) 100%);
+    transition: color 1.2s ease;
+  }
+  .box.headline::before {
+    content: ""; position: absolute; z-index: -1; pointer-events: none; border-radius: 50%;
+    width: 132px; height: 132px; left: var(--sky-x); top: var(--sky-y); transform: translate(-50%, -50%);
+    background: radial-gradient(circle at 50% 42%, var(--sky-orb-core) 0, var(--sky-orb) 74%);
+    box-shadow: 0 0 46px 22px var(--sky-halo), 0 0 120px 60px color-mix(in srgb, var(--sky-halo) 55%, transparent);
+    transition: left 2s ease, top 2s ease, background 2s ease, box-shadow 2s ease;
+  }
+  /* At night the disc becomes a crescent moon: an inset light on one edge, the rest of the
+     disc left to the sky. */
+  .sky-night .box.headline::before {
+    background: transparent; box-shadow: inset -26px 14px 0 0 var(--sky-orb);
+    filter: drop-shadow(0 0 18px var(--sky-halo)); transform: translate(-50%, -50%) rotate(-18deg);
+  }
+  .box.headline .status, .box.headline .status a { color: var(--sky-ink-2); }
+  /* On a phone the band keeps its colours; the sun or moon would sit on the words. */
+  @media (max-width: 600px) { .box.headline::before { display: none; } .box.headline p.lead { -webkit-line-clamp: 5; } }
+  .hl-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+  .hl-name { display: inline-flex; align-items: center; gap: 9px; margin: 0; font-size: 15px; font-weight: 650; color: var(--sky-ink-2); }
+  .hl-name .icon { width: 20px; height: 20px; }
+  .hello { margin: 14px 0 6px; font-size: 15px; font-weight: 500; color: var(--sky-ink-2); }
+  .hello b { font-weight: 650; color: var(--sky-greet); }
+  .box.headline h2 {
+    margin: 0; max-width: 26ch; font-family: var(--display); font-size: clamp(30px, 3.4vw, 46px); line-height: 1.06;
+    font-weight: 700; letter-spacing: -.025em; text-wrap: balance; color: var(--sky-ink);
+  }
+  .box.headline .lead { margin: 10px 0 0; font-size: 17px; color: var(--sky-ink-2); max-width: 72ch; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .box.headline .lead b { color: var(--sky-ink); font-weight: 700; }
+  .calm-pill { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 13px; font-weight: 650; color: var(--sky-greet); }
   .calm-pill .cheer { width: 16px; height: 16px; margin: 0; vertical-align: 0; stroke-width: 4; }
-  .box.headline .meta { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 14px; color: var(--ink-3); }
+  .box.headline .meta { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 14px; color: var(--sky-ink-2); }
   .box.headline .meta .icon { width: 16px; height: 16px; }
-  .box.headline .fine { margin: 6px 0 0; font-size: 15px; color: var(--ink-3); }
+  .box.headline .fine { margin: 6px 0 0; font-size: 15px; color: var(--sky-ink-2); }
   .box.headline[data-level="S"] h2 { font-size: 24px; }
+  .box.headline[data-level="S"] .hello, .box.headline[data-level="S"] .hl-name span { display: none; }
+  .hl-status { flex: none; justify-content: flex-end; gap: 6px 14px; }
+  /* The connection is quiet words on the sky, not a pill: a small dot, then the time. */
+  .box.headline .hl-status .pill { min-height: 0; padding: 0; gap: 7px; background: none; color: var(--sky-ink-2); font-weight: 600; font-size: 13.5px; }
+  .box.headline .pill .dot { width: 7px; height: 7px; }
+  .box.headline .pill.ok .dot { background: var(--sage); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage) 22%, transparent); }
+  .box.headline .pill .when { font-weight: 500; opacity: .85; margin-inline-start: 4px; }
+  /* Refresh is a small word beside it; Ideas and Edit layout are the two glass buttons. */
+  .box.headline .hl-status .btn[data-act="run"] { min-height: 32px; padding: 4px 8px; border: 0; background: none; box-shadow: none; backdrop-filter: none; color: var(--sky-ink-2); font-size: 13.5px; }
+  .box.headline .hl-status .btn[data-act="run"]:hover { background: rgba(255, 255, 255, .28); }
+  .box.headline .hl-status .btn[data-act="run"] .icon { width: 16px; height: 16px; }
+  .box.headline .btn[data-act="ideas"], .box.headline .btn[data-act="edit-start"], .box.headline .btn[data-act="layout-menu"], .box.headline .btn[data-act="layout-menu"] { min-height: 36px; padding: 6px 14px; font-size: 14px; }
+  .hello .calm { display: inline-flex; align-items: center; gap: 5px; margin-inline-start: 10px; font-weight: 650; color: var(--sky-greet); }
+  .hello .calm .cheer { width: 15px; height: 15px; margin: 0; vertical-align: 0; stroke: currentColor; stroke-width: 4; }
+  /* The buttons and the connection sit on the sky like glass. */
+  .box.headline .btn:not(.primary) { background: rgba(255, 255, 255, .72); border-color: rgba(255, 255, 255, .9); color: #1b2528; box-shadow: 0 1px 2px rgba(27, 37, 40, .08); backdrop-filter: blur(6px); }
+  .box.headline .btn:not(.primary):hover { background: #fff; }
+  .box.headline .updated, .box.headline .status > span:not(.pill) { color: var(--sky-ink-2); }
+  .box.headline .pill { background: rgba(255, 255, 255, .7); color: #1b2528; }
+  .grid.editing .box.headline::before, .grid.editing .box.headline::after { transition: none; }
+  .box.headline .h2-free { color: var(--sky-greet); }
 
   /* Ask: the dark box. Small keeps only the field. */
   .box.ask { padding: 20px 22px; overflow: hidden; justify-content: center; }
@@ -424,6 +487,22 @@
   .editbar .btn { min-height: 36px; padding: 6px 14px; font-size: 13.5px; gap: 6px; box-shadow: none; }
   .editbar .btn .icon { width: 17px; height: 17px; }
   .editbar .btn.quiet { color: var(--ink-2); }
+
+  /* The Layout button's two ways: by hand, or by asking the agent. */
+  .menu { position: fixed; z-index: 40; width: min(300px, calc(100vw - 32px)); padding: 6px; display: grid; gap: 2px; background: var(--page); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: var(--shadow-2); }
+  .menu button { display: grid; grid-template-columns: 20px 1fr; gap: 2px 10px; align-items: center; padding: 10px 12px; border: 0; border-radius: 10px; background: none; color: var(--ink); font: inherit; text-align: start; cursor: pointer; }
+  .menu button:hover, .menu button:focus-visible { background: var(--panel); outline: none; }
+  .menu .icon { width: 18px; height: 18px; color: var(--ink-2); }
+  .menu b { font-size: 14.5px; font-weight: 700; }
+  .menu span { grid-column: 2; color: var(--ink-3); font-size: 13.5px; }
+
+  /* What the agent suggests for the page, with Apply and No thanks. */
+  .suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 14px 18px; background: var(--page); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow-1); }
+  .suggest p { flex: 1 1 320px; margin: 0; font-size: 15px; color: var(--ink-2); }
+  .suggest p b { color: var(--ink); }
+  .suggest .why { display: block; margin-top: 2px; color: var(--ink-3); font-size: 14px; }
+  .suggest-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ask .cancel { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
   .grid.editing .box { position: relative; overflow: visible; outline: 2px dashed #c9c4b8; outline-offset: 5px; border-radius: 14px; }
   .grid.editing .box > :not(.box-x):not(.box-resize):not(.box-size) { pointer-events: none; user-select: none; }
   .grid .box { -webkit-touch-callout: none; }
@@ -538,11 +617,6 @@
   button.ev, .dayrow, .prow, .evtitle, .tag-ev { font: inherit; color: inherit; text-align: start; cursor: pointer; }
   button.ev, .dayrow, .prow, .evtitle { border: 0; background: none; padding: 0; }
   .h2-free { color: var(--sage); }
-  /* The headline holds the calendar mark, and on the right the connection and the buttons. */
-  .hl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
-  .hl-row h2 { flex: 1 1 340px; min-width: 0; }
-  .hl-status { flex: none; justify-content: flex-end; }
-  .box.headline .mark { align-self: flex-start; margin-top: 2px; }
 
 
   /* Today: now, next with its countdown, the rest of the day. */
@@ -744,6 +818,7 @@
         <button type="button" class="btn dark" data-act="edit-done"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Done</button>
       </div>
     </div>
+    <div class="suggest" id="suggest" role="region" aria-label="A change to your page" aria-live="polite" hidden></div>
     <section class="grid" id="grid" aria-label="My week" hidden></section>
     <div class="grid-empty" id="grid-empty" hidden>
       <p><b>Your page has no boxes.</b> Add the ones you want to see.</p>
@@ -772,6 +847,11 @@
 </div>
 
 <div id="layer"></div>
+<div class="menu" id="layout-menu" role="menu" aria-label="Change your page" hidden>
+  <button type="button" role="menuitem" data-act="layout-edit"><svg class="icon" aria-hidden="true"><use href="#i-layout" /></svg><b>Add or remove boxes</b><span>Arrange the page yourself.</span></button>
+  <button type="button" role="menuitem" data-act="layout-ask"><svg class="icon" aria-hidden="true"><use href="#i-chat" /></svg><b>Ask the agent</b><span>Say what you need. It suggests the boxes, you say OK.</span></button>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -861,6 +941,11 @@
     drawerKind: "ideas",
     editing: false,
     undo: [],
+    menuOpen: false,
+    layoutAsk: false,
+    change: null,
+    changeSeen: "",
+    changeApplied: false,
     open: {},
     expanded: {},
     need: {},
@@ -1143,8 +1228,14 @@
       state.exampleData = normalise(JSON.parse(body), true);
     }).catch(function () { state.exampleData = null; });
   }
+  /** data/layout-change.json, the boxes the agent suggests; missing or broken means none. */
+  function loadChange() {
+    return readFile("layout-change.json").then(function (body) {
+      state.change = cleanChange(JSON.parse(body));
+    }).catch(function () { state.change = null; });
+  }
   function loadData() {
-    return Promise.all([loadReal(false), loadExample()]).then(function () { state.loaded = true; });
+    return Promise.all([loadReal(false), loadExample(), loadChange()]).then(function () { state.loaded = true; });
   }
 
   // ── Talking to Cabinet ─────────────────────────────────────────────────
@@ -1458,6 +1549,7 @@
     state.example = !!(state.data && state.data.example);
     state.facts = state.data ? weekFacts(state.data) : null;
     paintStatus();
+    paintSuggest();
     paintHero();
     paintRibbon();
     paintGrid();
@@ -1499,8 +1591,11 @@
         : '<button class="btn" data-act="run">' + icon("i-refresh") + "Refresh</button>";
     }
     var ideas = '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-bulb") + "Ideas</button>";
-    var edit = state.loaded && state.data && !state.editing
-      ? '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Edit layout</button>" : "";
+    // Someone who can ask chooses between arranging by hand and asking the agent.
+    var edit = !(state.loaded && state.data && !state.editing) ? ""
+      : canAsk()
+        ? '<button class="btn" data-act="layout-menu" aria-haspopup="menu" aria-expanded="' + state.menuOpen + '">' + icon("i-layout") + "Layout</button>"
+        : '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Edit layout</button>";
     return pill + refresh + ideas + edit;
   }
 
@@ -1611,15 +1706,16 @@
   var ROW = 64;
   var GAP = 16;
   var PHONE_ROWS = 3;
-  var LAYOUT_KEY = "calendar-personal-layout@1";
+  // @2: the headline is a sky band now and needs four rows.
+  var LAYOUT_KEY = "calendar-personal-layout@2";
   var DEFAULT_LAYOUT = [
-    { id: "headline", x: 0, y: 0, w: 12, h: 2 },
-    { id: "today", x: 0, y: 2, w: 7, h: 7 },
-    { id: "free", x: 7, y: 2, w: 5, h: 7 },
-    { id: "coming", x: 0, y: 9, w: 7, h: 5 },
-    { id: "dates", x: 7, y: 9, w: 5, h: 5 },
-    { id: "week", x: 0, y: 14, w: 12, h: 7 },
-    { id: "ask", x: 0, y: 21, w: 12, h: 5 }
+    { id: "headline", x: 0, y: 0, w: 12, h: 4 },
+    { id: "today", x: 0, y: 4, w: 7, h: 7 },
+    { id: "free", x: 7, y: 4, w: 5, h: 7 },
+    { id: "coming", x: 0, y: 11, w: 7, h: 5 },
+    { id: "dates", x: 7, y: 11, w: 5, h: 5 },
+    { id: "week", x: 0, y: 16, w: 12, h: 7 },
+    { id: "ask", x: 0, y: 23, w: 12, h: 5 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -1627,7 +1723,7 @@
    * has nothing to be (`when` says what it waits for).
    */
   var BOXES = {
-    headline: { cls: "headline", draw: drawHeadline, group: "week", icon: "i-calendar", w: 12, h: 2, min: [4, 2],
+    headline: { cls: "headline", draw: drawHeadline, group: "week", icon: "i-calendar", w: 12, h: 4, min: [4, 3],
       title: "Headline", desc: "Your week in one line, and the one thing worth knowing." },
     today: { cls: "lane today", list: true, draw: drawToday, group: "week", icon: "i-clock", w: 7, h: 7, min: [3, 3],
       title: "Today", desc: "What's on now and next, with a live countdown, and the rest of your day." },
@@ -2078,13 +2174,91 @@
       : kpi("i-chart", "Busiest day", "None", "Nothing planned");
   }
 
+  /** "Good evening, Tal": the page's title, for the hour on the person's own clock. */
+  function greetText(d) {
+    var h = d.getHours();
+    var hi = h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : h < 22 ? "Good evening" : "Good night";
+    var me = myName();
+    return hi + (me ? ", " + me.split(" ")[0] : "");
+  }
+  /** "Sunday, 11 October." above the title. */
+  function helloHtml(d) {
+    var day = d.toLocaleDateString([], { weekday: "long" }) + ", " + d.getDate() + " " + d.toLocaleDateString([], { month: "long" });
+    return esc(day) + ".";
+  }
+
+  /*
+   * Today's sky. Seven skies through the day; between two of them the colours mix by the
+   * minute. The sun walks an arc over the right of the band from 6:00 to 20:00, the moon
+   * from 20:00 to 6:00. Text turns light when the sky is dark.
+   */
+  var SKY = [
+    // hour, top, middle, low, orb, orb core, halo [r, g, b, a]
+    [0, "#0e1a33", "#1b2b4d", "#34436a", "#e9e6da", "#fbfaf3", [233, 230, 218, .10]],
+    [4.5, "#0e1a33", "#1b2b4d", "#34436a", "#e9e6da", "#fbfaf3", [233, 230, 218, .10]],
+    [6, "#26365f", "#8a7aa6", "#f0b49a", "#f08a5d", "#ffc9a0", [255, 190, 150, .25]],
+    [7.5, "#dfeaee", "#edf0ea", "#f8ead8", "#f4a259", "#ffd29a", [255, 210, 154, .28]],
+    [11, "#cfe3f1", "#e4eef3", "#f3f0e6", "#f7b955", "#ffe3a6", [255, 226, 160, .30]],
+    [15, "#bfd8ec", "#dfeaf1", "#f5ead6", "#f5ad4f", "#ffdc96", [255, 214, 150, .28]],
+    [18, "#a9bfdc", "#f0cfb2", "#f4a77e", "#ee7a45", "#ffb27a", [255, 170, 120, .30]],
+    [19.75, "#2c3d68", "#6c6497", "#d98f84", "#e8705a", "#ffa588", [240, 140, 120, .22]],
+    [21.5, "#0e1a33", "#1b2b4d", "#34436a", "#e9e6da", "#fbfaf3", [233, 230, 218, .10]],
+    [24, "#0e1a33", "#1b2b4d", "#34436a", "#e9e6da", "#fbfaf3", [233, 230, 218, .10]]
+  ];
+  function hexRgb(hex) { var n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function mixRgb(a, b, t) { return a.map(function (v, i) { return v + (b[i] - v) * t; }); }
+  function rgbText(c) { return "rgb(" + c.slice(0, 3).map(Math.round).join(", ") + ")"; }
+  function skyAt(d) {
+    var h = d.getHours() + d.getMinutes() / 60;
+    var i = 0;
+    while (i < SKY.length - 2 && SKY[i + 1][0] <= h) i++;
+    var a = SKY[i], b = SKY[i + 1];
+    var t = b[0] === a[0] ? 0 : (h - a[0]) / (b[0] - a[0]);
+    var at = function (k) { return mixRgb(hexRgb(a[k]), hexRgb(b[k]), t); };
+    var halo = mixRgb(a[6], b[6], t);
+    var mid = at(2);
+    var light = (0.2126 * mid[0] + 0.7152 * mid[1] + 0.0722 * mid[2]) / 255;
+    var night = h >= 20 || h < 6;
+    var arc = night ? ((h + 4) % 24) / 10 : (h - 6) / 14;
+    return {
+      top: rgbText(at(1)), mid: rgbText(mid), low: rgbText(at(3)), orb: rgbText(at(4)), core: rgbText(at(5)),
+      halo: "rgba(" + halo.slice(0, 3).map(Math.round).join(", ") + ", " + halo[3].toFixed(2) + ")",
+      x: (66 + arc * 28).toFixed(1) + "%", y: (112 - Math.sin(Math.PI * arc) * 40).toFixed(1) + "%",
+      dark: light < 0.45, night: night
+    };
+  }
+  function applySky() {
+    var now = new Date();
+    var s = skyAt(now);
+    var root = document.documentElement.style;
+    root.setProperty("--sky-top", s.top); root.setProperty("--sky-mid", s.mid); root.setProperty("--sky-low", s.low);
+    root.setProperty("--sky-orb", s.orb); root.setProperty("--sky-orb-core", s.core); root.setProperty("--sky-halo", s.halo);
+    root.setProperty("--sky-x", s.x); root.setProperty("--sky-y", s.y);
+    root.setProperty("--canvas", "color-mix(in srgb, " + s.mid + " 16%, #f2f5f5)");
+    root.setProperty("--sky-ink", s.dark ? "#f6f3ea" : "#1b2528");
+    root.setProperty("--sky-ink-2", s.dark ? "rgba(246, 243, 234, .84)" : "#3f4b4f");
+    root.setProperty("--sky-greet", s.dark ? "#ffd9a8" : "#224b3a");
+    document.documentElement.classList.toggle("sky-night", s.night);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-hello]"), function (el) { el.innerHTML = helloHtml(new Date()); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-greet]"), function (el) { el.textContent = greetText(new Date()); });
+  }
+  applySky();
+  setInterval(applySky, 5 * 60 * 1000);
+
+  /** "No overlaps" rides in the greeting line when the week has plans and none of them clash. */
+  function calmHtml(f) {
+    if (!f.events || f.conflicts.length || state.example) return "";
+    return '<span class="calm"><svg class="cheer" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" /><path d="M12.5 20.5l5 5 10-11" /></svg>No overlaps</span>';
+  }
+
   function drawHeadline(level) {
     var f = state.facts;
     var ex = state.example ? "Example: " : "";
     var main = f.events ? count(f.events, "event", "events") + " this week" : "Nothing on your calendar this week";
     var top = function (h2) {
-      return '<div class="hl-row"><span class="mark" aria-hidden="true">' + icon("i-calendar") + "</span>" + h2 +
-        '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>";
+      return '<div class="hl-top"><p class="hl-name">' + icon("i-calendar") + "<span>My week</span></p>" +
+        '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>" +
+        '<p class="hello"><span data-hello>' + helloHtml(new Date()) + "</span>" + calmHtml(f) + "</p>" + h2;
     };
     if (level === "S") return "<div>" + top("<h2>" + esc(ex + main) + "</h2>") + "</div>";
     // A whole empty week is simply clear; naming one free day in it would add nothing.
@@ -2092,12 +2266,14 @@
     var lead = "";
     if (f.conflicts.length) {
       var c = f.conflicts[0];
-      lead = '<p class="lead"><b>' + esc(dayWord(c.day.date, f.today)) + " at " + esc(clock(c.from)) + ":</b> " + bdi(c.a.title) + " and " + bdi(c.b.title) + " overlap.</p>";
+      lead = " <b>" + esc(dayWord(c.day.date, f.today)) + " at " + esc(clock(c.from)) + ":</b> " + bdi(c.a.title) + " and " + bdi(c.b.title) + " overlap.";
     } else if (state.data.note) {
-      lead = '<p class="lead">' + bdi(state.data.note) + "</p>";
+      lead = " " + bdi(state.data.note);
     }
+    // The title is the page's name; the week's count leads the line under it.
+    lead = '<p class="lead"><b>' + esc(ex + main + ".") + "</b>" + (free ? '<span class="h2-free">' + esc(free) + "</span>" : "") + lead + "</p>";
     var meta = '<p class="meta">' + icon("i-clock") + esc(hoursWords(f.freeHours) + " free in evenings and at the weekend") + "</p>";
-    return "<div>" + top("<h2>" + esc(ex + main + ".") + (free ? '<span class="h2-free">' + esc(free) + "</span>" : "") + "</h2>") + lead + meta + "</div>";
+    return "<div>" + top("<h2 data-greet>" + esc(greetText(new Date())) + "</h2>") + lead + meta + "</div>";
   }
 
   /** One event as a row: its time, its name, who or what kind; a press opens it. */
@@ -2491,6 +2667,7 @@
 
   // Ask, or try an idea: the idea for today on top, a few more under it as chips.
   function drawAsk(level) {
+    if (state.layoutAsk) return drawLayoutAsk(level);
     var featured = level === "S" ? null : askIdea();
     var shownNow = shownIdeas();
     if (featured) shownNow[featured.idea.id] = true;
@@ -2505,6 +2682,16 @@
         return '<button type="button" class="q" data-act="idea-now" data-idea="' + idea.id + '">' + esc(idea.title) + "</button>";
       }).join("") + "</div>" : "") +
       (level !== "S" && note ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "");
+  }
+  /** The Ask box while it takes a request about the boxes, from the Layout button. */
+  function drawLayoutAsk(level) {
+    var note = state.askNote || "The agent suggests the boxes. Nothing changes until you press Apply.";
+    return (level === "S" ? "" : '<h2 id="ask-title">Ask the agent about your boxes</h2>') +
+      '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">What you want on your page</label>' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="For example: hide the numbers, show birthdays" />' +
+      '<button type="submit" class="btn primary">' + icon("i-send") + "Send</button></form>" +
+      '<p class="note" id="ask-note">' + esc(note) + "</p>" +
+      '<p class="note"><button type="button" class="cancel" data-act="layout-ask-cancel">Back to asking about your week</button></p>';
   }
   function askHint() {
     if (askReady()) return "The answer opens in the chat beside this page.";
@@ -2842,8 +3029,8 @@
     }, 200);
   }
   /** The first place, reading left to right and top down, where a w by h box touches nothing. */
-  function freeSpot(w, h) {
-    var spots = placed();
+  function freeSpot(w, h, source) {
+    var spots = placed(source);
     for (var y = 0; ; y++) {
       for (var x = 0; x + w <= COLS; x++) {
         var hit = spots.some(function (o) { return x < o.x + o.w && o.x < x + w && y < o.y + o.h && o.y < y + h; });
@@ -2879,6 +3066,157 @@
     glide(before);
     paintEditbar();
     if (state.drawerOpen) paintDrawer();
+  }
+
+  // ── Asking the agent to change the page ────────────────────────────────
+  // The agent cannot reach a person's layout (it lives in cabinet.mine), so it writes what
+  // to add and remove into data/layout-change.json. The page shows that with Apply and
+  // No thanks, and remembers in cabinet.mine which change it last showed.
+
+  var CHANGE_SEEN_KEY = "calendar-personal-layout-change-seen@1";
+  var CHANGE_DAYS = 2;
+
+  function openMenu(button) {
+    var menu = $("layout-menu");
+    var r = button.getBoundingClientRect();
+    state.menuOpen = true;
+    menu.hidden = false;
+    menu.style.top = r.bottom + 6 + "px";
+    menu.style.left = Math.max(16, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 16)) + "px";
+    button.setAttribute("aria-expanded", "true");
+    menu.querySelector("button").focus();
+  }
+  function closeMenu() {
+    if (!state.menuOpen) return;
+    state.menuOpen = false;
+    $("layout-menu").hidden = true;
+    var button = document.querySelector('[data-act="layout-menu"]');
+    if (button) { button.setAttribute("aria-expanded", "false"); button.focus(); }
+  }
+
+  /** The words sent with a layout request: the boxes on the page now and who is asking. */
+  function layoutWords(wish) {
+    var on = placed().map(function (spot) { return BOXES[spot.id].title; });
+    var me = myName();
+    return "Change the boxes on my week page." + (me ? " I am " + me + "." : "") +
+      " On it now: " + (on.length ? on.join(", ") : "no boxes") + ". What I want: " + wish;
+  }
+  function myName() {
+    var me = V2 && typeof cab.me === "function" ? cab.me() : null;
+    return me && typeof me.name === "string" ? me.name.trim() : "";
+  }
+  /** When a note was written, from its ISO time; null when it is not a time. */
+  function writtenAt(iso) {
+    if (typeof iso !== "string") return null;
+    var d = new Date(iso);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  /** The Ask box takes the request when it is on the page; otherwise the chat's own box does. */
+  function askAboutLayout() {
+    var el = boxEls.ask;
+    if (onPage("ask") && el && el.isConnected) {
+      state.layoutAsk = true;
+      setAskNote("");
+      drawBox(el);
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if ($("ask-input")) $("ask-input").focus({ preventScroll: true });
+      return;
+    }
+    cab.ask(layoutWords(""), { send: false }).then(function () {
+      toast("Finish the sentence in the chat. The agent's suggestion shows up on this page.");
+    }).catch(function (e) { toast(e && e.message ? e.message : "The chat could not be opened. Try again."); });
+  }
+  function sendLayoutAsk(wish) {
+    var words = text(wish, 600);
+    if (!words) return;
+    setAskNote("Sending...");
+    cab.ask(layoutWords(words), { send: true }).then(function () {
+      state.layoutAsk = false;
+      if ($("ask-input")) $("ask-input").value = "";
+      setAskNote("Sent. The agent's suggestion shows up at the top of this page.");
+      if (boxEls.ask) drawBox(boxEls.ask);
+    }).catch(function (e) {
+      setAskNote(e && e.message ? e.message : "That did not go through. Try again.");
+    });
+  }
+  function stopLayoutAsk() {
+    state.layoutAsk = false;
+    setAskNote("");
+    if (boxEls.ask) drawBox(boxEls.ask);
+  }
+
+  /** data/layout-change.json, keeping only box ids the page knows. */
+  function cleanChange(d) {
+    if (!d || typeof d !== "object" || !writtenAt(d.at)) return null;
+    function ids(list) {
+      return Array.isArray(list) ? list.filter(function (id, i) { return typeof id === "string" && BOXES[id] && list.indexOf(id) === i; }) : [];
+    }
+    return { at: d.at, for: text(d.for, 80), add: ids(d.add), remove: ids(d.remove), note: text(d.note, 300) };
+  }
+  /** The change to offer now: new, recent, meant for this person, and not done already. */
+  function pendingChange() {
+    var c = state.change;
+    if (!c || !canAsk() || state.editing || c.at === state.changeSeen) return null;
+    if (daysBetween(writtenAt(c.at), new Date()) > CHANGE_DAYS) return null;
+    var me = myName();
+    if (c.for && me && c.for.toLowerCase() !== me.toLowerCase()) return null;
+    // A box waiting for its data counts as there: it is in the layout, only not drawn yet.
+    var add = c.add.filter(function (id) { return !entryOf(id) && c.remove.indexOf(id) < 0; });
+    var remove = c.remove.filter(function (id) { return !!entryOf(id); });
+    if (!add.length && !remove.length && !c.note) return null;
+    return { at: c.at, add: add, remove: remove, note: c.note };
+  }
+  // A number box can sound like a list ("Free hours", "Free time"), so it says it is the number.
+  function titles(ids) {
+    return ids.map(function (id) { return BOXES[id].title + (BOXES[id].group === "numbers" ? " (number)" : ""); }).join(", ");
+  }
+  function paintSuggest() {
+    var el = $("suggest");
+    if (state.changeApplied) {
+      el.hidden = false;
+      el.innerHTML = "<p><b>Your page changed.</b></p>" +
+        '<div class="suggest-actions"><button type="button" class="btn" data-act="change-undo">' + icon("i-undo") + "Undo</button>" +
+        '<button type="button" class="btn dark" data-act="change-ok">OK</button></div>';
+      return;
+    }
+    var c = state.loaded ? pendingChange() : null;
+    el.hidden = !c;
+    if (!c) { el.innerHTML = ""; return; }
+    var parts = [];
+    if (c.add.length) parts.push("add " + titles(c.add));
+    if (c.remove.length) parts.push("remove " + titles(c.remove));
+    var waits = c.add.filter(function (id) { return BOXES[id].show && !BOXES[id].show(); });
+    var why = [c.note].concat(waits.map(function (id) { return BOXES[id].title + ": " + BOXES[id].when; })).filter(Boolean).join(" ");
+    el.innerHTML = "<p>" + (parts.length ? "<b>The agent suggests:</b> " + esc(parts.join(", and ")) + "." : "<b>From the agent:</b>") +
+      (why ? '<span class="why" dir="auto">' + esc(why) + "</span>" : "") + "</p>" +
+      '<div class="suggest-actions">' + (parts.length
+        ? '<button type="button" class="btn primary" data-act="change-apply">' + icon("i-check") + "Apply</button>" +
+          '<button type="button" class="btn" data-act="change-skip">No thanks</button>'
+        : '<button type="button" class="btn" data-act="change-skip">OK</button>') + "</div>";
+  }
+  function markChangeSeen(at) {
+    state.changeSeen = at;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(CHANGE_SEEN_KEY, at).catch(function () {});
+  }
+  function applyChange() {
+    var c = pendingChange();
+    if (!c) return;
+    var next = copyLayout(state.layout || DEFAULT_LAYOUT).filter(function (b) { return c.remove.indexOf(b.id) < 0; });
+    c.add.forEach(function (id) {
+      var box = BOXES[id];
+      var w = Math.min(box.w, COLS);
+      var at = freeSpot(w, box.h, next);
+      next.push({ id: id, x: at.x, y: at.y, w: w, h: box.h });
+    });
+    markChangeSeen(c.at);
+    state.changeApplied = true;
+    changeLayout(next);
+    paintSuggest();
+  }
+  function skipChange() {
+    var c = pendingChange();
+    if (c) markChangeSeen(c.at);
+    paintSuggest();
   }
 
   // ── Moving and resizing ────────────────────────────────────────────────
@@ -3317,6 +3655,17 @@
 
   // ── Presses ────────────────────────────────────────────────────────────
 
+  // A press anywhere outside the Layout menu closes it.
+  document.addEventListener("pointerdown", function (event) {
+    if (!state.menuOpen || !event.target.closest) return;
+    if (event.target.closest("#layout-menu, [data-act='layout-menu']")) return;
+    state.menuOpen = false;
+    $("layout-menu").hidden = true;
+    var button = document.querySelector('[data-act="layout-menu"]');
+    if (button) button.setAttribute("aria-expanded", "false");
+  });
+  window.addEventListener("resize", function () { if (state.menuOpen) { state.menuOpen = false; $("layout-menu").hidden = true; } });
+
   document.addEventListener("click", function (event) {
     var el = event.target.closest ? event.target.closest("[data-act]") : null;
     if (!el || el.disabled) return;
@@ -3401,6 +3750,28 @@
       var size = el.getAttribute("data-size");
       changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) { if (b.id === sized) b.p = size; return b; }));
       if (boxEls[sized]) { var sb = boxEls[sized].querySelector('[data-size="' + size + '"]'); if (sb) sb.focus(); }
+    } else if (act === "layout-menu") {
+      if (state.menuOpen) closeMenu(); else openMenu(el);
+    } else if (act === "layout-edit") {
+      closeMenu();
+      startEdit();
+    } else if (act === "layout-ask") {
+      closeMenu();
+      askAboutLayout();
+    } else if (act === "layout-ask-cancel") {
+      stopLayoutAsk();
+    } else if (act === "change-apply") {
+      applyChange();
+    } else if (act === "change-skip") {
+      skipChange();
+    } else if (act === "change-undo") {
+      state.changeApplied = false;
+      undoLayout();
+      paintSuggest();
+      toast("Your page is back to how it was.");
+    } else if (act === "change-ok") {
+      state.changeApplied = false;
+      paintSuggest();
     } else if (act === "remove-box") {
       removeBox(el.closest(".box").getAttribute("data-box"));
     } else if (act === "edit-start") {
@@ -3419,6 +3790,7 @@
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") {
       if (drag) endDrag(true);
+      else if (state.menuOpen) closeMenu();
       else if (state.sheet) closeSheet();
       else if (state.drawerOpen) closeDrawer();
       else if (state.editing) doneEdit();
@@ -3437,7 +3809,8 @@
   document.addEventListener("submit", function (event) {
     if (!event.target || event.target.id !== "ask-form") return;
     event.preventDefault();
-    ask($("ask-input").value);
+    if (state.layoutAsk) sendLayoutAsk($("ask-input").value);
+    else ask($("ask-input").value);
   });
 
   // ── Start ──────────────────────────────────────────────────────────────
@@ -3492,6 +3865,8 @@
       if (!mine) return;
       var clean = cleanLayout(mine.get(LAYOUT_KEY));
       if (clean) state.layout = clean;
+      var seen = mine.get(CHANGE_SEEN_KEY);
+      if (typeof seen === "string") state.changeSeen = seen;
       var hidden = mine.get(HIDDEN_IDEAS_KEY);
       if (Array.isArray(hidden)) hidden.forEach(function (hid) { if (ideaById(hid)) state.hiddenIdeas[hid] = true; });
       var done = mine.get(DONE_KEY);
