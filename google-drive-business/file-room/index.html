@@ -486,8 +486,13 @@
   .box[data-level="M"] .dates .t, .box[data-level="M"] .dates .quote { display: none; }
 
   /* The Ask box keeps its padding at the foot too, so the last row of ideas never touches the edge. */
-  .box.ask { padding-bottom: 24px; }
-  .box.ask .qs { padding-bottom: 2px; }
+  .box.ask { padding: 18px 22px 20px; }
+  .box.ask h2 { margin-bottom: 2px; line-height: 1.2; }
+  .box.ask .q { min-height: 36px; padding: 6px 14px; }
+  .box.ask .nudge .btn.small { min-height: 36px; }
+  .box.ask .nudge { margin-top: 10px; padding: 10px 18px; }
+  .box.ask .nudge-actions { margin-top: 6px; }
+  .box.ask .qs-label { margin-top: 8px; }
   .skip { position: absolute; left: 12px; top: -60px; z-index: 60; padding: 10px 16px; border-radius: 10px; background: var(--ink); color: #fff; font-weight: 700; text-decoration: none; }
   .skip:focus { top: 12px; }
   /* Ask: the dark box. Small keeps only the field. */
@@ -2269,6 +2274,7 @@
    */
   function fitBox(el) {
     var id = el.getAttribute("data-box");
+    if (id === "ask") { fitAsk(el); return; }
     var body = el.querySelector(".box-body");
     var more = el.querySelector(".box-more");
     if (!body || !more) return;
@@ -3654,6 +3660,22 @@
     if (drawerFrom && drawerFrom.focus) drawerFrom.focus();
   }
 
+
+  /**
+   * The Ask box's own height: what it holds, measured from its content (not from the box, so it
+   * never grows and shrinks in turn), in whole rows, never less than the size it was given.
+   */
+  function fitAsk(el) {
+    if (phone() || state.editing) { if (state.need.ask) { state.need.ask = 0; placeBoxes(); } return; }
+    var last = el.lastElementChild;
+    while (last && (last.hidden || last.matches(".box-x, .box-resize, .box-size"))) last = last.previousElementSibling;
+    var pad = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+    var natural = last ? last.getBoundingClientRect().bottom - el.getBoundingClientRect().top + pad : 0;
+    var need = natural > el.clientHeight + 1 || state.need.ask ? Math.ceil((natural + GAP) / (ROW + GAP)) : 0;
+    var given = (entryOf("ask") || { h: 0 }).h;
+    if (need <= given) need = 0;
+    if ((state.need.ask || 0) !== need) { state.need.ask = need; placeBoxes(); }
+  }
 
   // ── Presses ────────────────────────────────────────────────────────────
 
