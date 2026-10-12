@@ -125,6 +125,42 @@ Never write `reading.json` or `profile.json` yourself, and never `push` in the c
   (the folder you are in stays for the next call), and never write to `/tmp` in any form,
   not even a test.
 
+**The gift comes first.** While you read, the page shows one thing the owner can act on
+now, beside the lines. It is what makes the first minute worth it, so it comes before
+every other search: right after `start`, in the next one or two Bash calls, and never
+later than the third line. Its searches come on top of all the others. Pick the first of
+these that their mail backs:
+1. `waiting`: the person (a real person, not a notice, shop or newsletter) who wrote to
+   them and has waited longest for an answer, in the last 14 days.
+2. `quote`: something they sent (a quote, an offer, a question) 3 or more days ago that
+   got no answer.
+3. `noise`: the sender that filled their inbox most in the last 30 days, mostly unread.
+4. `calm`: nobody is waiting and nothing is noisy. Still a gift: the page offers to find
+   what they forgot.
+How to find it, fast:
+- One call: `gws gmail users threads list --params '{"userId":"me","q":"in:inbox newer_than:14d -category:promotions -category:social -category:updates -category:forums","maxResults":25}' > front-desk/data/.work/gift-list.json`,
+  then, in the same call, `threads get` with `"format":"metadata","metadataHeaders":["From","To","Subject","Date"]`
+  for each id, oldest first, one JSON per line into `front-desk/data/.work/gift-threads.ndjson`.
+  End the call with your first `push`.
+- A thread whose last message is from someone else, a person, is `waiting`; a thread whose
+  last message is theirs, 3 or more days old, asking or offering something, is `quote`.
+  Take the oldest.
+- Neither: `gws gmail +triage --max 40 --query 'in:inbox newer_than:30d is:unread' --format json > front-desk/data/.work/gift-unread.json`,
+  take the sender that shows most, and save `+triage --max 100 --query 'from:<address> newer_than:30d'`
+  as `gift-noise-all.json` and the same with `is:unread` as `gift-noise-unread.json`.
+- Then write `.work/gift.json` and run `node front-desk/first-sort.mjs gift @gift.json`:
+  `{"kind":"waiting","who":"Mike Alvarez","subject":"AC making a grinding noise again","since":"<Date header of their last message, as Gmail wrote it>","threadId":"<thread id>","gist":"Wants a tech before Saturday, still under warranty"}`.
+  For `quote`, `since` is the Date of their own last message and `who` the person they wrote to.
+  For `noise`: `{"kind":"noise","who":"LinkedIn","count":"{count:gift-noise-all.json|email|emails}","unread":"{count:gift-noise-unread.json}"}`.
+  For `calm`: `{"kind":"calm"}`.
+- `who` is the name as the From or To header writes it (no address); `who`, `subject`,
+  `since` and `threadId` are copied from a saved answer, and the helper refuses anything
+  else. `gist` is one short line in plain words, no numbers: what they want.
+- If the helper refuses, fix the file and run it again, or give the next kind down. Never
+  skip the gift: `calm` is always true when nothing else is.
+The page writes the reply or the follow-up in a chat when the owner asks; you never do,
+and the gift never sends or changes anything.
+
 **Tell it as you go.** Right after reading your files, run `node front-desk/first-sort.mjs start`.
 After each search, add one line for what you found, in the same Bash call as the search
 (`node -e` or `jq` to append), so the page shows it a few seconds later. The owner is
