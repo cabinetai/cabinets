@@ -191,6 +191,26 @@
   .d-foot { padding: 16px 24px 22px; border-top: 1px solid var(--line); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .d-foot .note { flex-basis: 100%; color: var(--muted); font-size: 13px; }
 
+
+  /* Ask, or try an idea: a piece of the stage, like the Ask box of the main templates. */
+  .askbox {
+    border-radius: var(--radius); padding: 22px 22px 18px; color: var(--cream);
+    background: radial-gradient(600px 220px at 90% 120%, rgba(217, 165, 79, .22), transparent 70%), linear-gradient(180deg, #17141d, #241f2c);
+  }
+  .askbox h2 { margin: 0 0 4px; font-family: var(--serif); font-weight: 400; font-size: 30px; line-height: 1.1; }
+  .askbox > p { margin: 0 0 14px; color: #c9bfd3; font-size: 14.5px; }
+  .askbox form { display: flex; gap: 8px; }
+  .askbox input { flex: 1; min-width: 0; min-height: 46px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .07); color: #fff; padding: 10px 18px; font: inherit; font-size: 15.5px; }
+  .askbox input::placeholder { color: rgba(255, 255, 255, .6); }
+  .askbox input:focus { outline: none; border-color: var(--cream); box-shadow: 0 0 0 3px rgba(255, 255, 255, .16); }
+  .askbox button[type=submit] { min-height: 46px; padding: 0 20px; }
+  .askbox .qs-label { margin: 16px 0 0; font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #a99fb4; }
+  .askbox .qs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .askbox .qchip { min-height: 38px; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .05); color: #f2e9db; font-size: 14px; font-weight: 500; text-align: start; }
+  .askbox .qchip:hover { background: rgba(255, 255, 255, .12); }
+  .askbox .note { margin: 12px 0 0; min-height: 1.4em; color: #c9bfd3; font-size: 13.5px; }
+  @media (max-width: 600px) { .askbox form { flex-direction: column; } }
+
   .toast {
     position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; z-index: 40;
     background: var(--ink); color: var(--cream); padding: 10px 18px; border-radius: 999px; font-size: 14px;
@@ -904,6 +924,7 @@
       '<div class="col">' +
         '<section class="sheet pay" aria-labelledby="h-pay">' + payHtml() + "</section>" +
         '<section class="sheet scam simple" aria-labelledby="h-scam">' + scamHtml() + "</section>" +
+        (canAct() || !V2 ? '<section class="askbox" aria-labelledby="h-ask">' + askBoxHtml() + "</section>" : "") +
       "</div>" +
       '<section class="sheet w12 simple" aria-labelledby="h-fans">' + fansHtml() + "</section>";
     $("main").innerHTML = html;
@@ -1141,6 +1162,49 @@
     ask("Put this reply in my Gmail drafts, as a reply in the thread " + (str(x.threadId) || "with " + (x.brand || x.from)) +
       ". Do not send it. Here is the text:\n\n" + t).then(function (ok) { if (ok) closeReply(); });
   }
+
+
+  // ── Ask, or try an idea ────────────────────────────────────────────────
+  var ASK_IDEAS = [{"title":"Make my rate card","ask":"Make me a one-page rate card from my past brand deals in my email: what I made (reels, stories, YouTube parts), what brands paid for each, and a fair rate for each from that. Use [brackets] where my email has no answer. Save it as a page in reports."},{"title":"Brands I worked with this year","ask":"List every brand I worked with this year from my email: what I made for them, what they paid, and whether they paid on time. Save it as a page in reports."},{"title":"Chase every late payment","ask":"Find every invoice I sent that is still not paid after its due date. For each, write a short polite reminder in my voice. Show them to me one by one, and send nothing."},{"title":"Turn fan questions into video ideas","ask":"Read the questions my fans sent me in the last 30 days and turn the most asked ones into 5 video ideas, each with a title and an opening line."},{"title":"Is this offer real?","ask":"I want to check if a brand offer in my email is real. Ask me which one, then tell me in a few plain lines what looks real and what looks fake, without opening any link in it."}];
+  var askNote = "";
+  function askBoxHtml() {
+    return '<h2 id="h-ask">Ask, or try an idea</h2><p>Your brand manager reads your email and answers in the chat. Nothing is sent.</p>' +
+      '<form id="ask-form" autocomplete="off"><label for="ask-input" style="position:absolute;left:-9999px">Your question</label>' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about brands, offers, payments..." />' +
+      '<button type="submit" class="btn gold">Ask</button></form>' +
+      '<p class="qs-label">Ideas</p><div class="qs">' + ASK_IDEAS.map(function (idea, i) {
+        return '<button type="button" class="qchip" data-act="ask-idea" data-i="' + i + '">' + esc(idea.title) + "</button>";
+      }).join("") + "</div>" +
+      '<p class="note" id="ask-note" aria-live="polite">' + esc(askNote) + "</p>";
+  }
+  function setAskNote(words) { askNote = words; if ($("ask-note")) $("ask-note").textContent = words; }
+  /** Before Gmail is connected there is nothing to read: the question leads to connecting first. */
+  function askFromBox(words) {
+    var q = str(words).slice(0, 3900);
+    if (!q) return;
+    var s = gmailState();
+    if (V2 && s && s !== "connected" && s !== "needs-you" && s !== "needs-sign-in") {
+      if (state.gmail && state.gmail.canConnect) { toast("Connect Gmail first. It takes a minute or two."); connect(); }
+      else toast("Gmail can’t be connected here yet.");
+      return;
+    }
+    setAskNote("Asking...");
+    Promise.resolve(ask(q)).then(function (ok) {
+      setAskNote(ok ? "Asked. The answer is coming in the chat next to this page." : "");
+      if (ok && $("ask-input")) $("ask-input").value = "";
+    });
+  }
+  document.addEventListener("submit", function (event) {
+    if (!event.target || event.target.id !== "ask-form") return;
+    event.preventDefault();
+    askFromBox($("ask-input").value);
+  });
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest('[data-act="ask-idea"]');
+    if (!el) return;
+    var idea = ASK_IDEAS[+el.getAttribute("data-i")];
+    if (idea) askFromBox(idea.ask);
+  });
 
   // ── Clicks ─────────────────────────────────────────────────────────────
 
