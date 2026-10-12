@@ -97,11 +97,14 @@ Delete `money-desk/data/.work/` in your last Bash call. When nothing matches, `g
 
 **Use the helper, always.** `node money-desk/first-sort.mjs` does all the writing, so no number is typed:
 - `start` first (it writes `reading.json` and makes `money-desk/data/.work/`).
-- `push "<line>"` once per finding, right after the search that found it, in that same Bash
+- `push '<line>'` (single quotes, so a "$" stays) once per finding, right after the search that found it, in that same Bash
   call. Put a count in as `{count:<file in .work>}` and the helper counts it:
   "**{count:inbox30.ndjson} emails** came into your inbox in the last 30 days". Any other number (a sum, hours, a day) is worked out by your script from the
-  saved file into a shell variable and passed in from it (`"$TOTAL"`), never typed. The
-  helper refuses a broken line ("undefined") and can only add lines.
+  saved file into a shell variable and passed in from it, never typed. A total of money is
+  `{sum:<file>}`: your script saves the amounts it found as a JSON list
+  (`["₪289.00","₪200.00"]`) and the helper adds them, after checking each one is written in
+  a saved answer. An amount typed straight into a line must be written, as it is, in the
+  mail. The helper refuses a broken line ("undefined") and can only add lines.
 - `profile @profile.json` writes `profile.json` from the JSON your script computed and saved
   as `.work/profile.json` (every value worked out there, none typed). It adds `mail30` and `money30` itself from the saved
   files (leave them out) and drops money that is zero.
@@ -170,6 +173,13 @@ error file or a test.
   before you push. In JavaScript compare times with `.getTime()` (`date + number` makes a
   string).
 - If this run fails after `start`, still run `done`, so no raw answer stays in the cabinet.
+- Build `latest.json` from the full 30-day id list (read by metadata), not from a capped
+  `+triage` file: the cards plus `leftOut.count` add up to `arrived`.
+- Every card keeps the `threadId` of its email, so the page can open it in Gmail.
+- A line about what emails say needs every one of them opened; otherwise name only the one
+  you read. Every search, extra ones too, ends with its line.
+- Never put `at` or `schema` in the profile file: the helper sets them. If you find a
+  mistake after `done`, say it in your answer; never touch the files.
 - If the 30-day count is bigger than the list you read, list the rest by id
   (`messages get`, `format=metadata`) before you write that nobody is waiting or that
   nothing is owed; otherwise say who you did find.
@@ -180,7 +190,9 @@ error file or a test.
 Name the sender who said it: a card or payment platform (Mesh, Ramp, Brex, Stripe,
 PayPal) sends its own alerts, and the line says so, not the vendor being charged.
 
-**Read a little more, once.** On top of the usual searches, up to three more:
+**Read a little more, once.** First, the two exact counts below, saved as exactly
+`money-desk/data/.work/inbox30.ndjson` and `money-desk/data/.work/money30.ndjson` (the helper
+reads those names). Then, on top of the usual searches, up to three more:
 - the exact count of their inbox and of their money mail in the last 30 days. List the
   ids, every page, and count them:
   `gws gmail users messages list --params '{"userId":"me","q":"in:inbox newer_than:30d","maxResults":500}' --page-all --page-limit 4 > money-desk/data/.work/inbox30.ndjson`,
@@ -192,7 +204,7 @@ PayPal) sends its own alerts, and the line says so, not the vendor being charged
   name and town, how they sign, and who they bill.
 - one opened email, only when an amount or the business name is not in the snippets.
 
-**Then write the profile** with `node money-desk/first-sort.mjs profile '<json>'`, in its own call before
+**Then write the profile** with `node money-desk/first-sort.mjs profile @profile.json`, in its own call before
 `latest.json`, in this shape:
 `{"schema":"gmail-finance/profile@1","at":"<now>","name":"<the first name they sign with>","business":{"name":"Rivera HVAC","what":"heating and air conditioning","where":"Austin"},"payers":["Dana Cole","Sunrise Dental"],"payersMore":4,"suppliers":["Ferguson Supply","Adobe"],"suppliersMore":6,"subscriptions":{"count":5,"monthly":"$212.40"},"payDays":18,"in30":"$8,420","out30":"$3,105.20","mail30":312,"money30":41}`.
 - `payers`: the customers whose payments you saw, most money first; `suppliers`: who they

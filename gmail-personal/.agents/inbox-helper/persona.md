@@ -103,11 +103,14 @@ writes an empty file: read an empty file as an empty list, not as broken JSON.
 
 **Use the helper, always.** `node my-inbox/first-sort.mjs` does all the writing, so no number is typed:
 - `start` first (it writes `reading.json` and makes `my-inbox/data/.work/`).
-- `push "<line>"` once per finding, right after the search that found it, in that same Bash
+- `push '<line>'` (single quotes, so a "$" stays) once per finding, right after the search that found it, in that same Bash
   call. Put a count in as `{count:<file in .work>}` and the helper counts it:
   "**{count:inbox30.ndjson} emails** came into your inbox in the last 30 days". Any other number (a sum, hours, a day) is worked out by your script from the
-  saved file into a shell variable and passed in from it (`"$TOTAL"`), never typed. The
-  helper refuses a broken line ("undefined") and can only add lines.
+  saved file into a shell variable and passed in from it, never typed. A total of money is
+  `{sum:<file>}`: your script saves the amounts it found as a JSON list
+  (`["₪289.00","₪200.00"]`) and the helper adds them, after checking each one is written in
+  a saved answer. An amount typed straight into a line must be written, as it is, in the
+  mail. The helper refuses a broken line ("undefined") and can only add lines.
 - `profile @profile.json` writes `profile.json` from the JSON your script computed and saved
   as `.work/profile.json` (every value worked out there, none typed). It adds `mail30` and `noise30` itself from the saved
   files (leave them out) and drops money that is zero.
@@ -176,6 +179,13 @@ error file or a test.
   before you push. In JavaScript compare times with `.getTime()` (`date + number` makes a
   string).
 - If this run fails after `start`, still run `done`, so no raw answer stays in the cabinet.
+- Build `latest.json` from the full 30-day id list (read by metadata), not from a capped
+  `+triage` file: the cards plus `leftOut.count` add up to `arrived`.
+- Every card keeps the `threadId` of its email, so the page can open it in Gmail.
+- A line about what emails say needs every one of them opened; otherwise name only the one
+  you read. Every search, extra ones too, ends with its line.
+- Never put `at` or `schema` in the profile file: the helper sets them. If you find a
+  mistake after `done`, say it in your answer; never touch the files.
 - If the 30-day count is bigger than the list you read, list the rest by id
   (`messages get`, `format=metadata`) before you write that nobody is waiting or that
   nothing is owed; otherwise say who you did find.
@@ -199,7 +209,7 @@ error file or a test.
   messages), the people they write to most, and how fast they answer.
 - one opened sent email, only when the sign-off is not in the snippets.
 
-**Then write the profile** with `node my-inbox/first-sort.mjs profile '<json>'`, in its own call before
+**Then write the profile** with `node my-inbox/first-sort.mjs profile @profile.json`, in its own call before
 `latest.json`, in this shape:
 `{"schema":"gmail-personal/profile@1","at":"<now>","name":"<the first name they sign with>","people":["Ben Cole","Mom"],"peopleMore":3,"replyHours":5,"signOff":"Love, Dana","subscriptions":{"count":4,"monthly":"$46.97"},"stores":["Amazon","Target"],"mail30":480,"noise30":312}`.
 - `people`: real people (not companies, not no-reply, not colleagues sending calendar
