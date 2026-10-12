@@ -117,6 +117,9 @@
   }
   .note b { color: var(--ink); }
   .tag { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: var(--ink); color: #fff; }
+  .first-run { margin-left: auto; border: 0; cursor: pointer; background: var(--ink); color: #fff; border-radius: 999px; padding: 9px 16px; font-size: 15px; font-weight: 600; }
+  .first-run:hover { background: #2e3648; }
+  .first-run:disabled { opacity: .7; cursor: default; }
   .note.warn { background: var(--warn-soft); border-color: #efd9b0; color: var(--warn); }
 
   .first {
@@ -443,10 +446,12 @@
     var d = stamp(state.name), now = new Date();
     $("daylabel").textContent = !d ? "Example" : sameDay(d, now) ? "Today" : sameDay(d, new Date(now.getTime() - 864e5)) ? "Yesterday" : d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3);
     var again = $("again");
-    again.hidden = !(V2 && state.role === "owner" && jobById(JOB));
+    again.hidden = !canRun();
     again.disabled = state.running;
     again.classList.toggle("spin", state.running);
     again.querySelector("span").textContent = state.running ? "Checking…" : "Check again";
+    var fr = $("first-run");
+    if (fr) { fr.disabled = state.running; fr.textContent = state.running ? "Writing your first morning…" : "Write my first morning now"; }
   }
 
   function drawBody() {
@@ -456,7 +461,8 @@
 
     if (isExample(state.name)) {
       html += '<div class="note"><span class="tag">Example</span><span><b>This morning is made up.</b> It shows the shape of the page. ' +
-        "Connect Gmail, Google Calendar or another app, and your first real morning takes its place.</span></div>";
+        "Connect Gmail, Google Calendar or another app, and your first real morning takes its place.</span>" +
+        (canRun() && connectedCount() ? '<button type="button" class="first-run" id="first-run">Write my first morning now</button>' : "") + "</div>";
     }
     if (meta.status && meta.status !== "ok") {
       html += '<div class="note warn"><b>The last run had a problem:</b> ' + esc(meta.status) + "</div>";
@@ -478,6 +484,8 @@
 
     html += looked(data.sections.filter(function (s) { return /^checked$/i.test(s.title); })[0]);
     root.innerHTML = html;
+    var fr = $("first-run");
+    if (fr) fr.addEventListener("click", runAgain);
     root.querySelectorAll("[data-connect]").forEach(function (b) {
       b.addEventListener("click", function () { connect(b.getAttribute("data-connect"), b.getAttribute("data-name")); });
     });
@@ -526,6 +534,8 @@
 
   // ── Routine and connections ────────────────────────────────────────────
 
+  function canRun() { return !!(V2 && state.role === "owner" && jobById(JOB)); }
+  function connectedCount() { return state.connectors.filter(function (c) { return c.state === "connected"; }).length; }
   function jobById(id) { for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === id) return state.jobs[i]; return null; }
   function nextRunWords() {
     var j = jobById(JOB);
