@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<!--
+  discord-feedback board.
+
+  Reads board/data.json, written by this cabinet's one routine (Organize Feedback).
+  Through the app bridge when Cabinet provides it (cabinet.files.read), else a relative
+  fetch, which resolves under /api/assets/<cabinet>/board/ on a computer.
+  One file, inline CSS and script, system fonts, no external requests.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Feedback Board</title>
+<style>
+  /* Registry parchment tokens, shared with the other registry apps. */
+  :root {
+    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
+    --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
+    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
+    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A; --violet: #8E6CC8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --parchment: #1F1B18; --card: #2A2420; --line: #3D342D;
+      --ink: #F1E9DF; --muted: #B9A58C; --faint: #7D6D5C;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; padding: 40px 24px 64px; background: var(--parchment); color: var(--ink);
+    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font-family: Georgia, "Times New Roman", serif; font-size: 32px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin-top: 4px; font-size: 14px; }
+  button.run {
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 999px; padding: 8px 16px; font: inherit; font-size: 14px; cursor: pointer;
+  }
+  button.run:hover { border-color: var(--muted); }
+  button.run:disabled { opacity: 0.6; cursor: default; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 24px 0 20px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .stat b { display: block; font-size: 24px; font-family: Georgia, serif; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip {
+    border: 1px solid var(--line); background: transparent; color: var(--muted);
+    border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--parchment); }
+  .list { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .row { border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row > button {
+    all: unset; box-sizing: border-box; width: 100%; cursor: pointer;
+    display: grid; grid-template-columns: 56px 1fr auto auto; gap: 14px; align-items: center; padding: 14px 18px;
+  }
+  .row > button:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  .row > button:focus-visible { outline: 2px solid var(--terracotta); outline-offset: -2px; }
+  .count { text-align: center; }
+  .count b { display: block; font-size: 22px; font-family: Georgia, serif; line-height: 1; }
+  .count span { font-size: 11px; color: var(--muted); }
+  .title { font-weight: 600; }
+  .summary { color: var(--muted); font-size: 13.5px; }
+  .pill { font-size: 12px; padding: 2px 10px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+  .pill.grey { color: var(--muted); border-color: var(--line); }
+  .detail { display: none; padding: 0 18px 16px 88px; }
+  .row.open .detail { display: block; }
+  .msg { padding: 8px 0; border-top: 1px dashed var(--line); font-size: 14px; }
+  .msg:first-child { border-top: 0; }
+  .msg .who { font-weight: 600; margin-right: 6px; }
+  .msg a { color: var(--blue); font-size: 12.5px; margin-left: 6px; text-decoration: none; }
+  .msg a:hover { text-decoration: underline; }
+  .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 14px; padding: 32px; text-align: center; color: var(--muted); }
+  .empty b { display: block; color: var(--ink); font-size: 17px; margin-bottom: 6px; }
+  .note { color: var(--muted); font-size: 13px; margin-top: 14px; }
+  .problem { color: var(--terracotta); }
+  @media (max-width: 620px) {
+    .stats { grid-template-columns: 1fr; }
+    .row > button { grid-template-columns: 44px 1fr; }
+    .row > button .pill { display: none; }
+    .detail { padding-left: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Feedback Board</h1>
+      <div class="sub" id="sub">Loading...</div>
+    </div>
+    <button class="run" id="run" hidden>Check Discord now</button>
+  </header>
+  <div class="stats" id="stats" hidden>
+    <div class="stat"><b id="s-requests">0</b><span>requests on the board</span></div>
+    <div class="stat"><b id="s-people">0</b><span>people who gave feedback</span></div>
+    <div class="stat"><b id="s-high">0</b><span>high priority</span></div>
+  </div>
+  <div class="chips" id="chips" hidden></div>
+  <div id="board"></div>
+  <p class="note" id="note"></p>
+</div>
+<script>
+(function () {
+  var c = window.cabinet;
+  var $ = function (id) { return document.getElementById(id); };
+  var TYPES = ["Feature", "Bug", "UI/UX", "Integration", "Other"];
+  var TYPE_COLOR = { Feature: "--blue", Bug: "--terracotta", "UI/UX": "--violet", Integration: "--teal", Other: "--faint" };
+  var PRIO_COLOR = { High: "--terracotta", Medium: "--orange", Low: "--faint" };
+  var PRIO_RANK = { High: 0, Medium: 1, Low: 2 };
+  var filter = "All";
+  var data = null;
+  var dataPath = "board/data.json";
+  var jobId = null;
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+  function pill(word, map) {
+    var v = map[word];
+    if (!v) return '<span class="pill grey">' + esc(word || "Unsorted") + "</span>";
+    return '<span class="pill" style="color:var(' + v + ');border-color:var(' + v + ');background:color-mix(in srgb, var(' + v + ') 12%, transparent)">' + esc(word) + "</span>";
+  }
+  function when(iso) {
+    var t = Date.parse(iso);
+    if (!t) return "";
+    var mins = Math.round((Date.now() - t) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + " min ago";
+    var hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + (hrs === 1 ? " hour ago" : " hours ago");
+    return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+  function safeUrl(u) { return /^https:\/\/discord\.com\//.test(u || "") ? u : null; }
+
+  function paint() {
+    var board = $("board");
+    if (!data) {
+      $("sub").textContent = "Reads your #feedback channel in Discord and ranks what people ask for.";
+      $("stats").hidden = true; $("chips").hidden = true;
+      board.innerHTML = '<div class="empty"><b>No feedback yet</b>The first check reads #feedback and fills this board. ' +
+        (jobId ? "Press Check Discord now, or wait for the next run (every 30 minutes)." : "It runs every 30 minutes.") + "</div>";
+      return;
+    }
+    var reqs = Array.isArray(data.requests) ? data.requests.slice() : [];
+    var people = {};
+    reqs.forEach(function (r) { (r.people || []).forEach(function (p) { people[p] = 1; }); });
+    $("s-requests").textContent = reqs.length;
+    $("s-people").textContent = Object.keys(people).length;
+    $("s-high").textContent = reqs.filter(function (r) { return r.priority === "High"; }).length;
+    $("stats").hidden = false;
+
+    var where = data.channel && data.channel.name ? data.channel.name : "#feedback";
+    var sub = "From " + esc(where) + (data.server && data.server.name ? " in " + esc(data.server.name) : "") +
+      (data.generated ? " · updated " + esc(when(data.generated)) : "");
+    if (data.status && data.status !== "ok") sub += ' · <span class="problem">' + esc(data.status) + "</span>";
+    $("sub").innerHTML = sub;
+
+    var chips = ["All"].concat(TYPES.filter(function (t) { return reqs.some(function (r) { return r.type === t; }); }));
+    $("chips").innerHTML = chips.map(function (t) {
+      return '<button class="chip" data-type="' + esc(t) + '" aria-pressed="' + (t === filter) + '">' + esc(t) + "</button>";
+    }).join("");
+    $("chips").hidden = reqs.length === 0;
+
+    var shown = reqs.filter(function (r) { return filter === "All" || r.type === filter; });
+    shown.sort(function (a, b) {
+      return (PRIO_RANK[a.priority] ?? 3) - (PRIO_RANK[b.priority] ?? 3) ||
+        (b.count || 0) - (a.count || 0) ||
+        (Date.parse(b.lastSeen) || 0) - (Date.parse(a.lastSeen) || 0);
+    });
+
+    if (reqs.length === 0) {
+      board.innerHTML = '<div class="empty"><b>Nothing to sort yet</b>No feedback found in ' + esc(where) + " so far. New requests show up here after the next check.</div>";
+    } else {
+      board.innerHTML = '<div class="list">' + shown.map(function (r, i) {
+        var msgs = (r.messages || []).map(function (m) {
+          var url = safeUrl(m.url);
+          return '<div class="msg"><span class="who">' + esc(m.author) + "</span>" + esc(m.text) +
+            (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">Open in Discord</a>' : "") + "</div>";
+        }).join("");
+        var n = r.count || (r.people || []).length || 0;
+        return '<div class="row" data-i="' + i + '"><button aria-expanded="false">' +
+          '<div class="count"><b>' + n + "</b><span>" + (n === 1 ? "person" : "people") + "</span></div>" +
+          '<div><div class="title">' + esc(r.title) + '</div><div class="summary">' + esc(r.summary) + "</div></div>" +
+          pill(r.type, TYPE_COLOR) + pill(r.priority, PRIO_COLOR) +
+          '</button><div class="detail">' + (msgs || '<div class="msg">No messages kept.</div>') + "</div></div>";
+      }).join("") + "</div>";
+    }
+    $("note").textContent = data.stats && typeof data.stats.messagesRead === "number"
+      ? "Last check read " + data.stats.messagesRead + " new message" + (data.stats.messagesRead === 1 ? "" : "s") +
+        ", placed " + (data.stats.feedbackMessages || 0) + " on the board and left out " + (data.stats.ignored || 0) + "."
+      : "";
+  }
+
+  document.addEventListener("click", function (e) {
+    var chip = e.target.closest(".chip");
+    if (chip) { filter = chip.getAttribute("data-type"); paint(); return; }
+    var btn = e.target.closest(".row > button");
+    if (btn) {
+      var row = btn.parentElement;
+      var open = row.classList.toggle("open");
+      btn.setAttribute("aria-expanded", String(open));
+    }
+  });
+
+  function load() {
+    var read = c && c.files
+      ? c.files.read(dataPath)
+      : fetch("data.json", { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error("missing"); return r.text(); });
+    return read.then(function (text) {
+      try { data = JSON.parse(text); } catch (err) { data = null; $("note").textContent = "The board file could not be read. The next check rewrites it."; }
+      paint();
+    }, function () { data = null; paint(); });
+  }
+
+  function paintJobs(list) {
+    var job = (list || []).find(function (j) { return j.id === "organize-feedback"; }) || (list || [])[0];
+    if (!job) return;
+    jobId = job.id;
+    var btn = $("run");
+    btn.hidden = false;
+    btn.disabled = !!job.running;
+    btn.textContent = job.running ? "Checking Discord..." : "Check Discord now";
+    if (!data) paint();
+  }
+
+  $("run").onclick = function () {
+    if (!c || !c.jobs || !jobId) return;
+    $("run").disabled = true; $("run").textContent = "Checking Discord...";
+    c.jobs.run(jobId).catch(function (err) {
+      $("run").disabled = false; $("run").textContent = "Check Discord now";
+      $("note").textContent = err && err.message ? err.message : "Could not start the check.";
+    });
+  };
+
+  if (c && c.ready && c.here) {
+    c.ready.then(function () { return c.here(); }).then(function (h) {
+      if (h && h.appPath) dataPath = h.appPath + "/data.json";
+    }).catch(function () {}).then(function () {
+      load();
+      if (c.files && c.files.onChange) c.files.onChange(dataPath.replace(/\/[^/]*$/, ""), load);
+      if (c.jobs) { c.jobs.list().then(paintJobs, function () {}); if (c.jobs.onChange) c.jobs.onChange(paintJobs); }
+    });
+  } else {
+    load();
+  }
+})();
+</script>
+</body>
+</html>

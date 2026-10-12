@@ -1,0 +1,33 @@
+id: organize-feedback
+name: Organize Feedback
+enabled: true
+schedule: "*/30 * * * *"
+provider: claude-code
+adapterType: claude_local
+ownerAgent: feedback-analyst
+agentSlug: feedback-analyst
+timeout: 600
+prompt: |-
+  Update the Feedback Board with what is new in #feedback.
+
+  Your working directory is the cabinet root. The board lives in `board/data.json`.
+
+  1. Read your persona before anything else. It holds the file shape, what counts as
+     feedback, how to match a message to an existing request, and the exact type and
+     priority words. This prompt does not repeat them.
+  2. Read `board/data.json`. If it does not exist yet, this is the first run: you will
+     create it with an empty `requests` list before adding to it.
+  3. With your Discord tools, find the text channel named `feedback` in the configured
+     server. If there is none, set `status` to "No #feedback channel found", write the
+     file, and stop.
+  4. Read the messages newer than `cursor` (all of them on the first run, oldest first,
+     in pages of 100 until there are no more). Skip any message whose id is already in a
+     request's `messages`.
+  5. Sort each new message: leave it out, add it to a request already on the board, or
+     start a new request. Then update counts, people, dates and priorities.
+  6. Set `cursor` to the id of the newest message you read, `generated` to now, `stats`
+     to this run's numbers, `status` to "ok", and write the whole file back as valid JSON.
+  7. This run is read only in Discord. Do not send a message, reply, create a thread or
+     add a reaction.
+  8. If a Discord call fails, say what you tried and what it said, set `status` to a short
+     phrase naming the problem, keep everything else in the file as it was, and stop.
