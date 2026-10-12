@@ -10,7 +10,9 @@
 //                                                   {"kind":<one of CONFIG.gift.kinds>,"who","subject",
 //                                                   "since","when","threadId","amount","was","gist",
 //                                                   "count","unread"}; who, subject, since, when, threadId
-//                                                   and amounts copied from a saved answer
+//                                                   and amounts copied from a saved answer; on a calendar
+//                                                   "eventId" (and "eventId2" for a clash): the helper
+//                                                   takes title, time, guests and place from events.json
 //   node <app>/first-sort.mjs profile @<file>       write data/profile.json from the JSON your script
 //                                                   wrote into data/.work/ (counts are added here)
 //   node <app>/first-sort.mjs latest @<file>        write data/latest.json from your script's file (times, today,
@@ -162,6 +164,11 @@ function windowsFor(day) {
 }
 /** The first gap of 3 hours or more from now (rounded up to the quarter hour), in 14 days. */
 function freeWords(name) {
+  const span = freeSpan(name);
+  return span ? WEEKDAYS[new Date(span[0]).getDay()] + " " + hhmm(new Date(span[0])) + " to " + hhmm(new Date(span[1])) : "";
+}
+/** The first free stretch as [start, end] in ms, or null. */
+function freeSpan(name) {
   const busy = busyOf(name);
   const q = 15 * 60000;
   const from = Math.ceil(Date.now() / q) * q;
@@ -173,12 +180,12 @@ function freeWords(name) {
       if (start >= end) continue;
       const inside = busy.filter(([s, e]) => e > start && s < end).sort((x, y) => x[0] - y[0]);
       for (const [s, e] of [...inside, [end, end]]) {
-        if (s - start >= 3 * 3600000) return WEEKDAYS[new Date(start).getDay()] + " " + hhmm(new Date(start)) + " to " + hhmm(new Date(s));
+        if (s - start >= 3 * 3600000) return [start, s];
         start = Math.max(start, e);
       }
     }
   }
-  return "";
+  return null;
 }
 /** Evenings (18:00 to 22:00) with nothing booked, today and the six days after. */
 function eveningsCount(name) {
@@ -331,8 +338,50 @@ function giftOf(g) {
     if (!/^\{count:[^}]+\}$/.test(typed)) fail(`${key} must be {count:<file>|one|many}, so the helper counts it`);
     out[key] = fill(typed, "the gift's " + key);
   }
+  // Calendar: name the event by its id; its title, time, place and guests come from the
+  // calendar's own answer, never typed.
+  for (const [key, n] of [["eventId", ""], ["eventId2", "2"]]) {
+    if (g[key] === undefined || g[key] === "") continue;
+    const e = eventsOf("events.json").find((x) => x && x.id === String(g[key]));
+    if (!e) fail(`refused, no event with id ${g[key]} in events.json (cancelled and declined ones do not count)`);
+    const start = new Date((e.start && (e.start.dateTime || e.start.date + "T00:00:00")) || 0);
+    const end = new Date((e.end && (e.end.dateTime || e.end.date + "T00:00:00")) || start);
+    if (end.getTime() <= Date.now() || start.getTime() > Date.now() + 31 * DAY) fail(`refused, ${e.summary || "that event"} is not coming up in the next 30 days`);
+    out["title" + n] = String(e.summary || "Busy").slice(0, 120);
+    out["start" + n] = allDay(e) ? e.start.date : iso(start);
+    if (!allDay(e)) out["end" + n] = iso(end);
+    if (!n) {
+      const guests = (e.attendees || []).filter((a) => a && !a.self && !a.resource);
+      const names = guests.map((a) => a.displayName).filter(Boolean).slice(0, 3);
+      if (names.length) out.people = names;
+      if (guests.length - names.length > 0) out.morePeople = guests.length - names.length;
+      if (e.location) out.place = String(e.location).split(",")[0].trim().slice(0, 80);
+      if (typeof e.htmlLink === "string" && e.htmlLink.startsWith("https://www.google.com/calendar/")) out.link = e.htmlLink;
+    }
+  }
+  if (kindNeeds(kind, "eventId2")) {
+    // A clash: two timed events that really overlap.
+    if (!out.end || !out.end2 || !(new Date(out.start) < new Date(out.end2) && new Date(out.start2) < new Date(out.end))) fail("refused, those two events do not overlap");
+    if (g.eventId === g.eventId2) fail("refused, a clash needs two different events");
+  }
+  if (kindNeeds(kind, "people") && !out.people && !out.morePeople) fail("refused, that event has no other guests");
+  if (kindNeeds(kind, "birthday")) {
+    const e = eventsOf("events.json").find((x) => x && x.id === String(g.eventId));
+    if (!(e.eventType === "birthday" || /birthday|anniversary|יום הולדת/i.test(e.summary || ""))) fail("refused, that event is not a birthday or an anniversary");
+  }
+  // The next free stretch, worked out by the helper from the calendar (3 hours or more).
+  if (kindNeeds(kind, "free")) {
+    const free = freeWords("events.json");
+    if (!free) fail("refused, there is no free stretch of 3 hours in the next 14 days: give calm");
+    out.free = free;
+    const span = freeSpan("events.json");
+    out.freeStart = iso(new Date(span[0]));
+    out.freeEnd = iso(new Date(span[1]));
+  }
   return out;
 }
+/** What a kind needs beyond its fields: "people" (guests), "birthday", "free", "eventId2". */
+function kindNeeds(kind, what) { return ((CONFIG.gift && CONFIG.gift.needs && CONFIG.gift.needs[kind]) || []).includes(what) || (what === "eventId2" && (GIFT_KINDS[kind] || []).includes("eventId2")); }
 
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "window") {
