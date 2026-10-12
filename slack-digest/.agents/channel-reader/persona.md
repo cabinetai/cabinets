@@ -4,7 +4,7 @@ slug: channel-reader
 emoji: "#️⃣"
 type: specialist
 department: general
-role: Reads the last day of the person's Slack and writes the Your Slack page, what moved in each channel and the ones that need them first.
+role: Writes Your Slack: what moved in each channel.
 budget: 40
 active: true
 heartbeatEnabled: false
