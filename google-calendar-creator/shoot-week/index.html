@@ -199,6 +199,43 @@
   .d-foot { padding: 16px 24px 22px; border-top: 1px solid var(--line); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .d-foot .note { flex-basis: 100%; color: var(--muted); font-size: 13px; }
 
+
+  /* Ask, or try an idea: a piece of the stage, like the Ask box of the main templates. */
+  .askbox {
+    border-radius: var(--radius); padding: 22px 22px 18px; color: var(--cream);
+    background: radial-gradient(600px 220px at 90% 120%, rgba(232, 131, 111, .32), transparent 70%), linear-gradient(180deg, #17141d, #241f2c);
+  }
+  .askbox h2 { margin: 0 0 4px; font-family: var(--serif); font-weight: 400; font-size: 30px; line-height: 1.1; }
+  .askbox > p { margin: 0 0 14px; color: #c9bfd3; font-size: 14.5px; }
+  .askbox form { display: flex; gap: 8px; }
+  .askbox input { flex: 1; min-width: 0; min-height: 46px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .07); color: #fff; padding: 10px 18px; font: inherit; font-size: 15.5px; }
+  .askbox input::placeholder { color: rgba(255, 255, 255, .6); }
+  .askbox input:focus { outline: none; border-color: var(--cream); box-shadow: 0 0 0 3px rgba(255, 255, 255, .16); }
+  .askbox button[type=submit] { min-height: 46px; padding: 0 20px; }
+  .askbox .qs-label { margin: 16px 0 0; font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #a99fb4; }
+  .askbox .qs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .askbox .qchip { min-height: 38px; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .05); color: #f2e9db; font-size: 14px; font-weight: 500; text-align: start; }
+  .askbox .qchip:hover { background: rgba(255, 255, 255, .12); }
+  .askbox .note { margin: 12px 0 0; min-height: 1.4em; color: #c9bfd3; font-size: 13.5px; }
+  @media (max-width: 600px) { .askbox form { flex-direction: column; } }
+
+  /* While the first read runs, the whole page is the stage: night going to golden hour. */
+  html.first-read body {
+    background:
+      radial-gradient(1400px 420px at 50% 112%, rgba(232, 131, 111, .30), transparent 70%),
+      radial-gradient(900px 300px at 85% -10%, rgba(217, 165, 79, .08), transparent 60%),
+      linear-gradient(180deg, var(--night) 0%, var(--dusk) 100%) fixed;
+    min-height: 100vh;
+  }
+  .first-read .reading { background: rgba(255, 255, 255, .04); border-color: rgba(255, 255, 255, .10); color: var(--cream); }
+  .first-read .reading h2 { color: var(--cream); }
+  .first-read .reading > p, .first-read .reading .fine, .first-read .read-lines li.now { color: #b4aabd; }
+  .first-read .read-lines li { color: #ddd3e4; }
+  .first-read .read-lines li b { color: #fff; }
+  .first-read .read-lines li .icon { color: var(--coral); }
+  .first-read .gift { background: radial-gradient(900px 260px at 50% 120%, rgba(232, 131, 111, .26), transparent 70%), rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12); }
+  .first-read .gift.looking { background: transparent; border: 1px dashed rgba(255, 255, 255, .22); }
+  .first-read .gift.looking h3 { color: #b4aabd; }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; z-index: 40; background: var(--ink); color: var(--cream); padding: 10px 18px; border-radius: 999px; font-size: 14px; transition: opacity .2s, transform .2s; pointer-events: none; max-width: calc(100vw - 32px); text-align: center; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   .rise { opacity: 0; transform: translateY(10px); animation: rise .55s cubic-bezier(.2, .9, .25, 1) forwards; }
@@ -866,7 +903,8 @@
     $("main").innerHTML =
       '<section class="sheet w12" aria-labelledby="h-posts">' + postsHtml() + "</section>" +
       '<section class="sheet w7" aria-labelledby="h-shoots">' + shootsHtml() + "</section>" +
-      '<section class="sheet w5" aria-labelledby="h-clash">' + clashHtml() + "</section>" +
+      '<div class="w5" style="display:grid;gap:22px;align-content:start;min-width:0"><section class="sheet" aria-labelledby="h-clash">' + clashHtml() + "</section>" +
+        (canAct() || !V2 ? '<section class="askbox" aria-labelledby="h-ask">' + askBoxHtml() + "</section>" : "") + "</div>" +
       (deals().length || !state.example ? '<section class="sheet w12" aria-labelledby="h-deals">' + dealsHtml() + "</section>" : "");
     state.risen = true;
   }
@@ -994,6 +1032,49 @@
     ask("Put my " + d.brand + " deal on my Google Calendar: " + picked.map(function (x) { return WHAT[x.what] + " " + (x.date || "(no date yet, ask me)"); }).join(", ") +
       ". Read the brand's email first for times and details. Show me each event (title, day, time) before adding, and add them only when I say yes.").then(function (ok) { if (ok) closeDrawer(); });
   }
+
+
+  // ── Ask, or try an idea ────────────────────────────────────────────────
+  var ASK_IDEAS = [{"title":"When is golden hour at my next shoot?","ask":"When is sunrise, sunset and golden hour at my next shoot, at that place on that day? Say if my shoot time catches the good light."},{"title":"Find 2 hours to edit","ask":"Find 2 free hours to edit before my next post or deadline in the next 7 days. Suggest the time, and add nothing until I say yes."},{"title":"Plan my trip, day by day","ask":"Look at my next trip on my calendar and plan my content day by day: what to film where, at what time for the best light, and which brand each one is for if any."},{"title":"Block time to film next week","ask":"Find the best 3 hour stretches to film next week, around my calls and travel, and offer to block them. Add nothing until I say yes."},{"title":"What do I owe brands this month?","ask":"List every brand post and draft due this month from my calendar, by date, with the brand, and say which are not on my calendar yet if my email shows more."}];
+  var askNote = "";
+  function askBoxHtml() {
+    return '<h2 id="h-ask">Ask, or try an idea</h2><p>Your shoot planner reads your calendar and answers in the chat. Nothing changes without your yes.</p>' +
+      '<form id="ask-form" autocomplete="off"><label for="ask-input" style="position:absolute;left:-9999px">Your question</label>' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about shoots, posts, deadlines..." />' +
+      '<button type="submit" class="btn coral">Ask</button></form>' +
+      '<p class="qs-label">Ideas</p><div class="qs">' + ASK_IDEAS.map(function (idea, i) {
+        return '<button type="button" class="qchip" data-act="ask-idea" data-i="' + i + '">' + esc(idea.title) + "</button>";
+      }).join("") + "</div>" +
+      '<p class="note" id="ask-note" aria-live="polite">' + esc(askNote) + "</p>";
+  }
+  function setAskNote(words) { askNote = words; if ($("ask-note")) $("ask-note").textContent = words; }
+  /** Before Google Calendar is connected there is nothing to read: the question leads to connecting first. */
+  function askFromBox(words) {
+    var q = str(words).slice(0, 3900);
+    if (!q) return;
+    var s = (state.calendar ? state.calendar.state : null);
+    if (V2 && s && s !== "connected" && s !== "needs-you" && s !== "needs-sign-in") {
+      if (state.calendar && state.calendar.canConnect) { toast("Connect Google Calendar first. It takes a minute or two."); connect(); }
+      else toast("Google Calendar can’t be connected here yet.");
+      return;
+    }
+    setAskNote("Asking...");
+    Promise.resolve(ask(q)).then(function (ok) {
+      setAskNote(ok ? "Asked. The answer is coming in the chat next to this page." : "");
+      if (ok && $("ask-input")) $("ask-input").value = "";
+    });
+  }
+  document.addEventListener("submit", function (event) {
+    if (!event.target || event.target.id !== "ask-form") return;
+    event.preventDefault();
+    askFromBox($("ask-input").value);
+  });
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest('[data-act="ask-idea"]');
+    if (!el) return;
+    var idea = ASK_IDEAS[+el.getAttribute("data-i")];
+    if (idea) askFromBox(idea.ask);
+  });
 
   // ── Clicks ─────────────────────────────────────────────────────────────
 
