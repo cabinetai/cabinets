@@ -2971,8 +2971,9 @@
         fine = "Cabinet asks you once more before anything is sent.";
       } else if (v.kind === "readonly") {
         line = "Your Gmail is connected to read only, so Cabi can’t send it.";
-        fine = "Copy it and paste it into a new email in Gmail, to " + who + ".";
-        acts = '<button type="button" class="btn primary" data-act="write-copy">' + icon("i-copy") + "Copy the email</button>";
+        fine = "Sign in to Google again from here and allow sending: Cabinet still asks you before each email goes. Or copy it into Gmail, to " + who + ".";
+        acts = (state.gmail && state.gmail.canConnect ? '<button type="button" class="btn primary" data-act="write-allow">' + icon("i-send") + "Let Cabi send</button>" : "") +
+          '<button type="button" class="btn" data-act="write-copy">' + icon("i-copy") + "Copy the email</button>";
       } else {
         line = "In your Gmail drafts, to " + who + ".";
         fine = v.req.how === "send"
@@ -2992,7 +2993,7 @@
     // Send is always here; what this Gmail connection did last time says what it will do.
     var hint = !canAsk() ? "" : !askReady() ? "Connect Gmail first. A press here takes you to connecting."
       : state.writeCan === "drafts" ? "This Gmail connection lets Cabi write drafts, not send: Send puts it in your Gmail drafts."
-      : state.writeCan === "copy" ? "Your Gmail is connected to read only, so Cabi can write it but not send it."
+      : state.writeCan === "copy" ? "Your Gmail is connected to read only, so Cabi can write it but not send it yet."
       : "Write it yourself, or tell Cabi who and what. Nothing is sent without your yes.";
     return '<form id="write-form" class="write" autocomplete="off">' +
       '<label class="wf"><span>To</span><input id="write-who" maxlength="200" dir="auto" placeholder="dana@coleplumbing.com, or just Dana for Cabi" value="' + esc(f.who) + '" /></label>' +
@@ -3126,6 +3127,18 @@
       if (state.write && state.write.id === v.c.id) { state.write.how = how; saveWriteReq(); }
       paintWrite();
     });
+  }
+  /** Read only: Sign in with Google again from this cabinet, which asks Google to let Cabi write and send. */
+  function allowSending() {
+    if (!V2 || !state.gmail || !state.gmail.canConnect) { toast("Ask the person who owns this cabinet to connect Gmail again."); return; }
+    cab.connectors.connect("gmail").then(function () {
+      return cab.connectors.list().then(function (items) { state.gmail = pickGmail(items) || state.gmail; });
+    }).then(function () {
+      state.writeCan = "";
+      if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(WRITE_CAN_KEY, "").catch(function () {});
+      toast("Done. Press Write another, then Send, and Cabi can send it.");
+      paintWrite();
+    }).catch(function (e) { toast(e && e.message ? e.message : "That did not work. Try again."); });
   }
   function newWrite() {
     state.write = null;
@@ -4027,6 +4040,7 @@
     else if (act === "write-drafts") finishWrite("drafts");
     else if (act === "write-send") finishWrite("send");
     else if (act === "write-own") sendOwn();
+    else if (act === "write-allow") allowSending();
     else if (act === "write-copy") {
       var wv = writeView();
       if (wv.c) copyText(writeEdit(wv.c).body, "Email copied. Paste it into a new email in Gmail.");
