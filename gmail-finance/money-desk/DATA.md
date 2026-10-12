@@ -13,6 +13,8 @@ the page shows them. The full rules for each field are in the agent's persona
 | `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up HVAC company in the same shape. Shown, marked as an example, until `latest.json` exists. |
 | `data/status.json` | Every routine | `{ at, ok, why }`. `ok: false` means the last run could not read the email; the page shows `why` with a Try again button. |
 | `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `gmail-finance/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet, not in a file. |
+| `data/reading.json` | The first sort, as it reads | `{ startedAt, done, lines[] }`: one short line for each thing found, `**bold**` for the finding. Schema `gmail-finance/reading@1`. The page shows the lines as they come instead of a spinner. |
+| `data/profile.json` | The first sort | What the agent learned about the owner's money: `name`, `business { name, what, where }`, `payers[]`, `payersMore`, `suppliers[]`, `suppliersMore`, `subscriptions { count, monthly }`, `payDays`, `in30`, `out30`, `mail30`, `money30`. Every number is counted from the email, never estimated. Schema `gmail-finance/profile@1`. Shown once as "This is your money". |
 | `setup.md` | The owner, or the agent in a chat | What the business does, whose money email matters, what to set aside, how reminders sound. |
 
 `latest.json` in short: `generatedAt`, `since`, `arrived`, `headline`, an optional `lead`

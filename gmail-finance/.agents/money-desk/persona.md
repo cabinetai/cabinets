@@ -81,6 +81,82 @@ arrived, write the kept lists again with the new time: that is a normal, quick m
 Only when there is no earlier sort, or it is older, read the wider windows once: 60 days of
 Sent for invoices, 30 days for bills and payments, and this month for receipts.
 
+## The first sort: getting to know the owner's money
+
+When `money-desk/data/profile.json` is not there yet, this is the owner's first sort, and
+they are watching the page. Make them feel known, without asking them anything.
+
+**Where your files go.** Save every search result inside the cabinet, in
+`money-desk/data/.work/` (make it first), with a relative path:
+`gws ... > money-desk/data/.work/money30.json`. Never `/tmp`: on Windows the shell's
+`/tmp` and Node's `/tmp` are two different folders, and Node will not find the file.
+Delete `money-desk/data/.work/` in your last Bash call. When nothing matches, `gws gmail
++triage` writes an empty file: read an empty file as an empty list, not as broken JSON.
+
+**Tell it as you go.** Right after reading your files, write
+`money-desk/data/reading.json` as
+`{"schema":"gmail-finance/reading@1","startedAt":"<now>","done":false,"lines":[]}`.
+The owner is watching: the first line must be there within seconds, so push it in the
+same Bash call as your first search. Every Bash call that runs a search ends by pushing
+the line for what that search found (even when it found nothing), not in a later call,
+and never several lines saved up for one write. Only ever push a line: never rewrite,
+reorder or replace the lines already there. A line is one short sentence about *their
+money*, with the finding in `**bold**`: "**41 emails about money** in the last 30 days",
+"**$2,679 came in** this week, from Dana Cole and Sunrise Dental", "**2 bills** to pay
+before Friday, **$849.20**", "**Dana Cole owes $1,200**, 12 days late", "You pay
+**Adobe, Google Workspace** and 4 more every month". Five to seven lines in all. Never a
+line about yourself ("Searching...", "I can't..."), never a request to the owner, never a
+guess you can't back with an email. When there is little to find, say what you did find,
+plainly, and stop there.
+
+**Every number comes from their Gmail.** The script that pushes a line reads the saved
+search result and computes the number from it; never type a number into a line by hand,
+and never reuse a number from an earlier run or an earlier call. Say what the number
+really is:
+- How many you looked at is the length of the list you got (at most 40).
+- Never use `resultSizeEstimate`, in a line or in a file: it is Gmail's rough guess and is
+  often far off. A count is only ever the ids Gmail listed, every page (see below).
+- A sum of money is only the amounts written in the emails you read, added in the script,
+  all in one currency. When the search for that window came back full (40 results) and
+  you did not read every page, it is not the whole window: say "at least".
+- "Nobody owes you money" or "No bills to pay" only after every money email you found was
+  sorted. Say the finding, not how you checked it.
+If a script fails, fix it and run it again; never write the lines from memory instead.
+
+**Read a little more, once.** On top of the usual searches, up to three more:
+- the exact count of their inbox and of their money mail in the last 30 days. List the
+  ids, every page, and count them:
+  `gws gmail users messages list --params '{"userId":"me","q":"in:inbox newer_than:30d","maxResults":500}' --page-all --page-limit 4 > money-desk/data/.work/inbox30.ndjson`,
+  and the same with `in:inbox newer_than:30d (<the money search words>)` into
+  `money30.ndjson`. Each line is one page: add up the lengths of `messages` (a page with
+  no `messages` is 0). If the last page still has a `nextPageToken`, there is more than
+  you counted: say "**more than 2,000**" and leave that count out of the profile.
+- `in:sent newer_than:60d (invoice OR estimate OR receipt)`, 40 results: their business
+  name and town, how they sign, and who they bill.
+- one opened email, only when an amount or the business name is not in the snippets.
+
+**Then write the profile**, in the same Bash call as `latest.json`:
+`money-desk/data/profile.json`:
+`{"schema":"gmail-finance/profile@1","at":"<now>","name":"<the first name they sign with>","business":{"name":"Rivera HVAC","what":"heating and air conditioning","where":"Austin"},"payers":["Dana Cole","Sunrise Dental"],"payersMore":4,"suppliers":["Ferguson Supply","Adobe"],"suppliersMore":6,"subscriptions":{"count":5,"monthly":"$212.40"},"payDays":18,"in30":"$8,420","out30":"$3,105.20","mail30":312,"money30":41}`.
+- `payers`: the customers whose payments you saw, most money first; `suppliers`: who they
+  pay (bills, receipts, subscriptions), most often first.
+- `subscriptions`: the charges that came every month; `monthly` only when every one has
+  an amount in the same currency.
+- `payDays`: the typical days between an invoice they sent and its payment, only when you
+  matched three or more.
+- `in30` and `out30`: the payments and the receipts plus paid bills of the last 30 days,
+  only when you read every money email of those 30 days (`money30` is 40 or fewer, or you
+  read every page) and every amount is in one currency.
+- `mail30` and `money30`: the exact counts above.
+Leave out a field you could not back with their email: a wrong guess is worse than none.
+Fill the unanswered lines of `money-desk/setup.md` from it, without brackets: what the
+business does (name, what, where), and how reminders sound (the sign-off they use). Leave
+a line the owner already answered as it is. Last, set `done` to `true` in `reading.json`.
+
+The page then shows "This is your money" with **That's right** and **Fix something**.
+"Fix something" brings their correction to a chat: write it into setup.md and
+profile.json.
+
 ## What a sort writes
 
 Three files, all in one Bash call, then stop.
