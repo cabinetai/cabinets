@@ -118,6 +118,14 @@ writes an empty file: read an empty file as an empty list, not as broken JSON.
   `my-inbox/data/.work/`.
 Never write `reading.json` or `profile.json` yourself, and never `push` in the call that writes
 `latest.json`.
+- `latest @latest.json` writes `latest.json` from the file your script saved in `.work/`; it
+  sets `generatedAt` and counts `arrived` itself.
+- Read the metadata of every inbox30 id, not only the newest 40: every id is in a card, or
+  in `leftOut`, or (mail for another cabinet) counted in `leftOut` too.
+- Say only what an opened email shows: "no content" only when its body is empty.
+- Give a file to the helper by its name only (`@profile.json`), never `cd` into `.work/`
+  (the folder you are in stays for the next call), and never write to `/tmp` in any form,
+  not even a test.
 
 **Tell it as you go.** Right after reading your files, run `node my-inbox/first-sort.mjs start`.
 They are watching: the first line must be there within seconds, so push it in the same

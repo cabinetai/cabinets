@@ -107,6 +107,14 @@ Delete `front-desk/data/.work/` in your last Bash call. When nothing matches, `g
   `front-desk/data/.work/`.
 Never write `reading.json` or `profile.json` yourself, and never `push` in the call that writes
 `latest.json`.
+- `latest @latest.json` writes `latest.json` from the file your script saved in `.work/`; it
+  sets `generatedAt` and counts `arrived` itself.
+- Read the metadata of every inbox30 id, not only the newest 40: every id is in a card, or
+  in `leftOut`, or (mail for another cabinet) counted in `leftOut` too.
+- Say only what an opened email shows: "no content" only when its body is empty.
+- Give a file to the helper by its name only (`@profile.json`), never `cd` into `.work/`
+  (the folder you are in stays for the next call), and never write to `/tmp` in any form,
+  not even a test.
 
 **Tell it as you go.** Right after reading your files, run `node front-desk/first-sort.mjs start`.
 After each search, add one line for what you found, in the same Bash call as the search

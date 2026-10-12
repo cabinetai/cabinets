@@ -112,6 +112,14 @@ Delete `money-desk/data/.work/` in your last Bash call. When nothing matches, `g
   `money-desk/data/.work/`.
 Never write `reading.json` or `profile.json` yourself, and never `push` in the call that writes
 `latest.json`.
+- `latest @latest.json` writes `latest.json` from the file your script saved in `.work/`; it
+  sets `generatedAt` and counts `arrived` itself.
+- Read the metadata of every inbox30 id, not only the newest 40: every id is in a card, or
+  in `leftOut`, or (mail for another cabinet) counted in `leftOut` too.
+- Say only what an opened email shows: "no content" only when its body is empty.
+- Give a file to the helper by its name only (`@profile.json`), never `cd` into `.work/`
+  (the folder you are in stays for the next call), and never write to `/tmp` in any form,
+  not even a test.
 
 **Tell it as you go.** Right after reading your files, run `node money-desk/first-sort.mjs start`.
 The owner is watching: the first line must be there within seconds, so push it in the
@@ -178,6 +186,9 @@ error file or a test.
 - Every card keeps the `threadId` of its email, so the page can open it in Gmail.
 - A line about what emails say needs every one of them opened; otherwise name only the one
   you read. Every search, extra ones too, ends with its line.
+- Push the money lines: what went out (`{sum:<file>}`), the next bill or renewal, and who owes
+  you. A line that only counts a search with 0 is not a finding: say "Nobody owes you money:
+  no invoices sent in 60 days" instead.
 - Never put `at` or `schema` in the profile file: the helper sets them. If you find a
   mistake after `done`, say it in your answer; never touch the files.
 - If the 30-day count is bigger than the list you read, list the rest by id

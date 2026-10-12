@@ -1015,7 +1015,7 @@
       quiet(maybe(readJson("data/profile.json")))
     ]).then(function (got) {
       var latest = got[0];
-      state.reading = cleanReading(got[4]);
+      setReading(cleanReading(got[4]));
       state.profile = cleanProfile(got[5]);
       state.change = cleanChange(got[3]);
       state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
@@ -1115,9 +1115,7 @@
     quiet(maybe(readJson("data/reading.json"))).then(function (d) {
       var r = cleanReading(d);
       if (!r || (state.reading && r.lines.join("\n") === state.reading.lines.join("\n") && r.done === state.reading.done)) return;
-      // A new read starts its lines from the first one.
-      if (state.reading && r.startedAt !== state.reading.startedAt) state.readShown = 0;
-      state.reading = r;
+      setReading(r);
       paintHero();
       paintWelcome();
       if (r.done) load();
@@ -1282,6 +1280,11 @@
     state.readShown++;
     if (revealing()) paintHero(); else paint();
   }, REVEAL_MS);
+  /** A new read (another startedAt) starts its lines from the first one. */
+  function setReading(r) {
+    if (state.reading && r && r.startedAt !== state.reading.startedAt) state.readShown = 0;
+    state.reading = r;
+  }
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
