@@ -1,0 +1,1062 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shoot week</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --canvas: #f3efe8;
+    --sheet: #fffdf9;
+    --ink: #1d1a22;
+    --ink-2: #4a4552;
+    --muted: #6a6473;
+    --line: #e4ddd2;
+    --line-2: #d6cdbf;
+    --night: #15121b;
+    --dusk: #2a1f2c;
+    --cream: #f7efe2;
+    --coral: #e8836f;
+    --coral-ink: #b04a33;
+    --coral-soft: #fbe3da;
+    --gold: #d9a54f;
+    --gold-ink: #8a5f12;
+    --gold-soft: #f6e6c4;
+    --red: #b5402f;
+    --green: #2f6b4f;
+    --serif: "Instrument Serif", Georgia, serif;
+    --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--canvas); color: var(--ink); font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .icon { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 8px 16px;
+    border: 1px solid var(--line-2); background: var(--sheet); font-weight: 600; font-size: 14px; line-height: 1.2;
+    white-space: nowrap; transition: background .15s, border-color .15s, transform .15s; text-decoration: none;
+  }
+  .btn:hover { border-color: var(--ink-2); }
+  .btn:active { transform: scale(.98); }
+  .btn.dark { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+  .btn.dark:hover { background: #000; }
+  .btn.coral { background: var(--coral); color: #24100b; border-color: var(--coral); }
+  .btn.coral:hover { background: #ef9583; }
+  .btn.small { padding: 6px 12px; font-size: 13px; }
+  .btn.quiet { background: transparent; border-color: transparent; color: var(--ink-2); padding-left: 8px; padding-right: 8px; }
+  .btn.quiet:hover { color: var(--ink); text-decoration: underline; }
+  .btn[disabled] { opacity: .55; cursor: default; }
+
+  /* ── Example note ─────────────────────────────────────────── */
+  .notice { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 28px; background: var(--night); color: #cfc7d8; font-size: 13.5px; border-bottom: 1px solid #2c2634; }
+  .notice b { color: var(--cream); font-weight: 600; }
+  .notice .grow { flex: 1; min-width: 200px; }
+
+  /* ── The stage: night going to golden hour ────────────────── */
+  .stage {
+    position: relative; overflow: hidden; color: var(--cream); padding: 34px 28px 30px;
+    background:
+      radial-gradient(1200px 260px at 50% 118%, rgba(232, 131, 111, .30), transparent 70%),
+      radial-gradient(900px 300px at 85% -20%, rgba(217, 165, 79, .10), transparent 60%),
+      linear-gradient(180deg, var(--night) 0%, var(--dusk) 100%);
+  }
+  .stage-inner { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 36px; align-items: end; }
+  .hello { color: #c9bfd3; font-size: 14px; }
+  .big { font-family: var(--serif); font-weight: 400; font-size: clamp(46px, 6.6vw, 88px); line-height: 1; letter-spacing: -.015em; margin: 14px 0 10px; }
+  .big em { color: var(--coral); }
+  .big-words { font-size: clamp(16px, 1.8vw, 19px); color: #ece2d2; max-width: 640px; }
+  .big-words .soft { color: #b4aabd; }
+  .stats { display: grid; border-top: 1px solid rgba(255, 255, 255, .14); }
+  .stat { display: grid; gap: 3px; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, .14); }
+  .stat .n { font-family: var(--serif); font-size: 34px; line-height: 1; }
+  .stat .n.hot { color: var(--coral); }
+  .stat .w { color: #c9bfd3; font-size: 14px; }
+
+  /* The week as a strip of film: one frame a day, sprocket holes above and below. */
+  .strip-wrap { max-width: 1240px; margin: 28px auto 0; overflow-x: auto; scrollbar-width: none; }
+  .strip-wrap::-webkit-scrollbar { display: none; }
+  .strip {
+    position: relative; display: grid; grid-template-columns: repeat(7, minmax(128px, 1fr)); gap: 8px;
+    padding: 20px 10px; border-radius: 10px; background: #0d0b11; min-width: 920px;
+  }
+  .strip::before, .strip::after {
+    content: ""; position: absolute; left: 10px; right: 10px; height: 7px;
+    background: repeating-linear-gradient(90deg, rgba(247, 239, 226, .2) 0 10px, transparent 10px 22px); border-radius: 2px;
+  }
+  .strip::before { top: 7px; }
+  .strip::after { bottom: 7px; }
+  .frame { min-height: 128px; border-radius: 6px; padding: 10px 11px; background: linear-gradient(180deg, #221b28, #1a1520); display: grid; align-content: start; gap: 6px; }
+  .frame.today { background: linear-gradient(180deg, #3a2a2e, #251c26); box-shadow: inset 0 0 0 1px rgba(232, 131, 111, .55); }
+  .frame .d { display: flex; align-items: baseline; gap: 6px; color: #b4aabd; font-size: 12.5px; }
+  .frame .d b { font-family: var(--serif); font-weight: 400; font-size: 26px; color: var(--cream); line-height: 1; }
+  .frame.today .d span { color: var(--coral); font-weight: 600; }
+  .mark { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 7px; align-items: baseline; font-size: 12.5px; color: #ddd3e4; line-height: 1.3; }
+  .mark i { width: 7px; height: 7px; border-radius: 50%; display: block; transform: translateY(-1px); }
+  .mark.k-post i { background: var(--gold); }
+  .mark.k-due i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--gold); }
+  .mark.k-shoot i { background: var(--coral); border-radius: 2px; transform: translateY(-1px) rotate(45deg); }
+  .mark.k-travel i { background: #8fa3c4; }
+  .mark.k-call i, .mark.k-edit i, .mark.k-other i { background: #6e6478; }
+  .mark .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mark .h { color: #9d93a8; font-variant-numeric: tabular-nums; margin-right: 4px; }
+  .frame .quiet { color: #a99fb4; font-size: 12.5px; }
+  .legend { max-width: 1240px; margin: 12px auto 0; display: flex; flex-wrap: wrap; gap: 6px 18px; color: #a99fb4; font-size: 12.5px; }
+  .legend .mark { color: #a99fb4; }
+
+  /* ── Sheets ───────────────────────────────────────────────── */
+  main { max-width: 1296px; margin: 0 auto; padding: 26px 28px 60px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 22px; }
+  .sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px 10px; min-width: 0; }
+  .w12 { grid-column: span 12; } .w7 { grid-column: span 7; } .w5 { grid-column: span 5; }
+  .head { display: flex; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line-2); margin-bottom: 4px; }
+  .head h2 { font-family: var(--serif); font-weight: 400; font-size: 32px; margin: 0; letter-spacing: -.01em; }
+  .head .count { margin-left: auto; color: var(--muted); font-size: 14px; }
+  .head .count.hot { color: var(--red); font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13.5px; margin: 8px 0 2px; }
+  .empty { color: var(--muted); padding: 18px 0 14px; }
+  .row { padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+
+  /* 1. This week's posts: seven columns, a card for each post or deadline. */
+  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; padding: 14px 0 12px; }
+  .day { display: grid; align-content: start; gap: 8px; min-width: 0; }
+  .day h3 { margin: 0 0 2px; font: 600 12.5px var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .day.today h3 { color: var(--coral-ink); }
+  .day .none { color: var(--line-2); font-size: 13px; }
+  .post { border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; display: grid; gap: 2px; background: var(--sheet); }
+  .post .k { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-ink); }
+  .post.due .k { color: var(--muted); }
+  .post .b { font-weight: 600; font-size: 14px; line-height: 1.25; }
+  .post .s { color: var(--ink-2); font-size: 13px; line-height: 1.3; }
+  .post .tm { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .post.ghost { border-style: dashed; background: transparent; }
+  .post.ghost .k { color: var(--coral-ink); }
+
+  /* 2. Shoot days, with the light. */
+  .shoot { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; }
+  .when { text-align: center; border-right: 1px solid var(--line); padding-right: 14px; }
+  .when .wd { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--coral-ink); }
+  .when .dn { font-family: var(--serif); font-size: 42px; line-height: 1; }
+  .when .mo { color: var(--muted); font-size: 12.5px; }
+  .shoot .t { font-weight: 600; font-size: 16.5px; line-height: 1.3; }
+  .shoot .p { color: var(--ink-2); }
+  .shoot .tm { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .light { margin-top: 10px; display: grid; gap: 6px; }
+  .sunbar { position: relative; height: 8px; border-radius: 999px; background: linear-gradient(90deg, #2a2440 0%, #e8836f 22%, #f2d38c 32%, #fbf3dc 50%, #f2d38c 68%, #e8836f 78%, #2a2440 100%); }
+  .sunbar .you { position: absolute; top: -4px; bottom: -4px; border-radius: 4px; border: 2px solid var(--ink); background: rgba(29, 26, 34, .08); }
+  .light .lw { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; color: var(--ink-2); }
+  .light .lw b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .light .tip { font-size: 13.5px; color: var(--coral-ink); }
+  .light .tip.ok { color: var(--green); }
+  .acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+
+  /* 3. Clashes. */
+  .clash { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; }
+  .clash .icon { width: 20px; height: 20px; color: var(--red); margin-top: 2px; }
+  .clash .t { font-weight: 600; font-size: 16px; line-height: 1.3; }
+  .clash .s { color: var(--ink-2); margin-top: 2px; }
+  .clash .acts { margin-top: 10px; }
+  .clear { display: flex; gap: 10px; align-items: center; color: var(--green); padding: 16px 0 12px; font-weight: 600; }
+
+  /* 7. Deals from email that are not on the calendar yet. */
+  .deal { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; align-items: start; }
+  .deal .who { font-weight: 600; font-size: 16.5px; }
+  .deal .ask { color: var(--ink-2); }
+  .deal .v { font-family: var(--serif); font-size: 26px; line-height: 1; white-space: nowrap; }
+  .dates { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 6px; font-size: 13.5px; }
+  .dates span { color: var(--muted); }
+  .dates span + span::before { content: "·"; margin: 0 8px 0 2px; color: var(--line-2); }
+  .dates .off { color: var(--coral-ink); }
+  .dates .on { color: var(--green); }
+  .deal .acts { grid-column: 1 / -1; margin-top: 4px; }
+
+  /* ── The drawer: what goes on the calendar ────────────────── */
+  .veil { position: fixed; inset: 0; background: rgba(21, 18, 27, .38); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 20; }
+  .veil.on { opacity: 1; pointer-events: auto; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(500px, 100vw); background: var(--sheet); z-index: 21; transform: translateX(104%); transition: transform .38s cubic-bezier(.2, .9, .25, 1); display: flex; flex-direction: column; border-left: 1px solid var(--line-2); box-shadow: -20px 0 60px rgba(21, 18, 27, .18); }
+  .drawer.on { transform: none; }
+  .d-head { padding: 22px 64px 14px 24px; border-bottom: 1px solid var(--line); }
+  .d-head .kind { font-size: 12.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--coral-ink); }
+  .d-head h3 { font-family: var(--serif); font-weight: 400; font-size: 34px; margin: 4px 0 2px; line-height: 1.1; }
+  .d-head .re { color: var(--muted); font-size: 14px; }
+  .d-close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--sheet); display: grid; place-items: center; }
+  .d-body { flex: 1; overflow: auto; padding: 8px 24px 20px; }
+  .add { display: grid; grid-template-columns: 22px 64px minmax(0, 1fr); gap: 12px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .add input { width: 18px; height: 18px; accent-color: var(--ink); }
+  .add .cal { text-align: center; border: 1px solid var(--line-2); border-radius: 10px; padding: 6px 0 7px; }
+  .add .cal .wd { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--coral-ink); }
+  .add .cal .dn { font-family: var(--serif); font-size: 28px; line-height: 1; }
+  .add .cal.pick { border-style: dashed; color: var(--gold-ink); font-size: 12px; padding: 12px 4px; }
+  .add .t { font-weight: 600; }
+  .add .s { color: var(--muted); font-size: 13.5px; }
+  .add .s mark, .d-tip mark { background: var(--gold-soft); color: #6a4a10; border-radius: 4px; padding: 0 3px; font-weight: 600; }
+  .d-tip { margin-top: 16px; color: var(--muted); font-size: 13.5px; }
+  .d-foot { padding: 16px 24px 22px; border-top: 1px solid var(--line); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .d-foot .note { flex-basis: 100%; color: var(--muted); font-size: 13px; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; z-index: 40; background: var(--ink); color: var(--cream); padding: 10px 18px; border-radius: 999px; font-size: 14px; transition: opacity .2s, transform .2s; pointer-events: none; max-width: calc(100vw - 32px); text-align: center; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .rise { opacity: 0; transform: translateY(10px); animation: rise .55s cubic-bezier(.2, .9, .25, 1) forwards; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  /* ── The first read: reading on the left, the gift on the right ── */
+  #read[hidden], #tops[hidden], #gift-keep[hidden], #welcome[hidden] { display: none !important; }
+  .first-read #stage, .first-read #main, .first-read #tops, .first-read #notice { display: none !important; }
+  #read { max-width: 1296px; margin: 0 auto; padding: 28px 28px 40px; }
+  .read-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  @media (min-width: 980px) {
+    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); min-height: calc(100vh - 110px); }
+    .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+  }
+  .reading { background: var(--sheet); border: 1px solid var(--line); border-radius: 22px; padding: 40px clamp(24px, 3.4vw, 52px); display: grid; align-content: start; gap: 8px; }
+  .reading h2 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: clamp(36px, 3.8vw, 52px); line-height: 1.05; }
+  .reading > p { margin: 0 0 14px; color: var(--muted); font-size: 16px; }
+  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+  .read-lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; align-items: start; font-size: 17.5px; color: var(--ink-2); animation: line-in .55s cubic-bezier(.2, .8, .2, 1) both; }
+  .read-lines li b { color: var(--ink); font-weight: 600; }
+  .read-lines li .icon { width: 20px; height: 20px; margin-top: 3px; color: var(--coral-ink); stroke-width: 2.2; }
+  .read-lines li.old { animation: none; }
+  .read-lines li.now { color: var(--muted); }
+  .pulse-dot { display: block; width: 9px; height: 9px; border-radius: 50%; background: var(--coral); animation: read-pulse 1.2s ease-in-out infinite; }
+  .read-lines li.now .pulse-dot { margin: 8px 0 0 6px; }
+  .reading .fine { margin: 16px 0 0; color: var(--muted); font-size: 13.5px; }
+  @keyframes line-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  .gift {
+    position: relative; display: grid; align-content: center; gap: 16px; color: var(--cream); border-radius: 22px; padding: 44px clamp(24px, 3.4vw, 56px) 34px;
+    background:
+      radial-gradient(900px 260px at 50% 120%, rgba(232, 131, 111, .30), transparent 70%),
+      linear-gradient(180deg, var(--night) 0%, var(--dusk) 100%);
+  }
+  .gift.arrive { animation: gift-in .9s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes gift-in { from { opacity: 0; transform: translateY(22px) scale(.985); } to { opacity: 1; transform: none; } }
+  .gift .eyebrow { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--coral); }
+  .gift h3 { margin: 0; max-width: 22ch; font-family: var(--serif); font-weight: 400; font-size: clamp(34px, 3.6vw, 50px); line-height: 1.08; }
+  .gift h3 b { font-weight: 400; color: #fff; font-style: italic; }
+  .gift h3 .n { white-space: nowrap; font-style: normal; color: #f6c9bc; }
+  .gift .about { margin: 0; padding: 2px 0 2px 16px; border-left: 1px solid rgba(255, 255, 255, .22); display: grid; gap: 2px; max-width: 60ch; }
+  .gift .about b { font-weight: 600; color: var(--cream); font-size: 15.5px; }
+  .gift .about span { color: #cfc5d8; font-size: 16px; }
+  .gift .why { margin: 0; max-width: 54ch; color: #d8cfe0; font-size: 17px; }
+  .gift .acts { margin: 6px 0 0; }
+  .gift .acts .btn { min-height: 46px; padding: 0 20px; font-size: 15px; }
+  .gift .acts .btn.ghost { background: transparent; color: var(--cream); border-color: rgba(255, 255, 255, .28); }
+  .gift .asked { margin: 6px 0 0; display: flex; align-items: center; gap: 10px; color: #f6c9bc; font-weight: 600; }
+  .gift .fine { margin: 0; color: #a99fb4; font-size: 13.5px; }
+  .gift.looking { background: transparent; border: 1px dashed var(--line-2); color: var(--muted); }
+  .gift.looking h3 { color: var(--muted); font-size: clamp(26px, 2.6vw, 34px); }
+  @media (max-width: 979px) { .gift.looking { display: none; } .gift { padding: 28px 22px; } }
+  #tops { max-width: 1296px; margin: 0 auto; padding: 22px 28px 0; display: grid; gap: 18px; }
+  #tops + main { padding-top: 22px; }
+  #gift-keep .gift { padding: 26px clamp(22px, 2.6vw, 34px) 22px; gap: 12px; }
+  #gift-keep .gift h3 { font-size: clamp(26px, 2.6vw, 34px); max-width: 40ch; }
+  .welcome { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px clamp(20px, 2.6vw, 30px); display: grid; gap: 12px; animation: line-in .6s cubic-bezier(.2, .8, .2, 1) both; }
+  .welcome .eyebrow { margin: 0; font-size: 12.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--coral-ink); }
+  .welcome h3 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: clamp(26px, 2.6vw, 34px); line-height: 1.15; max-width: 50ch; }
+  .welcome h3 b { font-weight: 400; font-style: italic; }
+  .welcome ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px 24px; }
+  .welcome li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 9px; color: var(--ink-2); font-size: 15px; }
+  .welcome li b { color: var(--ink); font-weight: 600; }
+  .welcome li .icon { margin-top: 2px; color: var(--coral-ink); }
+  .welcome .acts { margin: 4px 0 0; }
+  .welcome .acts .fine { color: var(--muted); font-size: 13.5px; }
+
+  @media (max-width: 980px) {
+    .stage-inner { grid-template-columns: 1fr; gap: 22px; }
+    .w7, .w5 { grid-column: span 12; }
+    .week { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 600px) {
+    .notice, .stage { padding-left: 16px; padding-right: 16px; }
+    main, #tops, #read { padding-left: 16px; padding-right: 16px; }
+    main { gap: 16px; }
+    .sheet { padding: 16px 16px 6px; }
+    .week { grid-template-columns: minmax(0, 1fr); }
+    .drawer { top: auto; height: 88vh; width: 100vw; border-left: 0; border-top: 1px solid var(--line-2); border-radius: 18px 18px 0 0; transform: translateY(104%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rise { animation: none; opacity: 1; transform: none; }
+    .read-lines li, .pulse-dot, .gift.arrive, .welcome { animation: none !important; }
+    .drawer, .veil, .toast { transition: none; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6-4.5-4.2 6.1-.7L12 3z"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4.5M12 17.4v.1"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="13" r="4"/><path d="M12 4v2M4.9 7.9l1.4 1.4M19.1 7.9l-1.4 1.4M2.5 17h19"/></symbol>
+  <symbol id="i-clap" viewBox="0 0 24 24"><rect x="3.5" y="9" width="17" height="11" rx="1.5"/><path d="m3.5 9 1-4 16 0-1 4M8.5 5l-1.5 4M13.5 5 12 9M18.5 5 17 9"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></symbol>
+</svg>
+
+<div id="notice"></div>
+<header class="stage" id="stage"><div style="max-width:1240px;margin:0 auto;color:#a99fb4;padding:40px 0">Opening your shoot week...</div></header>
+<div id="read" hidden></div>
+<div id="tops" hidden><div id="gift-keep" hidden></div><section id="welcome" class="welcome" hidden aria-live="polite"></section></div>
+<main id="main"></main>
+
+<div class="veil" id="veil" data-act="close"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title" aria-hidden="true"></aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var MORNING = "morning-shoot-brief";
+  var DAY = 86400000;
+  var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var POST_KINDS = { post: "Goes live", due: "Due" };
+  var MARK_WORDS = { post: "Live", due: "Due", shoot: "Shoot", travel: "Travel", call: "Call", edit: "Edit", other: "" };
+
+  var state = {
+    appPath: appPathFromUrl(), here: null, calendar: null, jobs: [], loaded: false, data: null, example: true,
+    status: null, running: false, connecting: false, note: "", drawer: null, risen: false,
+    reading: null, sawReading: false, readShown: 0, readStartedAt: null, profile: null, profileSeen: "",
+    giftDone: "", giftAsked: "", giftShownAt: "", mineReady: false
+  };
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── Small helpers ──────────────────────────────────────────────────────
+
+  function esc(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function icon(id) { return '<svg class="icon" aria-hidden="true"><use href="#' + id + '"/></svg>'; }
+  function str(v) { return typeof v === "string" ? v.trim() : ""; }
+  function list(v) { return Array.isArray(v) ? v.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  function appPathFromUrl() {
+    var parts = location.pathname.split("/").filter(Boolean);
+    var at = parts.length - 2;
+    return at >= 0 ? decodeURIComponent(parts[at]) : "shoot-week";
+  }
+  var toastTimer = 0;
+  function toast(msg) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3400);
+  }
+  function parseTime(v) {
+    if (!v) return null;
+    var d = new Date(String(v));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  /** A calendar day ("2026-10-15") as a date at noon UTC: safe for weekday and day math. */
+  function dayOf(ymd) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
+    return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)) : null;
+  }
+  function ymdOf(d) { return d.toISOString().slice(0, 10); }
+  function addDays(ymd, n) { var d = dayOf(ymd); return d ? ymdOf(new Date(d.getTime() + n * DAY)) : null; }
+  function weekday(ymd, len) { var d = dayOf(ymd); return d ? d.toLocaleDateString("en-GB", { weekday: len || "long", timeZone: "UTC" }) : ""; }
+  function dayNum(ymd) { var d = dayOf(ymd); return d ? d.getUTCDate() : ""; }
+  function monthShort(ymd) { var d = dayOf(ymd); return d ? d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }) : ""; }
+  function minutes(hm) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(hm || "")); return m ? +m[1] * 60 + +m[2] : null; }
+  /** "Today", "Tomorrow", "Thursday" or "20 Oct", from the calendar's today. */
+  function dayWords(ymd) {
+    var t = today(), gap = t && dayOf(ymd) ? Math.round((dayOf(ymd) - dayOf(t)) / DAY) : null;
+    if (gap === 0) return "Today";
+    if (gap === 1) return "Tomorrow";
+    if (gap !== null && gap > 1 && gap < 7) return weekday(ymd);
+    return dayNum(ymd) + " " + monthShort(ymd);
+  }
+  function tz() { return str(state.data && state.data.timeZone) || undefined; }
+  function today() {
+    if (state.data && str(state.data.today)) return state.data.today;
+    return new Date().toLocaleDateString("en-CA", { timeZone: tz() });
+  }
+  function money(n, cur) {
+    if (typeof n !== "number" || !isFinite(n) || n <= 0) return "";
+    try { return new Intl.NumberFormat(cur === "INR" ? "en-IN" : undefined, { style: "currency", currency: cur || "INR", maximumFractionDigits: 0 }).format(n); }
+    catch (e) { return String(n); }
+  }
+  function myName() {
+    var me = V2 && typeof cab.me === "function" ? cab.me() : null;
+    var name = me && typeof me.name === "string" ? me.name.trim() : "";
+    if (/^you$/i.test(name)) name = "";
+    return name ? name.split(/\s+/)[0] : "";
+  }
+  function greeting() {
+    var h = new Date().getHours();
+    var part = h < 5 ? "Good evening" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+    var n = myName();
+    return part + (n ? ", " + n : "");
+  }
+
+  // ── The light: sunrise, sunset and golden hour for a place and a day ──
+  // The usual astronomy (as in SunCalc): golden hour is the sun below 6 degrees.
+  var RAD = Math.PI / 180, J1970 = 2440588, J2000 = 2451545, J0 = 0.0009, TILT = RAD * 23.4397;
+  function toDays(d) { return d.valueOf() / DAY - 0.5 + J1970 - J2000; }
+  function fromJulian(j) { return new Date((j + 0.5 - J1970) * DAY); }
+  function sunTimes(ymd, lat, lon) {
+    var date = dayOf(ymd);
+    if (!date || typeof lat !== "number" || typeof lon !== "number") return null;
+    var lw = RAD * -lon, phi = RAD * lat, d = toDays(date);
+    var n = Math.round(d - J0 - lw / (2 * Math.PI));
+    var ds = J0 + lw / (2 * Math.PI) + n;
+    var M = RAD * (357.5291 + 0.98560028 * ds);
+    var L = M + RAD * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M)) + RAD * 102.9372 + Math.PI;
+    var dec = Math.asin(Math.sin(TILT) * Math.sin(L));
+    var noon = J2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+    function pair(h) {
+      var w = Math.acos((Math.sin(h * RAD) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec)));
+      if (isNaN(w)) return null;
+      var a = J0 + (w + lw) / (2 * Math.PI) + n;
+      var set = J2000 + a + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+      return [fromJulian(noon - (set - noon)), fromJulian(set)];
+    }
+    var sun = pair(-0.833), gold = pair(6);
+    if (!sun || !gold) return null;
+    return { sunrise: sun[0], sunset: sun[1], goldEnd: gold[0], goldStart: gold[1] };
+  }
+  function clock(d) { return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz() }); }
+
+  // ── Reading the files ──────────────────────────────────────────────────
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  function readText(rel) {
+    if (V2) return cab.files.read(state.appPath + "/" + rel);
+    return fetch(rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+      if (r.status === 404) throw notFound();
+      if (!r.ok) throw new Error("Could not read " + rel + ".");
+      return r.text();
+    });
+  }
+  function readJson(rel) { return readText(rel).then(function (t) { return JSON.parse(t); }); }
+  function maybe(p) { return p.catch(function (e) { if (e && e.code === "not-found") return null; throw e; }); }
+  function quiet(p) { return p.catch(function () { return null; }); }
+  function usable(d) { return d && typeof d === "object" && Array.isArray(d.events); }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = Promise.all([
+      quiet(maybe(readJson("data/latest.json"))),
+      quiet(maybe(readJson("data/reading.json"))),
+      quiet(maybe(readJson("data/profile.json")))
+    ]).then(function (got) {
+      setReading(cleanReading(got[1]));
+      state.profile = cleanProfile(got[2]);
+      var l = got[0];
+      state.status = l && typeof l === "object" && l.status && l.status !== "ok" ? l.status : null;
+      if (usable(l) && l.example !== true && l.generatedAt) {
+        state.data = l;
+        state.example = false;
+        return null;
+      }
+      if (state.data && !state.example) return null;
+      return maybe(readJson("data/EXAMPLE-latest.json")).then(function (ex) {
+        state.data = usable(ex) ? ex : null;
+        state.example = true;
+      });
+    }).catch(function () {}).then(function () {
+      state.loaded = true;
+      loading = null;
+      paint();
+    });
+    return loading;
+  }
+
+  // ── The first read: getting to know the creator ────────────────────────
+  // As it reads, the agent adds lines to data/reading.json (through first-sort.mjs, which
+  // counts every number from the calendar) and leaves one gift early: a clash, the next
+  // shoot, a free stretch, or calm. At the end data/profile.json is shown once.
+
+  var READ_FRESH_MIN = 20, REVEAL_MS = 1200, GIFT_KEEP_DAYS = 3;
+  var GIFT_KEY = "shoot-week-gift-done@1", PROFILE_SEEN_KEY = "shoot-week-profile-seen@1";
+  function writtenAt(v) { var d = parseTime(v); return d && d.getTime() <= Date.now() + 5 * 60000 ? d : null; }
+  function cleanReading(d) {
+    if (!d || typeof d !== "object" || !Array.isArray(d.lines)) return null;
+    var lines = d.lines.map(function (l) { return str(typeof l === "string" ? l : l && l.text).slice(0, 200); }).filter(Boolean).slice(-14);
+    return { startedAt: d.startedAt, done: d.done === true, lines: lines, gift: cleanGift(d.gift) };
+  }
+  function cleanGift(g) {
+    if (!g || typeof g !== "object" || !writtenAt(g.at)) return null;
+    var kind = ["clash", "shoot", "free", "calm"].indexOf(g.kind) >= 0 ? g.kind : null;
+    var t = function (v, n) { return str(v).slice(0, n); };
+    var gift = { kind: kind, at: g.at, title: t(g.title, 120), start: t(g.start, 40), end: t(g.end, 40), place: t(g.place, 80),
+      title2: t(g.title2, 120), start2: t(g.start2, 40), free: t(g.free, 60), link: t(g.link, 300) };
+    if (!kind || ((kind === "clash" || kind === "shoot") && !gift.title) || (kind === "clash" && !gift.title2) || (kind === "free" && !gift.free)) return null;
+    return gift;
+  }
+  function freshReading() {
+    var at = state.reading ? writtenAt(state.reading.startedAt) : null;
+    return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
+  }
+  function freshLines() { return freshReading() ? state.reading.lines : []; }
+  function giftNow() { return freshReading() ? state.reading.gift : null; }
+  function readingNow() { return !!(state.reading && !state.reading.done && state.running && freshReading()); }
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done ? 1 : 0)); }
+  function firstRead() { return !!((state.running && (state.example || !state.data)) || revealing()); }
+  setInterval(function () {
+    if (!revealing()) return;
+    state.readShown++;
+    if (revealing()) paintRead(); else paint();
+  }, REVEAL_MS);
+  function setReading(r) {
+    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; }
+    state.reading = r;
+  }
+  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  /** "Thursday at 15:30" from an ISO time the helper wrote, against the real clock: during the
+   *  first read the page still holds the example week, whose today and zone are not theirs. */
+  function whenWords(v) {
+    var d = parseTime(v);
+    if (!d) return "";
+    var zone = state.example ? undefined : tz();
+    var ymd = d.toLocaleDateString("en-CA", { timeZone: zone });
+    var now = new Date().toLocaleDateString("en-CA", { timeZone: zone });
+    var gap = Math.round((dayOf(ymd) - dayOf(now)) / DAY);
+    var day = gap === 0 ? "today" : gap === 1 ? "tomorrow" : gap > 1 && gap < 7 ? weekday(ymd) : dayNum(ymd) + " " + monthShort(ymd);
+    return day + " at " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: zone });
+  }
+  function giftParts(g) {
+    if (g.kind === "clash") {
+      return {
+        head: "<b>" + esc(g.title) + "</b> and <b>" + esc(g.title2) + "</b> overlap " + esc(whenWords(g.start).replace(/ at .*/, "").replace(/^(?!today|tomorrow)/, "on ")) + ".",
+        why: "I can suggest what to move, and to when. Nothing changes until you say yes.",
+        button: "Help me fix it",
+        ask: "\"" + g.title + "\" and \"" + g.title2 + "\" overlap on my calendar. Suggest which one to move and to when, keeping my shoots near good light and my posts at least a few hours apart. Change nothing until I say yes."
+      };
+    }
+    if (g.kind === "shoot") {
+      return {
+        head: "Your next shoot: <b>" + esc(g.title) + "</b>, " + esc(whenWords(g.start)) + ".",
+        why: "Want a plan? The light at that place, a short shot list and what to pack.",
+        button: "Plan this shoot",
+        ask: "Plan my shoot \"" + g.title + "\" (" + (g.place || "no place on the calendar") + ", " + whenWords(g.start) + "). Tell me sunrise, sunset and golden hour there that day, a short shot list, and what to pack. Change nothing on my calendar."
+      };
+    }
+    if (g.kind === "free") {
+      return {
+        head: 'You are free <b class="n">' + esc(g.free) + "</b>.",
+        why: "A good stretch for filming or editing. Want me to hold it for you?",
+        button: "Hold it for editing",
+        ask: "I'm free " + g.free + ". Suggest whether it suits filming or editing this week, and offer to block it on my calendar. Add nothing until I say yes."
+      };
+    }
+    return {
+      head: "Your week is full. Every day has something on it.",
+      why: "Want me to find a couple of hours to edit before your next deadline?",
+      button: "Find editing time",
+      ask: "My week is full. Look at my calendar for the next 7 days and find 2 hours to edit before my next post or deadline. Suggest it, and add nothing until I say yes."
+    };
+  }
+  function giftHtml(g, where) {
+    var p = giftParts(g);
+    var asked = state.giftAsked === g.at;
+    var arrive = where === "reading" && state.giftShownAt !== g.at;
+    if (where === "reading") state.giftShownAt = g.at;
+    return '<section class="gift' + (arrive && !REDUCED ? " arrive" : "") + '" aria-live="polite">' +
+      '<p class="eyebrow">' + icon("i-star") + (where === "reading" ? "While I read, I found this for you" : "Found while reading your calendar") + "</p>" +
+      "<h3>" + p.head + "</h3>" +
+      (g.place ? '<p class="about"><b>' + esc(g.place) + "</b></p>" : "") +
+      (p.why ? '<p class="why">' + esc(p.why) + "</p>" : "") +
+      (asked
+        ? '<p class="asked">' + icon("i-check") + "Asked. Your shoot planner is on it in the chat.</p>"
+        : '<div class="acts">' + (canAct() ? '<button type="button" class="btn coral" data-act="gift-do">' + esc(p.button) + "</button>" : "") +
+          (g.link ? '<a class="btn ghost" href="' + esc(g.link) + '" target="_blank" rel="noopener">' + icon("i-out") + "Open in Calendar</a>" : "") +
+          (where === "keep" ? '<button type="button" class="btn ghost" data-act="gift-skip">Not now</button>' : "") + "</div>") +
+      '<p class="fine">Nothing changes on your calendar until you say yes.</p></section>';
+  }
+  function giftDoneNow(g) {
+    state.giftDone = g.at;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") Promise.resolve(cab.mine.set(GIFT_KEY, g.at)).catch(function () {});
+  }
+  function readingHtml() {
+    var all = freshLines();
+    state.sawReading = true;
+    var lines = all.slice(0, Math.min(state.readShown, all.length));
+    var done = !!(state.reading && state.reading.done) && lines.length === all.length;
+    var gift = giftNow();
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your calendar</h2>' +
+      "<p>Getting to know your shoots, your posts and your deadlines. About a minute. You don’t need to do anything.</p>" +
+      '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
+      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your week together" : lines.length ? "Reading on" : "Opening your calendar") + "...</span></li></ul>" +
+      '<p class="fine">Only reads. Nothing changes on your calendar, and it all stays in your cabinet.</p></div>' +
+      (gift ? giftHtml(gift, "reading")
+        : done ? ""
+        : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing in your week I can help with right now.</h3></section>') +
+      "</div>";
+  }
+  function paintRead() {
+    var on = firstRead();
+    document.documentElement.classList.toggle("first-read", on);
+    $("read").hidden = !on;
+    $("read").innerHTML = on ? readingHtml() : "";
+  }
+  function cleanProfile(d) {
+    if (!d || typeof d !== "object" || !writtenAt(d.at)) return null;
+    var num = function (v) { return typeof v === "number" && isFinite(v) && v >= 0 ? v : null; };
+    var brands = Array.isArray(d.brands) ? d.brands.map(function (v) { return str(v).slice(0, 60); }).filter(Boolean).slice(0, 5) : [];
+    return { at: d.at, events90: num(d.events90), perWeek: num(d.perWeek), shootsWeek: num(d.shootsWeek), postsWeek: num(d.postsWeek),
+      busiestDay: str(d.busiestDay).slice(0, 12), brands: brands, brandsMore: num(d.brandsMore) || 0, nextFree: str(d.nextFree).slice(0, 60) };
+  }
+  function paintTops() {
+    var g = state.reading && state.reading.gift;
+    var at = g ? writtenAt(g.at) : null;
+    var keep = !!(g && at && state.mineReady && state.giftDone !== g.at && (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY &&
+      !state.example && !readingNow() && !revealing());
+    $("gift-keep").hidden = !keep;
+    $("gift-keep").innerHTML = keep ? giftHtml(g, "keep") : "";
+    var pr = state.profile;
+    var known = pr && (pr.events90 !== null || pr.brands.length);
+    var show = !!(state.mineReady && known && state.loaded && !state.example && canAct() && pr.at !== state.profileSeen && !readingNow() && !revealing());
+    var el = $("welcome");
+    el.hidden = !show;
+    if (show) {
+      var facts = [];
+      if (pr.events90 !== null) facts.push(["i-cal", "<b>" + pr.events90.toLocaleString("en-IN") + " events</b> in 90 days" + (pr.perWeek !== null ? ", about " + pr.perWeek + " a week" : "")]);
+      if (pr.postsWeek !== null) facts.push(["i-clock", "About <b>" + pr.postsWeek + " " + plural(pr.postsWeek, "post", "posts") + " a week</b> go live from your calendar"]);
+      if (pr.brands.length) facts.push(["i-users", "Brands on your calendar: <b>" + esc(pr.brands.join(", ")) + "</b>" + (pr.brandsMore ? " and " + pr.brandsMore + " more" : "")]);
+      if (pr.busiestDay) facts.push(["i-sun", "Your busiest day: <b>" + esc(pr.busiestDay) + "</b>"]);
+      if (pr.nextFree) facts.push(["i-bulb", "Next free stretch: <b>" + esc(pr.nextFree) + "</b>"]);
+      var head = pr.shootsWeek !== null
+        ? "You film about <b>" + pr.shootsWeek + " " + plural(pr.shootsWeek, "shoot", "shoots") + " a week</b>."
+        : "Here is what your calendar says about how you work.";
+      el.innerHTML = '<p class="eyebrow">Your shoot planner read your calendar. This is what it learned.</p><h3>' + head + "</h3>" +
+        (facts.length ? "<ul>" + facts.map(function (f) { return "<li>" + icon(f[0]) + "<span>" + f[1] + "</span></li>"; }).join("") + "</ul>" : "") +
+        '<div class="acts"><button type="button" class="btn dark" data-act="profile-ok">' + icon("i-check") + "That’s right</button>" +
+        '<button type="button" class="btn" data-act="profile-fix">Fix something</button>' +
+        '<span class="fine">You see this once. Fix something tells your shoot planner.</span></div>';
+    } else el.innerHTML = "";
+    $("tops").hidden = !(keep || show);
+  }
+  function markProfileSeen() {
+    var pr = state.profile;
+    if (!pr) return;
+    state.profileSeen = pr.at;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") Promise.resolve(cab.mine.set(PROFILE_SEEN_KEY, pr.at)).catch(function () {});
+    paintTops();
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function pickCalendar(items) {
+    if (!Array.isArray(items)) return null;
+    for (var i = 0; i < items.length; i++) if (items[i] && items[i].id === "google-calendar") return items[i];
+    return null;
+  }
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAct() { return V2 && role() !== "viewer"; }
+  function morningJob() { for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === MORNING) return state.jobs[i]; return null; }
+  setInterval(function () {
+    if (!state.running && !readingNow()) return;
+    quiet(maybe(readJson("data/reading.json"))).then(function (d) {
+      var r = cleanReading(d), old = state.reading;
+      if (!r || (old && JSON.stringify(r.lines) === JSON.stringify(old.lines) && r.done === old.done && (r.gift && r.gift.at) === (old.gift && old.gift.at))) return;
+      setReading(r);
+      if (r.done) load(); else paintRead();
+    });
+  }, 2500);
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var was = state.running;
+    state.jobs = items;
+    var job = morningJob();
+    state.running = !!(job && job.running);
+    if (was && !state.running) load();
+    paint();
+  }
+  function connect() {
+    if (!V2) { toast("Open this cabinet in Cabinet to connect Google Calendar."); return; }
+    if (state.connecting) return;
+    state.connecting = true;
+    paintNotice();
+    cab.connectors.connect("google-calendar").then(function (result) {
+      state.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        state.calendar = pickCalendar(items) || state.calendar;
+        paintNotice();
+        if (result === "connected" && state.example && canAct()) runNow();
+      });
+    }).catch(function (e) {
+      state.connecting = false;
+      state.note = e && e.message ? e.message : "That did not work. Try again.";
+      paintNotice();
+    });
+  }
+  function runNow() {
+    if (!V2 || state.running) return;
+    state.running = true;
+    state.note = "";
+    paint();
+    cab.jobs.run(MORNING).catch(function (e) {
+      if (e && e.code === "busy") return;
+      state.running = false;
+      state.note = e && e.message ? e.message : "The read did not start. Try again.";
+      paint();
+    });
+  }
+  function ask(words) {
+    if (!V2) { toast("Open this cabinet in Cabinet to ask your shoot planner."); return Promise.resolve(false); }
+    return cab.ask(words, { send: true }).then(function () {
+      toast("Asked. The answer is coming in the chat next to this page.");
+      return true;
+    }).catch(function (e) {
+      toast(e && e.message ? e.message : "That did not go through. Try again.");
+      return false;
+    });
+  }
+  /** In the example nothing is asked: there is no real calendar behind it. */
+  function askOrExample(words) {
+    if (state.example) { toast("This is the example week. Connect Google Calendar and this asks your shoot planner."); return Promise.resolve(false); }
+    return ask(words);
+  }
+
+  // ── What the week holds ────────────────────────────────────────────────
+
+  function events() {
+    return list(state.data && state.data.events).filter(function (e) { return dayOf(e.date); })
+      .sort(function (a, b) { return (a.date + (a.start || "00:00")).localeCompare(b.date + (b.start || "00:00")); });
+  }
+  function weekDays() { var t = today(), out = []; for (var i = 0; i < 7; i++) out.push(addDays(t, i)); return out; }
+  function inWeek(ymd) { var w = weekDays(); return ymd >= w[0] && ymd <= w[6]; }
+  function posts() { return events().filter(function (e) { return (e.kind === "post" || e.kind === "due") && inWeek(e.date); }); }
+  function shoots() { return events().filter(function (e) { return e.kind === "shoot" && e.date >= today(); }); }
+  function deals() { return list(state.data && state.data.deals); }
+  function dealDates(d) { return list(d.dates).filter(function (x) { return ["shoot", "draft", "live"].indexOf(x.what) >= 0; }); }
+  function offCalendar(d) { return dealDates(d).filter(function (x) { return !x.onCalendar; }); }
+  var WHAT = { shoot: "Shoot", draft: "Draft due", live: "Goes live" };
+
+  /** "today", "tomorrow", "on Thursday" or "on 20 Oct". */
+  function onDay(ymd) { var w = dayWords(ymd); return /^(Today|Tomorrow)$/.test(w) ? w.toLowerCase() : "on " + w; }
+
+  /** Clashes the page finds itself: overlaps, a post on a travel day, two brands live the same day. */
+  function clashes() {
+    var ev = events().filter(function (e) { return inWeek(e.date); });
+    var out = [];
+    var timed = ev.filter(function (e) { return !e.allDay && minutes(e.start) !== null && minutes(e.end) !== null && e.kind !== "post" && e.kind !== "due"; });
+    for (var i = 0; i < timed.length; i++) for (var j = i + 1; j < timed.length; j++) {
+      var a = timed[i], b = timed[j];
+      if (a.date === b.date && minutes(a.start) < minutes(b.end) && minutes(b.start) < minutes(a.end)) {
+        out.push({ id: "o-" + a.id + "-" + b.id, date: a.date, title: "“" + a.title + "” and “" + b.title + "” overlap",
+          sub: dayWords(a.date) + ", " + a.start + " to " + a.end + " and " + b.start + " to " + b.end + ".",
+          ask: "\"" + a.title + "\" and \"" + b.title + "\" overlap on " + a.date + ". Suggest which to move and to when. Change nothing until I say yes." });
+      }
+    }
+    ev.filter(function (e) { return e.kind === "post" || e.kind === "due"; }).forEach(function (p) {
+      var trip = ev.filter(function (e) { return e.kind === "travel" && e.date === p.date; })[0];
+      if (!trip) return;
+      out.push({ id: "t-" + p.id, date: p.date, title: "“" + p.title + "” on a travel day",
+        sub: dayWords(p.date) + " you travel" + (trip.start ? " " + trip.start + " to " + trip.end : "") + ". " +
+          (p.kind === "post" ? "Schedule the post before you leave, or move it a day." : "Send it before you leave, or ask for a day more."),
+        ask: "\"" + p.title + "\" is on " + p.date + ", a day I travel (" + trip.title + "). Suggest how to handle it: schedule it ahead or move it, and write the short note to the brand if a date has to move. Change nothing until I say yes." });
+    });
+    var byDay = {};
+    ev.filter(function (e) { return e.kind === "post" && str(e.brand); }).forEach(function (p) { (byDay[p.date] = byDay[p.date] || []).push(p); });
+    Object.keys(byDay).forEach(function (d) {
+      var ps = byDay[d], brands = ps.map(function (p) { return p.brand; }).filter(function (b, k, all) { return all.indexOf(b) === k; });
+      if (brands.length < 2) return;
+      out.push({ id: "b-" + d, date: d, title: "Two brands go live " + onDay(d),
+        sub: brands.join(" and ") + ", " + (ps.every(function (p) { return p.start === ps[0].start; }) ? "both at " + ps[0].start : ps.map(function (p) { return p.start; }).join(" and ")) + ". Brands often ask for a day between sponsored posts.",
+        ask: "Two brand posts go live on " + d + ": " + ps.map(function (p) { return "\"" + p.title + "\" at " + p.start; }).join(" and ") + ". Suggest which to move and to when, and write the short note to that brand. Change nothing until I say yes." });
+    });
+    return out.sort(function (a, b) { return a.date.localeCompare(b.date); });
+  }
+
+  // ── Painting ───────────────────────────────────────────────────────────
+
+  function paint() {
+    paintNotice();
+    if (!state.loaded) return;
+    paintRead();
+    paintTops();
+    if (firstRead()) return;
+    if (!state.data) {
+      $("stage").innerHTML = '<div class="stage-inner"><div><div class="hello">' + esc(greeting()) + '</div><div class="big">Your shoot week</div>' +
+        '<div class="big-words">Connect Google Calendar and your shoots, posts and deadlines line up here, with the light for every shoot.</div></div></div>';
+      $("main").innerHTML = "";
+      return;
+    }
+    paintStage();
+    paintMain();
+  }
+  function paintNotice() {
+    var el = $("notice");
+    var s = state.calendar ? state.calendar.state : null;
+    var html = "";
+    if (state.running) html = '<span class="grow"><b>Reading your calendar now.</b> Your week shows up here in a minute or two.</span>';
+    else if (state.example && state.loaded) {
+      var btn = "";
+      if (V2 && canAct() && state.calendar && state.calendar.canConnect && s !== "connected") {
+        btn = '<button class="btn coral small" data-act="connect"' + (state.connecting ? " disabled" : "") + ">" + icon("i-cal") + (state.connecting ? "Connecting..." : "Connect Google Calendar") + "</button>";
+      } else if (V2 && canAct() && s === "connected") btn = '<button class="btn coral small" data-act="run">Read my calendar now</button>';
+      html = '<span class="grow"><b>This is an example week</b> of a travel creator. Connect Google Calendar and this page shows your own shoots and posts.</span>' + btn;
+    } else if (state.status) {
+      html = '<span class="grow"><b>The last read did not work.</b> ' + esc(state.status) + "</span>" + (canAct() ? '<button class="btn coral small" data-act="run">Try again</button>' : "");
+    }
+    if (state.note) html += '<span style="flex-basis:100%;color:#f6c9bc">' + esc(state.note) + "</span>";
+    el.className = html ? "notice" : "";
+    el.innerHTML = html;
+  }
+
+  function paintStage() {
+    var ps = posts(), live = ps.filter(function (p) { return p.kind === "post"; });
+    var weekShoots = shoots().filter(function (s) { return inWeek(s.date); });
+    var cs = clashes();
+    var waiting = deals().filter(function (d) { return offCalendar(d).length; });
+    var big = live.length
+      ? live.length + " " + plural(live.length, "post goes", "posts go") + " live <em>this week</em>"
+      : weekShoots.length ? weekShoots.length + " " + plural(weekShoots.length, "shoot", "shoots") + " <em>this week</em>" : "A clear week <em>ahead</em>";
+    var next = shoots()[0];
+    var words = "";
+    if (next) {
+      var st = sunTimes(next.date, next.lat, next.lon);
+      var morning = minutes(next.start) !== null && minutes(next.start) < 12 * 60;
+      words = "Next shoot: " + esc(dayWords(next.date)) + " " + esc(next.start || "") + ", " + esc(next.title) + "." +
+        (st ? ' <span class="soft">' + (morning ? "Sunrise " + clock(st.sunrise) + ", soft light until " + clock(st.goldEnd) : "Golden hour from " + clock(st.goldStart) + ", sunset " + clock(st.sunset)) + ".</span>" : "");
+    } else words = '<span class="soft">No shoot on your calendar yet.</span>';
+    var stats = "";
+    stats += stat(String(cs.length), cs.length ? plural(cs.length, "clash to fix this week", "clashes to fix this week") : "clashes this week", cs.length > 0);
+    stats += stat(String(weekShoots.length), plural(weekShoots.length, "shoot this week", "shoots this week"), false);
+    if (deals().length) stats += stat(String(waiting.length), plural(waiting.length, "brand deal not on your calendar", "brand deals not on your calendar"), false);
+
+    var days = weekDays();
+    var strip = days.map(function (d) {
+      var ev = events().filter(function (e) { return e.date === d; });
+      var marks = ev.slice(0, 4).map(function (e) {
+        var k = MARK_WORDS.hasOwnProperty(e.kind) ? e.kind : "other";
+        return '<div class="mark k-' + k + '"><i></i><span class="t">' + (e.start ? '<span class="h">' + esc(e.start) + "</span>" : "") + esc(e.brand && (k === "post" || k === "due") ? e.brand : e.title) + "</span></div>";
+      }).join("");
+      if (ev.length > 4) marks += '<div class="quiet">and ' + (ev.length - 4) + " more</div>";
+      return '<div class="frame' + (d === today() ? " today" : "") + '"><div class="d"><b>' + dayNum(d) + "</b><span>" + esc(d === today() ? "Today" : weekday(d, "short")) + "</span></div>" +
+        (marks || '<div class="quiet">Free</div>') + "</div>";
+    }).join("");
+    var legend = ["post", "due", "shoot", "travel"].map(function (k) {
+      return '<span class="mark k-' + k + '"><i></i><span>' + { post: "Goes live", due: "Due", shoot: "Shoot", travel: "Travel" }[k] + "</span></span>";
+    }).join("");
+
+    $("stage").innerHTML = '<div class="stage-inner"><div><div class="hello">' + esc(greeting()) + "</div>" +
+      '<div class="big">' + big + '</div><div class="big-words">' + words + "</div></div>" +
+      '<div class="stats">' + stats + "</div></div>" +
+      '<div class="strip-wrap"><div class="strip" role="list" aria-label="Your week">' + strip + "</div></div>" +
+      '<div class="legend">' + legend + "</div>";
+  }
+  function stat(n, w, hot) { return '<div class="stat"><span class="n' + (hot ? " hot" : "") + '">' + esc(n) + '</span><span class="w">' + esc(w) + "</span></div>"; }
+
+  var delay = 0;
+  function cls(base) {
+    if (REDUCED || state.risen) return 'class="' + base + '"';
+    delay += 60;
+    return 'class="' + base + ' rise" style="animation-delay:' + delay + 'ms"';
+  }
+  function paintMain() {
+    delay = 120;
+    $("main").innerHTML =
+      '<section class="sheet w12" aria-labelledby="h-posts">' + postsHtml() + "</section>" +
+      '<section class="sheet w7" aria-labelledby="h-shoots">' + shootsHtml() + "</section>" +
+      '<section class="sheet w5" aria-labelledby="h-clash">' + clashHtml() + "</section>" +
+      (deals().length || !state.example ? '<section class="sheet w12" aria-labelledby="h-deals">' + dealsHtml() + "</section>" : "");
+    state.risen = true;
+  }
+
+  function postsHtml() {
+    var ps = posts();
+    var ghosts = [];
+    deals().forEach(function (d) { offCalendar(d).forEach(function (x) { if (x.date && inWeek(x.date)) ghosts.push({ deal: d, x: x }); }); });
+    var live = ps.filter(function (p) { return p.kind === "post"; }).length, due = ps.length - live;
+    var out = '<div class="head"><h2 id="h-posts">This week’s posts</h2><span class="count">' + live + " going live · " + due + " due</span></div>";
+    if (!ps.length && !ghosts.length) return out + '<div class="empty">No posts or deadlines on your calendar this week. Add one with “goes live” or “due” in its title and it shows up here.</div>';
+    out += '<div class="week">' + weekDays().map(function (d) {
+      var items = ps.filter(function (p) { return p.date === d; }).map(function (p) {
+        return "<div " + cls("post " + p.kind) + '><span class="k">' + POST_KINDS[p.kind] + '</span><span class="b">' + esc(p.brand || "Your own") + "</span>" +
+          '<span class="s">' + esc(p.title) + "</span>" + (p.start ? '<span class="tm">' + esc(p.start) + "</span>" : "") + "</div>";
+      }).concat(ghosts.filter(function (g) { return g.x.date === d; }).map(function (g) {
+        return "<div " + cls("post ghost") + '><span class="k">Not on your calendar</span><span class="b">' + esc(g.deal.brand) + "</span>" +
+          '<span class="s">' + esc(WHAT[g.x.what]) + ", from their email</span></div>";
+      })).join("");
+      return '<div class="day' + (d === today() ? " today" : "") + '"><h3>' + esc(d === today() ? "Today" : weekday(d, "short") + " " + dayNum(d)) + "</h3>" + (items || '<span class="none">·</span>') + "</div>";
+    }).join("") + "</div>";
+    return out;
+  }
+
+  function shootsHtml() {
+    var ss = shoots().slice(0, 4);
+    var out = '<div class="head"><h2 id="h-shoots">Shoot days</h2><span class="count">' + (ss.length ? "with the light at each place" : "") + "</span></div>";
+    if (!ss.length) return out + '<div class="empty">No shoots coming up. Put “shoot” in an event’s title, with a place, and the light for it shows up here.</div>';
+    ss.forEach(function (s) {
+      var st = sunTimes(s.date, s.lat, s.lon);
+      var a = minutes(s.start), b = minutes(s.end);
+      var light = "";
+      if (st) {
+        var m = function (d) { var t = clock(d).split(":"); return +t[0] * 60 + +t[1]; };
+        var rise = m(st.sunrise), set = m(st.sunset), gEnd = m(st.goldEnd), gStart = m(st.goldStart);
+        var dayLen = 24 * 60, left = a !== null ? (a / dayLen) * 100 : 0, width = a !== null && b !== null ? Math.max(1.5, ((b - a) / dayLen) * 100) : 0;
+        var tip, ok = false;
+        if (a !== null && b !== null) {
+          if ((a <= gEnd && b >= rise - 30) || (a <= set && b >= gStart)) { tip = "Your shoot catches the golden hour."; ok = true; }
+          else if (b <= rise) tip = "You finish before sunrise at " + clock(st.sunrise) + ".";
+          else if (a >= set) tip = "It’s after sunset (" + clock(st.sunset) + "). Bring lights.";
+          else tip = "Hard midday light. Softer light from " + clock(st.goldStart) + ".";
+        }
+        light = '<div class="light"><div class="sunbar" aria-hidden="true">' + (width ? '<span class="you" style="left:' + left.toFixed(1) + "%;width:" + width.toFixed(1) + '%"></span>' : "") + "</div>" +
+          '<div class="lw"><span>Sunrise <b>' + clock(st.sunrise) + "</b></span><span>Soft light until <b>" + clock(st.goldEnd) + "</b></span><span>Golden hour from <b>" + clock(st.goldStart) + "</b></span><span>Sunset <b>" + clock(st.sunset) + "</b></span></div>" +
+          (tip ? '<div class="tip' + (ok ? " ok" : "") + '">' + esc(tip) + "</div>" : "") + "</div>";
+      }
+      out += "<div " + cls("row") + '><div class="shoot"><div class="when"><div class="wd">' + esc(s.date === today() ? "Today" : weekday(s.date, "short")) + '</div><div class="dn">' + dayNum(s.date) + '</div><div class="mo">' + esc(monthShort(s.date)) + "</div></div>" +
+        '<div><div class="t">' + esc(s.title) + "</div>" + (s.place ? '<div class="p">' + esc(s.place) + "</div>" : "") +
+        '<div class="tm">' + esc((s.start || "") + (s.end ? " to " + s.end : "")) + (s.brand ? " · for " + esc(s.brand) : "") + "</div>" + light +
+        '<div class="acts"><button class="btn small" data-act="plan" data-id="' + esc(s.id) + '">' + icon("i-clap") + "Plan this shoot</button>" +
+        (s.link ? '<a class="btn quiet small" href="' + esc(s.link) + '" target="_blank" rel="noopener">' + icon("i-out") + "Open in Calendar</a>" : "") + "</div></div></div></div>";
+    });
+    return out;
+  }
+
+  function clashHtml() {
+    var cs = clashes();
+    var out = '<div class="head"><h2 id="h-clash">Clashes</h2><span class="count' + (cs.length ? " hot" : "") + '">' + (cs.length ? cs.length + " to fix" : "") + "</span></div>";
+    if (!cs.length) return out + '<div class="clear">' + icon("i-check") + "Nothing clashes this week.</div>";
+    cs.forEach(function (c, i) {
+      out += "<div " + cls("row") + '><div class="clash">' + icon("i-warn") + '<div><div class="t">' + esc(c.title) + '</div><div class="s">' + esc(c.sub) + "</div>" +
+        '<div class="acts"><button class="btn small" data-act="clash" data-i="' + i + '">Help me fix it</button></div></div></div></div>';
+    });
+    return out;
+  }
+
+  function dealsHtml() {
+    var ds = deals();
+    var out = '<div class="head"><h2 id="h-deals">From your brand deals</h2><span class="count">dates from your email</span></div>';
+    if (!ds.length) return out + '<div class="empty">Connect Gmail too, and the dates in your brand deals (shoot, draft, go live) show up here, ready to put on your calendar.</div>';
+    out += '<div class="sub">Every date a brand gave you, and whether it is on your calendar yet.</div>';
+    ds.forEach(function (d) {
+      var dates = dealDates(d).map(function (x) {
+        return '<span class="' + (x.onCalendar ? "on" : "off") + '">' + esc(WHAT[x.what]) + " " + (x.date ? esc(dayNum(x.date) + " " + monthShort(x.date)) : "no date yet") + (x.onCalendar ? " ✓" : "") + "</span>";
+      }).join("");
+      var todo = offCalendar(d).length;
+      out += "<div " + cls("row") + '><div class="deal"><div><div class="who">' + esc(d.brand) + '</div><div class="ask">' + esc(d.ask) + "</div></div>" +
+        '<div class="v">' + esc(money(d.amount, d.currency)) + "</div>" +
+        '<div class="dates">' + dates + "</div>" +
+        '<div class="acts">' + (todo ? '<button class="btn dark small" data-act="deal" data-id="' + esc(d.id) + '">' + icon("i-plus") + "Put on my calendar</button>" : '<span class="dates"><span class="on">All on your calendar</span></span>') + "</div></div></div>";
+    });
+    return out;
+  }
+
+  // ── Drawer: putting a deal on the calendar ─────────────────────────────
+
+  function openDeal(id) {
+    var d = deals().filter(function (x) { return x.id === id; })[0];
+    if (!d) return;
+    state.drawer = d;
+    var rows = offCalendar(d).map(function (x, i) {
+      var cal = x.date
+        ? '<div class="cal"><div class="wd">' + esc(weekday(x.date, "short")) + '</div><div class="dn">' + dayNum(x.date) + "</div></div>"
+        : '<div class="cal pick">Pick a day</div>';
+      var title = d.brand + " " + (x.what === "live" ? "goes live" : x.what === "draft" ? "draft due" : "shoot");
+      var when = x.date
+        ? dayWords(x.date) + ", " + (x.what === "shoot" ? "<mark>09:00 to 12:00</mark>" : "<mark>" + (x.what === "live" ? "18:00" : "11:00") + "</mark>")
+        : "No date in their email yet. <mark>Pick a day</mark> in the chat.";
+      return '<label class="add"><input type="checkbox" checked data-i="' + i + '" /><span>' + cal + '</span><span><span class="t">' + esc(title) + '</span><br /><span class="s">' + when + "</span></span></label>";
+    }).join("");
+    $("drawer").innerHTML = '<button class="d-close" data-act="close" aria-label="Close">' + icon("i-x") + "</button>" +
+      '<div class="d-head"><div class="kind">Put on your calendar</div><h3 id="d-title">' + esc(d.brand) + '</h3><div class="re">' + esc(d.ask) + (money(d.amount, d.currency) ? " · " + esc(money(d.amount, d.currency)) : "") + "</div></div>" +
+      '<div class="d-body">' + rows + '<div class="d-tip">Times in <mark>gold</mark> are a suggestion. Change them in the chat before anything is added.</div></div>' +
+      '<div class="d-foot"><button class="btn dark" data-act="deal-add">' + icon("i-cal") + "Add to Google Calendar</button>" +
+      '<button class="btn quiet" data-act="close">Not now</button><div class="note">Your shoot planner shows you each event first, and adds them only on your yes.</div></div>';
+    $("drawer").classList.add("on");
+    $("drawer").setAttribute("aria-hidden", "false");
+    $("veil").classList.add("on");
+    setTimeout(function () { var c = $("drawer").querySelector(".d-close"); if (c) c.focus(); }, 60);
+  }
+  function closeDrawer() {
+    state.drawer = null;
+    $("drawer").classList.remove("on");
+    $("drawer").setAttribute("aria-hidden", "true");
+    $("veil").classList.remove("on");
+  }
+  function addDeal() {
+    var d = state.drawer;
+    if (!d) return;
+    var picked = [].slice.call($("drawer").querySelectorAll("input[type=checkbox]")).filter(function (c) { return c.checked; }).map(function (c) { return offCalendar(d)[+c.getAttribute("data-i")]; });
+    if (!picked.length) { toast("Pick at least one date."); return; }
+    if (state.example) { toast("This is the example week. Connect Google Calendar and this adds the dates for you, after your yes."); return; }
+    if (state.data && state.data.canChange === false) { toast("Your calendar is connected read only. Your shoot planner can tell you the events to add by hand."); }
+    ask("Put my " + d.brand + " deal on my Google Calendar: " + picked.map(function (x) { return WHAT[x.what] + " " + (x.date || "(no date yet, ask me)"); }).join(", ") +
+      ". Read the brand's email first for times and details. Show me each event (title, day, time) before adding, and add them only when I say yes.").then(function (ok) { if (ok) closeDrawer(); });
+  }
+
+  // ── Clicks ─────────────────────────────────────────────────────────────
+
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest("[data-act]");
+    if (!el) return;
+    var act = el.getAttribute("data-act");
+    if (act === "connect") connect();
+    else if (act === "run") runNow();
+    else if (act === "close") closeDrawer();
+    else if (act === "deal") openDeal(el.getAttribute("data-id"));
+    else if (act === "deal-add") addDeal();
+    else if (act === "clash") { var c = clashes()[+el.getAttribute("data-i")]; if (c) askOrExample(c.ask); }
+    else if (act === "plan") {
+      var s = events().filter(function (e) { return e.id === el.getAttribute("data-id"); })[0];
+      if (s) askOrExample("Plan my shoot \"" + s.title + "\" on " + s.date + " " + (s.start || "") + (s.place ? " at " + s.place : "") + ". Tell me the light there that day, a short shot list" + (s.brand ? " that covers what " + s.brand + " asked for in their email" : "") + ", and what to pack. Change nothing on my calendar.");
+    }
+    else if (act === "gift-do" || act === "gift-skip") {
+      var g = state.reading && state.reading.gift;
+      if (!g) return;
+      if (act === "gift-skip") { giftDoneNow(g); paintTops(); return; }
+      ask(giftParts(g).ask).then(function (ok) {
+        if (!ok) return;
+        state.giftAsked = g.at;
+        giftDoneNow(g);
+        if (firstRead()) paintRead(); else $("gift-keep").innerHTML = giftHtml(g, "keep");
+      });
+    }
+    else if (act === "profile-ok") markProfileSeen();
+    else if (act === "profile-fix") { markProfileSeen(); if (V2) cab.ask("About my calendar, please fix this: ", { send: false }).catch(function () {}); }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && state.drawer) closeDrawer(); });
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  if (V2) {
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+    Promise.resolve(cab.ready).then(function () {
+      var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
+      var seen = mine ? mine.get(PROFILE_SEEN_KEY) : null;
+      if (typeof seen === "string") state.profileSeen = seen;
+      var gd = mine ? mine.get(GIFT_KEY) : null;
+      if (typeof gd === "string") state.giftDone = gd;
+      state.mineReady = true;
+      if (state.loaded) paint();
+    }).catch(function () {});
+    cab.connectors.list().then(function (items) {
+      state.calendar = pickCalendar(items) || { id: "google-calendar", state: "not-available-here", canConnect: false };
+      paintNotice();
+    }).catch(function () {});
+    cab.connectors.onChange(function (items) { var c = pickCalendar(items); if (c) { state.calendar = c; paintNotice(); } });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    load();
+  }
+})();
+</script>
+</body>
+</html>
