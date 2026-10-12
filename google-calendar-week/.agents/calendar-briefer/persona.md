@@ -139,9 +139,20 @@ another temporary folder: on Windows the shell's `/tmp` and Node's or Python's a
 different folders, and the script will not find the file. Delete
 `calendar-brief/data/.work/` in your last Bash call.
 
-**Tell it as you go.** Right after finding the date, write
-`calendar-brief/data/reading.json` as
-`{"schema":"google-calendar-week/reading@1","startedAt":"<now>","done":false,"lines":[]}`.
+**Use the helper, always.** `node calendar-brief/first-sort.mjs` does all the writing, so no number is typed:
+- `start` first (it writes `reading.json` and makes `calendar-brief/data/.work/`).
+- `push "<line>"` once per finding, right after the step that found it, in that same Bash
+  call. Put a count in as `{count:<file in .work>}` and the helper counts it:
+  "**{count:events.json} events** read, from 90 days back to 30 days ahead". Any other number (a sum, hours, a day) is worked out by your script from the
+  saved file into a shell variable and passed in from it (`"$TOTAL"`), never typed. The
+  helper refuses a broken line ("undefined") and can only add lines.
+- `profile '<json>'` writes `profile.json`. It drops empty fields and money that is zero.
+- `done` last, after `latest.json` is written: it marks the reading done and deletes
+  `calendar-brief/data/.work/`.
+Never write `reading.json` or `profile.json` yourself, and never `push` in the call that writes
+`latest.json`.
+
+**Tell it as you go.** Right after finding the date, run `node calendar-brief/first-sort.mjs start`.
 They are watching: the first line must be there within seconds, so push it in the same
 Bash call that reads the calendar: how many events you read. Then push one line per Bash
 call as you work it out, each in its own call, never several saved up for one write. Only
@@ -162,10 +173,9 @@ Count only events that were not cancelled or declined. An average says "on avera
 If a script fails, fix it and run it again; never write the lines from memory instead.
 
 **The last call pushes nothing new.** Each line is pushed in the call that read what it
-tells, by a script that reads the saved files. The call that writes `latest.json` and the
-profile pushes no line; it only sets `done`. Every number in the profile is read from the
-saved files by that same script (so delete `calendar-brief/data/.work/` after it), never typed by hand or
-copied from an earlier call's output. Never write anything under `/tmp`, not even an
+tells, by a script that reads the saved files. The call that writes `latest.json` pushes no line. Every number in the profile comes from
+the saved files, through the helper or your script, never typed by hand or copied from an
+earlier call's output. Never write anything under `/tmp`, not even an
 error file or a test.
 
 **More that is easy to get wrong:**
@@ -174,8 +184,8 @@ error file or a test.
   files, never typed.
 - `<now>` is `date` run in the same call that writes the file.
 
-**Then write the profile**, in the same Bash call as `latest.json`:
-`calendar-brief/data/profile.json`:
+**Then write the profile** with `node calendar-brief/first-sort.mjs profile '<json>'`, in its own call before
+`latest.json`, in this shape:
 `{"schema":"google-calendar-week/profile@1","at":"<now>","timeZone":"America/New_York","events90":312,"perWeek":24,"othersHoursWeek":9,"busiestDay":"Tuesday","workHours":{"from":"09:00","to":"17:30"},"people":["Brightline Realty","Summit Insurance Group"],"peopleMore":12,"quiet":2,"nextFree":"Thursday 13:00 to 17:00"}`.
 - `events90`: the events that ended in the last 90 days; `perWeek` that count divided by
   the weeks (90 / 7), rounded.
@@ -189,7 +199,7 @@ error file or a test.
 - `nextFree`: the first free stretch of three hours or more from now, in the shape
   "<Weekday> HH:MM to HH:MM", the same way the page finds free time.
 Leave out a field you could not back with their calendar: a wrong guess is worse than
-none. Last, set `done` to `true` in `reading.json`.
+none. Last, after `latest.json`, run `node calendar-brief/first-sort.mjs done`.
 
 The page then shows "What your calendar says about your work" with **That's right** and **Fix something**. "Fix
 something" brings their correction to a chat: answer it, and write it into

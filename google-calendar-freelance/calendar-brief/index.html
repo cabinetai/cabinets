@@ -980,6 +980,8 @@
     changeSeen: "",
     changeApplied: false,
     reading: null,
+    sawReading: false,
+    readShown: 0,
     profile: null,
     profileSeen: "",
     open: {},
@@ -1607,11 +1609,23 @@
     return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
   }
   /** A line may mark its finding in **bold**; everything else is plain text. */
+  // Lines that arrive together are still told one by one, so the reading never jumps to the
+  // page with lines nobody saw. Only once this page has shown the reading.
+  var REVEAL_MS = 1200;
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < state.reading.lines.length); }
+  setInterval(function () {
+    if (!revealing()) return;
+    state.readShown++;
+    if (revealing()) paintHero(); else paint();
+  }, REVEAL_MS);
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
-    var lines = state.reading ? state.reading.lines : [];
+    var all = state.reading ? state.reading.lines : [];
+    state.sawReading = true;
+    var lines = all.slice(0, Math.min(state.readShown, all.length));
+    done = done && lines.length === all.length;
     return '<div class="reading" aria-live="polite"><h2>Reading your calendar</h2>' +
       "<p>Going through the last 90 days and the weeks ahead. About a minute. You don\u2019t need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l) { return "<li>" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
@@ -1659,7 +1673,7 @@
     var el = $("welcome");
     var pr = state.profile;
     // Only when it learned something about *them*: counts alone are not "What your calendar says about your work".
-    var show = !!(pr && profileKnown(pr) && state.loaded && !state.example && canAsk() && !state.editing && pr.at !== state.profileSeen && !readingNow());
+    var show = !!(pr && profileKnown(pr) && state.loaded && !state.example && canAsk() && !state.editing && pr.at !== state.profileSeen && !readingNow() && !revealing());
     el.hidden = !show;
     if (!show) { el.innerHTML = ""; return; }
     var facts = profileFacts(pr);
@@ -1682,7 +1696,7 @@
     state.data = shown();
     state.example = !!(state.data && state.data.example);
     state.facts = state.data ? weekFacts(state.data) : null;
-    document.documentElement.classList.toggle("first-read", !!(state.running && !state.real));
+    document.documentElement.classList.toggle("first-read", !!((state.running && !state.real) || revealing()));
     paintStatus();
     paintSuggest();
     paintWelcome();
@@ -1811,6 +1825,7 @@
       html = cardHero(null, "See your week clearly",
         '<p class="lead">Connect Google Calendar from Integrations in Cabinet. Your own week shows up here after the next morning update.</p>');
     }
+    if (revealing()) html = readingHtml();
     // Your own week is there; the agent still reads. Its latest line, quietly.
     if (real && !html && readingNow()) {
       var lastLine = state.reading.lines[state.reading.lines.length - 1];
