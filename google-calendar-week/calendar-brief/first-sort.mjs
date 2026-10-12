@@ -4,7 +4,8 @@
 //   node <app>/first-sort.mjs start                 new data/reading.json, empty data/.work/
 //   node <app>/first-sort.mjs count <file>...       the exact count in each saved answer
 //   node <app>/first-sort.mjs push "<line>"         add one line; {count:<file>} is counted here
-//   node <app>/first-sort.mjs profile '<json>'      write data/profile.json (the counts are added here)
+//   node <app>/first-sort.mjs profile @<file>       write data/profile.json from the JSON your script
+//                                                   wrote into data/.work/ (the counts are added here)
 //   node <app>/first-sort.mjs done                  mark the reading done, delete data/.work/
 // A <file> is relative to data/.work/. It may be a saved +triage or messages list answer,
 // a --page-all answer (one JSON page per line), a calendar events answer, or empty (= 0).
@@ -81,7 +82,9 @@ if (cmd === "start") {
   console.log(`line ${r.lines.length}: ${line}`);
 } else if (cmd === "profile") {
   let p;
-  try { p = JSON.parse(args.join(" ")); } catch { fail("the profile is not JSON"); }
+  const arg = args.join(" ").trim();
+  if (!arg.startsWith("@")) fail("give the profile as @<file>: the JSON your script wrote into data/.work/");
+  try { p = readJson(path.resolve(workDir, arg.slice(1))); } catch { fail(`${arg.slice(1)} is not JSON in data/.work/`); }
   if (!p || typeof p !== "object" || Array.isArray(p)) fail("the profile must be an object");
   // Counts come from the saved answers, never from what was typed.
   for (const key of Object.keys(CONFIG.counts)) delete p[key];
@@ -101,7 +104,7 @@ if (cmd === "start") {
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
   r.done = true;
   writeJson(readingFile, r);
-  fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
+  try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("data/.work/ is busy: delete it in your next call"); }
   console.log("reading done");
 } else {
   fail("use start, count, push, profile or done");

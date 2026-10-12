@@ -992,6 +992,7 @@
     reading: null,
     sawReading: false,
     readShown: 0,
+    mineReady: false,
     profile: null,
     profileSeen: "",
     open: {},
@@ -1342,7 +1343,7 @@
     if (!state.running && !readingNow()) return;
     readFile("reading.json").then(function (b) { return JSON.parse(b); }).catch(function () { return null; }).then(function (d) {
       var r = cleanReading(d);
-      if (!r || (state.reading && r.lines.length === state.reading.lines.length && r.done === state.reading.done)) return;
+      if (!r || (state.reading && r.lines.join("\n") === state.reading.lines.join("\n") && r.done === state.reading.done)) return;
       state.reading = r;
       paintHero();
       paintWelcome();
@@ -1638,7 +1639,8 @@
   // Lines that arrive together are still told one by one, so the reading never jumps to the
   // page with lines nobody saw. Only once this page has shown the reading.
   var REVEAL_MS = 1200;
-  function revealing() { return !!(state.sawReading && state.reading && state.readShown < state.reading.lines.length); }
+  // Once done, one more beat on "Putting your page together" before the page.
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < state.reading.lines.length + (state.reading.done ? 1 : 0)); }
   setInterval(function () {
     if (!revealing()) return;
     state.readShown++;
@@ -1648,7 +1650,9 @@
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
-    var all = state.reading ? state.reading.lines : [];
+    // Lines from an earlier read that never finished are not this one's.
+    var at = state.reading ? writtenAt(state.reading.startedAt) : null;
+    var all = at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN ? state.reading.lines : [];
     state.sawReading = true;
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     done = done && lines.length === all.length;
@@ -1678,18 +1682,18 @@
       hoursMonth: num(d.hoursMonth), topName: text(top.name, 60), topHours: num(top.hours)
     };
   }
-  function profileKnown(pr) { return !!(pr.people.length || pr.busiestDay || (pr.from && pr.to)); }
+  function profileKnown(pr) { return profileFacts(pr).length > 0; }
   function profileSentence(pr) {
     return pr.events90 ? "<b>" + pr.events90.toLocaleString() + " " + plural(pr.events90, "event", "events") + "</b> in the last 90 days. Here is what they say." : "Here is what your calendar says.";
   }
-  function hoursWords(h) { return h + " " + plural(h, "hour", "hours"); }
+  function hoursPhrase(h) { h = Math.round(h * 2) / 2; return h + " " + plural(h, "hour", "hours"); }
 
   function profileFacts(pr) {
     var facts = [];
     if (pr.people.length) facts.push(["i-users", "Who you see most: " + moreWords(pr.people, pr.peopleMore)]);
     if (pr.perWeek) facts.push(["i-calendar", "On average <b>" + pr.perWeek + " " + plural(pr.perWeek, "plan", "plans") + " a week</b>"]);
     if (pr.busiestDay) facts.push(["i-chart", "Your busiest day: <b>" + esc(pr.busiestDay) + "</b>"]);
-    if (pr.freeEvenings !== null) facts.push(["i-sun", "<b>" + pr.freeEvenings + " free " + plural(pr.freeEvenings, "evening", "evenings") + "</b> this week"]);
+    if (pr.freeEvenings !== null) facts.push(["i-sun", "<b>" + pr.freeEvenings + " free " + plural(pr.freeEvenings, "evening", "evenings") + "</b> in the next 7 days"]);
     if (pr.dates30) facts.push(["i-star", "<b>" + pr.dates30 + " " + plural(pr.dates30, "birthday or date", "birthdays and dates") + "</b> in the next 30 days"]);
     if (pr.nextFree) facts.push(["i-hourglass", "Next free stretch: <b>" + esc(pr.nextFree) + "</b>"]);
     return facts;
@@ -1699,7 +1703,7 @@
     var el = $("welcome");
     var pr = state.profile;
     // Only when it learned something about *them*: counts alone are not "What your calendar says about your days".
-    var show = !!(pr && profileKnown(pr) && state.loaded && !state.example && canAsk() && !state.editing && pr.at !== state.profileSeen && !readingNow() && !revealing());
+    var show = !!(state.mineReady && pr && profileKnown(pr) && state.loaded && !state.example && canAsk() && !state.editing && pr.at !== state.profileSeen && !readingNow() && !revealing());
     el.hidden = !show;
     if (!show) { el.innerHTML = ""; return; }
     var facts = profileFacts(pr);
@@ -1722,7 +1726,7 @@
     state.data = shown();
     state.example = !!(state.data && state.data.example);
     state.facts = state.data ? weekFacts(state.data) : null;
-    document.documentElement.classList.toggle("first-read", !!((state.running && !state.real) || revealing()));
+    document.documentElement.classList.toggle("first-read", !!((state.running && !hasWeek(state.real)) || revealing()));
     paintStatus();
     paintSuggest();
     paintWelcome();
@@ -4146,6 +4150,7 @@
       if (clean) state.layout = clean;
       var seenProfile = mine ? mine.get(PROFILE_SEEN_KEY) : null;
       if (typeof seenProfile === "string") state.profileSeen = seenProfile;
+      state.mineReady = true;
       var seen = mine.get(CHANGE_SEEN_KEY);
       if (typeof seen === "string") state.changeSeen = seen;
       var hidden = mine.get(HIDDEN_IDEAS_KEY);

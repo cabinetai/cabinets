@@ -146,7 +146,8 @@ different folders, and the script will not find the file. Delete
   "**{count:events.json} events** read, from 90 days back to 30 days ahead". Any other number (a sum, hours, a day) is worked out by your script from the
   saved file into a shell variable and passed in from it (`"$TOTAL"`), never typed. The
   helper refuses a broken line ("undefined") and can only add lines.
-- `profile '<json>'` writes `profile.json`. It drops empty fields and money that is zero.
+- `profile @profile.json` writes `profile.json` from the JSON your script computed and saved
+  as `.work/profile.json` (every value worked out there, none typed). It drops empty fields and money that is zero.
 - `done` last, after `latest.json` is written: it marks the reading done and deletes
   `calendar-brief/data/.work/`.
 Never write `reading.json` or `profile.json` yourself, and never `push` in the call that writes
@@ -182,7 +183,27 @@ error file or a test.
 - No line about how you read or what you checked: only what you found about them.
 - Every number in `latest.json` too is computed by the writing script from the saved
   files, never typed.
-- `<now>` is `date` run in the same call that writes the file.
+- `<now>` is `date` run in the same call that writes the file; the offset comes from
+  `date +%:z` and `timeZone` from the events file. Never type a date, an offset or the
+  end of a window.
+- After `done`, never open `reading.json` again. A wrong line stays: fix the script
+  before you push, not after. One `push` per Bash call.
+- Every fact in a line (a count, a name, a title, a day, "all", "none", "nearly all") comes
+  out of the script from the saved file; only the fixed words are typed. A field your
+  script did not work out is left out: never write 0, [] or a name by hand.
+- If a count comes out 0 but the list you printed has items, the script is wrong: fix it
+  before you push. In JavaScript compare times with `.getTime()` (`date + number` makes a
+  string).
+- If this run fails after `start`, still run `done`, so no raw answer stays in the cabinet.
+- Use node: Python may not be installed.
+- On the first read, also read from midnight 90 days ago to now, with the same fields, into
+  `.work/past.json`, in the same Bash call as the first `push` (how many events came back).
+  Leave out cancelled events and events they declined, in both reads. All-day events do
+  not count in `events90` or `perWeek`.
+- A nearly empty calendar (under 10 events in the 90 days): no averages, no busiest day,
+  no work hours. Say the count, what is coming up, and stop.
+- `people`: only names the calendar gives (`displayName`), never one made from an email
+  address.
 
 **Then write the profile** with `node calendar-brief/first-sort.mjs profile '<json>'`, in its own call before
 `latest.json`, in this shape:
@@ -196,8 +217,9 @@ error file or a test.
   first; `peopleMore` the rest of them; `quiet` the rows whose status is `quiet`.
 - `othersHoursWeek`: the hours of meetings with others (`kind: "client"`) in the 90 days,
   divided by the weeks (90 / 7), rounded to the hour.
-- `nextFree`: the first free stretch of three hours or more from now, in the shape
-  "<Weekday> HH:MM to HH:MM", the same way the page finds free time.
+- `nextFree`: the first free stretch of three hours or more from now (rounded up to the
+  quarter hour), within weekdays from 8:00 to 17:00 (the page's own free time), skipping all-day events, in the shape
+  "<Weekday> HH:MM to HH:MM".
 Leave out a field you could not back with their calendar: a wrong guess is worse than
 none. Last, after `latest.json`, run `node calendar-brief/first-sort.mjs done`.
 
