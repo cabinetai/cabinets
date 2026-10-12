@@ -392,6 +392,10 @@
     here: null,
     slack: null,
     jobs: [],
+    jobsKnown: false,
+    /** The morning routine's cron and switch, read from its job file; null until read. */
+    schedule: null,
+    catchingUp: false,
     loaded: false,
     data: null,
     example: true,
@@ -544,6 +548,7 @@
       state.loaded = true;
       loading = null;
       paint();
+      catchUp();
     });
     return loading;
   }
@@ -580,8 +585,75 @@
     state.jobs = items;
     var job = morningJob();
     state.running = !!(job && job.running);
-    if (wasRunning && !state.running) { state.day = ""; load(); }
+    state.jobsKnown = true;
+    if (wasRunning && !state.running) { state.day = ""; state.catchingUp = false; load(); }
     paint();
+    catchUp();
+  }
+
+  // ── Catching up on open ────────────────────────────────────────────────
+  // A laptop asleep at 9:00 misses the morning run, or starts it with no network. When the
+  // page opens and the catch-up on screen is older than the last time the schedule says it
+  // should have run, it runs once for that time. The time is remembered in this browser, so
+  // a run that fails again is not retried in a loop: Try again is still there.
+
+  /** One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function cronField(spec, min, max) {
+    var set = {};
+    spec.split(",").forEach(function (part) {
+      var bits = part.split("/"), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== "*") {
+        var r = bits[0].split("-");
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+  /** The last minute the schedule matched, at most eight days back. */
+  function lastDue(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = cronField(f[0], 0, 59), hrs = cronField(f[1], 0, 23), doms = cronField(f[2], 1, 31),
+        mons = cronField(f[3], 1, 12), dows = cronField(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;
+    var d = new Date(from.getTime());
+    d.setSeconds(0, 0);
+    for (var i = 0; i < 8 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] && hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() - 60000);
+    }
+    return null;
+  }
+  /** The schedule is a nicety: a missing or renamed job file only means no catching up. */
+  function readSchedule() {
+    return fetch("../.jobs/" + MORNING + ".yaml", { cache: "no-store", credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : ""; })
+      .catch(function () { return ""; })
+      .then(function (t) {
+        var job = {};
+        t.split("\n").forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, "").trim();
+        });
+        state.schedule = job;
+        catchUp();
+      });
+  }
+  function catchUp() {
+    if (!canRun() || !state.loaded || !state.jobsKnown || state.running || state.catchingUp || state.day) return;
+    if (slackState() !== "connected" || !state.schedule || !state.schedule.schedule || state.schedule.enabled === "false") return;
+    var due = lastDue(state.schedule.schedule, new Date());
+    var shown = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
+    if (!due || (shown && shown >= due)) return;
+    var key = "catch-up:" + MORNING + ":" + due.getTime();
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch (e) { return; }
+    state.catchingUp = true;
+    runNow();
   }
 
   function connect() {
@@ -614,6 +686,7 @@
     }).catch(function (e) {
       if (e && e.code === "busy") { watchRun(); return; }
       state.running = false;
+      state.catchingUp = false;
       state.runNote = e && e.message ? e.message : "The catch-up did not start. Try again.";
       paint();
     });
@@ -769,7 +842,7 @@
       // The very first catch-up did not work: that is the news, told once, with its fixes.
       var first = failureInfo();
       html = cardHero("alert", "Your first catch-up didn’t work",
-        '<p class="lead">' + esc(first.why) + "</p>" + '<div class="actions">' + failureButtons(true) + "</div>");
+        '<p class="lead">' + esc(first.why) + "</p>" + '<div class="actions">' + failureButtons(true, first.slack) + "</div>");
       told = true;
     } else if (V2 && s === "connected" && state.example) {
       var sched = scheduleWords();
@@ -857,17 +930,20 @@
     if (!why || (V2 && slackState() !== "connected")) return null;
     var at = tryAt || jobFail;
     var words = at ? whenWords(at, new Date()) : "";
-    return { why: why, head: !words ? "The last catch-up didn’t work." : "The catch-up " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work." };
+    // Only a catch-up that reached the routine and could not read Slack is a Slack problem.
+    // A run that did not finish (no network, the computer asleep) is fixed by trying again.
+    var slack = !!(tryAt && (!shownAt || tryAt > shownAt));
+    return { why: why, slack: slack, head: !words ? "The last catch-up didn’t work." : "The catch-up " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work." };
   }
-  function failureButtons(primary) {
+  function failureButtons(primary, slack) {
     return (canRun() ? '<button class="btn' + (primary ? " primary big" : "") + '" data-act="run">' + icon("i-refresh") + "Try again</button>" : "") +
-      (state.slack && state.slack.canConnect ? '<button class="btn' + (primary ? " big" : "") + '" data-act="connect">' + icon("i-hash") + "Connect Slack again</button>" : "");
+      (slack && state.slack && state.slack.canConnect ? '<button class="btn' + (primary ? " big" : "") + '" data-act="connect">' + icon("i-hash") + "Connect Slack again</button>" : "");
   }
   /** A catch-up that could not read Slack says so, with the presses that fix it. */
   function failureHtml() {
     var fail = failureInfo();
     if (!fail) return "";
-    var buttons = failureButtons(false);
+    var buttons = failureButtons(false, fail.slack);
     return '<div class="notice">' + icon("i-alert") + "<div><p><b>" + esc(fail.head) + "</b> " + esc(fail.why) + "</p>" +
       (buttons ? '<div class="actions">' + buttons + "</div>" : "") + "</div></div>";
   }
@@ -1044,6 +1120,7 @@
     cab.connectors.list().then(function (items) {
       state.slack = pickSlack(items) || { id: "slack", state: "not-available-here", problem: null, canConnect: false };
       paint();
+      catchUp();
     }).catch(function () {
       state.slack = { id: "slack", state: "not-available-here", problem: null, canConnect: false };
       paint();
@@ -1051,6 +1128,7 @@
     cab.connectors.onChange(function (items) { var g = pickSlack(items); if (g) { state.slack = g; paint(); } });
     cab.jobs.list().then(setJobs).catch(function () {});
     cab.jobs.onChange(setJobs);
+    readSchedule();
   } else {
     load();
     // No live changes in an older Cabinet: look again now and then while the page is in view.
