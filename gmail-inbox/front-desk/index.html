@@ -2889,7 +2889,7 @@
     if (!status) return null;
     var c = { id: d.id, status: status, from: d.from === "you" ? "you" : "mail", to: cleanPerson(d.to),
       subject: text(d.subject, 200), body: typeof d.body === "string" ? d.body.trim().slice(0, 5000) : "",
-      can: ["drafts", "send", "copy"].indexOf(d.can) >= 0 ? d.can : "", threadId: text(d.threadId, 30),
+      can: ["all", "drafts", "send", "copy"].indexOf(d.can) >= 0 ? d.can : "", threadId: text(d.threadId, 30),
       options: list(d.options).map(cleanPerson).filter(Boolean).slice(0, 4), note: text(d.note, 200) };
     var written = status !== "writing" && status !== "not-found";
     if (written && (!c.subject || !c.body)) return null;
@@ -3023,15 +3023,15 @@
       ? '<p class="done-line">' + icon("i-check") + (pressed === "send" ? "Asked. Say yes in the chat to send it." : "Asked. It is going into your Gmail drafts.") + "</p>" +
         '<div class="acts"><button type="button" class="btn quiet" data-act="write-new">Write another</button></div>'
       : '<div class="acts">' +
-          (can === "send" ? '<button type="button" class="btn primary" data-act="write-send">' + icon("i-send") + "Send</button>" : "") +
-          (can === "drafts" ? '<button type="button" class="btn primary" data-act="write-drafts">' + icon("i-inbox") + "Put in Gmail drafts</button>" : "") +
+          (can === "send" || can === "all" ? '<button type="button" class="btn primary" data-act="write-send">' + icon("i-send") + "Send</button>" : "") +
+          (can === "drafts" || can === "all" ? '<button type="button" class="btn' + (can === "all" ? "" : " primary") + '" data-act="write-drafts">' + icon("i-inbox") + "Put in Gmail drafts</button>" : "") +
           '<button type="button" class="btn" data-act="write-copy">' + icon("i-copy") + "Copy</button>" +
           '<button type="button" class="btn quiet" data-act="write-new">Start over</button></div>';
     return '<div class="write">' + to +
       '<label class="sr" for="write-subject">Subject</label><input id="write-subject" class="wsubj" maxlength="200" dir="auto" value="' + esc(e.subject) + '" />' +
       '<label class="sr" for="write-body">The email</label><textarea id="write-body" class="wbody" maxlength="3400" dir="auto" rows="' + (level === "L" ? 9 : 6) + '">' + esc(e.body) + "</textarea>" +
       (choices ? '<p class="hint">Fill in the parts in [brackets] before it goes.</p>' : "") + acts +
-      '<p class="fine">' + (can === "send" ? "Cabi wrote it. Change any word first. Cabinet asks you once more before it is sent."
+      '<p class="fine">' + (can === "send" || can === "all" ? "Cabi wrote it. Change any word first. Cabinet asks you once more before it is sent."
         : can === "drafts" ? "Cabi wrote it. Change any word first. This Gmail connection lets Cabi write drafts, not send: you send it from Gmail."
         : "Your Gmail is connected to read only, so copy it and paste it into Gmail.") + "</p></div>";
   }
@@ -4216,7 +4216,7 @@
       }
       state.write = cleanWriteReq(mine ? mine.get(WRITE_KEY) : null);
       var canWas = mine ? mine.get(WRITE_CAN_KEY) : null;
-      if (canWas === "send" || canWas === "drafts" || canWas === "copy") state.writeCan = canWas;
+      if (["all", "send", "drafts", "copy"].indexOf(canWas) >= 0) state.writeCan = canWas;
       var seenProfile = mine ? mine.get(PROFILE_SEEN_KEY) : null;
       if (typeof seenProfile === "string") state.profileSeen = seenProfile;
       var giftSeen = mine ? mine.get(GIFT_KEY) : null;

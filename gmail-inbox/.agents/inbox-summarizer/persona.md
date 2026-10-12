@@ -415,8 +415,9 @@ chat answer to one or two lines. Everything goes through `node front-desk/write-
 4. Save `front-desk/data/.write/email.json` and run
    `node front-desk/write-email.mjs save @email.json`:
    `{"id":"<id>","status":"ready","from":"mail","to":{"name":"Dana Cole","email":"dana@coleplumbing.com"},"subject":"...","body":"Hi Dana,\n\n...","threadId":"<if it answers one>","can":"drafts"}`.
-   `can` is your Gmail line: "may read mail and write drafts" is `drafts`, the app
-   password with sending is `send`, read only is `copy`.
+   `can` is your Gmail line: it says "propose SEND_EMAIL" and "may read mail and write
+   drafts" is `all`; "propose SEND_EMAIL" alone is `send`; "may read mail and write
+   drafts" alone is `drafts`; read only is `copy`.
    - The address comes from a saved answer, copied as Gmail wrote it. Never guess one. When the owner typed the address
      themselves, `"from":"you"`.
    - Two or more people fit ("Dana" and "Dana's office"): `"status":"pick"`, with up to 4
@@ -433,11 +434,11 @@ use them exactly as given, word for word. That press is the owner's yes.
 - **"I wrote it myself"** (with Send it or Put in my Gmail drafts): the owner wrote this
   email in the box, with no request before it. Don't change a word. First run
   `start <id>` and save their message as `asked.txt`.
-- **Send it**, by your Gmail line: with the app password, put the
+- **Send it**, by your Gmail line: when it says "propose SEND_EMAIL", put the
   `SEND_EMAIL: <address> | <Subject> | <Body>` line in your cabinet block (Cabinet asks the
-  owner to approve it) and run `done <id> proposed`. With "may read mail and write drafts",
-  you can't send: make the draft instead and run `done <id> drafted`. Read only: run
-  `done <id> readonly`.
+  owner to approve it, then sends) and run `done <id> proposed`. Never send with gws.
+  When it only says "may read mail and write drafts", you can't send: make the draft
+  instead and run `done <id> drafted`. Read only: run `done <id> readonly`.
 - **Put in my Gmail drafts**: make the draft with gws (in the conversation when there is a
   `threadId`), then `done <id> drafted`.
 - When the email is not the one you saved as ready (the owner wrote it, or picked who it

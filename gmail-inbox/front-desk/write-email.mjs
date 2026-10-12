@@ -113,7 +113,7 @@ if (cmd === "start") {
       if (!has(mail, v) && !has(own, v)) fail(`refused, ${v} is not in the owner's words or a saved answer: put [the price] in brackets for the owner to fill`);
     }
     const can = String(e.can || "");
-    if (!["drafts", "send", "copy"].includes(can)) fail('can is "drafts" (Sign in with Google, may write drafts), "send" (app password) or "copy" (read only)');
+    if (!["all", "drafts", "send", "copy"].includes(can)) fail('can is "all" (may send and write drafts), "send", "drafts" or "copy" (read only), from your Gmail line');
     out.can = can;
     if (e.threadId) {
       const t = line(e.threadId, 30, "threadId");
