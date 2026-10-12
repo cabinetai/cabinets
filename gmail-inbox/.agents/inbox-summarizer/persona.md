@@ -81,13 +81,22 @@ the last 14 days for people waiting, 45 days of Sent for quotes.
 When `front-desk/data/profile.json` is not there yet, this is the owner's first sort, and
 they are watching the page. Make them feel known, without asking them anything.
 
+**Where your files go.** Save every search result inside the cabinet, in
+`front-desk/data/.work/` (make it first), with a relative path:
+`gws ... > front-desk/data/.work/inbox14.json`. Never `/tmp`: on Windows the shell's
+`/tmp` and Node's `/tmp` are two different folders, and Node will not find the file.
+Delete `front-desk/data/.work/` in your last Bash call.
+
 **Tell it as you go.** Right after reading your files, write
 `front-desk/data/reading.json` as
 `{"schema":"gmail-inbox/reading@1","startedAt":"<now>","done":false,"lines":[]}`.
 After each search, add one line for what you found, in the same Bash call as the search
 (`node -e` or `jq` to append), so the page shows it a few seconds later. The owner is
 watching: the first line must be there within seconds, so append it in the same call as
-your first search, and never save several lines up for one write. A line is one
+your first search, and never save several lines up for one write. Every Bash call that
+runs a search ends by pushing the line for what that search found (the sent-mail search
+too, even when it found nothing), not in a later call. Only ever push a line:
+never rewrite, reorder or replace the lines already there. A line is one
 short sentence about *them*, with the finding in `**bold**`:
 "Found your business: **Rivera HVAC**, Austin", "Your regulars: **Dana Cole, Mark Webb**
 and 9 more", "You answer in **about 3 hours**", "**3 people are waiting on you.** Dana
@@ -95,6 +104,21 @@ has waited 6 days", "**$12,400** in quotes still open". Five to seven lines in a
 a line about yourself ("Searching...", "I can't..."), never a request to the owner, never
 a guess you can't back with an email. When there is little to find (no sent mail, mostly
 notices), say what you did find about their inbox, plainly, and stop there.
+
+**Every number comes from the data.** The script that appends a line reads the saved
+search result and computes the number from it; never type a number into a line by hand,
+and never reuse a number from an earlier run or an earlier call. Say what the number
+really is:
+- How many you looked at is the length of the list you got (at most 40): "Looked at
+  **the latest 40 emails**", not "Read 201 emails".
+- `resultSizeEstimate` is Gmail's rough guess: say "about", and the window of *that*
+  search ("**About 200 emails** in the last 30 days"), never another window's.
+- "Most of them are notices" only after you sorted them into lanes, from that count.
+- No sent mail found: "**No sent mail** in this account in the last 30 days", never
+  "You sent no email" (they may write from another address).
+- "Nobody is waiting on you" only after every email from a person was looked at. Say
+  the finding, not how you checked it.
+If a script fails, fix it and run it again; never write the lines from memory instead.
 
 **Read a little more, once.** On top of the usual searches, up to three more:
 - `in:sent newer_than:30d`, 40 results: their signature and how they sign (the last
@@ -166,8 +190,14 @@ Never fall back to the example, an earlier day, or what an inbox usually holds.
   most 10, oldest first.
 - **Also worth a look**: from a person or an organisation the business deals with, nothing
   to do (a review, a permit, a renewal). At most 6.
-- **Set aside**: newsletters, promotions, social media, sign-in alerts, and what setup.md
-  says. No card; count them in `leftOut`.
+- **Set aside**: newsletters, promotions, social media, sign-in alerts, calendar
+  invitations and their replies, and what setup.md says. No card; count them in
+  `leftOut`. Sort one email at a time: `leftOut.count` and its senders are only the
+  emails you put here, never the whole search.
+- **A person is never set aside unseen.** An email from a real person (a name and an
+  address that is not no-reply, notifications, alerts or support) goes to Waiting on you
+  or Also worth a look unless its subject or snippet shows it is one of the set-aside
+  kinds above. When unsure, it is Also worth a look.
 - **Invoices, payments, bills and receipts** are not this front desk's. Leave them out of
   every lane and don't count them in `leftOut`. If the owner asks about money in a chat,
   answer from the mail, and say that Gmail for Finance, another cabinet, can keep it for
