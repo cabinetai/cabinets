@@ -477,6 +477,36 @@
   .facts div { padding: 8px 12px; border-radius: 10px; background: var(--panel); }
   .facts dt { font-weight: 700; font-size: 14px; }
   .facts dd { margin: 2px 0 0; color: var(--ink-2); font-size: 14.5px; }
+  /* Write an email: who and what go in, the email comes back to change before it goes. */
+  .box.write .box-pad { display: flex; flex-direction: column; overflow: auto; padding-top: 6px; }
+  .write { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+  .wf { display: grid; gap: 6px; }
+  .wf > span { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+  .wf.grow { flex: 1; min-height: 0; grid-template-rows: auto 1fr; }
+  .write input, .write textarea { width: 100%; min-height: 46px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink); font: inherit; font-size: 16px; line-height: 1.5; }
+  .write textarea { resize: none; min-height: 84px; }
+  .write input::placeholder, .write textarea::placeholder { color: var(--ink-3); opacity: .8; }
+  .write input:focus, .write textarea:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px color-mix(in srgb, var(--navy) 14%, transparent); }
+  .write .wsubj { font-weight: 700; }
+  .write .wbody { flex: 1; min-height: 150px; }
+  .write .acts, .write-wait .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+  .write .fine, .write-wait .fine { margin: 0; font-size: 13.5px; color: var(--ink-3); }
+  .write .hint { margin: -4px 0 0; font-size: 14px; color: var(--sand-ink); }
+  .write .said, .write-wait .said { margin: 0; padding: 2px 0 2px 14px; border-left: 2px solid var(--line-2); color: var(--ink-2); font-size: 15.5px; overflow-wrap: anywhere; }
+  .write-to { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 16px; }
+  .write-to .k { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+  .write-to b { overflow-wrap: anywhere; }
+  .write-to .addr { color: var(--ink-3); font-size: 14.5px; font-weight: 400; overflow-wrap: anywhere; }
+  .write-to .src { font-size: 13.5px; color: var(--sage-ink); }
+  .write .picks { display: flex; flex-wrap: wrap; gap: 8px; flex-basis: 100%; }
+  .write .pick { height: auto; text-align: left; }
+  .write .pick[aria-pressed="true"] { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); }
+  .write-wait { display: grid; gap: 12px; align-content: start; }
+  .write-wait h4 { margin: 0; display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 21px; font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+  .write-wait .pulse-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--brass); animation: read-pulse 1.2s ease-in-out infinite; }
+  .write .done-line, .write-wait .done-line { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 16px; font-weight: 600; color: var(--sage-ink); }
+  .write .done-line .icon, .write-wait .done-line .icon { color: var(--sage); }
+  @media (prefers-reduced-motion: reduce) { .write-wait .pulse-dot { animation: none; } }
   .facts dd.unset { color: var(--ink-3); font-style: italic; }
   .box[data-level="M"] .facts { grid-template-columns: minmax(0, 1fr); }
   .idea-rows > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
@@ -857,6 +887,13 @@
     running: false,
     runNote: "",
     askNote: "",
+    compose: null,
+    write: null,
+    writeForm: { who: "", what: "" },
+    writeAddr: "",
+    writeEdit: null,
+    writePressed: null,
+    writeBusy: false,
     open: {},
     layout: null,
     hiddenIdeas: {},
@@ -1030,13 +1067,15 @@
       quiet(maybe(readJson("data/gone-quiet.json"))),
       quiet(maybe(readJson("data/layout-change.json"))),
       quiet(maybe(readJson("data/reading.json"))),
-      quiet(maybe(readJson("data/profile.json")))
+      quiet(maybe(readJson("data/profile.json"))),
+      quiet(maybe(readJson("data/compose.json")))
     ]).then(function (got) {
       var latest = got[0];
       setReading(cleanReading(got[6]));
       state.profile = cleanProfile(got[7]);
       useHours(state.profile);
       state.change = cleanChange(got[5]);
+      state.compose = cleanCompose(got[8]);
       state.loose = got[1] && Array.isArray(got[1].waiting) ? got[1] : null;
       state.lastTry = got[2] && typeof got[2] === "object" ? got[2] : null;
       state.setup = typeof got[3] === "string" ? parseSetup(got[3]) : null;
@@ -1199,9 +1238,9 @@
     if ($("ask-note")) $("ask-note").textContent = words;
   }
 
-  function copyText(value) {
+  function copyText(value, said) {
     var clean = String(value).replace(/\[([^\]]{1,120})\]/g, "$1");
-    var done = function () { toast("Reply copied. Paste it into your answer in Gmail."); };
+    var done = function () { toast(said || "Reply copied. Paste it into your answer in Gmail."); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(clean).then(done, function () { fallbackCopy(clean) ? done() : toast("Copying did not work here. Select the words and copy them."); });
     } else if (fallbackCopy(clean)) done();
@@ -1827,7 +1866,8 @@
     { id: "waiting", x: 0, y: 8, w: 7, h: 6 },
     { id: "quotes", x: 7, y: 8, w: 5, h: 5 },
     { id: "quiet", x: 7, y: 13, w: 5, h: 6 },
-    { id: "ask", x: 0, y: 14, w: 7, h: 5 }
+    { id: "write", x: 0, y: 14, w: 7, h: 7 },
+    { id: "ask", x: 0, y: 21, w: 7, h: 5 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -1861,6 +1901,9 @@
       title: "New email", desc: "How much email came in, and how much was set aside." },
     ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-chat", w: 7, h: 5,
       title: "Ask, or try an idea", desc: "Ask anything about your email, with an idea for today.",
+      show: canAsk, when: "Only people who can ask in this cabinet see it." },
+    write: { cls: "lane write", draw: drawWrite, group: "ask", icon: "i-pen", w: 7, h: 7, min: [4, 5],
+      title: "Write an email", desc: "Say who and what. It finds the address in your mail and writes it the way you do.",
       show: canAsk, when: "Only people who can ask in this cabinet see it." },
     ideas: { cls: "lane ideas", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 6, h: 5,
       title: "All ideas", desc: "Every idea in one box, one tap each." },
@@ -2190,14 +2233,21 @@
     }
     el.setAttribute("data-level", level);
     if (drawn[id] !== html) {
-      var input = el.querySelector("input");
-      var typed = input ? input.value : "";
-      var focused = !!input && document.activeElement === input;
+      var fields = Array.prototype.slice.call(el.querySelectorAll("input, textarea"));
+      var typed = fields.map(function (f) { return f.value; });
+      var focused = fields.indexOf(document.activeElement);
+      var caret = focused >= 0 ? [fields[focused].selectionStart, fields[focused].selectionEnd] : null;
       el.innerHTML = html;
       drawn[id] = html;
-      var again = el.querySelector("input");
-      if (again && typed) again.value = typed;
-      if (again && focused) again.focus();
+      // The same fields again keep what was typed in them, and the one being typed in keeps the caret.
+      var again = Array.prototype.slice.call(el.querySelectorAll("input, textarea"));
+      if (again.length === fields.length && again.every(function (f, i) { return f.id === fields[i].id; })) {
+        again.forEach(function (f, i) { if (typed[i]) f.value = typed[i]; });
+        if (focused >= 0) {
+          again[focused].focus();
+          try { again[focused].setSelectionRange(caret[0], caret[1]); } catch (e) { /* not a text field */ }
+        }
+      }
     }
     fitBox(el);
   }
@@ -2808,6 +2858,202 @@
     return gmailState() === "not-available-here"
       ? "Once Gmail works here, you can ask things like these."
       : "Connect Gmail first, then ask anything. A question here takes you to connecting.";
+  }
+
+  // ── Write an email ─────────────────────────────────────────────────────
+  // The owner says who and what. The agent finds the address in their mail and writes the
+  // email the way they write (write-email.mjs refuses a guessed address or a made-up price),
+  // and this box shows it to change, put in Gmail drafts, send, or copy. A press here is the
+  // owner's yes; Cabinet still asks once more before anything is sent.
+
+  var WRITE_KEY = "front-desk-write@1";
+  var WRITE_BOX_KEY = "front-desk-write-box@1";
+  var WRITE_WAIT_MIN = 10;
+  var WRITE_KEEP_DAYS = 3;
+  var ASK_MAX = 3900;
+
+  function cleanPerson(p) {
+    if (!p || typeof p !== "object") return null;
+    var email = text(p.email, 200);
+    if (!/^[^\s@<>()",;]+@[^\s@<>()",;]+\.[a-z]{2,}$/i.test(email)) return null;
+    return { name: text(p.name, 80), email: email };
+  }
+  function cleanCompose(d) {
+    if (!d || typeof d !== "object" || d.schema !== "gmail-inbox/compose@1" || !/^w\d{10,14}$/.test(String(d.id))) return null;
+    var status = ["writing", "ready", "pick", "not-found", "drafted", "proposed"].indexOf(d.status) >= 0 ? d.status : null;
+    if (!status) return null;
+    var c = { id: d.id, status: status, from: d.from === "you" ? "you" : "mail", to: cleanPerson(d.to),
+      subject: text(d.subject, 200), body: typeof d.body === "string" ? d.body.trim().slice(0, 5000) : "",
+      can: ["drafts", "send", "copy"].indexOf(d.can) >= 0 ? d.can : "copy", threadId: text(d.threadId, 30),
+      options: list(d.options).map(cleanPerson).filter(Boolean).slice(0, 4), note: text(d.note, 200) };
+    var written = status !== "writing" && status !== "not-found";
+    if (written && (!c.subject || !c.body)) return null;
+    if (status === "pick" ? c.options.length < 2 : written && !c.to) return null;
+    return c;
+  }
+  function cleanWriteReq(r) {
+    if (!r || typeof r !== "object" || !/^w\d{10,14}$/.test(String(r.id)) || typeof r.at !== "number") return null;
+    if (Date.now() - r.at > WRITE_KEEP_DAYS * DAY_MS) return null;
+    return { id: r.id, at: r.at, who: text(r.who, 120), what: text(r.what, 1500) };
+  }
+  function saveWriteReq() {
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(WRITE_KEY, state.write || null).catch(function () {});
+  }
+
+  /** Where the box is: the form, waiting, a question back, or the email. */
+  function writeView() {
+    var req = state.write;
+    if (!req) return { kind: "form" };
+    var c = state.compose && state.compose.id === req.id ? state.compose : null;
+    if (!c || c.status === "writing") return { kind: (Date.now() - req.at) / 60000 < WRITE_WAIT_MIN ? "writing" : "slow", req: req };
+    return { kind: c.status, req: req, c: c };
+  }
+  /** What the owner may have changed in the email, kept while the box is drawn again. */
+  function writeEdit(c) {
+    var e = state.writeEdit;
+    if (!e || e.id !== c.id) {
+      e = state.writeEdit = { id: c.id, to: c.status === "pick" ? null : c.to, subject: c.subject, body: c.body };
+    }
+    return e;
+  }
+  function personWords(p) { return p.name ? p.name + " <" + p.email + ">" : p.email; }
+  function hasChoices(s) { return /\[[^\]\n]{1,120}\]/.test(s); }
+
+  function drawWrite(level) {
+    var v = writeView();
+    var head = boxHead("write", "Write an email", "i-pen", "", null);
+    var inner;
+    if (v.kind === "form") inner = writeFormHtml(level);
+    else if (v.kind === "writing" || v.kind === "slow") {
+      inner = '<div class="write-wait" aria-live="polite"><h4>' + (v.kind === "writing" ? '<i class="pulse-dot" aria-hidden="true"></i>' : "") +
+        "Writing to " + esc(v.req.who) + "</h4>" +
+        (level !== "S" ? '<p class="said" dir="auto">' + esc(v.req.what) + "</p>" : "") +
+        '<p class="fine">' + (v.kind === "writing"
+          ? "Finding the address in your mail, then writing it the way you write. About a minute."
+          : "This is taking long. The chat next to this page says what happened.") + "</p>" +
+        '<div class="acts"><button type="button" class="btn quiet" data-act="write-new">' + (v.kind === "writing" ? "Cancel" : "Start over") + "</button></div></div>";
+    } else if (v.kind === "not-found") {
+      inner = '<form id="write-addr-form" class="write" autocomplete="off">' +
+        '<p class="said" dir="auto">' + esc(v.c.note || "I could not find them in your mail.") + "</p>" +
+        '<label class="wf"><span>Their email address</span><input id="write-addr" type="email" maxlength="200" dir="ltr" placeholder="name@example.com" value="' + esc(state.writeAddr || "") + '" /></label>' +
+        '<div class="acts"><button type="submit" class="btn primary">' + icon("i-pen") + "Write it</button>" +
+        '<button type="button" class="btn quiet" data-act="write-new">Start over</button></div></form>';
+    } else if (v.kind === "drafted" || v.kind === "proposed") {
+      var drafted = v.kind === "drafted";
+      inner = '<div class="write-wait"><p class="done-line">' + icon("i-check") +
+        (drafted ? "In your Gmail drafts, to " : "Waiting for your yes in the chat, then it goes to ") + esc(v.c.to.name || v.c.to.email) + ".</p>" +
+        '<p class="fine">' + (drafted ? "Open it in Gmail, check it, and press Send there." : "Cabinet asks you once more before anything is sent.") + "</p>" +
+        '<div class="acts">' + (drafted ? '<a class="btn" href="' + esc(draftsLink()) + '" target="_blank" rel="noopener">' + icon("i-open") + "Open Gmail drafts</a>" : "") +
+        '<button type="button" class="btn quiet" data-act="write-new">Write another</button></div></div>';
+    } else inner = writeEmailHtml(v.c, level);
+    return head + '<div class="box-pad">' + inner + "</div>";
+  }
+  function writeFormHtml(level) {
+    var f = state.writeForm;
+    var hint = !canAsk() ? "" : askReady() ? "It finds the address in your mail. Nothing is sent without your yes." : "Connect Gmail first. Writing here takes you to connecting.";
+    return '<form id="write-form" class="write" autocomplete="off">' +
+      '<label class="wf"><span>To</span><input id="write-who" maxlength="120" dir="auto" placeholder="Dana, or dana@coleplumbing.com" value="' + esc(f.who) + '" /></label>' +
+      '<label class="wf grow"><span>What to say</span><textarea id="write-what" maxlength="1500" dir="auto" rows="' + (level === "S" ? 2 : 3) + '" ' +
+        'placeholder="The quote is ready. Ask if Tuesday works for the visit.">' + esc(f.what) + "</textarea></label>" +
+      '<div class="acts"><button type="submit" class="btn primary"' + (state.writeBusy ? " disabled" : "") + ">" + icon("i-pen") + (state.writeBusy ? "Asking..." : "Write it") + "</button>" +
+      (level !== "S" && hint ? '<span class="fine">' + esc(hint) + "</span>" : "") + "</div></form>";
+  }
+  function writeEmailHtml(c, level) {
+    var e = writeEdit(c);
+    var pressed = state.writePressed && state.writePressed.id === c.id ? state.writePressed.what : "";
+    var picking = c.status === "pick";
+    var to = picking
+      ? '<div class="write-to"><span class="k">Which one?</span><div class="picks">' + c.options.map(function (p, i) {
+          var on = !!e.to && e.to.email === p.email;
+          return '<button type="button" class="btn small pick" data-act="write-pick" data-i="' + i + '" aria-pressed="' + on + '">' +
+            esc(p.name || p.email) + (p.name ? ' <span class="addr">' + esc(p.email) + "</span>" : "") + "</button>";
+        }).join("") + "</div></div>"
+      : '<div class="write-to"><span class="k">To</span><b dir="auto">' + esc(e.to.name || e.to.email) + "</b>" +
+        (e.to.name ? '<span class="addr">' + esc(e.to.email) + "</span>" : "") +
+        '<span class="src">' + (c.from === "you" ? "the address you gave" : "found in your mail") + "</span></div>";
+    var choices = hasChoices(e.subject + "\n" + e.body);
+    var acts = pressed
+      ? '<p class="done-line">' + icon("i-check") + (pressed === "send" ? "Asked. Say yes in the chat to send it." : "Asked. It is going into your Gmail drafts.") + "</p>" +
+        '<div class="acts"><button type="button" class="btn quiet" data-act="write-new">Write another</button></div>'
+      : '<div class="acts">' +
+          (c.can === "drafts" ? '<button type="button" class="btn primary" data-act="write-drafts">' + icon("i-inbox") + "Put in Gmail drafts</button>" : "") +
+          (c.can === "send" ? '<button type="button" class="btn primary" data-act="write-send">' + icon("i-send") + "Send</button>" : "") +
+          '<button type="button" class="btn" data-act="write-copy">' + icon("i-copy") + "Copy</button>" +
+          '<button type="button" class="btn quiet" data-act="write-new">Start over</button></div>';
+    return '<div class="write">' + to +
+      '<label class="sr" for="write-subject">Subject</label><input id="write-subject" class="wsubj" maxlength="200" dir="auto" value="' + esc(e.subject) + '" />' +
+      '<label class="sr" for="write-body">The email</label><textarea id="write-body" class="wbody" maxlength="3400" dir="auto" rows="' + (level === "L" ? 9 : 6) + '">' + esc(e.body) + "</textarea>" +
+      (choices ? '<p class="hint">Fill in the parts in [brackets] before it goes.</p>' : "") + acts +
+      '<p class="fine">' + (c.can === "send" ? "Change any word first. Cabinet asks you once more before it is sent."
+        : c.can === "drafts" ? "Change any word first. It waits in your drafts, and you send it from Gmail."
+        : "Your Gmail is connected to read only, so copy it and paste it into Gmail.") + "</p></div>";
+  }
+  function draftsLink() {
+    var acct = state.data && typeof state.data.account === "string" && /^[^\s@]+@[^\s@]+$/.test(state.data.account) ? state.data.account : "";
+    return "https://mail.google.com/mail/" + (acct ? "?authuser=" + encodeURIComponent(acct) : "u/0/") + "#drafts";
+  }
+  function paintWrite() {
+    var el = boxEls.write;
+    if (el && el.isConnected) drawBox(el);
+  }
+
+  /** Hands words to the agent from this box; false when they did not go. */
+  function writeAsk(words) {
+    if (!V2) { toast("Open this cabinet in Cabinet to write an email."); return Promise.resolve(false); }
+    if (!askReady()) {
+      if (state.gmail && state.gmail.canConnect) { toast("Connect Gmail first. It takes a minute or two."); connect(); }
+      else toast(gmailState() === "not-available-here" ? "Gmail can’t be connected here yet." : "Ask the person who owns this cabinet to connect Gmail.");
+      return Promise.resolve(false);
+    }
+    if (words.length > ASK_MAX) { toast("That email is too long to hand over. Make it shorter."); return Promise.resolve(false); }
+    state.writeBusy = true;
+    paintWrite();
+    return cab.ask(words, { send: true }).then(function () { return true; }, function (e) {
+      toast(e && e.message ? e.message : "That did not go through. Try again.");
+      return false;
+    }).then(function (ok) { state.writeBusy = false; paintWrite(); return ok; });
+  }
+  function startWrite(who, what) {
+    who = text(who, 120);
+    what = text(what, 1500);
+    if (!who) { toast("Say who the email is for."); return; }
+    if (!what) { toast("Say what to tell them."); return; }
+    var id = "w" + Date.now();
+    writeAsk("[Write an email · " + id + "] Write an email for me.\nTo: " + who + "\nWhat to say: " + what +
+      "\nFind them in my mail, write it the way I write, and put it in the box on my front desk. Don't send anything.").then(function (ok) {
+      if (!ok) return;
+      state.write = { id: id, at: Date.now(), who: who, what: what };
+      state.writeForm = { who: "", what: "" };
+      state.writeAddr = "";
+      saveWriteReq();
+      paintWrite();
+    });
+  }
+  function finishWrite(how) {
+    var v = writeView();
+    if (!v.c) return;
+    var e = writeEdit(v.c);
+    var subject = text(e.subject, 200);
+    var body = String(e.body || "").trim();
+    if (!e.to) { toast("Pick who it goes to first."); return; }
+    if (!subject || !body) { toast("The email needs a subject and some words."); return; }
+    if (how === "send" && hasChoices(subject + "\n" + body)) { toast("Fill in the parts in [brackets] first."); return; }
+    var words = "[Write an email · " + v.c.id + "] " + (how === "send"
+      ? "Send it, exactly as written below. I approve it in Cabinet."
+      : "Put in my Gmail drafts, exactly as written below. Don't send it.") +
+      "\nTo: " + personWords(e.to) + (v.c.threadId ? "\nThread: " + v.c.threadId : "") + "\nSubject: " + subject + "\n\n" + body;
+    writeAsk(words).then(function (ok) {
+      if (!ok) return;
+      state.writePressed = { id: v.c.id, what: how };
+      paintWrite();
+    });
+  }
+  function newWrite() {
+    state.write = null;
+    state.writeEdit = null;
+    state.writePressed = null;
+    saveWriteReq();
+    paintWrite();
   }
 
   // ── Ideas, where and when they help ────────────────────────────────────
@@ -3698,6 +3944,18 @@
       glide(shown);
     }
     else if (act === "ask") ask(el.getAttribute("data-q"));
+    else if (act === "write-new") newWrite();
+    else if (act === "write-drafts") finishWrite("drafts");
+    else if (act === "write-send") finishWrite("send");
+    else if (act === "write-copy") {
+      var wv = writeView();
+      if (wv.c) copyText(writeEdit(wv.c).body, "Email copied. Paste it into a new email in Gmail.");
+    }
+    else if (act === "write-pick") {
+      var pv = writeView();
+      var pick = pv.c && pv.c.options[Number(el.getAttribute("data-i"))];
+      if (pick) { writeEdit(pv.c).to = pick; paintWrite(); }
+    }
     else if (act === "copy" && item) copyText(text(item.reply));
     else if (act === "reply" && item) {
       ask((text(item.reply) ? "Change the reply you drafted to " : "Draft a short reply to ") + about(item) + ". Show it to me before anything is sent.");
@@ -3806,9 +4064,39 @@
     else if (state.editing) doneEdit();
   });
 
+  // What is typed in the Write box lives in state, so drawing the box again never loses it.
+  document.addEventListener("input", function (event) {
+    var t = event.target;
+    if (!t || !t.id) return;
+    if (t.id === "write-who") state.writeForm.who = t.value;
+    else if (t.id === "write-what") state.writeForm.what = t.value;
+    else if (t.id === "write-addr") state.writeAddr = t.value;
+    else if ((t.id === "write-subject" || t.id === "write-body") && state.writeEdit) {
+      state.writeEdit[t.id === "write-subject" ? "subject" : "body"] = t.value;
+      // The bracket hint comes and goes as they fill the brackets in.
+      var hint = t.closest(".write") && t.closest(".write").querySelector(".hint");
+      var choices = hasChoices(state.writeEdit.subject + "\n" + state.writeEdit.body);
+      if (!!hint !== choices) paintWrite();
+    }
+  });
+
   // The Ask box is drawn again as it changes size, so its form is listened to from here.
   document.addEventListener("submit", function (event) {
-    if (!event.target || event.target.id !== "ask-form") return;
+    var formId = event.target ? event.target.id : "";
+    if (formId === "write-form") {
+      event.preventDefault();
+      startWrite($("write-who").value, $("write-what").value);
+      return;
+    }
+    if (formId === "write-addr-form") {
+      event.preventDefault();
+      var addr = text($("write-addr").value, 200);
+      var req = state.write;
+      if (!/^[^\s@<>()",;]+@[^\s@<>()",;]+\.[a-z]{2,}$/i.test(addr)) { toast("That does not look like an email address."); return; }
+      if (req) startWrite(req.who + " <" + addr + ">", req.what);
+      return;
+    }
+    if (formId !== "ask-form") return;
     event.preventDefault();
     if (state.layoutAsk) sendLayoutAsk($("ask-input").value);
     else ask($("ask-input").value);
@@ -3836,6 +4124,16 @@
       var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
       var clean = cleanLayout(mine ? mine.get(LAYOUT_KEY) : null);
       if (clean) state.layout = clean;
+      // A page arranged before the Write box existed gets it once, at the foot; removed, it stays away.
+      if (mine && mine.get(WRITE_BOX_KEY) !== true) {
+        if (clean && !clean.some(function (b) { return b.id === "write"; })) {
+          var spot = freeSpot(BOXES.write.w, BOXES.write.h, clean);
+          state.layout = clean.concat({ id: "write", x: spot.x, y: spot.y, w: BOXES.write.w, h: BOXES.write.h });
+          saveLayout();
+        }
+        mine.set(WRITE_BOX_KEY, true).catch(function () {});
+      }
+      state.write = cleanWriteReq(mine ? mine.get(WRITE_KEY) : null);
       var seenProfile = mine ? mine.get(PROFILE_SEEN_KEY) : null;
       if (typeof seenProfile === "string") state.profileSeen = seenProfile;
       var giftSeen = mine ? mine.get(GIFT_KEY) : null;
