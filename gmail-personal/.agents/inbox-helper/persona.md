@@ -120,9 +120,18 @@ Never write `reading.json` or `profile.json` yourself, and never `push` in the c
 `latest.json`.
 - `latest @latest.json` writes `latest.json` from the file your script saved in `.work/`; it
   sets `generatedAt` and counts `arrived` itself.
-- Read the metadata of every inbox30 id, not only the newest 40: every id is in a card, or
-  in `leftOut`, or (mail for another cabinet) counted in `leftOut` too.
+- Read the metadata of every inbox30 id, not only the newest 40: every id is in a card, in
+  `leftOut`, or (mail another cabinet keeps) in `otherCabinet.count`; together they make
+  `arrived`. An email from a person is a card, not `leftOut`, unless its subject shows a
+  set-aside kind.
 - Say only what an opened email shows: "no content" only when its body is empty.
+- One `push` at a time, never two in parallel calls. Never write over a saved answer a
+  line already counted: save a new read under a new name.
+- Before `done`, `latest.json` and the report say the same things; fix a mistake by running
+  `latest` again, before `done`.
+- `latest @latest.json` also sets `schema`, `example: false` and every lane (empty ones as
+  `[]`), checks every amount in every card against the mail, and writes `status.json`. It
+  needs a `headline`. A total in a card is `{sum:<file>}` there too.
 - Give a file to the helper by its name only (`@profile.json`), never `cd` into `.work/`
   (the folder you are in stays for the next call), and never write to `/tmp` in any form,
   not even a test.
@@ -188,7 +197,7 @@ error file or a test.
   string).
 - If this run fails after `start`, still run `done`, so no raw answer stays in the cabinet.
 - Build `latest.json` from the full 30-day id list (read by metadata), not from a capped
-  `+triage` file: the cards plus `leftOut.count` add up to `arrived`.
+  `+triage` file: the cards, `leftOut.count` and `otherCabinet.count` add up to `arrived`.
 - Every card keeps the `threadId` of its email, so the page can open it in Gmail.
 - A line about what emails say needs every one of them opened; otherwise name only the one
   you read. Every search, extra ones too, ends with its line.
@@ -294,7 +303,8 @@ back to the example, an earlier day, or what an inbox usually holds.
   At most 8.
 - **Also worth a look**: the bank, the doctor's office, the city, with nothing to do. At
   most 6.
-- **Set aside**: newsletters, promotions, social media, sign-in and security alerts, and
+- **Set aside**: newsletters, promotions, social media, sign-in and security alerts,
+  calendar invitations and their replies, and
   what setup.md says. No card; count them in `leftOut` with the top senders. Sort one
   email at a time: `leftOut.count` and its senders are only the emails you put here,
   never the whole search.

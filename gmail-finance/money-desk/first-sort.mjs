@@ -27,7 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CONFIG = /*CONFIG*/ {"schema":"gmail-finance","counts":{"mail30":"inbox30.ndjson","money30":"money30.ndjson"}} /*END*/;
+const CONFIG = /*CONFIG*/ {"schema":"gmail-finance","counts":{"mail30":"inbox30.ndjson","money30":"money30.ndjson"},"latest":{"schema":"gmail-finance/money-desk@1","lanes":["invoices","payments","bills","receipts","fyi"]}} /*END*/;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(here, "data");
@@ -67,9 +67,8 @@ function savedText() {
   return fs.readdirSync(workDir).filter((f) => !/^profile|^latest|\.(m?js|py|sh)$/i.test(f)).map((f) => {
     try {
       const t = fs.readFileSync(path.join(workDir, f), "utf8");
-      let j = null;
-      try { j = JSON.parse(t); } catch { /* --page-all pages, one per line */ }
-      return Array.isArray(j) && j.every((x) => typeof x === "string") ? "" : t;
+      // Only what gws wrote: Gmail and Calendar answers carry these keys.
+      return /"(messages|snippet|payload|items|body)"\s*:/.test(t) ? t : "";
     } catch { return ""; }
   }).join("\n");
 }
@@ -180,6 +179,11 @@ function eveningsCount(name) {
   for (let i = 0; i < 7; i++) { const d = dayStart(i), s = at(d, 18), e = at(d, 22); if (!busy.some(([a, b]) => b > s && a < e)) n++; }
   return n;
 }
+/** Timed events from today to the end of today + 6, the page's "next 7 days". */
+function weekCount(name) {
+  const s = dayStart(0).getTime(), e = dayStart(7).getTime();
+  return eventsOf(name).filter((x) => !allDay(x) && (() => { const t = new Date(x.start.dateTime).getTime(); return t >= s && t < e; })()).length;
+}
 /** Birthdays and anniversaries in the next 30 days. */
 function datesCount(name) {
   const end = dayStart(30).getTime();
@@ -192,19 +196,27 @@ function datesCount(name) {
 /** Fill the placeholders; then every amount left must be in the mail, and no claim word typed. */
 function fill(text, where) {
   const made = [];
-  const out = String(text).replace(/\{(count|sum|free|evenings|dates):([^}]+)\}/g, (_, kind, spec) => {
+  const out = String(text).replace(/\{(count|sum|free|evenings|dates|week):([^}]+)\}/g, (_, kind, spec) => {
     const [file, one, many] = spec.split("|").map((s) => s.trim());
+    // Like {count:}, a word is added only when it is asked for: {evenings:events.json|free evening|free evenings}.
     const v = kind === "count" ? countWords(spec.trim())
       : kind === "sum" ? sumWords(file)
       : kind === "free" ? freeWords(file)
-      : kind === "evenings" ? withWord(eveningsCount(file), false, one || "free evening", many || "free evenings")
-      : withWord(datesCount(file), false, one || "birthday or date", many || "birthdays and dates");
+      : kind === "evenings" ? withWord(eveningsCount(file), false, one, many)
+      : kind === "week" ? withWord(weekCount(file), false, one, many)
+      : withWord(datesCount(file), false, one, many);
     made.push(v);
     return v;
   });
   let rest = out;
   for (const v of made) rest = rest.replace(v, "");
   if (/(^|\D)1\*{0,2} [a-z]+s\b/i.test(out) && !/1\*{0,2} (hours?|days?)\b/.test(out)) fail(`refused, "1 ...s": use {count:<file>|one|many}`);
+  if (/\b(\w+ \w+) \1\b/i.test(out)) fail("refused, words are doubled: the helper adds the word you give after |, don't type it again");
+  // "0 birthdays" is not a finding: a line whose numbers are all 0 says nothing.
+  // The finding is the bold part: "**0 birthdays** in the next 30 days" is a 0.
+  const bold = (out.match(/\*\*[^*]+\*\*/g) || []).join(" ");
+  const nums = ((bold || out).replace(/\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2}/g, "").match(/\d[\d,.]*/g) || []);
+  if (where === "the line" && nums.length && nums.every((x) => Number(x.replace(/,/g, "")) === 0)) fail("refused, a 0 is not a finding: say what is there, or leave the line out");
   // On a calendar, "all", "only", "none" and the like are facts the helper cannot check.
   if (CONFIG.noClaimWords && /\b(all|every|everyone|none|nothing|only|nearly|always|never|nobody)\b/i.test(rest)) fail(`refused, a word like "all" or "only" in ${where} states a fact nobody counted: leave it out`);
   const saved = (rest.match(MONEY) || []).length ? savedText() : "";
@@ -233,7 +245,7 @@ if (cmd === "window") {
   const n = new Date();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   console.log([
-    `NOW='${iso(n)}'`, `TODAY='${ymd(dayStart(0))}'`, `YESTERDAY='${ymd(dayStart(-1))}'`, `WEEK_END='${ymd(dayStart(6))}'`,
+    `NOW='${iso(n)}'`, `FROM0='${iso(dayStart(0))}'`, `TODAY='${ymd(dayStart(0))}'`, `YESTERDAY='${ymd(dayStart(-1))}'`, `WEEK_END='${ymd(dayStart(6))}'`,
     `END7='${iso(dayStart(7))}'`, `FROM90='${iso(dayStart(-90))}'`, `TO30='${iso(dayStart(30))}'`, `OFFSET='${offsetOf(n)}'`, `TZ_NAME='${tz}'`,
   ].join("\n"));
 } else if (cmd === "start") {
@@ -248,6 +260,17 @@ if (cmd === "window") {
 } else if (cmd === "count") {
   for (const spec of args) { const c = countFile(spec); console.log(`${spec}: ${c.n}${c.more ? " (there is more than this)" : ""}`); }
 } else if (cmd === "push") {
+  // One push at a time: two at once would each write their own copy and lose a line.
+  const lock = path.join(dataDir, ".reading.lock");
+  const until = Date.now() + 8000;
+  for (;;) {
+    try { fs.mkdirSync(lock); break; } catch {
+      try { if (Date.now() - fs.statSync(lock).mtimeMs > 15000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+      if (Date.now() > until) fail("another push is still running: push one line at a time");
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+  }
+  process.on("exit", () => { try { fs.rmSync(lock, { recursive: true, force: true }); } catch { /* gone */ } });
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
   if (r.done) fail("the reading is done: no more lines");
   const typed = String(args.join(" ") || "").trim();
@@ -304,14 +327,54 @@ if (cmd === "window") {
     l.checkedAt = iso(n);
     l.today = ymd(dayStart(0));
     l.readThrough = ymd(dayStart(-1));
-    const tz = fs.existsSync(path.join(workDir, "events.json")) ? timeZoneOf("events.json") : "";
+    const hasEvents = fs.existsSync(path.join(workDir, "events.json"));
+    const tz = hasEvents ? timeZoneOf("events.json") : "";
     if (tz) l.timeZone = tz;
-  } else if (CONFIG.counts.mail30 && fs.existsSync(path.join(workDir, CONFIG.counts.mail30))) {
-    const c = countFile(CONFIG.counts.mail30);
-    if (!c.more) l.arrived = c.n;
+    // Each event as the calendar has it: cancelled and declined ones out, the guests counted,
+    // the place filled in, and the names only the ones the calendar gives.
+    if (hasEvents && Array.isArray(l.events)) {
+      const byId = new Map(eventsOf("events.json").map((e) => [e.id, e]));
+      const raw = new Map(pagesOf("events.json").flatMap((p) => p.items || p.events || []).map((e) => [e && e.id, e]));
+      l.events = l.events.filter((ev) => !ev || !ev.id || !raw.has(ev.id) || byId.has(ev.id)).map((ev) => {
+        const e = ev && ev.id ? byId.get(ev.id) : null;
+        if (!e) return ev;
+        const guests = (e.attendees || []).filter((a) => a && !a.self && !a.resource);
+        const names = new Set(guests.map((a) => a.displayName).filter(Boolean));
+        const people = Array.isArray(ev.people) ? ev.people.filter((p) => names.has(p)).slice(0, 3) : [];
+        const out = { ...ev, people, morePeople: Math.max(0, guests.length - people.length) };
+        if (!out.place && e.location) out.place = String(e.location).split(",")[0].trim() || null;
+        return out;
+      });
+    }
+    // The headline and the note say only what was counted.
+    for (const key of ["headline", "note"]) if (typeof l[key] === "string") l[key] = fill(l[key], key);
+    l.status = "ok";
+  } else {
+    // The page shows a file only in its own shape: schema, not an example, every lane a list.
+    if (typeof l.headline !== "string" || !l.headline.trim()) fail("latest.json needs a headline (\"Nobody is waiting on you\" is one)");
+    // Every string, in every card: placeholders filled, and each amount written in the mail.
+    const walk = (o, where) => {
+      for (const [k, v] of Object.entries(o)) {
+        if (typeof v === "string") o[k] = fill(v, where + "." + k);
+        else if (v && typeof v === "object") walk(v, where + "." + k);
+      }
+    };
+    walk(l, "latest");
+    if (CONFIG.latest) {
+      l.schema = CONFIG.latest.schema;
+      for (const lane of CONFIG.latest.lanes) if (!Array.isArray(l[lane])) l[lane] = [];
+    }
+    l.example = false;
+    // What arrived is the helper's count of the 30-day inbox, and the window says so.
+    delete l.arrived;
+    if (CONFIG.counts.mail30 && fs.existsSync(path.join(workDir, CONFIG.counts.mail30))) {
+      const c = countFile(CONFIG.counts.mail30);
+      if (!c.more) { l.arrived = c.n; l.since = ymd(dayStart(-30)); }
+    }
   }
   writeJson(path.join(dataDir, "latest.json"), l);
-  console.log("latest.json written");
+  if (!CONFIG.free) writeJson(path.join(dataDir, "status.json"), { at: iso(n), ok: true });
+  console.log("latest.json written" + (CONFIG.free ? "" : ", and status.json"));
 } else if (cmd === "done") {
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
   r.done = true;

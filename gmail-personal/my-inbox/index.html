@@ -849,6 +849,7 @@
     reading: null,
     sawReading: false,
     readShown: 0,
+    readStartedAt: null,
     mineReady: false,
     profile: null,
     profileSeen: "",
@@ -1282,7 +1283,7 @@
   }, REVEAL_MS);
   /** A new read (another startedAt) starts its lines from the first one. */
   function setReading(r) {
-    if (state.reading && r && r.startedAt !== state.reading.startedAt) state.readShown = 0;
+    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; }
     state.reading = r;
   }
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
@@ -1563,7 +1564,7 @@
       arrived: arrived === null
         ? '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + "Set aside</span>" +
           '<span class="value num">' + left + '</span><span class="sub">Set aside</span></a>'
-        : '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + "Since yesterday</span>" +
+        : '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + esc(sinceWords(state.data, true)) + "</span>" +
           '<span class="value num">' + arrived + '</span><span class="sub">' + (left ? left + " set aside" : "emails in") + "</span></a>"
     };
   }
@@ -2267,12 +2268,19 @@
     return '<span class="calm"><svg class="cheer" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" /><path d="M12.5 20.5l5 5 10-11" /></svg>All caught up</span>';
   }
   /** One quiet line: how much mail came in and how much was set aside. */
+  /** "since yesterday" on a morning sort; the real window on the first one ("in the last 30 days"). */
+  function sinceWords(d, label) {
+    var s = d && writtenAt(d.since), g = (d && writtenAt(d.generatedAt)) || new Date();
+    var days = s ? Math.round((g.getTime() - s.getTime()) / 86400000) : 1;
+    if (days <= 1) return label ? "Since yesterday" : "since yesterday";
+    return (label ? "Last " : "in the last ") + days + " days";
+  }
   function mailMeta() {
     var d = state.data;
     var arrived = typeof d.arrived === "number" ? d.arrived : null;
     var left = d.leftOut && typeof d.leftOut.count === "number" ? d.leftOut.count : 0;
     var parts = [];
-    if (arrived !== null) parts.push(arrived + " " + plural(arrived, "email", "emails") + " since yesterday");
+    if (arrived !== null) parts.push(arrived + " " + plural(arrived, "email", "emails") + " " + sinceWords(d));
     if (left) parts.push(left + " set aside");
     return parts.length ? '<p class="meta">' + icon("i-inbox") + esc(parts.join(" · ")) + "</p>" : "";
   }
