@@ -6,6 +6,13 @@
 //   node <app>/first-sort.mjs start                 new data/reading.json and data/.work/
 //   node <app>/first-sort.mjs count <file>...       the exact count in each saved answer
 //   node <app>/first-sort.mjs push '<line>'         add one line (single quotes: "$" stays "$")
+//   node <app>/first-sort.mjs gift @<file>          the one thing for the owner, shown while you read:
+//                                                   {"kind":<one of CONFIG.gift.kinds>,"who","subject",
+//                                                   "since","when","threadId","amount","was","gist",
+//                                                   "count","unread"}; who, subject, since, when, threadId
+//                                                   and amounts copied from a saved answer; on a calendar
+//                                                   "eventId" (and "eventId2" for a clash): the helper
+//                                                   takes title, time, guests and place from events.json
 //   node <app>/first-sort.mjs profile @<file>       write data/profile.json from the JSON your script
 //                                                   wrote into data/.work/ (counts are added here)
 //   node <app>/first-sort.mjs latest @<file>        write data/latest.json from your script's file (times, today,
@@ -27,7 +34,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CONFIG = /*CONFIG*/ {"schema":"google-calendar-freelance","counts":{"events90":"past.json"},"free":"work","noClaimWords":true} /*END*/;
+const CONFIG = /*CONFIG*/ {"schema":"google-calendar-freelance","counts":{"events90":"past.json"},"free":"work","noClaimWords":true,"gift":{"kinds":{"clash":["eventId","eventId2"],"prep":["eventId"],"free":[],"calm":[]},"needs":{"prep":["people"],"free":["free"]}}} /*END*/;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(here, "data");
@@ -157,6 +164,11 @@ function windowsFor(day) {
 }
 /** The first gap of 3 hours or more from now (rounded up to the quarter hour), in 14 days. */
 function freeWords(name) {
+  const span = freeSpan(name);
+  return span ? WEEKDAYS[new Date(span[0]).getDay()] + " " + hhmm(new Date(span[0])) + " to " + hhmm(new Date(span[1])) : "";
+}
+/** The first free stretch as [start, end] in ms, or null. */
+function freeSpan(name) {
   const busy = busyOf(name);
   const q = 15 * 60000;
   const from = Math.ceil(Date.now() / q) * q;
@@ -168,12 +180,12 @@ function freeWords(name) {
       if (start >= end) continue;
       const inside = busy.filter(([s, e]) => e > start && s < end).sort((x, y) => x[0] - y[0]);
       for (const [s, e] of [...inside, [end, end]]) {
-        if (s - start >= 3 * 3600000) return WEEKDAYS[new Date(start).getDay()] + " " + hhmm(new Date(start)) + " to " + hhmm(new Date(s));
+        if (s - start >= 3 * 3600000) return [start, s];
         start = Math.max(start, e);
       }
     }
   }
-  return "";
+  return null;
 }
 /** Evenings (18:00 to 22:00) with nothing booked, today and the six days after. */
 function eveningsCount(name) {
@@ -245,6 +257,132 @@ function tidy(o, where) {
   }
 }
 
+/** One write to reading.json at a time: two at once would each write their own copy and lose one. */
+function lockReading() {
+  const lock = path.join(dataDir, ".reading.lock");
+  const until = Date.now() + 8000;
+  for (;;) {
+    try { fs.mkdirSync(lock); break; } catch {
+      try { if (Date.now() - fs.statSync(lock).mtimeMs > 15000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+      if (Date.now() > until) fail("another push is still running: push one line at a time");
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+  }
+  process.on("exit", () => { try { fs.rmSync(lock, { recursive: true, force: true }); } catch { /* gone */ } });
+}
+
+// ── The gift: one thing the owner can act on now, shown while the reading goes on ──
+// Each template names its kinds and what each one needs (CONFIG.gift).
+const GIFT_KINDS = (CONFIG.gift && CONFIG.gift.kinds) || {};
+/** A date as Gmail wrote it ("Tue, 23 Sep 2026 16:40:00 -0400", or internalDate in ms). A
+ *  date with no year ("October 15") is the next one from today. */
+function gmailDate(v) {
+  const s = String(v).trim();
+  let d = /^\d{12,14}$/.test(s) ? new Date(Number(s)) : new Date(s);
+  if (isNaN(d.getTime())) return null;
+  if (!/\b\d{4}\b/.test(s) && !/^\d{12,14}$/.test(s)) {
+    d.setFullYear(new Date().getFullYear());
+    if (d.getTime() < dayStart(-1).getTime()) d.setFullYear(d.getFullYear() + 1);
+  }
+  return d;
+}
+function giftOf(g) {
+  if (!g || typeof g !== "object" || Array.isArray(g)) fail("the gift must be an object");
+  const kind = String(g.kind || "");
+  if (!GIFT_KINDS[kind]) fail(`the gift kind is ${Object.keys(GIFT_KINDS).join(", ")}, not "${kind}"`);
+  for (const key of GIFT_KINDS[kind]) if (typeof g[key] !== "string" || !g[key].trim()) fail(`a ${kind} gift needs ${key}`);
+  const out = { kind };
+  const saved = savedText();
+  // Who, what, when and where are copied from a saved answer, never typed.
+  for (const key of ["who", "subject", "since", "when", "threadId"]) {
+    if (g[key] === undefined || g[key] === null || g[key] === "") continue;
+    const v = String(g[key]).trim();
+    if (v.length > 160) fail(`${key} is longer than 160 characters`);
+    if (!saved.includes(v) && !saved.includes(JSON.stringify(v).slice(1, -1))) fail(`refused, the gift's ${key} "${v}" is not written in any saved answer: copy it as Gmail wrote it`);
+    out[key] = v;
+  }
+  if (out.since) {
+    const d = gmailDate(out.since);
+    if (!d) fail(`since "${out.since}" is not a date: copy the Date header or internalDate`);
+    if (d.getTime() > Date.now() + 5 * 60000 || d.getTime() < Date.now() - 60 * DAY) fail("since must be a day in the last 60 days");
+    out.since = iso(d);
+  }
+  // When it is coming: a day from today to 60 days on, copied as the mail writes it.
+  if (out.when) {
+    const d = gmailDate(out.when);
+    if (!d) fail(`when "${out.when}" is not a date: copy the day as the mail writes it, like "October 15, 2026"`);
+    if (d.getTime() < dayStart(0).getTime() || d.getTime() > Date.now() + 60 * DAY) fail("when must be a day from today to 60 days from now");
+    out.when = ymd(d);
+  }
+  // Money as the mail writes it, each amount in a saved answer.
+  for (const key of ["amount", "was"]) {
+    if (g[key] === undefined || g[key] === "") continue;
+    const v = String(g[key]).trim();
+    const m = v.match(MONEY);
+    if (!m || m.length !== 1 || m[0].trim() !== v) fail(`${key} is one amount with its currency, like "₪289.00"`);
+    if (!timesWritten(saved, v)) fail(`refused, ${v} is not written in any saved answer: copy the amount as the mail writes it`);
+    out[key] = v;
+  }
+  if (out.threadId && !/^[0-9a-f]{8,24}$/i.test(out.threadId)) fail("threadId is Gmail's thread id, like 18c2f4a9b0e1d2c3");
+  // The gist is one line in your words: what they want. No numbers: those are the helper's.
+  if (g.gist !== undefined && g.gist !== "") {
+    const gist = fill(String(g.gist).trim(), "the gist");
+    if (gist.length > 140) fail("the gist is longer than 140 characters");
+    if (/\d/.test(gist)) fail("refused, a number in the gist: say what they want, without numbers");
+    out.gist = gist;
+  }
+  // Counts only through {count:<file>}: the helper counts.
+  for (const key of ["count", "unread"]) {
+    if (g[key] === undefined || g[key] === "") continue;
+    const typed = String(g[key]).trim();
+    if (!/^\{count:[^}]+\}$/.test(typed)) fail(`${key} must be {count:<file>|one|many}, so the helper counts it`);
+    out[key] = fill(typed, "the gift's " + key);
+  }
+  // Calendar: name the event by its id; its title, time, place and guests come from the
+  // calendar's own answer, never typed.
+  for (const [key, n] of [["eventId", ""], ["eventId2", "2"]]) {
+    if (g[key] === undefined || g[key] === "") continue;
+    const e = eventsOf("events.json").find((x) => x && x.id === String(g[key]));
+    if (!e) fail(`refused, no event with id ${g[key]} in events.json (cancelled and declined ones do not count)`);
+    const start = new Date((e.start && (e.start.dateTime || e.start.date + "T00:00:00")) || 0);
+    const end = new Date((e.end && (e.end.dateTime || e.end.date + "T00:00:00")) || start);
+    if (end.getTime() <= Date.now() || start.getTime() > Date.now() + 31 * DAY) fail(`refused, ${e.summary || "that event"} is not coming up in the next 30 days`);
+    out["title" + n] = String(e.summary || "Busy").slice(0, 120);
+    out["start" + n] = allDay(e) ? e.start.date : iso(start);
+    if (!allDay(e)) out["end" + n] = iso(end);
+    if (!n) {
+      const guests = (e.attendees || []).filter((a) => a && !a.self && !a.resource);
+      const names = guests.map((a) => a.displayName).filter(Boolean).slice(0, 3);
+      if (names.length) out.people = names;
+      if (guests.length - names.length > 0) out.morePeople = guests.length - names.length;
+      if (e.location) out.place = String(e.location).split(",")[0].trim().slice(0, 80);
+      if (typeof e.htmlLink === "string" && e.htmlLink.startsWith("https://www.google.com/calendar/")) out.link = e.htmlLink;
+    }
+  }
+  if (kindNeeds(kind, "eventId2")) {
+    // A clash: two timed events that really overlap.
+    if (!out.end || !out.end2 || !(new Date(out.start) < new Date(out.end2) && new Date(out.start2) < new Date(out.end))) fail("refused, those two events do not overlap");
+    if (g.eventId === g.eventId2) fail("refused, a clash needs two different events");
+  }
+  if (kindNeeds(kind, "people") && !out.people && !out.morePeople) fail("refused, that event has no other guests");
+  if (kindNeeds(kind, "birthday")) {
+    const e = eventsOf("events.json").find((x) => x && x.id === String(g.eventId));
+    if (!(e.eventType === "birthday" || /birthday|anniversary|יום הולדת/i.test(e.summary || ""))) fail("refused, that event is not a birthday or an anniversary");
+  }
+  // The next free stretch, worked out by the helper from the calendar (3 hours or more).
+  if (kindNeeds(kind, "free")) {
+    const free = freeWords("events.json");
+    if (!free) fail("refused, there is no free stretch of 3 hours in the next 14 days: give calm");
+    out.free = free;
+    const span = freeSpan("events.json");
+    out.freeStart = iso(new Date(span[0]));
+    out.freeEnd = iso(new Date(span[1]));
+  }
+  return out;
+}
+/** What a kind needs beyond its fields: "people" (guests), "birthday", "free", "eventId2". */
+function kindNeeds(kind, what) { return ((CONFIG.gift && CONFIG.gift.needs && CONFIG.gift.needs[kind]) || []).includes(what) || (what === "eventId2" && (GIFT_KINDS[kind] || []).includes("eventId2")); }
+
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "window") {
   const n = new Date();
@@ -265,17 +403,7 @@ if (cmd === "window") {
 } else if (cmd === "count") {
   for (const spec of args) { const c = countFile(spec); console.log(`${spec}: ${c.n}${c.more ? " (there is more than this)" : ""}`); }
 } else if (cmd === "push") {
-  // One push at a time: two at once would each write their own copy and lose a line.
-  const lock = path.join(dataDir, ".reading.lock");
-  const until = Date.now() + 8000;
-  for (;;) {
-    try { fs.mkdirSync(lock); break; } catch {
-      try { if (Date.now() - fs.statSync(lock).mtimeMs > 15000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
-      if (Date.now() > until) fail("another push is still running: push one line at a time");
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
-    }
-  }
-  process.on("exit", () => { try { fs.rmSync(lock, { recursive: true, force: true }); } catch { /* gone */ } });
+  lockReading();
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
   if (r.done) fail("the reading is done: no more lines");
   const typed = String(args.join(" ") || "").trim();
@@ -291,6 +419,19 @@ if (cmd === "window") {
   r.lines.push(line);
   writeJson(readingFile, r);
   console.log(`line ${r.lines.length}: ${line}`);
+} else if (cmd === "gift") {
+  const arg = args.join(" ").trim();
+  if (!arg.startsWith("@")) fail("give the gift as @<file>: the JSON your script wrote into data/.work/");
+  let g;
+  try { g = readJson(workFile(arg.slice(1).replace(/^.*data[\\/]\.work[\\/]/, ""))); } catch { fail(`${arg.slice(1)} is not JSON in data/.work/`); }
+  const gift = giftOf(g);
+  lockReading();
+  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  if (r.done) fail("the reading is done: the gift comes while you read");
+  if (r.gift) fail("there is a gift already: one is enough");
+  r.gift = { ...gift, at: iso(new Date()) };
+  writeJson(readingFile, r);
+  console.log("gift: " + JSON.stringify(r.gift));
 } else if (cmd === "profile") {
   let p;
   const arg = args.join(" ").trim();
@@ -388,5 +529,5 @@ if (cmd === "window") {
   try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("data/.work/ is busy: delete it in your next call"); }
   console.log("reading done");
 } else {
-  fail("use window, start, count, push, profile, latest or done");
+  fail("use window, start, count, push, gift, profile, latest or done");
 }

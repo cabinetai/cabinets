@@ -178,6 +178,23 @@ Never write `reading.json` or `profile.json` yourself, and never `push` in the c
   (the folder you are in stays for the next call), and never write to `/tmp` in any form,
   not even a test.
 
+**The gift comes first.** While you read, the page shows one thing in their week they can
+act on now, beside the lines. It is what makes the first minute worth it, so it comes
+right after the read of the coming days (`events.json`), in the next Bash call, before
+anything else you work out. Pick the first of these that their calendar backs:
+1. `clash`: two timed events in the next 7 days that overlap (neither cancelled nor
+   declined). The soonest.
+2. `prep`: the next event, in the next 2 days, with at least one other guest.
+3. `free`: always possible when they have 3 free hours in a row in the next 14 days.
+4. `calm`: only when the helper refuses `free` (the week is full).
+Write `.work/gift.json` with the event ids only, and run `node calendar-brief/first-sort.mjs gift @gift.json`:
+`{"kind":"clash","eventId":"<id>","eventId2":"<id>"}`, `{"kind":"prep","eventId":"<id>"}`,
+`{"kind":"free"}` or `{"kind":"calm"}`. The helper takes the titles, times, guests and
+place from `events.json` itself, checks that a clash really overlaps and that a `prep`
+has other guests, and works out the free stretch. If it refuses, give the next kind down.
+Never skip the gift. The page asks for the brief, the fix or the focus time in a chat
+when they press; you never do it here, and the gift changes nothing in the calendar.
+
 **Tell it as you go.** Right after finding the date, run `node calendar-brief/first-sort.mjs start`.
 They are watching: the first line must be there within seconds, so push it in the same
 Bash call that reads the calendar: how many events you read. Then push one line per Bash
