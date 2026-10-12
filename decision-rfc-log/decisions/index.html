@@ -9,8 +9,8 @@
 
   Where the rows come from: a routine writes data/latest.json next to this page (the shape
   is data/EXAMPLE-latest.json, described in DATA.md). Until it exists the page shows the
-  example, always labelled as one. This is the design: the routine and its agent come
-  next, so "Check now" and the questions only work once they exist.
+  example, always labelled as one. The routine check-decisions (every 15 minutes, agent
+  decision-keeper) writes it, and data/status.json says what the last check could read.
 
   How it talks to Cabinet: window.cabinet v2 (connection state, ask, run the routine, read
   files). Opened as a plain file it reads the same files over the page's own address.
@@ -114,6 +114,15 @@
   .hero h2 .k { color: var(--ink-3); font-weight: 700; }
   .hero .lead { margin: 10px 0 0; font-size: 18px; color: var(--ink-2); max-width: 75ch; }
   .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
+  .hero .fine { margin: 10px 0 0; font-size: 15px; color: var(--ink-3); }
+  .hero .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  /* The panel before Slack or Discord is connected, or while the first check runs. */
+  .card-hero { padding: 26px 28px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fff, #fbfafc); box-shadow: var(--shadow-2); }
+  .card-hero h2 { font-size: clamp(24px, 2.8vw, 32px); }
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: var(--red-tint); color: var(--ink); border: 1px solid #f6c3d3; }
+  .notice .icon { color: var(--red-ink); margin-top: 2px; }
+  .notice p { margin: 0; }
+  .notice .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
 
   .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border-radius: 12px; background: var(--amber-tint); border: 1px solid #f3e0a8; }
   .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
@@ -277,6 +286,7 @@
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
   <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3 3-3 3" /><path d="M4 11V9.5a4 4 0 0 1 4-4h12" /><path d="M7 21.5l-3-3 3-3" /><path d="M20 13v1.5a4 4 0 0 1-4 4H4" /></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></symbol>
   <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></symbol>
   <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9" /><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" /></symbol>
   <symbol id="l-slack" viewBox="0 0 24 24">
@@ -364,8 +374,13 @@
 
   var cab = window.cabinet;
   var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
-  /** The routine that looks for newly marked threads. It comes with the wiring. */
+  /** The routine that looks for newly marked threads, every 15 minutes. */
   var CHECK = "check-decisions";
+  /** Questions go to the agent who keeps the log, not the cabinet's general assistant. */
+  var AGENT = "decision-keeper";
+  var SOURCES = [{ id: "slack", name: "Slack" }, { id: "discord", name: "Discord" }];
+  var POLL_MS = 60000;
+  var GRACE_MS = 5 * 60000;
 
   var QUESTIONS = [
     "What did we decide this week?",
@@ -405,12 +420,21 @@
   var state = {
     appPath: appPathFromUrl(),
     here: null,
+    /** What Cabinet says about each connection; null until it answers (or outside Cabinet). */
     links: null,
     jobs: [],
+    jobsKnown: false,
+    /** The routine's cron and switch, read from its job file; null until read. */
+    schedule: null,
+    catchingUp: false,
     loaded: false,
     data: null,
     example: true,
+    lastTry: null,
+    connecting: "",
+    connectNote: "",
     running: false,
+    runNote: "",
     open: {},
     query: "",
     source: "all"
@@ -439,6 +463,7 @@
   function names(value) { return Array.isArray(value) ? value.map(function (n) { return text(n, 40); }).filter(Boolean).slice(0, 8) : []; }
 
   function appPathFromUrl() {
+    // /api/assets/<cabinet path>/<app folder>/index.html: the folder before the file.
     var parts = location.pathname.split("/").filter(Boolean);
     var at = parts.length - 2;
     return at >= 0 ? decodeURIComponent(parts[at]) : "decisions";
@@ -463,6 +488,12 @@
     var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value);
     return isNaN(d.getTime()) ? null : d;
   }
+  /** When a file was written, never later than now: a routine's own clock can be wrong. */
+  function writtenAt(value) {
+    var d = parseTime(value);
+    var now = new Date();
+    return d && d > now ? now : d;
+  }
   function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
   function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / DAY_MS); }
   function clock(d) { return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
@@ -473,6 +504,56 @@
     if (gap === 0) return "today at " + clock(d);
     if (gap === 1) return "yesterday at " + clock(d);
     return shortDate(d);
+  }
+
+  // ── The schedule ───────────────────────────────────────────────────────
+
+  /** One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function cronField(spec, min, max) {
+    var set = {};
+    spec.split(",").forEach(function (part) {
+      var bits = part.split("/"), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== "*") {
+        var r = bits[0].split("-");
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+  /** The nearest minute the schedule matches, walking back (dir -1) or forward (dir 1), up to eight days. */
+  function cronMatch(cron, from, dir) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = cronField(f[0], 0, 59), hrs = cronField(f[1], 0, 23), doms = cronField(f[2], 1, 31),
+        mons = cronField(f[3], 1, 12), dows = cronField(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;
+    var d = new Date(from.getTime());
+    d.setSeconds(0, 0);
+    if (dir > 0) d = new Date(d.getTime() + 60000);
+    for (var i = 0; i < 8 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] && hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + dir * 60000);
+    }
+    return null;
+  }
+  function scheduleOn() { return !!(state.schedule && state.schedule.schedule && state.schedule.enabled !== "false"); }
+  /** The schedule is a nicety: a missing or renamed job file only means no catching up. */
+  function readSchedule() {
+    return fetch("../.jobs/" + CHECK + ".yaml", { cache: "no-store", credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : ""; })
+      .catch(function () { return ""; })
+      .then(function (t) {
+        var job = {};
+        t.split("\n").forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, "").trim();
+        });
+        state.schedule = job;
+        paintStatus();
+        catchUp();
+      });
   }
 
   // ── Reading the files the routine writes ───────────────────────────────
@@ -488,66 +569,162 @@
     return got.then(function (t) { return JSON.parse(t); });
   }
   function maybe(promise) { return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; }); }
+  function quiet(promise) { return promise.catch(function () { return null; }); }
   function usable(d) { return d && typeof d === "object" && Array.isArray(d.rows); }
 
+  var loading = null;
   function load() {
-    return maybe(readJson("data/latest.json")).catch(function () { return null; }).then(function (latest) {
+    if (loading) return loading;
+    loading = Promise.all([
+      maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
+      quiet(maybe(readJson("data/status.json")))
+    ]).then(function (got) {
+      var latest = got[0];
+      state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
       if (usable(latest) && latest.example !== true) {
         state.data = latest;
         state.example = false;
         return null;
       }
+      // A file half written a moment ago keeps what is on screen; the next change reloads it.
+      if (latest === "broken" && state.data && !state.example) return null;
       return maybe(readJson("data/EXAMPLE-latest.json")).then(function (ex) {
         state.data = usable(ex) ? ex : null;
         state.example = true;
       });
-    }).catch(function () { state.data = null; }).then(function () {
+    }).catch(function () {
+      if (!state.data) state.data = null;
+    }).then(function () {
       state.loaded = true;
+      loading = null;
       paint();
+      catchUp();
     });
+    return loading;
   }
 
   // ── Talking to Cabinet ─────────────────────────────────────────────────
 
-  function canAsk() { return !V2 || !state.here || state.here.role !== "viewer"; }
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAsk() { return V2 && role() !== "viewer"; }
+  function canRun() { return V2 && role() !== "viewer"; }
   function checkJob() {
     for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === CHECK) return state.jobs[i];
     return null;
   }
-  /** Slack and Discord as Cabinet sees them; the example names its own when there is no Cabinet. */
+  function link(id) {
+    if (!state.links) return null;
+    for (var i = 0; i < state.links.length; i++) if (state.links[i] && state.links[i].id === id) return state.links[i];
+    return null;
+  }
+  /** A connection's state; outside Cabinet the example names its own, so the design reads right. */
   function linkState(id) {
-    if (state.links) {
-      for (var i = 0; i < state.links.length; i++) if (state.links[i] && state.links[i].id === id) return state.links[i].state;
-      return "not-added";
-    }
+    if (state.links) { var g = link(id); return g ? g.state : "not-added"; }
+    if (V2) return null;
     var ex = state.example && state.data && state.data.connections;
     return ex && typeof ex[id] === "string" ? ex[id] : null;
+  }
+  function anyConnected() { return SOURCES.some(function (s) { return linkState(s.id) === "connected"; }); }
+  /** Asking reads Slack or Discord, so it waits until one is connected. */
+  function askReady() { return !state.links || anyConnected(); }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var wasRunning = state.running;
+    state.jobs = items;
+    var job = checkJob();
+    state.running = !!(job && job.running);
+    state.jobsKnown = true;
+    if (wasRunning && !state.running) { state.catchingUp = false; load(); }
+    paint();
+    catchUp();
+  }
+
+  // ── Catching up on open ────────────────────────────────────────────────
+  // A laptop asleep at check time misses the run, or starts it with no network. When the
+  // page opens and the log on screen is older than the last time the schedule says it
+  // should have run, it runs once for that time. The time is remembered in this browser,
+  // so a run that fails again is not retried in a loop.
+
+  function catchUp() {
+    if (!canRun() || !state.loaded || !state.jobsKnown || state.running || state.catchingUp) return;
+    if (!anyConnected() || !checkJob() || !scheduleOn()) return;
+    // A few minutes' grace: the scheduled run itself may still be starting or writing.
+    var due = cronMatch(state.schedule.schedule, new Date(Date.now() - GRACE_MS), -1);
+    var shown = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
+    var tried = state.lastTry ? writtenAt(state.lastTry.at) : null;
+    if (tried && (!shown || tried > shown)) shown = tried;
+    if (!due || (shown && shown >= due)) return;
+    var key = "catch-up:" + CHECK + ":" + due.getTime();
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch (e) { return; }
+    state.catchingUp = true;
+    runNow();
+  }
+
+  function connect(id) {
+    if (!V2 || state.connecting) return;
+    state.connecting = id;
+    state.connectNote = "";
+    paint();
+    cab.connectors.connect(id).then(function (result) {
+      state.connecting = "";
+      return cab.connectors.list().then(function (items) {
+        if (Array.isArray(items)) state.links = items;
+        paint();
+        // The first check starts straight away, so the next thing they see is their own log.
+        if (result === "connected" && state.example && canRun() && checkJob()) runNow();
+      });
+    }).catch(function (e) {
+      state.connecting = "";
+      state.connectNote = e && e.message ? e.message : "That did not work. Try again.";
+      paint();
+    });
+  }
+
+  function runNow() {
+    if (!V2) { toast("Open this cabinet in Cabinet to check for new decisions."); return; }
+    if (state.running) return;
+    state.running = true;
+    state.runNote = "";
+    paint();
+    cab.jobs.run(CHECK).then(function () {
+      watchRun();
+    }).catch(function (e) {
+      if (e && e.code === "busy") { watchRun(); return; }
+      state.running = false;
+      state.catchingUp = false;
+      state.runNote = e && e.message ? e.message : "The check did not start. Try again.";
+      paint();
+    });
+  }
+
+  // jobs.onChange says when the run ends; this is the fallback if a change is ever missed.
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!state.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
   }
 
   function ask(question) {
     var q = text(question, 3900);
     if (!q) return;
     if (!V2) { toast("Open this cabinet in Cabinet to ask about your decisions."); return; }
+    if (!askReady()) { toast("Connect Slack or Discord first."); return; }
     var note = $("ask-note");
     note.textContent = "Asking...";
-    cab.ask(q, { send: true }).then(function () {
+    cab.ask(q, { agent: AGENT, send: true }).then(function () {
       note.textContent = "Asked. The answer is coming in the chat next to this page.";
+      toast("Asked. The answer is coming in the chat.");
       $("ask-input").value = "";
     }).catch(function (e) {
       note.textContent = e && e.message ? e.message : "That did not go through. Try again.";
       toast(note.textContent);
-    });
-  }
-
-  function checkNow() {
-    if (!V2 || !checkJob()) { toast("Open this cabinet in Cabinet to check for new decisions."); return; }
-    if (state.running) return;
-    state.running = true;
-    paintStatus();
-    cab.jobs.run(CHECK).catch(function (e) {
-      state.running = false;
-      toast(e && e.message ? e.message : "The check did not start. Try again.");
-      paintStatus();
     });
   }
 
@@ -580,50 +757,108 @@
     paintRibbon();
     paintMatrix();
     paintIdeas();
-    $("ask").hidden = !canAsk();
+    paintAsk();
   }
 
   function pill(id, label) {
     var s = linkState(id);
     if (s === "connected") return '<span class="pill ok"><span class="dot"></span>' + label + " connected</span>";
     if (s === "needs-sign-in" || s === "needs-you") return '<span class="pill warn"><span class="dot"></span>' + label + " needs you</span>";
-    if (s) return '<span class="pill"><span class="dot"></span>' + label + " not connected</span>";
     return "";
   }
 
   function paintStatus() {
-    var pills = pill("slack", "Slack") + pill("discord", "Discord");
+    var pills = SOURCES.map(function (s) { return pill(s.id, s.name); }).join("");
+    if (V2 && state.links && !pills) pills = '<span class="pill"><span class="dot"></span>Not connected</span>';
+    if (V2 && !state.links) pills = '<span class="pill"><span class="dot"></span>Checking connections</span>';
     var when = "";
-    var g = state.data ? parseTime(state.data.generatedAt) : null;
-    var next = state.data ? parseTime(state.data.nextCheck) : null;
-    if (g) when = "Updated " + whenWords(g, new Date()) + "." + (next ? " Next check at " + clock(next) + "." : "");
-    var button = !canAsk() ? ""
-      : state.running ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Checking...</button>"
-      : '<button class="btn" data-act="check">' + icon("i-refresh") + "Check now</button>";
+    var g = state.data ? writtenAt(state.data.generatedAt) : null;
+    var next = null;
+    if (!state.example && scheduleOn() && anyConnected()) next = cronMatch(state.schedule.schedule, new Date(), 1);
+    else if (state.example && !V2 && state.data) next = parseTime(state.data.nextCheck);
+    if (g) when = "Updated " + whenWords(g, new Date()) + ".";
+    if (next) when += (when ? " " : "") + "Next check at " + clock(next) + ".";
+    var button = "";
+    if (!V2) button = '<button class="btn" data-act="run">' + icon("i-refresh") + "Check now</button>";
+    else if (canRun() && anyConnected() && checkJob()) {
+      button = state.running
+        ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Checking...</button>"
+        : '<button class="btn" data-act="run">' + icon("i-refresh") + "Check now</button>";
+    }
     $("status").innerHTML = (pills ? '<span class="pills">' + pills + "</span>" : "") +
       (when ? '<span class="updated">' + esc(when) + "</span>" : "") + button;
   }
 
+  function cardHero(title, body) {
+    return '<div class="card-hero"><h2>' + esc(title) + "</h2>" + body + "</div>";
+  }
+  function runNoteHtml() { return state.runNote ? '<div class="notice" style="margin-top:14px">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
+
   function paintHero() {
     var hero = $("hero");
     if (!state.loaded) return;
+    var html;
+    if (V2 && state.links && !anyConnected()) {
+      var buttons = SOURCES.filter(function (s) { var g = link(s.id); return g && g.canConnect; }).map(function (s) {
+        var busy = state.connecting === s.id;
+        return '<button class="btn dark" data-act="connect" data-id="' + s.id + '"' + (state.connecting ? " disabled" : "") + ">" +
+          (busy ? icon("i-refresh", "spin") : logo(s.id)) + (busy ? "Connecting..." : "Connect " + s.name) + "</button>";
+      }).join("");
+      html = cardHero("Connect Slack or Discord",
+        '<p class="lead">Then react 🧠 on a decision or 📝 on a proposal, and it lands in the Decision Matrix. Either one is enough.</p>' +
+        (buttons ? '<div class="actions">' + buttons + "</div>" : '<p class="fine">Ask the person who owns this cabinet to connect Slack or Discord.</p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
+        '<p class="fine">Below is an example from a made-up team.</p>');
+    } else if (state.running && state.example) {
+      html = cardHero("Looking for marked threads...", '<p class="lead">This takes a minute or two. The page fills in by itself.</p>');
+    } else {
+      html = dataHero();
+    }
+    hero.innerHTML = html + failureHtml() + partialHtml();
+  }
+
+  function dataHero() {
     var all = rows();
     var latest = null;
     for (var i = 0; i < all.length; i++) if (all[i].kind !== "rfc" && all[i].status !== "superseded") { latest = all[i]; break; }
     if (!latest) {
-      hero.innerHTML = "<h2>No decisions yet</h2>" +
-        '<p class="lead">Mark a thread in Slack or Discord and it shows up here a few minutes later.</p>';
-      return;
+      var rfcs = all.filter(function (r) { return r.kind === "rfc" && r.status === "open"; });
+      if (rfcs.length) {
+        return '<h2><span class="k">Latest RFC:</span> <span dir="auto">' + esc(text(rfcs[0].topic, 100)) + "</span></h2>" +
+          '<p class="lead">No decision logged yet. When someone reacts 🧠 on a decision, it shows up here.</p>' + runNoteHtml();
+      }
+      return "<h2>No decisions yet</h2>" +
+        '<p class="lead">React 🧠 on a decision or 📝 on a proposal in Slack or Discord. It shows up here within 15 minutes, or press Check now.</p>' + runNoteHtml();
     }
     var where = text(latest.channel, 60);
     var src = latest.source === "discord" ? "Discord" : "Slack";
     var d = parseTime(latest.date);
     var who = names(latest.stakeholders);
     var whoWords = who.length > 1 ? who.slice(0, -1).join(", ") + " and " + who[who.length - 1] : who[0] || "";
-    hero.innerHTML = '<h2><span class="k">' + (state.example ? "Example: " : "") + "Latest decision:</span> " +
+    return '<h2><span class="k">' + (state.example ? "Example: " : "") + "Latest decision:</span> " +
       '<span dir="auto">' + esc(text(latest.decision, 140).replace(/\.$/, "")) + "</span></h2>" +
       '<p class="lead">Decided ' + (where ? "in " + esc(where) + " on " : "on ") + src +
-      (d ? ", " + esc(shortDate(d)) : "") + (whoWords ? ", by " + esc(whoWords) : "") + ".</p>";
+      (d ? ", " + esc(shortDate(d)) : "") + (whoWords ? ", by " + esc(whoWords) : "") + ".</p>" + runNoteHtml();
+  }
+
+  /** The last check that could not read anything says so, with Try again. */
+  function failureHtml() {
+    if (state.running || !state.lastTry || state.lastTry.ok !== false) return "";
+    var tryAt = writtenAt(state.lastTry.at);
+    var shownAt = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
+    if (!tryAt || (shownAt && shownAt >= tryAt)) return "";
+    if (V2 && state.links && !anyConnected()) return "";
+    var why = text(state.lastTry.why, 240) || "The last check could not read Slack or Discord.";
+    return '<div class="notice" style="margin-top:16px">' + icon("i-alert") + "<div><p><b>The check " + esc(whenWords(tryAt, new Date())) + " didn’t work.</b> " + esc(why) + "</p>" +
+      (canRun() && checkJob() ? '<div class="actions"><button class="btn small" data-act="run">' + icon("i-refresh") + "Try again</button></div>" : "") + "</div></div>";
+  }
+  /** A check that read one source but not the other says which, quietly. */
+  function partialHtml() {
+    if (state.example || state.running || !state.lastTry || state.lastTry.ok !== true) return "";
+    var s = state.lastTry.sources && typeof state.lastTry.sources === "object" ? state.lastTry.sources : {};
+    var failed = SOURCES.filter(function (x) { return s[x.id] === "failed"; }).map(function (x) { return x.name; });
+    var why = text(state.lastTry.why, 200) || (failed.length ? failed.join(" and ") + " could not be read on the last check." : "");
+    return why ? '<div class="ribbon" style="margin-top:16px">' + icon("i-alert") + '<p dir="auto">' + esc(why) + "</p></div>" : "";
   }
 
   function paintRibbon() {
@@ -642,13 +877,12 @@
     var open = !!state.open[id];
     var src = row.source === "discord" ? "discord" : "slack";
     var kind = row.status === "superseded" ? "superseded" : row.kind === "rfc" ? "rfc" : "decision";
-    var kindWords = kind === "superseded" ? "Replaced" : kind === "rfc" ? "RFC, open" : "Decision";
-    if (kind === "rfc" && row.status !== "open") kindWords = "RFC";
+    var kindWords = kind === "superseded" ? "Replaced" : kind === "rfc" ? (row.status === "open" ? "RFC, open" : "RFC") : "Decision";
     var d = parseTime(row.date);
     var who = names(row.stakeholders);
-    var link = threadLink(row);
-    var linkHtml = '<a class="thread" href="' + esc(link || "#") + '"' +
-      (state.example || !link ? ' data-act="example-link"' : ' target="_blank" rel="noopener noreferrer"') + ">" +
+    var url = threadLink(row);
+    var linkHtml = '<a class="thread" href="' + esc(url || "#") + '"' +
+      (state.example || !url ? ' data-act="example-link"' : ' target="_blank" rel="noopener noreferrer"') + ">" +
       logo(src) + "Open thread <span class=\"src\">" + (src === "discord" ? "Discord" : "Slack") + "</span></a>" +
       (text(row.channel) ? '<span class="chan" dir="auto">' + esc(text(row.channel, 40)) + "</span>" : "");
     var html = '<tr class="row' + (open ? " open" : "") + (kind === "superseded" ? " superseded" : "") + '" data-act="toggle" data-id="' + esc(id) + '">' +
@@ -680,22 +914,31 @@
     var all = rows();
     var shown = all.filter(matches);
     var open = all.filter(function (r) { return r.kind === "rfc" && r.status === "open"; }).length;
-    $("matrix-note").textContent = open ? open + (open === 1 ? " RFC is" : " RFCs are") + " still open." : "Newest first.";
+    $("matrix-note").textContent = open ? open + (open === 1 ? " RFC is" : " RFCs are") + " still open." : all.length ? "Newest first." : "";
     $("rows").innerHTML = shown.length ? shown.map(function (r) { return rowHtml(r, all.indexOf(r)); }).join("")
-      : '<tr><td colspan="5" class="empty"><p>' + (all.length ? "No decision matches that." : "No decisions yet.") + "</p>" +
+      : '<tr><td colspan="5" class="empty"><p>' + (all.length ? "No decision matches that." : "No decisions yet. Each thread you mark with 🧠 or 📝 becomes a row here.") + "</p>" +
         (all.length && state.query && canAsk() ? '<button type="button" class="btn small" data-act="ask-find">' + icon("i-chat") + "Ask in chat</button>" : "") + "</td></tr>";
   }
 
   function paintIdeas() {
+    var can = canAsk() && askReady();
     $("ideas").innerHTML = '<div class="section-head"><h2 id="ideas-title">Ideas for your decisions</h2>' +
-      "<p>One tap to ask now, or to have it done for you on a schedule.</p></div>" +
+      "<p>" + (!V2 ? "Ask for any of these in the cabinet’s chat." : !askReady() ? "Connect Slack or Discord and each of these is one tap away." : "One tap to ask now, or to have it done for you on a schedule.") + "</p></div>" +
       '<div class="idea-grid">' + IDEAS.map(function (idea, i) {
         return '<article class="idea"><div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>' +
           "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
-          '<div class="go"><button class="btn dark" data-act="idea-now" data-i="' + i + '">' + icon("i-send") + "Ask now</button>" +
-          '<button class="btn" data-act="idea-routine" data-i="' + i + '" aria-label="' + esc(idea.when + ": " + idea.title) + '">' + icon("i-repeat") + esc(idea.when) + "</button></div>" +
+          '<div class="go"><button class="btn dark" data-act="idea-now" data-i="' + i + '"' + (can || !V2 ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
+          '<button class="btn" data-act="idea-routine" data-i="' + i + '"' + (can || !V2 ? "" : " disabled") + ' aria-label="' + esc(idea.when + ": " + idea.title) + '">' + icon("i-repeat") + esc(idea.when) + "</button></div>" +
           "</article>";
       }).join("") + "</div>";
+  }
+
+  /** A viewer cannot ask; outside Cabinet the box shows what it does. */
+  function paintAsk() {
+    $("ask").hidden = V2 && !canAsk();
+    $("ask-note").textContent = askReady()
+      ? "The answer comes up in the chat next to this page."
+      : "Connect Slack or Discord first, then ask anything.";
   }
 
   function paintQuestions() {
@@ -719,7 +962,7 @@
     if (act === "example-link") {
       event.preventDefault();
       event.stopPropagation();
-      toast("This is an example thread. Your own rows link to the real one.");
+      toast(state.example ? "This is an example thread. Your own rows link to the real one." : "This thread has no link.");
     } else if (act === "toggle") {
       if (event.target.closest("a")) return;
       var id = el.getAttribute("data-id");
@@ -727,7 +970,8 @@
       paintMatrix();
       var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"] .topic');
       if (again) again.focus();
-    } else if (act === "check") checkNow();
+    } else if (act === "run") runNow();
+    else if (act === "connect") connect(el.getAttribute("data-id"));
     else if (act === "ask") ask(el.getAttribute("data-q"));
     else if (act === "ask-find") ask("Find what we decided about " + state.query + " in Slack or Discord.");
     else if (act === "ask-row") {
@@ -767,21 +1011,22 @@
       if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
     }).catch(function () {}).then(function () {
       load();
+      // The routine's data lives in this app's folder.
       try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
     });
-    cab.connectors.list().then(function (items) { state.links = Array.isArray(items) ? items : []; paint(); }).catch(function () {});
+    cab.connectors.list().then(function (items) {
+      state.links = Array.isArray(items) ? items : [];
+      paint();
+      catchUp();
+    }).catch(function () { state.links = []; paint(); });
     cab.connectors.onChange(function (items) { if (Array.isArray(items)) { state.links = items; paint(); } });
-    cab.jobs.list().then(function (items) { state.jobs = Array.isArray(items) ? items : []; }).catch(function () {});
-    cab.jobs.onChange(function (items) {
-      if (!Array.isArray(items)) return;
-      state.jobs = items;
-      var job = checkJob();
-      var was = state.running;
-      state.running = !!(job && job.running);
-      if (was && !state.running) load(); else paintStatus();
-    });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+    readSchedule();
   } else {
     load();
+    // No live changes in an older Cabinet: look again now and then while the page is in view.
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
   }
 })();
 </script>

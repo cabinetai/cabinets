@@ -1,0 +1,78 @@
+id: check-decisions
+name: Check for Decisions
+enabled: true
+schedule: "*/15 * * * *"
+provider: claude-code
+adapterType: claude_local
+ownerAgent: decision-keeper
+agentSlug: decision-keeper
+timeout: 600
+prompt: |-
+  Look for Slack and Discord messages newly marked with 🧠 or 📝 and add them to the
+  Decision Matrix.
+
+  Your working directory is the cabinet root. You write only `decisions/data/latest.json`
+  and `decisions/data/status.json`. Never touch any other file, and never
+  `EXAMPLE-latest.json`.
+
+  1. Read your persona before anything else. It holds the shape of every field and the
+     rules for keeping the log true. This prompt does not repeat them. In one Bash call,
+     print the time with `date '+%Y-%m-%dT%H:%M:%S%z'` and read
+     `decisions/data/latest.json` if it is there. If it is not, this is the first run: start
+     from an empty `rows` list.
+  2. Look at which tools you have. Slack is connected when you have `slack_search_messages`
+     (or Slack's own `slack_search_public_and_private`). Discord is connected when you have
+     `discord_list_channels`. If neither is connected, write `status.json` with `ok: false`,
+     `why` "Slack and Discord aren't connected yet.", both sources `not connected`, and
+     stop. A source that is not connected is skipped without a word in `why`.
+  3. Slack, when connected:
+     a. Call `slack_get_team` once for the workspace's name. Then read first any `pending`
+        Slack entries from the last run.
+     b. Search with `slack_search_messages`, sort `timestamp`, 100 a page, up to 5 pages
+        each: `has::brain: after:<date>` and `has::memo: after:<date>`. The date is the day
+        before `cursors.slack.checkedAt` (Slack's `after:` leaves out the day it names).
+        On the first run, it is 31 days ago.
+     c. Skip results already in the log as a row with the same `id`, unless a 📝 row's
+        message now shows up under 🧠 (then it becomes a decision). Skip direct and group
+        messages.
+     d. For each new marked message: if it has `thread_ts` (it is in a thread or starts
+        one), read that thread with `slack_read_thread` (`thread_ts` is the thread's first
+        message). Otherwise the message is the whole conversation. At most 5 thread reads a
+        run; put the rest in `pending` for next time. Use `slack_get_reactions` to learn who
+        marked it, and `slack_get_user` for any name not already in `people`.
+     e. For each open 📝 row from Slack, search `has::brain: in:<#channel id> after:<date>`
+        once per channel to see whether its thread got a 🧠.
+     f. Set `cursors.slack.checkedAt` to now.
+  4. Discord, when connected:
+     a. Call `discord_list_channels` once. For every allowed text and announcement channel,
+        read the newest 100 messages with `discord_read_channel`. If the channel's cursor
+        is older than the oldest of those 100, also read with `after` the cursor until you
+        reach it, at most 3 more pages. On the first run, the newest 100 is enough.
+     b. Also read the newest 100 messages of each thread or forum post that
+        `discord_list_threads` lists there and that is not archived.
+     c. Keep each message whose `reactions` include 🧠 or 📝 and that is not already in the
+        log with the same `id` (unless a 📝 row now carries a 🧠).
+     d. For each new marked message, read its conversation: if it has a `thread`, read that
+        thread; if it is itself in a thread, you already have it; otherwise use the
+        messages around it in the channel and the replies to it (`replyTo`). Call
+        `discord_who_reacted` with the emoji to learn who marked it.
+     e. For each open 📝 row from Discord, look at its thread or channel again for a 🧠 or
+        a reply that settles it.
+     f. Set `cursors.discord.<channel id>` to the newest message id you read there.
+  5. Set `workspace` to the Slack workspace's name, the Discord server's name, or both
+     joined by " and ". Write a row for each new marked message, update rows as your persona says (an RFC
+     that was decided, a decision that was replaced), and keep rows newest first. Write
+     `generatedAt` even when nothing changed.
+  6. This run is read only. Do not post, reply, react, pin or start a thread, in Slack or
+     in Discord.
+  7. If a call is rate-limited, wait about a minute and try again, at most three times and
+     five minutes of waiting in the whole run. If one source can't be reached at all, set
+     it to `failed` in `sources`, keep its rows as they were, and finish with the other.
+     `ok` is false only when nothing connected could be read.
+  8. In one Bash call, write `decisions/data/latest.json` (and check it parses) and
+     `decisions/data/status.json`.
+
+  Finish in one plain sentence about the team's decisions and nothing else: how many new
+  decisions and RFCs were added, or that there was nothing new.
+createdAt: '2026-10-12T00:00:00.000Z'
+updatedAt: '2026-10-12T00:00:00.000Z'
