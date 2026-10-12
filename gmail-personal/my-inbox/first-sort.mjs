@@ -299,7 +299,8 @@ if (cmd === "window") {
   try { p = readJson(workFile(arg.slice(1).replace(/^.*data[\\/]\.work[\\/]/, ""))); } catch { fail(`${arg.slice(1)} is not JSON in data/.work/`); }
   if (!p || typeof p !== "object" || Array.isArray(p)) fail("the profile must be an object");
   // What the helper works out itself is never taken from the file.
-  const own = ["schema", "at", ...Object.keys(CONFIG.counts), ...(CONFIG.free ? ["timeZone", "nextFree", "freeEvenings", "dates30"] : [])];
+  // mattered30 needs every email of the 30 days sorted by the helper, which it cannot do: left out.
+  const own = ["schema", "at", "mattered30", ...Object.keys(CONFIG.counts), ...(CONFIG.free ? ["timeZone", "nextFree", "freeEvenings", "dates30"] : [])];
   for (const key of own) delete p[key];
   tidy(p, "profile");
   for (const [key, name] of Object.entries(CONFIG.counts)) {
