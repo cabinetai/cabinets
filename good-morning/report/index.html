@@ -229,7 +229,7 @@
   var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-  var state = { files: [], at: 0, data: null, name: "", connectors: [], jobs: [], role: "owner", running: false, jobFile: null };
+  var state = { pinned: false, morning: 0, files: [], at: 0, data: null, name: "", connectors: [], jobs: [], role: "owner", running: false, jobFile: null };
   var $ = function (id) { return document.getElementById(id); };
   var root = $("root");
 
@@ -241,7 +241,6 @@
     });
   }
   function two(n) { return ("0" + n).slice(-2); }
-  function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
   function dayWords(d) { return DAYS[d.getDay()] + ", " + d.getDate() + " " + MONTHS[d.getMonth()]; }
   function toast(msg) {
     var t = $("toast"); t.textContent = msg; t.classList.add("show");
@@ -306,6 +305,28 @@
   }
   function isExample(name) { return /^EXAMPLE/i.test(name); }
 
+  /* A morning lasts from the routine's hour (07:00 unless the job says otherwise) to the
+     same hour the next day. Its page stays up all that time, through midnight, until the
+     next morning is written. */
+  function morningAt() {
+    var f = state.jobFile && state.jobFile.schedule ? state.jobFile.schedule.split(/s+/) : [];
+    return f.length === 5 && /^d+$/.test(f[0]) && /^d+$/.test(f[1]) ? { h: +f[1], m: +f[0] } : { h: 7, m: 0 };
+  }
+  function morningStart(at) {
+    var t = morningAt(), d = new Date(at.getTime());
+    d.setHours(t.h, t.m, 0, 0);
+    if (at < d) d.setDate(d.getDate() - 1);
+    return d;
+  }
+  /* 0: this morning's, 1: the one before, and so on. Null for the example. */
+  function morningsAgo(name) {
+    var d = stamp(name);
+    if (!d) return null;
+    var now = morningStart(new Date()), then = morningStart(d);
+    return Math.round((now - then) / 864e5);
+  }
+  function morningClock() { var t = morningAt(); return two(t.h) + ":" + two(t.m); }
+
   /* A bullet that starts with a time ("10:00", "10:00-11:30", "14:30 to 15:00") gets it pulled out. */
   var TIME = /^((?:[01]?\d|2[0-3])[:.][0-5]\d(?:\s*(?:[-–]|to)\s*(?:[01]?\d|2[0-3])[:.][0-5]\d)?)\s*(?:[-–—,:]\s*)?(.*)$/;
   function splitTime(text) {
@@ -366,9 +387,13 @@
     var now = new Date(), name = state.name, d = stamp(name), data = state.data;
     var night = paintSky(now);
     var me = myName();
-    var today = !d || sameDay(d, now) || isExample(name);
-    $("eyebrow").textContent = today ? dayWords(now) + "." : "An earlier morning.";
-    $("greet").innerHTML = today ? esc(greeting(now)) + (me ? ", <em>" + esc(me) + "</em>." : ".")
+    var ago = morningsAgo(name), today = ago === null || ago === 0;
+    var eyebrow = dayWords(today ? morningStart(now) : d) + ".";
+    // Opened on its own because this morning is not written yet: say so, and when it comes.
+    if (!today && !state.pinned) eyebrow = (ago === 1 ? "Yesterday's morning." : "Your last morning, " + dayWords(d) + ".") +
+      " Today's " + (now.getHours() * 60 + now.getMinutes() < morningAt().h * 60 + morningAt().m ? "comes at " + morningClock() + "." : "is not written yet.");
+    $("eyebrow").textContent = eyebrow;
+    $("greet").innerHTML = today || !state.pinned ? esc(greeting(now)) + (me ? ", <em>" + esc(me) + "</em>." : ".")
                                  : esc(DAYS[d.getDay()]) + " <em>morning</em>.";
     var meta = data ? data.meta : {};
     $("headline").textContent = meta.headline ? meta.headline.replace(/\s*This page is a made-up example\.?$/i, "") : (data ? "Here is what came in." : $("headline").textContent);
@@ -443,8 +468,8 @@
     $("daynav").hidden = n < 2;
     $("older").disabled = state.at >= n - 1;
     $("newer").disabled = state.at <= 0;
-    var d = stamp(state.name), now = new Date();
-    $("daylabel").textContent = !d ? "Example" : sameDay(d, now) ? "Today" : sameDay(d, new Date(now.getTime() - 864e5)) ? "Yesterday" : d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3);
+    var d = stamp(state.name), ago = morningsAgo(state.name);
+    $("daylabel").textContent = !d ? "Example" : ago === 0 ? "Today" : ago === 1 ? "Yesterday" : d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3);
     var again = $("again");
     again.hidden = !canRun();
     again.disabled = state.running;
@@ -555,6 +580,7 @@
   }
   function runAgain() {
     if (state.running) return;
+    state.pinned = false;
     state.running = true; drawNav();
     cab.jobs.run(JOB).then(function () { toast("Checking everything you connected. This takes a minute or two."); })
       .catch(function (e) { state.running = false; drawNav(); toast((e && e.message) || "That could not start. Try again in a moment."); });
@@ -636,8 +662,16 @@
           (nextRunWords() ? " (" + esc(nextRunWords().toLowerCase()) + ")" : "") + ".</div>";
         return;
       }
-      var keep = current ? state.files.indexOf(current) : -1;
-      return show(keep > 0 ? keep : 0);
+      state.morning = morningStart(new Date()).getTime();
+      // Kept where the person stepped with the arrows; otherwise this morning's newest page,
+      // or, before it is written, the last one there is.
+      var keep = state.pinned && current ? state.files.indexOf(current) : -1;
+      if (keep < 0) {
+        state.pinned = false;
+        keep = 0;
+        for (var i = 0; i < state.files.length; i++) if (morningsAgo(state.files[i]) === 0) { keep = i; break; }
+      }
+      return show(keep);
     }).catch(function (e) {
       $("headline").textContent = "The reports folder could not be read.";
       root.innerHTML = '<div class="empty">Could not list the reports folder (' + esc(e && e.message) + "). Look again in a moment.</div>";
@@ -646,8 +680,8 @@
 
   // ── Start ──────────────────────────────────────────────────────────────
 
-  $("older").addEventListener("click", function () { if (state.at < state.files.length - 1) show(state.at + 1); });
-  $("newer").addEventListener("click", function () { if (state.at > 0) show(state.at - 1); });
+  $("older").addEventListener("click", function () { if (state.at < state.files.length - 1) { state.pinned = true; show(state.at + 1); } });
+  $("newer").addEventListener("click", function () { if (state.at > 0) { state.pinned = true; show(state.at - 1); } });
   $("again").addEventListener("click", runAgain);
   document.addEventListener("keydown", function (e) {
     if (e.target && /input|select|textarea/i.test(e.target.tagName)) return;
@@ -656,7 +690,11 @@
   });
   var resizeT;
   window.addEventListener("resize", function () { clearTimeout(resizeT); resizeT = setTimeout(drawSky, 120); });
-  setInterval(drawSky, 60000);
+  // Each minute the sky moves on; at the morning hour the page turns to the new morning.
+  setInterval(function () {
+    if (state.morning && morningStart(new Date()).getTime() !== state.morning) { state.pinned = false; load(); }
+    else drawSky();
+  }, 60000);
   drawSky();
 
   if (V2) {
