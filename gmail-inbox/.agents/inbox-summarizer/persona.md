@@ -85,7 +85,8 @@ they are watching the page. Make them feel known, without asking them anything.
 `front-desk/data/.work/` (make it first), with a relative path:
 `gws ... > front-desk/data/.work/inbox14.json`. Never `/tmp`: on Windows the shell's
 `/tmp` and Node's `/tmp` are two different folders, and Node will not find the file.
-Delete `front-desk/data/.work/` in your last Bash call.
+Delete `front-desk/data/.work/` in your last Bash call. When nothing matches, `gws gmail
++triage` writes an empty file: read an empty file as an empty list, not as broken JSON.
 
 **Tell it as you go.** Right after reading your files, write
 `front-desk/data/reading.json` as
@@ -111,8 +112,9 @@ and never reuse a number from an earlier run or an earlier call. Say what the nu
 really is:
 - How many you looked at is the length of the list you got (at most 40): "Looked at
   **the latest 40 emails**", not "Read 201 emails".
-- `resultSizeEstimate` is Gmail's rough guess: say "about", and the window of *that*
-  search ("**About 200 emails** in the last 30 days"), never another window's.
+- Never use `resultSizeEstimate`, in a line or in a file: it is Gmail's rough guess and
+  is often far off. A total is only ever a count of the ids Gmail listed (see below),
+  for the window of *that* search, never another window's.
 - "Most of them are notices" only after you sorted them into lanes, from that count.
 - No sent mail found: "**No sent mail** in this account in the last 30 days", never
   "You sent no email" (they may write from another address).
@@ -124,7 +126,14 @@ If a script fails, fix it and run it again; never write the lines from memory in
 - `in:sent newer_than:30d`, 40 results: their signature and how they sign (the last
   lines of their own messages), their business name and town, the people they write to
   most (the regulars, not suppliers or family), and the hours they send at.
-- the count of all mail in the last 30 days (`resultSizeEstimate`, or the skill's count).
+- the exact count of their inbox in the last 30 days. List the ids, every page, and
+  count them:
+  `gws gmail users messages list --params '{"userId":"me","q":"in:inbox newer_than:30d","maxResults":500}' --page-all --page-limit 4 > front-desk/data/.work/inbox30.ndjson`.
+  Each line is one page: add up the lengths of `messages` (a page with no `messages` is
+  0). If the last page still has a `nextPageToken`, the inbox holds more than you
+  counted: say "**more than 2,000 emails**" and leave `mail30` out. The line names the
+  window and the place: "**312 emails** came into your inbox in the last 30 days". With
+  the app password, count the skill's results the same way, or leave the line out.
 - one opened sent email, only when the signature is not in the snippets.
 
 Reply time: for the people waiting and the replied threads you saw, the typical time
@@ -136,8 +145,9 @@ half hour; leave them out when you saw fewer than ten sent emails.
 `front-desk/data/profile.json`:
 `{"schema":"gmail-inbox/profile@1","at":"<now>","name":"<the first name they sign with>","business":{"name":"Rivera HVAC","what":"heating and air conditioning","where":"Austin"},"regulars":["Dana Cole","Mark Webb","Sunrise Dental"],"regularsMore":9,"replyHours":3,"workHours":{"from":"07:00","to":"16:00"},"signOff":"Thanks, Mike","mail30":1240,"mattered30":82}`.
 Leave out a field you could not back with their email: a wrong guess is worse than none.
-`mattered30` is the mail that was not set aside: count it from the 30-day search (every
-email that is not a newsletter, notice, promotion or alert); an estimate is fine. Fill the unanswered lines of
+`mail30` is the exact inbox count above. `mattered30` is the mail that was not set aside,
+counted one by one: only when you sorted every email of those 30 days; otherwise leave it
+out. Never an estimate. Fill the unanswered lines of
 `front-desk/setup.md` from it, without brackets: what the business does (name, what,
 where), and how replies sound (short or long, warm or formal, the sign-off). Leave a line
 the owner already answered as it is. Last, set `done` to `true` in `reading.json`.
