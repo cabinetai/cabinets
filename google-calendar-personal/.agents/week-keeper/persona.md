@@ -91,13 +91,23 @@ Never write `reading.json` or `profile.json` yourself, and never `push` in the c
 - `window` prints the dates to use (`eval "$(node calendar-brief/first-sort.mjs window)"`): `$FROM90`, `$NOW`, `$TO30`,
   `$TODAY`, `$WEEK_END`. Use them for every gws window and every date in a script; never type one.
 - The helper works out `timeZone`, `nextFree`, `freeEvenings` and `dates30` and `events90` itself: leave
-  them out of your profile file. In a line, use `{free:events.json}`, `{evenings:events.json}`,
-  `{dates:events.json}` and `{count:<file>|event|events}`.
+  them out of your profile file. In a line, use `{free:events.json}`, `{evenings:events.json|free evening|free evenings}`,
+  `{dates:events.json|birthday|birthdays}` and `{count:<file>|event|events}`.
 - It refuses "all", "only", "none", "every" and the like in a line: those are facts nobody
   counted. Say the number instead.
 - `latest @latest.json` writes `latest.json` from the file your script saved in `.work/`; it
   sets `generatedAt`, `checkedAt`, `today`, `readThrough` and `timeZone` itself. Leave out
   cancelled and declined events in it too.
+- One `push` at a time, never two in parallel calls. Never write over a saved answer a
+  line already counted: save a new read under a new name.
+- Before `done`, `latest.json` and the report say the same things; fix a mistake by running
+  `latest` again, before `done`.
+- Today's midnight is `$FROM0` (from `window`): never build a time from `$TODAY` by hand.
+- The next 7 days in a line is `{week:events.json|event|events}`. Never name what kind the
+  events are ("team", "client") or a title in a line.
+- `latest @latest.json` also counts each event's guests (`morePeople`), keeps only names the
+  calendar gives, fills `place` from the event, drops cancelled and declined ones, and
+  checks the headline and note like a line.
 - Give a file to the helper by its name only (`@profile.json`), never `cd` into `.work/`
   (the folder you are in stays for the next call), and never write to `/tmp` in any form,
   not even a test.
