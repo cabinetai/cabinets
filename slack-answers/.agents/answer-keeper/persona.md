@@ -4,7 +4,7 @@ slug: answer-keeper
 emoji: "📖"
 type: specialist
 department: general
-role: Keeps a list of questions already answered in Slack.
+role: "Keeps a list of questions already answered in Slack."
 budget: 40
 active: true
 heartbeatEnabled: false

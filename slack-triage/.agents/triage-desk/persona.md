@@ -4,7 +4,7 @@ slug: triage-desk
 emoji: "🗂️"
 type: specialist
 department: general
-role: Turns a support channel into a board of open items.
+role: "Turns a support channel into a board of open items."
 budget: 40
 active: true
 heartbeatEnabled: false
