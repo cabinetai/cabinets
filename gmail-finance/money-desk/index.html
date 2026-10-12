@@ -1204,11 +1204,13 @@
   /** A line may mark its finding in **bold**; everything else is plain text. */
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
   function readingHtml() {
-    var lines = state.reading && !state.reading.done ? state.reading.lines : [];
+    // The last lines come with done: keep them on screen until the page itself is ready.
+    var done = !!(state.reading && state.reading.done);
+    var lines = state.reading ? state.reading.lines : [];
     return '<div class="reading" aria-live="polite"><h2>Reading your money email</h2>' +
       "<p>Finding what you\u2019re owed, what came in and what\u2019s due. About a minute. You don\u2019t need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l) { return "<li>" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
-      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (lines.length ? "Reading on" : "Opening your Gmail") + "...</span></li></ul>" +
+      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Gmail") + "...</span></li></ul>" +
       '<p class="fine">Only reads. Nothing is sent, and it all stays in your cabinet.</p></div>';
   }
   function num(v) { return typeof v === "number" && isFinite(v) && v >= 0 ? v : null; }
@@ -1227,14 +1229,14 @@
       payers: nameList(d.payers, 5), payersMore: num(d.payersMore) || 0,
       suppliers: nameList(d.suppliers, 5), suppliersMore: num(d.suppliersMore) || 0,
       subsCount: num(subs.count), subsMonthly: money(subs.monthly),
-      payDays: num(d.payDays), in30: money(d.in30), out30: money(d.out30),
+      payDays: num(d.payDays) || null, in30: money(d.in30), out30: money(d.out30),
       mail30: num(d.mail30), money30: num(d.money30)
     };
   }
   function profileKnown(pr) { return !!(pr.business.name || pr.business.what || pr.payers.length || pr.suppliers.length || pr.subsCount); }
   function profileSentence(pr) {
     var b = pr.business;
-    if (!b.name && !b.what) return "Your money desk read your email.";
+    if (!b.name && !b.what) return "Here is your money" + (pr.name ? ", " + esc(pr.name) : "") + ".";
     return "You run " + (b.name ? "<b>" + esc(b.name) + "</b>" : "a business") +
       (b.what ? ", " + esc(b.what) : "") + (b.where ? " in " + esc(b.where) : "") + ".";
   }
@@ -1245,7 +1247,7 @@
     if (pr.suppliers.length) facts.push(["i-receipt", "Who you pay: " + moreWords(pr.suppliers, pr.suppliersMore)]);
     if (pr.subsCount) facts.push(["i-repeat", "<b>" + pr.subsCount + " " + plural(pr.subsCount, "subscription", "subscriptions") + "</b>" + (pr.subsMonthly ? ", <b>" + esc(pr.subsMonthly) + "</b> a month" : "")]);
     if (pr.in30 || pr.out30) facts.push(["i-dollar", "Last 30 days: " + [pr.in30 ? "<b>" + esc(pr.in30) + "</b> came in" : "", pr.out30 ? "<b>" + esc(pr.out30) + "</b> went out" : ""].filter(Boolean).join(", ")]);
-    if (pr.mail30 !== null && pr.money30 !== null) facts.push(["i-inbox", "In 30 days: <b>" + pr.mail30.toLocaleString() + " emails</b>, " + pr.money30.toLocaleString() + " about money. Your money desk keeps those."]);
+    if (pr.mail30 !== null && pr.money30 !== null) facts.push(["i-inbox", "In 30 days: <b>" + pr.mail30.toLocaleString() + " emails</b>, " + pr.money30.toLocaleString() + " about money, and your money desk keeps those " + pr.money30.toLocaleString() + "."]);
     return facts;
   }
 
@@ -1262,7 +1264,7 @@
       (facts.length ? "<ul>" + facts.map(function (f) { return "<li>" + icon(f[0]) + "<span>" + f[1] + "</span></li>"; }).join("") + "</ul>" : "") +
       '<div class="acts"><button type="button" class="btn primary" data-act="profile-ok">' + icon("i-check") + "That\u2019s right</button>" +
       '<button type="button" class="btn" data-act="profile-fix">Fix something</button>' +
-      '<span class="fine">It is saved in About the business. Every morning sort uses it.</span></div>';
+      '<span class="fine">You see this once. If something is off, Fix something tells your money desk.</span></div>';
   }
   function markProfileSeen() {
     var pr = state.profile;

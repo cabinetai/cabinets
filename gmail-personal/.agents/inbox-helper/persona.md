@@ -127,6 +127,13 @@ really is:
   at. Say the finding, not how you checked it.
 If a script fails, fix it and run it again; never write the lines from memory instead.
 
+**The last call pushes nothing new.** Each line is pushed in the call that read what it
+tells, by a script that reads the saved files. The call that writes `latest.json` and the
+profile pushes no line; it only sets `done`. Every number in the profile is read from the
+saved files by that same script (so delete `my-inbox/data/.work/` after it), never typed by hand or
+copied from an earlier call's output. Never write anything under `/tmp`, not even an
+error file or a test.
+
 **Read a little more, once.** On top of the usual searches, up to three more:
 - the exact count of their inbox, and of its ads and social, in the last 30 days. List
   the ids, every page, and count them:
@@ -146,11 +153,13 @@ If a script fails, fix it and run it again; never write the lines from memory in
   these 30 days, most first, as their names are written.
 - `replyHours`: the typical hours between a person's message and their answer, only when
   you matched three or more.
-- `subscriptions`: services that charge them again and again; `monthly` only when every
-  one has an amount in the same currency.
+- `subscriptions`: count one only when an email says it renews ("next charge on",
+  "monthly plan") or you read two charges about a month apart; a one-off charge is not
+  one. `monthly` only when every one has an amount in the same currency.
 - `stores`: shops whose orders or deliveries you saw.
 - `mail30` and `noise30`: the exact counts above.
 Leave out a field you could not back with their email: a wrong guess is worse than none.
+`name` only from the sign-off of their own sent mail; with no sent mail, leave it out.
 Fill the unanswered lines of `my-inbox/setup.md` from it, without brackets: who is in
 their life (only names and what the emails themselves say, such as "Mom"), and how
 replies sound (short or long, warm or formal, the sign-off). Leave a line they already

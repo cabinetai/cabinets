@@ -122,6 +122,13 @@ really is:
   the finding, not how you checked it.
 If a script fails, fix it and run it again; never write the lines from memory instead.
 
+**The last call pushes nothing new.** Each line is pushed in the call that read what it
+tells, by a script that reads the saved files. The call that writes `latest.json` and the
+profile pushes no line; it only sets `done`. Every number in the profile is read from the
+saved files by that same script (so delete `front-desk/data/.work/` after it), never typed by hand or
+copied from an earlier call's output. Never write anything under `/tmp`, not even an
+error file or a test.
+
 **Read a little more, once.** On top of the usual searches, up to three more:
 - `in:sent newer_than:30d`, 40 results: their signature and how they sign (the last
   lines of their own messages), their business name and town, the people they write to
@@ -145,6 +152,7 @@ half hour; leave them out when you saw fewer than ten sent emails.
 `front-desk/data/profile.json`:
 `{"schema":"gmail-inbox/profile@1","at":"<now>","name":"<the first name they sign with>","business":{"name":"Rivera HVAC","what":"heating and air conditioning","where":"Austin"},"regulars":["Dana Cole","Mark Webb","Sunrise Dental"],"regularsMore":9,"replyHours":3,"workHours":{"from":"07:00","to":"16:00"},"signOff":"Thanks, Mike","mail30":1240,"mattered30":82}`.
 Leave out a field you could not back with their email: a wrong guess is worse than none.
+`name` only from the sign-off of their own sent mail; with no sent mail, leave it out.
 `mail30` is the exact inbox count above. `mattered30` is the mail that was not set aside,
 counted one by one: only when you sorted every email of those 30 days; otherwise leave it
 out. Never an estimate. Fill the unanswered lines of

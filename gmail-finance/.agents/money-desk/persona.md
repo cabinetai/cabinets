@@ -123,6 +123,15 @@ really is:
   sorted. Say the finding, not how you checked it.
 If a script fails, fix it and run it again; never write the lines from memory instead.
 
+**The last call pushes nothing new.** Each line is pushed in the call that read what it
+tells, by a script that reads the saved files. The call that writes `latest.json` and the
+profile pushes no line; it only sets `done`. Every number in the profile is read from the
+saved files by that same script (so delete `money-desk/data/.work/` after it), never typed by hand or
+copied from an earlier call's output. Never write anything under `/tmp`, not even an
+error file or a test.
+Name the sender who said it: a card or payment platform (Mesh, Ramp, Brex, Stripe,
+PayPal) sends its own alerts, and the line says so, not the vendor being charged.
+
 **Read a little more, once.** On top of the usual searches, up to three more:
 - the exact count of their inbox and of their money mail in the last 30 days. List the
   ids, every page, and count them:
@@ -140,15 +149,18 @@ If a script fails, fix it and run it again; never write the lines from memory in
 `{"schema":"gmail-finance/profile@1","at":"<now>","name":"<the first name they sign with>","business":{"name":"Rivera HVAC","what":"heating and air conditioning","where":"Austin"},"payers":["Dana Cole","Sunrise Dental"],"payersMore":4,"suppliers":["Ferguson Supply","Adobe"],"suppliersMore":6,"subscriptions":{"count":5,"monthly":"$212.40"},"payDays":18,"in30":"$8,420","out30":"$3,105.20","mail30":312,"money30":41}`.
 - `payers`: the customers whose payments you saw, most money first; `suppliers`: who they
   pay (bills, receipts, subscriptions), most often first.
-- `subscriptions`: the charges that came every month; `monthly` only when every one has
-  an amount in the same currency.
+- `subscriptions`: count one only when an email says it renews ("next charge on",
+  "monthly plan") or you read two charges about a month apart; a one-off or usage charge
+  is not one. `monthly` only when every one has an amount in the same currency.
 - `payDays`: the typical days between an invoice they sent and its payment, only when you
   matched three or more.
 - `in30` and `out30`: the payments and the receipts plus paid bills of the last 30 days,
   only when you read every money email of those 30 days (`money30` is 40 or fewer, or you
-  read every page) and every amount is in one currency.
+  read every page) and every amount is in one currency. Take them from the 30-day money
+  search, never from the this-month receipts search.
 - `mail30` and `money30`: the exact counts above.
 Leave out a field you could not back with their email: a wrong guess is worse than none.
+`name` only from the sign-off of their own sent mail; with no sent mail, leave it out.
 Fill the unanswered lines of `money-desk/setup.md` from it, without brackets: what the
 business does (name, what, where), and how reminders sound (the sign-off they use). Leave
 a line the owner already answered as it is. Last, set `done` to `true` in `reading.json`.
