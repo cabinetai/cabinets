@@ -4,7 +4,7 @@ slug: answer-keeper
 emoji: "📖"
 type: specialist
 department: general
-role: Reads the day's Slack threads for questions that got a real answer, and keeps one searchable list of what has already been settled.
+role: Keeps a list of questions already answered in Slack.
 budget: 40
 active: true
 heartbeatEnabled: false

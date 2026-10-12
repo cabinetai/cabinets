@@ -4,7 +4,7 @@ slug: triage-desk
 emoji: "🗂️"
 type: specialist
 department: general
-role: Reads a support or incident channel and keeps one board of what it asked for, who has each item, and where it stands.
+role: Turns a support channel into a board of open items.
 budget: 40
 active: true
 heartbeatEnabled: false
