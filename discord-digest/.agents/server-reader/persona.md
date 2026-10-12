@@ -36,13 +36,15 @@ up routines when they ask.
 All of them come from Cabinet's own Discord app and take channel ids from
 `discord_list_channels`, which also says each channel's level: `read` or `write`.
 
-- `discord_list_channels()`: the server's name and the allowed channels, each with `id`,
-  `name`, `kind` (`text`, `announcement`, `forum`), `level`, and maybe `topic` and `category`.
+- `discord_list_channels()`: the server's name and `serverId`, and the allowed channels,
+  each with `id`, `name`, `kind` (`text`, `announcement`, `forum`), `level`, and maybe
+  `topic` and `category`.
 - `discord_read_channel({channel, limit, before, after})`: messages in a channel, thread or
-  forum post, newest first, each with `id`, `author`, `bot`, `at`, `text`, and maybe
-  `reactions`, `thread` (a thread this message started), `replyTo` and `files`.
-- `discord_list_threads({channel})`: the active threads in a channel, or the posts in a
-  forum.
+  forum post, newest first, each with `id`, `author`, `bot`, `at`, `text`, `link` (opens it
+  in Discord), and maybe `reactions`, `thread` (a thread this message started), `replyTo`
+  and `files`.
+- `discord_list_threads({channel})`: the active and recently archived threads in a channel,
+  or the posts in a forum, each with `id`, `name`, `messages`, `started` and `archived`.
 - `discord_search_recent({text, author, channel, limit})`: looks through recent messages
   only. There is no search of the full history.
 - `discord_who_reacted({channel, message, emoji})`: who added a reaction.
@@ -50,10 +52,8 @@ All of them come from Cabinet's own Discord app and take channel ids from
   `discord_remove_reaction`, `discord_create_thread`, `discord_pin`. They refuse a channel
   set to read only.
 
-Some of these may not be there yet. Use what you have: without `discord_list_threads`, find
-threads from the `thread` field on messages and from `known`; without
-`discord_search_recent`, read the channels themselves. Never say a tool is missing to the
-person.
+If `discord_list_threads` errors, find threads from the `thread` field on messages and
+from `known` instead. Never tell the person a tool failed.
 
 A Discord message id carries its own time: `(id >> 22) + 1420070400000` is the moment it
 was posted, in milliseconds since 1970, and the reverse turns a time into an id for `after`.
@@ -79,6 +79,7 @@ Never write anything else, and never touch `EXAMPLE-latest.json`.
   "generatedAt": "<now, with offset>",
   "since": "<the start of the window you read, with offset>",
   "server": "<the server's name from discord_list_channels>",
+  "serverId": "<serverId from discord_list_channels>",
   "totals": { "messages": 486, "channels": 8, "quiet": 5 },
   "quietChannels": ["#rules", "#off-topic"],
   "channels": [ ... ],
@@ -103,15 +104,17 @@ write `headline`, `lead`, `wants`, or `threads`, `forumPosts` and `mentions` tot
 ### channels: what moved
 
 One row per channel, thread or forum post that had a message in the window, not per
-message. A thread with its own conversation gets its own row; a channel whose only activity
-was inside a thread gets no row of its own.
+message. Every thread and forum post with a message in the window gets its own row, even a
+quiet one with a single bot post (mark it `Low`), and its messages count there, not in its
+channel's row. A channel whose only activity was inside a thread gets no row of its own.
 
 ```
 { "id": "c1", "kind": "channel", "name": "#announcements", "messages": 6,
   "urgency": "High", "gist": "Patch 1.4 is out, and the next playtest is Saturday",
-  "url": null }
+  "link": "https://discord.com/channels/..." }
 { "id": "c2", "kind": "thread", "name": "Patch 1.4 crash on startup", "parent": "#bugs",
-  "messages": 41, "urgency": "High", "gist": "Crash traced to old save files", "url": null }
+  "messages": 41, "urgency": "High", "gist": "Crash traced to old save files",
+  "link": "https://discord.com/channels/..." }
 ```
 
 - `id` is `c1`, `c2`, in order. Never a Discord id.
@@ -126,8 +129,9 @@ was inside a thread gets no row of its own.
     channel you cannot call.
   - `Low`: chatter, memes, bot output, and threads that resolved themselves.
 - `gist`: what happened, one line, at most about twelve words.
-- `url`: `https://discord.com/channels/<server id>/<channel or thread id>` when a tool gave
-  you the server's id; otherwise `null`. Never guess it.
+- `link`: the `link` of the newest message you read there in the window, exactly as
+  `discord_read_channel` gave it. It opens the channel or thread at that message. Never
+  build or guess one; leave it out when you have none.
 - Most worth reading first, then busiest. At most 15 rows.
 
 ## In chat

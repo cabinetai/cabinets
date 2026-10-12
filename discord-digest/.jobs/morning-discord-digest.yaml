@@ -28,20 +28,20 @@ prompt: |-
      reading with `after` set to that id returns only messages from the window.
   4. Call `discord_list_channels` once. Every channel it returns is one the person allowed;
      there is nothing else to look for. Never ask for a channel by guessing its id.
-  5. Find the threads and forum posts that moved:
-     - If you have `discord_list_threads`, call it for each text and forum channel and keep
-       the threads with a message in the window.
-     - Without it, a thread shows up two ways: a message in the window that carries a
-       `thread` field, and a thread in the last catch-up's `known` list. Read each of those.
-       A forum channel cannot be read directly without `discord_list_threads`; count it as
-       quiet unless a known post in it moved, and set status.json `why` to "Forum posts are
-       not included yet" with `ok: true`.
+  5. Find the threads and forum posts: call `discord_list_threads` for each text,
+     announcement and forum channel. It lists active and recently archived threads, and
+     every post in a forum. Keep every one that is not archived, and archived ones that
+     started in the window; step 6 tells you which of them moved. If `discord_list_threads` errors for a
+     channel, fall back for that channel: a thread is found from a message in the window
+     that carries a `thread` field, or from the last catch-up's `known` list, and a forum
+     channel is counted as quiet.
   6. Read each text and announcement channel, and each thread or forum post from step 5,
      with `discord_read_channel`, `limit` 100 and `after` the window's id. If 100 come back,
      read again with `after` the newest id you got, at most 5 pages per channel; if a channel
      still had more, say so in `why`, for example "A very busy day in #general: some
      messages may be missing". A channel or thread with no message in the window gets no
-     row. From what you read, write its row.
+     row. From what you read, write its row, with the `link` of its newest message in the
+     window as `link`.
   7. This run is read only. Do not post, reply, react, pin, start a thread or edit anything,
      however obvious the one-line answer looks.
   8. If one channel cannot be read, skip it, write the rest and put a short `why` in

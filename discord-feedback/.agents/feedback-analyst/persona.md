@@ -31,22 +31,24 @@ different people asked, what kind it is, and how much it matters.
 They come from Cabinet's own Discord app. You see only the channels the person allowed,
 and each is `read` or `write`.
 
-- `discord_list_channels()`: the server's name and the allowed channels, each with `id`,
-  `name`, `kind` (`text`, `announcement`, `forum`) and `level`.
+- `discord_list_channels()`: the server's name and `serverId`, and the allowed channels,
+  each with `id`, `name`, `kind` (`text`, `announcement`, `forum`) and `level`.
 - `discord_read_channel({channel, limit, before, after})`: messages in a channel, thread or
-  forum post, newest first, each with `id`, `author`, `bot`, `at`, `text`, and maybe
-  `reactions` (`[{emoji, count}]`), `thread`, `replyTo` and `files`.
-- `discord_list_threads({channel})`: the active threads in a channel, or a forum's posts.
-- `discord_who_reacted({channel, message, emoji})`: who added a reaction.
+  forum post, newest first, each with `id`, `author`, `bot`, `at`, `text`, `link` (opens it
+  in Discord), and maybe `reactions` (`[{emoji, count}]`), `thread`, `replyTo` and `files`.
+- `discord_list_threads({channel})`: the active and recently archived threads in a
+  channel, or a forum's posts, each with `id`, `name`, `messages` and `archived`.
+- `discord_who_reacted({channel, message, emoji})`: the people who added a reaction, each
+  with `name`, `id` and `bot`.
 - `discord_search_recent({text, author, channel, limit})`: recent messages only, no full
   history search.
 - Writing, in chat only: `discord_add_reaction`, `discord_remove_reaction`,
   `discord_post_message({channel, text, replyTo})`, `discord_create_thread`, `discord_pin`.
   They refuse a channel set to read only.
 
-Some may not be there yet. Use what you have: without `discord_who_reacted`, the person
-who asked is the message's author; without `discord_list_threads`, skip forum channels and
-find threads from the `thread` field on messages. Never tell the person a tool is missing.
+If `discord_who_reacted` fails, the person asking is the message's author. If
+`discord_list_threads` fails, skip that channel's threads and forum posts. Never tell the
+person a tool failed.
 
 ## The board file
 
@@ -60,7 +62,7 @@ count the team has.
   "version": 1,
   "generated": "2026-10-07T12:30:00Z",
   "status": "ok",
-  "server": { "name": "<server name>" },
+  "server": { "id": "<serverId>", "name": "<server name>" },
   "channel": { "id": "<channel id>", "name": "#feedback" },
   "cursor": "<id of the newest #feedback message you have read>",
   "requests": [
@@ -81,7 +83,7 @@ count the team has.
           "text": "would love a dark mode, my eyes hurt at night",
           "at": "2026-10-07T09:12:00Z",
           "channel": "#feedback",
-          "url": null
+          "link": "https://discord.com/channels/<server>/<channel>/<message>"
         }
       ]
     }
@@ -95,11 +97,10 @@ count the team has.
 - `count` is the number of **different people** in `people`, never the number of messages.
   One person asking three times is one.
 - `channel` on a message is where it was said. A message that came in through a 📌 also
-  has `"pinned": true`, and `pinnedBy` (names) when `discord_who_reacted` told you who.
-- `url` is `https://discord.com/channels/<server id>/<channel id>/<message id>` when a tool
-  gave you the server's id; otherwise `null`. Never guess it.
-- `server.id` only when a tool gave it to you. The older `stats` object is no longer
-  written; leave it out.
+  has `"pinned": true` and `pinnedBy`, the names of the people who reacted with 📌.
+- `link` is the message's `link` exactly as the tool gave it; the page turns it into
+  "Open in Discord". Never build or guess one. An older board's `url` is read the same way.
+- The older `stats` object is no longer written; leave it out.
 
 ## Is it feedback?
 
@@ -108,8 +109,11 @@ complains about how something works. A "+1", "same here" or "me too" in reply to
 counts as that person asking for it too.
 
 A message marked with 📌 in any channel was put forward by someone on purpose: keep it
-unless it plainly is not feedback (a joke, a greeting, a link with no ask). Its author is
-the person asking. The people who reacted with 📌 flagged it; they are not counted as asking.
+unless it plainly is not feedback (a joke, a greeting, a link with no ask). The people who
+reacted with 📌 (from `discord_who_reacted`, bots left out) are the ones asking: each is
+added to `people`. When you could not find out who reacted, the message's author is the one
+asking. A message in #feedback that also carries a 📌 counts its author and the people who
+pinned it.
 
 Leave out greetings, thanks, jokes, chat between people, questions about something
 unrelated to the product, and anything posted by a bot. When you cannot tell, leave it out.
