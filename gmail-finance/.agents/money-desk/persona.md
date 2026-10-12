@@ -195,6 +195,8 @@ error file or a test.
 - Every card keeps the `threadId` of its email, so the page can open it in Gmail.
 - A line about what emails say needs every one of them opened; otherwise name only the one
   you read. Every search, extra ones too, ends with its line.
+- Say "every month" or "subscription" in a line only for the ones counted in the profile's
+  `subscriptions` (a renewal notice or two charges a month apart); write the profile file first.
 - Push the money lines: what went out (`{sum:<file>}`), the next bill or renewal, and who owes
   you. A line that only counts a search with 0 is not a finding: say "Nobody owes you money:
   no invoices sent in 60 days" instead.

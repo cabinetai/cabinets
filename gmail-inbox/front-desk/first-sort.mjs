@@ -132,7 +132,10 @@ function sumWords(name) {
     if (timesWritten(text, s) < used[s]) fail(`${s} is not written ${used[s] > 1 ? used[s] + " times " : ""}in the saved answers: copy amounts from the mail, each one once`);
     const m = /^([^\d\s]*)\s?(\d[\d,]*(?:\.(\d+))?)\s?([^\d\s]*)$/.exec(s);
     if (!m) fail(`${s} is not an amount`);
-    const u = (m[1] || "") + "|" + (m[4] || "");
+    // ₪, ILS and NIS are one currency (and $/USD, €/EUR, £/GBP): "289.00 ILS" + "₪200.00" adds up.
+    const sign = { ILS: "₪", NIS: "₪", USD: "$", EUR: "€", GBP: "£" };
+    const cur = m[1] || sign[(m[4] || "").toUpperCase()] || m[4] || "";
+    const u = cur + "|";
     if (unit !== null && u !== unit) fail("the amounts are in different currencies: leave the sum out");
     unit = u;
     decimals = Math.max(decimals, (m[3] || "").length);
@@ -211,6 +214,8 @@ function fill(text, where) {
   let rest = out;
   for (const v of made) rest = rest.replace(v, "");
   if (/(^|\D)1\*{0,2} [a-z]+s\b/i.test(out) && !/1\*{0,2} (hours?|days?)\b/.test(out)) fail(`refused, "1 ...s": use {count:<file>|one|many}`);
+  // "**Two payments**": a count written as a word is a count nobody made.
+  if (/\*\*[^*]*\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b[^*]*\*\*/i.test(rest)) fail("refused, a count written as a word: use {count:<file>|one|many}");
   if (/\b(\w+ \w+) \1\b/i.test(out)) fail("refused, words are doubled: the helper adds the word you give after |, don't type it again");
   // "0 birthdays" is not a finding: a line whose numbers are all 0 says nothing.
   // The finding is the bold part: "**0 birthdays** in the next 30 days" is a 0.
