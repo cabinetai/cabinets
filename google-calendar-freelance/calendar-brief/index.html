@@ -338,6 +338,19 @@
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .pulse { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .45; } }
+  /* Loading: grey shapes where the banner and the boxes will be, with a soft shimmer. */
+  .skel { display: grid; gap: 16px; }
+  .skel-banner { display: grid; align-content: center; gap: 16px; min-height: 230px; padding: 28px clamp(20px, 3vw, 36px); background: var(--page); border-radius: var(--radius); box-shadow: var(--shadow-1); }
+  .skel-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .skel-box { display: grid; align-content: start; gap: 14px; min-height: 200px; padding: 24px; background: var(--page); border-radius: var(--radius); box-shadow: var(--shadow-1); }
+  .skel-line { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--line) 25%, var(--panel-2) 50%, var(--line) 75%); background-size: 200% 100%; animation: skel-shine 1.4s ease-in-out infinite; }
+  .skel-line.big { height: 32px; border-radius: 9px; }
+  .skel-line.head { height: 18px; }
+  .w25 { width: 25%; } .w35 { width: 35%; } .w45 { width: 45%; } .w55 { width: 55%; } .w70 { width: 70%; } .w85 { width: 85%; }
+  @keyframes skel-shine { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .skel-line { animation: none; } }
+  /* Until the page is ready, nothing but the shapes: no bar, no note. */
+  html:not(.ready) #topbar, html:not(.ready) .foot { display: none !important; }
   .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
 
   /* ── The grid of boxes ───────────────────────────────────────────────── */
@@ -834,7 +847,7 @@
 
 <div class="wrap">
   <main class="main">
-    <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your week...</p></section>
+    <section class="hero" id="hero" aria-live="polite"><div class="skel" role="status" aria-label="Loading your page"><div class="skel-banner"><i class="skel-line w25"></i><i class="skel-line w45 big"></i><i class="skel-line w55"></i><i class="skel-line w35"></i></div><div class="skel-row"><div class="skel-box"><i class="skel-line w35 head"></i><i class="skel-line w85"></i><i class="skel-line w70"></i><i class="skel-line w55"></i></div><div class="skel-box"><i class="skel-line w35 head"></i><i class="skel-line w85"></i><i class="skel-line w70"></i><i class="skel-line w55"></i></div></div></div></section>
     <div id="ribbon"></div>
     <div class="editbar" id="editbar" role="region" aria-label="Editing your page" hidden>
       <div class="editbar-actions">
@@ -1708,10 +1721,14 @@
     paintWelcome();
   }
 
+  /** What the page shows while it loads: the shapes of the page, no words. */
+  var SKELETON = '<div class="skel" role="status" aria-label="Loading your page"><div class="skel-banner"><i class="skel-line w25"></i><i class="skel-line w45 big"></i><i class="skel-line w55"></i><i class="skel-line w35"></i></div><div class="skel-row"><div class="skel-box"><i class="skel-line w35 head"></i><i class="skel-line w85"></i><i class="skel-line w70"></i><i class="skel-line w55"></i></div><div class="skel-box"><i class="skel-line w35 head"></i><i class="skel-line w85"></i><i class="skel-line w70"></i><i class="skel-line w55"></i></div></div></div>';
+
   function paint() {
     state.data = shown();
     state.example = !!(state.data && state.data.example);
     state.facts = state.data ? weekFacts(state.data) : null;
+    document.documentElement.classList.toggle("ready", !!state.loaded);
     document.documentElement.classList.toggle("first-read", !!((state.running && !hasWeek(state.real)) || revealing()));
     paintStatus();
     paintSuggest();
@@ -1795,7 +1812,7 @@
 
   function paintHero() {
     var hero = $("hero");
-    if (!state.loaded) { hero.innerHTML = '<p class="skeleton">Opening your week...</p>'; hero.hidden = false; return; }
+    if (!state.loaded) { hero.innerHTML = SKELETON; hero.hidden = false; return; }
     var m = mode();
     var real = hasWeek(state.real);
     var c = state.conn;
