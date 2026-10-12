@@ -815,6 +815,7 @@
     reading: null,
     sawReading: false,
     readShown: 0,
+    mineReady: false,
     profile: null,
     profileSeen: "",
     expanded: {},
@@ -1079,7 +1080,7 @@
     if (!state.running && !readingNow()) return;
     quiet(maybe(readJson("data/reading.json"))).then(function (d) {
       var r = cleanReading(d);
-      if (!r || (state.reading && r.lines.length === state.reading.lines.length && r.done === state.reading.done)) return;
+      if (!r || (state.reading && r.lines.join("\n") === state.reading.lines.join("\n") && r.done === state.reading.done)) return;
       state.reading = r;
       paintHero();
       paintWelcome();
@@ -1228,7 +1229,8 @@
   // Lines that arrive together are still told one by one, so the reading never jumps to the
   // page with lines nobody saw. Only once this page has shown the reading.
   var REVEAL_MS = 1200;
-  function revealing() { return !!(state.sawReading && state.reading && state.readShown < state.reading.lines.length); }
+  // Once done, one more beat on "Putting your page together" before the page.
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < state.reading.lines.length + (state.reading.done ? 1 : 0)); }
   setInterval(function () {
     if (!revealing()) return;
     state.readShown++;
@@ -1238,7 +1240,9 @@
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
-    var all = state.reading ? state.reading.lines : [];
+    // Lines from an earlier read that never finished are not this one's.
+    var at = state.reading ? writtenAt(state.reading.startedAt) : null;
+    var all = at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN ? state.reading.lines : [];
     state.sawReading = true;
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     done = done && lines.length === all.length;
@@ -1291,7 +1295,7 @@
     var pr = state.profile;
     // Only when it learned something about *them*: counts alone are not "This is you".
     var known = pr && (pr.business.name || pr.business.what || pr.regulars.length || pr.signOff);
-    var show = !!(known && state.loaded && !state.example && canAsk() && !state.editing && pr.at !== state.profileSeen && !readingNow() && !revealing());
+    var show = !!(state.mineReady && known && state.loaded && !state.example && canAsk() && !state.editing && pr.at !== state.profileSeen && !readingNow() && !revealing());
     el.hidden = !show;
     if (!show) { el.innerHTML = ""; return; }
     var facts = [];
@@ -3640,6 +3644,7 @@
       if (clean) state.layout = clean;
       var seenProfile = mine ? mine.get(PROFILE_SEEN_KEY) : null;
       if (typeof seenProfile === "string") state.profileSeen = seenProfile;
+      state.mineReady = true;
       var seen = mine ? mine.get(CHANGE_SEEN_KEY) : null;
       if (typeof seen === "string") state.changeSeen = seen;
       var hidden = mine ? mine.get(HIDDEN_IDEAS_KEY) : null;

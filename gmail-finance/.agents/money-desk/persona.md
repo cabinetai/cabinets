@@ -102,7 +102,8 @@ Delete `money-desk/data/.work/` in your last Bash call. When nothing matches, `g
   "**{count:inbox30.ndjson} emails** came into your inbox in the last 30 days". Any other number (a sum, hours, a day) is worked out by your script from the
   saved file into a shell variable and passed in from it (`"$TOTAL"`), never typed. The
   helper refuses a broken line ("undefined") and can only add lines.
-- `profile '<json>'` writes `profile.json`. It adds `mail30` and `money30` itself from the saved
+- `profile @profile.json` writes `profile.json` from the JSON your script computed and saved
+  as `.work/profile.json` (every value worked out there, none typed). It adds `mail30` and `money30` itself from the saved
   files (leave them out) and drops money that is zero.
 - `done` last, after `latest.json` is written: it marks the reading done and deletes
   `money-desk/data/.work/`.
@@ -160,6 +161,15 @@ error file or a test.
   computed by the writing script from the saved files, never typed.
 - `<now>` is `date` run in the same call that writes the file.
 - Call a sender "you" only when the address is this account's own.
+- After `done`, never open `reading.json` again. A wrong line stays: fix the script
+  before you push, not after. One `push` per Bash call.
+- Every fact in a line (a count, a name, a title, a day, "all", "none", "nearly all") comes
+  out of the script from the saved file; only the fixed words are typed. A field your
+  script did not work out is left out: never write 0, [] or a name by hand.
+- If a count comes out 0 but the list you printed has items, the script is wrong: fix it
+  before you push. In JavaScript compare times with `.getTime()` (`date + number` makes a
+  string).
+- If this run fails after `start`, still run `done`, so no raw answer stays in the cabinet.
 - If the 30-day count is bigger than the list you read, list the rest by id
   (`messages get`, `format=metadata`) before you write that nobody is waiting or that
   nothing is owed; otherwise say who you did find.
