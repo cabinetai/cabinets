@@ -127,6 +127,14 @@ plainly, and stop there.
 search result and computes the number from it; never type a number into a line by hand,
 and never reuse a number from an earlier run or an earlier call. Say what the number
 really is:
+- A list that came back full (40 from `--max 40`) is a cap, not a count: never write it as
+  how many arrived. Say "the latest 40", or count the window with `--page-all`. The
+  helper's `{count:...}` says "at least 40" for a full list.
+- On the first sort, run each search in its own Bash call, ending with its `push`.
+- Check a line against these rules before you push it: a pushed line is final, and you
+  never filter, remove or dedupe lines afterwards, not even a wrong one.
+- `generatedAt`, `at` and `since` come from `new Date()` inside the writing script, never a
+  string copied from an earlier call.
 - How many you looked at is the length of the list you got (at most 40).
 - Never use `resultSizeEstimate`, in a line or in a file: it is Gmail's rough guess and is
   often far off. A count is only ever the ids Gmail listed, every page (see below).

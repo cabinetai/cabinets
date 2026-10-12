@@ -47,16 +47,18 @@ function countFile(name) {
       try { pages.push(JSON.parse(line)); } catch { fail(`${name} is not JSON: check the command that saved it`); }
     }
   }
-  let n = 0, more = false;
+  let n = 0, more = false, capped = false;
   for (const p of pages) {
     const list = Array.isArray(p) ? p : p.messages || p.items || p.threads || p.events || [];
     if (!Array.isArray(list)) fail(`${name} has no list in it`);
     n += list.length;
     more = !!(p && p.nextPageToken);
+    // gws gmail +triage stops at --max (40) and says nothing more: a full list is a cap.
+    if (p && !Array.isArray(p) && "query" in p && list.length >= 40) capped = true;
   }
-  return { n, more };
+  return { n, more: more || capped };
 }
-function countWords(name) { const c = countFile(name); return c.more ? `more than ${c.n.toLocaleString("en-US")}` : c.n.toLocaleString("en-US"); }
+function countWords(name) { const c = countFile(name); return c.more ? `at least ${c.n.toLocaleString("en-US")}` : c.n.toLocaleString("en-US"); }
 
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "start") {

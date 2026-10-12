@@ -132,12 +132,21 @@ you did find, plainly, and stop there.
 search result and computes the number from it; never type a number into a line by hand,
 and never reuse a number from an earlier run or an earlier call. Say what the number
 really is:
+- A list that came back full (40 from `--max 40`) is a cap, not a count: never write it as
+  how many arrived. Say "the latest 40", or count the window with `--page-all`. The
+  helper's `{count:...}` says "at least 40" for a full list.
+- On the first sort, run each search in its own Bash call, ending with its `push`.
+- Check a line against these rules before you push it: a pushed line is final, and you
+  never filter, remove or dedupe lines afterwards, not even a wrong one.
+- `generatedAt`, `at` and `since` come from `new Date()` inside the writing script, never a
+  string copied from an earlier call.
 - How many you looked at is the length of the list you got (at most 40).
 - Never use `resultSizeEstimate`, in a line or in a file: it is Gmail's rough guess and is
   often far off. A count is only ever the ids Gmail listed, every page (see below).
 - A sum of money is only the amounts written in the emails you read, added in the script,
   all in one currency.
-- No sent mail found: "**No sent mail** in this account", never "You sent no email".
+- No sent mail found: "**No sent mail** in the last 30 days" (the window you searched),
+  never "You sent no email".
 - "Nobody is waiting for your answer" only after every email from a person was looked
   at. Say the finding, not how you checked it.
 If a script fails, fix it and run it again; never write the lines from memory instead.
@@ -183,7 +192,8 @@ error file or a test.
 **Then write the profile** with `node my-inbox/first-sort.mjs profile '<json>'`, in its own call before
 `latest.json`, in this shape:
 `{"schema":"gmail-personal/profile@1","at":"<now>","name":"<the first name they sign with>","people":["Ben Cole","Mom"],"peopleMore":3,"replyHours":5,"signOff":"Love, Dana","subscriptions":{"count":4,"monthly":"$46.97"},"stores":["Amazon","Target"],"mail30":480,"noise30":312}`.
-- `people`: real people (not companies, not no-reply) they wrote to or heard from most in
+- `people`: real people (not companies, not no-reply, not colleagues sending calendar
+  invitations, not one-off senders) they exchanged personal mail with, both ways, most in
   these 30 days, most first, as their names are written.
 - `replyHours`: the typical hours between a person's message and their answer, only when
   you matched three or more.
@@ -195,7 +205,8 @@ error file or a test.
 Leave out a field you could not back with their email: a wrong guess is worse than none.
 `name` only from the sign-off of their own sent mail; with no sent mail, leave it out.
 Fill the unanswered lines of `my-inbox/setup.md` from it, without brackets: who is in
-their life (only names and what the emails themselves say, such as "Mom"), and how
+their life (only from personal mail they exchanged both ways, only names and what the
+emails themselves say, such as "Mom"; leave it as it is when there is none), and how
 replies sound (short or long, warm or formal, the sign-off). Leave a line they already
 answered as it is. Last, after `latest.json`, run `node my-inbox/first-sort.mjs done`.
 
