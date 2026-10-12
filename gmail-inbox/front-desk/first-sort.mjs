@@ -7,9 +7,10 @@
 //   node <app>/first-sort.mjs count <file>...       the exact count in each saved answer
 //   node <app>/first-sort.mjs push '<line>'         add one line (single quotes: "$" stays "$")
 //   node <app>/first-sort.mjs gift @<file>          the one thing for the owner, shown while you read:
-//                                                   {"kind":"waiting|quote|noise|calm","who","subject",
-//                                                   "since","threadId","gist","count","unread"}; who,
-//                                                   subject, since and threadId copied from a saved answer
+//                                                   {"kind":<one of CONFIG.gift.kinds>,"who","subject",
+//                                                   "since","when","threadId","amount","was","gist",
+//                                                   "count","unread"}; who, subject, since, when, threadId
+//                                                   and amounts copied from a saved answer
 //   node <app>/first-sort.mjs profile @<file>       write data/profile.json from the JSON your script
 //                                                   wrote into data/.work/ (counts are added here)
 //   node <app>/first-sort.mjs latest @<file>        write data/latest.json from your script's file (times, today,
@@ -31,7 +32,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CONFIG = /*CONFIG*/ {"schema":"gmail-inbox","counts":{"mail30":"inbox30.ndjson"},"latest":{"schema":"gmail-inbox/front-desk@2","lanes":["waiting","quotes","fyi"]}} /*END*/;
+const CONFIG = /*CONFIG*/ {"schema":"gmail-inbox","counts":{"mail30":"inbox30.ndjson"},"latest":{"schema":"gmail-inbox/front-desk@2","lanes":["waiting","quotes","fyi"]},"gift":{"kinds":{"waiting":["who","since"],"quote":["who","since"],"noise":["who","count"],"calm":[]}}} /*END*/;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(here, "data");
@@ -264,22 +265,29 @@ function lockReading() {
 }
 
 // ── The gift: one thing the owner can act on now, shown while the reading goes on ──
-const GIFT_KINDS = { waiting: ["who", "since"], quote: ["who", "since"], noise: ["who", "count"], calm: [] };
-/** A date as Gmail wrote it ("Tue, 23 Sep 2026 16:40:00 -0400", or internalDate in ms). */
+// Each template names its kinds and what each one needs (CONFIG.gift).
+const GIFT_KINDS = (CONFIG.gift && CONFIG.gift.kinds) || {};
+/** A date as Gmail wrote it ("Tue, 23 Sep 2026 16:40:00 -0400", or internalDate in ms). A
+ *  date with no year ("October 15") is the next one from today. */
 function gmailDate(v) {
   const s = String(v).trim();
-  const d = /^\d{12,14}$/.test(s) ? new Date(Number(s)) : new Date(s);
-  return isNaN(d.getTime()) ? null : d;
+  let d = /^\d{12,14}$/.test(s) ? new Date(Number(s)) : new Date(s);
+  if (isNaN(d.getTime())) return null;
+  if (!/\b\d{4}\b/.test(s) && !/^\d{12,14}$/.test(s)) {
+    d.setFullYear(new Date().getFullYear());
+    if (d.getTime() < dayStart(-1).getTime()) d.setFullYear(d.getFullYear() + 1);
+  }
+  return d;
 }
 function giftOf(g) {
   if (!g || typeof g !== "object" || Array.isArray(g)) fail("the gift must be an object");
   const kind = String(g.kind || "");
-  if (!GIFT_KINDS[kind]) fail(`the gift kind is waiting, quote, noise or calm, not "${kind}"`);
+  if (!GIFT_KINDS[kind]) fail(`the gift kind is ${Object.keys(GIFT_KINDS).join(", ")}, not "${kind}"`);
   for (const key of GIFT_KINDS[kind]) if (typeof g[key] !== "string" || !g[key].trim()) fail(`a ${kind} gift needs ${key}`);
   const out = { kind };
   const saved = savedText();
   // Who, what, when and where are copied from a saved answer, never typed.
-  for (const key of ["who", "subject", "since", "threadId"]) {
+  for (const key of ["who", "subject", "since", "when", "threadId"]) {
     if (g[key] === undefined || g[key] === null || g[key] === "") continue;
     const v = String(g[key]).trim();
     if (v.length > 160) fail(`${key} is longer than 160 characters`);
@@ -291,6 +299,22 @@ function giftOf(g) {
     if (!d) fail(`since "${out.since}" is not a date: copy the Date header or internalDate`);
     if (d.getTime() > Date.now() + 5 * 60000 || d.getTime() < Date.now() - 60 * DAY) fail("since must be a day in the last 60 days");
     out.since = iso(d);
+  }
+  // When it is coming: a day from today to 60 days on, copied as the mail writes it.
+  if (out.when) {
+    const d = gmailDate(out.when);
+    if (!d) fail(`when "${out.when}" is not a date: copy the day as the mail writes it, like "October 15, 2026"`);
+    if (d.getTime() < dayStart(0).getTime() || d.getTime() > Date.now() + 60 * DAY) fail("when must be a day from today to 60 days from now");
+    out.when = ymd(d);
+  }
+  // Money as the mail writes it, each amount in a saved answer.
+  for (const key of ["amount", "was"]) {
+    if (g[key] === undefined || g[key] === "") continue;
+    const v = String(g[key]).trim();
+    const m = v.match(MONEY);
+    if (!m || m.length !== 1 || m[0].trim() !== v) fail(`${key} is one amount with its currency, like "₪289.00"`);
+    if (!timesWritten(saved, v)) fail(`refused, ${v} is not written in any saved answer: copy the amount as the mail writes it`);
+    out[key] = v;
   }
   if (out.threadId && !/^[0-9a-f]{8,24}$/i.test(out.threadId)) fail("threadId is Gmail's thread id, like 18c2f4a9b0e1d2c3");
   // The gist is one line in your words: what they want. No numbers: those are the helper's.

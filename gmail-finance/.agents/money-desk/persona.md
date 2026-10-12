@@ -130,6 +130,43 @@ Never write `reading.json` or `profile.json` yourself, and never `push` in the c
   (the folder you are in stays for the next call), and never write to `/tmp` in any form,
   not even a test.
 
+**The gift comes first.** While you read, the page shows one thing about their money they
+can act on now, beside the lines. It is what makes the first minute worth it, so it comes
+before every other search: right after `start`, in the next one or two Bash calls, and
+never later than the third line. Its searches come on top of all the others. Pick the
+first of these that their mail backs:
+1. `unpaid`: an invoice they sent 7 or more days ago with no payment for it in the mail
+   since (no "paid", receipt or payout naming that customer or amount). The oldest.
+2. `bill`: a bill, renewal or charge they must pay, due from today to 14 days on, with
+   the due day written in the mail. The soonest.
+3. `price`: a sender that now charges more than before: a "price change" email that
+   writes both amounts, or two receipts from the same sender with different amounts.
+4. `calm`: none of these. Still a gift: the page offers the month's money story.
+How to find it, fast:
+- One call: list the money mail of 60 days, sent and received, and get each one's
+  metadata (the answer has the `snippet`), each answer on one line (gws prints JSON over
+  many lines: pipe it through `tr -d '\n'`, then `echo`):
+  `gws gmail users messages list --params '{"userId":"me","q":"newer_than:60d (invoice OR receipt OR payment OR paid OR \"amount due\" OR bill OR overdue OR renewal OR \"price change\" OR subscription)","maxResults":40}' > money-desk/data/.work/gift-list.json`,
+  then `messages get` with `"format":"metadata","metadataHeaders":["From","To","Subject","Date"]`
+  for each id into `money-desk/data/.work/gift-money.ndjson`. In the same call, count the
+  30-day inbox (`inbox30.ndjson`, see "Read a little more") and end with its line. Never
+  push a count of `gift-list.json`: it is not how much mail came in.
+- The amount and the due day must be written in a saved answer. When a snippet does not
+  show them, open that one email (`gws gmail +read --id <id> --headers --format json >
+  money-desk/data/.work/gift-read.json`), at most two.
+- Then write `.work/gift.json` and run `node money-desk/first-sort.mjs gift @gift.json`:
+  - `{"kind":"unpaid","who":"Oakridge Dental","amount":"$4,200.00","since":"<Date header of the invoice they sent, as Gmail wrote it>","subject":"Invoice 1042","threadId":"<thread id>"}`
+  - `{"kind":"bill","who":"Amazon Web Services","amount":"$212.40","when":"<the due day as the mail writes it, like October 15, 2026>","subject":"...","threadId":"..."}`
+  - `{"kind":"price","who":"Spotify","was":"$19.90","amount":"$23.90","subject":"...","threadId":"..."}`
+  - `{"kind":"calm"}`
+- `who` is the customer or company as the mail writes it (no address); `who`, `subject`,
+  `since`, `when`, `threadId` and each amount are copied from a saved answer, and the
+  helper refuses anything else. A `gist` is optional: one short line, no numbers.
+- If the helper refuses, fix the file and run it again, or give the next kind down. Never
+  skip the gift: `calm` is always true when nothing else is.
+The page asks for the reminder or the check in a chat when the owner presses; you never
+do it here, and the gift never sends or changes anything.
+
 **Tell it as you go.** Right after reading your files, run `node money-desk/first-sort.mjs start`.
 The owner is watching: the first line must be there within seconds, so push it in the
 same Bash call as your first search. Every Bash call that runs a search ends by pushing
