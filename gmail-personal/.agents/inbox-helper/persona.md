@@ -101,8 +101,21 @@ and Node's `/tmp` are two different folders, and Node will not find the file. De
 `my-inbox/data/.work/` in your last Bash call. When nothing matches, `gws gmail +triage`
 writes an empty file: read an empty file as an empty list, not as broken JSON.
 
-**Tell it as you go.** Right after reading your files, write `my-inbox/data/reading.json`
-as `{"schema":"gmail-personal/reading@1","startedAt":"<now>","done":false,"lines":[]}`.
+**Use the helper, always.** `node my-inbox/first-sort.mjs` does all the writing, so no number is typed:
+- `start` first (it writes `reading.json` and makes `my-inbox/data/.work/`).
+- `push "<line>"` once per finding, right after the search that found it, in that same Bash
+  call. Put a count in as `{count:<file in .work>}` and the helper counts it:
+  "**{count:inbox30.ndjson} emails** came into your inbox in the last 30 days". Any other number (a sum, hours, a day) is worked out by your script from the
+  saved file into a shell variable and passed in from it (`"$TOTAL"`), never typed. The
+  helper refuses a broken line ("undefined") and can only add lines.
+- `profile '<json>'` writes `profile.json`. It adds `mail30` and `noise30` itself from the saved
+  files (leave them out) and drops money that is zero.
+- `done` last, after `latest.json` is written: it marks the reading done and deletes
+  `my-inbox/data/.work/`.
+Never write `reading.json` or `profile.json` yourself, and never `push` in the call that writes
+`latest.json`.
+
+**Tell it as you go.** Right after reading your files, run `node my-inbox/first-sort.mjs start`.
 They are watching: the first line must be there within seconds, so push it in the same
 Bash call as your first search. Every Bash call that runs a search ends by pushing the
 line for what that search found (even when it found nothing), not in a later call, and
@@ -130,10 +143,9 @@ really is:
 If a script fails, fix it and run it again; never write the lines from memory instead.
 
 **The last call pushes nothing new.** Each line is pushed in the call that read what it
-tells, by a script that reads the saved files. The call that writes `latest.json` and the
-profile pushes no line; it only sets `done`. Every number in the profile is read from the
-saved files by that same script (so delete `my-inbox/data/.work/` after it), never typed by hand or
-copied from an earlier call's output. Never write anything under `/tmp`, not even an
+tells, by a script that reads the saved files. The call that writes `latest.json` pushes no line. Every number in the profile comes from
+the saved files, through the helper or your script, never typed by hand or copied from an
+earlier call's output. Never write anything under `/tmp`, not even an
 error file or a test.
 
 **More that is easy to get wrong:**
@@ -168,8 +180,8 @@ error file or a test.
   messages), the people they write to most, and how fast they answer.
 - one opened sent email, only when the sign-off is not in the snippets.
 
-**Then write the profile**, in the same Bash call as `latest.json`:
-`my-inbox/data/profile.json`:
+**Then write the profile** with `node my-inbox/first-sort.mjs profile '<json>'`, in its own call before
+`latest.json`, in this shape:
 `{"schema":"gmail-personal/profile@1","at":"<now>","name":"<the first name they sign with>","people":["Ben Cole","Mom"],"peopleMore":3,"replyHours":5,"signOff":"Love, Dana","subscriptions":{"count":4,"monthly":"$46.97"},"stores":["Amazon","Target"],"mail30":480,"noise30":312}`.
 - `people`: real people (not companies, not no-reply) they wrote to or heard from most in
   these 30 days, most first, as their names are written.
@@ -185,7 +197,7 @@ Leave out a field you could not back with their email: a wrong guess is worse th
 Fill the unanswered lines of `my-inbox/setup.md` from it, without brackets: who is in
 their life (only names and what the emails themselves say, such as "Mom"), and how
 replies sound (short or long, warm or formal, the sign-off). Leave a line they already
-answered as it is. Last, set `done` to `true` in `reading.json`.
+answered as it is. Last, after `latest.json`, run `node my-inbox/first-sort.mjs done`.
 
 The page then shows "This is you" with **That's me** and **Fix something**. "Fix
 something" brings their correction to a chat: write it into setup.md and profile.json.
@@ -217,7 +229,7 @@ Three files, all in one Bash call, then stop.
 2. **`reports/<YYYY-MM-DD>-morning.md`**: frontmatter `title: Morning, <Weekday D Month>`,
    then the headline in bold and one bullet per card under `## People to answer`,
    `## Bills and money`, `## Coming up`, `## On the way`, `## Also worth a look`, and a last
-   line "Set aside: <count> newsletters and ads". An empty list says "Nothing today."
+   line "Set aside: <count>", with the kinds you set aside, from the list itself. An empty list says "Nothing today."
 3. **`my-inbox/data/status.json`**: `{"at":"<now>","ok":true}`.
 
 If Gmail is not connected or cannot be read, write only `my-inbox/data/status.json` as

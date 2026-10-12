@@ -95,9 +95,21 @@ they are watching the page. Make them feel known, without asking them anything.
 Delete `money-desk/data/.work/` in your last Bash call. When nothing matches, `gws gmail
 +triage` writes an empty file: read an empty file as an empty list, not as broken JSON.
 
-**Tell it as you go.** Right after reading your files, write
-`money-desk/data/reading.json` as
-`{"schema":"gmail-finance/reading@1","startedAt":"<now>","done":false,"lines":[]}`.
+**Use the helper, always.** `node money-desk/first-sort.mjs` does all the writing, so no number is typed:
+- `start` first (it writes `reading.json` and makes `money-desk/data/.work/`).
+- `push "<line>"` once per finding, right after the search that found it, in that same Bash
+  call. Put a count in as `{count:<file in .work>}` and the helper counts it:
+  "**{count:inbox30.ndjson} emails** came into your inbox in the last 30 days". Any other number (a sum, hours, a day) is worked out by your script from the
+  saved file into a shell variable and passed in from it (`"$TOTAL"`), never typed. The
+  helper refuses a broken line ("undefined") and can only add lines.
+- `profile '<json>'` writes `profile.json`. It adds `mail30` and `money30` itself from the saved
+  files (leave them out) and drops money that is zero.
+- `done` last, after `latest.json` is written: it marks the reading done and deletes
+  `money-desk/data/.work/`.
+Never write `reading.json` or `profile.json` yourself, and never `push` in the call that writes
+`latest.json`.
+
+**Tell it as you go.** Right after reading your files, run `node money-desk/first-sort.mjs start`.
 The owner is watching: the first line must be there within seconds, so push it in the
 same Bash call as your first search. Every Bash call that runs a search ends by pushing
 the line for what that search found (even when it found nothing), not in a later call,
@@ -126,10 +138,9 @@ really is:
 If a script fails, fix it and run it again; never write the lines from memory instead.
 
 **The last call pushes nothing new.** Each line is pushed in the call that read what it
-tells, by a script that reads the saved files. The call that writes `latest.json` and the
-profile pushes no line; it only sets `done`. Every number in the profile is read from the
-saved files by that same script (so delete `money-desk/data/.work/` after it), never typed by hand or
-copied from an earlier call's output. Never write anything under `/tmp`, not even an
+tells, by a script that reads the saved files. The call that writes `latest.json` pushes no line. Every number in the profile comes from
+the saved files, through the helper or your script, never typed by hand or copied from an
+earlier call's output. Never write anything under `/tmp`, not even an
 error file or a test.
 
 **More that is easy to get wrong:**
@@ -163,8 +174,8 @@ PayPal) sends its own alerts, and the line says so, not the vendor being charged
   name and town, how they sign, and who they bill.
 - one opened email, only when an amount or the business name is not in the snippets.
 
-**Then write the profile**, in the same Bash call as `latest.json`:
-`money-desk/data/profile.json`:
+**Then write the profile** with `node money-desk/first-sort.mjs profile '<json>'`, in its own call before
+`latest.json`, in this shape:
 `{"schema":"gmail-finance/profile@1","at":"<now>","name":"<the first name they sign with>","business":{"name":"Rivera HVAC","what":"heating and air conditioning","where":"Austin"},"payers":["Dana Cole","Sunrise Dental"],"payersMore":4,"suppliers":["Ferguson Supply","Adobe"],"suppliersMore":6,"subscriptions":{"count":5,"monthly":"$212.40"},"payDays":18,"in30":"$8,420","out30":"$3,105.20","mail30":312,"money30":41}`.
 - `payers`: the customers whose payments you saw, most money first; `suppliers`: who they
   pay (bills, receipts, subscriptions), most often first.
@@ -182,7 +193,7 @@ Leave out a field you could not back with their email: a wrong guess is worse th
 `name` only from the sign-off of their own sent mail; with no sent mail, leave it out.
 Fill the unanswered lines of `money-desk/setup.md` from it, without brackets: what the
 business does (name, what, where), and how reminders sound (the sign-off they use). Leave
-a line the owner already answered as it is. Last, set `done` to `true` in `reading.json`.
+a line the owner already answered as it is. Last, after `latest.json`, run `node money-desk/first-sort.mjs done`.
 
 The page then shows "This is your money" with **That's right** and **Fix something**.
 "Fix something" brings their correction to a chat: write it into setup.md and
@@ -212,7 +223,7 @@ Three files, all in one Bash call, then stop.
 2. **`reports/<YYYY-MM-DD>-money.md`**: frontmatter `title: Money, <Weekday D Month>`, then
    the headline in bold and one bullet per card under `## Owed to you`, `## Came in`,
    `## Bills to pay`, `## Receipts this month`, `## Also worth a look`, and a last line
-   "Set aside: <count> newsletters and ads". An empty list says "Nothing today."
+   "Set aside: <count>", with the kinds you set aside, from the list itself. An empty list says "Nothing today."
 3. **`money-desk/data/status.json`**: `{"at":"<now>","ok":true}`.
 
 If Gmail is not connected or cannot be read, write only `money-desk/data/status.json` as
