@@ -527,7 +527,46 @@
   .read-strip .pulse-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--terra); animation: read-pulse 1.2s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { .read-lines li, .pulse-dot, .welcome { animation: none !important; } }
   /* While the first sort reads, the reading is the whole page: no made-up example under it. */
-  .first-read #ribbon, .first-read #grid, .first-read #grid-empty, .first-read #topbar { display: none !important; }
+  .first-read #ribbon, .first-read #grid, .first-read #grid-empty, .first-read #topbar, .first-read #gift-keep { display: none !important; }
+  /* ...and it fills the page: the reading on the left, the gift on the right, on the canvas. */
+  .first-read .wrap { min-height: 100vh; display: flex; flex-direction: column; padding-top: 28px; }
+  .first-read .main, .first-read #hero { flex: 1; }
+  .read-page { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 20px; }
+  .read-page .reading { max-width: none; align-content: start; }
+  @media (min-width: 980px) {
+    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); align-content: stretch; gap: 24px; min-height: calc(100vh - 72px); }
+    .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+    .read-page .reading { padding: 40px clamp(28px, 3.4vw, 52px); }
+    .read-page .reading h2 { font-size: clamp(34px, 3.4vw, 46px); }
+    .read-page .read-lines li { font-size: 17.5px; }
+    .read-page .gift { align-content: center; }
+  }
+
+  /* The gift: one thing in their days they can act on now, found while the agent reads. */
+  .gift { display: grid; align-content: start; gap: 16px; padding: 40px clamp(24px, 3.4vw, 52px) 32px; background: var(--page); border-radius: 26px; box-shadow: var(--shadow-2); }
+  .gift.arrive { animation: gift-in .9s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes gift-in { from { opacity: 0; transform: translateY(22px) scale(.985); } to { opacity: 1; transform: none; } }
+  .gift .eyebrow { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--terra-ink); }
+  .gift .eyebrow .icon { width: 18px; height: 18px; }
+  .gift h3 { margin: 0; max-width: 24ch; font-family: var(--display); font-size: clamp(30px, 3.2vw, 44px); font-weight: 600; line-height: 1.12; letter-spacing: -.025em; color: var(--ink); }
+  .gift h3 b { font-weight: 800; }
+  .gift h3 .n { white-space: nowrap; }
+  .gift .about { margin: 0; padding: 2px 0 2px 16px; border-left: 2px solid var(--line-2); display: grid; gap: 4px; max-width: 62ch; }
+  .gift .about b { font-size: 15.5px; color: var(--ink); }
+  .gift .about span { font-size: 16.5px; color: var(--ink-2); }
+  .gift .why { margin: 0; max-width: 56ch; font-size: 17px; color: var(--ink-2); }
+  .gift .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 6px; }
+  .gift .acts .btn { min-height: 48px; padding: 0 20px; font-size: 15.5px; }
+  .gift .asked { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; font-size: 16px; font-weight: 600; color: var(--sage-ink); }
+  .gift .asked .icon { color: var(--sage); }
+  .gift .fine { margin: 0; font-size: 13.5px; color: var(--ink-3); }
+  .gift.looking { align-content: center; justify-items: start; background: color-mix(in srgb, var(--page) 55%, transparent); box-shadow: none; }
+  .gift.looking h3 { color: var(--ink-3); font-size: clamp(26px, 2.6vw, 34px); }
+  .gift.looking .pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--terra); animation: read-pulse 1.2s ease-in-out infinite; }
+  @media (max-width: 979px) { .gift.looking { display: none; } .gift { padding: 26px clamp(20px, 3vw, 36px); } }
+  .gift-keep .gift { padding: 26px clamp(20px, 2.6vw, 34px) 22px; gap: 12px; }
+  .gift-keep .gift h3 { font-size: clamp(24px, 2.4vw, 32px); max-width: 40ch; }
+  @media (prefers-reduced-motion: reduce) { .gift.arrive, .gift.looking .pulse-dot { animation: none !important; } }
 
   /* "What your calendar says about your days": what the agent learned, confirmed with one press. */
   .welcome { display: grid; gap: 12px; padding: 22px clamp(20px, 2.6vw, 30px); background: var(--page); border-radius: var(--radius); box-shadow: var(--shadow-2); animation: line-in .6s cubic-bezier(.2, .8, .2, 1) both; }
@@ -872,6 +911,7 @@
         <button type="button" class="btn dark" data-act="edit-done"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Done</button>
       </div>
     </div>
+    <div class="gift-keep" id="gift-keep" role="region" aria-label="One thing for you" hidden></div>
     <div class="welcome" id="welcome" role="region" aria-label="What your calendar says about your days" hidden></div>
     <div class="suggest" id="suggest" role="region" aria-label="A change to your page" aria-live="polite" hidden></div>
     <section class="grid" id="grid" aria-label="My week" hidden></section>
@@ -1358,7 +1398,8 @@
     if (!state.running && !readingNow()) return;
     readFile("reading.json").then(function (b) { return JSON.parse(b); }).catch(function () { return null; }).then(function (d) {
       var r = cleanReading(d);
-      if (!r || (state.reading && r.lines.join("\n") === state.reading.lines.join("\n") && r.done === state.reading.done)) return;
+      if (!r || (state.reading && r.lines.join("\n") === state.reading.lines.join("\n") && r.done === state.reading.done &&
+        (r.gift && r.gift.at) === (state.reading.gift && state.reading.gift.at))) return;
       setReading(r);
       paintHero();
       paintWelcome();
@@ -1640,7 +1681,7 @@
   function cleanReading(d) {
     if (!d || typeof d !== "object" || !Array.isArray(d.lines)) return null;
     var lines = d.lines.map(function (l) { return text(typeof l === "string" ? l : l && l.text, 200); }).filter(Boolean).slice(-14);
-    return { startedAt: d.startedAt, done: d.done === true, lines: lines };
+    return { startedAt: d.startedAt, done: d.done === true, lines: lines, gift: cleanGift(d.gift) };
   }
   /** The agent is still reading: the file says so, and it is fresh. */
   function readingNow() {
@@ -1679,11 +1720,122 @@
     state.sawReading = true;
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     done = done && lines.length === all.length;
-    return '<div class="reading" aria-live="polite"><h2>Reading your calendar</h2>' +
+    var gift = giftNow();
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your calendar</h2>' +
       "<p>Going through the last 90 days and the weeks ahead. About a minute. You don\u2019t need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Google Calendar") + "...</span></li></ul>" +
-      '<p class="fine">Only reads. Nothing is sent, and it all stays in your cabinet.</p></div>';
+      '<p class="fine">Only reads. Nothing is sent, and it all stays in your cabinet.</p></div>' +
+      (gift ? giftHtml(gift, "reading")
+        : done ? ""
+        : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing in your days I can help with right now.</h3></section>') +
+      "</div>";
+  }
+
+  // ── The gift ───────────────────────────────────────────────────────────
+  // While it reads, the agent names one thing in their days they can act on now
+  // (first-sort.mjs gift): a birthday or anniversary coming up, two plans at the same time,
+  // the next free evening or weekend time, or, when it is all full, an offer to find a
+  // break. The helper takes every title and time from the calendar itself. A press asks
+  // the agent in the chat beside the page; nothing changes in the calendar from here.
+  var GIFT_KEY = "google-calendar-personal-gift-done@1";
+  var GIFT_KEEP_DAYS = 3;
+  function cleanGift(g) {
+    if (!g || typeof g !== "object" || !writtenAt(g.at)) return null;
+    var kind = ["date", "clash", "free", "calm"].indexOf(g.kind) >= 0 ? g.kind : null;
+    // A birthday is a whole day: "2026-10-16", read as that day here.
+    var day = typeof g.start === "string" ? parseDay(g.start) : null;
+    var gift = { kind: kind, at: g.at, title: text(g.title, 120), title2: text(g.title2, 120),
+      start: day || writtenAt(g.start), end: writtenAt(g.end), start2: writtenAt(g.start2), end2: writtenAt(g.end2),
+      freeStart: writtenAt(g.freeStart), freeEnd: writtenAt(g.freeEnd),
+      link: typeof g.link === "string" && /^https:\/\/www\.google\.com\/calendar\//.test(g.link) ? g.link : "" };
+    if (!kind) return null;
+    if (kind === "date" && !(gift.title && gift.start)) return null;
+    if (kind === "clash" && !(gift.title && gift.title2 && gift.start && gift.end && gift.start2 && gift.end2)) return null;
+    if (kind === "free" && !(gift.freeStart && gift.freeEnd)) return null;
+    return gift;
+  }
+  function giftNow() {
+    var at = state.reading ? writtenAt(state.reading.startedAt) : null;
+    return at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN ? state.reading.gift : null;
+  }
+  /** "today", "tomorrow", "on Thursday", "on Thursday 22 October". */
+  function giftDay(d) {
+    var diff = daysBetween(startOfToday(), d);
+    if (diff <= 0) return "today";
+    if (diff === 1) return "tomorrow";
+    return diff < 7 ? "on " + DAYS[d.getDay()] : "on " + longDate(d);
+  }
+  function span(a, b) { return clockOf(a) + " to " + clockOf(b); }
+  function giftParts(g) {
+    if (g.kind === "date") {
+      return {
+        head: "<b>" + esc(g.title) + '</b> is <b class="n">' + giftDay(g.start) + "</b>.",
+        why: "Want help getting ready?",
+        button: "Help me get ready", icon: "i-star",
+        ask: g.title + " is on " + longDate(g.start) + ". Help me get ready: three ideas for a gift or a plan that fit, a short warm message I can send on the day, and offer to add a reminder two days before. Change nothing until I say yes."
+      };
+    }
+    if (g.kind === "clash") {
+      return {
+        head: "<b>" + esc(g.title) + "</b> and <b>" + esc(g.title2) + '</b> overlap <b class="n">' + giftDay(g.start) + "</b>.",
+        about: [[g.title, span(g.start, g.end)], [g.title2, span(g.start2, g.end2)]],
+        button: "Sort it out", icon: "i-overlap",
+        ask: "Two plans in my calendar overlap " + giftDay(g.start) + ': "' + g.title + '" (' + span(g.start, g.end) + ') and "' + g.title2 + '" (' + span(g.start2, g.end2) + "). Look at both, tell me which one is easier to move, and write a short, friendly message to move it, the way I write. Change nothing in my calendar and send nothing until I say yes."
+      };
+    }
+    if (g.kind === "free") {
+      var when = giftDay(g.freeStart) + " " + span(g.freeStart, g.freeEnd);
+      return {
+        head: 'Your next free time: <b class="n">' + when + "</b>.",
+        why: "Nothing booked. Want ideas for it?",
+        button: "Plan something nice", icon: "i-sun",
+        ask: "I\u2019m free " + when + ". Suggest three nice things to do then, near me if you can tell where I am from my calendar: one easy, one with people, one just for me. Offer to add the one I pick to my calendar; change nothing until I say yes."
+      };
+    }
+    return {
+      head: "Your evenings and weekend are full.",
+      why: "Want me to find you a break?",
+      button: "Find me a break", icon: "i-hourglass",
+      ask: "My evenings and weekend in the next 7 days are full. Look at my calendar and suggest what I could move or skip to free one evening this week, with a short reason for each. Change nothing until I say yes."
+    };
+  }
+  function giftHtml(g, where) {
+    var p = giftParts(g);
+    var asked = state.giftAsked === g.at;
+    var arrive = where === "reading" && state.giftShownAt !== g.at;
+    if (where === "reading") state.giftShownAt = g.at;
+    var about = (p.about || []).filter(function (a) { return a[0] || a[1]; });
+    return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
+      '<p class="eyebrow">' + icon("i-star") + (where === "reading" ? "While I read, I found this for you" : "Found while reading your calendar") + "</p>" +
+      "<h3>" + p.head + "</h3>" +
+      (about.length ? '<p class="about">' + about.map(function (a) { return "<span>" + (a[0] ? "<b>" + esc(a[0]) + "</b>" : "") + (a[0] && a[1] ? " \u00b7 " : "") + esc(a[1] || "") + "</span>"; }).join("") + "</p>" : "") +
+      (p.why ? '<p class="why">' + esc(p.why) + "</p>" : "") +
+      (asked
+        ? '<p class="asked">' + icon("i-check") + "Asked. Your answer is coming in the chat.</p>"
+        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do">' + icon(p.icon) + esc(p.button) + "</button>" : "") +
+          (g.link ? '<a class="btn" href="' + esc(g.link) + '" target="_blank" rel="noopener">' + icon("i-open") + "Open in Calendar</a>" : "") +
+          (where === "keep" ? '<button type="button" class="btn quiet" data-act="gift-skip">Not now</button>' : "") + "</div>") +
+      '<p class="fine">Nothing changes in your calendar, and nothing is sent, until you say yes.</p></section>';
+  }
+  /** After the reading: the gift stays on top for a few days, until used or put away. */
+  function paintGiftKeep() {
+    var el = $("gift-keep");
+    if (!el) return;
+    var g = state.reading && state.reading.gift;
+    var at = g ? writtenAt(g.at) : null;
+    // A gift about a time that has passed is no gift any more.
+    var now = new Date();
+    var over = g && ((g.kind === "free" && g.freeEnd < now) || (g.kind === "clash" && g.end < now) ||
+      (g.kind === "date" && daysBetween(startOfToday(), g.start) < 0));
+    var show = !!(g && at && !over && state.mineReady && state.giftDone !== g.at && (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY_MS &&
+      !state.example && !readingNow() && !revealing());
+    el.hidden = !show;
+    el.innerHTML = show ? giftHtml(g, "keep") : "";
+  }
+  function giftDone(g) {
+    state.giftDone = g.at;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(GIFT_KEY, g.at).catch(function () {});
   }
   function num(v) { return typeof v === "number" && isFinite(v) && v >= 0 ? v : null; }
   function nameList(x, n) { return Array.isArray(x) ? x.map(function (v) { return text(v, 60); }).filter(Boolean).slice(0, n) : []; }
@@ -1755,6 +1907,7 @@
     document.documentElement.classList.toggle("ready", !!state.loaded);
     document.documentElement.classList.toggle("first-read", !!((state.running && !hasWeek(state.real)) || revealing()));
     paintStatus();
+    paintGiftKeep();
     paintSuggest();
     paintWelcome();
     paintHero();
@@ -4073,6 +4226,17 @@
       undoLayout();
       paintSuggest();
       toast("Your page is back to how it was.");
+    } else if (act === "gift-do") {
+      var gift = state.reading && state.reading.gift;
+      if (gift) {
+        ask(giftParts(gift).ask);
+        state.giftAsked = gift.at;
+        giftDone(gift);
+        if (readingNow() || revealing()) paintHero(); else paintGiftKeep();
+      }
+    } else if (act === "gift-skip") {
+      if (state.reading && state.reading.gift) giftDone(state.reading.gift);
+      paintGiftKeep();
     } else if (act === "profile-ok") {
       markProfileSeen();
       toast("Thanks. Your calendar helper works with this from now on.");
@@ -4177,6 +4341,8 @@
       if (clean) state.layout = clean;
       var seenProfile = mine ? mine.get(PROFILE_SEEN_KEY) : null;
       if (typeof seenProfile === "string") state.profileSeen = seenProfile;
+      var giftSeen = mine ? mine.get(GIFT_KEY) : null;
+      if (typeof giftSeen === "string") state.giftDone = giftSeen;
       state.mineReady = true;
       var seen = mine.get(CHANGE_SEEN_KEY);
       if (typeof seen === "string") state.changeSeen = seen;
