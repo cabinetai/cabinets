@@ -134,24 +134,34 @@ these that their mail backs:
    them and has waited longest for an answer, in the last 14 days.
 2. `quote`: something they sent (a quote, an offer, a question) 3 or more days ago that
    got no answer.
-3. `noise`: the sender that filled their inbox most in the last 30 days, mostly unread.
-4. `calm`: nobody is waiting and nothing is noisy. Still a gift: the page offers to find
-   what they forgot.
+3. `noise`: the sender that filled their inbox most in the last 30 days (5 emails or
+   more) and is safe to quiet: a newsletter, a shop, social mail or a tool's notices
+   (Slack, GitHub, LinkedIn). Never sign-in codes, security alerts, a bank, receipts or
+   invoices: those they need.
+4. `calm`: only when the noise search found no such sender. Still a gift: the page
+   offers to find what they forgot.
 How to find it, fast:
 - One call: `gws gmail users threads list --params '{"userId":"me","q":"in:inbox newer_than:14d -category:promotions -category:social -category:updates -category:forums","maxResults":25}' > front-desk/data/.work/gift-list.json`,
   then, in the same call, `threads get` with `"format":"metadata","metadataHeaders":["From","To","Subject","Date"]`
-  for each id, oldest first, one JSON per line into `front-desk/data/.work/gift-threads.ndjson`.
-  End the call with your first `push`.
+  for each id, oldest first, each answer on one line (gws prints JSON over many lines:
+  pipe it through `tr -d '\n'`, then `echo`) into `front-desk/data/.work/gift-threads.ndjson`.
+  In the same call, count the 30-day inbox (the `inbox30.ndjson` search of "Read a little
+  more") and end with its line: "**{count:inbox30.ndjson} emails** came into your inbox in
+  the last 30 days". Never push a count of `gift-list.json`: it leaves notices out, so
+  it is not how much mail came in.
 - A thread whose last message is from someone else, a person, is `waiting`; a thread whose
   last message is theirs, 3 or more days old, asking or offering something, is `quote`.
   Take the oldest.
-- Neither: `gws gmail +triage --max 40 --query 'in:inbox newer_than:30d is:unread' --format json > front-desk/data/.work/gift-unread.json`,
-  take the sender that shows most, and save `+triage --max 100 --query 'from:<address> newer_than:30d'`
-  as `gift-noise-all.json` and the same with `is:unread` as `gift-noise-unread.json`.
+- Neither: always run the noise search before you settle on `calm`:
+  `gws gmail +triage --max 100 --query 'in:inbox newer_than:30d' --format json > front-desk/data/.work/gift-30.json`,
+  count the senders, take the one that shows most and is safe to quiet, and save
+  `+triage --max 100 --query 'from:<address> newer_than:30d'` as `gift-noise-all.json`
+  and the same with `is:unread` added as `gift-noise-unread.json` (leave `unread` out
+  when that comes back empty).
 - Then write `.work/gift.json` and run `node front-desk/first-sort.mjs gift @gift.json`:
   `{"kind":"waiting","who":"Mike Alvarez","subject":"AC making a grinding noise again","since":"<Date header of their last message, as Gmail wrote it>","threadId":"<thread id>","gist":"Wants a tech before Saturday, still under warranty"}`.
   For `quote`, `since` is the Date of their own last message and `who` the person they wrote to.
-  For `noise`: `{"kind":"noise","who":"LinkedIn","count":"{count:gift-noise-all.json|email|emails}","unread":"{count:gift-noise-unread.json}"}`.
+  For `noise`: `{"kind":"noise","who":"LinkedIn","count":"{count:gift-noise-all.json@100|email|emails}","unread":"{count:gift-noise-unread.json@100}"}` (`@100`: the list was asked for 100).
   For `calm`: `{"kind":"calm"}`.
 - `who` is the name as the From or To header writes it (no address); `who`, `subject`,
   `since` and `threadId` are copied from a saved answer, and the helper refuses anything
