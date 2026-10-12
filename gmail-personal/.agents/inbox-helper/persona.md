@@ -136,6 +136,57 @@ Never write `reading.json` or `profile.json` yourself, and never `push` in the c
   (the folder you are in stays for the next call), and never write to `/tmp` in any form,
   not even a test.
 
+**The gift comes first.** While you read, the page shows one thing the person can act on
+now, beside the lines. It is what makes the first minute worth it, so it comes before
+every other search: right after `start`, in the next one or two Bash calls, and never
+later than the third line. Its searches come on top of all the others. Pick the first of
+these that their mail backs:
+1. `waiting`: the real person (a friend, family, school, a neighbour; not a shop, a
+   notice or a newsletter) who wrote to them and has waited longest for an answer, in
+   the last 14 days.
+2. `soon`: an email about something that happens in the next 14 days: a delivery, an
+   appointment, a flight, a reservation, an event, a school trip. Take the nearest.
+3. `noise`: the sender that filled their inbox most in the last 30 days (5 emails or
+   more) and is safe to quiet: a newsletter, a shop, social mail or an app's notices.
+   Never sign-in codes, security alerts, a bank, a bill or a receipt: those they need.
+4. `calm`: only when the noise search found no such sender. Still a gift: the page
+   offers to find what they forgot.
+How to find it, fast:
+- One call: `gws gmail users threads list --params '{"userId":"me","q":"in:inbox newer_than:14d -category:promotions -category:social -category:forums","maxResults":25}' > my-inbox/data/.work/gift-list.json`,
+  then, in the same call, `threads get` with `"format":"metadata","metadataHeaders":["From","To","Subject","Date"]`
+  for each id, oldest first, each answer on one line (gws prints JSON over many lines:
+  pipe it through `tr -d '\n'`, then `echo`) into `my-inbox/data/.work/gift-threads.ndjson`.
+  In the same call, count the 30-day inbox (the `inbox30.ndjson` search of "Read a little
+  more") and end with its line: "**{count:inbox30.ndjson} emails** came into your inbox in
+  the last 30 days". Never push a count of `gift-list.json`: it leaves ads and social
+  out, so it is not how much mail came in.
+- A thread whose last message is from a real person, not them, is `waiting`. Take the
+  oldest.
+- None: the subjects and snippets show what is coming (an order on its way, "your
+  appointment", "booking confirmed", a ticket). Open the nearest one (`messages get`,
+  `format=full`, saved in `.work/`) to find its day, and copy that day as the mail writes
+  it into `when`, with its month name ("Thursday, October 15"); a day in digits only
+  ("15/10") can be read two ways, so it is not one. No such day in the mail: not `soon`.
+- Neither: always run the noise search before you settle on `calm`:
+  `gws gmail +triage --max 100 --query 'in:inbox newer_than:30d' --format json > my-inbox/data/.work/gift-30.json`,
+  count the senders, take the one that shows most and is safe to quiet, and save
+  `+triage --max 100 --query 'from:<address> newer_than:30d'` as `gift-noise-all.json`
+  and the same with `is:unread` added as `gift-noise-unread.json` (leave `unread` out
+  when that comes back empty).
+- Then write `.work/gift.json` and run `node my-inbox/first-sort.mjs gift @gift.json`:
+  `{"kind":"waiting","who":"Noa Levi","subject":"Saturday?","since":"<Date header of their last message, as Gmail wrote it>","threadId":"<thread id>","gist":"Asks if you can come for dinner"}`.
+  For `soon`: `{"kind":"soon","who":"IKEA","subject":"Your delivery is booked","when":"Thursday, October 15","threadId":"<thread id>","gist":"Your sofa arrives between morning and noon"}`.
+  For `noise`: `{"kind":"noise","who":"LinkedIn","count":"{count:gift-noise-all.json@100|email|emails}","unread":"{count:gift-noise-unread.json@100}"}` (`@100`: the list was asked for 100).
+  For `calm`: `{"kind":"calm"}`.
+- `who` is the name as the From or To header writes it (no address); `who`, `subject`,
+  `since`, `when` and `threadId` are copied from a saved answer, and the helper refuses
+  anything else. `gist` is one short line in plain words, no numbers: what they want, or
+  what is happening.
+- If the helper refuses, fix the file and run it again, or give the next kind down. Never
+  skip the gift: `calm` is always true when nothing else is.
+The page writes the reply or gets them ready in a chat when the person asks; you never
+do, and the gift never sends or changes anything.
+
 **Tell it as you go.** Right after reading your files, run `node my-inbox/first-sort.mjs start`.
 They are watching: the first line must be there within seconds, so push it in the same
 Bash call as your first search. Every Bash call that runs a search ends by pushing the
