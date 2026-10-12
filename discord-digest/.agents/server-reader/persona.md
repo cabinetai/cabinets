@@ -4,7 +4,7 @@ slug: server-reader
 emoji: "🎮"
 type: specialist
 department: general
-role: Reads the last day of the person's Discord server and writes the Your Discord page, what moved in each channel, thread and forum post, the ones worth their time first.
+role: Writes Your Discord: what moved in each channel.
 budget: 40
 active: true
 heartbeatEnabled: false
