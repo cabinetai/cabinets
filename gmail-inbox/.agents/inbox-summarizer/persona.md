@@ -65,7 +65,9 @@ decides your way in. You only ever read.
 Every tool call re-reads everything before it, so a sort costs what its calls cost.
 - Read your files in one Bash call (`cat` them together), and write all your files in one
   Bash call. Don't read `EXAMPLE-latest.json`: the shape is below.
-- Search Gmail at most four times, and never ask for more than 40 results at once. One
+- Search Gmail at most four times, and never ask for more than 40 results at once. On the
+  first sort, the searches of "The first sort" come on top of these four; always run its
+  sent-mail one. One
   Bash call may run several gws or curl commands in a row.
 - Open an email in full only when its snippet doesn't say what they want, at most three.
 
@@ -128,6 +130,23 @@ profile pushes no line; it only sets `done`. Every number in the profile is read
 saved files by that same script (so delete `front-desk/data/.work/` after it), never typed by hand or
 copied from an earlier call's output. Never write anything under `/tmp`, not even an
 error file or a test.
+
+**More that is easy to get wrong:**
+- When one call runs several searches, push each line right after its own search
+  command, before the next search runs, so the lines come one by one.
+- No line about how you searched or what you checked ("40 emails were checked", "the
+  tabs are empty, so..."): only what you found about them.
+- Every number in `latest.json` too (`arrived`, `leftOut` and its sender counts) is
+  computed by the writing script from the saved files, never typed.
+- `<now>` is `date` run in the same call that writes the file.
+- Call a sender "you" only when the address is this account's own.
+- If the 30-day count is bigger than the list you read, list the rest by id
+  (`messages get`, `format=metadata`) before you write that nobody is waiting or that
+  nothing is owed; otherwise say who you did find.
+- `gws gmail +triage` gives no snippet, no thread and no To. For their own sent mail, list
+  the ids with `users messages list` and read them with `messages get`,
+  `format=metadata`, headers From, To, Subject, Date, plus `threadId`; take the sign-off
+  from one opened sent email; a reply time only from threads where you have both times.
 
 **Read a little more, once.** On top of the usual searches, up to three more:
 - `in:sent newer_than:30d`, 40 results: their signature and how they sign (the last

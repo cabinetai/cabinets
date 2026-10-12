@@ -1256,7 +1256,8 @@
   /** The agent is still reading: the file says so, and it is fresh. */
   function readingNow() {
     var r = state.reading;
-    if (!r || r.done) return false;
+    // A run that ended without saying done is not still reading.
+    if (!r || r.done || !state.running) return false;
     var at = writtenAt(r.startedAt);
     return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
   }
@@ -1536,7 +1537,7 @@
         ? '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + "Set aside</span>" +
           '<span class="value num">' + left + '</span><span class="sub">Newsletters and ads</span></a>'
         : '<a class="kpi" href="#lane-more"><span class="label">' + icon("i-inbox") + "Since yesterday</span>" +
-          '<span class="value num">' + arrived + '</span><span class="sub">' + (left ? left + " newsletters and ads set aside" : "emails in") + "</span></a>"
+          '<span class="value num">' + arrived + '</span><span class="sub">' + (left ? left + " set aside" : "emails in") + "</span></a>"
     };
   }
 
@@ -2245,7 +2246,7 @@
     var left = d.leftOut && typeof d.leftOut.count === "number" ? d.leftOut.count : 0;
     var parts = [];
     if (arrived !== null) parts.push(arrived + " " + plural(arrived, "email", "emails") + " since yesterday");
-    if (left) parts.push(left + " newsletters and ads set aside");
+    if (left) parts.push(left + " set aside");
     return parts.length ? '<p class="meta">' + icon("i-inbox") + esc(parts.join(" · ")) + "</p>" : "";
   }
 
@@ -2561,7 +2562,7 @@
     var aside = left && typeof left.count === "number" && left.count ? left.count : 0;
     if (level === "S") {
       return sumBox("more", "Also worth a look", "i-bell", String(f.length), f.length ? plural(f.length, "note", "notes") + " with nothing to do" : "Nothing new",
-        aside ? esc(aside + " newsletters and ads set aside") : "");
+        aside ? esc(aside + " set aside") : "");
     }
     var rows = f.map(function (item) {
       return '<li><b dir="auto">' + esc(text(item.from, 60)) + '</b><span dir="auto">' + esc(text(item.gist, 140)) + "</span></li>";
@@ -3012,7 +3013,7 @@
     var c = state.change;
     if (!c || !canAsk() || state.editing || c.at === state.changeSeen) return null;
     if (daysBetween(writtenAt(c.at), new Date()) > CHANGE_DAYS) return null;
-    var me = myName();
+    var me = cabName();
     if (c.for && me && c.for.toLowerCase() !== me.toLowerCase()) return null;
     // A box waiting for its data counts as there: it is in the layout, only not drawn yet.
     var add = c.add.filter(function (id) { return !entryOf(id) && c.remove.indexOf(id) < 0; });
