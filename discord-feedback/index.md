@@ -21,7 +21,9 @@ and a link back to each message, so you can always check the source.
 ## How it reads
 
 - **It reads `#feedback`**, every 30 minutes, and only what is new since the last run.
-- **It only reads.** It never posts, replies or reacts in your server.
+- **It reads, and writes only where you allow.** The board itself only reads. In the chat,
+  your team posts or replies only when you ask, and only in channels you set to Write in
+  Discord's settings in Cabinet. Everywhere else, replies are drafted for you to send.
 - **One server.** It reads the server you gave Cabinet when you connected Discord.
 
 ## Before it can read your server

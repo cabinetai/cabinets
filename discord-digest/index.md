@@ -27,7 +27,10 @@ morning digest of.
 
 Direct messages are left out. This is the server, not your DMs.
 
-Nothing is posted, replied to, reacted to or threaded. It only reads.
+The morning digest only reads. Your team writes in your server only in channels you set to
+Write in Discord's settings in Cabinet: when you ask in the chat, or in a routine you set up
+to post, which you approve before it starts. Everywhere else, replies are drafted for you
+to send yourself.
 
 ## How to look at it
 
