@@ -683,14 +683,22 @@
   .ev.freeslot { display: flex; align-items: center; gap: 6px; border: 1.5px dashed var(--sage-line); background: transparent; color: var(--sage-ink); font-weight: 600; }
   .ev.freeslot .icon { width: 14px; height: 14px; flex: none; }
 
-  /* Free time. */
-  .freelist > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
-  .freelist > li.best { background: #f6f9f7; }
-  .freelist .fday { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 700; }
-  .freelist .frange { grid-column: 1; font-size: 14px; color: var(--ink-3); }
-  .freelist .flen { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-size: 18px; font-weight: 800; color: var(--sage-ink); }
-  .fbar { grid-column: 1 / -1; position: relative; height: 6px; margin-top: 6px; border-radius: 999px; background: var(--panel-2); }
-  .fbar span { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: var(--sage); }
+  /* Send my free times: the message itself, each time a line you can leave out. */
+  .lane.free .box-body { overflow-y: auto; }
+  .send-msg { margin: 0; padding: 12px 16px 4px; font-size: 14.5px; line-height: 1.45; color: var(--ink-2); }
+  .send-msg p { margin: 0; }
+  .sendlist { list-style: none; margin: 4px 0; padding: 0; }
+  .sendlist button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 32px; padding: 2px 6px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: inherit; font-weight: 600; text-align: start; cursor: pointer; }
+  .sendlist button:hover { background: var(--panel-2); }
+  .sendlist .tick { display: grid; place-items: center; flex: none; width: 20px; height: 20px; border: 1.5px solid var(--sage-ink); border-radius: 6px; background: var(--sage-ink); color: #fff; }
+  .sendlist .tick .icon { width: 13px; height: 13px; }
+  .sendlist button[aria-pressed="false"] { color: var(--ink-3); font-weight: 400; text-decoration: line-through; }
+  .sendlist button[aria-pressed="false"] .tick { background: transparent; border-color: var(--line-2); color: transparent; }
+  .send-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 16px 14px; }
+  .send-len { display: flex; flex-wrap: wrap; gap: 6px; }
+  .send-len button { min-height: 32px; padding: 4px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: transparent; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+  .send-len button[aria-pressed="true"] { background: var(--ink-2); border-color: var(--ink-2); color: #fff; }
+  .send-empty { margin: 0; padding: 12px 16px; color: var(--ink-3); }
 
   /* Double bookings. */
   .clashes > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
@@ -936,6 +944,8 @@
     askNote: "",
     layout: null,
     hiddenIdeas: {},
+    sendLen: 120,
+    sendOff: {},
     done: {},
     drawerOpen: false,
     drawerKind: "ideas",
@@ -1389,7 +1399,8 @@
   }
 
   /** Free stretches in a day's own time (evening, or the weekend day), from now on for today. */
-  function openStretches(day, isToday) {
+  function openStretches(day, isToday, min) {
+    var least = min || MIN_FREE;
     if (day.outside) return [];
     var w = windowOf(day.date);
     var DAY_FROM = w.from, DAY_TO = w.to;
@@ -1402,10 +1413,10 @@
     var cursor = from;
     busy.forEach(function (b) {
       if (b[1] <= cursor) return;
-      if (b[0] > cursor && Math.min(b[0], DAY_TO) - cursor >= MIN_FREE) out.push({ start: cursor, end: Math.min(b[0], DAY_TO) });
+      if (b[0] > cursor && Math.min(b[0], DAY_TO) - cursor >= least) out.push({ start: cursor, end: Math.min(b[0], DAY_TO) });
       cursor = Math.max(cursor, b[1]);
     });
-    if (DAY_TO - cursor >= MIN_FREE) out.push({ start: cursor, end: DAY_TO });
+    if (DAY_TO - cursor >= least) out.push({ start: cursor, end: DAY_TO });
     return out;
   }
   /** "This afternoon", "Thursday morning", "Friday". */
@@ -1727,8 +1738,8 @@
       title: "Headline", desc: "Your week in one line, and the one thing worth knowing." },
     today: { cls: "lane today", list: true, draw: drawToday, group: "week", icon: "i-clock", w: 7, h: 7, min: [3, 3],
       title: "Today", desc: "What's on now and next, with a live countdown, and the rest of your day." },
-    free: { cls: "lane free", list: true, draw: drawFree, group: "week", icon: "i-sun", w: 5, h: 7, min: [3, 3],
-      title: "Free time", desc: "Your free evenings and weekend time this week, so you can keep them free." },
+    free: { cls: "lane free", list: true, draw: drawFree, group: "week", icon: "i-send", w: 5, h: 7, min: [3, 3],
+      title: "Send my free times", desc: "Your free evenings and weekend times as a message for friends or family, ready to copy." },
     coming: { cls: "lane coming", list: true, draw: drawComing, group: "week", icon: "i-calendar", w: 7, h: 5, min: [3, 3],
       title: "Coming up", desc: "Appointments, bookings, school dates and trips in the next 30 days." },
     dates: { cls: "lane dates", list: true, draw: drawDates, group: "week", icon: "i-sun", w: 5, h: 5, min: [3, 3],
@@ -2346,28 +2357,105 @@
   }
 
   /** Free time: the free evenings and weekend stretches, the longest marked, each on its day's own time. */
+  // ── Send my free times ─────────────────────────────────────────────────
+
+  // The free stretches as a message to send when someone asks "when are you free?".
+  var SEND_KEY = "calendar-personal-send@1";
+  var SEND_LENGTHS = [60,120,180];
+  var SEND_MAX = 7;           // times in one message: the evenings and the weekend
+  var SEND_LEAD = 60;         // minutes: a time today starts at least this far from now
+  var LEN_WORDS = { 30: "30-minute", 60: "1-hour", 120: "2-hour", 180: "3-hour" };
+  var LEN_SHORT = { 30: "30 min", 60: "1 h", 120: "2 h", 180: "3 h" };
+  var sendIntro = function () { return "I'm free at these times this week:"; };
+
+  function sendLength() { return SEND_LENGTHS.indexOf(state.sendLen) >= 0 ? state.sendLen : 120; }
+  /** Times long enough for one meeting of `len` minutes, each starting on the hour or half hour. */
+  function sendTimes(f, len) {
+    var out = [];
+    f.days.forEach(function (d, i) {
+      openStretches(d, i === 0, len).forEach(function (s) {
+        var start = Math.ceil(s.start / 30) * 30;
+        if (i === 0) start = Math.max(start, Math.ceil((nowMinutes() + SEND_LEAD) / 30) * 30);
+        if (s.end - start < len) return;
+        out.push({ key: d.key + "@" + start, day: d, start: start, end: s.end });
+      });
+    });
+    return out.slice(0, SEND_MAX);
+  }
+  /** "Tue 14 Oct, 2:00 PM to 4:00 PM": a full date, since the message is read later. */
+  function sendWhen(t) { return DAYS[t.day.date.getDay()].slice(0, 3) + " " + shortDate(t.day.date) + ", " + clock(t.start) + " to " + clock(t.end); }
+  function zoneName() {
+    try {
+      var parts = new Intl.DateTimeFormat(undefined, { timeZoneName: "long" }).formatToParts(new Date());
+      for (var i = 0; i < parts.length; i++) if (parts[i].type === "timeZoneName") return parts[i].value;
+    } catch (e) { /* older browser */ }
+    return "";
+  }
+  function sendText(times, len) {
+    var zone = "";
+    return sendIntro(len) + "\n" + times.map(function (t) { return "- " + sendWhen(t); }).join("\n") + "\n" +
+      (zone ? "Times are in " + zone + ". " : "") + "When works for you?";
+  }
+  function sendChosen(times) { return times.filter(function (t) { return !state.sendOff[t.key]; }); }
+
+  function copyText(text) {
+    var done = function () { toast("Copied. Paste it into your message."); };
+    var fail = function () { toast("That could not be copied. Select the text and copy it yourself."); };
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      navigator.clipboard.writeText(text).then(done, function () { if (copyByHand(text)) done(); else fail(); });
+    } else if (copyByHand(text)) done();
+    else fail();
+  }
+  /** For a frame the browser does not let use the clipboard API. */
+  function copyByHand(text) {
+    var area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(area);
+    return ok;
+  }
+  function saveSendLength() {
+    if (V2 && cab.mine && typeof cab.mine.set === "function") {
+      cab.mine.set(SEND_KEY, state.sendLen).catch(function () { /* the choice is only a convenience */ });
+    }
+  }
+
   function drawFree(level) {
     var f = state.facts;
+    var len = sendLength();
+    var times = sendTimes(f, len);
+    var chosen = sendChosen(times);
+    var copy = '<button type="button" class="btn small dark" data-act="send-copy"' + (chosen.length ? "" : " disabled") + ">" + icon("i-copy") + "Copy</button>";
     if (level === "S") {
-      return sumBox("free", "Free time", "i-sun", f.best ? lengthWords(f.best.slot.end - f.best.slot.start) : "",
-        f.best ? esc(f.bestWords) : "No long free stretch", f.best ? esc(clock(f.best.slot.start) + " to " + clock(f.best.slot.end)) : "");
+      return sumBox("free", "Send my free times", "i-send", times.length ? String(chosen.length) : "",
+        times.length ? (chosen.length === 1 ? "time ready to send" : "times ready to send") : "No free time for this length",
+        times.length ? copy : "");
     }
-    var head = boxHead("free", "Free time", "i-sun", hoursWords(f.freeHours) + " free", null);
-    if (!f.free.length) {
-      return head + '<div class="box-body"><p class="lane-empty">No free evening or weekend stretch of 1.5 hours or more this week.</p></div>' + moreButton();
+    var head = boxHead("free", "Send my free times", "i-send", times.length ? count(chosen.length, "time", "times") : "", null);
+    var lens = '<div class="send-len" role="group" aria-label="How long">' + SEND_LENGTHS.map(function (m) {
+      return '<button type="button" data-act="send-len" data-len="' + m + '" aria-pressed="' + (m === len) + '">' + LEN_SHORT[m] + "</button>";
+    }).join("") + "</div>";
+    if (!times.length) {
+      return head + '<div class="box-body"><p class="send-empty">' + esc("No free evening or weekend time of " + LEN_SHORT[len] + " or more this week. Try a shorter one.") + "</p></div>" +
+        '<div class="send-foot">' + lens + "</div>";
     }
-    var rows = f.free.map(function (s) {
-      var w = windowOf(s.day.date);
-      var span = w.to - w.from;
-      var DAY_FROM = w.from;
-      var mins = s.slot.end - s.slot.start;
-      var best = s === f.best;
-      return '<li class="' + (best ? "best" : "") + '"><span class="fday">' + esc(stretchWords(s.day, s.slot, f.today)) + (best ? '<span class="chip ok">Longest</span>' : "") + "</span>" +
-        '<span class="frange num">' + esc(clock(s.slot.start) + " to " + clock(s.slot.end)) + "</span>" +
-        '<span class="flen num">' + esc(lengthWords(mins)) + "</span>" +
-        '<span class="fbar" aria-hidden="true"><span style="left:' + Math.round((s.slot.start - DAY_FROM) / span * 100) + "%;width:" + Math.round(mins / span * 100) + '%"></span></span></li>';
+    var rows = times.map(function (t) {
+      var on = !state.sendOff[t.key];
+      return '<li><button type="button" data-act="send-toggle" data-key="' + esc(t.key) + '" aria-pressed="' + on + '"' +
+        ' aria-label="' + esc((on ? "Leave out " : "Put back ") + sendWhen(t)) + '">' +
+        '<span class="tick" aria-hidden="true">' + icon("i-check") + '</span><span class="num" dir="auto">' + esc(sendWhen(t)) + "</span></button></li>";
     }).join("");
-    return head + '<div class="box-body"><ol class="rows freelist">' + rows + "</ol></div>" + moreButton() + nudgeHtml(boxIdea("free"));
+    var zone = "";
+    return head + '<div class="box-body"><div class="send-msg" dir="auto"><p>' + esc(sendIntro(len)) + "</p>" +
+      '<ol class="sendlist">' + rows + "</ol>" +
+      "<p>" + esc((zone ? "Times are in " + zone + ". " : "") + "When works for you?") + "</p></div></div>" +
+      '<div class="send-foot">' + lens + copy + "</div>" + nudgeHtml(boxIdea("free"));
   }
 
   /** This week: a count, a list by day, or a real week of seven columns when there is room. */
@@ -3717,6 +3805,18 @@
     } else if (act === "filter") {
       state.filter = el.getAttribute("data-filter") || "all";
       paintGrid();
+    } else if (act === "send-len") {
+      state.sendLen = +el.getAttribute("data-len") || state.sendLen;
+      saveSendLength();
+      paintGrid();
+    } else if (act === "send-toggle") {
+      var sendKey = el.getAttribute("data-key");
+      if (state.sendOff[sendKey]) delete state.sendOff[sendKey];
+      else state.sendOff[sendKey] = true;
+      paintGrid();
+    } else if (act === "send-copy") {
+      var sendFrom = sendChosen(sendTimes(state.facts, sendLength()));
+      if (sendFrom.length) copyText(sendText(sendFrom, sendLength()));
     } else if (act === "connect") connect();
     else if (act === "run") runNow();
     else if (act === "ask") ask(el.getAttribute("data-q"));
@@ -3871,6 +3971,8 @@
       if (typeof seen === "string") state.changeSeen = seen;
       var hidden = mine.get(HIDDEN_IDEAS_KEY);
       if (Array.isArray(hidden)) hidden.forEach(function (hid) { if (ideaById(hid)) state.hiddenIdeas[hid] = true; });
+      var sendLen = mine.get(SEND_KEY);
+      if (SEND_LENGTHS.indexOf(sendLen) >= 0) state.sendLen = sendLen;
       var done = mine.get(DONE_KEY);
       var fresh = addDays(startOfToday(), -14);
       if (done && typeof done === "object") Object.keys(done).forEach(function (k) {

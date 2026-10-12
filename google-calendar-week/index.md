@@ -19,7 +19,7 @@ The cabinet opens on it: **Your week**.
   working day.
 - **Before and after**: meetings to prepare for, with a short brief ready, and follow-ups
   to send after them.
-- **Free time**: your longest free stretches this week, for new clients or deep work.
+- **Send my free times**: your open times this week as a short message, ready to copy into an email when someone asks when you are free.
 - **This week**: your seven days, as a list by day or as a real week view.
 - **Clients you meet**: who you met, how often, and when you meet them next. **Going
   quiet** names the clients you have not seen in a while, with a check-in ready.

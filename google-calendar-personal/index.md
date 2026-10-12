@@ -18,7 +18,7 @@ The cabinet opens on it: **My week**.
 - **Today**: what is on now, what is next with a live countdown, and the rest of the day.
 - **Coming up**: appointments, bookings, school dates and trips in the next 30 days.
 - **Birthdays and dates**: who to celebrate soon, with a nudge to plan something.
-- **Free time**: your free evenings and weekend time, so you can keep some for yourself.
+- **Send my free times**: your free evenings and weekend times as a message for friends or family, ready to copy.
 - **This week**: your seven days, as a list by day or as a real week view.
 
 Every Sunday evening it writes **the week ahead**: each day's plans, and what to prepare.

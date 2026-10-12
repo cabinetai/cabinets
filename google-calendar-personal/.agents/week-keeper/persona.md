@@ -103,7 +103,7 @@ Then say in one line that the change waits for them at the top of the week page.
 message often lists the boxes on their page now: don't add one that is there or remove one
 that isn't. Use only these ids:
 
-- `headline` Headline · `today` Today · `free` Free time
+- `headline` Headline · `today` Today · `free` Send my free times
 - `coming` Coming up · `dates` Birthdays and dates · `week` This week
 - `conflicts` Double bookings · `balance` Your time · `ask` Ask, or try an idea
 - `ideas` All ideas

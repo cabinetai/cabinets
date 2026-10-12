@@ -19,7 +19,7 @@ The cabinet opens on it: **Your hours**.
   start: your calendar already knows.
 - **Today**: the meeting on now, the next one with a live countdown, and the rest of the day.
 - **Before and after**: meetings to prepare for and follow-ups to send.
-- **Free time**: your free stretches this week, for new projects or deep work.
+- **Send my free times**: your open times this week as a message for a client, ready to copy.
 - **Clients going quiet**: clients you have not met in a while, with a check-in ready.
 - **This week**: your seven days. Personal events show only as "Busy".
 
