@@ -7,7 +7,10 @@
 //                                                 {"id","status":"ready"|"pick"|"not-found","to":{"name","email"},
 //                                                 "from":"mail"|"you","subject","body","threadId",
 //                                                 "can":"drafts"|"send"|"copy","options":[{"name","email"}],"note"}
-//   node <app>/write-email.mjs done <id> drafted|proposed   after the drafts call, or the SEND_EMAIL line
+//   node <app>/write-email.mjs done <id> drafted|proposed|readonly [@file]
+//                                                 after the drafts call, the SEND_EMAIL line, or neither
+//                                                 (read only); @file only for an email the owner
+//                                                 wrote themselves: {"to":{"email"},"subject","body"}
 // An address from the mail ("from":"mail") must be written in a saved Gmail answer in
 // data/.write/. One the owner typed ("from":"you") must be in data/.write/asked.txt, the
 // owner's words saved as they are. A money amount in the email must be in one of those too.
@@ -132,13 +135,31 @@ if (cmd === "start") {
 } else if (cmd === "done") {
   const id = checkId(args[0]);
   const what = String(args[1] || "");
-  if (!["drafted", "proposed"].includes(what)) fail('done takes "drafted" or "proposed"');
-  const now = readCompose();
-  if (!now || now.id !== id || now.status !== "ready") fail(`there is no ready email ${id} in data/compose.json`);
+  if (!["drafted", "proposed", "readonly"].includes(what)) fail('done takes "drafted", "proposed" or "readonly"');
+  let now = readCompose();
+  if (!now || now.id !== id) fail(`run "start ${id}" first`);
+  if (now.status !== "ready") {
+    // The owner wrote this email themselves, or picked who it goes to: it comes in a file, its
+    // address in their words or among the people offered.
+    const ref = String(args[2] || "");
+    if (!ref.startsWith("@")) fail(`give the email as the owner's message has it: done ${id} ${what} @email.json, {"to":{"email"},"subject","body"}`);
+    const file = path.resolve(writeDir, ref.slice(1));
+    if (!file.startsWith(writeDir + path.sep) || !fs.existsSync(file)) fail(`${ref.slice(1)} is not in data/.write/`);
+    let e;
+    try { e = JSON.parse(fs.readFileSync(file, "utf8")); } catch { fail(`${ref.slice(1)} is not JSON`); }
+    const own = asked();
+    if (!own.trim()) fail("save the owner's words as data/.write/asked.txt first, as they wrote them");
+    const offered = now.status === "pick" ? (now.options || []).map((p) => p.email).join("\n") : "";
+    const picked = offered && e.to && offered.toLowerCase().split("\n").includes(String(e.to.email || "").trim().toLowerCase());
+    now = { schema: SCHEMA, id, at: iso(new Date()), from: picked ? "mail" : "you",
+      to: picked ? person(e.to, "mail", offered, own, "to") : person(e.to, "you", "", own, "to"),
+      subject: line(e.subject, 200, "subject"), body: String(e.body == null ? "" : e.body).replace(/\r\n/g, "\n").trim().slice(0, 5000) };
+    if (!now.subject || !now.body) fail("the email needs the subject and body the owner wrote");
+  }
   now.status = what;
   now.doneAt = iso(new Date());
   writeJson(composeFile, now);
   console.log("data/compose.json: " + what);
 } else {
-  fail("use start <id>, save @<file> or done <id> drafted|proposed");
+  fail("use start <id>, save @<file> or done <id> drafted|proposed|readonly [@file]");
 }

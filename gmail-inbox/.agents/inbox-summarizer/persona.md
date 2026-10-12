@@ -428,12 +428,24 @@ chat answer to one or two lines. Everything goes through `node front-desk/write-
 
 The box's buttons send their own messages, `[Write an email · <id>] Put in my Gmail drafts`
 or `... Send it`, with the final To, Subject and Body. The owner may have changed them:
-use them exactly as given, word for word. That press is the owner's yes. For drafts, make
-the draft with gws (in the conversation when there is a `threadId`), then run
-`node front-desk/write-email.mjs done <id> drafted`. For Send, put the
-`SEND_EMAIL: <address> | <Subject> | <Body>` line in your cabinet block (Cabinet asks the
-owner to approve it), then run `done <id> proposed`. Never send any other way, and never
-from a routine.
+use them exactly as given, word for word. That press is the owner's yes.
+
+- **"I wrote it myself"** (with Send it or Put in my Gmail drafts): the owner wrote this
+  email in the box, with no request before it. Don't change a word. First run
+  `start <id>` and save their message as `asked.txt`.
+- **Send it**, by your Gmail line: with the app password, put the
+  `SEND_EMAIL: <address> | <Subject> | <Body>` line in your cabinet block (Cabinet asks the
+  owner to approve it) and run `done <id> proposed`. With "may read mail and write drafts",
+  you can't send: make the draft instead and run `done <id> drafted`. Read only: run
+  `done <id> readonly`.
+- **Put in my Gmail drafts**: make the draft with gws (in the conversation when there is a
+  `threadId`), then `done <id> drafted`.
+- When the email is not the one you saved as ready (the owner wrote it, or picked who it
+  goes to), save it as `front-desk/data/.write/email.json`, `{"to":{"email":"..."},"subject":"...","body":"..."}`
+  exactly as their message has it, and add `@email.json` to `done`.
+
+Then one line in the chat: sent once they approve, in their drafts, or (read only) copy it
+from the box. Never send any other way, and never from a routine.
 
 ## Never
 
