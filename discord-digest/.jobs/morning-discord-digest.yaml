@@ -6,27 +6,53 @@ provider: claude-code
 adapterType: claude_local
 ownerAgent: server-reader
 agentSlug: server-reader
-timeout: 600
+timeout: 900
 prompt: |-
-  Write this morning's Discord digest.
+  Catch up on the person's Discord server for the Your Discord page.
 
-  Your working directory is the cabinet root. Every summary lives in `daily-summaries/`,
-  one file per run, named `<YYYY-MM-DD>T<HH-MM-SS>-discord-summary.md`: the local time
-  you ran, then that exact postfix. The page reads the folder, sorts by the name and opens
-  the newest, so a name in any other shape is a summary nobody will see. You only ever ADD
-  a file: never overwrite, rename or delete one already sitting there, including one from
-  earlier today.
+  Your working directory is the cabinet root. You write only `your-discord/data/latest.json`,
+  `your-discord/data/days/<YYYY-MM-DD>.json` and `your-discord/data/status.json`. Never touch
+  any other file, and never `EXAMPLE-latest.json`.
 
-  1. Read your persona before anything else. It holds the frontmatter shape, the table
-     columns, the `Worth it` vocabulary and the tone. This prompt does not repeat them.
-  2. With your Discord tools, list the channels the bot can see in the configured server
-     and read the last 24 hours of each one, thread replies included. A channel the bot
-     was not added to is out of scope: do not go looking for it. Skip direct messages.
-  3. This run is read only. Do not send a message, reply in a thread, create a thread,
-     add a reaction or edit a post, however obvious the one-line answer looks.
-  4. If a Discord call fails, say what you tried and what it said, touch no file, and stop.
-     Leave `daily-summaries/` exactly as you found it, example and all.
-  5. On the first run that does reach Discord, write your dated file and then delete
-     `daily-summaries/EXAMPLE-discord-summary.md`. It is a demo, not a past summary, and
-     it must not sit in the date list beside real ones. Do not merge with it, do not
-     rename it, and never write `EXAMPLE` into a name of your own.
+  1. Read your persona before anything else. It holds the shape of every field, the
+     urgency words and the tone. This prompt does not repeat them. In one Bash call, print
+     the time with `date '+%Y-%m-%dT%H:%M:%S%z'` and read `your-discord/data/latest.json`
+     if it is there.
+  2. If you have no Discord tools (none named `discord_list_channels`), Discord is not
+     connected: write only `your-discord/data/status.json` with `ok: false` and `why`
+     "Discord isn't connected yet.", and stop.
+  3. Work out the window. It starts 24 hours ago, or at the last catch-up's `generatedAt`
+     when that is earlier (the computer slept through a morning), but never more than 7
+     days back. Turn the start into a Discord id with
+     `(<start in ms since 1970> - 1420070400000) * 4194304` (a quick `node -e` with BigInt):
+     reading with `after` set to that id returns only messages from the window.
+  4. Call `discord_list_channels` once. Every channel it returns is one the person allowed;
+     there is nothing else to look for. Never ask for a channel by guessing its id.
+  5. Find the threads and forum posts that moved:
+     - If you have `discord_list_threads`, call it for each text and forum channel and keep
+       the threads with a message in the window.
+     - Without it, a thread shows up two ways: a message in the window that carries a
+       `thread` field, and a thread in the last catch-up's `known` list. Read each of those.
+       A forum channel cannot be read directly without `discord_list_threads`; count it as
+       quiet unless a known post in it moved, and set status.json `why` to "Forum posts are
+       not included yet" with `ok: true`.
+  6. Read each text and announcement channel, and each thread or forum post from step 5,
+     with `discord_read_channel`, `limit` 100 and `after` the window's id. If 100 come back,
+     read again with `after` the newest id you got, at most 5 pages per channel; if a channel
+     still had more, say so in `why`, for example "A very busy day in #general: some
+     messages may be missing". A channel or thread with no message in the window gets no
+     row. From what you read, write its row.
+  7. This run is read only. Do not post, reply, react, pin, start a thread or edit anything,
+     however obvious the one-line answer looks.
+  8. If one channel cannot be read, skip it, write the rest and put a short `why` in
+     status.json, for example "2 channels could not be read". A partial catch-up is better
+     than none. If Discord can't be reached at all, write only `your-discord/data/status.json`
+     with `ok: false` and a plain `why`, keep `latest.json` as it was, and stop.
+  9. In one Bash call, write `your-discord/data/latest.json` (and check it parses), copy it
+     to `your-discord/data/days/<today's local date>.json`, delete day files older than 30
+     days, and write `your-discord/data/status.json`.
+
+  Finish in one or two plain sentences about the person's server and nothing else: how many
+  messages moved in how many channels, and the one most worth their time, if there is one.
+createdAt: '2026-08-09T00:00:00.000Z'
+updatedAt: '2026-10-12T00:00:00.000Z'

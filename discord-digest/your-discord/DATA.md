@@ -3,12 +3,9 @@ title: How Your Discord gets its words
 ---
 # How Your Discord gets its words
 
-The page never talks to Discord. A morning routine reads Discord and writes files here, and
-the page shows them.
-
-**Not wired yet.** Today the Morning Discord Digest routine still writes markdown files into
-`daily-summaries/` for the older `server-digest` page. Until it writes `data/latest.json`,
-this page shows the example below, marked as an example.
+The page never talks to Discord. The morning routine reads Discord through Cabinet's own
+Discord app and writes files here, and the page shows them. The full rules for each field
+are in the agent's persona (`.agents/server-reader/persona.md`).
 
 | File | Written by | What it holds |
 |---|---|---|
@@ -24,7 +21,12 @@ that line), and `channels`, one row per place that moved: `id`, `kind` (`channel
 or `forum`), `name` (`#help` for a channel, the title for a thread or forum post), `parent`
 (the channel a thread or forum post lives in), `messages`, `urgency` (High, Medium or Low),
 `gist`, and `url`. A `url` on `https://discord.com/channels/...` becomes an "Open in Discord"
-link.
+link; it is `null` when the routine does not know the server's id.
+
+`known` is for the routine and the page ignores it: every channel, thread and forum post
+seen in a catch-up, with the id of the newest message read there (`last`). It is how a
+thread that started before the window is found again, since Discord's message ids carry
+their own time and need no other cursor.
 
 The page writes its own headline and the line under it: "Here is what moved in your server"
 with "486 messages in 8 channels since yesterday.", or "Your server was quiet" when nothing
