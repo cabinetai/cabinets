@@ -43,3 +43,5 @@ calendar's own days; `hoursMonth` counts meeting time with them since the 1st of
 The page works the week out itself: now and next, free time (the free stretches between
 8:00 and 17:00 on weekdays), events that overlap, and hours by kind. The example's events
 are keyed by weekday: the page shows each one on the matching day of the coming week.
+
+`data/reading.json` and `data/profile.json` are written once, by the first read. `reading.json` is `{ startedAt, done, lines[] }`: one short line for each thing found, `**bold**` for the finding, shown as they come instead of a spinner (schema `google-calendar-week/reading@1`). `profile.json` is what the first read learned (schema `google-calendar-week/profile@1`): `events90`, `perWeek`, `busiestDay`, `workHours { from, to }`, `people[]`, `peopleMore`, `quiet`, `nextFree`, and per template `othersHoursWeek`, `freeEvenings`, `dates30`, `hoursMonth`, `topClient { name, hours }`. Every number is counted from the calendar, never estimated. The page shows it once, with That's right and Fix something.

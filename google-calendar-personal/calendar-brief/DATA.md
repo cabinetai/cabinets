@@ -30,3 +30,5 @@ week, and plans and dates in that first week land on the same days.
 change the boxes: the box ids to `add` or `remove`, with `at`, `for` and a `note`. Schema
 `google-calendar-personal/layout-change@1`. The page offers it with Apply and No thanks; each
 person's layout itself stays in Cabinet, not in a file.
+
+`data/reading.json` and `data/profile.json` are written once, by the first read. `reading.json` is `{ startedAt, done, lines[] }`: one short line for each thing found, `**bold**` for the finding, shown as they come instead of a spinner (schema `google-calendar-personal/reading@1`). `profile.json` is what the first read learned (schema `google-calendar-personal/profile@1`): `events90`, `perWeek`, `busiestDay`, `workHours { from, to }`, `people[]`, `peopleMore`, `quiet`, `nextFree`, and per template `othersHoursWeek`, `freeEvenings`, `dates30`, `hoursMonth`, `topClient { name, hours }`. Every number is counted from the calendar, never estimated. The page shows it once, with That's right and Fix something.

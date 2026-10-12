@@ -128,6 +128,75 @@ title. Everything from `## Notes` down belongs to the person: keep it exactly as
 Never delete or rename a page. Dates in 24 hours, "to" between times, never a dash. The
 status words are New, Regular and Going quiet.
 
+## The first read: getting to know the freelancer
+
+When `calendar-brief/data/profile.json` is not there yet, this is the first read, and
+they are watching the page. Make them feel known, without asking them anything.
+
+**Where your files go.** Save the calendar's answer and every other file you work from
+inside the cabinet, in `calendar-brief/data/.work/` (make it first), with a relative path:
+`gws calendar events list ... > calendar-brief/data/.work/events.json`. Never `/tmp` or
+another temporary folder: on Windows the shell's `/tmp` and Node's or Python's are two
+different folders, and the script will not find the file. Delete
+`calendar-brief/data/.work/` in your last Bash call.
+
+**Tell it as you go.** Right after finding the date, write
+`calendar-brief/data/reading.json` as
+`{"schema":"google-calendar-freelance/reading@1","startedAt":"<now>","done":false,"lines":[]}`.
+They are watching: the first line must be there within seconds, so push it in the same
+Bash call that reads the calendar: how many events you read. Then push one line per Bash
+call as you work it out, each in its own call, never several saved up for one write. Only
+ever push a line: never rewrite, reorder or replace the lines already there. A line is one
+short sentence about *them*, with the finding in `**bold**`:
+"**46 client hours** this month so far", "Your biggest client this month: **Lumen
+Coffee, 18 hours**", "Who you work with: **Lumen Coffee, Maple Grove Dental** and 6 more",
+"Your days run from **9:00 to 17:30**", "**1 client** you used to meet has gone quiet",
+"Next free stretch: **Thursday 13:00 to 17:00**". Five to seven lines in all. Never a line about yourself ("Reading...", "I
+can't..."), never a request to them, never a guess you can't back with an event. When the
+calendar is nearly empty, say what you did find, plainly, and stop there.
+
+**Every number comes from their calendar.** The script that pushes a line reads the saved
+events file and computes the number from it; never type a number into a line by hand, and
+never reuse a number from an earlier run or an earlier call. Say what the number really
+is, and the window it covers ("in the last 90 days", "this week", "this month so far").
+Count only events that were not cancelled or declined. An average says "on average".
+If a script fails, fix it and run it again; never write the lines from memory instead.
+
+**The last call pushes nothing new.** Each line is pushed in the call that read what it
+tells, by a script that reads the saved files. The call that writes `latest.json` and the
+profile pushes no line; it only sets `done`. Every number in the profile is read from the
+saved files by that same script (so delete `calendar-brief/data/.work/` after it), never typed by hand or
+copied from an earlier call's output. Never write anything under `/tmp`, not even an
+error file or a test.
+
+**More that is easy to get wrong:**
+- No line about how you read or what you checked: only what you found about them.
+- Every number in `latest.json` too is computed by the writing script from the saved
+  files, never typed.
+- `<now>` is `date` run in the same call that writes the file.
+
+**Then write the profile**, in the same Bash call as `latest.json`:
+`calendar-brief/data/profile.json`:
+`{"schema":"google-calendar-freelance/profile@1","at":"<now>","timeZone":"America/New_York","events90":212,"perWeek":16,"hoursMonth":46,"topClient":{"name":"Lumen Coffee","hours":18},"busiestDay":"Tuesday","workHours":{"from":"09:00","to":"17:30"},"people":["Lumen Coffee","Maple Grove Dental"],"peopleMore":6,"quiet":1,"nextFree":"Thursday 13:00 to 17:00"}`.
+- `events90`: the events that ended in the last 90 days; `perWeek` that count divided by
+  the weeks (90 / 7), rounded.
+- `busiestDay`: the weekday with the most booked hours in the 90 days.
+- `workHours`: on weekdays with a timed event, the time the first one most often starts and
+  the last one most often ends, rounded to the half hour; only with 10 such days or more.
+- `people`: the names of the `clients` rows with the most hours in the 90 days, most
+  first; `peopleMore` the rest of them; `quiet` the rows whose status is `quiet`.
+- `hoursMonth`: the hours of client meetings that ended since the 1st of this month, to the
+  nearest half hour, the same sum as the Hours box; `topClient` the client with the most of
+  them.
+- `nextFree`: the first free stretch of three hours or more from now, in the shape
+  "<Weekday> HH:MM to HH:MM", the same way the page finds free time.
+Leave out a field you could not back with their calendar: a wrong guess is worse than
+none. Last, set `done` to `true` in `reading.json`.
+
+The page then shows "What your calendar says about your work" with **That's right** and **Fix something**. "Fix
+something" brings their correction to a chat: answer it, and write it into
+profile.json.
+
 ## In chat
 
 The person may ask about their time and the people they meet: what their week looks like,
