@@ -52,6 +52,7 @@
   .btn:hover { background: var(--panel); }
   .btn[disabled] { cursor: default; opacity: .6; }
   .btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .side .next { font-size: 14px; color: var(--ink-3); }
   .run-note { font-size: 14px; color: var(--red-ink); }
   .spin { animation: spin 1.2s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -84,6 +85,7 @@
      what it is, what it needs, then who has it and where it stands. */
   @media (max-width: 560px) {
     .bar-in { padding: 12px 16px; }
+    .side .next { flex-basis: 100%; }
     .wrap { padding: 22px 16px 36px; }
     .lead h2 { font-size: 27px; }
     .lead p { font-size: 16.5px; }
@@ -123,6 +125,9 @@
   var CAN = !!(cab && cab.jobs && typeof cab.jobs.run === 'function');
   var JOB_ID = 'support-triage';
   var viewer = false, running = false, runNote = '';
+  /* What catching up on open waits for: who is looking, whether a run is going, Slack, the book. */
+  var known = { here: !CAN || typeof cab.here !== 'function', jobs: false, slack: false, files: false };
+  var slackOn = false, newest = null, catchingUp = null;
   var REFRESH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></svg>';
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
@@ -335,6 +340,24 @@
     return null;
   }
 
+  /* The last minute the schedule matched, so the run that should already have happened.
+     Walks back at most eight days, which covers any daily or weekday schedule. */
+  function prevRun(cron, from) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
+        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;
+    var d = new Date(from.getTime());
+    d.setSeconds(0, 0);
+    for (var i = 0; i < 8 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
+          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() - 60000);
+    }
+    return null;
+  }
+
   function nextRunText() {
     if (!job) return '';
     if (job.enabled === 'false') return 'Routine paused';
@@ -375,6 +398,7 @@
     slot.innerHTML = (running
       ? '<button class="btn" disabled>' + REFRESH.replace('<svg', '<svg class="spin"') + 'Updating...</button>'
       : '<button class="btn" id="run">' + REFRESH + 'Update the board</button>') +
+      (running && catchingUp ? '<span class="next">Catching up on the ' + clockOf(catchingUp) + ' run you missed</span>' : '') +
       (runNote ? '<span class="run-note">' + esc(runNote) + '</span>' : '');
     var b = document.getElementById('run');
     if (b) b.addEventListener('click', runNow);
@@ -385,8 +409,32 @@
     var mine = items.filter(function (j) { return j && j.id === JOB_ID; })[0];
     var was = running;
     running = !!(mine && mine.running);
-    if (was && !running) load();
+    if (was && !running) { catchingUp = null; load(); }
+    known.jobs = true;
     paintRun();
+    catchUp();
+  }
+
+  function clockOf(d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+
+  /* ---- catch up on open -----------------------------------------------------------------
+     A laptop asleep at the scheduled time misses the run, or starts it with no network. When
+     the page opens and the newest result is older than the last time the schedule says it
+     should have run, the page runs it once for that time. The time is remembered in this
+     browser, so a run that fails again is not retried in a loop: the button is still there. */
+  function catchUp() {
+    if (!CAN || viewer || running || catchingUp) return;
+    if (!known.here || !known.jobs || !known.slack || !known.files || !slackOn) return;
+    if (!job || job.enabled === 'false' || !job.schedule) return;
+    var due = prevRun(job.schedule, new Date());
+    if (!due || (newest && newest >= due)) return;
+    var key = 'catch-up:' + JOB_ID + ':' + due.getTime();
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+    } catch (e) { return; }
+    catchingUp = due;
+    runNow();
   }
 
   /* jobs.onChange says when the run ends; this is the fallback if a change is ever missed. */
@@ -407,6 +455,7 @@
     cab.jobs.run(JOB_ID).then(watchRun).catch(function (e) {
       if (e && e.code === 'busy') { watchRun(); return; }
       running = false;
+      catchingUp = null;
       runNote = e && e.message ? e.message : 'It did not start. Try again.';
       paintRun();
     });
@@ -433,6 +482,9 @@
           if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
         });
         var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
+        newest = files.map(stamp).filter(Boolean).sort(function (a, b) { return b - a; })[0] || null;
+        known.files = true;
+        catchUp();
         if (!files.length) {
           root.innerHTML = head('', []) + '<div class="empty">Nothing yet. This page ' +
             'fills in after the routine runs for the first time.</div>';
@@ -464,7 +516,17 @@
     if (typeof cab.here === 'function') {
       Promise.resolve(cab.here()).then(function (h) {
         viewer = !!(h && h.role === 'viewer');
+        known.here = true;
         paintRun();
+        catchUp();
+      }).catch(function () {});
+    }
+    /* Without Slack the routine has nothing to read, so it is not run on open. */
+    if (cab.connectors && typeof cab.connectors.list === 'function') {
+      Promise.resolve(cab.connectors.list()).then(function (items) {
+        slackOn = (items || []).some(function (c) { return c && c.id === 'slack' && c.state === 'connected'; });
+        known.slack = true;
+        catchUp();
       }).catch(function () {});
     }
     cab.jobs.list().then(setJobs).catch(function () {});
