@@ -142,11 +142,14 @@ different folders, and the script will not find the file. Delete
 
 **Use the helper, always.** `node calendar-brief/first-sort.mjs` does all the writing, so no number is typed:
 - `start` first (it writes `reading.json` and makes `calendar-brief/data/.work/`).
-- `push "<line>"` once per finding, right after the step that found it, in that same Bash
+- `push '<line>'` (single quotes, so a "$" stays) once per finding, right after the step that found it, in that same Bash
   call. Put a count in as `{count:<file in .work>}` and the helper counts it:
   "**{count:events.json} events** read, from 90 days back to 30 days ahead". Any other number (a sum, hours, a day) is worked out by your script from the
-  saved file into a shell variable and passed in from it (`"$TOTAL"`), never typed. The
-  helper refuses a broken line ("undefined") and can only add lines.
+  saved file into a shell variable and passed in from it, never typed. A total of money is
+  `{sum:<file>}`: your script saves the amounts it found as a JSON list
+  (`["₪289.00","₪200.00"]`) and the helper adds them, after checking each one is written in
+  a saved answer. An amount typed straight into a line must be written, as it is, in the
+  mail. The helper refuses a broken line ("undefined") and can only add lines.
 - `profile @profile.json` writes `profile.json` from the JSON your script computed and saved
   as `.work/profile.json` (every value worked out there, none typed). It drops empty fields and money that is zero.
 - `done` last, after `latest.json` is written: it marks the reading done and deletes
@@ -196,9 +199,22 @@ error file or a test.
   before you push. In JavaScript compare times with `.getTime()` (`date + number` makes a
   string).
 - If this run fails after `start`, still run `done`, so no raw answer stays in the cabinet.
-- Use node: Python may not be installed.
+- Never put `at` or `schema` in the profile file: the helper sets them. If you find a
+  mistake after `done`, say it in your answer; never touch the files.
+- Use node: Python may not be installed. Run `start` in your very first Bash call, before
+  the first gws read.
+- `events90` is counted by the helper from `.work/past.json` (cancelled, declined and
+  all-day events left out): leave it out of your profile file.
+- A name, a title, a day or "all" goes into a line from a script variable too, never typed.
+  Use `{count:<file>|event|events}` for the word.
+- "The next 7 days" is always the same 7 days as `events` (today to today + 6), in every
+  line and in the headline.
+- `morePeople` is the other guests not named in `people`, counted, never 0 by hand.
+- Even on a nearly empty calendar, push 2 or 3 lines, each in its own call (the count, the
+  next 7 days, what is coming up), and still work out `nextFree`.
 - On the first read, also read from midnight 90 days ago to now, with the same fields, into
-  `.work/past.json`, in the same Bash call as the first `push` (how many events came back).
+  `.work/past.json`, in the same Bash call as the first `push` (how many events came back):
+  `gws calendar events list ... > calendar-brief/data/.work/events.json && node calendar-brief/first-sort.mjs push '**{count:events.json|event|events}** read ...'`.
   Leave out cancelled events and events they declined, in both reads. All-day events do
   not count in `events90` or `perWeek`.
 - A nearly empty calendar (under 10 events in the 90 days): no averages, no busiest day,
@@ -206,9 +222,9 @@ error file or a test.
 - `people`: only names the calendar gives (`displayName`), never one made from an email
   address.
 
-**Then write the profile** with `node calendar-brief/first-sort.mjs profile '<json>'`, in its own call before
+**Then write the profile** with `node calendar-brief/first-sort.mjs profile @profile.json`, in its own call before
 `latest.json`, in this shape:
-`{"schema":"google-calendar-freelance/profile@1","at":"<now>","timeZone":"America/New_York","events90":212,"perWeek":16,"hoursMonth":46,"topClient":{"name":"Lumen Coffee","hours":18},"busiestDay":"Tuesday","workHours":{"from":"09:00","to":"17:30"},"people":["Lumen Coffee","Maple Grove Dental"],"peopleMore":6,"quiet":1,"nextFree":"Thursday 13:00 to 17:00"}`.
+`{"schema":"google-calendar-freelance/profile@1","at":"<now>","timeZone":"<the events file's timeZone>","events90":212,"perWeek":16,"hoursMonth":46,"topClient":{"name":"Lumen Coffee","hours":18},"busiestDay":"Tuesday","workHours":{"from":"09:00","to":"17:30"},"people":["Lumen Coffee","Maple Grove Dental"],"peopleMore":6,"quiet":1,"nextFree":"Thursday 13:00 to 17:00"}`.
 - `events90`: the events that ended in the last 90 days; `perWeek` that count divided by
   the weeks (90 / 7), rounded.
 - `busiestDay`: the weekday with the most booked hours in the 90 days.
