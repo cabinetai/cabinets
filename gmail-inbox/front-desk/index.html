@@ -2990,8 +2990,10 @@
   function writeFormHtml(level) {
     var f = state.writeForm;
     var busy = state.writeBusy ? " disabled" : "";
-    // Send is always here; what this Gmail connection did last time says what it will do.
+    // Send is here unless Cabinet says this Gmail only reads; then the press asks Google first.
+    var readOnly = !!(state.gmail && state.gmail.canChange === false);
     var hint = !canAsk() ? "" : !askReady() ? "Connect Gmail first. A press here takes you to connecting."
+      : readOnly ? "Your Gmail is connected to read only. Let Cabi send asks Google once, then Send is here. Each email still waits for your yes."
       : state.writeCan === "drafts" ? "This Gmail connection lets Cabi write drafts, not send: Send puts it in your Gmail drafts."
       : state.writeCan === "copy" ? "Your Gmail is connected to read only, so Cabi can write it but not send it yet."
       : "Write it yourself, or tell Cabi who and what. Nothing is sent without your yes.";
@@ -3001,7 +3003,9 @@
       '<label class="wf grow"><span>Message</span><textarea id="write-what" maxlength="3400" dir="auto" rows="' + (level === "S" ? 3 : 4) + '" ' +
         'placeholder="Write your email here. Or tell Cabi what to say, like: The quote is ready, ask if Tuesday works.">' + esc(f.what) + "</textarea></label>" +
       '<div class="acts">' +
-        '<button type="button" class="btn primary" data-act="write-own"' + busy + ">" + icon("i-send") + "Send</button>" +
+        (readOnly && state.gmail.canConnect
+          ? '<button type="button" class="btn primary" data-act="write-allow">' + icon("i-send") + "Let Cabi send</button>"
+          : '<button type="button" class="btn primary" data-act="write-own"' + busy + ">" + icon("i-send") + "Send</button>") +
         '<button type="submit" class="btn"' + busy + ">" + icon("i-chat") + (state.writeBusy ? "Asking..." : "Give instructions to Cabi") + "</button>" +
       "</div>" + (level !== "S" && hint ? '<p class="fine">' + esc(hint) + "</p>" : "") + "</form>";
   }
@@ -3136,7 +3140,9 @@
     }).then(function () {
       state.writeCan = "";
       if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(WRITE_CAN_KEY, "").catch(function () {});
-      toast("Done. Press Write another, then Send, and Cabi can send it.");
+      toast(state.gmail && state.gmail.canChange === false
+        ? "Google still lets Cabi only read. Try again, and on Google's page keep every box ticked."
+        : "Done. Cabi can send now: press Send.");
       paintWrite();
     }).catch(function (e) { toast(e && e.message ? e.message : "That did not work. Try again."); });
   }
