@@ -86,6 +86,79 @@ again with the new time: that is a normal, quick morning. Only when there is no 
 sort, or it is older, read the wider windows once: the last 14 days for people waiting, 30
 days for bills, bookings and deliveries.
 
+## The first sort: getting to know the person
+
+When `my-inbox/data/profile.json` is not there yet, this is the person's first sort, and
+they are watching the page. Make them feel known, without asking them anything, and
+gently: no health, money trouble or family matters in a line.
+
+**Where your files go.** Save every search result inside the cabinet, in
+`my-inbox/data/.work/` (make it first), with a relative path:
+`gws ... > my-inbox/data/.work/inbox14.json`. Never `/tmp`: on Windows the shell's `/tmp`
+and Node's `/tmp` are two different folders, and Node will not find the file. Delete
+`my-inbox/data/.work/` in your last Bash call. When nothing matches, `gws gmail +triage`
+writes an empty file: read an empty file as an empty list, not as broken JSON.
+
+**Tell it as you go.** Right after reading your files, write `my-inbox/data/reading.json`
+as `{"schema":"gmail-personal/reading@1","startedAt":"<now>","done":false,"lines":[]}`.
+They are watching: the first line must be there within seconds, so push it in the same
+Bash call as your first search. Every Bash call that runs a search ends by pushing the
+line for what that search found (even when it found nothing), not in a later call, and
+never several lines saved up for one write. Only ever push a line: never rewrite, reorder
+or replace the lines already there. A line is one short sentence about *them*, with the
+finding in `**bold**`: "**312 of your 480 emails** this month were ads and social",
+"**Ben and your mom** write to you most", "**2 people** are waiting for your answer",
+"**3 packages** on the way", "**4 subscriptions** renew this month". Five to seven lines
+in all. Never a line about yourself ("Searching...", "I can't..."), never a request to
+them, never a guess you can't back with an email. When there is little to find, say what
+you did find, plainly, and stop there.
+
+**Every number comes from their Gmail.** The script that pushes a line reads the saved
+search result and computes the number from it; never type a number into a line by hand,
+and never reuse a number from an earlier run or an earlier call. Say what the number
+really is:
+- How many you looked at is the length of the list you got (at most 40).
+- Never use `resultSizeEstimate`, in a line or in a file: it is Gmail's rough guess and is
+  often far off. A count is only ever the ids Gmail listed, every page (see below).
+- A sum of money is only the amounts written in the emails you read, added in the script,
+  all in one currency.
+- No sent mail found: "**No sent mail** in this account", never "You sent no email".
+- "Nobody is waiting for your answer" only after every email from a person was looked
+  at. Say the finding, not how you checked it.
+If a script fails, fix it and run it again; never write the lines from memory instead.
+
+**Read a little more, once.** On top of the usual searches, up to three more:
+- the exact count of their inbox, and of its ads and social, in the last 30 days. List
+  the ids, every page, and count them:
+  `gws gmail users messages list --params '{"userId":"me","q":"in:inbox newer_than:30d","maxResults":500}' --page-all --page-limit 4 > my-inbox/data/.work/inbox30.ndjson`,
+  and the same with `in:inbox newer_than:30d (category:promotions OR category:social)`
+  into `noise30.ndjson`. Each line is one page: add up the lengths of `messages` (a page
+  with no `messages` is 0). If the last page still has a `nextPageToken`, there is more
+  than you counted: say "**more than 2,000**" and leave that count out of the profile.
+- `in:sent newer_than:30d`, 40 results: how they sign (the last lines of their own
+  messages), the people they write to most, and how fast they answer.
+- one opened sent email, only when the sign-off is not in the snippets.
+
+**Then write the profile**, in the same Bash call as `latest.json`:
+`my-inbox/data/profile.json`:
+`{"schema":"gmail-personal/profile@1","at":"<now>","name":"<the first name they sign with>","people":["Ben Cole","Mom"],"peopleMore":3,"replyHours":5,"signOff":"Love, Dana","subscriptions":{"count":4,"monthly":"$46.97"},"stores":["Amazon","Target"],"mail30":480,"noise30":312}`.
+- `people`: real people (not companies, not no-reply) they wrote to or heard from most in
+  these 30 days, most first, as their names are written.
+- `replyHours`: the typical hours between a person's message and their answer, only when
+  you matched three or more.
+- `subscriptions`: services that charge them again and again; `monthly` only when every
+  one has an amount in the same currency.
+- `stores`: shops whose orders or deliveries you saw.
+- `mail30` and `noise30`: the exact counts above.
+Leave out a field you could not back with their email: a wrong guess is worse than none.
+Fill the unanswered lines of `my-inbox/setup.md` from it, without brackets: who is in
+their life (only names and what the emails themselves say, such as "Mom"), and how
+replies sound (short or long, warm or formal, the sign-off). Leave a line they already
+answered as it is. Last, set `done` to `true` in `reading.json`.
+
+The page then shows "This is you" with **That's me** and **Fix something**. "Fix
+something" brings their correction to a chat: write it into setup.md and profile.json.
+
 ## What a sort writes
 
 Three files, all in one Bash call, then stop.
@@ -140,7 +213,13 @@ back to the example, an earlier day, or what an inbox usually holds.
 - **Also worth a look**: the bank, the doctor's office, the city, with nothing to do. At
   most 6.
 - **Set aside**: newsletters, promotions, social media, sign-in and security alerts, and
-  what setup.md says. No card; count them in `leftOut` with the top senders.
+  what setup.md says. No card; count them in `leftOut` with the top senders. Sort one
+  email at a time: `leftOut.count` and its senders are only the emails you put here,
+  never the whole search.
+- **A person is never set aside unseen.** An email from a real person (a name and an
+  address that is not no-reply, notifications, alerts or support) goes to People to
+  answer or Also worth a look unless its subject or snippet shows it is one of the
+  set-aside kinds above. When unsure, it is Also worth a look.
 
 Cases that are easy to get wrong:
 - A shop's "your order is confirmed" is a delivery, not a bill. A receipt for something
