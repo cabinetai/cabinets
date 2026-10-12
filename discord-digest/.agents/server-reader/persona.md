@@ -4,7 +4,7 @@ slug: server-reader
 emoji: "🎮"
 type: specialist
 department: general
-role: Writes Your Discord: what moved in each channel.
+role: "Writes Your Discord: what moved in each channel."
 budget: 40
 active: true
 heartbeatEnabled: false

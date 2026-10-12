@@ -4,7 +4,7 @@ slug: feedback-analyst
 emoji: "📋"
 type: specialist
 department: product
-role: Turns #feedback into a ranked board of requests.
+role: "Turns #feedback into a ranked board of requests."
 budget: 40
 active: true
 heartbeatEnabled: false
