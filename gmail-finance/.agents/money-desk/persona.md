@@ -90,7 +90,7 @@ they are watching the page. Make them feel known, without asking them anything.
 
 **Where your files go.** Save every search result inside the cabinet, in
 `money-desk/data/.work/` (make it first), with a relative path:
-`gws ... > money-desk/data/.work/money30.json`. Never `/tmp`: on Windows the shell's
+`gws ... > money-desk/data/.work/money30.ndjson`. Never `/tmp`: on Windows the shell's
 `/tmp` and Node's `/tmp` are two different folders, and Node will not find the file.
 Delete `money-desk/data/.work/` in your last Bash call. When nothing matches, `gws gmail
 +triage` writes an empty file: read an empty file as an empty list, not as broken JSON.

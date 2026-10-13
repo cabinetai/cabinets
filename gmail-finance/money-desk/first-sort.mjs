@@ -236,11 +236,15 @@ function fill(text, where) {
   if (where === "the line" && nums.length && nums.every((x) => Number(x.replace(/,/g, "")) === 0)) fail("refused, a 0 is not a finding: say what is there, or leave the line out");
   // On a calendar, "all", "only", "none" and the like are facts the helper cannot check.
   if (CONFIG.noClaimWords && /\b(all|every|everyone|none|nothing|only|nearly|always|never|nobody)\b/i.test(rest)) fail(`refused, a word like "all" or "only" in ${where} states a fact nobody counted: leave it out`);
-  const saved = (rest.match(MONEY) || []).length ? savedText() : "";
-  for (const amount of rest.match(MONEY) || []) {
+  checkMoney(rest, where);
+  return out;
+}
+/** Every amount in the text must be written, as it is, in a saved answer. */
+function checkMoney(text, where) {
+  const saved = (String(text).match(MONEY) || []).length ? savedText() : "";
+  for (const amount of String(text).match(MONEY) || []) {
     if (!timesWritten(saved, amount.trim())) fail(`refused, ${amount.trim()} in ${where} is not written in any saved answer: use {sum:<file>} for a total`);
   }
-  return out;
 }
 
 /** Strings get their placeholders; money must be in the mail; zero money, a typed 0 and
@@ -499,14 +503,24 @@ if (cmd === "window") {
   } else {
     // The page shows a file only in its own shape: schema, not an example, every lane a list.
     if (typeof l.headline !== "string" || !l.headline.trim()) fail("latest.json needs a headline (\"Nobody is waiting on you\" is one)");
-    // Every string, in every card: placeholders filled, and each amount written in the mail.
-    const walk = (o, where) => {
+    // The writing rules are for your own sentences only. A subject, a name or an id is copied
+    // from the mail as it is ("Gate 1 opens at 6, bring 2 chairs") and passes untouched.
+    // Your sentences: placeholders filled, the count rules, each amount written in the mail.
+    // Amounts and totals: placeholders filled ({sum:<file>}), each amount written in the mail.
+    // A drafted reply and a card's "what": each amount written in the mail, the words kept.
+    const WRITTEN = new Set(["headline", "note", "why", "gist", "short"]);
+    const AMOUNTS = new Set(["amount"]);
+    const MONEY_ONLY = new Set(["reply", "what"]);
+    const walk = (o, where, inTotals) => {
       for (const [k, v] of Object.entries(o)) {
-        if (typeof v === "string") o[k] = fill(v, where + "." + k);
-        else if (v && typeof v === "object") walk(v, where + "." + k);
+        const at = where + "." + k;
+        if (typeof v === "string") {
+          if (WRITTEN.has(k) || AMOUNTS.has(k) || inTotals) o[k] = fill(v, at);
+          else if (MONEY_ONLY.has(k)) checkMoney(v, at);
+        } else if (v && typeof v === "object") walk(v, at, inTotals || (where === "latest" && k === "totals"));
       }
     };
-    walk(l, "latest");
+    walk(l, "latest", false);
     if (CONFIG.latest) {
       l.schema = CONFIG.latest.schema;
       for (const lane of CONFIG.latest.lanes) if (!Array.isArray(l[lane])) l[lane] = [];
