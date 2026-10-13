@@ -219,6 +219,8 @@ function fill(text, where) {
   for (const b of bold) {
     const inner = b.slice(2, -2);
     if (/\d/.test(inner) || made.some((v) => inner.includes(v))) continue;
+    // A few fixed findings are words, not names.
+    if (/^(no sent mail|no meetings|nobody|no one|clear|free)$/i.test(inner.trim())) continue;
     for (const piece of inner.split(/,\s*|\s+and\s+/).map((s) => s.trim()).filter(Boolean)) {
       if (!inSaved(piece)) fail(`refused, "${piece}" is not written in any saved answer: copy names and subjects as Outlook wrote them`);
     }
@@ -444,6 +446,15 @@ function latestOf(l) {
   return out;
 }
 
+/** A reading never ends without its gift: calm, when none was given. */
+function calmIfNoGift() {
+  if (!fs.existsSync(readingFile)) return;
+  const r = readJson(readingFile);
+  if (r.gift || r.done) return;
+  r.gift = { kind: "calm", at: iso(new Date()) };
+  writeJson(readingFile, r);
+}
+
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "window") {
   const z = (d) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -483,6 +494,8 @@ if (cmd === "window") {
   if (/\bundefined\b|\bNaN\b|\bnull\b|\[object|\{|\}/.test(line)) fail(`refused, the line is broken: ${line}`);
   if (line.length > 200) fail("refused, the line is longer than 200 characters");
   if (r.lines.includes(line)) fail("that line is already there");
+  // The gift comes early: it is what the person is waiting for.
+  if (r.lines.length >= 2 && !r.gift) fail("give the gift first (gift @gift.json; {\"kind\":\"calm\"} when nothing else fits), then push this line again");
   r.lines.push(line);
   writeJson(readingFile, r);
   console.log(`line ${r.lines.length}: ${line}`);
@@ -519,11 +532,13 @@ if (cmd === "window") {
   writeJson(path.join(dataDir, "profile.json"), out);
   console.log("profile written: " + Object.keys(out).join(", "));
 } else if (cmd === "latest") {
+  calmIfNoGift();
   const l = latestOf(argFile(args));
   writeJson(path.join(dataDir, "latest.json"), l);
   writeJson(path.join(dataDir, "status.json"), { at: iso(new Date()), ok: true });
   console.log(`latest.json written: ${l.events.length} meetings, ${l.waiting.length} waiting, ${l.invites.length} invites; and status.json`);
 } else if (cmd === "done") {
+  calmIfNoGift();
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
   r.done = true;
   writeJson(readingFile, r);

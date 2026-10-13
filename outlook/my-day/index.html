@@ -322,6 +322,7 @@
   var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
   var MORNING = "morning-day";
   var POLL_MS = 60000;
+  var ASK_GRACE_MS = 45000;
   var OUTLOOK_HOSTS = /^https:\/\/(outlook\.office\.com|outlook\.office365\.com|outlook\.live\.com|teams\.microsoft\.com|teams\.live\.com)\//;
   var TRIES = ["What should I answer first?", "Find me a free hour this week", "What do I need for the budget review?"];
 
@@ -347,7 +348,9 @@
     giftDone: "",
     profile: null,
     profileSeen: "",
-    mineReady: false
+    mineReady: false,
+    askedAt: 0,
+    sawRun: false
   };
 
   function $(id) { return document.getElementById(id); }
@@ -498,7 +501,11 @@
     var was = state.running;
     state.jobs = items;
     var job = morningJob();
-    state.running = !!(job && job.running);
+    var reported = !!(job && job.running);
+    if (reported) state.sawRun = true;
+    // Just after a press, Cabinet may still say "not running" before the run has started:
+    // the page keeps its reading screen for that moment instead of falling back.
+    state.running = reported || (!state.sawRun && Date.now() - state.askedAt < ASK_GRACE_MS);
     if (was && !state.running) load();
     paint();
   }
@@ -525,8 +532,12 @@
   function runNow() {
     if (!canAct() || state.running) return;
     state.running = true;
+    state.askedAt = Date.now();
+    state.sawRun = false;
     state.note = "";
     paint();
+    // If the run never shows up, the grace ends and the page returns.
+    setTimeout(function () { if (!state.sawRun) { state.running = false; load(); } }, ASK_GRACE_MS + 500);
     cab.jobs.run(MORNING).catch(function (e) {
       if (e && e.code === "busy") return;
       state.running = false;
