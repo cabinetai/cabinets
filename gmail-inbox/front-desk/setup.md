@@ -12,7 +12,7 @@ judgment.
 
 **What the business does:** (not set yet, for example: heating and air conditioning repair and installs in Columbus, 12 people)
 
-**Always at the top:** (not set yet, for example: new leads, our biggest customers, the bank)
+**Always at the top:** (not set yet, for example: new leads, our biggest customers, the property managers)
 
 **Set aside:** (not set yet, for example: supplier newsletters, trade show offers, social media updates)
 

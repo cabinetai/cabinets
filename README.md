@@ -131,7 +131,6 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [mom-command](./mom-command) | Lifestyle | 1 | 2 | 0 | The always-installed root for the Mom & Baby cabinet series |
 | [monday-tasks](./monday-tasks) | Operations | 1 | 1 | 0 | Every morning, the monday.com items that are actually on you today |
 | [money-morning](./money-morning) | Operations | 1 | 1 | 0 | Yesterday's money in plain words — what came in, what failed, who left |
-| [morning-mail](./morning-mail) | Operations | 1 | 1 | 0 | Your inbox, read for you before coffee — one page of what actually needs you |
 | [music-factory](./music-factory) | Media | 0 | 0 | 0 | A browser-native MIDI factory |
 | [new-hire-onboarding](./new-hire-onboarding) | Operations | 2 | 2 | 0 | Structured onboarding workspace for every new employee — pre-boarding to 30-day mark |
 | [newborn](./newborn) | Lifestyle | 1 | 2 | 0 | The survival cabinet for weeks 0–12 with a brand-new baby |
@@ -194,7 +193,6 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [wasabi-contents](./wasabi-contents) | Operations | 1 | 1 | 0 | What's actually in your Wasabi bucket, and what changed last |
 | [web-studio](./web-studio) | Software | 1 | 1 | 0 | Describe a website in plain words; a developer builds it in a folder, working and clickable, right here |
 | [wedding-planner](./wedding-planner) | Lifestyle | 1 | 2 | 0 | A complete wedding-planning OS in a directory |
-| [week-ahead](./week-ahead) | Operations | 1 | 1 | 0 | Sunday evening — your week laid out, clashes flagged, prep noted |
 | [weekly-business-review](./weekly-business-review) | Operations | 2 | 2 | 0 | Auto-generates the weekly business review across revenue, product, support, engineering, and finance — so leadership walks into Monday wi… |
 | [whatsapp-catch-up](./whatsapp-catch-up) | Lifestyle | 1 | 2 | 0 | Who needs you in your chats, what you planned, and what you promised |
 | [x-mentions](./x-mentions) | Operations | 1 | 1 | 0 | Every morning, your mentions and which of them actually want an answer |
