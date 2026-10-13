@@ -45,5 +45,5 @@ a broken connection.
 
 - **Morning Reporter**: the one agent. Checks what's connected, writes the page.
 - **Morning Report**: the one routine. Runs at 07:00 every day.
-- **Report**: the one page. Opens on today, with a dropdown for earlier days.
+- **Report**: the one page. Opens on today, with arrows for earlier days.
 - **setup.md**: your answers. The report is generic until this makes it yours.
