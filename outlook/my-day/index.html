@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<!--
+  Outlook: My day. The cabinet opens on this page.
+
+  One person's working day from Outlook, mail and calendar together: the day as a
+  strip of time, each meeting with what to know before it (taken from the mail), the
+  free stretches between meetings with the replies that fit in them, and the people
+  waiting for an answer, each with a reply idea.
+
+  Where the words come from: the morning routine reads Outlook through Microsoft
+  Graph and writes data/latest.json next to this page (the shape is
+  data/EXAMPLE-latest.json: a made-up person, always labelled as an example here). A
+  routine that could not read Outlook writes data/status.json with ok:false and why.
+
+  How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
+  routine, read files). It never changes anything in Outlook itself: a draft goes
+  through the chat, where the agent writes it into Outlook's Drafts.
+
+  One file on purpose: a sealed frame cannot load files next to it. Schibsted Grotesk
+  from Google Fonts; icons are inline SVG. Mood: alpine (snow, pine, granite, lichen).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My day</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,800;0,900;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Alpine: fresh snow, pine needles, granite, lichen on rock. */
+    --snow: #fbfcfa;
+    --ink: #1d2a26;
+    --granite: #4a5551;
+    --stone: #6f7a75;
+    --lichen: #dfe5df;
+    --frost: #eef2ee;
+    --pine: #1f5a44;
+    --pine-deep: #153f30;
+    --pine-mist: #e3ede7;
+    --font: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--snow);
+    color: var(--ink);
+    font: 400 16px/1.5 var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input { font: inherit; color: inherit; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--pine); outline-offset: 2px; border-radius: 4px; }
+  .when, .age, .strip, .fits small { font-variant-numeric: tabular-nums; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .page { max-width: 1120px; margin: 0 auto; padding: 28px 40px 72px; }
+
+  /* ── Masthead: the date is the hero ─────────────────────────────── */
+  .topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 32px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+  .brand svg { width: 22px; height: 22px; }
+  .meta { display: flex; align-items: center; gap: 12px; color: var(--stone); font-size: 14px; }
+  .hello { margin: 40px 0 0; font-size: 19px; color: var(--granite); }
+  .date {
+    margin: 2px 0 0;
+    font-weight: 900;
+    font-size: clamp(48px, 8.4vw, 104px);
+    line-height: .92;
+    letter-spacing: -.045em;
+  }
+  .date .wd { display: block; color: var(--pine); }
+  .headline { margin: 22px 0 0; max-width: 34ch; font-size: clamp(19px, 2.1vw, 24px); line-height: 1.35; font-weight: 500; letter-spacing: -.01em; }
+
+  .notice { margin-top: 26px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; max-width: 760px; }
+  .notice p { margin: 0; color: var(--granite); }
+  .notice .tag { display: inline-block; margin-right: 8px; padding: 1px 9px; border-radius: 999px; background: var(--ink); color: var(--snow); font-size: 13px; font-weight: 600; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 40px; padding: 0 18px; border-radius: 999px; border: 0; cursor: pointer;
+    background: var(--pine); color: #fff; font-weight: 600; font-size: 15px; text-decoration: none;
+  }
+  .btn:hover { background: var(--pine-deep); }
+  .btn[disabled] { opacity: .55; cursor: default; }
+  .link {
+    border: 0; background: none; padding: 0; cursor: pointer; font-weight: 600; color: var(--pine);
+    text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
+  }
+  .link:hover { color: var(--pine-deep); }
+  .reading { display: inline-flex; align-items: center; gap: 10px; color: var(--granite); }
+  .reading::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--pine); animation: breathe 1.4s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .25; transform: scale(.7); } }
+
+  /* ── The strip: the day as a line of time ───────────────────────── */
+  .strip-wrap { margin-top: 48px; }
+  .strip { position: relative; height: 64px; }
+  .strip .rail { position: absolute; left: 0; right: 0; top: 30px; height: 2px; background: var(--lichen); }
+  .strip .tick { position: absolute; top: 46px; transform: translateX(-50%); font-size: 12px; color: var(--stone); }
+  .strip .tick::before { content: ""; position: absolute; left: 50%; top: -14px; width: 1px; height: 6px; background: var(--lichen); }
+  .strip .slab {
+    position: absolute; top: 14px; height: 34px; border: 0; padding: 0; cursor: pointer;
+    background: var(--pine); border-radius: 3px; min-width: 6px;
+  }
+  .strip .slab.past { background: #9bb3a8; }
+  .strip .slab:hover { background: var(--pine-deep); }
+  .strip .now { position: absolute; top: 2px; bottom: 16px; width: 2px; margin-left: -1px; background: var(--ink); }
+  .strip .now span { position: absolute; top: -2px; left: 7px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .tally { margin: 18px 0 0; color: var(--granite); font-size: 15px; }
+  .tally b { color: var(--ink); font-weight: 600; }
+
+  /* ── Two columns: the day, and who waits ────────────────────────── */
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 72px; margin-top: 56px; }
+  h2 { margin: 0 0 18px; font-size: 26px; font-weight: 800; letter-spacing: -.025em; display: flex; align-items: baseline; gap: 10px; }
+  h2 .n { font-weight: 400; color: var(--stone); font-size: 20px; letter-spacing: 0; }
+  h3 { margin: 44px 0 10px; font-size: 18px; font-weight: 800; letter-spacing: -.015em; }
+
+  .agenda { list-style: none; margin: 0; padding: 0; }
+  .slot { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 18px; padding: 16px 0; border-top: 1px solid var(--lichen); scroll-margin-top: 24px; }
+  .slot:first-child { border-top: 0; padding-top: 4px; }
+  .slot .when { font-weight: 600; font-size: 15px; padding-top: 2px; }
+  .slot .when small { display: block; font-weight: 400; color: var(--stone); font-size: 13px; }
+  .slot .title { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
+  .slot .sub { margin: 3px 0 0; color: var(--granite); font-size: 15px; }
+  .slot .prep { margin: 10px 0 0; max-width: 58ch; font-size: 15px; }
+  .slot .prep b { color: var(--pine); font-weight: 600; }
+  .slot .row-acts { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; }
+  .slot.past { opacity: .48; }
+  .slot.current .when { color: var(--pine); }
+  .slot.current .title::after { content: "Now"; margin-left: 10px; padding: 1px 8px; border-radius: 999px; background: var(--pine); color: #fff; font-size: 12px; font-weight: 600; vertical-align: 3px; }
+  .slot.flash { animation: flash 1.6s ease-out; }
+  @keyframes flash { 0% { background: var(--pine-mist); } 100% { background: transparent; } }
+
+  .slot.gap { border-top-style: dashed; }
+  .slot.gap .title { font-weight: 500; font-size: 17px; color: var(--granite); }
+  .slot.gap .title b { color: var(--ink); font-weight: 600; }
+  .fits { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+  .fits button {
+    border: 1px solid var(--lichen); background: var(--snow); border-radius: 999px; padding: 4px 12px;
+    cursor: pointer; font-size: 14px; color: var(--ink);
+  }
+  .fits button:hover { border-color: var(--pine); color: var(--pine); }
+  .fits button small { color: var(--stone); margin-left: 6px; font-size: 13px; }
+
+  .people { list-style: none; margin: 0; padding: 0; }
+  .person { padding: 16px 0; border-top: 1px solid var(--lichen); scroll-margin-top: 24px; }
+  .person:first-child { border-top: 0; padding-top: 4px; }
+  .person .top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .person .who { font-weight: 600; font-size: 17px; }
+  .person .who span { font-weight: 400; color: var(--stone); font-size: 14px; margin-left: 6px; }
+  .person .age { color: var(--stone); font-size: 14px; white-space: nowrap; }
+  .person .gist { margin: 4px 0 0; color: var(--granite); font-size: 15px; }
+  .person .tie { margin: 6px 0 0; font-size: 14px; color: var(--pine); font-weight: 600; }
+  .person.flash { animation: flash 1.6s ease-out; }
+  details.reply { margin-top: 8px; }
+  details.reply summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--pine); list-style: none; width: max-content; }
+  details.reply summary::-webkit-details-marker { display: none; }
+  details.reply summary::before { content: "+"; display: inline-block; width: 14px; }
+  details.reply[open] summary::before { content: "\2212"; }
+  details.reply blockquote { margin: 10px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--lichen); font-size: 15px; line-height: 1.55; }
+  .acts { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; }
+
+  .small-list { list-style: none; margin: 0; padding: 0; }
+  .small-list li { padding: 9px 0; border-top: 1px solid var(--lichen); font-size: 15px; }
+  .small-list li:first-child { border-top: 0; padding-top: 0; }
+  .small-list b { font-weight: 600; }
+  .small-list .muted { color: var(--stone); }
+  .aside-line { margin: 28px 0 0; color: var(--stone); font-size: 14px; }
+  .empty { color: var(--granite); margin: 0; }
+
+  /* ── Ask ─────────────────────────────────────────────────────────── */
+  .ask { margin-top: 88px; padding-top: 32px; border-top: 2px solid var(--ink); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 40px; align-items: start; }
+  .ask h2 { margin: 0; }
+  .ask p.lead { margin: 6px 0 0; color: var(--granite); }
+  .ask form { display: flex; gap: 10px; }
+  .ask input {
+    flex: 1; min-width: 0; height: 48px; padding: 0 16px; border-radius: 10px;
+    border: 1px solid #c9d2cb; background: #fff;
+  }
+  .ask input:focus { outline: 2px solid var(--pine); outline-offset: 1px; border-color: transparent; }
+  .ask .btn { min-height: 48px; }
+  .tries { margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .note { margin: 10px 0 0; font-size: 14px; color: var(--granite); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); opacity: 0;
+    background: var(--ink); color: var(--snow); padding: 10px 18px; border-radius: 999px; font-size: 14px;
+    transition: opacity .2s, transform .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 900px) {
+    .page { padding: 20px 18px 56px; }
+    .cols { grid-template-columns: 1fr; gap: 48px; }
+    .ask { grid-template-columns: 1fr; gap: 16px; margin-top: 64px; }
+    .hello { margin-top: 28px; }
+    .strip .tick:nth-of-type(even) { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main class="page" id="page" aria-busy="true">
+  <div class="topline">
+    <span class="brand">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#0a2767" d="M44 25.2 31 33l-13-7.8V12a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2Z"/><path fill="#0364b8" d="M18 10h13v11H18z"/><path fill="#28a8ea" d="M31 10h11a2 2 0 0 1 2 2v9H31z"/><path fill="#0078d4" d="M31 21h13v11H31zM18 21h13v11H18z"/><path fill="#1490df" d="M44 25 31 33 18 25v15a2 2 0 0 0 2 2h22a2 2 0 0 0 2-2Z"/><rect x="4" y="14" width="22" height="22" rx="2.5" fill="#0f78d4"/><path fill="#fff" d="M15 19.6c-3 0-5 2.3-5 5.4s2 5.4 5 5.4 5-2.3 5-5.4-2-5.4-5-5.4Zm0 8.6c-1.6 0-2.6-1.4-2.6-3.2s1-3.2 2.6-3.2 2.6 1.4 2.6 3.2-1 3.2-2.6 3.2Z"/></svg>
+      My day
+    </span>
+    <span class="meta" id="meta"></span>
+  </div>
+
+  <p class="hello" id="hello"></p>
+  <h1 class="date" id="date"></h1>
+  <p class="headline" id="headline"></p>
+  <div class="notice" id="notice" role="status"></div>
+
+  <section class="strip-wrap" aria-labelledby="strip-title">
+    <h2 class="sr" id="strip-title">Your day at a glance</h2>
+    <div class="strip" id="strip"></div>
+    <p class="tally" id="tally"></p>
+  </section>
+
+  <div class="cols">
+    <section aria-labelledby="day-title">
+      <h2 id="day-title">Your day</h2>
+      <ol class="agenda" id="agenda"></ol>
+    </section>
+    <section aria-labelledby="wait-title">
+      <h2 id="wait-title">Waiting on you <span class="n" id="wait-n"></span></h2>
+      <ul class="people" id="people"></ul>
+      <div id="invites"></div>
+      <div id="fyi"></div>
+      <p class="aside-line" id="aside"></p>
+    </section>
+  </div>
+
+  <section class="ask" aria-labelledby="ask-title">
+    <div>
+      <h2 id="ask-title">Ask about your day</h2>
+      <p class="lead">Your mail and calendar, in one chat. It reads Outlook and never sends anything on its own.</p>
+    </div>
+    <div>
+      <form id="ask-form">
+        <label class="sr" for="ask-input">Your question</label>
+        <input id="ask-input" maxlength="600" autocomplete="off" placeholder="When can I meet Ravi this week?" />
+        <button class="btn" type="submit">Ask</button>
+      </form>
+      <ul class="tries" id="tries"></ul>
+      <p class="note" id="ask-note" hidden></p>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var MORNING = "morning-day";
+  var POLL_MS = 60000;
+  var OUTLOOK_HOSTS = /^https:\/\/(outlook\.office\.com|outlook\.office365\.com|outlook\.live\.com|teams\.microsoft\.com|teams\.live\.com)\//;
+  var TRIES = ["What should I answer first?", "Find me a free hour this week", "What do I need for the budget review?"];
+
+  var state = {
+    appPath: "my-day",
+    here: null,
+    data: null,
+    example: true,
+    status: null,
+    loaded: false,
+    outlook: null,
+    calendar: null,
+    jobs: [],
+    running: false,
+    connecting: false,
+    note: ""
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function text(s) { return typeof s === "string" ? s.trim() : ""; }
+  function list(a) { return Array.isArray(a) ? a.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  function parseTime(v) {
+    if (typeof v !== "string" || !v) return null;
+    var d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function clock(d) { return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+  function minutesBetween(a, b) { return Math.round((b - a) / 60000); }
+  function length(mins) {
+    if (mins < 60) return mins + " min";
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return h + " h" + (m ? " " + m + " min" : "");
+  }
+  function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function waited(v, ref) {
+    var d = parseTime(v);
+    if (!d) return "";
+    var mins = Math.max(0, minutesBetween(d, ref));
+    if (mins < 60) return mins + " min";
+    if (mins < 48 * 60) return Math.round(mins / 60) + " h";
+    var days = Math.round(mins / 1440);
+    return days + " " + plural(days, "day", "days");
+  }
+  function names(arr) {
+    var a = arr.filter(Boolean);
+    if (a.length <= 1) return a.join("");
+    if (a.length === 2) return a[0] + " and " + a[1];
+    if (a.length === 3) return a[0] + ", " + a[1] + " and " + a[2];
+    return a[0] + ", " + a[1] + " and " + (a.length - 2) + " others";
+  }
+  function firstName(full) { return text(full).split(/\s+/)[0] || ""; }
+  function safeLink(url) { return typeof url === "string" && OUTLOOK_HOSTS.test(url) ? url : ""; }
+  var toastTimer = 0;
+  function toast(msg) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 2600);
+  }
+
+  // ── The example: a made-up day, moved to today so the strip reads true ───
+
+  function shiftIso(v, days) {
+    var d = parseTime(v);
+    if (!d) return v;
+    var off = /([+-]\d\d:\d\d|Z)$/.exec(v);
+    var shifted = new Date(d.getTime() + days * 86400000);
+    if (!off) return shifted.toISOString();
+    // Keep the written clock time: move only the date part.
+    return v.replace(/^\d{4}-\d{2}-\d{2}/, isoDate(new Date(Date.parse(v.slice(0, 10) + "T12:00:00Z") + days * 86400000)));
+  }
+  function isoDate(d) { return d.toISOString().slice(0, 10); }
+  function rebaseExample(ex) {
+    var from = ex && ex.day && typeof ex.day.date === "string" ? Date.parse(ex.day.date + "T12:00:00Z") : NaN;
+    if (isNaN(from)) return ex;
+    var now = new Date();
+    var today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 12);
+    var days = Math.round((today - from) / 86400000);
+    var copy = JSON.parse(JSON.stringify(ex));
+    copy.day.date = isoDate(new Date(today));
+    copy.generatedAt = shiftIso(copy.generatedAt, days);
+    list(copy.events).forEach(function (e) { e.start = shiftIso(e.start, days); e.end = shiftIso(e.end, days); });
+    list(copy.free).forEach(function (f) { f.start = shiftIso(f.start, days); f.end = shiftIso(f.end, days); });
+    list(copy.waiting).forEach(function (w) { w.receivedAt = shiftIso(w.receivedAt, days); w.waitingSince = shiftIso(w.waitingSince, days); });
+    list(copy.invites).forEach(function (i) { i.start = shiftIso(i.start, days); });
+    return copy;
+  }
+
+  // ── Reading the files the routine writes ─────────────────────────────
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  function readText(rel) {
+    if (V2) return cab.files.read(state.appPath + "/" + rel);
+    return fetch(rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+      if (r.status === 404) throw notFound();
+      if (!r.ok) throw new Error("Could not read " + rel + ".");
+      return r.text();
+    });
+  }
+  function readJson(rel) { return readText(rel).then(function (t) { return JSON.parse(t); }); }
+  function maybe(p) { return p.catch(function (e) { if (e && e.code === "not-found") return null; throw e; }); }
+  function quiet(p) { return p.catch(function () { return null; }); }
+  function usable(d) { return d && typeof d === "object" && (Array.isArray(d.events) || Array.isArray(d.waiting)); }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = Promise.all([
+      maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
+      quiet(maybe(readJson("data/status.json")))
+    ]).then(function (got) {
+      state.status = got[1] && typeof got[1] === "object" ? got[1] : null;
+      if (usable(got[0]) && got[0].example !== true) {
+        state.data = got[0];
+        state.example = false;
+        return null;
+      }
+      if (got[0] === "broken" && state.data && !state.example) return null;
+      return maybe(readJson("data/EXAMPLE-latest.json")).then(function (ex) {
+        state.data = usable(ex) ? rebaseExample(ex) : null;
+        state.example = true;
+      });
+    }).catch(function () {}).then(function () {
+      state.loaded = true;
+      loading = null;
+      paint();
+    });
+    return loading;
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAct() { return V2 && role() !== "viewer"; }
+  function pick(items, id) {
+    var found = null;
+    list(items).forEach(function (c) { if (c.id === id) found = c; });
+    return found;
+  }
+  function connected(c) { return !!c && c.state === "connected"; }
+  function morningJob() {
+    var job = null;
+    list(state.jobs).forEach(function (j) { if (j.id === MORNING) job = j; });
+    return job;
+  }
+  function setConnectors(items) {
+    state.outlook = pick(items, "outlook") || state.outlook;
+    state.calendar = pick(items, "outlook-calendar") || state.calendar;
+    paint();
+  }
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var was = state.running;
+    state.jobs = items;
+    var job = morningJob();
+    state.running = !!(job && job.running);
+    if (was && !state.running) load();
+    paint();
+  }
+
+  function connect(id) {
+    if (!V2 || state.connecting) return;
+    state.connecting = true;
+    state.note = "";
+    paint();
+    cab.connectors.connect(id).then(function (result) {
+      state.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        setConnectors(items);
+        // A first connection reads the day straight away, so the next thing they see is theirs.
+        if (result === "connected" && state.example && connected(state.outlook)) runNow();
+      });
+    }).catch(function (e) {
+      state.connecting = false;
+      state.note = e && e.message ? e.message : "That did not work. Try again.";
+      paint();
+    });
+  }
+
+  function runNow() {
+    if (!canAct() || state.running) return;
+    state.running = true;
+    state.note = "";
+    paint();
+    cab.jobs.run(MORNING).catch(function (e) {
+      if (e && e.code === "busy") return;
+      state.running = false;
+      state.note = e && e.message ? e.message : "Reading your day did not start. Try again.";
+      paint();
+    });
+  }
+
+  function ask(words, send) {
+    if (!V2 || typeof cab.ask !== "function") {
+      showAskNote("Open this cabinet's chat and ask there.");
+      return Promise.resolve();
+    }
+    return cab.ask(words, { send: send !== false }).catch(function (e) {
+      showAskNote(e && e.message ? e.message : "The chat did not open. Try again.");
+    });
+  }
+  function showAskNote(msg) {
+    var el = $("ask-note");
+    el.textContent = msg;
+    el.hidden = false;
+  }
+
+  // ── Painting ───────────────────────────────────────────────────────────
+
+  function greeting(now) {
+    var h = now.getHours();
+    var part = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    var me = V2 && typeof cab.me === "function" ? cab.me() : null;
+    var name = me && typeof me.name === "string" && me.name !== "You" ? firstName(me.name) : "";
+    if (!name && state.data && state.data.person) name = firstName(state.data.person.name);
+    if (state.example && state.data && state.data.person) name = firstName(state.data.person.name);
+    return part + (name ? ", " + name : "");
+  }
+
+  function dayDate() {
+    var d = state.data && state.data.day && typeof state.data.day.date === "string"
+      ? new Date(state.data.day.date + "T12:00:00") : new Date();
+    return isNaN(d.getTime()) ? new Date() : d;
+  }
+
+  function paintMast(now) {
+    var d = dayDate();
+    $("hello").textContent = greeting(now);
+    $("date").innerHTML = '<span class="wd">' + esc(d.toLocaleDateString([], { weekday: "long" })) + "</span>" +
+      esc(d.toLocaleDateString([], { day: "numeric", month: "long" }));
+    $("headline").textContent = state.data ? text(state.data.headline) : "";
+    var meta = "";
+    var g = state.data && parseTime(state.data.generatedAt);
+    if (g && !state.example) meta += "<span>Read at " + esc(clock(g)) + "</span>";
+    if (canAct() && connected(state.outlook) && !state.running) {
+      meta += '<button class="link" type="button" data-act="run">Read again</button>';
+    }
+    $("meta").innerHTML = meta;
+  }
+
+  function paintNotice() {
+    var html = "";
+    var o = state.outlook;
+    var failed = state.status && state.status.ok === false && !state.running;
+    if (state.running) {
+      html = '<p class="reading">Reading your mail and calendar. This takes a minute or two.</p>';
+    } else if (failed) {
+      html = "<p>" + esc(text(state.status.why) || "The last reading did not work.") + "</p>" +
+        (canAct() ? '<button class="btn" type="button" data-act="run">Try again</button>' : "");
+    } else if (state.example) {
+      var canConnect = V2 && o && o.canConnect && !connected(o);
+      if (connected(o)) {
+        html = '<p><span class="tag">Example</span>Outlook is connected. Read your own day to replace this made-up one.</p>' +
+          (canAct() ? '<button class="btn" type="button" data-act="run">Read my day</button>' : "");
+      } else {
+        html = '<p><span class="tag">Example</span>This is a made-up day. Connect Outlook to see yours here every morning.</p>' +
+          (canConnect ? '<button class="btn" type="button" data-act="connect" data-id="outlook"' + (state.connecting ? " disabled" : "") + ">Connect Outlook</button>" :
+            !V2 ? "<p>Connect Outlook from Integrations in Cabinet.</p>" : "");
+      }
+    }
+    if (!html && connected(o) && state.calendar && !connected(state.calendar) && state.calendar.canConnect) {
+      html = "<p>Connect Outlook Calendar too, and your meetings join your mail here.</p>" +
+        '<button class="link" type="button" data-act="connect" data-id="outlook-calendar">Connect Outlook Calendar</button>';
+    }
+    if (state.note) html += "<p>" + esc(state.note) + "</p>";
+    $("notice").innerHTML = html;
+  }
+
+  function events() {
+    return list(state.data && state.data.events).map(function (e) {
+      return { raw: e, start: parseTime(e.start), end: parseTime(e.end) };
+    }).filter(function (e) { return e.start && e.end && e.end > e.start && !e.raw.allDay; })
+      .sort(function (a, b) { return a.start - b.start; });
+  }
+  function waitingById() {
+    var map = {};
+    list(state.data && state.data.waiting).forEach(function (w) { if (typeof w.id === "string") map[w.id] = w; });
+    return map;
+  }
+  /** Free stretches: the routine's, or worked out here from the gaps between meetings. */
+  function freeStretches(evs, bounds) {
+    var given = list(state.data && state.data.free).map(function (f) {
+      return { start: parseTime(f.start), end: parseTime(f.end), replies: Array.isArray(f.replies) ? f.replies : [] };
+    }).filter(function (f) { return f.start && f.end && f.end > f.start; });
+    if (given.length) return given;
+    var out = [], cursor = bounds.from;
+    evs.forEach(function (e) {
+      if (e.start - cursor >= 20 * 60000) out.push({ start: new Date(cursor), end: e.start, replies: [] });
+      if (e.end > cursor) cursor = e.end;
+    });
+    if (bounds.to - cursor >= 20 * 60000) out.push({ start: new Date(cursor), end: bounds.to, replies: [] });
+    return out;
+  }
+  function dayBounds() {
+    var d = dayDate();
+    var day = state.data && state.data.day ? state.data.day : {};
+    var sh = typeof day.startHour === "number" ? day.startHour : 7;
+    var eh = typeof day.endHour === "number" ? day.endHour : 19;
+    var evs = events();
+    if (evs.length) {
+      sh = Math.min(sh, evs[0].start.getHours());
+      eh = Math.max(eh, Math.min(24, evs[evs.length - 1].end.getHours() + 1));
+    }
+    var from = new Date(d); from.setHours(sh, 0, 0, 0);
+    var to = new Date(d); to.setHours(eh, 0, 0, 0);
+    return { from: from, to: to, sh: sh, eh: eh };
+  }
+
+  function paintStrip(now) {
+    var b = dayBounds();
+    var span = b.to - b.from;
+    var pct = function (t) { return Math.max(0, Math.min(100, ((t - b.from) / span) * 100)); };
+    var html = '<div class="rail"></div>';
+    for (var h = b.sh; h <= b.eh; h++) {
+      var t = new Date(b.from); t.setHours(h, 0, 0, 0);
+      html += '<span class="tick" style="left:' + pct(t).toFixed(2) + '%">' + esc(String(h).padStart(2, "0")) + "</span>";
+    }
+    events().forEach(function (e) {
+      var left = pct(e.start), width = Math.max(.6, pct(e.end) - left);
+      var past = e.end < now;
+      html += '<button class="slab' + (past ? " past" : "") + '" type="button" data-jump="ev-' + esc(e.raw.id) + '" style="left:' + left.toFixed(2) + "%;width:" + width.toFixed(2) +
+        '%" title="' + esc(clock(e.start) + " " + text(e.raw.title)) + '" aria-label="' + esc(clock(e.start) + ", " + text(e.raw.title)) + '"></button>';
+    });
+    if (sameDay(now, dayDate()) && now >= b.from && now <= b.to) {
+      html += '<span class="now" style="left:' + pct(now).toFixed(2) + '%" aria-hidden="true"><span>Now</span></span>';
+    }
+    $("strip").innerHTML = html;
+
+    var evs = events();
+    var freeMins = freeStretches(evs, b).reduce(function (sum, f) {
+      var from = f.start < now && sameDay(now, dayDate()) ? now : f.start;
+      return sum + Math.max(0, minutesBetween(from, f.end));
+    }, 0);
+    var waiting = list(state.data && state.data.waiting).length;
+    var parts = [];
+    parts.push("<b>" + evs.length + " " + plural(evs.length, "event", "events") + "</b>");
+    if (freeMins > 0) parts.push("<b>" + esc(length(freeMins)) + "</b> free");
+    parts.push("<b>" + waiting + " " + plural(waiting, "person", "people") + "</b> waiting on you");
+    $("tally").innerHTML = parts.length === 3 ? parts[0] + ", " + parts[1] + " and " + parts[2] + "." : parts.join(" and ") + ".";
+  }
+
+  function paintAgenda(now) {
+    var b = dayBounds();
+    var evs = events();
+    var people = waitingById();
+    var rows = [];
+    evs.forEach(function (e) { rows.push({ kind: "event", at: e.start, e: e }); });
+    freeStretches(evs, b).forEach(function (f) { rows.push({ kind: "gap", at: f.start, f: f }); });
+    rows.sort(function (x, y) { return x.at - y.at || (x.kind === "event" ? -1 : 1); });
+    if (!rows.length) {
+      $("agenda").innerHTML = '<li><p class="empty">Nothing on your calendar today. The whole day is yours.</p></li>';
+      return;
+    }
+    var today = sameDay(now, dayDate());
+    $("agenda").innerHTML = rows.map(function (r) {
+      if (r.kind === "event") {
+        var e = r.e, raw = e.raw;
+        var past = today && e.end < now;
+        var current = today && e.start <= now && e.end > now;
+        var who = list([]).concat(Array.isArray(raw.people) ? raw.people.filter(function (p) { return typeof p === "string"; }) : []);
+        var sub = [];
+        if (text(raw.where)) sub.push(text(raw.where));
+        if (who.length) sub.push("with " + names(who.map(firstName)));
+        var prep = text(raw.prep);
+        var prepMail = typeof raw.prepMailId === "string" && people[raw.prepMailId] ? raw.prepMailId : "";
+        var acts = [];
+        if (prepMail) acts.push('<button class="link" type="button" data-jump="w-' + esc(prepMail) + '">See ' + esc(firstName(people[prepMail].from)) + "'s mail</button>");
+        var join = safeLink(raw.joinUrl);
+        if (join && !past) acts.push('<a class="link" href="' + esc(join) + '" target="_blank" rel="noopener">Join</a>');
+        var open = safeLink(raw.webLink);
+        if (open) acts.push('<a class="link" href="' + esc(open) + '" target="_blank" rel="noopener">Open in Outlook</a>');
+        if (raw.myAnswer === "notResponded") sub.push("you haven't answered yet");
+        return '<li class="slot' + (past ? " past" : "") + (current ? " current" : "") + '" id="ev-' + esc(raw.id) + '">' +
+          '<div class="when">' + esc(clock(e.start)) + "<small>" + esc(length(minutesBetween(e.start, e.end))) + "</small></div>" +
+          "<div><p class=\"title\">" + esc(text(raw.title) || "Busy") + "</p>" +
+          (sub.length ? '<p class="sub">' + esc(sub.join(", ")) + "</p>" : "") +
+          (prep ? '<p class="prep"><b>Before this:</b> ' + esc(prep) + "</p>" : "") +
+          (acts.length ? '<div class="row-acts">' + acts.join("") + "</div>" : "") +
+          "</div></li>";
+      }
+      var f = r.f;
+      var start = today && f.start < now && f.end > now ? now : f.start;
+      var gapPast = today && f.end < now;
+      var mins = minutesBetween(start, f.end);
+      if (mins < 15 && !gapPast) return "";
+      var fits = f.replies.filter(function (id) { return people[id]; });
+      var total = fits.reduce(function (s, id) { return s + (typeof people[id].minutes === "number" ? people[id].minutes : 5); }, 0);
+      var line = gapPast ? "Free" : "<b>" + esc(length(mins)) + " free.</b>" +
+        (fits.length ? " Enough for " + fits.length + " " + plural(fits.length, "reply", "replies") + (total ? ", about " + esc(length(total)) : "") + "." : "");
+      return '<li class="slot gap' + (gapPast ? " past" : "") + '">' +
+        '<div class="when">' + esc(clock(start)) + "</div>" +
+        '<div><p class="title">' + line + "</p>" +
+        (fits.length && !gapPast ? '<ul class="fits">' + fits.map(function (id) {
+          var w = people[id];
+          return '<li><button type="button" data-jump="w-' + esc(id) + '">' + esc(text(w.from)) +
+            (typeof w.minutes === "number" ? "<small>" + esc(w.minutes) + " min</small>" : "") + "</button></li>";
+        }).join("") + "</ul>" : "") +
+        "</div></li>";
+    }).join("");
+  }
+
+  function paintPeople(now) {
+    var ws = list(state.data && state.data.waiting);
+    var evById = {};
+    events().forEach(function (e) { evById[e.raw.id] = e; });
+    ws.sort(function (a, b) {
+      return (b.urgent === true) - (a.urgent === true) ||
+        ((parseTime(a.waitingSince) || 0) - (parseTime(b.waitingSince) || 0));
+    });
+    $("wait-n").textContent = ws.length ? String(ws.length) : "";
+    if (!ws.length) {
+      $("people").innerHTML = '<li><p class="empty">Nobody is waiting on you. Nice.</p></li>';
+    } else {
+      $("people").innerHTML = ws.map(function (w) {
+        var ev = typeof w.eventId === "string" ? evById[w.eventId] : null;
+        var tie = ev && ev.end > now ? "Before " + text(ev.raw.title) + " at " + clock(ev.start) : (w.urgent === true ? "Needs you today" : "");
+        var reply = text(w.reply);
+        var open = safeLink(w.webLink);
+        return '<li class="person" id="w-' + esc(w.id) + '">' +
+          '<div class="top"><span class="who">' + esc(text(w.from) || "Someone") + (text(w.company) ? "<span>" + esc(w.company) + "</span>" : "") + "</span>" +
+          '<span class="age" title="Waiting">' + esc(waited(w.waitingSince || w.receivedAt, now)) + "</span></div>" +
+          '<p class="gist">' + esc(text(w.gist) || text(w.subject)) + "</p>" +
+          (tie ? '<p class="tie">' + esc(tie) + "</p>" : "") +
+          (reply ? '<details class="reply"><summary>Reply idea</summary><blockquote>' + esc(reply) + "</blockquote>" +
+            '<div class="acts"><button class="link" type="button" data-copy="' + esc(w.id) + '">Copy</button>' +
+            (canAct() && !state.example ? '<button class="link" type="button" data-draft="' + esc(w.id) + '">Put it in my Outlook drafts</button>' : "") +
+            (open ? '<a class="link" href="' + esc(open) + '" target="_blank" rel="noopener">Open in Outlook</a>' : "") +
+            "</div></details>" : (open ? '<div class="acts"><a class="link" href="' + esc(open) + '" target="_blank" rel="noopener">Open in Outlook</a></div>' : "")) +
+          "</li>";
+      }).join("");
+    }
+
+    var inv = list(state.data && state.data.invites);
+    $("invites").innerHTML = inv.length ? "<h3>Invites to answer</h3><ul class=\"small-list\">" + inv.map(function (i) {
+      var s = parseTime(i.start);
+      var when = s ? s.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) + ", " + clock(s) : "";
+      var open = safeLink(i.webLink);
+      return "<li><b>" + esc(text(i.title)) + "</b> <span class=\"muted\">" + esc(when) + (text(i.from) ? ", from " + esc(i.from) : "") + "</span>" +
+        (open ? ' <a class="link" href="' + esc(open) + '" target="_blank" rel="noopener">Answer</a>' : "") + "</li>";
+    }).join("") + "</ul>" : "";
+
+    var fyi = list(state.data && state.data.fyi);
+    $("fyi").innerHTML = fyi.length ? "<h3>Also came in</h3><ul class=\"small-list\">" + fyi.map(function (f) {
+      return "<li><b>" + esc(text(f.from)) + "</b> <span class=\"muted\">" + esc(text(f.gist)) + "</span></li>";
+    }).join("") + "</ul>" : "";
+
+    var aside = state.data && state.data.setAside;
+    $("aside").textContent = aside && typeof aside.count === "number" && aside.count > 0
+      ? aside.count + " " + (text(aside.what) || "other emails") + " set aside, nothing deleted." : "";
+  }
+
+  function paintTries() {
+    $("tries").innerHTML = TRIES.map(function (q) {
+      return '<li><button class="link" type="button" data-try="' + esc(q) + '">' + esc(q) + "</button></li>";
+    }).join("");
+  }
+
+  /** The example is a morning: it is shown at the moment it pretends to be, 9:20, so its free stretches still lie ahead. */
+  function clockNow() {
+    var now = new Date();
+    if (!state.example) return now;
+    var at = new Date(dayDate());
+    at.setHours(9, 20, 0, 0);
+    return at;
+  }
+
+  function paint() {
+    if (!state.loaded) return;
+    var now = clockNow();
+    $("page").setAttribute("aria-busy", "false");
+    paintMast(now);
+    paintNotice();
+    paintStrip(now);
+    paintAgenda(now);
+    paintPeople(now);
+  }
+
+  // ── Presses ────────────────────────────────────────────────────────────
+
+  function jump(id) {
+    var el = $(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+    el.classList.remove("flash");
+    void el.offsetWidth;
+    el.classList.add("flash");
+    var details = el.querySelector("details.reply");
+    if (details) details.open = true;
+  }
+
+  document.addEventListener("click", function (ev) {
+    var t = ev.target.closest("[data-act],[data-jump],[data-copy],[data-draft],[data-try]");
+    if (!t) return;
+    if (t.hasAttribute("data-jump")) { jump(t.getAttribute("data-jump")); return; }
+    if (t.hasAttribute("data-try")) {
+      $("ask-input").value = t.getAttribute("data-try");
+      ask(t.getAttribute("data-try"), true);
+      return;
+    }
+    var people = waitingById();
+    if (t.hasAttribute("data-copy")) {
+      var w = people[t.getAttribute("data-copy")];
+      if (!w) return;
+      var done = function () { toast("Reply copied"); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text(w.reply)).then(done, function () { toast("Copy did not work here. Select the text instead."); });
+      return;
+    }
+    if (t.hasAttribute("data-draft")) {
+      var d = people[t.getAttribute("data-draft")];
+      if (!d) return;
+      ask("Put a reply draft in my Outlook Drafts for " + text(d.from) + "'s email \"" + text(d.subject) +
+        "\". Use this text, in my voice: " + text(d.reply) + " Don't send it.", true);
+      return;
+    }
+    var act = t.getAttribute("data-act");
+    if (act === "run") runNow();
+    if (act === "connect") connect(t.getAttribute("data-id"));
+  });
+
+  $("ask-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var q = $("ask-input").value.trim();
+    if (!q) { $("ask-input").focus(); return; }
+    ask(q, true).then(function () { $("ask-input").value = ""; });
+  });
+
+  paintTries();
+  // The "Now" line and past meetings move with the clock.
+  setInterval(function () { if (state.loaded) paint(); }, 60000);
+
+  if (V2) {
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+    cab.connectors.list().then(setConnectors).catch(function () {});
+    cab.connectors.onChange(setConnectors);
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    load();
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
+  }
+})();
+</script>
+</body>
+</html>
