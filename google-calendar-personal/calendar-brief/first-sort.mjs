@@ -95,6 +95,14 @@ function pagesOf(name) {
 }
 const declined = (e) => Array.isArray(e.attendees) && e.attendees.some((a) => a && a.self && a.responseStatus === "declined");
 const allDay = (e) => !!(e.start && e.start.date && !e.start.dateTime);
+/** Shown as free in the calendar (and birthdays, working places): it takes no time. An
+ *  out-of-office always does. */
+const showsFree = (e) => e.eventType !== "outOfOffice" && (e.transparency === "transparent" || e.eventType === "birthday" || e.eventType === "workingLocation");
+/** A calendar day, "2026-10-14", as local midnight: new Date("2026-10-14") is midnight in UTC. */
+function localDay(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(NaN);
+}
 /** Calendar events that count: not cancelled, not declined. */
 function eventsOf(name) {
   return pagesOf(name).flatMap((p) => p.items || p.events || []).filter((e) => e && e.status !== "cancelled" && !declined(e));
@@ -153,8 +161,15 @@ function sumWords(name) {
 }
 
 // ── Calendar findings the helper works out itself ──
+/** Busy [start, end] in ms. A timed event as it runs, over midnight and over days; an all-day
+ *  one (an out-of-office too) its whole days, end.date being the day after; none that shows as free. */
 function busyOf(name) {
-  return eventsOf(name).filter((e) => !allDay(e)).map((e) => [new Date(e.start.dateTime).getTime(), new Date((e.end && e.end.dateTime) || e.start.dateTime).getTime()]);
+  return eventsOf(name).filter((e) => e.start && !showsFree(e)).map((e) => {
+    if (!allDay(e)) return [new Date(e.start.dateTime).getTime(), new Date((e.end && e.end.dateTime) || e.start.dateTime).getTime()];
+    const s = localDay(e.start.date);
+    const end = e.end && e.end.date ? localDay(e.end.date) : new Date(s.getFullYear(), s.getMonth(), s.getDate() + 1);
+    return [s.getTime(), end.getTime()];
+  }).filter(([a, b]) => !isNaN(a) && !isNaN(b));
 }
 /** Where a free stretch may sit on a day: weekdays 8 to 17 for work, evenings and weekends for Personal. */
 function windowsFor(day) {
@@ -203,7 +218,7 @@ function weekCount(name) {
 function datesCount(name) {
   const end = dayStart(30).getTime();
   return eventsOf(name).filter((e) => {
-    const t = new Date((e.start && (e.start.dateTime || e.start.date)) || 0).getTime();
+    const t = (e.start && e.start.dateTime ? new Date(e.start.dateTime) : localDay(e.start && e.start.date)).getTime();
     return t >= dayStart(0).getTime() && t < end && (e.eventType === "birthday" || (allDay(e) && /birthday|anniversary|יום הולדת/i.test(e.summary || "")));
   }).length;
 }
@@ -344,8 +359,8 @@ function giftOf(g) {
     if (g[key] === undefined || g[key] === "") continue;
     const e = eventsOf("events.json").find((x) => x && x.id === String(g[key]));
     if (!e) fail(`refused, no event with id ${g[key]} in events.json (cancelled and declined ones do not count)`);
-    const start = new Date((e.start && (e.start.dateTime || e.start.date + "T00:00:00")) || 0);
-    const end = new Date((e.end && (e.end.dateTime || e.end.date + "T00:00:00")) || start);
+    const start = e.start && e.start.dateTime ? new Date(e.start.dateTime) : localDay(e.start && e.start.date);
+    const end = e.end && e.end.dateTime ? new Date(e.end.dateTime) : e.end && e.end.date ? localDay(e.end.date) : start;
     if (end.getTime() <= Date.now() || start.getTime() > Date.now() + 31 * DAY) fail(`refused, ${e.summary || "that event"} is not coming up in the next 30 days`);
     out["title" + n] = String(e.summary || "Busy").slice(0, 120);
     out["start" + n] = allDay(e) ? e.start.date : iso(start);
@@ -490,6 +505,16 @@ if (cmd === "window") {
         const people = Array.isArray(ev.people) ? ev.people.filter((p) => names.has(p)).slice(0, 3) : [];
         const out = { ...ev, people, morePeople: Math.max(0, guests.length - people.length) };
         if (!out.place && e.location) out.place = String(e.location).split(",")[0].trim() || null;
+        // What takes time, from the calendar itself: the day a timed event ends when it is a
+        // later day (end.dateTime is in the calendar's zone, like date), out of office, shown as free.
+        delete out.eventType; delete out.transparency;
+        if (e.eventType && e.eventType !== "default") out.eventType = e.eventType;
+        if (e.transparency === "transparent") out.transparency = "transparent";
+        if (!allDay(e)) {
+          delete out.endDate;
+          const endDate = e.end && typeof e.end.dateTime === "string" ? e.end.dateTime.slice(0, 10) : "";
+          if (/^\d{4}-\d{2}-\d{2}$/.test(endDate) && typeof out.date === "string" && endDate > out.date) out.endDate = endDate;
+        }
         return out;
       });
     }

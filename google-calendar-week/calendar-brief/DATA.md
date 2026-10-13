@@ -13,13 +13,13 @@ cabinet set up before); the page does not read those.
 | `generatedAt` | When the calendar was read (ISO time with offset), or null if never |
 | `checkedAt` | When the routine last tried |
 | `status` | `ok`, or one plain sentence on what went wrong; everything else is then the last good read |
-| `timeZone` | The calendar's time zone |
+| `timeZone` | The calendar's time zone: every date and time in the file is in it, and the page names it when it shares free times (it shows the times as written, without converting them) |
 | `today` | The first of the seven days in `events`, `YYYY-MM-DD` |
 | `canChange` | Whether the connection may change events: true only for Sign in with Google with change allowed, false when read only (the secret address always is) |
 | `business` | A business name only when the calendar plainly is a business's, else null; the page shows it on the example |
 | `headline` | One line about the week (the page writes its own from the events) |
 | `note` | Optional: the one thing worth knowing |
-| `events[]` | The seven days from today: `id`, `date`, `start`, `end` (24-hour `HH:MM`, null when all day), `allDay`, `lastDate` (multi-day all-day only), `title`, `place`, `people` (names, at most three), `morePeople`, `kind`, `client`, `link` |
+| `events[]` | The seven days from today: `id`, `date`, `start`, `end` (24-hour `HH:MM`, null when all day), `allDay`, `lastDate` (multi-day all-day only), `endDate` (a timed event that ends on a later day: the day `end` is on), `eventType` (when not `default`, such as `outOfOffice`), `transparency` (`transparent` when shown as free), `title`, `place`, `people` (names, at most three), `morePeople`, `kind`, `client`, `link` |
 | `clients[]` | The people you meet: everyone outside your own circle met in the last 90 days or booked in the next 30: `id`, `name` (company, or the person when there is none), `contact`, `meetings90`, `firstMet`, `lastMet`, `next` (`{date, start, title}` or null), `hoursMonth`, `status` |
 
 The routine also keeps what it needs for the next morning, so each run reads only the
@@ -41,7 +41,10 @@ time), `quiet` (no meeting in the last 45 days and none booked) or `active`. Dat
 calendar's own days; `hoursMonth` counts meeting time with them since the 1st of this month.
 
 The page works the week out itself: now and next, free time (the free stretches between
-8:00 and 17:00 on weekdays), events that overlap, and hours by kind. The example's events
+8:00 and 17:00 on weekdays), events that overlap, and hours by kind. A timed event that
+ends on a later day takes the rest of its first day, every day between and its last day
+until `end`; an all-day event or an out-of-office takes the whole day; an event shown as
+free (`transparency` `transparent`) or a birthday takes no time. The example's events
 are keyed by weekday: the page shows each one on the matching day of the coming week.
 
 `data/reading.json` and `data/profile.json` are written once, by the first read. `reading.json` is `{ startedAt, done, lines[] }`: one short line for each thing found, `**bold**` for the finding, shown as they come instead of a spinner (schema `google-calendar-week/reading@1`). `profile.json` is what the first read learned (schema `google-calendar-week/profile@1`): `events90`, `perWeek`, `busiestDay`, `workHours { from, to }`, `people[]`, `peopleMore`, `quiet`, `nextFree`, and per template `othersHoursWeek`, `freeEvenings`, `dates30`, `hoursMonth`, `topClient { name, hours }`. Every number is counted from the calendar, never estimated. The page shows it once, with That's right and Fix something.

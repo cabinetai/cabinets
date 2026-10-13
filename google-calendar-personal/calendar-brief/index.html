@@ -1172,7 +1172,37 @@
     var hrs = Math.floor(mins / 60), m = mins % 60;
     return hrs + " h" + (m ? " " + m + " min" : "");
   }
-  function endOf(e) { return e.end === null ? e.start + 30 : e.end <= e.start ? 24 * 60 : e.end; }
+  /** Where an event ends on its own day: one that runs on past midnight takes the rest of it. */
+  function endOf(e) { return e.end === null ? e.start + 30 : e.lastDay > e.day || e.end <= e.start ? 24 * 60 : e.end; }
+  /** The busy minutes [from, to] an event in a day's list (weekOf) takes on that day, or null
+      when the calendar shows it as free. An all-day event or an out-of-office takes the whole
+      day; a timed event that runs on from an earlier day takes the whole day, or its last day
+      until it ends (weekOf gives those days a copy with `until`). */
+  function busyOn(e) {
+    if (e.free) return null;
+    if (e.allDay) return e.until !== null && e.until !== undefined ? [0, e.until] : [0, 24 * 60];
+    return [e.start, endOf(e)];
+  }
+  /** A day's busy stretches, earliest first. */
+  function busyOf(day) {
+    return day.events.map(busyOn).filter(Boolean).sort(function (a, b) { return a[0] - b[0]; });
+  }
+  /** "9:00 AM", "All day", or "Until 7:00 AM" on the last day of one that began on an earlier day. */
+  function timeLabel(e) {
+    if (!e.allDay) return clock(e.start);
+    return e.until !== null && e.until !== undefined ? "Until " + clock(e.until) : "All day";
+  }
+  /** " to 10:30 AM", or " to Wed 5:00 PM" for one that ends on a later day. */
+  function untilWords(e) {
+    if (e.end === null) return "";
+    if (e.lastDay > e.day) return " to " + DAYS[parseDay(e.lastDay).getDay()].slice(0, 3) + " " + clock(e.end);
+    return " to " + clock(endOf(e));
+  }
+  /** A time zone name the browser knows, or null. */
+  function knownZone(v) {
+    if (typeof v !== "string" || !v || v.length > 64) return null;
+    try { new Intl.DateTimeFormat(undefined, { timeZone: v }); return v; } catch (e) { return null; }
+  }
   function words(v, max) { return typeof v === "string" && v.trim() ? v.trim().slice(0, max || 120) : null; }
 
   // ── Reading the week ───────────────────────────────────────────────────
@@ -1207,6 +1237,16 @@
       if (!allDay && start === null) return;
       var end = allDay ? null : clockToMin(e.end);
       var last = allDay && parseDay(e.lastDate) ? addDays(parseDay(e.lastDate), shift) : date;
+      if (!allDay) {
+        // A timed event that ends on a later day: its endDate, or, in a file written before
+        // endDate, an end at or before its start, which can only be the next morning.
+        var endDay = parseDay(e.endDate) ? addDays(parseDay(e.endDate), shift) : null;
+        if (endDay && endDay > date) {
+          last = endDay;
+          // Ending at midnight: the day before is its last, taken to the end.
+          if (end === 0) { last = addDays(endDay, -1); end = 24 * 60; }
+        } else if (!endDay && end !== null && end > 0 && end <= start) last = addDays(date, 1);
+      }
       var people = Array.isArray(e.people) ? e.people.filter(function (p) { return typeof p === "string" && p.trim(); }).slice(0, 3) : [];
       var link = typeof e.link === "string" && /^https:\/\/(www\.google\.com\/calendar|calendar\.google\.com)\//.test(e.link) ? e.link : null;
       events.push({
@@ -1214,6 +1254,9 @@
         day: ymd(date),
         lastDay: ymd(last < date ? date : last),
         allDay: allDay,
+        // Shown as free in the calendar (and birthdays, working places): it takes no time.
+        // An out-of-office always does.
+        free: e.eventType !== "outOfOffice" && (e.transparency === "transparent" || e.eventType === "birthday" || e.eventType === "workingLocation"),
         start: start,
         end: end,
         title: title,
@@ -1284,6 +1327,7 @@
       canChange: typeof raw.canChange === "boolean" ? raw.canChange : null,
       business: words(raw.business, 80),
       note: words(raw.note, 300) || "",
+      timeZone: knownZone(raw.timeZone),
       events: events,
       clients: clients
     };
@@ -1495,6 +1539,22 @@
   /** A meeting with other people in it, worth preparing for and following up. */
   function withPeople(e) { return !e.allDay && (e.kind === "client" || e.people.length > 0 || e.more > 0) && e.kind !== "personal"; }
 
+  /** The events on one day: the ones that start on it, an all-day one that covers it, and for a
+      timed one that began on an earlier day a copy for this day: all day, or `until` it ends. */
+  function eventsOn(events, key) {
+    var out = [];
+    events.forEach(function (e) {
+      if (e.day === key) out.push(e);
+      else if (e.day < key && e.lastDay >= key) {
+        out.push(e.allDay ? e : Object.assign({}, e, {
+          day: key, lastDay: key, allDay: true, start: null, end: null, of: e,
+          until: key === e.lastDay && e.end !== null && e.end < 24 * 60 ? e.end : null
+        }));
+      }
+    });
+    return out;
+  }
+
   /** The seven days from today, each with its events; a day the file does not reach says so. */
   function weekOf(data) {
     var today = startOfToday();
@@ -1505,9 +1565,7 @@
       var outside = !data.example && !!data.today && (key < data.today || daysBetween(parseDay(data.today), d) > 6);
       days.push({
         date: d, key: key, outside: outside,
-        events: outside ? [] : data.events.filter(function (e) {
-          return e.day === key || (e.allDay && e.day < key && e.lastDay >= key);
-        })
+        events: outside ? [] : eventsOn(data.events, key)
       });
     }
     return days;
@@ -1519,9 +1577,7 @@
     if (day.outside) return [];
     var w = windowOf(day.date);
     var DAY_FROM = w.from, DAY_TO = w.to;
-    var busy = day.events.filter(function (e) { return !e.allDay; })
-      .map(function (e) { return [e.start, endOf(e)]; })
-      .sort(function (a, b) { return a[0] - b[0]; });
+    var busy = busyOf(day);
     var from = DAY_FROM;
     if (isToday) from = Math.max(from, Math.ceil(nowMinutes() / 15) * 15);
     var out = [];
@@ -1539,7 +1595,8 @@
     var part = slot.start >= 17 * 60 ? "evening" : slot.end <= 12 * 60 + 30 ? "morning" : slot.start >= 12 * 60 ? "afternoon" : "";
     var name = dayWord(day.date, today);
     if (name === "Today") return part ? "This " + part : "Today";
-    if (!part) return name;
+    // A day's name alone says the day is free: only when nothing on it takes time.
+    if (!part) return busyOf(day).length ? name + " from " + clock(slot.start) : name;
     return name + " " + part;
   }
 
@@ -1549,19 +1606,27 @@
     var b = f.best;
     if (!b) return "";
     if (b.day === f.days[0] && f.bestWords === "Today") return "You're free from " + clock(b.slot.start);
+    var from = " from " + clock(b.slot.start);
+    if (f.bestWords.slice(-from.length) === from) return f.bestWords.slice(0, -from.length) + " is free" + from;
     return f.bestWords + " is free";
   }
 
   /** Events on one day that overlap, with by how much. */
   function overlaps(days) {
-    var out = [];
+    var out = [], seen = {};
     days.forEach(function (d) {
-      var timed = d.events.filter(function (e) { return !e.allDay && e.day === d.key; });
+      // Timed events, with the part of one that runs on from an earlier day; all-day events and
+      // the ones shown as free are no clash.
+      var timed = d.events.filter(function (e) { return !e.free && (!e.allDay || e.of); });
       for (var i = 0; i < timed.length; i++) {
         for (var j = i + 1; j < timed.length; j++) {
-          var a = timed[i], b = timed[j];
-          var from = Math.max(a.start, b.start), to = Math.min(endOf(a), endOf(b));
-          if (to > from) out.push({ day: d, a: a, b: b, from: from, minutes: to - from });
+          var sa = busyOn(timed[i]), sb = busyOn(timed[j]);
+          var a = timed[i].of || timed[i], b = timed[j].of || timed[j];
+          var from = Math.max(sa[0], sb[0]), to = Math.min(sa[1], sb[1]);
+          if (to > from && !seen[a.id + "|" + b.id]) {
+            seen[a.id + "|" + b.id] = true;
+            out.push({ day: d, a: a, b: b, from: from, minutes: to - from });
+          }
         }
       }
     });
@@ -2648,7 +2713,7 @@
     var kind = e.kind !== "client" ? KIND_WORDS[e.kind] : "";
     var sub = who || kind;
     return '<button type="button" class="dayrow k-' + e.kind + (hasEnded(e) ? " past" : "") + (isNow(e) ? " now" : "") + '" data-act="event" data-id="' + esc(e.id) + '">' +
-      '<span class="t num">' + esc(e.allDay ? "All day" : clock(e.start)) + "</span>" +
+      '<span class="t num">' + esc(timeLabel(e)) + "</span>" +
       '<span class="w">' + bdi(e.title) + (sub ? "<small>" + bdi(sub) + (withDay ? "" : "") + "</small>" : "") + "</span></button>";
   }
 
@@ -2667,7 +2732,7 @@
     if (!state.example && canAsk() && changeAllowed(state.data)) acts += '<button type="button" class="btn small" data-act="reschedule" data-id="' + esc(e.id) + '">' + icon("i-move") + "Move it</button>";
     acts += '<button type="button" class="btn small" data-act="event" data-id="' + esc(e.id) + '">Details</button>';
     return '<div class="nextcard"><span class="tagline">Next · ' + esc(inWords(e.start - nowM)) + "</span>" +
-      '<span class="evtime num">' + esc(clock(e.start)) + (e.end !== null ? " to " + esc(clock(endOf(e))) : "") + "</span>" +
+      '<span class="evtime num">' + esc(clock(e.start)) + esc(untilWords(e)) + "</span>" +
       '<button type="button" class="evtitle" data-act="event" data-id="' + esc(e.id) + '">' + bdi(e.title) + "</button>" +
       (who || e.place ? '<span class="evmeta">' + (who ? icon("i-users") + bdi(who) : "") + (e.place ? (who ? "<span>·</span>" : "") + icon("i-pin") + bdi(e.place) : "") + "</span>" : "") +
       '<div class="nudge-actions">' + acts + "</div></div>";
@@ -2739,9 +2804,13 @@
   }
   /** "Tue 14 Oct, 2:00 PM to 4:00 PM": a full date, since the message is read later. */
   function sendWhen(t) { return DAYS[t.day.date.getDay()].slice(0, 3) + " " + shortDate(t.day.date) + ", " + clock(t.start) + " to " + clock(t.end); }
+  /** The zone the times are in. The routine writes every time in the calendar's own zone and the
+      page shows them as written (it does not convert them), so the label is the calendar's zone;
+      the browser's only for the example, or a file without one. */
   function zoneName() {
     try {
-      var parts = new Intl.DateTimeFormat(undefined, { timeZoneName: "long" }).formatToParts(new Date());
+      var tz = state.data && !state.data.example ? state.data.timeZone : null;
+      var parts = new Intl.DateTimeFormat(undefined, tz ? { timeZone: tz, timeZoneName: "long" } : { timeZoneName: "long" }).formatToParts(new Date());
       for (var i = 0; i < parts.length; i++) if (parts[i].type === "timeZoneName") return parts[i].value;
     } catch (e) { /* older browser */ }
     return "";
@@ -2839,7 +2908,7 @@
       }
       var items = d.events.map(function (e) {
         return { at: e.allDay ? -1 : e.start, html: '<button type="button" class="ev k-' + e.kind + (hasEnded(e) ? " past" : "") + (isNow(e) ? " now" : "") + (clash[e.id] ? " clash" : "") + '" data-act="event" data-id="' + esc(e.id) + '"' + (clash[e.id] ? ' title="Overlaps another event"' : "") + ">" +
-          '<span class="num">' + esc(e.allDay ? "All day" : clock(e.start)) + "</span><b>" + bdi(e.title) + "</b></button>" };
+          '<span class="num">' + esc(timeLabel(e)) + "</span><b>" + bdi(e.title) + "</b></button>" };
       });
       var best = f.best && f.best.day === d ? f.best : null;
       if (best) items.push({ at: best.slot.start - 0.5, html: '<span class="ev freeslot">' + icon("i-sun") + "Free " + esc(clock(best.slot.start)) + " to " + esc(clock(best.slot.end)) + "</span>" });
@@ -3245,7 +3314,7 @@
     var d = parseDay(e.day);
     var name = dayWord(d, today);
     var when = (name === DAYS[d.getDay()] ? longDate(d) : name + ", " + longDate(d)) +
-      (e.allDay ? ", all day" : ", " + clock(e.start) + (e.end !== null ? " to " + clock(endOf(e)) : ""));
+      (e.allDay ? ", all day" : ", " + clock(e.start) + untilWords(e));
     var c = clientOf(state.data, e);
     var who = whoWords(e);
     var facts = '<ul class="sfacts"><li>' + icon("i-clock") + "<span>" + esc(when) + (isNow(e) ? ' <span class="chip ok">Now</span>' : "") + "</span></li>" +

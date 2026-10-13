@@ -163,7 +163,9 @@ Never write `reading.json` or `profile.json` yourself, and never `push` in the c
   counted. Say the number instead.
 - `latest @latest.json` writes `latest.json` from the file your script saved in `.work/`; it
   sets `generatedAt`, `checkedAt`, `today`, `readThrough` and `timeZone` itself. Leave out
-  cancelled and declined events in it too.
+  cancelled and declined events in it too. It also copies `endDate` (a timed event that ends
+  on a later day), `eventType` and `transparency` onto each event from `events.json`; when you
+  write `latest.json` without the helper, your script copies them itself, as the job says.
 - One `push` at a time, never two in parallel calls. Never write over a saved answer a
   line already counted: save a new read under a new name.
 - Before `done`, `latest.json` and the report say the same things; fix a mistake by running
