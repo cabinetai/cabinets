@@ -130,8 +130,9 @@ Each one is a recipe. Use the field lists as written: they keep the answers smal
   contains 'agreement' or name contains 'lease' or name contains 'policy' or name contains
   'insurance' or name contains 'license' or name contains 'renewal' or name contains 'SOW' or
   fullText contains 'renewal date' or fullText contains 'expires on' or fullText contains
-  'notice')`, `"orderBy":"modifiedTime desc"`, `"pageSize":40`, fields
-  `files(id,name,mimeType,modifiedTime)`. To read one: a Google Doc or Sheet,
+  'notice')`, `"pageSize":40`, fields `files(id,name,mimeType,modifiedTime)`, and no
+  `orderBy` (Drive refuses to sort a search with fullText in it); sort by `modifiedTime` in
+  your script. To read one: a Google Doc or Sheet,
   `gws drive files export --params '{"fileId":"<id>","mimeType":"text/plain"}' -o file-room/data/.work/doc-<n>.txt`
   (a Sheet as `text/csv`, saved as `.txt` too); any other file,
   `gws drive files get --params '{"fileId":"<id>","alt":"media"}' -o file-room/data/.work/doc-<n>.pdf`,
@@ -143,12 +144,12 @@ a company account has an outside.
 
 ## The morning read
 
-Keep what you already worked out. When `file-room/data/latest.json` is under 3 days old, start
-from it and search only what changed; otherwise search the full windows once.
+Keep what you already worked out: when `file-room/data/latest.json` is there, reuse its gists
+and judgments for files that are still in this morning's answers. But run every search below
+each morning (they are small): the helper only accepts files Drive answered with in this run.
 
-Searches: about.json, recent7.ndjson, mine.json, shared.json, the comments, versions.json, and
-the folders (the folders only on Mondays and when there is no earlier read; on other days keep
-the last read's folders, and refresh the `lastAt` of a folder whose files are in recent7).
+Searches: about.json, recent7.ndjson, mine.json, shared.json, the comments, versions.json and
+the folders, every morning.
 
 Then write `.work/latest.json` with a script and run
 `node file-room/first-sort.mjs latest @latest.json`, then the report and

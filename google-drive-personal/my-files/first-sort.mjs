@@ -257,12 +257,18 @@ function driveFiles() {
   return out;
 }
 const FILE_ID = /^[A-Za-z0-9_-]{10,100}$/;
+const NO_SIZE = Symbol("no size");
 /**
  * Every object with a fileId, at any depth: the file must be in a saved answer, and its name
  * (`name`, or `file` on a comment or a date), its kind and its time come from that answer.
  */
 function checkFiles(o, where, files) {
-  if (Array.isArray(o)) { o.forEach((x, i) => checkFiles(x, where + "[" + i + "]", files)); return; }
+  if (Array.isArray(o)) {
+    o.forEach((x, i) => checkFiles(x, where + "[" + i + "]", files));
+    // A file Drive gave no size for (a shortcut, a form, a Google Doc) is left out, not refused.
+    for (let i = o.length - 1; i >= 0; i--) if (o[i] && o[i][NO_SIZE]) o.splice(i, 1);
+    return;
+  }
   if (!o || typeof o !== "object") return;
   if ("fileId" in o) {
     const id = String(o.fileId || "");
@@ -273,7 +279,7 @@ function checkFiles(o, where, files) {
     o.kind = kindOf(f.mimeType);
     if ("modifiedAt" in o && f.modifiedTime) o.modifiedAt = f.modifiedTime;
     // How big it is and when they last opened it are Drive's own words, never the agent's.
-    if ("size" in o) { const n = Number(f.quotaBytesUsed || f.size); if (n > 0) o.size = n; else fail(`refused, ${where}: Drive gave no size for ${id}; search with quotaBytesUsed in the fields`); }
+    if ("size" in o) { const n = Number(f.quotaBytesUsed || f.size); if (n > 0) o.size = n; else { o[NO_SIZE] = true; return; } }
     if ("viewedAt" in o) { if (f.viewedByMeTime) o.viewedAt = f.viewedByMeTime; else delete o.viewedAt; }
   }
   for (const [k, v] of Object.entries(o)) if (v && typeof v === "object") checkFiles(v, where + "." + k, files);

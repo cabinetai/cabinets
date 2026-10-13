@@ -126,11 +126,11 @@ Each one is a recipe. Use the field lists as written: they keep the answers smal
 
 ## The morning read
 
-Keep what you already worked out. When `my-files/data/latest.json` is under 3 days old, start
-from it and search only what changed; otherwise search the full windows once.
+Keep what you already worked out: when `my-files/data/latest.json` is there, reuse its gists
+and judgments for files that are still in this morning's answers. But run every search below
+each morning (they are small): the helper only accepts files Drive answered with in this run.
 
-Searches: about.json, recent7.ndjson, mine.json, shared.json, and big.json (big.json only on
-Sundays and when there is no earlier read; on other days keep the last read's `big`).
+Searches: about.json, recent7.ndjson, mine.json, shared.json and big.json, every morning.
 
 Then write `.work/latest.json` with a script and run
 `node my-files/first-sort.mjs latest @latest.json`, then the report and
@@ -149,8 +149,9 @@ Then write `.work/latest.json` with a script and run
 - `shared`, at most 8, newest first, shared in the last 14 days (30 on the first read):
   `{"id":"s1","fileId":"<id>","from":"<sharingUser displayName>","fromEmail":"<their address>","sharedAt":"<sharedWithMeTime>","opened":false,"gist":"..."}`.
   `opened` is false when `viewedByMeTime` is missing.
-- `big`, the 10 in big.json, biggest first: `{"id":"b1","fileId":"<id>","size":0,"viewedAt":""}`.
-  Write `size` and `viewedAt` as keys; the helper fills them from big.json.
+- `big`, the files in big.json that have a size (at most 10), biggest first: `{"id":"b1","fileId":"<id>","size":0,"viewedAt":""}`.
+  Write `size` and `viewedAt` as keys; the helper fills them from big.json and drops a file
+  Drive gave no size for (a shortcut, a form, a Google Doc).
 - `headline`: the one line that matters most today, under 60 characters: "Mark shared the
   refinance offer", "Your Drive is 92% full", "Nothing in your Drive needs you today".
 - `lead`: the one thing that matters most, with a judgment ("The bank wants an answer by the
