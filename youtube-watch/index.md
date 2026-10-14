@@ -22,10 +22,12 @@ keeps one list of what needs a look:
 - **Spam and scams**: fake giveaways, accounts copying your name, links you do not want
   under your videos.
 - **Questions waiting too long**: real questions nobody answered in three days.
+- **Business and collab requests**: a brand asking about a sponsorship, a channel asking to
+  collab, a job, consulting, a partnership or a bulk order, each with who asked and whether
+  to reply from the chat or reach out by email.
 - **Videos doing much worse than usual**, and sudden drops in a video's daily views.
 - **False claims about you**: something untrue that more than one person repeats.
-- **Anything else that needs a human**: a worry about someone's safety, a legal threat, a
-  business ask.
+- **Anything else that needs a human**: a worry about someone's safety, a legal threat.
 
 Similar comments land on the same row, so ten copies of one scam are one item, not ten.
 Every row keeps the comments behind it, with links, so you can always check the source.
@@ -37,7 +39,7 @@ Every row keeps the comments behind it, with links, so you can always check the 
   chat, your team drafts replies for you to copy, and posts one only when you ask for it
   there, after you see the words, and only if you allowed replies when you connected
   YouTube. It never deletes, hides or reports a comment: the board tells you where to do
-  that in YouTube Studio.
+  that in YouTube Studio. It never answers a business ask for you or sends an email.
 - **From views, likes and comments.** YouTube does not share watch time or where viewers
   came from, so a drop is measured against your own videos' daily views.
 
