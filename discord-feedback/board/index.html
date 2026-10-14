@@ -176,7 +176,10 @@
   .req.open .req-main { background: var(--panel); }
   .req-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; font-weight: 700; font-size: 15.5px; }
   .req-title b { overflow-wrap: anywhere; }
-  .req-people { font-size: 14px; color: var(--ink-3); white-space: nowrap; }
+  .req-people { font-size: 14px; color: var(--ink-3); white-space: nowrap; text-align: end; }
+  /* How many messages asked, under how many people: the board still ranks by people. */
+  .req-asks { display: block; }
+  .new { font-size: 12.5px; font-weight: 700; color: var(--brand-2); background: var(--brand-tint); padding: 1px 8px; border-radius: 999px; }
   .req-sum { grid-column: 1 / -1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
   .type { font-size: 13.5px; font-weight: 500; color: var(--ink-3); }
   .req-body { padding: 0 18px 16px 18px; background: var(--panel); }
@@ -687,6 +690,14 @@
     if (typeof r.count === "number" && r.count >= 0) return Math.round(r.count);
     return Array.isArray(r.people) ? r.people.length : 0;
   }
+  /** How many messages asked for it. One person asking three times is three asks. */
+  function asks(r) { return list(r.messages).length; }
+  /** A message came in after the check before this one, so it is new since that check. */
+  function isNew(r) {
+    var prev = state.data ? parseTime(state.data.previousGenerated) : null;
+    var last = parseTime(r.lastSeen);
+    return !!(prev && last && last > prev);
+  }
   /** Most people first, then priority, then the most recent. */
   function requests() {
     var all = state.data ? list(state.data.requests) : [];
@@ -820,6 +831,7 @@
     var id = text(r.id, 80) || "r" + rank;
     var open = !!state.open[id];
     var n = people(r);
+    var k = asks(r);
     var type = KNOWN_TYPE[r.type] ? r.type : "Other";
     var all = list(r.messages);
     var msgs = all.slice().sort(function (a, b) { return (parseTime(b.at) || 0) - (parseTime(a.at) || 0); }).slice(0, 12);
@@ -835,8 +847,9 @@
     return '<li class="req' + (open ? " open" : "") + '">' +
       '<button class="req-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
       '<span class="req-title"><b dir="auto">' + esc(text(r.title, 80) || "A request") + "</b>" +
-      '<span class="type">' + esc(type) + "</span></span>" +
-      '<span class="req-people num">' + n + " " + plural(n, "person", "people") + "</span>" +
+      '<span class="type">' + esc(type) + "</span>" + (isNew(r) ? '<span class="new" title="New since the check before this one">New</span>' : "") + "</span>" +
+      '<span class="req-people num">' + n + " " + plural(n, "person", "people") +
+      (k ? '<span class="req-asks">' + k + " " + plural(k, "ask", "asks") + "</span>" : "") + "</span>" +
       '<span class="req-sum" dir="auto">' + esc(text(r.summary, 200)) + "</span>" +
       "</button>" +
       '<div class="req-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" + msgsHtml +

@@ -61,6 +61,7 @@ count the team has.
 {
   "version": 1,
   "generated": "2026-10-07T12:30:00Z",
+  "previousGenerated": "2026-10-07T12:00:00Z",
   "status": "ok",
   "server": { "id": "<serverId>", "name": "<server name>" },
   "channel": { "id": "<channel id>", "name": "#feedback" },
@@ -96,6 +97,9 @@ count the team has.
 - `summary` is one sentence in your words on what people want and why, when they said why.
 - `count` is the number of **different people** in `people`, never the number of messages.
   One person asking three times is one.
+- `previousGenerated` is the `generated` of the run before this one: copy the old
+  `generated` into it before you set `generated` to now. The page marks a request as New
+  when its `lastSeen` is later, so keep `lastSeen` the time of its newest message.
 - `channel` on a message is where it was said. A message that came in through a 📌 also
   has `"pinned": true` and `pinnedBy`, the names of the people who reacted with 📌.
 - `link` is the message's `link` exactly as the tool gave it; the page turns it into
