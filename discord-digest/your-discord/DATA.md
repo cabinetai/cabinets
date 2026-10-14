@@ -111,13 +111,13 @@ from the first minute. It can be sent again to refresh it.
 
 The right side says "While I read, you can...". First the `gift`: `question` (`who`,
 `channel`, `since`, `gist`, `link`: the question that has waited longest for an answer),
-`busy` (`name`, `parent`, `messages`, `link`: where everyone was), or `calm` (nothing moved).
+`busy` (`name`, `parent`, `messages`, `link`: where everyone was), or `calm` (nothing moved:
+the page offers a look at what is still open).
 Then up to 3 `offers`, added as the agent finds them: `reply` (another question waiting:
 `who`, `channel`, `since`, `gist`, `link`), `catchup` (`name`, `parent`, `gist`: a place
-worth catching up on), `summary` (`name`, `parent`, `gist`: a busy thread to sum up) and
-`announce` (`channel` with `"level": "write"`, and `gist`: something worth announcing, only
-in a channel set to Write). Each is a button that asks the agent in the chat; it drafts and
-never posts. "Looking for one thing I can take off your plate right now" holds the place
+worth catching up on) and `summary` (`name`, `parent`, `gist`: a busy thread to sum up).
+Each is a button that asks the agent in the chat; it reads, sums up or drafts, and never
+posts. "Looking for one thing I can take off your plate right now" holds the place
 until the first one arrives. After the reading the list stays on top of the page for three
 days, until every one is used or the person presses Not now.
 

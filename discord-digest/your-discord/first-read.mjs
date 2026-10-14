@@ -16,7 +16,6 @@
 //                                                   {"kind":"reply","who","channel","since","gist","link"}
 //                                                   {"kind":"catchup","name","parent","gist","link"}
 //                                                   {"kind":"summary","name","parent","gist","link"}
-//                                                   {"kind":"announce","channel","level":"write","gist"}
 //   node <app>/first-read.mjs latest @<file>        write data/latest.json from your script's file, its
 //                                                   copy in data/days/, and data/status.json
 //                                                   (schema, generatedAt and the day set here; a
@@ -30,7 +29,7 @@ import { fileURLToPath } from "node:url";
 const SCHEMA = "discord-digest";
 const LATEST_SCHEMA = "discord-digest/your-discord@1";
 const GIFT_KINDS = { question: ["who", "channel", "since"], busy: ["name"], calm: [] };
-const OFFER_KINDS = { reply: ["who", "channel", "since"], catchup: ["name"], summary: ["name"], announce: ["channel", "level"] };
+const OFFER_KINDS = { reply: ["who", "channel", "since"], catchup: ["name"], summary: ["name"] };
 const MAX_OFFERS = 3;
 const MAX_RECENT = 8;
 const DISCORD_LINK = /^https:\/\/(ptb\.|canary\.)?discord\.com\/channels\/[\d@me/]+$/i;
@@ -128,10 +127,7 @@ function fieldsOf(g, kinds, what) {
   return out;
 }
 function offerOf(o) {
-  const out = fieldsOf(o, OFFER_KINDS, "offer");
-  // An announcement only where the team may write: the channel's level from discord_list_channels.
-  if (out.kind === "announce" && String(o.level).trim() !== "write") fail("an announce offer is only for a channel set to write (level \"write\" in discord_list_channels)");
-  return out;
+  return fieldsOf(o, OFFER_KINDS, "offer");
 }
 function giftOf(g) {
   const out = fieldsOf(g, GIFT_KINDS, "gift");

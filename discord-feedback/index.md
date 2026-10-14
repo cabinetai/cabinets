@@ -24,10 +24,10 @@ and the messages themselves, so you can always check the source.
 - **It reads `#feedback`**, every 30 minutes, and only what is new since the last time.
 - **A 📌 sends any message to the board.** React with 📌 on a message in any channel you
   let Cabinet read, and it is on the board after the next update.
-- **It reads, and writes only where you allow.** The board itself only reads. In the chat,
-  your team posts, replies or reacts only when you ask, and only in channels you set to
-  Write in Discord's settings in Cabinet. Everywhere else, replies are drafted for you to
-  send.
+- **It reads, and writes only where you allow.** The board itself only reads, and nothing
+  writes in Discord on its own. In the chat, your team posts, replies or reacts only when you
+  ask, only in channels you set to Write in Discord's settings in Cabinet, and after you see
+  the words. Everywhere else, replies are drafted for you to send.
 - **One server**: the one you added Cabinet to.
 
 ## Getting started
