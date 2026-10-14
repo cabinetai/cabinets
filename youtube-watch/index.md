@@ -40,8 +40,9 @@ Every row keeps the comments behind it, with links, so you can always check the 
   there, after you see the words, and only if you allowed replies when you connected
   YouTube. It never deletes, hides or reports a comment: the board tells you where to do
   that in YouTube Studio. It never answers a business ask for you or sends an email.
-- **From views, likes and comments.** YouTube does not share watch time or where viewers
-  came from, so a drop is measured against your own videos' daily views.
+- **From views, likes and comments.** The board does not use watch time or where viewers
+  came from, so a drop is measured against your own videos' daily views. For those
+  numbers, see YouTube Digest.
 
 ## Getting started
 
