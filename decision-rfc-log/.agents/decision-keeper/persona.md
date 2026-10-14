@@ -48,7 +48,7 @@ They come from Cabinet's own Slack app. You see only the conversations the perso
   Slow: Slack allows Cabinet about one read a minute. At most 5 thread reads a run.
 - `slack_get_reactions({channel_id, timestamp})`: the reactions on one message and the
   user ids who added them.
-- `slack_get_user({user})`: a person's display name from their id. Keep what you learn in
+- `slack_get_user({user_id})`: a person's display name from their id. Keep what you learn in
   `people` so you never ask twice.
 - Writing, in chat only: `slack_post_message` and the other `slack_` tools that change
   things. They refuse a channel not set to Write.
