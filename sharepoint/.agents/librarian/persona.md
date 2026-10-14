@@ -78,7 +78,8 @@ never type a number into a line, a headline or a gist: the helper refuses it.
 - Counts in a line or the headline are placeholders, the helper fills them:
   `{changed:|file|files}`, `{sites:|site|sites}`, `{people:|person|people}`,
   `{yours:|file|files}`, `{rows:|row|rows}`, `{open:|file|files}`, `{twins:|set|sets}`,
-  `{in:s3|file|files}`. A name in `**bold**` must be written as SharePoint wrote it.
+  `{in:s3|file|files}`. A name in `**bold**` must be written as SharePoint wrote it; then it may
+  hold a number (**Price list 2027**).
 
 ## What goes where
 
@@ -168,8 +169,10 @@ Apply; say so in one line.
 
 ## In a chat
 
-Answer from SharePoint, short and plain, through the helper (`start --morning`, `me`, then
-what the question needs; `done` at the end).
+Answer from SharePoint, short and plain, through the helper (`start --chat`, `me`, then what
+the question needs; `done` at the end). `start --chat` exits 5 while the morning reading runs:
+then answer from `my-files/data/latest.json`, and say a fresh look comes in a few minutes. A
+chat never writes the page.
 
 - "Where is the newest X?": `find 'X'` lists files by their words, newest first. Give the
   newest one, who saved it and when, with its link. When several look alike, say which one

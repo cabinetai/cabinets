@@ -8,6 +8,8 @@
 //                                                  reads the last 7 days
 //   node my-files/first-sort.mjs start --morning   a morning: data/.work/ only, reads since the last
 //                                                  morning (at most 7 days)
+//   node my-files/first-sort.mjs start --chat      a question in the chat: like a morning, never while one runs,
+//                                                  and it writes nothing the page shows
 //   node my-files/first-sort.mjs me                who signed in (always first)
 //   node my-files/first-sort.mjs files             every SharePoint file that changed in the window, its
 //                                                  site, and the saves on the ones others changed
@@ -71,7 +73,10 @@ function iso(d) { return ymd(d) + "T" + hhmm(d) + ":" + pad(d.getSeconds()) + of
 const utc = (d) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-function fail(msg, code) { console.error("first-sort: " + msg); process.exit(code || 1); }
+/** Stops the run with a code the agent reads. Never process.exit here: with a Graph connection
+ *  still open, Node on Windows crashes and the code is lost. The command chain catches this. */
+class Exit extends Error {}
+function fail(msg, code) { console.error("first-sort: " + msg); process.exitCode = code || 1; throw new Exit(msg); }
 function readJson(file) { return JSON.parse(fs.readFileSync(file, "utf8")); }
 function writeJson(file, value) {
   const tmp = file + ".part";
@@ -92,7 +97,7 @@ function sinceFor(morning) {
   try {
     const l = readJson(path.join(dataDir, "latest.json"));
     const at = new Date(l.generatedAt);
-    if (l.example !== true && !isNaN(at) && at > week && at < new Date()) return at;
+    if (l.example !== true && !isNaN(at) && at < new Date()) return at > week ? at : week;
   } catch { /* no last morning */ }
   return new Date(Date.now() - DAY);
 }
@@ -110,14 +115,23 @@ function itemsOf(name) { return pagesOf(name).flatMap((p) => (Array.isArray(p.va
 function pathOf(name) { try { return readJson(pathsFile)[name] || ""; } catch { return ""; } }
 let savedTextCache = null;
 function savedText() {
-  if (savedTextCache === null) savedTextCache = savedNames().map((n) => { try { return fs.readFileSync(path.join(workDir, n + ".json"), "utf8"); } catch { return ""; } }).join("\n");
+  if (savedTextCache === null) {
+    const words = [];
+    const walk = (v) => {
+      if (typeof v === "string") { if (!/^https?:|^[a-z0-9-]+\.sharepoint|^b!|^[0-9a-f-]{20,}$/i.test(v)) words.push(v); }
+      else if (Array.isArray(v)) v.forEach(walk);
+      else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) if (!/^@odata|id$|webUrl|link|loginName|email|mail$|userPrincipalName/i.test(k)) walk(x);
+    };
+    for (const n of savedNames()) { try { for (const l of fs.readFileSync(path.join(workDir, n + ".json"), "utf8").split(/\r?\n/)) if (l.trim()) walk(JSON.parse(l)); } catch { /* unreadable */ } }
+    savedTextCache = words.join("\n");
+  }
   return savedTextCache;
 }
 /** Written in a saved answer, as Graph wrote it (JSON escapes included). */
 function inSaved(v) {
   const t = savedText();
   const s = String(v).trim();
-  return !!s && (t.includes(s) || t.includes(JSON.stringify(s).slice(1, -1)) || t.toLowerCase().includes(s.toLowerCase()));
+  return !!s && s.length >= 2 && t.toLowerCase().includes(s.toLowerCase());
 }
 function remember(n, p, pagesOut) {
   fs.mkdirSync(workDir, { recursive: true });
@@ -188,8 +202,9 @@ async function inTurns(jobs, size) {
 }
 /** Search every site for files changed since the window opened, newest first, saved as search-N. */
 async function searchChanged(s) {
-  // KQL takes the day; the exact time is checked on every hit below.
-  const day = ymd(new Date(s.getTime() - DAY));
+  // KQL takes the day; the exact time is checked on every hit. A week is always read, so your
+  // own recent files are known for sharing even on a quiet morning.
+  const day = ymd(new Date(Math.min(s.getTime(), Date.now() - 7 * DAY) - DAY));
   const hits = [];
   for (let from = 0, n = 1; from < MAX_HITS; from += 200, n++) {
     const body = { requests: [{ entityTypes: ["driveItem"], query: { queryString: `IsDocument:true AND LastModifiedTime>=${day}` }, from, size: 200,
@@ -228,7 +243,7 @@ function zipEntries(buf) {
   return out;
 }
 function xmlText(xml, para) {
-  return xml.replace(new RegExp(`</(${para})>`, "g"), "\n").replace(/<w:tab\/>|<\/a:t>\s*<a:t>/g, " ").replace(/<[^>]+>/g, "")
+  return xml.replace(new RegExp(`</(${para})>`, "g"), "\n").replace(/<w:tab\/>|<w:br\/>|<a:br\/>|<\/a:t>\s*<a:t>/g, " ").replace(/<[^>]+>/g, "")
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
 }
 function officeText(buf, ext) {
@@ -297,8 +312,10 @@ function model() {
     }
     return sites.get(k);
   };
-  // Files: every search hit, once, newest first. OneDrive and older changes stay out.
-  const files = [];
+  // Files: every search hit, once, newest first. OneDrive stays out; "all" is the last week,
+  // "files" what changed in the window.
+  for (const k of followed) site(siteInfo[k] ? siteInfo[k].id : k);
+  const all = [];
   const seen = new Set();
   const hitNames = names.filter((x) => /^search-\d+$/.test(x)).sort((a, b) => Number(a.slice(7)) - Number(b.slice(7)));
   for (const n of hitNames) {
@@ -309,21 +326,22 @@ function model() {
       const key = (pr.driveId || "") + "|" + it.id;
       if (seen.has(key) || isOneDrive(it.webUrl)) continue;
       const at = new Date(it.lastModifiedDateTime);
-      if (isNaN(at) || at < from) continue;
+      if (isNaN(at) || at < new Date(Date.now() - 8 * DAY)) continue;
       seen.add(key);
       const s = site(pr.siteId || (pr.sharepointIds && pr.sharepointIds.siteId) || "unknown");
       if (!s.name) { try { s.name = decodeURIComponent(new URL(it.webUrl).pathname.split("/").filter(Boolean)[1] || ""); } catch { /* no name */ } }
       const by = personOf(it.lastModifiedBy), made = personOf(it.createdBy);
-      files.push({ key, id: it.id, driveId: pr.driveId || "", parentId: pr.id || "", name: it.name, ext: extOf(it.name), site: s, at, by, made,
+      all.push({ key, id: it.id, driveId: pr.driveId || "", parentId: pr.id || "", name: it.name, ext: extOf(it.name), site: s, at, by, made,
         mine: isMe(by), madeByMe: isMe(made), link: SAFE_LINK.test(it.webUrl || "") ? it.webUrl : "", webUrl: it.webUrl || "", size: it.size || 0 });
     }
   }
-  files.sort((a, b) => b.at - a.at);
-  for (const f of files) { if (!r.file[f.key]) r.file[f.key] = "f" + ++r.n.f; f.ref = r.file[f.key]; }
-  for (const f of files) Object.assign(f, placeOf(f.webUrl, f.site.url));
+  all.sort((a, b) => b.at - a.at);
+  for (const f of all) { if (!r.file[f.key]) r.file[f.key] = "f" + ++r.n.f; f.ref = r.file[f.key]; }
+  for (const f of all) Object.assign(f, placeOf(f.webUrl, f.site.url));
+  const files = all.filter((f) => f.at >= from);
   // Search answers may leave out the folder a file is in: the item's own answer has it.
   for (const n of names.filter((x) => /^item-\d+$/.test(x))) for (const it of itemsOf(n)) {
-    const f = files.find((x) => x.id === it.id && it.parentReference && (!x.driveId || x.driveId === it.parentReference.driveId));
+    const f = all.find((x) => x.id === it.id && it.parentReference && (!x.driveId || x.driveId === it.parentReference.driveId));
     if (f && !f.parentId) f.parentId = it.parentReference.id || "";
   }
   // The saves on files that others changed: how many in the window, and whether you saved one before.
@@ -333,13 +351,13 @@ function model() {
     const f = files.find((x) => x.driveId === decodeURIComponent(m[1]) && x.id === decodeURIComponent(m[2]));
     if (!f) continue;
     const vs = itemsOf(n);
-    f.versions = vs.filter((v) => new Date(v.lastModifiedDateTime) >= from).length;
+    f.versions = vs.filter((v) => new Date(v.lastModifiedDateTime) >= from && !isMe(personOf(v.lastModifiedBy))).length;
     f.savers = [...new Set(vs.filter((v) => new Date(v.lastModifiedDateTime) >= from && !isMe(personOf(v.lastModifiedBy))).map((v) => personOf(v.lastModifiedBy).name).filter(Boolean))];
     f.youBefore = vs.some((v) => isMe(personOf(v.lastModifiedBy)));
   }
   for (const s of sites.values()) if (!s.name) s.name = "A site";
   writeJson(refsFile, r);
-  modelCache = { me, isMe, sites: [...sites.values()], files, from, refs: r };
+  modelCache = { me, isMe, sites: [...sites.values()], files, all, from, refs: r };
   return modelCache;
 }
 function refs() {
@@ -347,7 +365,7 @@ function refs() {
 }
 function saveRefs() { writeJson(refsFile, model().refs); }
 function siteFor(ref) { return model().sites.find((s) => s.ref === ref) || null; }
-function fileFor(ref) { return model().files.find((f) => f.ref === ref) || null; }
+function fileFor(ref) { return model().all.find((f) => f.ref === ref) || null; }
 function countIn(s) { return model().files.filter((f) => f.site === s).length; }
 
 /** Your files someone else changed in the window: you made them, or saved them before. */
@@ -420,7 +438,7 @@ function openFiles() {
   for (const n of savedNames().filter((x) => /^perms-\d+$/.test(x))) {
     const m = /^\/drives\/([^/]+)\/items\/([^/]+)\/permissions/.exec(pathOf(n));
     if (!m) continue;
-    const f = md.files.find((x) => x.driveId === decodeURIComponent(m[1]) && x.id === decodeURIComponent(m[2]));
+    const f = md.all.find((x) => x.driveId === decodeURIComponent(m[1]) && x.id === decodeURIComponent(m[2]));
     if (!f) continue;
     let anyone = false;
     const guests = new Set();
@@ -445,9 +463,8 @@ function looseStem(name) {
   return stemOf(name).toLowerCase()
     .replace(/^copy of\s+/, "").replace(/\s*-\s*copy\b/g, " ")
     .replace(/\(\d+\)/g, " ")
-    .replace(/\b(19|20)\d{2}[-_. ]?\d{2}[-_. ]?\d{2}\b|\b\d{1,2}[-_.]\d{1,2}[-_.]\d{2,4}\b/g, " ")
     .replace(/\b(v|ver|version|rev)\s*\.?\s*\d+(\.\d+)*\b/g, " ")
-    .replace(/\b(final|draft|copy|new|newest|latest|old|edited|updated|clean|revised|wip|fixed)\b/g, " ")
+    .replace(/\b(final|draft|copy|newest|latest|edited|updated|clean|revised|wip|fixed)\b/g, " ")
     .replace(/[_\-.]+/g, " ").replace(/\s+/g, " ").trim();
 }
 let twinsCache = null;
@@ -531,22 +548,26 @@ function fill(textIn, where) {
     made.push(v);
     return v;
   });
-  let rest = out;
-  for (const v of made) rest = rest.replace(v, "");
-  const bare = rest.replace(/\b(last|past|next|coming)\s+(\d{1,2}|two|three|seven|fourteen|thirty)\s+(days|weeks|months|hours)\b/gi, "");
-  if (typedNumber(bare)) fail(`refused, a number typed into ${where}: use a placeholder so the helper counts it`);
-  if (/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen|hundreds?)\b/i.test(bare.replace(/\bno one\b|\bone of\b|\bone ?drive\b/gi, ""))) fail(`refused, a count written as a word in ${where}: use a placeholder`);
-  if (/\b(\w+ \w+) \1\b/i.test(out)) fail("refused, words are doubled: the helper adds the word you give after |");
-  // "0 files" is not a finding.
-  if (made.length && made.every((v) => /^0\b/.test(v))) fail("refused, a 0 is not a finding: say what is there, or leave the line out");
+  // Bold names are checked against the saved answers first; a checked name may hold a number.
+  const named = [];
   for (const b of out.match(/\*\*[^*]+\*\*/g) || []) {
     const inner = b.slice(2, -2);
     if (made.some((v) => inner.includes(v))) continue;
     if (/^(nobody|no one|quiet|clear|none|all clear)$/i.test(inner.trim())) continue;
-    for (const piece of inner.split(/,\s*|\s+and\s+|\s+>\s+/).map((s) => s.trim()).filter(Boolean)) {
+    for (const piece of inner.split(/,\s*|\s+and\s+|\s+>\s+/).map((x) => x.trim()).filter(Boolean)) {
       if (!inSaved(piece)) fail(`refused, "${piece}" is not written in any saved answer: copy names as SharePoint wrote them`);
     }
+    named.push(b);
   }
+  let rest = out;
+  for (const v of made) rest = rest.replace(v, "");
+  for (const b of named) rest = rest.replace(b, "");
+  const bare = rest.replace(/\b(last|past|next|coming)\s+(\d{1,2}|two|three|seven|fourteen|thirty)\s+(days|weeks|months|hours)\b/gi, "");
+  if (typedNumber(bare)) fail(`refused, a number typed into ${where}: use a placeholder so the helper counts it`);
+  if (/\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen|hundreds?)\b/i.test(bare)) fail(`refused, a count written as a word in ${where}: use a placeholder`);
+  if (/\b(\w+) \1\b/i.test(out)) fail("refused, words are doubled: the helper adds the word you give after |");
+  // "0 files" is not a finding.
+  if (made.length && made.every((v) => /^0\b/.test(v))) fail("refused, a 0 is not a finding: say what is there, or leave the line out");
   return out;
 }
 /** A number standing alone, not part of a name like Q4, v2 or Microsoft 365, nor a clock time. */
@@ -665,7 +686,8 @@ function latestOf(l) {
     gist: words((ts[t.ref] || {}).gist, 160, "a look-alike gist"),
     items: t.items.slice(0, 4).map((i) => ({ name: i.name.slice(0, 120), at: iso(i.at), by: i.by.slice(0, 80), ...(i.link ? { link: i.link } : {}) })) }));
   const ss = said(l.sites);
-  const yourSites = new Set([...yours().map((f) => f.site), ...openFiles().map((x) => x.f.site)]);
+  const onShelf = new Set(md.files.map((f) => f.key));
+  const yourSites = new Set([...yours().map((f) => f.site), ...openFiles().filter((x) => onShelf.has(x.f.key)).map((x) => x.f.site)]);
   const sitesOut = md.sites.filter((s) => countIn(s) > 0).map((s) => {
     const a = ss[s.ref] || {};
     const fs2 = md.files.filter((f) => f.site === s);
@@ -718,28 +740,35 @@ function fileLine(f) {
 function siteLine(s) { return `${s.ref} | ${s.name}${s.followed ? " (you follow it)" : ""} | ${countIn(s)} files changed in the window`; }
 
 const [cmd, ...args] = process.argv.slice(2);
+try {
 if (cmd === "window") {
   const s = sinceFor(args.includes("--morning"));
   console.log([`NOW='${iso(new Date())}'`, `TODAY='${ymd(new Date())}'`, `SINCE='${utc(s)}'`, `TZ_NAME='${TZ}'`].join("\n"));
 } else if (cmd === "start") {
-  const morning = args.includes("--morning");
+  const chat = args.includes("--chat");
+  const morning = chat || args.includes("--morning");
+  if (chat && fs.existsSync(modeFile) && Date.now() - fs.statSync(modeFile).mtimeMs < 15 * 60000) {
+    let busy = true;
+    try { busy = !readJson(modeFile).chat; } catch { /* half written */ }
+    if (busy) fail("the morning reading is running right now: answer from data/latest.json, or try again in a few minutes", 5);
+  }
   if (fs.existsSync(workDir)) fs.rmSync(workDir, { recursive: true, force: true });
   fs.mkdirSync(workDir, { recursive: true });
   const s = sinceFor(morning);
-  writeJson(modeFile, { morning, since: utc(s), refused: {} });
+  writeJson(modeFile, { morning, chat, since: utc(s), refused: {} });
   if (!morning) writeJson(readingFile, { schema: SCHEMA + "/reading@1", startedAt: iso(new Date()), done: false, lines: [] });
   console.log(`${morning ? "morning" : "first reading"} started; the window is from ${iso(s)}. Next: me, then files, then more`);
 } else if (cmd === "me") {
   mode();
   try { const it = await save("me", "/me?$select=id,displayName,givenName,mail,userPrincipalName"); console.log(`you are ${it[0].displayName || "?"}`); }
-  catch (e) { fail(e.message + ": could not read who you are", 4); }
+  catch (e) { if (e instanceof Exit) throw e; fail(e.message + ": could not read who you are", 4); }
 } else if (cmd === "files") {
   const s = since();
   if (!has("me")) fail("run me first");
-  try { await save("followed", "/me/followedSites?$select=id,displayName,webUrl,name"); } catch (e) { if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
+  try { await save("followed", "/me/followedSites?$select=id,displayName,webUrl,name"); } catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
   let hits;
   try { hits = await searchChanged(s); }
-  catch (e) {
+  catch (e) { if (e instanceof Exit) throw e;
     if (e.status === 403 || e.status === 400 || e.status === 404) fail(`${e.message}: SharePoint can't be searched for this account. Microsoft allows SharePoint only for work and school accounts, with Sites.Read.All`, 4);
     fail(e.message, 4);
   }
@@ -747,7 +776,7 @@ if (cmd === "window") {
   const ids = [...new Set(hits.filter((h) => !isOneDrive(h.webUrl)).map((h) => (h.parentReference || {}).siteId).filter(Boolean))].slice(0, MAX_SITES);
   await inTurns(ids.map((id, i) => async () => {
     try { await save("site-" + (i + 1), `/sites/${encodeURIComponent(id)}?$select=id,displayName,webUrl,name`); }
-    catch (e) { if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
+    catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
   }), 4);
   // The saves on files that others changed, to know whether they were yours and how often they moved.
   const md = model();
@@ -756,7 +785,7 @@ if (cmd === "window") {
   let vread = 0;
   await inTurns(others.map((f, i) => async () => {
     try { await save("versions-" + (i + 1), `/drives/${encodeURIComponent(f.driveId)}/items/${encodeURIComponent(f.id)}/versions`); vread++; }
-    catch (e) { if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
+    catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
   }), 4);
   const m2 = model();
   console.log(`${m2.files.length} files changed in the window on ${counted("sites")} sites (${m2.files.filter((f) => f.mine).length} by you); saves read on ${vread} files others changed. Your files others changed: ${yours().length}. Next: more, then list`);
@@ -764,7 +793,8 @@ if (cmd === "window") {
   const md = model();
   const refused = { ...(mode().refused || {}) };
   // Lists with your name: on the sites you follow and the sites that moved.
-  const listSites = [...new Map([...md.sites.filter((s) => s.followed), ...md.sites.filter((s) => countIn(s) > 0).sort((a, b) => countIn(b) - countIn(a))].map((s) => [s.key, s])).values()]
+  const weekIn = (s) => md.all.filter((f) => f.site === s).length;
+  const listSites = [...new Map([...md.sites.filter((s) => s.followed), ...md.sites.filter((s) => weekIn(s) > 0).sort((a, b) => weekIn(b) - weekIn(a))].map((s) => [s.key, s])).values()]
     .filter((s) => s.id && s.id !== "unknown").slice(0, MAX_LIST_SITES);
   let listsRead = 0, listN = 0, itemsRead = 0;
   const lists = [];
@@ -778,28 +808,28 @@ if (cmd === "window") {
         if (new Date(l.lastModifiedDateTime) < new Date(Date.now() - 60 * DAY)) continue;
         lists.push({ s, l, i });
       }
-      if (md.me.emails[0]) await save("people-" + (i + 1), `/sites/${encodeURIComponent(s.id)}/lists/User%20Information%20List/items?$expand=fields($select=EMail,UserName,Title)&$filter=fields/EMail%20eq%20'${encodeURIComponent(md.me.emails[0]).replace(/'/g, "''")}'`).catch(() => null);
-    } catch (e) { if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
+      if (md.me.emails[0]) await save("people-" + (i + 1), `/sites/${encodeURIComponent(s.id)}/lists/User%20Information%20List/items?$expand=fields($select=EMail,UserName,Title)&$filter=fields/EMail%20eq%20'${encodeURIComponent(md.me.emails[0]).replace(/'/g, "''")}'`).catch((e) => { if (e instanceof Exit) throw e; return null; });
+    } catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
   }), 3);
   await inTurns(lists.sort((a, b) => new Date(b.l.lastModifiedDateTime) - new Date(a.l.lastModifiedDateTime)).slice(0, MAX_LISTS).map((x) => async () => {
     try { await save("items-" + ++listN, `/sites/${encodeURIComponent(x.s.id)}/lists/${encodeURIComponent(x.l.id)}/items?$expand=fields&$top=200`, 2); itemsRead++; }
-    catch (e) { if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
+    catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
   }), 3);
   if (listSites.length && !listsRead) refused.lists = true;
   // Who can open your files: Microsoft shows all of a file's sharing only to its owner, so only
   // the files you made or saved are asked about.
-  const pick = [...new Map([...yours(), ...md.files.filter((f) => f.madeByMe), ...md.files.filter((f) => f.mine)].map((f) => [f.key, f])).values()].filter((f) => f.driveId).slice(0, MAX_SHARING);
+  const pick = [...new Map([...yours(), ...md.all.filter((f) => f.madeByMe), ...md.all.filter((f) => f.mine)].map((f) => [f.key, f])).values()].filter((f) => f.driveId).slice(0, MAX_SHARING);
   let permsRead = 0;
   await inTurns(pick.map((f, i) => async () => {
     try { await save("perms-" + (i + 1), `/drives/${encodeURIComponent(f.driveId)}/items/${encodeURIComponent(f.id)}/permissions`); permsRead++; }
-    catch (e) { if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
+    catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
   }), 4);
   if (pick.length && !permsRead) refused.sharing = true;
   // The folders where a changed file has look-alikes ("v2", "final", "copy").
   const marked = md.files.filter((f) => f.driveId && looseStem(f.name) !== stemOf(f.name).toLowerCase().replace(/[_\-.]+/g, " ").replace(/\s+/g, " ").trim()).slice(0, MAX_FOLDERS * 2);
   await inTurns(marked.filter((f) => !f.parentId).map((f, i) => async () => {
     try { await save("item-" + (i + 1), `/drives/${encodeURIComponent(f.driveId)}/items/${encodeURIComponent(f.id)}?$select=id,parentReference`); }
-    catch (e) { if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
+    catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
   }), 4);
   modelCache = null;
   const md2 = model();
@@ -807,14 +837,14 @@ if (cmd === "window") {
     .map((f) => [f.driveId + "|" + f.parentId, f])).values()].slice(0, MAX_FOLDERS);
   await inTurns(folders.map((f, i) => async () => {
     try { await save("folder-" + (i + 1), `/drives/${encodeURIComponent(f.driveId)}/items/${encodeURIComponent(f.parentId)}/children?$select=id,name,webUrl,lastModifiedDateTime,lastModifiedBy,file,folder&$top=200`); }
-    catch (e) { if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
+    catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
   }), 4);
   modelCache = null; twinsCache = null;
   // News on the sites you follow and the busiest ones.
   let newsRead = 0;
   await inTurns(listSites.slice(0, 6).map((s, i) => async () => {
     try { await save("pages-" + (i + 1), `/sites/${encodeURIComponent(s.id)}/pages/microsoft.graph.sitePage?$select=id,name,title,webUrl,promotionKind,lastModifiedDateTime,createdDateTime,createdBy&$top=50`, 2); newsRead++; }
-    catch (e) { if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
+    catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("SharePoint needs a new sign-in (401)", 3); }
   }), 3);
   if (listSites.length && !newsRead) refused.news = true;
   setMode({ refused });
@@ -826,7 +856,7 @@ if (cmd === "window") {
   if (!q) fail("give the words to look for, like: find 'price list'");
   let json;
   try { json = await call(GRAPH + "/search/query", { method: "POST", body: JSON.stringify({ requests: [{ entityTypes: ["driveItem"], query: { queryString: q }, from: 0, size: 25, sortProperties: [{ name: "LastModifiedTime", isDescending: true }] }] }) }); }
-  catch (e) { fail(e.message + ": the search did not work", 4); }
+  catch (e) { if (e instanceof Exit) throw e; fail(e.message + ": the search did not work", 4); }
   remember("find", "/search/query", [json]);
   const hits = (((json.value || [])[0] || {}).hitsContainers || []).flatMap((c) => c.hits || []).map((h) => h.resource).filter((r) => r && r.name && !r.folder && !isOneDrive(r.webUrl));
   if (!hits.length) console.log("nothing found for those words");
@@ -840,7 +870,7 @@ if (cmd === "window") {
   if (!driveId || !itemId) fail("give the drive id and the item id: versions <drive> <item>");
   let vs;
   try { vs = (await call(GRAPH + `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}/versions`)).value || []; }
-  catch (e) { fail(e.message + ": the saves of that file can't be read", 4); }
+  catch (e) { if (e instanceof Exit) throw e; fail(e.message + ": the saves of that file can't be read", 4); }
   if (!vs.length) console.log("no saves are kept for that file");
   for (const v of vs) console.log(`version ${v.id} | ${iso(new Date(v.lastModifiedDateTime))} | ${personOf(v.lastModifiedBy).name || "?"}`);
   console.log(`read one with: words ${driveId} ${itemId} <version>`);
@@ -852,7 +882,7 @@ if (cmd === "window") {
   if (!token) fail("MICROSOFT_GRAPH_TOKEN is not set: SharePoint is not connected for this run", 2);
   const base = `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}`;
   let meta;
-  try { meta = await call(GRAPH + base + "?$select=name,size"); } catch (e) { fail(e.message + ": that file can't be read", 4); }
+  try { meta = await call(GRAPH + base + "?$select=name,size"); } catch (e) { if (e instanceof Exit) throw e; fail(e.message + ": that file can't be read", 4); }
   if ((meta.size || 0) > 20 * 1024 * 1024) fail("the file is too big to read here (over 20 MB)", 4);
   const res = await fetch(GRAPH + base + (version ? `/versions/${encodeURIComponent(version)}` : "") + "/content", { headers: { Authorization: "Bearer " + token } });
   if (res.status === 401) fail("SharePoint needs a new sign-in (401)", 3);
@@ -866,7 +896,7 @@ if (cmd === "window") {
   console.log(`${meta.name}${version ? " (version " + version + ")" : ""}:\n` + out.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, 20000));
 } else if (cmd === "get") {
   try { const it = await save(args[0], args[1], args[2]); console.log(`saved ${cleanName(args[0])}: ${it.length} items`); }
-  catch (e) { fail(e.message + ": nothing saved, leave this out", 4); }
+  catch (e) { if (e instanceof Exit) throw e; fail(e.message + ": nothing saved, leave this out", 4); }
 } else if (cmd === "list") {
   const md = model();
   const only = args[0] ? siteFor(args[0]) : null;
@@ -961,6 +991,7 @@ if (cmd === "window") {
   writeJson(path.join(dataDir, "profile.json"), out);
   console.log("profile written: " + Object.keys(out).join(", "));
 } else if (cmd === "latest") {
+  if (mode().chat) fail("a chat does not write the page: answer in the chat");
   calmIfNoGift();
   const l = latestOf(argFile(args));
   writeJson(path.join(dataDir, "latest.json"), l);
@@ -980,3 +1011,4 @@ if (cmd === "window") {
 } else {
   fail("use window, start, me, files, more, find, versions, words, get, list, yours, rows, open, twins, news, push, gift, profile, latest or done");
 }
+} catch (e) { if (!(e instanceof Exit)) throw e; }
