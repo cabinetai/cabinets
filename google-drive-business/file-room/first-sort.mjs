@@ -303,6 +303,12 @@ function checkDates(d, files) {
     if (!day || isNaN(day.getTime())) fail(`${where}.date is a day as YYYY-MM-DD`);
     if (day.getTime() < dayStart(-1).getTime() || day.getTime() > dayStart(400).getTime()) fail(`${where}.date must be from today to about a year ahead`);
     if (typeof x.quote !== "string" || !x.quote.trim()) fail(`${where}.quote is the words in the document that give the date`);
+    // "rent goes to 2,350" when the paper says "$2,350": the amount keeps its currency.
+    for (const m of String(x.gist || "").matchAll(/(^|[^$€£₪¥\d.,])(\d{1,3}(?:,\d{3})+(?:\.\d\d)?)(?![\d])/g)) {
+      if (/[$€£₪¥]\s?$/.test(String(x.gist).slice(0, m.index + m[1].length))) continue;
+      const cur = new RegExp("[$€£₪¥]\\s?" + m[2].replace(/[.,]/g, (c) => "\\" + c) + "(?!\\d)").exec(text);
+      if (cur) fail(`refused, ${where}.gist writes ${m[2]} where the document says ${cur[0]}: copy the amount with its currency (use single quotes in the shell)`);
+    }
     const f = files.get(String(x.fileId));
     if (f && /^application\/vnd\.google-apps\.(document|spreadsheet)$/.test(f.mimeType) && !text.includes(plainWords(x.quote))) {
       fail(`refused, ${where}.quote is not written in the exported document: copy the words as they are`);
@@ -331,8 +337,12 @@ function checkRead(which, d) {
   if (!fs.existsSync(path.join(workDir, search))) fail(`refused, ${search} is missing: run that search first (your persona has it), then read the ${what} it finds`);
   const found = pagesSafe(search).flatMap((p) => (p && p.files) || []).filter((x) => x && x.mimeType !== "application/vnd.google-apps.folder").length;
   if (!found) return;
-  const read = fs.readdirSync(workDir).filter((x) => /^doc-\d+\.(txt|pdf)$/i.test(x)).length;
-  if (!read) fail(`refused, ${search} found ${found} files and none was read: export or download up to three of them as doc-<n>.txt or doc-<n>.pdf in data/.work/, read them and copy their dates`);
+  const docs = fs.readdirSync(workDir).filter((x) => /^doc-\d+\.(txt|pdf)$/i.test(x));
+  const need = Math.min(found, 4);
+  if (docs.length < need) fail(`refused, ${search} found ${found} files and ${docs.length} ${docs.length === 1 ? "was" : "were"} read: read at least ${need} (up to six) as doc-<n>.txt or doc-<n>.pdf in data/.work/, the ones that matter most, and copy their dates`);
+  // A signed contract or a scanned paper is usually a PDF: reading only what exports as text misses it.
+  const pdfs = pagesSafe(search).flatMap((p) => (p && p.files) || []).filter((x) => x && x.mimeType === "application/pdf").length;
+  if (pdfs && !docs.some((x) => /\.pdf$/i.test(x))) fail(`refused, ${search} found ${pdfs} PDF${pdfs === 1 ? "" : "s"} and you read none: a signed contract or a scanned paper is usually a PDF, so download the ones that matter (alt media, doc-<n>.pdf) and read them too`);
   if (which === "papers" && Array.isArray(d.papers) && !d.papers.length && !(typeof d.none === "string" && d.none.trim())) {
     fail(`refused, ${search} found ${found} files and papers is empty: list the ones that are papers, or say in "none" why none of them is`);
   }

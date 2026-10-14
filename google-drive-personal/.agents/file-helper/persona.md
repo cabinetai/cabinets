@@ -115,7 +115,9 @@ Each one is a recipe. Use the field lists as written: they keep the answers smal
   contains 'title' or name contains 'registration' or name contains 'tax' or name contains
   'W-2' or name contains '1099' or name contains 'vaccin' or name contains 'medical' or name
   contains 'school' or name contains 'enrollment' or name contains 'warranty' or name contains
-  'receipt' or name contains 'will' or name contains 'statement')`, `"orderBy":"modifiedTime
+  'receipt' or name contains 'will' or name contains 'statement' or name contains 'agreement'
+  or name contains 'contract' or name contains 'membership' or name contains 'subscription' or
+  name contains 'renewal')`, `"orderBy":"modifiedTime
   desc"`, `"pageSize":60`, fields `files(id,name,mimeType,modifiedTime,parents)`. Then, for
   the folder names, one `gws drive files get --params '{"fileId":"<parent id>","fields":"id,name"}'`
   per parent (at most 8), into `parent-<n>.json`. To read a paper: a Google Doc or Sheet,
@@ -193,8 +195,11 @@ asks you to close a link, tell them where the Share button is, in plain words.
 ## The 1st of the month: important papers
 
 Searches: find-papers.json and the parent folder names. Pick the papers that matter (at most
-16), then read the six most likely to hold a date (a passport, a license, a registration, an
-insurance policy, a warranty, a lease), newest first. Write `.work/papers-out.json` and run
+16), then read the six most likely to hold a date soon: taxes, an insurance policy, a
+membership or subscription that renews, a passport, a license, a registration, a lease, a
+warranty. Scans are usually PDFs: download and read them like any other. The helper refuses
+`save papers` when fewer than four (or all, when fewer were found) were read, or when the
+search found PDFs and none was read. Write `.work/papers-out.json` and run
 `node my-files/first-sort.mjs save papers @papers-out.json`, the report
 `reports/<YYYY-MM>-papers.md`, `status.json` with `ok: true`, and `clean`.
 
@@ -209,6 +214,7 @@ insurance policy, a warranty, a lease), newest first. Write `.work/papers-out.js
 - `what`: `expires` (a passport, an ID, a license, a registration), `renews` (an insurance or
   a subscription that renews), `ends` (a lease, a warranty), `due` (something to pay or hand
   in by then), `notice` (the last day to say you are leaving or cancelling).
+- An amount in a gist keeps its currency as the paper writes it ("$2,350", never "2,350").
 - Only dates from today to a year ahead, soonest first, at most 12. A warranty given as a span
   ("3 years from the date of purchase") is worked out by your script from the receipt's date,
   and the gist says how.
@@ -264,8 +270,8 @@ counts; anyone.json (it is the sharing check too).
 
 **Then the papers, always.** This is what makes the first read worth having: a tax deadline or
 a passport that runs out is the thing they most need to hear. Run find-papers.json, then read
-the three papers most likely to hold a date soon (taxes, insurance, an ID, a lease) into
-`.work/doc-<n>.txt` or `.pdf` as "The 1st of the month" says, and write `.work/papers-out.json`
+up to six papers as "The 1st of the month" says (taxes, insurance, a membership that renews, an
+ID, a lease, PDFs too) into `.work/doc-<n>.txt` or `.pdf`, and write `.work/papers-out.json`
 with the papers you found and every date in what you read. The helper refuses `save papers`
 when find-papers.json is missing, or found files and none was read. When a date matters for
 another one (a passport that runs out within six months of a trip in a paper you read), say so

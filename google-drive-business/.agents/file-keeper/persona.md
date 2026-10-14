@@ -109,8 +109,12 @@ Each one is a recipe. Use the field lists as written: they keep the answers smal
   `versions-<n>.json`.
 - **folders.json**, the top folders: `q` `'root' in parents and mimeType =
   'application/vnd.google-apps.folder' and trashed = false`, fields
-  `files(id,name,modifiedTime)`. When setup.md, or a folder called Clients or Customers, says
-  client work lives one level down, list that folder's folders too, into `clients.json`.
+  `files(id,name,modifiedTime)`. Then **clients-root.json**, a folder called Clients or
+  Customers at any depth (it often sits inside a company folder): `q` `mimeType =
+  'application/vnd.google-apps.folder' and trashed = false and (name = 'Clients' or name =
+  'Customers' or name = 'Clients and projects')`, fields `files(id,name,parents)`. When
+  setup.md names a folder, or clients-root.json found one, list its folders into
+  `clients.json`: those are the client folders.
   Then **drives.json**: `gws drive drives list --params '{"pageSize":50}'`. Then, for each
   client folder and shared drive (at most 12), in one call, the newest file inside:
   `q` `'<folder id>' in parents and trashed = false`, `"orderBy":"modifiedTime desc"`,
@@ -230,8 +234,12 @@ asks you to close a link, tell them where the Share button is, in plain words.
 
 ## The 1st of the month: contract dates
 
-Searches: contracts.json, then read the six that look most like live contracts (newest
-first, a signed one before its drafts). Write `.work/dates.json` and run
+Searches: contracts.json, then read the six that look most like live contracts: a signed
+client agreement, an MSA or SOW, a lease, an insurance policy, an invoice, a license list, in
+that order, a signed one before its drafts. A signed contract is usually a PDF: download and
+read it like any other, never pick a file because it is easy to export. The helper refuses
+`save dates` when fewer than four (or all, when fewer were found) were read, or when the
+search found PDFs and none was read. Write `.work/dates.json` and run
 `node file-room/first-sort.mjs save dates @dates.json`, the report
 `reports/<YYYY-MM>-contract-dates.md`, `status.json` with `ok: true`, and `clean`.
 
@@ -243,6 +251,8 @@ first, a signed one before its drafts). Write `.work/dates.json` and run
 - Only dates from today to a year ahead, soonest first, at most 12. A notice day the contract
   only gives as a rule ("60 days before December 20, 2026") is worked out by your script and
   the gist says how.
+- An amount in a gist keeps its currency as the document writes it ("$2,350", never
+  "2,350"). Write the file with single quotes in the shell, so a `$` stays.
 - `quote` is the words as the document writes them. In a Google Doc or Sheet the helper finds
   them in the exported text; copy them exactly.
 - Headline: "4 dates in your contracts in the next 90 days", "1 date ...", "No dates in your
@@ -292,10 +302,10 @@ check too).
 
 **Then the contracts, always.** This is what makes the first read worth having: a notice date
 that passes in three days is the thing the owner most needs to hear. Run contracts.json, then
-read the three contracts most likely to hold a date soon (one that renews or needs notice, a
-client agreement, an invoice that falls due) into `.work/doc-<n>.txt` or `.pdf` as "The 1st
-of the month" says, and write `.work/dates.json` with every date in what you read. The helper
-refuses `save dates` when contracts.json is missing, or found files and none was read.
+read up to six contracts as "The 1st of the month" says (signed client agreements first,
+PDFs too) into `.work/doc-<n>.txt` or `.pdf`, and write `.work/dates.json` with every date in
+what you read. The helper refuses `save dates` when contracts.json is missing, when too few
+were read, or when it found PDFs and none was read.
 
 **Then the profile**, in its own call before `latest.json`:
 `{"name":"<their first name, from about.json's displayName>","business":{"name":"Buckeye Comfort Heating & Air","what":"heating and air conditioning","where":"Columbus"},"domain":"buckeyecomfort.com","clients":["Lakeview Apartments","Hartley Dental"],"clientsMore":6,"team":["Maria Lopez","Tom Reed"],"folders":38,"sharedDrives":2}`.
