@@ -2,8 +2,10 @@
 // The first catch-up's lines, gift and files, written only through here so the page can show
 // them as they come. Only on the first catch-up (no data/latest.json yet). Run it from anywhere:
 //   node <app>/first-read.mjs start                 new data/reading.json and data/.work/
-//   node <app>/first-read.mjs push '<line>'         add one line (single quotes: "$" stays "$"),
-//                                                   right after the YouTube call that found it
+//   node <app>/first-read.mjs push '<line>'         add one line (single quotes: "$" stays "$", in bash
+//                                                   and PowerShell alike), right after the YouTube call
+//                                                   that found it. A line with an apostrophe: write it
+//                                                   to data/.work/line.txt and push @line.txt
 //   node <app>/first-read.mjs recent @<file>        the newest comments, shown at once, very early:
 //                                                   a list of up to 5 {"who","video","gist","at","link"},
 //                                                   copied from a YouTube answer
@@ -230,6 +232,7 @@ function latestOf(l) {
   for (const mark of ["best", "quiet"]) {
     if (l.videos.filter((v) => v.mark === mark).length > 1) fail(`only one video is ${mark}`);
   }
+  if (l.analytics !== undefined) analyticsOf(l.analytics);
   const n = new Date();
   l.schema = LATEST_SCHEMA;
   l.generatedAt = iso(n);
@@ -237,6 +240,26 @@ function latestOf(l) {
   delete l.example;
   delete l.headline;
   return l;
+}
+
+/** YouTube Analytics in the page's shape: ok with until and the spans, or ok:false with why. */
+function analyticsOf(a) {
+  if (!a || typeof a !== "object" || Array.isArray(a)) fail("analytics is an object: {\"ok\": true, ...} or {\"ok\": false, \"why\": ...}");
+  if (a.ok === false) {
+    if (!["not-allowed", "unavailable"].includes(a.why)) fail(`analytics.why is not-allowed or unavailable, not "${a.why}"`);
+    return;
+  }
+  if (a.ok !== true) fail("analytics.ok is true or false");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.until || ""))) fail("analytics.until is the last day YouTube has, YYYY-MM-DD");
+  const whole = (v) => Number.isInteger(v) && v >= 0;
+  for (const key of ["last7", "last28"]) {
+    const s = a[key];
+    if (!s || typeof s !== "object") fail(`analytics.${key} is missing`);
+    for (const f of ["views", "watchHours", "avgViewSec", "subsGained", "subsLost"]) if (!whole(s[f])) fail(`analytics.${key}.${f} is a whole number from YouTube's answer`);
+    if (!Array.isArray(s.sources) || !s.sources.every((x) => x && typeof x.type === "string" && whole(x.views))) fail(`analytics.${key}.sources is a list of {"type", "views"}`);
+    if (!Array.isArray(s.countries) || !s.countries.every((x) => x && /^[A-Z]{2}$/.test(String(x.code)) && whole(x.views))) fail(`analytics.${key}.countries is a list of {"code", "views"}, code like "US"`);
+  }
+  if (!Array.isArray(a.daily) || !a.daily.every((x) => x && /^\d{4}-\d{2}-\d{2}$/.test(String(x.day)) && whole(x.views))) fail(`analytics.daily is a list of {"day", "views"}`);
 }
 
 const [cmd, ...args] = process.argv.slice(2);
@@ -252,7 +275,10 @@ if (cmd === "start") {
   lockReading();
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
   if (r.done) fail("the reading is done: no more lines");
-  const line = String(args.join(" ") || "").replace(/\s+/g, " ").trim();
+  // "@line.txt" reads the line from data/.work/, for a line no shell can quote.
+  const raw = args.join(" ");
+  const fromFile = /^@[\w.-]+$/.test(raw.trim()) ? fs.readFileSync(workFile(raw.trim().slice(1)), "utf8") : raw;
+  const line = String(fromFile || "").replace(/\s+/g, " ").trim();
   checkLine(line);
   if (r.lines.includes(line)) fail("that line is already there");
   r.lines.push(line);

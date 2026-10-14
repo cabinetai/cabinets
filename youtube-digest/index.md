@@ -19,6 +19,8 @@ The cabinet opens on it: **Your YouTube**.
   posted until you say so.
 - **How your videos did**: views, likes and comments for each recent video, what changed
   since yesterday, and which one did best and which one was quietest.
+- **Channel numbers**: views, watch time, how long a view lasts, subscribers gained and lost,
+  where viewers came from and their countries, for the last 7 and 28 days.
 - **What viewers keep asking**: the same question asked by different people under different
   videos, counted once, so you see what your audience wants to know.
 - **Ideas for your next videos**: three ideas a day, each one backed by what viewers asked
@@ -32,8 +34,10 @@ The cabinet opens on it: **Your YouTube**.
 - **Your page, your way**: move, resize, add and remove the boxes, or ask the agent to
   suggest them. Each person's page is their own.
 
-**From views, likes and comments.** YouTube shares those with Cabinet, but not watch time or
-where your viewers came from, so the page never guesses at them.
+**Real numbers only.** Views, likes and comments come from YouTube for every channel. Watch
+time, where viewers came from and their countries come from YouTube Analytics, about two days
+late, and only once you allow YouTube's Analytics permission. Until then the page shows what
+it has and says so; it never guesses.
 
 ## Getting started
 

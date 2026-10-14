@@ -4,8 +4,8 @@ title: How Your YouTube gets its words
 # How Your YouTube gets its words
 
 The page never talks to YouTube. The morning routine reads the channel through the YouTube
-Data API (with the Google sign-in Cabinet already holds) and writes files here, and the page
-shows them. The full rules for each field are in the agent's persona
+Data API, and through YouTube Analytics when the person allowed it (with the Google sign-in
+Cabinet already holds), writes files here, and the page shows them. The full rules for each field are in the agent's persona
 (`.agents/channel-reader/persona.md`).
 
 | File | Written by | What it holds |
@@ -21,7 +21,7 @@ shows them. The full rules for each field are in the agent's persona
 `latest.json` in short: `generatedAt`, `since`, `channel` `{ title, handle, subscribers,
 views, videos, url }`, `totals` `{ views, likes, comments, newVideos, waiting }` (`views`
 and `likes` are what the recent videos gained since the last catch-up, left out on the
-first one), and one list for each box:
+first one), `analytics` (below), and one list for each box:
 
 | List | Box | Each item |
 |---|---|---|
@@ -32,22 +32,37 @@ first one), and one list for each box:
 | `next` | Ideas for your next videos | `id`, `title`, `why`, `from` (the `asks` id behind it) |
 | `spotlight` | The one-video idea box | `{ id, title, lines[] }`, the video that moved most, up close |
 
+`analytics` holds the channel's numbers from YouTube Analytics, about two days late:
+`{ ok: true, until, last7, last28, daily }`. `until` is the last day YouTube has
+(`YYYY-MM-DD`); `last7` and `last28` are each `{ from, views, watchHours, avgViewSec,
+subsGained, subsLost, sources, countries }`, with `sources` the top 5 `{ type, views }`
+(`type` is YouTube's own name, such as `RELATED_VIDEO` or `YT_SEARCH`; the page words it as
+YouTube Studio does) and `countries` the top 5 `{ code, views }` (`US`, `GB`); `daily` is
+`{ day, views }` for each of the 28 days. Without the Analytics permission it is
+`{ ok: false, why: "not-allowed" }`, and `why: "unavailable"` when Analytics failed that
+morning. The Channel numbers box then shows the counts from `channel` and one quiet line on
+what Analytics would add; the headline leaves out its chart.
+
 `me` (the channel's id and uploads playlist) and `known` (each video's counts at the last
 catch-up, so the next one can tell what changed) are for the routine; the page ignores
 them. A `url` on YouTube's own address (`https://www.youtube.com/watch?v=...`, with
 `&lc=<comment id>` for a comment) becomes an "Open on YouTube" link.
 
-The page is a 12-column grid of boxes, like the Gmail front desk: Headline, Waiting for an
-answer, Latest comments, How your videos did, What viewers keep asking, Ideas for your next
-videos, Ask about your channel and Ideas for your channel to start with, and more to add
-(three numbers, and each idea as its own box with its picture from `ideas/`). Each person
+The page is a 12-column grid of boxes on YouTube's light grey, laid out like the Gmail front
+desk: Headline, Waiting for an answer, Latest comments, Channel numbers, How your videos did,
+What viewers keep asking, Ideas for your next videos, Ask about your channel and Ideas for
+your channel to start with, and more to add (four numbers, Watch time only with Analytics,
+and each idea as its own box with its picture from `ideas/`). The connection, Catch up now,
+Ideas and Layout sit in the headline; without the headline they move to a slim bar on top. Each person
 moves, resizes, adds and removes them (mouse, finger or keyboard, with Undo), or asks the
 agent through Layout, which answers with `layout-change.json`. An idea offers itself at the
 foot of its box when the day's channel says it would help.
 
-The page writes its own headline and the line under it from `totals`, `videos` and
-`waiting`: "Here is how your channel did" with "18,420 views and 186 comments since
-yesterday. 5 questions are waiting for your answer.", or "A quiet day on your channel".
+The page writes its own headline from `channel`, `totals`, `videos` and `waiting`: the
+channel's name, then "18,420 views and 186 comments since yesterday. 5 questions are waiting
+for your answer.", or "A quiet day: nothing new on your videos since the last catch-up.", and
+a line of subscribers, videos and the handle. With Analytics, the views of each of the 28
+days stand on its right, the last seven in YouTube red.
 
 Nothing on the page writes on YouTube. Every button asks the agent in the chat for a summary,
 a plan or a draft to copy. The agent replies to a comment, or changes a video's title or
