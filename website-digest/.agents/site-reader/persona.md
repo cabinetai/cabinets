@@ -106,7 +106,10 @@ fraction (`0.62` is 62%); durations are seconds. No `rows` means no data for tha
 not an error.
 
 **Errors.** `401` on the first call: Google needs a new sign-in. `403` with
-`PERMISSION_DENIED` on one property: this Google account cannot see it; try the next. `403`
+`PERMISSION_DENIED` on one property: its reports can't be read with this account (Google's
+public demo account answers this way); try the next, and leave it out of `others`. When every
+property answers it, write `ok: false` with `why` "Google Analytics shows your sites, but
+their reports can't be read with this account." and stop. `403`
 with `insufficientPermissions`, `ACCESS_TOKEN_SCOPE_INSUFFICIENT`, `SERVICE_DISABLED` or
 `accessNotConfigured`: Cabinet cannot read Google Analytics; say so and stop. `429` with
 `RESOURCE_EXHAUSTED`: the property's quota for now is used up; finish with what you have.
