@@ -23,6 +23,12 @@ Write the copy lines down first (kicker, headline, offer line, deadline, weather
 - **Depth:** use `<linearGradient>`/`<radialGradient>` for surfaces and a soft `<filter>` with `<feDropShadow>` under the hero and the score panel. A subtle `<pattern>` (diagonal team-color stripes at 6 to 10% opacity, or halftone dots) on the background gives texture. Keep everything vector; no `<image>` with an http link.
 - **No logos, wordmarks, mascots or jerseys with numbers.** Team names as plain words and team colors as shapes are fine.
 
+### Visual direction: make it look like a photo, not a diagram
+- **Scene:** a night-at-the-Garden background: a deep navy radial gradient, two or three soft light beams from the top, 40 to 60 blurred "arena light" circles (`feGaussianBlur`) in white, light blue, team red and warm yellow, a dark vignette at the edges and a light film grain (`feTurbulence` at about 9% opacity).
+- **Scoreboard:** a translucent glass panel (white at 4 to 16% opacity, thin white edge) instead of a flat dark box. Next to each team name, a round **team-color badge** with the team's initials (for example `NYR`, `UTA`): an outer ring and inner fill in the team's two colors and a thin white stripe. Initials and colors only, never a logo.
+- **Slice:** rendered, not flat. The cheese uses a radial gradient plus a `feTurbulence` mottle for browned spots, blurred blisters, an oil sheen and oregano flecks. The crust has char spots and a light top edge, the pepperoni have a darker rim, small fat specks and a grease highlight, and a few basil leaves sit on top. Add soft steam above the slice and a blurred shadow below it.
+- **Story motion:** the slice drops in, then each topping lands one after another, then the price badge pops and gently pulses, then the offer card fades up. Steam rises and the arena lights twinkle in a loop. The final-frame rule below still applies.
+
 ## 3. Post (`post.svg`): layout, top to bottom
 1. **Kicker band** across the top in the team accent color: `FINAL · MADISON SQUARE GARDEN · SUN OCT 4` (real result, venue and date), or for game day `TONIGHT · 7:30 PM · MADISON SQUARE GARDEN`.
 2. **Scoreboard panel:** a dark rounded rectangle (rx 28) with a thin team-color edge and a drop shadow. Two rows: `RANGERS  4` and `UTAH  2` in the display font, the winning score in marigold, a small `FINAL` label (or `OT`/`SO` when relevant). For game day: the matchup and start time instead.
