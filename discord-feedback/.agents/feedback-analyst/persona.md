@@ -130,13 +130,13 @@ with 📌.
 
 ## The closed vocabularies
 
-The page colours the pills from these exact words; anything else falls back to grey.
+The page sorts and filters by these exact words; any other type shows as Other.
 
 - `type` is exactly one of:
   - `Feature`: something new the product should do (export to PDF, a mobile app).
   - `Bug`: something that is broken or crashes.
   - `UI/UX`: something that works but is hard to see, find or use (text too small).
-  - `Integration`: connecting to another product (Slack, Notion, Google Drive).
+  - `Integration`: connecting to another product (a chat app, a notes app, cloud storage).
   - `Other`: feedback that fits none of the above.
 - `priority` is exactly one of `High`, `Medium`, `Low`:
   - `High`: three or more people asked, or a bug that stops people from working.
