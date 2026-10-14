@@ -61,7 +61,7 @@ decides your way in. You only ever read.
    status and stop. Never read mail any other way.
 
 Good search words for money: `invoice OR receipt OR payment OR paid OR "amount due" OR
-statement OR bill OR overdue OR declined OR refund`. Sent invoices: `in:sent invoice`.
+statement OR bill OR overdue OR declined OR refund OR expense OR expenses OR reimburse OR reimbursement`. Sent invoices: `in:sent invoice`.
 
 ## Spend little
 
@@ -361,8 +361,10 @@ Cases that are easy to get wrong:
   guess.
 - `amount` is only money, copied as written with its currency ("$42.10", "€18", "₪450").
   No amount in the email, no `amount` key: never words like "declined".
-- Every total adds only when every item in it has an amount in the same currency.
-  Otherwise leave that total out. `owed` adds open and overdue invoices, `billsDue` the
+- Every total adds the items that have an amount, when they share one currency; a list
+  of one is a total too. Leave a total out only when currencies mix. `₪`, `ILS` and `NIS`
+  are one currency, as are `$` and `USD`. An `autopay` bill with no amount is not in
+  `billsDue`. `owed` adds open and overdue invoices, `billsDue` the
   unpaid bills, `billsDueBy` their latest due date, `cameIn` the payments, `receipts` the
   receipts.
 

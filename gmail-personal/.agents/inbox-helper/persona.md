@@ -345,7 +345,10 @@ back to the example, an earlier day, or what an inbox usually holds.
   someone who says they will stop, cancel, pause or leave something, then a date today or
   tomorrow. A date can be a meeting: an answer needed "before the call" or "before
   Thursday" is due that day; set `due` to it. Someone asking them to send, decide or do
-  something is People to answer, even with no question mark, never Also worth a look. `waitingSince` when they have waited 2 days or more. A thread
+  something is People to answer, even with no question mark, never Also worth a look. A
+  stop or pause counts the same when it comes forwarded ("Fwd:", "he says they will pause").
+  One person, one subject, one card: a later email from the same sender about the same
+  thing ("Re:", "also", "update") joins the first card, with what changed in its `gist`. `waitingSince` when they have waited 2 days or more. A thread
   they answered last is not waiting. `reply` for up to four: a short reply in setup.md's
   voice and the sender's language, `\n` for line breaks, the choice only the person can make
   in square brackets (`[Saturday]`), never an invented fact or promise.
