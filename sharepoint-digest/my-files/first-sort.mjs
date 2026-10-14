@@ -17,6 +17,8 @@
 //                                                  look-alike files and the news on your sites
 //   node my-files/first-sort.mjs find '<words>'    any file by its words, newest first (for a question in the chat)
 //   node my-files/first-sort.mjs versions <drive> <item>   every save of one file: version, when, who
+//   node my-files/first-sort.mjs changes [ref...]    what others changed in your files (default: all of yours): the
+//                                                  newest save against the one before theirs, lines - out, + in
 //   node my-files/first-sort.mjs words <drive> <item> [version]
 //                                                  the words inside a Word, Excel, PowerPoint or text file,
 //                                                  or inside one of its earlier saves
@@ -52,7 +54,7 @@ const GRAPH = /^http:\/\/127\.0\.0\.1:\d+\/v1\.0$/.test(process.env.FIRST_SORT_T
 // Links kept on the page open SharePoint itself, nothing else.
 const SAFE_LINK = /^https:\/\/[a-z0-9-]+\.sharepoint(-df)?\.(com|us|cn|de)\//i;
 const GIFT_KINDS = ["yours", "row", "open", "twins", "calm"];
-const MAX_HITS = 500, MAX_SITES = 25, MAX_VERSIONS = 40, MAX_LIST_SITES = 8, MAX_LISTS = 12, MAX_SHARING = 30, MAX_FOLDERS = 12;
+const MAX_HITS = 500, MAX_SITES = 25, MAX_VERSIONS = 40, MAX_LIST_SITES = 8, MAX_LISTS = 12, MAX_SHARING = 30, MAX_FOLDERS = 12, MAX_CHANGES = 8;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(here, "data");
@@ -62,6 +64,7 @@ const refsFile = path.join(workDir, ".refs.json");
 const savedList = path.join(workDir, ".saved.json");
 const pathsFile = path.join(workDir, ".paths.json");
 const modeFile = path.join(workDir, ".mode.json");
+const changesFile = path.join(workDir, ".changes.json");
 const HOUR = 3600000, DAY = 86400000;
 
 // ── Time, in this machine's zone (the person's own) ──
@@ -260,6 +263,50 @@ function officeText(buf, ext) {
       if (/t="s"/.test(c[1]) && v) return shared[Number(v[1])] || "";
       return t ? xmlText(t[1], "x") : v ? v[1] : "";
     }).join(" | ")).join("\n")).join("\n");
+}
+
+/** The words of a file, or of one of its saves: { name, text } or { error, code }. */
+async function fileWords(driveId, itemId, version) {
+  const token = process.env.MICROSOFT_GRAPH_TOKEN;
+  if (!token) return { error: "MICROSOFT_GRAPH_TOKEN is not set: SharePoint is not connected for this run", code: 2 };
+  const base = `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}`;
+  let meta;
+  try { meta = await call(GRAPH + base + "?$select=name,size"); } catch (e) { if (e instanceof Exit) throw e; return { error: e.message + ": that file can't be read" }; }
+  if ((meta.size || 0) > 20 * 1024 * 1024) return { error: "the file is too big to read here (over 20 MB)" };
+  const res = await fetch(GRAPH + base + (version ? `/versions/${encodeURIComponent(version)}` : "") + "/content", { headers: { Authorization: "Bearer " + token } });
+  if (res.status === 401) fail("SharePoint needs a new sign-in (401)", 3);
+  if (!res.ok) return { error: `SharePoint answered ${res.status}: that ${version ? "version" : "file"} can't be read` };
+  const buf = Buffer.from(await res.arrayBuffer());
+  const ext = extOf(meta.name);
+  let text = "";
+  try {
+    if (/^(txt|md|csv|json|xml|html?)$/.test(ext)) text = buf.toString("utf8");
+    else if (/^(docx|docm|xlsx|xlsm|pptx|pptm)$/.test(ext)) text = officeText(buf, ext);
+    else return { error: `a .${ext || "?"} file has no words this helper can read: say so plainly` };
+  } catch (e) { if (e instanceof Exit) { process.exitCode = 0; return { error: "that save is not a readable Office file" }; } throw e; }
+  return { name: meta.name, text: text.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim() };
+}
+function readChanges() { try { return readJson(changesFile); } catch { return {}; } }
+/**
+ * One file's change: its newest save against the save before the other person's (your own
+ * last save when there is one, else the one just before), as lines taken out and put in.
+ */
+async function changesOf(f, md) {
+  let vs;
+  try { vs = (await call(GRAPH + `/drives/${encodeURIComponent(f.driveId)}/items/${encodeURIComponent(f.id)}/versions`)).value || []; }
+  catch (e) { if (e instanceof Exit) throw e; return { error: e.message + ": its saves can't be read" }; }
+  vs.sort((a, b) => new Date(b.lastModifiedDateTime) - new Date(a.lastModifiedDateTime));
+  if (vs.length < 2) return { error: "only one save is kept: nothing to compare" };
+  const who = (v) => personOf(v.lastModifiedBy);
+  const firstOther = vs.findIndex((v) => !md.isMe(who(v)));
+  const before = vs.slice(Math.max(1, firstOther + 1)).find((v) => md.isMe(who(v))) || vs[Math.max(1, firstOther + 1)] || vs[1];
+  const [a, b] = [await fileWords(f.driveId, f.id, before.id), await fileWords(f.driveId, f.id)];
+  if (a.error || b.error) return { error: a.error || b.error };
+  const lines = (t) => t.split("\n").map((x) => x.trim()).filter((x) => x && !/^-- (slide|sheet) \d+$/.test(x));
+  const was = lines(a.text), now = lines(b.text);
+  const wasSet = new Set(was), nowSet = new Set(now);
+  const stamp = (v) => ({ by: (md.isMe(who(v)) ? "you" : who(v).name) || "?", at: iso(new Date(v.lastModifiedDateTime)) });
+  return { before: stamp(before), after: stamp(vs[0]), removed: was.filter((x) => !nowSet.has(x)), added: now.filter((x) => !wasSet.has(x)) };
 }
 
 // ── The model: sites and files, from the saved answers only ──
@@ -575,10 +622,12 @@ function typedNumber(s) {
   return /\d/.test(String(s).replace(/\b\d{1,2}:\d{2}\b/g, "").replace(/\b(microsoft |office )?365\b/gi, "").replace(/\b[A-Za-z]+\d+[A-Za-z0-9]*\b/g, ""));
 }
 /** The agent's own words for one item: plain, no number it could have made up. */
-function words(v, max, where) {
+function words(v, max, where, source) {
   if (typeof v !== "string" || !v.trim()) return "";
   const s = v.trim().replace(/\s+/g, " ");
-  if (typedNumber(s)) fail(`refused, a number in ${where}: "${s.slice(0, 60)}". Say it without numbers`);
+  // A number may stand only when the file's own changed lines hold it ("from 8 to 9 days").
+  const copied = source ? s.replace(/\d[\d,.]*/g, (n) => (source.includes(n.replace(/[.,]$/, "")) ? "" : n)) : s;
+  if (typedNumber(copied)) fail(`refused, a number in ${where}: "${s.slice(0, 60)}". Say it without numbers${source ? ", or only numbers its changed lines hold" : ""}`);
   return s.slice(0, max);
 }
 
@@ -665,8 +714,16 @@ function latestOf(l) {
   const said = (arr) => { const o = {}; for (const x of Array.isArray(arr) ? arr : []) if (x && typeof x.id === "string") o[x.id] = x; return o; };
   // Your files: every one, with the agent's line on why it matters where it gave one.
   const ys = said(l.yours);
+  // Who saved a file is not news: what they changed in it is. Every file whose words moved
+  // gets its line, from what `changes` showed.
+  const read = readChanges();
+  if (yours().length && !Object.keys(read).length) fail("run changes first: it shows what others changed in your files, and each one needs its line");
+  for (const f of yours().slice(0, 12)) {
+    const c = read[f.ref];
+    if (c && c.lines > 0 && !(ys[f.ref] && typeof ys[f.ref].gist === "string" && ys[f.ref].gist.trim())) fail(`refused, ${f.ref} (${f.name}) changed: give it a gist that says what changed, from changes`);
+  }
   const yoursOut = yours().slice(0, 12).map((f) => {
-    const o = { ...fileOut(f), who: f.by.name.slice(0, 80), made: f.madeByMe, gist: words((ys[f.ref] || {}).gist, 160, "a file gist") };
+    const o = { ...fileOut(f), who: f.by.name.slice(0, 80), made: f.madeByMe, gist: words((ys[f.ref] || {}).gist, 160, "a file gist", f.name + "\n" + ((read[f.ref] || {}).text || "")) };
     if (f.versions) o.saves = f.versions;
     if (f.savers && f.savers.length > 1) o.others = f.savers.filter((n) => n !== f.by.name).slice(0, 4);
     return o;
@@ -683,7 +740,8 @@ function latestOf(l) {
   const openOut = openFiles().slice(0, 10).map((x) => ({ ...fileOut(x.f), anyone: x.anyone, guests: x.guests, by: x.f.by.name.slice(0, 80) }));
   const ts = said(l.twins);
   const twinsOut = twins().slice(0, 8).map((t) => ({ id: t.ref, site: t.site ? String(t.site.name).slice(0, 80) : "", folder: String(t.folder || t.library).slice(0, 140), count: t.count,
-    gist: words((ts[t.ref] || {}).gist, 160, "a look-alike gist"),
+    // Names in the set may hold numbers ("Price list 2027"), and so may what changed in them.
+    gist: words((ts[t.ref] || {}).gist, 160, "a look-alike gist", t.items.map((i) => i.name).join("\n") + "\n" + Object.values(read).map((x) => x.text || "").join("\n")),
     items: t.items.slice(0, 4).map((i) => ({ name: i.name.slice(0, 120), at: iso(i.at), by: i.by.slice(0, 80), ...(i.link ? { link: i.link } : {}) })) }));
   const ss = said(l.sites);
   const onShelf = new Set(md.files.map((f) => f.key));
@@ -878,22 +936,26 @@ if (cmd === "window") {
   // The words inside a file (or one of its saves), to tell what it says or what changed.
   const [driveId, itemId, version] = args;
   if (!driveId || !itemId) fail("give the drive id and the item id, as find or versions print them: words <drive> <item> [version]");
-  const token = process.env.MICROSOFT_GRAPH_TOKEN;
-  if (!token) fail("MICROSOFT_GRAPH_TOKEN is not set: SharePoint is not connected for this run", 2);
-  const base = `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}`;
-  let meta;
-  try { meta = await call(GRAPH + base + "?$select=name,size"); } catch (e) { if (e instanceof Exit) throw e; fail(e.message + ": that file can't be read", 4); }
-  if ((meta.size || 0) > 20 * 1024 * 1024) fail("the file is too big to read here (over 20 MB)", 4);
-  const res = await fetch(GRAPH + base + (version ? `/versions/${encodeURIComponent(version)}` : "") + "/content", { headers: { Authorization: "Bearer " + token } });
-  if (res.status === 401) fail("SharePoint needs a new sign-in (401)", 3);
-  if (!res.ok) fail(`SharePoint answered ${res.status}: that ${version ? "version" : "file"} can't be read`, 4);
-  const buf = Buffer.from(await res.arrayBuffer());
-  const ext = extOf(meta.name);
-  let out = "";
-  if (/^(txt|md|csv|json|xml|html?)$/.test(ext)) out = buf.toString("utf8");
-  else if (/^(docx|docm|xlsx|xlsm|pptx|pptm)$/.test(ext)) out = officeText(buf, ext);
-  else fail(`a .${ext || "?"} file has no words this helper can read: say so plainly`, 4);
-  console.log(`${meta.name}${version ? " (version " + version + ")" : ""}:\n` + out.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, 20000));
+  const t = await fileWords(driveId, itemId, version);
+  if (t.error) fail(t.error, t.code || 4);
+  console.log(`${t.name}${version ? " (version " + version + ")" : ""}:\n` + t.text.slice(0, 20000));
+} else if (cmd === "changes") {
+  // What others changed in your files: the newest save against the one before theirs.
+  const md = model();
+  const pick = args.length ? args.map((a) => fileFor(a) || fail(`no file ${a}: give a ref from yours, like f3`)) : yours().slice(0, MAX_CHANGES);
+  if (!pick.length) console.log("nobody else changed a file of yours in the window");
+  const seen = readChanges();
+  for (const f of pick) {
+    const r = await changesOf(f, md);
+    seen[f.ref] = { lines: r.error ? 0 : r.removed.length + r.added.length, read: !r.error, text: r.error ? "" : [...r.removed, ...r.added].join("\n").slice(0, 8000) };
+    console.log(`\n== ${f.ref} | ${f.name} | changed by ${f.by.name || "?"}`);
+    if (r.error) { console.log(`   (${r.error})`); continue; }
+    console.log(`   compared: the save by ${r.before.by} on ${r.before.at} with the save by ${r.after.by} on ${r.after.at}`);
+    if (!r.removed.length && !r.added.length) console.log("   no words changed (the layout or a picture may have)");
+    for (const x of r.removed.slice(0, 25)) console.log("   - " + x);
+    for (const x of r.added.slice(0, 25)) console.log("   + " + x);
+  }
+  writeJson(changesFile, seen);
 } else if (cmd === "get") {
   try { const it = await save(args[0], args[1], args[2]); console.log(`saved ${cleanName(args[0])}: ${it.length} items`); }
   catch (e) { if (e instanceof Exit) throw e; fail(e.message + ": nothing saved, leave this out", 4); }
@@ -1009,6 +1071,6 @@ if (cmd === "window") {
   try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("my-files/data/.work/ is busy: delete it in your next call"); }
   console.log("done");
 } else {
-  fail("use window, start, me, files, more, find, versions, words, get, list, yours, rows, open, twins, news, push, gift, profile, latest or done");
+  fail("use window, start, me, files, more, find, versions, changes, words, get, list, yours, rows, open, twins, news, push, gift, profile, latest or done");
 }
 } catch (e) { if (!(e instanceof Exit)) throw e; }

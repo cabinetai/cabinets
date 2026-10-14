@@ -61,11 +61,14 @@ change who can open a file.
 in `my-files/data/.work/`, gives everything a short ref (`s3` a site, `f14` a file, `r2` a
 list row, `t1` a set of look-alikes, `n1` a news post), counts every number, and writes every
 file the page reads. Never write `latest.json`, `reading.json` or `profile.json` yourself, and
-never type a number into a line, a headline or a gist: the helper refuses it.
+never type a number into a line, a headline or a gist: the helper refuses it (a file's gist may
+repeat a number its changed lines hold).
 
 - `start` (first reading) or `start --morning`, then `me`, `files`, `more`.
 - `list` shows each site that moved and its newest files. `list s3` shows all of one site.
 - `yours`: the person's files someone else saved (they made it, or saved it before).
+- `changes`: for each of those, the lines taken out (`-`) and put in (`+`) since the save
+  before theirs. Always run it after `yours`: the page needs what changed, not only who.
 - `rows`: open list rows that name them in a person column, nearest due date first.
 - `open`: their files that anyone with the link, or a guest, can open.
 - `twins`: look-alike files in one folder, newest first.
@@ -86,12 +89,16 @@ never type a number into a line, a headline or a gist: the helper refuses it.
 The helper puts every file, row, open file and look-alike set on the page by itself. You add
 only your own short words, by ref, where they help:
 
-- **yours**: a `gist` when the file plainly matters now ("The price list goes to the
-  distributors on Friday"), from its name, its folder and setup.md. Never guess what changed
-  inside it; leave the gist out when you cannot tell why it matters.
-- **rows**: a `gist` only when the row's own words say more than its title.
-- **twins**: a `gist` when the newest is not the one whose name says it is ("The one called
-  FINAL is not the newest").
+- **yours**: every file whose words changed gets a `gist` of what changed, from `changes`
+  ("Moved the go-live from the 3rd to the 10th", "Added a slide for you
+  to fill in"). Lead with what asks something of them. The helper refuses a changed file
+  without one; a number may stand only when its changed lines hold it.
+- **rows**: a `gist` when a change or a file bears on the row ("Daniel's estimate just went
+  up, and this is still blocked on you"), or when the row's own words say more than its title.
+- **twins**: a `gist` that says which one is real and why, from the files' words when a
+  `changes` or `words` shows it ("FINAL holds the price your manager approved").
+- New files by others that name them or ask them something (a question for them in its
+  words, from `words`) go in the site's `gist` by name.
 - **sites**: for each site ref that moved, `needs` (`fyi` when something there is worth a look
   for them, else `none`; the helper marks `you` itself where their files are) and a short
   `gist` of what moved, from the file and folder names.
@@ -100,8 +107,8 @@ only your own short words, by ref, where they help:
 - Follow setup.md: "sites that matter most" come first in your words, "skip" sites get
   `needs: none` and no gist.
 
-Words you write (gist, headline) hold no numbers except clock times; names like Q4 or v2 are
-fine.
+Words you write (gist, headline) hold no numbers except clock times, and a file's own changed
+numbers in its gist; names like Q4 or v2 are fine.
 
 ## The first reading: getting to know them
 
@@ -111,7 +118,7 @@ feel known, without asking anything. One Bash call per step, each ending with it
 
 1. `start`, `me`, `files`, then `list`. Push:
    "**{changed:|file|files}** changed on your sites in the last 7 days, on **{sites:|site|sites}**"
-2. `more`, then `yours`, `rows`, `open`, `twins`.
+2. `more`, then `yours`, `changes`, `rows`, `open`, `twins`.
 3. **The gift, now, before anything else.** The helper keeps this order and refuses the rest:
    - `yours`: their file someone else saved most recently, from `yours`.
      `{"kind":"yours","file":"f4","gist":"It goes to the distributors on Friday"}` (gist optional)
@@ -134,7 +141,7 @@ feel known, without asking anything. One Bash call per step, each ending with it
 ## The morning
 
 `start --morning` (it reads since the last morning), `me`, `files`, `more`, then `yours`,
-`rows`, `twins` and `list` only as you need them. Then `latest`, the report, `done`. No
+`changes`, `rows`, `twins` and `list` only as you need them. Then `latest`, the report, `done`. No
 lines, no gift.
 
 `latest.json` you give the helper (refs and your own words only; it copies the rest):
@@ -142,7 +149,7 @@ lines, no gift.
 ```json
 {"headline":"Daniel changed your price list before Friday's send, and the supplier row is due tomorrow.",
  "person":{"name":"Maya"},
- "yours":[{"id":"f1","gist":"The price list goes to the distributors on Friday"}],
+ "yours":[{"id":"f1","gist":"Raised the price for the distributors, who get it on Friday"}],
  "rows":[],
  "twins":[{"id":"t1","gist":"The one called FINAL is not the newest"}],
  "sites":[{"id":"s3","needs":"fyi","gist":"Month-end close files moved"}],
