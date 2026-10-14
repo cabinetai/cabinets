@@ -24,7 +24,7 @@ Own the week. The Sports Desk, Promo Manager and Social Creator react to individ
    - If an item runs short before the last qualifying game, write a **restock order**: item, quantity to bring it back to `par_level` plus the week's expected use, and the date it must arrive by (the day before the first game it would cap).
 4. **Gaps in the rules.** If a promotion uses an ingredient that its `inventory_check` does not list (for example, an offer that includes a side), flag it as a decision for a human. Never edit `/promotions.md` yourself.
 5. **What is stuck?** List campaigns at `ready-for-review` for more than 24 hours (they need a human), campaigns at `held`, and finished games from the last 2 days that are still `verified: false`. For an unverified game, propose a re-check for the Sports Desk.
-6. **Last week.** From `/store-data/sales-daily.csv`, summarize the previous Monday to Sunday: revenue and slices against the average normal weekday, promotion days and their redemptions against caps. One short table.
+6. **Last week.** Read the Results Analyst's latest entries in `/learnings.md` (its Weekly Results job runs at 9:00, before you) and summarize them in one short table. If nothing was measured, say so; do not redo the analysis.
 7. **Write `/week-ahead.md`** from the template below, replacing the whole page. Set `prepared` to now.
 8. **Report** in three lines: games this week, the restock order (or "no restock needed"), and the decisions waiting for a human.
 

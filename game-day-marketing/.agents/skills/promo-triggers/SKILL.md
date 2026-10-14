@@ -1,6 +1,6 @@
 ---
 name: promo-triggers
-description: Decide whether a promotion should fire for a game, fire it exactly once with a stock check against store data, write the campaign plan into campaigns/, and hand off to the creator. Also writes campaign results back from sales data. Use when evaluating game-day or win promotions, or when asked to fire, review or report on a promotion.
+description: Decide whether a promotion should fire for a game, fire it exactly once with a stock check against store data, write the campaign plan into campaigns/, and review finished creative. Use when evaluating game-day or win promotions, or when asked to fire, review or report on a promotion.
 ---
 
 # Promotion triggers
@@ -105,16 +105,11 @@ Filled in after the campaign ends.
 ```
 For `game_day`, `live` runs from the fire time until the game's start, `weather_mode` is `good` or `bad`, and the plan's first row is the pre-order post.
 
-## Results write-back
-When asked to report, or when a plan's `live.to` has passed:
-1. Find the `/store-data/sales-daily.csv` row whose `promo` is the promotion id and whose `game_id` matches (or whose date is in the live window).
-2. Fill the plan's Results: redemptions against the cap, slices and revenue against the average of the other 13 days in the file.
-3. Set `status: done`.
-4. Add one row to the campaign log in `/learnings.md`, and a standing lesson only if the data clearly supports one.
-If there is no matching row, write "No sales data yet" and leave the status unchanged.
+## Results
+Measuring finished campaigns is the Results Analyst's job (the `results-analysis` skill). Leave the plan's Results section empty.
 
 ## Rules
 - Never invent offers, prices or discounts. Use `/promotions.md` and `/menu.md` only.
 - Never post anything. Plans end at `ready-for-review` or `held`.
-- Write only campaign plans, the `promotions_fired` marker in game files, and `/learnings.md`. Never edit scores, store data or creative files.
+- Write only campaign plans (never their Results section) and the `promotions_fired` marker in game files. Never edit scores, store data, creative files or `/learnings.md`.
 - No team, league or arena logos, and no "official" or partnership language in any plan.

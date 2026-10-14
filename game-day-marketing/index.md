@@ -32,10 +32,12 @@ Open [[game-night]] for the one-screen view, and [[week-ahead]] for this week's 
 |---|---|---|
 | Shop Manager (lead) | Monday plan: games against stock, restock order, what needs you; keeps work moving in order | `week-ahead.md` |
 | Sports Desk | Schedules, final scores, two-source verification, game-day weather | `games/` |
-| Promo Manager | Fires promotions exactly once, stock check, campaign plans, results | `campaigns/`, `learnings.md` |
+| Promo Manager | Fires promotions exactly once, stock check, campaign plans | `campaigns/` |
 | Social Creator | Instagram post, animated Story, caption | `campaigns/` |
+| Results Analyst | Measures each finished promotion against real sales (Mondays 9:00) | campaign Results, `learnings.md` |
+| Caption Writer | On request: alternative captions and comment replies | `caption-variants.md` |
 
-Skills stored in this cabinet: `weekly-planning`, `game-tracking`, `promo-triggers`, `instagram-content`.
+Skills stored in this cabinet: `weekly-planning`, `game-tracking`, `promo-triggers`, `instagram-content`, `results-analysis`, `caption-variants`.
 
 The Shop Manager plans the week (Mondays at 9:30). The jobs below drive the game-by-game chain, fifteen minutes apart. Agents never wait on each other: each job reads the files the previous one wrote, so the files are the hand-off and git shows every step.
 
@@ -47,6 +49,7 @@ The Shop Manager plans the week (Mondays at 9:30). The jobs below drive the game
 | Final Score Check | 23:00, and 8:00 as a backup | Record finals and verify them (two sources) |
 | Promo Check | 8:15, 10:15 and 23:15 | Fire promotions for verified wins and today's home games, once each; review finished creative |
 | Creative Queue | 8:30, 10:30 and 23:30 | Design the post, Story and caption for new plans |
+| Weekly Results | Mondays 9:00 | Measure last week's promotions against real sales, before the Shop Manager's 9:30 plan |
 
 Times use this computer's clock and assume New York. If you are elsewhere, shift the schedules on the Jobs page.
 

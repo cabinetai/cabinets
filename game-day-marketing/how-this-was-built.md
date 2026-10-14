@@ -63,6 +63,11 @@ The **Shop Manager** is the one lead, and it owns a different problem: the week.
 ### An agent fixing its own schedule
 In a live run, the Sports Desk was asked to make the sync reach back one day. It noticed a real gap (a game first synced at 9:00 would not be verified until the 22:00 score check, after the Win Slice window) and patched it by editing a job file, adding a 9:00 score check that collided with the 9:00 sync. It reported the collision itself. Two lessons: agents can and will edit outside their folder (see the findings below), and the better fix was a schedule change, not a patch: the sync moved to 7:30, so the existing 8:00 score check verifies last night's game and the Win Slice can fire at 8:15.
 
+### Agents from Cabinet's library: adopted, adapted, benched
+During testing I added eight agents from Cabinet's built-in library (CEO, CFO, Calendar Keeper, Copywriter, Data Analyst, Image Creator, Researcher, Social Media Manager) to see what fits. As added, each had 70 to 250 words of generic instructions, no knowledge of this cabinet's files or skills, and a heartbeat switched on, which would have meant about eight extra runs every weekday morning. Three still contained unfilled `{{company_name}}`, `{{goals}}` or `{{workspace_name}}` placeholders (finding 9 below, seen live).
+
+Two had a real job here and were rewritten for it: the **Data Analyst became the Results Analyst** (measuring every promotion against real sales, taking that job off the Promo Manager so each agent has one responsibility), and the **Copywriter became the Caption Writer** (on-demand caption options). The other six overlapped an existing agent or had nothing to work with (no finance data, no calendar connector, no image service), so they were switched off rather than deleted. A small team where every agent owns one folder, one skill and one schedule turned out to be easier to trust and to explain.
+
 ### Weather changes the message, not the decision
 Rain or cold turns the game-night offer delivery-first; a nice evening makes it walk-up first. One rule, no extra promotion.
 

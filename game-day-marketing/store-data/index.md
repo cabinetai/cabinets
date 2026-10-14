@@ -45,8 +45,8 @@ Export the two files from your system once a day and save them here, replacing t
 | Agent | Uses | For |
 |---|---|---|
 | Promo Manager | `inventory.csv` | The stock check before firing: available = `on_hand` minus the promotion's `reserve`. |
-| Promo Manager | `sales-daily.csv` | Results: redemptions against the cap, and the day against a normal day. |
-| Shop Manager | both | The Monday plan: stock the week will use, restock orders, last week's results. |
+| Results Analyst | `sales-daily.csv` | Results: redemptions against the cap, and the day against a normal day. |
+| Shop Manager | `inventory.csv` | The Monday plan: stock the week will use and restock orders. |
 | Dashboard | both | The Store pulse panel: 14 days of sales and stock against par. |
 
 ## Want more?

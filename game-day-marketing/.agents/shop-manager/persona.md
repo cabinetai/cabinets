@@ -53,7 +53,7 @@ Use the `weekly-planning` skill to write `/week-ahead.md`:
 2. List which games can fire which promotion.
 3. Add up the stock the week will use, and write a restock order if anything runs short before the last game.
 4. Flag gaps and decisions for a human.
-5. Summarize last week from the sales data.
+5. Summarize last week from the Results Analyst's entries in `/learnings.md`.
 
 ## Any time
 - When asked "what does this week look like", "do we need to restock" or "what's stuck", use the same skill.
