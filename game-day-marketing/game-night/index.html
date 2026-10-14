@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<!--
+  game-day-marketing dashboard ("Game Night"), Cabinet Kit tokens with the accent taken from brand.md.
+
+  Reads only this cabinet's own files, never a hard-coded business:
+    ../.cabinet                         display name
+    ../business.md, ../brand.md         tagline, address, brand colors
+    ../teams.md, ../promotions.md       team and promotion names
+    ../games/index.md                   last_synced, last_score_check
+    ../games/*.md                       schedule, scores, verification, promotions_fired
+    ../campaigns/<slug>/                index.md plan, post.svg, story.svg, caption.md, post.png
+    ../store-data/*.csv                 inventory and daily sales (sample or connected, read only)
+    ../.agents/<slug>/persona.md        team (slugs in TEAM: dot-folders are not in /api/tree)
+    ../.jobs/<id>.yaml                  job status (ids in JOBS)
+
+  Writes exactly one thing: "Save PNG" renders post.svg (and a still of story.svg) to canvas and
+  uploads the PNGs into the campaign folder with POST /api/upload/<dir> (multipart, binary safe,
+  never overwrites). PUT /api/assets is text-only, so it is not used for images.
+
+  Relative URLs resolve under /api/assets/<cabinet>/<app>/ and survive a renamed cabinet.
+  Zero external requests. System fonts, inline CSS, no libraries. Honest empty states.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Game Night</title>
+<style>
+  :root {
+    --cabinet-bg: #FAF6F1; --cabinet-surface: #FFFFFF; --cabinet-surface-muted: #FAF0E9;
+    --cabinet-ink: #221716; --cabinet-ink-muted: #8C7B72;
+    --cabinet-border: #E1D6CE; --cabinet-border-soft: rgba(225,214,206,.45);
+    --cabinet-border-card: rgba(225,214,206,.75);
+    --cabinet-danger: #C0182B; --cabinet-success: #14823E; --cabinet-warning: #9A6722;
+    --cabinet-radius: 10px;
+    --cabinet-shadow-2: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+    --cabinet-font-sans: Geist, "Geist Fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --cabinet-font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --cabinet-font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    --accent: #834A2B; --accent-2: #C98A2B;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --cabinet-bg: #1A1412; --cabinet-surface: #241C19; --cabinet-surface-muted: #2C221E;
+      --cabinet-ink: #F3E9E1; --cabinet-ink-muted: #A8968B;
+      --cabinet-border: #3D302A; --cabinet-border-soft: rgba(61,48,42,.6);
+      --cabinet-border-card: rgba(78,62,54,.8);
+      --cabinet-danger: #FF6B7A; --cabinet-success: #5FD08A; --cabinet-warning: #E2B062;
+      --cabinet-shadow-2: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--cabinet-bg); color: var(--cabinet-ink); font-family: var(--cabinet-font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 48px; }
+  header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--cabinet-ink-muted); font-weight: 600; }
+  h1 { font-family: var(--cabinet-font-heading); font-weight: 600; font-size: 32px; letter-spacing: -0.02em; margin: 4px 0 2px; }
+  .tagline { color: var(--cabinet-ink-muted); margin: 0; }
+  .fresh { font-size: 12px; color: var(--cabinet-ink-muted); text-align: right; }
+  .fresh b { color: var(--cabinet-ink); font-weight: 600; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+  .span-5 { grid-column: span 5; } .span-6 { grid-column: span 6; } .span-7 { grid-column: span 7; } .span-12 { grid-column: span 12; }
+  @media (max-width: 900px) { .span-5, .span-6, .span-7 { grid-column: span 12; } }
+  .card { background: var(--cabinet-surface); border: 1px solid var(--cabinet-border-card); border-radius: var(--cabinet-radius); box-shadow: var(--cabinet-shadow-2); padding: 18px; min-width: 0; }
+  .card h2 { font-family: var(--cabinet-font-heading); font-weight: 600; font-size: 18px; margin: 0; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .meta { font-size: 12px; color: var(--cabinet-ink-muted); }
+  .empty { color: var(--cabinet-ink-muted); font-size: 13px; margin: 6px 0; }
+  .muted { color: var(--cabinet-ink-muted); }
+
+  .hero { border-radius: 8px; padding: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent-2) 12%, transparent)); border: 1px solid var(--cabinet-border); }
+  .matchup { font-family: var(--cabinet-font-heading); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .score { font-family: var(--cabinet-font-mono); font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+  .chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--cabinet-border); color: var(--cabinet-ink-muted); background: var(--cabinet-surface); white-space: nowrap; }
+  .chip.accent { border-color: var(--accent); color: var(--accent); }
+  .chip.ok { border-color: var(--cabinet-success); color: var(--cabinet-success); }
+  .chip.warn { border-color: var(--cabinet-warning); color: var(--cabinet-warning); }
+  .chip.bad { border-color: var(--cabinet-danger); color: var(--cabinet-danger); }
+  .upnext { list-style: none; margin: 12px 0 0; padding: 0; }
+  .upnext li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid var(--cabinet-border-soft); font-size: 13px; }
+
+  .camps { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+  @media (max-width: 420px) { .camps { grid-template-columns: 1fr; } }
+  .camp { border: 1px solid var(--cabinet-border); border-radius: 10px; padding: 14px; display: grid; gap: 10px; }
+  .camp h3 { margin: 0; font-size: 15px; }
+  .media { display: grid; grid-template-columns: 1.25fr 1fr; gap: 10px; align-items: start; }
+  .media img { width: 100%; display: block; border-radius: 6px; background: var(--cabinet-surface-muted); }
+  .post { aspect-ratio: 1080 / 1350; object-fit: cover; }
+  .phone { border-radius: 18px; padding: 6px; background: var(--cabinet-ink); position: relative; }
+  .phone img { aspect-ratio: 1080 / 1920; border-radius: 13px; }
+  .phone button { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 0; background: rgba(255,255,255,.85); color: #221716; cursor: pointer; }
+  .missing-art { display: grid; place-items: center; aspect-ratio: 1080/1350; border: 1px dashed var(--cabinet-border); border-radius: 6px; font-size: 12px; color: var(--cabinet-ink-muted); text-align: center; padding: 8px; }
+  .caption { font-size: 12.5px; white-space: pre-line; color: var(--cabinet-ink); background: var(--cabinet-surface-muted); border-radius: 6px; padding: 8px 10px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button.primary { font: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button.primary:disabled { opacity: .6; cursor: default; }
+  a { color: var(--accent); }
+  .status { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--cabinet-surface-muted); color: var(--accent); }
+  .status.held { color: var(--cabinet-danger); } .status.done { color: var(--cabinet-ink-muted); }
+
+  .chart { width: 100%; height: auto; display: block; }
+  .chart .line { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+  .chart .area { fill: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .chart .axis { stroke: var(--cabinet-border); }
+  .chart text { fill: var(--cabinet-ink-muted); font-size: 10px; font-family: var(--cabinet-font-sans); }
+  .chart .dot { fill: var(--cabinet-surface); stroke: var(--accent); stroke-width: 2; }
+  .chart .dot.game { fill: var(--accent-2); stroke: var(--accent-2); }
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--cabinet-ink-muted); margin-top: 4px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  table.inv { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 12px; }
+  table.inv td { padding: 5px 0; border-top: 1px solid var(--cabinet-border-soft); }
+  .bar { height: 6px; border-radius: 3px; background: var(--cabinet-border); overflow: hidden; width: 100%; min-width: 60px; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .bar.low i { background: var(--cabinet-danger); }
+
+  .team { display: grid; gap: 10px; }
+  .agent { display: grid; grid-template-columns: 36px 1fr; gap: 10px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--cabinet-surface-muted); border: 1px solid var(--cabinet-border); display: grid; place-items: center; font-size: 18px; }
+  .agent b { font-size: 13px; } .agent p { margin: 1px 0 0; font-size: 12px; color: var(--cabinet-ink-muted); }
+  .jobs { list-style: none; margin: 0; padding: 0; }
+  .jobs li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--cabinet-border-soft); font-size: 13px; }
+  .jobs li:first-child { border-top: 0; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--cabinet-ink-muted); vertical-align: 1px; }
+  .dot.on { background: var(--cabinet-success); }
+  .notice { font-size: 12px; color: var(--cabinet-ink-muted); margin-top: 18px; }
+  .error { color: var(--cabinet-danger); }
+</style>
+</head>
+<body>
+<div class="wrap" id="root"><p class="empty">Loading game night…</p></div>
+<script>
+(function () {
+  'use strict';
+
+  /* Dot-folders are not listed by /api/tree, so agents and jobs are named here.
+     Keep in step with .agents/ and .jobs/; a missing one is skipped. */
+  var TEAM = ['shop-manager', 'sports-desk', 'promo-manager', 'social-creator', 'results-analyst', 'caption-writer'];
+  var JOBS = ['schedule-sync', 'game-day-prep', 'final-score-check', 'promo-check', 'creative-queue', 'weekly-results'];
+  var root = document.getElementById('root');
+
+  /* ---- helpers ------------------------------------------------------------------- */
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function get(url) {
+    return fetch(url, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; });
+  }
+  /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments gives the
+     cabinet's path in the tree. Empty when the cabinet is the data dir itself. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+  function treePrefix(dir) { var c = cabinetDir(); return (c ? c + '/' : '') + dir; }
+  function findNode(nodes, p) {
+    for (var i = 0; i < (nodes || []).length; i++) {
+      var n = nodes[i];
+      if (!n) continue;
+      if (n.path === p) return n;
+      if (n.children && p.indexOf(n.path + '/') === 0) {
+        var hit = findNode(n.children, p);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  }
+  function mdFiles(node) {
+    return ((node && node.children) || []).filter(function (n) {
+      return /\.md$/i.test(n.name || '') && n.name.toLowerCase() !== 'index.md';
+    }).map(function (n) { return n.name; });
+  }
+  function childNames(node) { return ((node && node.children) || []).map(function (n) { return n.name; }); }
+  function subDirs(node) { return ((node && node.children) || []).filter(function (n) { return n.children; }); }
+
+  /* ---- a small YAML reader: enough for this cabinet's frontmatter ---------------------
+     Scalars, null, quoted strings (with \U escapes), [flow lists], {flow maps}, block lists of
+     scalars or maps, nested block maps, folded/literal block scalars. */
+  function splitFlow(s) {
+    var out = [], cur = '', q = null, depth = 0;
+    for (var i = 0; i < s.length; i++) {
+      var c = s[i];
+      if (q) { cur += c; if (c === q) q = null; continue; }
+      if (c === '"' || c === "'") { q = c; cur += c; continue; }
+      if (c === '[' || c === '{') depth++;
+      if (c === ']' || c === '}') depth--;
+      if (c === ',' && depth === 0) { out.push(cur); cur = ''; continue; }
+      cur += c;
+    }
+    if (cur.trim()) out.push(cur);
+    return out;
+  }
+  function scalar(v) {
+    v = v.trim();
+    if (v === '' || v === '~' || v === 'null') return v === '' ? '' : null;
+    if (v[0] === '[' && v[v.length - 1] === ']') {
+      var inner = v.slice(1, -1).trim();
+      return inner ? splitFlow(inner).map(scalar) : [];
+    }
+    if (v[0] === '{' && v[v.length - 1] === '}') {
+      var obj = {}, body = v.slice(1, -1).trim();
+      if (body) splitFlow(body).forEach(function (pair) {
+        var m = pair.match(/^\s*([^:]+?)\s*:\s*([\s\S]*)$/);
+        if (m) obj[m[1].replace(/^['"]|['"]$/g, '')] = scalar(m[2]);
+      });
+      return obj;
+    }
+    if (v[0] === '"' && v[v.length - 1] === '"') {
+      return v.slice(1, -1)
+        .replace(/\\U([0-9a-fA-F]{8})/g, function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
+        .replace(/\\u([0-9a-fA-F]{4})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); })
+        .replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    }
+    if (v[0] === "'" && v[v.length - 1] === "'") return v.slice(1, -1).replace(/''/g, "'");
+    if (/^(true|false)$/.test(v)) return v === 'true';
+    if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+    return v.replace(/\s+#.*$/, '');
+  }
+  function indentOf(l) { return l.match(/^ */)[0].length; }
+  function parseYaml(text) {
+    var lines = text.replace(/\r\n/g, '\n').split('\n');
+    var i = 0;
+    function block(minIndent) {
+      var obj = {};
+      while (i < lines.length) {
+        var line = lines[i];
+        if (!line.trim() || /^\s*#/.test(line)) { i++; continue; }
+        var ind = indentOf(line);
+        if (ind < minIndent) break;
+        var m = line.match(/^\s*([A-Za-z0-9_\-]+):\s?(.*)$/);
+        if (!m) { i++; continue; }
+        var key = m[1], rest = m[2];
+        i++;
+        if (/^[>|]-?$/.test(rest.trim())) {
+          var parts = [];
+          while (i < lines.length && (!lines[i].trim() || indentOf(lines[i]) > ind)) { parts.push(lines[i].trim()); i++; }
+          obj[key] = rest.trim()[0] === '>' ? parts.join(' ').trim() : parts.join('\n').trim();
+        } else if (rest.trim() === '') {
+          while (i < lines.length && !lines[i].trim()) i++;
+          if (i < lines.length && /^\s*- /.test(lines[i]) && indentOf(lines[i]) >= ind) obj[key] = list(indentOf(lines[i]));
+          else if (i < lines.length && indentOf(lines[i]) > ind) obj[key] = block(indentOf(lines[i]));
+          else obj[key] = null;
+        } else {
+          obj[key] = scalar(rest);
+        }
+      }
+      return obj;
+    }
+    function list(ind) {
+      var arr = [];
+      while (i < lines.length) {
+        var line = lines[i];
+        if (!line.trim()) { i++; continue; }
+        if (indentOf(line) !== ind || !/^\s*- /.test(line)) break;
+        var item = line.replace(/^\s*- /, '');
+        if (/^[A-Za-z0-9_\-]+:(\s|$)/.test(item)) {
+          lines[i] = new Array(ind + 3).join(' ') + item;
+          arr.push(block(ind + 2));
+        } else {
+          arr.push(scalar(item));
+          i++;
+        }
+      }
+      return arr;
+    }
+    return block(0);
+  }
+  function frontmatter(text) {
+    var m = (text || '').match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
+    if (!m) return { data: {}, body: text || '' };
+    try { return { data: parseYaml(m[1]), body: m[2] }; } catch (e) { return { data: {}, body: m[2] }; }
+  }
+  function list(v) { return Array.isArray(v) ? v : (v === '' || v == null ? [] : [v]); }
+  function csv(text) {
+    var rows = (text || '').trim().split(/\r?\n/).filter(Boolean);
+    if (rows.length < 2) return [];
+    var head = rows[0].split(',').map(function (h) { return h.trim(); });
+    return rows.slice(1).map(function (r) {
+      var cells = r.split(','), o = {};
+      head.forEach(function (h, k) { o[h] = (cells[k] || '').trim(); });
+      return o;
+    });
+  }
+
+  /* ---- dates (display in New York time; data carries explicit offsets) ------------- */
+  var TZ = 'America/New_York';
+  function toDate(v) {
+    if (!v) return null;
+    var s = String(v), m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s);
+    return isNaN(d) ? null : d;
+  }
+  function fmt(v, opts) { var d = toDate(v); return d ? d.toLocaleString('en-US', Object.assign({ timeZone: TZ }, opts)) : ''; }
+  function when(v) { return fmt(v, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+  function day(v) { return fmt(v, { month: 'short', day: 'numeric' }); }
+  function nyDate(d) { return d.toLocaleDateString('en-CA', { timeZone: TZ }); }
+  function ago(v) {
+    var d = toDate(v); if (!d) return 'never';
+    var mins = Math.round((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + ' min ago';
+    if (mins < 1440) return Math.round(mins / 60) + ' h ago';
+    var days = Math.round(mins / 1440); return days + (days === 1 ? ' day ago' : ' days ago');
+  }
+  function cronText(c) {
+    var p = String(c || '').trim().split(/\s+/);
+    if (p.length !== 5) return c || '';
+    if (/^\*\/\d+$/.test(p[0]) && p[2] === '*' && p[3] === '*' && p[4] === '*')
+      return 'Every ' + p[0].slice(2) + ' min at hours ' + p[1].split(',').join(', ');
+    if (!/^\d+$/.test(p[0]) || !/^\d+(,\d+)*$/.test(p[1])) return c;
+    var t = p[1].split(',').map(function (h) { return ('0' + h).slice(-2) + ':' + ('0' + p[0]).slice(-2); }).join(', ');
+    return (p[4] === '*' ? 'Daily' : 'Days ' + p[4]) + ' at ' + t;
+  }
+
+  /* ---- Save PNG: SVG → canvas → POST /api/upload/<campaign dir> ---------------------- */
+  function svgToPng(svgUrl, w, h, still) {
+    return fetch(svgUrl, { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('missing ' + svgUrl.split('/').pop());
+      return r.text();
+    }).then(function (svg) {
+      /* Final-frame rule: with animations off, a Story shows its finished frame. */
+      if (still) svg = svg.replace(/<\/svg>\s*$/, '<style>*{animation:none!important}</style></svg>');
+      var url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+      return new Promise(function (res, rej) {
+        var img = new Image();
+        img.onload = function () {
+          var c = document.createElement('canvas'); c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h); URL.revokeObjectURL(url);
+          c.toBlob(function (b) { b ? res(b) : rej(new Error('canvas export failed')); }, 'image/png');
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('could not render SVG')); };
+        img.src = url;
+      });
+    });
+  }
+  function savePng(slug, btn) {
+    var dir = treePrefix('campaigns/' + slug).split('/').map(encodeURIComponent).join('/');
+    var base = '../campaigns/' + encodeURIComponent(slug) + '/';
+    btn.disabled = true; btn.textContent = 'Saving…';
+    Promise.all([svgToPng(base + 'post.svg', 1080, 1350, false), svgToPng(base + 'story.svg', 1080, 1920, true)])
+      .then(function (blobs) {
+        return Promise.all([['post.png', blobs[0]], ['story-still.png', blobs[1]]].map(function (pair) {
+          var fd = new FormData(); fd.append('file', pair[1], pair[0]);
+          return fetch('/api/upload/' + dir, { method: 'POST', body: fd }).then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (j) {
+              if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+              return j;
+            });
+          });
+        }));
+      })
+      .then(function () { btn.textContent = 'Saved to campaign folder'; })
+      .catch(function (e) { btn.disabled = false; btn.textContent = 'Save PNG failed: ' + e.message; });
+  }
+
+  /* ---- load ---------------------------------------------------------------------- */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+    get('../.cabinet'), get('../business.md'), get('../brand.md'), get('../teams.md'), get('../promotions.md'),
+    get('../games/index.md'), get('../store-data/inventory.csv'), get('../store-data/sales-daily.csv')
+  ]).then(function (res) {
+    var tree = res[0];
+    var gamesNode = findNode(tree, treePrefix('games'));
+    var campNode = findNode(tree, treePrefix('campaigns'));
+    var camps = subDirs(campNode);
+    var ctx = {
+      cab: parseYaml(res[1] || ''), biz: frontmatter(res[2]).data, brand: frontmatter(res[3]).data,
+      teams: list(frontmatter(res[4]).data.teams), promos: list(frontmatter(res[5]).data.promotions),
+      gamesIndex: frontmatter(res[6]).data, inventory: csv(res[7]), sales: csv(res[8]),
+      hasStoreData: !!(res[7] || res[8])
+    };
+    return Promise.all([
+      Promise.all(mdFiles(gamesNode).map(function (f) {
+        return get('../games/' + encodeURIComponent(f)).then(function (t) { var g = frontmatter(t).data; g._file = f; return g; });
+      })),
+      Promise.all(camps.map(function (c) {
+        var base = '../campaigns/' + encodeURIComponent(c.name) + '/';
+        return Promise.all([get(base + 'index.md'), get(base + 'caption.md')]).then(function (t) {
+          return { slug: c.name, plan: frontmatter(t[0]).data, caption: frontmatter(t[1]).body, files: childNames(c) };
+        });
+      })),
+      Promise.all(TEAM.map(function (s) { return get('../.agents/' + s + '/persona.md').then(function (t) { return t ? frontmatter(t).data : null; }); })),
+      Promise.all(JOBS.map(function (j) { return get('../.jobs/' + j + '.yaml').then(function (t) { return t ? parseYaml(t) : null; }); }))
+    ]).then(function (more) {
+      ctx.games = more[0].filter(function (g) { return g.game_id; });
+      ctx.camps = more[1].filter(function (c) { return c.plan && c.plan.title; });
+      ctx.team = more[2].filter(Boolean); ctx.jobs = more[3].filter(Boolean);
+      render(ctx);
+    });
+  }).catch(function (err) {
+    root.innerHTML = '<div class="card"><h2>Could not load this cabinet</h2><p class="error">' + esc(err.message) +
+      '</p><p class="muted">Open this page from the sidebar inside Cabinet, not as a local file.</p></div>';
+  });
+
+  /* ---- render -------------------------------------------------------------------- */
+  function render(d) {
+    var colors = d.brand.colors || {};
+    if (colors.primary) document.documentElement.style.setProperty('--accent', colors.primary);
+    if (colors.secondary) document.documentElement.style.setProperty('--accent-2', colors.secondary);
+    var teamName = {}; d.teams.forEach(function (t) { if (t && t.id) teamName[t.id] = (t.name || t.id).replace(/^New York /, ''); });
+    var promoName = {}; d.promos.forEach(function (p) { if (p && p.id) promoName[p.id] = p.name || p.id; });
+    function tn(id) { return teamName[id] || id || ''; }
+    function fired(g, promo) { return list(g.promotions_fired).filter(function (x) { return x && x.promotion === promo; })[0]; }
+
+    var now = new Date(), today = nyDate(now);
+    var byStart = d.games.slice().sort(function (a, b) { return (toDate(a.start) || 0) - (toDate(b.start) || 0); });
+    var upcoming = byStart.filter(function (g) { return g.status !== 'final' && g.start && nyDate(toDate(g.start)) >= today; });
+    var next = upcoming[0];
+    var finals = byStart.filter(function (g) { return g.status === 'final'; });
+    var last = finals[finals.length - 1];
+
+    var html = '<header class="top"><div><div class="eyebrow">Game night</div><h1>' + esc(d.cab.name || d.biz.name || 'Game Night') + '</h1>' +
+      (d.biz.tagline ? '<p class="tagline">' + esc(d.biz.tagline) + '</p>' : '') + '</div>' +
+      '<div class="fresh">Schedule synced <b>' + esc(ago(d.gamesIndex.last_synced)) + '</b><br>Scores checked <b>' + esc(ago(d.gamesIndex.last_score_check)) + '</b></div></header>';
+    html += '<div class="grid">';
+
+    /* Tonight / next game */
+    html += '<section class="card span-6" data-panel="tonight"><div class="card-head"><h2>' + (next && nyDate(toDate(next.start)) === today ? 'Tonight' : 'Next game') + '</h2><span class="meta">from games/</span></div>';
+    if (!next) {
+      html += '<p class="empty">' + (d.games.length ? 'No upcoming games in the calendar.' : 'No games yet. The Sports Desk fills this in on its first schedule sync.') + '</p>';
+    } else {
+      var w = next.weather || {}, pack = fired(next, 'game-night-slice-pack');
+      html += '<div class="hero"><div class="matchup">' + esc(tn(next.team)) + (next.home ? ' vs ' : ' at ') + esc(next.opponent) + '</div>' +
+        '<div class="meta">' + esc(when(next.start)) + ' · ' + (next.home ? 'home' : 'away') + ' · ' + esc(next.season_type || '') + '</div>' +
+        '<div class="row">' + (w.summary ? '<span class="chip">' + esc(w.summary) + (w.temp_c != null ? ' · ' + esc(w.temp_c) + '°C' : '') + (w.precip_pct != null ? ' · ' + esc(w.precip_pct) + '% rain' : '') + '</span>' : '<span class="chip">weather on game day</span>') +
+        (pack ? '<span class="chip ok">Game Night pack fired</span>' : (next.home ? '<span class="chip">Game Night pack not fired yet</span>' : '<span class="chip">away: no game-day promo</span>')) + '</div></div>';
+      if (upcoming.length > 1) html += '<ul class="upnext">' + upcoming.slice(1, 5).map(function (g) {
+        return '<li><span>' + esc(tn(g.team)) + (g.home ? ' vs ' : ' at ') + esc(g.opponent) + '</span><span class="meta">' + esc(when(g.start)) + '</span></li>';
+      }).join('') + '</ul>';
+    }
+    html += '</section>';
+
+    /* Last result */
+    html += '<section class="card span-6" data-panel="last-result"><div class="card-head"><h2>Last result</h2><span class="meta">two sources must agree</span></div>';
+    if (!last) {
+      html += '<p class="empty">No finished games yet. After each game the Sports Desk records the final score and checks it against two sources.</p>';
+    } else {
+      var sc = last.score || {}, ws = fired(last, 'win-slice');
+      var srcs = list(last.sources_checked).map(function (s) { return s && s.source; }).filter(Boolean);
+      html += '<div class="hero"><div class="matchup">' + esc(tn(last.team)) + (last.home ? ' vs ' : ' at ') + esc(last.opponent) + '</div>' +
+        '<div class="score">' + esc(sc.team) + ' · ' + esc(sc.opponent) + '</div>' +
+        '<div class="meta">' + esc(when(last.start)) + '</div><div class="row">' +
+        (last.result === 'win' ? '<span class="chip ok">win</span>' : '<span class="chip">' + esc(last.result || 'final') + '</span>') +
+        (last.verified === true ? '<span class="chip ok">verified · ' + esc(srcs.join(' + ')) + '</span>' : '<span class="chip warn">not verified yet</span>') +
+        (last.result === 'win' ? (ws ? '<span class="chip accent">Win Slice fired ' + esc(ago(ws.fired_at)) + '</span>' : (last.verified === true ? '<span class="chip warn">Win Slice not fired yet</span>' : '<span class="chip">Win Slice waits for verification</span>')) : '') +
+        '</div></div>';
+    }
+    html += '</section>';
+
+    /* Campaigns */
+    html += '<section class="card span-12" data-panel="campaigns"><div class="card-head"><h2>Campaigns</h2><span class="meta">post, animated Story and caption, ready for your approval</span></div>';
+    if (!d.camps.length) {
+      html += '<p class="empty">No campaigns yet. When a home game is today or a win is verified, the Promo Manager fires the matching promotion and the Social Creator designs it here.</p>';
+    } else {
+      html += '<div class="camps">' + d.camps.map(function (c) {
+        var p = c.plan, inv = p.inventory || {}, base = '../campaigns/' + encodeURIComponent(c.slug) + '/';
+        var has = function (f) { return c.files.indexOf(f) !== -1; };
+        var decision = inv.decision || 'ok';
+        var cap = (c.caption || '').replace(/^#.*$/gm, '').trim().split('\n').filter(Boolean).slice(0, 3).join('\n');
+        return '<article class="camp" data-campaign="' + esc(c.slug) + '">' +
+          '<div class="row" style="margin:0"><span class="status ' + esc(p.status) + '">' + esc(p.status || 'draft') + '</span>' +
+          '<span class="chip ' + (decision === 'ok' ? 'ok' : decision === 'capped' ? 'warn' : 'bad') + '">stock ' + esc(decision) + (inv.cap != null ? ' · cap ' + esc(inv.cap) : '') + '</span>' +
+          (p.weather_mode ? '<span class="chip">' + esc(p.weather_mode) + ' weather</span>' : '') + '</div>' +
+          '<h3>' + esc(p.title) + '</h3>' +
+          '<div class="meta">' + esc(promoName[p.promotion] || p.promotion) + (p.live && p.live.from ? ' · live ' + esc(when(p.live.from)) + ' to ' + esc(fmt(p.live.to, { hour: 'numeric', minute: '2-digit' })) : '') + '</div>' +
+          '<div class="media">' +
+          (has('post.svg') ? '<img class="post" alt="Feed post" src="' + base + 'post.svg">' : '<div class="missing-art">Post not designed yet</div>') +
+          (has('story.svg') ? '<div class="phone"><img alt="Animated Story" data-story src="' + base + 'story.svg"><button type="button" data-action="replay">Replay</button></div>' : '<div class="missing-art">Story not designed yet</div>') +
+          '</div>' +
+          (cap ? '<div class="caption">' + esc(cap) + '</div>' : '') +
+          '<div class="actions">' +
+          (has('post.svg') && has('story.svg') ? '<button type="button" class="primary" data-action="save-png" data-slug="' + esc(c.slug) + '">' + (has('post.png') ? 'Save PNG again' : 'Save PNG') + '</button>' : '') +
+          (has('post.png') ? '<a href="' + base + 'post.png" target="_blank" rel="noopener">post.png</a>' : '') +
+          (has('story-still.png') ? '<a href="' + base + 'story-still.png" target="_blank" rel="noopener">story-still.png</a>' : '') +
+          '</div></article>';
+      }).join('') + '</div>';
+    }
+    html += '</section>';
+
+    /* Store pulse */
+    html += '<section class="card span-7" data-panel="store-pulse"><div class="card-head"><h2>Store pulse</h2><span class="meta">store-data/ (read only)</span></div>';
+    if (!d.hasStoreData) {
+      html += '<p class="empty">No store data connected. Open <b>store-data</b> in the sidebar and follow the steps: right-click the folder, choose Connect Knowledge, and point it at your POS exports (view only).</p>';
+    } else {
+      html += salesChart(d.sales);
+      html += inventoryTable(d.inventory);
+    }
+    html += '</section>';
+
+    /* Team + jobs */
+    html += '<section class="card span-5" data-panel="team"><div class="card-head"><h2>The team</h2><span class="meta">.agents/</span></div>';
+    html += d.team.length ? '<div class="team">' + d.team.map(function (a) {
+      return '<div class="agent"><div class="avatar">' + esc(a.emoji || '•') + '</div><div><b>' + esc(a.name) + '</b> <span class="meta">' +
+        (a.type === 'lead' ? 'lead · ' : '') + (a.active === true ? 'active' : 'off') + '</span><p>' + esc(a.role || '') + '</p></div></div>';
+    }).join('') + '</div>' : '<p class="empty">No agents found in .agents/.</p>';
+    html += '<div class="card-head" style="margin-top:18px" data-panel="jobs"><h2>Jobs</h2><span class="meta">.jobs/</span></div>';
+    if (!d.jobs.length) html += '<p class="empty">No jobs found in .jobs/.</p>';
+    else {
+      html += '<ul class="jobs">' + d.jobs.map(function (j) {
+        var on = j.enabled === true;
+        return '<li><span><span class="dot ' + (on ? 'on' : '') + '"></span>' + esc(j.name || j.id) + '</span><span class="meta">' + (on ? '' : 'Off · ') + esc(cronText(j.schedule)) + '</span></li>';
+      }).join('') + '</ul>';
+      if (!d.jobs.some(function (j) { return j.enabled === true; }))
+        html += '<p class="meta" style="margin:10px 0 0">All jobs are off, so nothing runs on its own. Times are this computer\'s local time and assume New York.</p>';
+    }
+    html += '</section>';
+
+    html += '</div><p class="notice">Nothing here is posted automatically. Sample store data is fictional until you connect your own.</p>';
+    root.innerHTML = html;
+
+    root.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-action]'); if (!t) return;
+      if (t.dataset.action === 'save-png') savePng(t.dataset.slug, t);
+      if (t.dataset.action === 'replay') {
+        var img = t.parentNode.querySelector('img[data-story]');
+        var src = img.getAttribute('src').replace(/\?.*$/, '');
+        img.setAttribute('src', src + '?r=' + Date.now());
+      }
+    });
+  }
+
+  function salesChart(rows) {
+    if (!rows.length) return '<p class="empty">sales-daily.csv has no rows yet.</p>';
+    var W = 640, H = 190, L = 34, R = 10, T = 10, B = 26;
+    var vals = rows.map(function (r) { return Number(r.slices_sold) || 0; });
+    var max = Math.max.apply(null, vals), min = Math.min.apply(null, vals);
+    var lo = Math.floor(min * 0.85 / 100) * 100, hi = Math.ceil(max * 1.05 / 100) * 100;
+    function x(i) { return L + (rows.length === 1 ? 0 : i * (W - L - R) / (rows.length - 1)); }
+    function y(v) { return T + (H - T - B) * (1 - (v - lo) / ((hi - lo) || 1)); }
+    var pts = vals.map(function (v, i) { return x(i).toFixed(1) + ',' + y(v).toFixed(1); });
+    var svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Slices sold per day">';
+    [lo, (lo + hi) / 2, hi].forEach(function (g) { svg += '<line class="axis" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(g) + '" y2="' + y(g) + '"/><text x="2" y="' + (y(g) + 3) + '">' + Math.round(g) + '</text>'; });
+    svg += '<polygon class="area" points="' + x(0) + ',' + (H - B) + ' ' + pts.join(' ') + ' ' + x(rows.length - 1) + ',' + (H - B) + '"/>';
+    svg += '<polyline class="line" points="' + pts.join(' ') + '"/>';
+    rows.forEach(function (r, i) {
+      var tip = r.date + ': ' + r.slices_sold + ' slices, $' + r.revenue_usd + (r.promo ? ' · ' + r.promo + ' ' + r.promo_redemptions : '');
+      svg += '<circle class="dot' + (r.promo ? ' game' : '') + '" cx="' + x(i) + '" cy="' + y(vals[i]) + '" r="' + (r.promo ? 5 : 3.5) + '"><title>' + esc(tip) + '</title></circle>';
+      if (i % 2 === 0 || i === rows.length - 1) svg += '<text x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="' + (i === rows.length - 1 ? 'end' : i === 0 ? 'start' : 'middle') + '">' + esc(day(r.date)) + '</text>';
+    });
+    svg += '</svg>';
+    var promoDays = rows.filter(function (r) { return r.promo; }).length;
+    return svg + '<div class="legend"><span><i style="background:var(--accent)"></i>slices sold per day</span><span><i style="background:var(--accent-2)"></i>promotion day (' + promoDays + ')</span></div>';
+  }
+  function inventoryTable(rows) {
+    if (!rows.length) return '<p class="empty">inventory.csv has no rows yet.</p>';
+    return '<table class="inv">' + rows.map(function (r) {
+      var on = Number(r.on_hand) || 0, par = Number(r.par_level) || 0, pct = par ? Math.min(100, Math.round(on / par * 100)) : 0, low = par && on < par * 0.5;
+      return '<tr><td>' + esc(r.item.replace(/_/g, ' ')) + '</td><td class="meta" style="white-space:nowrap;padding:0 10px">' + esc(on) + ' / ' + esc(par) + ' ' + esc(r.unit) + '</td><td style="width:40%"><div class="bar' + (low ? ' low' : '') + '"><i style="width:' + pct + '%"></i></div></td></tr>';
+    }).join('') + '</table>';
+  }
+})();
+</script>
+</body>
+</html>
