@@ -3,14 +3,14 @@ title: How Decisions gets its rows
 ---
 # How Decisions gets its rows
 
-The page never talks to Slack or Discord. Every 15 minutes the Check for Decisions routine
+The page never talks to Slack or Discord. Every hour the Check for Decisions routine
 finds messages marked with 🧠 or 📝, reads their threads, and writes files here. The page
 shows them. The full rules for each field are in the agent's persona
 (`.agents/decision-keeper/persona.md`).
 
 | File | Written by | What it holds |
 |---|---|---|
-| `data/latest.json` | Check for Decisions, every 15 minutes | Every logged decision and RFC, kept forever. Schema `decision-rfc-log/decisions@1`. |
+| `data/latest.json` | Check for Decisions, every hour | Every logged decision and RFC, kept forever. Schema `decision-rfc-log/decisions@1`. |
 | `data/status.json` | The same routine | `{ at, ok, why, sources }`. `sources` says, for `slack` and `discord`, `read`, `not connected` or `failed`. `ok: false` means nothing connected could be read; the page shows `why` with a Try again button. |
 | `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up team in the same shape. Shown, marked as an example, until `latest.json` exists. |
 
