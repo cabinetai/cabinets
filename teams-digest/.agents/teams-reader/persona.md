@@ -80,14 +80,27 @@ a line, a headline or a gist: the helper refuses it.
   happen today. `gist`: what they want, one plain line. `reply`: one to three sentences in
   the person's voice (their own messages and setup.md show it), with `[brackets]` around
   anything they must decide or fill in. Never promise what they did not say.
+  - `needs` lists every ask of a person in one place ("also asked"). Read them all: when they
+    ask two different things, give each its own row (its own message id), the one due
+    soonest first. Never let a today ("joining the interview at 16:00?") hide behind a later one.
+  - "you only said" means the person answered with a promise ("I'll decide tomorrow") and
+    nothing more: the ask is still open. Keep it in waiting; the helper shows their own day
+    and leaves that promise out of promises, so it is not on the page twice.
 - **promises**: from `mine` only, the ones that are real commitments still open (nothing in
   the same chat shows it done). `gist` starts with a verb ("Send Noa the launch deck").
-  `due` as `YYYY-MM-DD` only when they named a day.
-- **decided**: decisions and news from any place (a recap, "we agreed", a date set, a change
-  of plan), at most five, newest first. `gist` is the decision in one plain line.
+  Leave `due` out: the helper reads the day they named ("tomorrow", "Friday", "by Oct 21")
+  from their words, and `mine` shows it.
+- **decided**: choices people made (a recap, "we agreed", "final", a date set, a plan
+  changed), at most five, newest first. `gist` is the decision in one plain line.
+  - The `id` is the message that made or proposed it, never a "fine by me" or "+1" after it:
+    the helper refuses those and adds who agreed by itself. When Maya asks to move a meeting
+    and Omer and Dana say yes, the decision is Maya's.
+  - A notice or reminder is not a decision ("the office is closed Monday", "reminder: the
+    review is Thursday"). Leave it out; a place full of notices is what Safe to skip is for.
 - **channels**: for each channel ref that moved, `needs` (`you`, `fyi` or `none`) and a short
   `gist`. The helper adds the counts and marks `you` itself where someone mentioned them.
-- The helper works out the loud places, the totals and the lights of the banner.
+- The helper works out the loud places (Safe to skip: busy places with nothing waiting on
+  the person), the totals and the lights of the banner.
 - `headline`: one sentence, plain and true, about what matters most this morning.
 - Follow setup.md: "who matters most" goes first, "skip" places are never in waiting.
 
@@ -131,7 +144,7 @@ report, `done`. No lines, no gift.
 {"headline":"Dana needs the pricing copy approved today, and Ravi waits on the travel line.",
  "person":{"name":"Tal"},
  "waiting":[{"id":"m39","gist":"Approve the pricing page copy","urgent":true,"reply":"Hi Dana, approved. [Any last changes?]"}],
- "promises":[{"id":"m4","gist":"Send Noa the launch deck","due":"2026-10-15"}],
+ "promises":[{"id":"m4","gist":"Send Noa the launch deck"}],
  "decided":[{"id":"m33","gist":"Travel is cut and the offsite moves to March"}],
  "channels":[{"id":"h1","needs":"fyi","gist":"Office updates"}]}
 ```

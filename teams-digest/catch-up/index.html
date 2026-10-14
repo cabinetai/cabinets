@@ -1698,7 +1698,9 @@
     var chips = [];
     if (WHY_WORDS[item.why]) chips.push('<span class="chip mention">' + esc(WHY_WORDS[item.why]) + "</span>");
     var days = at ? daysBetween(at, ref) : 0;
-    if (item.urgent === true) chips.push('<span class="chip hot">Answer today</span>');
+    var said = item.youSaid && typeof item.youSaid === "object" ? item.youSaid : null;
+    if (said) chips.push(saidChip(said.due, ref));
+    else if (item.urgent === true) chips.push('<span class="chip hot">Answer today</span>');
     else if (days >= 2) chips.push('<span class="chip wait">Waiting ' + days + " days</span>");
     var link = teamsLink(item);
     var hasReply = !!text(item.reply);
@@ -1717,9 +1719,17 @@
       "</button>" +
       '<div class="row-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" +
       (text(item.said) ? '<p class="quote-who">' + esc(name) + " wrote" + (num(item.more) ? ", and " + num(item.more) + " more after it" : "") + '</p><p class="quote" dir="auto">' + esc(text(item.said, 240)) + "</p>" : "") +
+      (said && text(said.said) ? '<p class="quote-who">You answered, but only with a promise</p><p class="quote" dir="auto">' + esc(text(said.said, 240)) + "</p>" : "") +
       (hasReply ? draftHtml(text(item.reply, 1500)) : "") +
       '<div class="row-actions">' + actions.join("") + "</div>" +
       "</div></li>";
+  }
+
+  /** ", Omer and Dana agreed" after the name of who made a decision. */
+  function agreedWords(list2) {
+    var names = (Array.isArray(list2) ? list2 : []).map(function (n) { return text(n, 60); }).filter(Boolean).slice(0, 4);
+    if (!names.length) return "";
+    return ", " + (names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0]) + " agreed";
   }
 
   function draftHtml(value) {
@@ -1729,6 +1739,16 @@
       (marked ? '<p class="hint">Fill in the highlighted words before you send it.</p>' : "") + "</div>";
   }
 
+  /** On a question you answered only with "I'll…": the day you gave, or that it is still open. */
+  function saidChip(value, ref) {
+    var d = parseTime(value);
+    if (!d) return '<span class="chip said">You said you would</span>';
+    var gap = daysBetween(ref, d);
+    if (gap < 0) return '<span class="chip hot">You said ' + esc(shortDate(d)) + "</span>";
+    if (gap === 0) return '<span class="chip hot">You said today</span>';
+    if (gap === 1) return '<span class="chip said">You said tomorrow</span>';
+    return '<span class="chip said">You said ' + esc(gap < 7 ? d.toLocaleDateString([], { weekday: "long" }) : shortDate(d)) + "</span>";
+  }
   /** "due Friday", "2 days late", or "" when they gave no day. */
   function dueChip(value, ref) {
     var d = parseTime(value);
@@ -2187,9 +2207,13 @@
     var need = 0;
     if (open && !stack) {
       var total = 2;
+      // The body stretches to fill its box, so its own height would only ever grow: what it
+      // holds is measured instead, or an opened list keeps making its box taller.
+      var inner = 0;
+      Array.prototype.forEach.call(body.children, function (c) { if (!c.hidden) inner += c.offsetHeight; });
       Array.prototype.forEach.call(el.children, function (child) {
         if (child.matches(".box-x, .box-resize, .box-size")) return;
-        total += child === body ? body.scrollHeight : child.hidden ? 0 : child.offsetHeight;
+        total += child === body ? inner : child.hidden ? 0 : child.offsetHeight;
       });
       need = Math.ceil((total + GAP) / (ROW + GAP));
     }
@@ -2383,7 +2407,7 @@
         var at = parseTime(x.at);
         var link = teamsLink(x);
         return '<li><span class="d" dir="auto">' + esc(text(x.gist, 180)) + "</span>" +
-          '<span class="s"><span dir="auto">' + esc([text(x.who, 60), placeWords(x.where), at ? rowTime(x.at, ref) : ""].filter(Boolean).join(" · ")) + "</span>" +
+          '<span class="s"><span dir="auto">' + esc([text(x.who, 60) + agreedWords(x.agreed), placeWords(x.where), at ? rowTime(x.at, ref) : ""].filter(Boolean).join(" · ")) + "</span>" +
           (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">Open</a>' : "") + "</span></li>";
       }).join("") + "</ul>",
       "Nothing was decided while you were away.") + nudgeHtml(boxIdea("decided"));

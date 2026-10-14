@@ -27,9 +27,12 @@ headline), and those may hold no numbers.
 `pulse { start, stepHours, counts[], you[] }` (the banner's lights), and:
 
 - `waiting[]`: `id`, `who`, `where { kind, name, team }`, `said` (their words), `gist`, `why`
-  (`mention`, `direct`, `question`), `at`, `urgent`, `reply`, `more`, `link`.
+  (`mention`, `direct`, `question`), `at`, `urgent`, `reply`, `more` (their other asks there
+  that have no row of their own), `youSaid { id, said, at, due }` (you only answered "I'll…":
+  it still waits on you, by your own day), `link`.
 - `promises[]`: `id`, `to`, `where`, `said` (your words), `gist`, `at`, `due`, `link`.
-- `decided[]`: `id`, `who`, `where`, `gist`, `at`, `link`.
+- `decided[]`: `id`, `who` (who made or proposed it), `where`, `gist`, `at`, `agreed[]` (who said
+  yes to it after), `link`.
 - `channels[]`: `id`, `team`, `name`, `count`, `needs` (`you`, `fyi`, `none`), `gist`, `link`.
 - `loud[]`: `id`, `name`, `kind`, `count`, `link`: places that moved and never needed you.
 - `channelsRefused`: true when the IT admin has not allowed channel messages yet.

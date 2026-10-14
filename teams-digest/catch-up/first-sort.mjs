@@ -267,11 +267,23 @@ function refs() {
 }
 function convFor(ref) { return model().convs.find((c) => c.ref === ref) || null; }
 function msgFor(ref) { const md = model(); return md.msgs.find((m) => m.ref === ref || m.id === ref) || null; }
-/** You wrote in the same place (the same thread in a channel) after this message. */
-function answered(m) {
-  return model().msgs.some((x) => x.mine && x.conv === m.conv && x.at > m.at && (m.conv.kind !== "channel" || x.root === m.root));
+/** What you wrote in the same place (the same thread in a channel) after this message. */
+function laterMine(m) {
+  return model().msgs.filter((x) => x.mine && x.conv === m.conv && x.at > m.at && (m.conv.kind !== "channel" || x.root === m.root));
 }
-/** Messages that may need an answer from you, one per place and person: the oldest unanswered. */
+/** Answered: you wrote after it, and not only "I'll do it tomorrow" (that still waits on you). */
+function answered(m) {
+  return laterMine(m).some((x) => !PROMISE.test(x.text));
+}
+/** Your "I'll…" after it, when that is all you wrote: the ask is still open, with your own day. */
+function deferral(m) {
+  const later = laterMine(m);
+  return later.length && later.every((x) => PROMISE.test(x.text)) ? later[0] : null;
+}
+/**
+ * Messages that may need an answer from you, one entry per place and person, oldest first.
+ * Every ask of that person there is kept in `all`: the second one may matter more.
+ */
 function needs() {
   const md = model();
   const seen = new Map();
@@ -284,12 +296,43 @@ function needs() {
     const why = m.mentionsMe ? "@you" : direct ? "direct" : meByName && asked ? "asked you by name" : "";
     if (!why) continue;
     const key = m.conv.key + "|" + (m.conv.kind === "channel" ? m.root : "") + "|" + m.fromId;
-    if (seen.has(key)) { seen.get(key).more++; continue; }
-    seen.set(key, { m, why, more: 0 });
+    if (seen.has(key)) { const s = seen.get(key); s.more++; s.all.push(m); continue; }
+    seen.set(key, { m, why, more: 0, all: [m], deferred: deferral(m) });
   }
   return [...seen.values()].sort((a, b) => a.m.at - b.m.at);
 }
+/** The entry of needs that holds this message, as its first ask or a later one. */
+function needOf(m) { return needs().find((x) => x.all.includes(m)) || null; }
 const PROMISE = /\b(i'?ll|i will|i'?m going to|i am going to|let me|will (send|share|check|look|get|do|update|follow)|i can (send|share|check|do|get)|by (monday|tuesday|wednesday|thursday|friday|tomorrow|tonight|end of (the )?(day|week)|eod|eow)|later today|tomorrow|next week)\b/i;
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+/** The day a message names ("today", "tomorrow", "Friday", "Oct 21"), counted from when it was written. */
+function dueHint(m) {
+  const t = m.text.toLowerCase(), at = m.at;
+  const day = (d) => ymd(d);
+  const mon = "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?";
+  const md1 = new RegExp("\\b" + mon + " (\\d{1,2})(?:st|nd|rd|th)?\\b").exec(t) || null;
+  const md2 = md1 ? null : new RegExp("\\b(\\d{1,2})(?:st|nd|rd|th)? (?:of )?" + mon + "\\b").exec(t);
+  if (md1 || md2) {
+    const month = MONTHS.indexOf((md1 ? md1[1] : md2[2]).slice(0, 3)), date = Number(md1 ? md1[2] : md2[1]);
+    if (date >= 1 && date <= 31) {
+      let d = new Date(at.getFullYear(), month, date);
+      if (d < new Date(at.getFullYear(), at.getMonth(), at.getDate())) d = new Date(at.getFullYear() + 1, month, date);
+      return day(d);
+    }
+  }
+  if (/\b(today|tonight|eod|end of (the )?day|later today|this (morning|afternoon|evening))\b/.test(t)) return day(at);
+  if (/\btomorrow\b/.test(t)) return day(new Date(at.getFullYear(), at.getMonth(), at.getDate() + 1));
+  const wd = new RegExp("\\b(by |on |this |next )?(" + WEEKDAYS.join("|") + ")\\b").exec(t);
+  if (wd) {
+    let ahead = (WEEKDAYS.indexOf(wd[2]) - at.getDay() + 7) % 7 || 7;
+    if (wd[1] === "next ") ahead += ahead < 7 ? 7 : 0;
+    return day(new Date(at.getFullYear(), at.getMonth(), at.getDate() + ahead));
+  }
+  return "";
+}
+/** "Fine by me", "+1", "OK for me too": agreeing with what someone else proposed. */
+const AGREE = /^\s*(ok(ay)?|fine|sure|yes|yep|agreed?|sounds good|works( for me)?|great|perfect|got it|same|\+1|👍)(?![a-z])[\s\S]{0,40}$/iu;
 function mine() {
   const md = model();
   return md.msgs.filter((m) => md.inWindow(m) && m.mine && PROMISE.test(m.text));
@@ -394,7 +437,7 @@ function giftOf(g) {
     if (!m) fail(`refused, no saved message ${g.messageId || "(give messageId: its ref, like m3)"}`);
     if (kind === "waiting") {
       if (m.mine) fail("refused, that message is yours: a waiting gift is someone else's message");
-      if (!needs().some((x) => x.m === m)) fail("refused, that message is not in needs (answered, or not to you): pick from needs");
+      if (!needOf(m)) fail("refused, that message is not in needs (answered, or not to you): pick from needs");
       out.who = m.fromName.slice(0, 80);
     } else {
       if (!m.mine) fail("refused, a promise gift is a message you wrote: pick from mine");
@@ -431,7 +474,7 @@ function latestOf(l) {
   if (typeof l.headline !== "string" || !l.headline.trim()) fail("latest.json needs a headline");
   const md = model();
   const headline = fill(l.headline, "the headline").slice(0, 220);
-  const open = new Set(needs().map((x) => x.m));
+  const open = new Set(needs().flatMap((x) => x.all));
   const used = new Set();
   const pick = (arr, max, make) => (Array.isArray(arr) ? arr : []).map((x) => {
     const m = msgFor(x && x.id);
@@ -442,27 +485,48 @@ function latestOf(l) {
   }).filter(Boolean).slice(0, max);
   const waiting = pick(l.waiting, 12, (m, x) => {
     if (m.mine || !open.has(m)) return null;
-    const n = needs().find((y) => y.m === m);
+    const n = needOf(m);
     const o = { id: m.ref, who: m.fromName.slice(0, 80), where: where(m.conv), said: said(m), gist: words(x.gist, 160, "a waiting gist"),
       why: n.why === "@you" ? "mention" : n.why === "direct" ? "direct" : "question", at: iso(m.at), urgent: x.urgent === true,
       reply: typeof x.reply === "string" ? x.reply.trim().slice(0, 700) : "" };
-    if (n.more) o.more = n.more;
+    // The other asks of this person here, unless they have rows of their own (counted below).
+    o.asks = n.all.filter((y) => y !== m).map((y) => y.ref);
+    const d = deferral(m);
+    if (d) {
+      o.youSaid = { id: d.ref, said: said(d), at: iso(d.at) };
+      const due = dueHint(d);
+      if (due) o.youSaid.due = due;
+      if (due && due <= ymd(new Date())) o.urgent = true;
+    }
     if (linkOf(m)) o.link = linkOf(m);
     return o;
   });
-  const promises = pick(l.promises, 10, (m, x) => {
+  for (const w of waiting) {
+    const more = w.asks.filter((ref) => !waiting.some((y) => y.id === ref)).length;
+    delete w.asks;
+    if (more) w.more = more;
+  }
+  // "I'll decide tomorrow" under a question shows on that question's row, not twice.
+  const deferredIds = new Set(waiting.filter((w) => w.youSaid).map((w) => w.youSaid.id));
+  const promises = pick((Array.isArray(l.promises) ? l.promises : []).filter((x) => !(x && deferredIds.has((msgFor(x.id) || {}).ref))), 10, (m, x) => {
     if (!m.mine || !PROMISE.test(m.text)) return null;
     const theirs = md.msgs.filter((y) => y.conv === m.conv && !y.mine && !y.system);
     const o = { id: m.ref, to: (m.conv.kind === "oneOnOne" ? m.conv.name : (theirs[theirs.length - 1] || {}).fromName || m.conv.name).slice(0, 80),
       where: where(m.conv), said: said(m), gist: words(x.gist, 160, "a promise gist"), at: iso(m.at) };
-    if (typeof x.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x.due)) o.due = x.due;
+    const due = typeof x.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x.due) ? x.due : dueHint(m);
+    if (due) o.due = due;
     if (linkOf(m)) o.link = linkOf(m);
     return o;
   });
   const decided = pick(l.decided, 8, (m, x) => {
     const gist = words(x.gist, 180, "a decided gist");
     if (!gist) return null;
+    // A decision belongs to whoever made or proposed it, not to the last "fine by me".
+    if (AGREE.test(m.text)) fail(`refused, ${m.ref} only agrees ("${m.text.slice(0, 40)}"): give the message that proposed or made the decision`);
+    const after = md.msgs.filter((y) => y.conv === m.conv && y.at > m.at && !y.system && y.fromId !== m.fromId && AGREE.test(y.text) && (m.conv.kind !== "channel" || y.root === m.root));
+    const agreed = [...new Set(after.map((y) => (y.mine ? "You" : y.fromName.slice(0, 60))))];
     const o = { id: m.ref, who: m.mine ? "You" : m.fromName.slice(0, 80), where: where(m.conv), gist, at: iso(m.at) };
+    if (agreed.length) o.agreed = agreed.slice(0, 5);
     if (linkOf(m)) o.link = linkOf(m);
     return o;
   });
@@ -477,10 +541,11 @@ function latestOf(l) {
     if (c.link) o.link = c.link;
     return o;
   }).sort((a, b) => (a.needs === "you" ? 0 : a.needs === "fyi" ? 1 : 2) - (b.needs === "you" ? 0 : b.needs === "fyi" ? 1 : 2) || b.count - a.count);
-  // Loud: the places that moved most and asked nothing of you.
-  const busy = new Set([...waiting, ...promises, ...decided].map((x) => x.where.name));
+  // Loud: the places that moved most and asked nothing of you. A decision or a notice in a busy
+  // place does not make the rest of its talk yours: that place can still be skipped.
+  const busy = new Set([...waiting, ...promises].map((x) => x.where.name));
   const loud = md.convs.map((c) => ({ c, n: countIn(c) }))
-    .filter((x) => x.n >= 5 && !busy.has(x.c.name) && !md.msgs.some((m) => m.conv === x.c && m.mentionsMe && md.inWindow(m)))
+    .filter((x) => x.n >= 5 && !busy.has(x.c.name) && !needs().some((y) => y.m.conv === x.c) && !md.msgs.some((m) => m.conv === x.c && m.mentionsMe && md.inWindow(m)))
     .sort((a, b) => b.n - a.n).slice(0, 6)
     .map((x) => ({ id: x.c.ref, name: String(x.c.name).slice(0, 90), kind: x.c.kind, count: x.n, ...(x.c.link ? { link: x.c.link } : {}) }));
   // The pulse: every message of the window in time buckets, and which bucket holds what waits for you.
@@ -615,11 +680,15 @@ if (cmd === "window") {
 } else if (cmd === "needs") {
   const list2 = needs();
   if (!list2.length) console.log("nobody seems to wait for you in the window");
-  for (const x of list2) console.log(`${listLine(x.m)} | why: ${x.why}${x.more ? ` | +${x.more} more from them` : ""} | in: ${x.m.conv.name}`);
+  for (const x of list2) {
+    console.log(`${listLine(x.m)} | why: ${x.why} | in: ${x.m.conv.name}`);
+    for (const y of x.all.slice(1)) console.log(`   also asked: ${listLine(y)}`);
+    if (x.deferred) console.log(`   you only said: ${x.deferred.ref} "${x.deferred.text.slice(0, 120)}"${dueHint(x.deferred) ? ` (due ${dueHint(x.deferred)})` : ""}: still open`);
+  }
 } else if (cmd === "mine") {
   const list2 = mine();
   if (!list2.length) console.log("nothing you wrote in the window sounds like a promise");
-  for (const m of list2) console.log(`${listLine(m)} | in: ${m.conv.name}`);
+  for (const m of list2) console.log(`${listLine(m)}${dueHint(m) ? ` | due: ${dueHint(m)}` : ""} | in: ${m.conv.name}`);
 } else if (cmd === "loud") {
   const md = model();
   const nd = needs();
