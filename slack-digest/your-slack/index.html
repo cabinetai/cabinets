@@ -12,6 +12,11 @@
   data/status.json with ok:false and why when it could not read Slack. An older catch-up may
   still carry waiting, decisions and promises lists; this page ignores them.
 
+  The first catch-up is told as it happens: the agent adds a line to data/reading.json (through
+  first-read.mjs) after each look at Slack, and the page shows them one by one, with one thing
+  the person can do right now (the gift). Without that file the page shows the plain
+  "Catching up" card, as every later catch-up does.
+
   How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
   routine, read and list files). In an older Cabinet it reads the same files over the
   page's own address and says to connect Slack from Integrations. It never changes
@@ -242,6 +247,53 @@
   @keyframes pulse { 50% { opacity: .45; } }
   .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
 
+  /* ── The first catch-up, told as it happens: one line for each thing found ── */
+  .reading {
+    display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; padding: 26px 28px;
+    border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fff, #fbfafc); box-shadow: var(--shadow-2);
+  }
+  .reading h2 { margin: 0; font-size: clamp(26px, 3vw, 34px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
+  .reading > p { margin: 0 0 12px; color: var(--ink-3); font-size: 15.5px; }
+  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .read-lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 16.5px; color: var(--ink-2); overflow-wrap: anywhere; animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; }
+  .read-lines li b { color: var(--ink); font-weight: 700; }
+  .read-lines li .icon { width: 20px; height: 20px; margin-top: 2px; color: var(--green); stroke-width: 2.2; }
+  .read-lines li.old { animation: none; }
+  .read-lines li.now { color: var(--ink-3); }
+  .pulse-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--plum-2); animation: read-pulse 1.2s ease-in-out infinite; }
+  .read-lines li.now .pulse-dot { margin: 7px 0 0 5px; }
+  .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 14px; }
+  @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  .read-strip { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 12px; background: var(--plum-tint); color: var(--ink-2); font-size: 14.5px; }
+  /* While the first catch-up reads, the reading is the whole page: no made-up example under it. */
+  .first-read #ribbon, .first-read #board, .first-read #ideas, .first-read #gift-keep { display: none !important; }
+  .read-page { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 22px; }
+  @media (min-width: 980px) {
+    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; }
+    .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* The gift: one thing the person can do now, found while the agent reads. */
+  .gift {
+    display: grid; align-content: center; gap: 14px; padding: 26px 28px; border: 1px solid var(--line);
+    border-top: 4px solid var(--plum); border-radius: 18px; background: var(--page); box-shadow: var(--shadow-2);
+  }
+  .gift .eyebrow { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
+  .gift .eyebrow .icon { width: 18px; height: 18px; }
+  .gift h3 { margin: 0; max-width: 30ch; font-size: clamp(24px, 2.6vw, 30px); line-height: 1.18; font-weight: 800; letter-spacing: -.02em; }
+  .gift h3 b { color: var(--plum); }
+  .gift h3 .n { white-space: nowrap; }
+  .gift .about { margin: 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--plum-tint); color: var(--ink-2); font-size: 16px; max-width: 60ch; }
+  .gift .why { margin: 0; color: var(--ink-2); font-size: 16px; max-width: 56ch; }
+  .gift .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .gift .asked { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: 700; color: var(--green-ink); }
+  .gift .asked .icon { color: var(--green); }
+  .gift .fine { margin: 0; color: var(--ink-3); font-size: 14px; }
+  .gift.arrive { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; }
+  .gift.looking { justify-items: start; border: 1px dashed var(--line-2); background: var(--panel); box-shadow: none; }
+  .gift.looking h3 { color: var(--ink-3); font-weight: 700; }
+  @media (max-width: 979px) { .gift.looking { display: none; } }
+
   /* ── Narrow screens ──────────────────────────────────────────────────── */
   @media (max-width: 1100px) {
     .idea-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -250,6 +302,8 @@
     .board, .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "ask"; }
   }
   @media (max-width: 560px) {
+    .reading, .gift { padding: 22px 18px; }
+    .gift .acts .btn { flex: 1 1 auto; }
     .bar-in { padding: 12px 16px; }
     .wrap { padding: 18px 16px 32px; }
     .main { gap: 20px; }
@@ -311,6 +365,7 @@
 <div class="wrap">
   <main class="main">
     <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your Slack...</p></section>
+    <div id="gift-keep" role="region" aria-label="One thing for you" hidden></div>
     <div id="ribbon"></div>
     <section class="board" id="board" aria-label="Your Slack, by what needs you">
       <div class="b-main" id="board-main"></div>
@@ -408,7 +463,15 @@
     runNote: "",
     open: {},
     showQuiet: false,
-    animate: true
+    animate: true,
+    /** The first catch-up's lines as data/reading.json has them, and how many are on screen. */
+    reading: null,
+    sawReading: false,
+    readShown: 0,
+    readStartedAt: null,
+    giftAsked: null,
+    giftShownAt: null,
+    giftDone: null
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -526,11 +589,13 @@
     loading = Promise.all([
       maybe(readJson(which)).catch(function () { return "broken"; }),
       quiet(maybe(readJson("data/status.json"))),
-      listDays()
+      listDays(),
+      quiet(maybe(readJson("data/reading.json")))
     ]).then(function (got) {
       var latest = got[0];
       state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
       state.days = got[2];
+      setReading(cleanReading(got[3]));
       if (usable(latest) && latest.example !== true) {
         state.data = latest;
         state.example = false;
@@ -676,6 +741,20 @@
     });
   }
 
+  // While the first catch-up reads, its lines are looked at every few seconds: a file change
+  // says so too, but a missed one never leaves the reading stuck.
+  setInterval(function () {
+    if (!state.running && !readingNow()) return;
+    quiet(maybe(readJson("data/reading.json"))).then(function (d) {
+      var r = cleanReading(d);
+      if (!r || (state.reading && r.lines.join("\n") === state.reading.lines.join("\n") && r.done === state.reading.done &&
+        (r.gift && r.gift.at) === (state.reading.gift && state.reading.gift.at))) return;
+      setReading(r);
+      paintHero();
+      if (r.done) load();
+    });
+  }, 2500);
+
   function runNow() {
     if (!V2 || state.running) return;
     state.running = true;
@@ -730,6 +809,149 @@
     return /^https:\/\/[a-z0-9-]+\.slack\.com\//i.test(url) && url.length < 400 ? url : "";
   }
 
+  // ── The first catch-up, told as it happens ─────────────────────────────
+  // On the first catch-up the agent adds a line to data/reading.json after each look at Slack
+  // (first-read.mjs push), and the page shows them as they come. Later catch-ups write no
+  // reading, and a missing file leaves the page as it always was.
+
+  var READ_FRESH_MIN = 20;
+  // Lines that arrive together are still told one by one, so the reading never jumps to the
+  // page with lines nobody saw. Only once this page has shown the reading.
+  var REVEAL_MS = 1200;
+
+  function cleanReading(d) {
+    if (!d || typeof d !== "object" || !Array.isArray(d.lines)) return null;
+    var lines = d.lines.map(function (l) { return text(typeof l === "string" ? l : l && l.text, 200); }).filter(Boolean).slice(-14);
+    return { startedAt: d.startedAt, done: d.done === true, lines: lines, gift: cleanGift(d.gift) };
+  }
+  /** A new read (another startedAt) starts its lines from the first one. */
+  function setReading(r) {
+    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; }
+    state.reading = r;
+  }
+  /** Lines from a read that started over 20 minutes ago are not this one's. */
+  function freshLines() {
+    var at = state.reading ? writtenAt(state.reading.startedAt) : null;
+    return at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN ? state.reading.lines : [];
+  }
+  /** The agent is still reading: the file says so, it is fresh, and the run is on. */
+  function readingNow() {
+    var r = state.reading;
+    // A run that ended without saying done is not still reading.
+    if (!r || r.done || !state.running) return false;
+    var at = writtenAt(r.startedAt);
+    return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
+  }
+  // Once done, one more beat on "Putting your page together" before the page.
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done ? 1 : 0)); }
+  /** The reading fills the page: the first catch-up is on and has started telling. */
+  function showReading() { return (state.running && state.example && readingNow()) || revealing(); }
+  setInterval(function () {
+    if (!revealing()) return;
+    state.readShown++;
+    if (revealing()) paintHero(); else paint();
+  }, REVEAL_MS);
+
+  /** A line may mark its finding in **bold**; everything else is plain text. */
+  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  function readingHtml() {
+    // The last lines come with done: keep them on screen until the page itself is ready.
+    var done = !!(state.reading && state.reading.done);
+    var all = freshLines();
+    state.sawReading = true;
+    var lines = all.slice(0, Math.min(state.readShown, all.length));
+    done = done && lines.length === all.length;
+    var gift = giftNow();
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your Slack</h2>' +
+      "<p>Your first catch-up. A few minutes. You don’t need to do anything.</p>" +
+      '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + '<span dir="auto">' + lineHtml(l) + "</span></li>"; }).join("") +
+      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Slack") + "...</span></li></ul>" +
+      '<p class="fine">Only reads. Nothing is posted, and it all stays in your cabinet.</p></div>' +
+      (gift ? giftHtml(gift, "reading")
+        : done ? ""
+        : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing I can take off your plate right now.</h3></section>') +
+      "</div>";
+  }
+
+  // ── The gift ───────────────────────────────────────────────────────────
+  // While it reads, the agent finds one thing the person can do now (first-read.mjs gift):
+  // the question that has waited longest in a channel they can write in, or, when nobody is
+  // waiting, an offer to find what they promised. A press asks the agent in the chat beside
+  // the page for a draft; nothing is posted from here.
+  var GIFT_KEY = "slack-digest-gift-done@1";
+  var GIFT_KEEP_DAYS = 3;
+  function cleanGift(g) {
+    if (!g || typeof g !== "object" || !writtenAt(g.at)) return null;
+    var kind = g.kind === "waiting" || g.kind === "calm" ? g.kind : null;
+    if (kind === "calm") return { kind: kind, at: g.at };
+    var gift = { kind: kind, at: g.at, who: text(g.who, 80), channel: text(g.channel, 80), gist: text(g.gist, 140),
+      since: writtenAt(g.since), ts: text(g.ts, 30), channelId: text(g.channelId, 30), link: slackLink({ url: g.link }) };
+    if (!kind || (kind === "waiting" && (!gift.who || !/^#/.test(gift.channel) || !gift.since))) return null;
+    return gift;
+  }
+  function giftNow() {
+    var at = state.reading ? writtenAt(state.reading.startedAt) : null;
+    return at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN ? state.reading.gift : null;
+  }
+  /** "2 days", "yesterday", "today": how long, from the message's own time. */
+  function waitedWords(since) {
+    var days = daysBetween(since, new Date());
+    if (days <= 0) return { b: "today", plain: true };
+    if (days === 1) return { b: "yesterday", plain: true };
+    return { b: days + " days", plain: false };
+  }
+  function giftParts(g) {
+    if (g.kind === "waiting") {
+      var who = "<b>" + esc(g.who) + "</b>";
+      var where = "<b>" + esc(g.channel) + "</b>";
+      var w = waitedWords(g.since);
+      var msg = g.ts && g.channelId ? " (Slack message " + g.ts + " in channel " + g.channelId + ")" : "";
+      return {
+        head: w.plain ? who + " asked in " + where + " " + w.b + " and is still waiting for an answer."
+          : who + " has waited <b class=\"n\">" + w.b + "</b> for an answer in " + where + ".",
+        button: "Write my reply", icon: "i-reply",
+        ask: "Write my reply to " + g.who + " in " + g.channel + msg + ". Read the whole thread first. Write it the way I write in Slack, short, with [brackets] around anything I need to decide, like a date or a name. Show it to me here as a draft I can copy. Never post it in Slack."
+      };
+    }
+    return {
+      head: "Nobody is waiting on you in Slack. A good place to be.",
+      why: "Want me to look for anything you said you would do and have not done yet?",
+      button: "Find what I promised", icon: "i-list",
+      ask: "Look through my Slack messages of the last two weeks for anything I said I would do and have not done yet, or a question someone asked me that I never answered. Tell me in a few short lines, newest first, and offer to draft what is needed. Do not post anything in Slack."
+    };
+  }
+  function giftHtml(g, where) {
+    var p = giftParts(g);
+    var asked = state.giftAsked === g.at;
+    var arrive = where === "reading" && state.giftShownAt !== g.at;
+    if (where === "reading") state.giftShownAt = g.at;
+    return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
+      '<p class="eyebrow">' + icon("i-reply") + (where === "reading" ? "While I read, I found this for you" : "Found in your first catch-up") + "</p>" +
+      "<h3>" + p.head + "</h3>" +
+      (g.gist ? '<p class="about" dir="auto">' + esc(g.gist) + "</p>" : "") +
+      (p.why ? '<p class="why">' + esc(p.why) + "</p>" : "") +
+      (asked
+        ? '<p class="asked">' + icon("i-check") + "Asked. The draft is coming in the chat.</p>"
+        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do">' + icon(p.icon) + esc(p.button) + "</button>" : "") +
+          (g.link ? '<a class="btn" href="' + esc(g.link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Slack</a>" : "") +
+          (where === "keep" ? '<button type="button" class="btn quiet" data-act="gift-skip">Not now</button>' : "") + "</div>") +
+      '<p class="fine">Nothing is posted. You see every word first.</p></section>';
+  }
+  /** After the reading: the gift stays on top for a few days, until used or put away. */
+  function paintGiftKeep() {
+    var el = $("gift-keep");
+    var g = state.reading && state.reading.gift;
+    var at = g ? writtenAt(g.at) : null;
+    var show = !!(g && at && state.giftDone !== g.at && (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY_MS &&
+      state.loaded && !state.example && !state.day && !readingNow() && !revealing());
+    el.hidden = !show;
+    el.innerHTML = show ? giftHtml(g, "keep") : "";
+  }
+  function giftDone(g) {
+    state.giftDone = g.at;
+    try { localStorage.setItem(GIFT_KEY, g.at); } catch (e) { /* this browser only */ }
+  }
+
   // ── Painting ───────────────────────────────────────────────────────────
 
   function channels() {
@@ -748,6 +970,7 @@
   function paint() {
     paintStatus();
     paintHero();
+    paintGiftKeep();
     paintRibbon();
     paintBoard();
     paintIdeas();
@@ -835,6 +1058,12 @@
           : '<p class="fine"><b>Ask the person who owns this cabinet to connect Slack.</b></p>') +
         (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
         '<ul class="steps"><li>' + icon("i-check") + "Only reads, never posts on its own</li><li>" + icon("i-check") + "Every morning at 9</li><li>" + icon("i-check") + "Below: an example from a made-up team</li></ul>");
+    } else if (showReading()) {
+      html = readingHtml();
+    } else if (readingNow() && !state.example) {
+      // The page is there; the agent is still finishing. Its latest line, quietly.
+      var last = state.reading.lines[state.reading.lines.length - 1];
+      html = '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still reading your Slack' + (last ? ": " + lineHtml(last) : "...") + "</span></div>";
     } else if (state.running && (state.example || !state.data)) {
       html = cardHero(null, "Catching up on your Slack...",
         '<p class="lead">This takes a few minutes. Stay here or come back later: the page fills in by itself.</p>', true);
@@ -856,6 +1085,7 @@
       html = dataHero();
     }
     hero.innerHTML = html + (told ? "" : failureHtml() || partialHtml());
+    document.documentElement.classList.toggle("first-read", showReading());
   }
 
   /** A catch-up that worked but could not read everything says what is missing, quietly. */
@@ -1076,6 +1306,17 @@
     } else if (act === "quiet") {
       state.showQuiet = !state.showQuiet;
       paintBoard();
+    } else if (act === "gift-do") {
+      var gift = state.reading && state.reading.gift;
+      if (gift) {
+        ask(giftParts(gift).ask);
+        state.giftAsked = gift.at;
+        giftDone(gift);
+        if (showReading()) paintHero(); else paintGiftKeep();
+      }
+    } else if (act === "gift-skip") {
+      if (state.reading && state.reading.gift) giftDone(state.reading.gift);
+      paintGiftKeep();
     } else if (act === "connect") connect();
     else if (act === "run") runNow();
     else if (act === "ask") ask(el.getAttribute("data-q"));
@@ -1106,6 +1347,7 @@
   // ── Start ──────────────────────────────────────────────────────────────
 
   paintQuestions();
+  try { state.giftDone = localStorage.getItem(GIFT_KEY); } catch (e) { /* private window: shown again */ }
   paint();
 
   if (V2) {

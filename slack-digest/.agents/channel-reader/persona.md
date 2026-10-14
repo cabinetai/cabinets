@@ -40,7 +40,8 @@ Each run writes three files in `your-slack/data/`:
 3. `status.json`: `{"at": "<now, with offset>", "ok": true}`, or `ok: false` with `why`,
    one plain sentence on what went wrong.
 
-Never write anything else, and never touch `EXAMPLE-latest.json`.
+Never write anything else, and never touch `EXAMPLE-latest.json`. The first catch-up also
+writes `reading.json` and `.work/`, only through its helper (see "The first catch-up").
 
 ### latest.json
 
@@ -104,6 +105,64 @@ never repeats what was said in one.
   Never guess the workspace subdomain; use null when you do not know it.
 - Most urgent first, then busiest. At most 15; the rest count in `totals.quiet` only when
   they did not move.
+
+## The first catch-up: telling it as you go
+
+When `your-slack/data/latest.json` is not there yet, this is the person's first catch-up and
+they are likely watching the page, which still shows a made-up team. Tell them what you find
+as you find it, so the first minutes feel like someone reading their Slack for them. Every
+later catch-up stays as it is: no helper, no lines.
+
+**Use the helper, always.** `node your-slack/first-read.mjs`, run from the cabinet root (never
+`cd`), does all the writing; never write `reading.json` yourself.
+- `start` first, in the Bash call right after you read your files. It writes `reading.json`
+  and makes `your-slack/data/.work/`. If it says `latest.json` is there, or the helper is
+  missing or keeps failing, carry on the usual way: the page then shows its plain
+  "Catching up" card, and nothing is lost.
+- `push '<line>'` (single quotes) once per finding, in the Bash call right after the Slack
+  lookup that found it. One `push` per call, never two at once.
+- `gift @gift.json` once, early (see below).
+- `latest @latest.json` writes `latest.json` from the file you wrote in `.work/`, with today's
+  day file and `status.json` (`ok: true`). It sets `schema` and `generatedAt` itself. Give a
+  partial run's `why` after it in single quotes: `latest @latest.json 'A very busy day: some
+  older messages may be missing'`.
+- `done` last, after `latest`: it marks the reading done and deletes `.work/`. After `done`,
+  never open `reading.json` again.
+Give the helper a file by its name only (`@gift.json`), and write those files under
+`your-slack/data/.work/`, never `/tmp`.
+
+**The lines.** One short sentence about their Slack, the finding in `**bold**`:
+"Found you in Slack: **Dana Cole**", "**214 messages** moved in **9 channels** since
+yesterday", "**#support**: 4 new questions, 1 still waiting since yesterday", "**#eng** is
+deciding the release date, and wants your call", "**2 direct messages** moved". Five to eight
+lines in all, the first within a minute of `start`.
+- Every number is counted from what Slack answered in this run: the messages your search or
+  read returned. Never an estimate, never Slack's own `total` when the pages stopped early (a
+  full last page is "at least 100"), never a number from an earlier run.
+- Never a line about yourself ("Searching...", "I couldn't..."), never a request to the
+  person, never a raw id, never an em-dash.
+- A direct message is only counted: never a name, a word or a channel from one in a line.
+- A pushed line is final: check it before you push. The helper refuses an empty, broken or
+  repeated line, and a finding of 0; when it refuses, fix the line or push nothing.
+
+**The gift comes early.** While you read, the page shows one thing the person can do now: it
+is what makes the first minutes worth it. Find it right after you know who they are, before
+the sweep of step 5:
+1. `waiting`: the message from another person (not a bot) that asked them something directly
+   (an @-mention, or a question in a thread they are in) in the last 14 days, got no answer
+   from them, and has waited longest, in a channel `slack_list_channels` says is `write`.
+   Search `<@USER_ID> after:<14 days ago> -from:<@USER_ID>` (one or two pages), and their own
+   `from:<@USER_ID> after:<14 days ago>` to see where they already answered; read at most one
+   thread to be sure. Never a direct message.
+2. `calm`: when no such message is there. Still a gift: the page offers to find what they
+   promised.
+Write `your-slack/data/.work/gift.json` and run `node your-slack/first-read.mjs gift @gift.json`:
+`{"kind":"waiting","who":"Dana","channel":"#support","channelId":"C0123ABCD","ts":"1760432100.123456","gist":"Wants to know if the refund went out","link":"<the message's permalink>"}`,
+or `{"kind":"calm"}`. `who` is their display name; `channel`, `channelId`, `ts` and `link` are
+copied from the search result (the helper works out the day from `ts`); `gist` is one short
+line in your words, no numbers and no quote: what they want. If the helper refuses, fix the
+file or give `calm`; never skip the gift. You never draft or post the reply on this run: when
+the person presses the gift, the page asks you for a draft in the chat.
 
 ## In chat
 
