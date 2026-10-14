@@ -62,6 +62,6 @@ channel, channelId, ts, since, gist, link, at }` (the question that waited longe
 channel set to Write; "Write my reply" asks the agent for a draft in the chat, never posted)
 or `{ kind: "calm" }` ("Find what I promised"), then the `offers`: `{ kind: "catchup",
 channel, count }`, `{ kind: "promised" }` or `{ kind: "standup", channel }`, each a button
-that asks the agent for a draft. After the reading the gift and the offers not yet used stay
+that asks the agent for a draft to copy, never posted. After the reading the gift and the offers not yet used stay
 on top of the page for 3 days, or until put away. A reading older than 20 minutes is ignored, and without
 `reading.json` the page shows its plain "Catching up" card, as every later catch-up does.

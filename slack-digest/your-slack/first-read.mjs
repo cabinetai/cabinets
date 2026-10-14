@@ -192,7 +192,7 @@ function offerOf(o) {
   const kind = String(o.kind || "");
   if (!OFFER_KINDS.includes(kind)) fail(`the offer kind is ${OFFER_KINDS.join(", ")}, not "${kind}"`);
   const out = { kind };
-  // Catch me up on the busiest channel; post a standup only where they set Write.
+  // Catch me up on the busiest channel; draft a standup to copy, never posted.
   if (kind === "catchup" || kind === "standup") out.channel = channelOf(o.channel, `the ${kind} offer`);
   if (kind === "catchup" && o.count !== undefined && o.count !== "" && o.count !== null) {
     const n = Number(o.count);
