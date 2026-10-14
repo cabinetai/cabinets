@@ -379,7 +379,7 @@ function model() {
       if (!s.name) { try { s.name = decodeURIComponent(new URL(it.webUrl).pathname.split("/").filter(Boolean)[1] || ""); } catch { /* no name */ } }
       const by = personOf(it.lastModifiedBy), made = personOf(it.createdBy);
       all.push({ key, id: it.id, driveId: pr.driveId || "", parentId: pr.id || "", name: it.name, ext: extOf(it.name), site: s, at, by, made,
-        mine: isMe(by), madeByMe: isMe(made), link: SAFE_LINK.test(it.webUrl || "") ? it.webUrl : "", webUrl: it.webUrl || "", size: it.size || 0 });
+        mine: isMe(by), madeByMe: isMe(made), created: it.createdDateTime ? new Date(it.createdDateTime) : null, link: SAFE_LINK.test(it.webUrl || "") ? it.webUrl : "", webUrl: it.webUrl || "", size: it.size || 0 });
     }
   }
   all.sort((a, b) => b.at - a.at);
@@ -792,8 +792,10 @@ function calmIfNoGift() {
 }
 
 function fileLine(f) {
-  const flags = [f.mine ? "YOU saved it" : "", f.madeByMe ? "you made it" : "", f.youBefore ? "you saved it before" : "", f.versions > 1 ? `${f.versions} saves in the window` : ""].filter(Boolean).join(", ");
-  return `${f.ref} | ${ymd(f.at).slice(5)} ${hhmm(f.at)} | ${f.site.ref} | ${f.by.name || "?"} | ${f.name}${f.folder ? " | in " + f.folder : ""}${flags ? " | " + flags : ""}`;
+  // New in the window and made by someone else: read it with words, it may ask them something.
+  const fresh = !f.madeByMe && f.created && f.created >= model().from;
+  const flags = [f.mine ? "YOU saved it" : "", f.madeByMe ? "you made it" : "", fresh ? `NEW, made by ${f.made.name || f.by.name || "?"}` : "", f.youBefore ? "you saved it before" : "", f.versions > 1 ? `${f.versions} saves in the window` : ""].filter(Boolean).join(", ");
+  return `${f.ref} | ${ymd(f.at).slice(5)} ${hhmm(f.at)} | ${f.site.ref} | ${f.by.name || "?"} | ${f.name}${f.folder ? " | in " + f.folder : ""}${flags ? " | " + flags : ""}${fresh && f.driveId ? ` | words ${f.driveId} ${f.id}` : ""}`;
 }
 function siteLine(s) { return `${s.ref} | ${s.name}${s.followed ? " (you follow it)" : ""} | ${countIn(s)} files changed in the window`; }
 

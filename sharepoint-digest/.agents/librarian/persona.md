@@ -93,12 +93,18 @@ only your own short words, by ref, where they help:
   ("Moved the go-live from the 3rd to the 10th", "Added a slide for you
   to fill in"). Lead with what asks something of them. The helper refuses a changed file
   without one; a number may stand only when its changed lines hold it.
+  - Give the numbers and dates the lines show: "from 8 to 9 days", "to October 22", never
+    "went up" or "moved later" when the line says by how much.
+  - Each file's gist is what changed *in that file*. Something open elsewhere (a decision,
+    a row) belongs on its own row, not repeated on every file that mentions it.
 - **rows**: a `gist` when a change or a file bears on the row ("Daniel's estimate just went
   up, and this is still blocked on you"), or when the row's own words say more than its title.
 - **twins**: a `gist` that says which one is real and why, from the files' words when a
   `changes` or `words` shows it ("FINAL holds the price your manager approved").
-- New files by others that name them or ask them something (a question for them in its
-  words, from `words`) go in the site's `gist` by name.
+- **New files**: `list` shows each site's files; a file someone else made in the window is
+  new, not updated. Read the new ones whose names touch their work with `words`. One that
+  asks them something or names them goes in the site's `gist` by name ("Noa's new
+  Supplier terms asks you to confirm the date"), and on the row it bears on, if there is one.
 - **sites**: for each site ref that moved, `needs` (`fyi` when something there is worth a look
   for them, else `none`; the helper marks `you` itself where their files are) and a short
   `gist` of what moved, from the file and folder names.
