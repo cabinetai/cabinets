@@ -4,10 +4,16 @@
 //   node <app>/first-read.mjs start                 new data/reading.json and data/.work/
 //   node <app>/first-read.mjs push '<line>'         add one line (single quotes: "$" stays "$"),
 //                                                   right after the Slack lookup that found it
+//   node <app>/first-read.mjs recent @<file>        the latest messages, shown at once, very early:
+//                                                   a list of up to 5 {"who","channel","ts","gist","link"},
+//                                                   copied from a Slack answer (channels only, never a DM)
 //   node <app>/first-read.mjs gift @<file>          the one thing for the person, shown while you read:
 //                                                   {"kind":"waiting","who","channel","channelId","ts",
 //                                                   "gist","link"} or {"kind":"calm"}; who, channel,
 //                                                   channelId, ts and link copied from a Slack answer
+//   node <app>/first-read.mjs offer @<file>         one more thing they can do now, under the gift, at
+//                                                   most 4: {"kind":"catchup","channel","count"},
+//                                                   {"kind":"promised"} or {"kind":"standup","channel"}
 //   node <app>/first-read.mjs latest @<file> ['why'] write data/latest.json, today's day file and
 //                                                   data/status.json from your file in data/.work/
 //                                                   (generatedAt, schema and example set here)
@@ -20,7 +26,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCHEMA = "slack-digest";
-const LATEST_SCHEMA = "slack-digest/your-slack@1";
+const LATEST_SCHEMA = "slack-digest/your-slack@2";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(here, "data");
 const workDir = path.join(dataDir, ".work");
@@ -87,44 +93,111 @@ function checkLine(line) {
   if (nums.length && nums.every((x) => Number(x.replace(/,/g, "")) === 0)) fail("refused, a 0 is not a finding: say what is there, or leave the line out");
 }
 
+// ── What the page shows beside the lines: copied from Slack's answers, checked here ──
+/** A person's Slack display name, never an id or an address. */
+function nameOf(value, what) {
+  const who = String(value || "").trim();
+  if (!who) fail(`${what} needs who: the person's Slack display name`);
+  if (who.length > 80) fail(`${what}: who is longer than 80 characters`);
+  if (/^[UWB][A-Z0-9]{6,}$|<@|@.+\./.test(who)) fail(`refused, ${what}: who is an id or an address. Give their Slack display name`);
+  checkWords(who, what);
+  return who;
+}
+/** A channel's name as Slack shows it: "#support". A direct message is never shown here. */
+function channelOf(value, what) {
+  const channel = String(value || "").trim();
+  if (!/^#[^\s#]{1,80}$/.test(channel)) fail(`${what}: channel is the channel's name as Slack shows it, like #support (never a direct message)`);
+  return channel;
+}
+/** When a message was written, from its own ts, never a typed date: { ts, at }. */
+function tsOf(value, days, what) {
+  const ts = String(value || "").trim();
+  if (!/^\d{9,11}(\.\d{1,6})?$/.test(ts)) fail(`${what}: ts is the message's ts as Slack wrote it, like 1760432100.123456`);
+  const at = new Date(Number(ts) * 1000);
+  if (at.getTime() > Date.now() + 5 * 60000 || at.getTime() < Date.now() - days * DAY) fail(`refused, ${what} is not from the last ${days} days`);
+  return { ts, at: iso(at) };
+}
+function linkOf(value, what) {
+  if (value === undefined || value === "" || value === null) return "";
+  const link = String(value).trim();
+  if (!/^https:\/\/[a-z0-9-]+\.slack\.com\//i.test(link) || link.length > 400) fail(`${what}: link is the message's permalink on slack.com, or leave it out`);
+  return link;
+}
+/** Your own words for the page: no raw ids, no em-dash, nothing broken. */
+function checkWords(text, what) {
+  if (/\u2014/.test(text)) fail(`refused, an em-dash in ${what}: use a comma or a period`);
+  if (/<@?[UWBC][A-Z0-9]{6,}>|\b[UW][A-Z0-9]{8,}\b/.test(text)) fail(`refused, a raw Slack id in ${what}: write the name`);
+  if (/\bundefined\b|\bNaN\b|\bnull\b|\[object/.test(text)) fail(`refused, ${what} is broken: ${text}`);
+}
+/** One line in your words, at most `max` characters; without numbers when `noNumbers`. */
+function gistOf(value, max, noNumbers, what) {
+  const gist = String(value || "").replace(/\s+/g, " ").trim();
+  if (!gist) return "";
+  if (gist.length > max) fail(`${what}: the gist is longer than ${max} characters`);
+  if (noNumbers && /\d/.test(gist)) fail(`refused, a number in ${what}: say what they want, without numbers`);
+  checkWords(gist, what);
+  return gist;
+}
+
+// ── The latest messages: a few real ones, so the person sees their Slack within seconds ──
+function recentOf(list) {
+  if (!Array.isArray(list) || !list.length) fail("the latest messages are a JSON list of 1 to 5 messages");
+  if (list.length > 5) fail("at most 5 latest messages");
+  const seen = new Set();
+  return list.map((m, i) => {
+    const what = `message ${i + 1}`;
+    if (!m || typeof m !== "object" || Array.isArray(m)) fail(`${what} must be an object`);
+    const t = tsOf(m.ts, 7, what);
+    const out = { who: nameOf(m.who, what), channel: channelOf(m.channel, what), ts: t.ts, at: t.at };
+    const gist = gistOf(m.gist, 120, false, what);
+    if (!gist) fail(`${what} needs a gist: what it says, in a few of your own words`);
+    out.gist = gist;
+    const link = linkOf(m.link, what);
+    if (link) out.link = link;
+    if (seen.has(out.ts + out.channel)) fail(`${what} is there twice`);
+    seen.add(out.ts + out.channel);
+    return out;
+  }).sort((a, b) => Number(b.ts) - Number(a.ts));
+}
+
 // ── The gift: one thing the person can act on now, shown while the reading goes on ──
 function giftOf(g) {
   if (!g || typeof g !== "object" || Array.isArray(g)) fail("the gift must be an object");
   const kind = String(g.kind || "");
   if (kind === "calm") return { kind };
   if (kind !== "waiting") fail(`the gift kind is waiting or calm, not "${kind}"`);
-  const out = { kind };
-  const who = String(g.who || "").trim();
-  if (!who) fail("a waiting gift needs who: the person's Slack display name");
-  if (who.length > 80) fail("who is longer than 80 characters");
-  if (/^[UW][A-Z0-9]{6,}$|<@|@.+\./.test(who)) fail("refused, who is an id or an address: give their Slack display name");
-  out.who = who;
-  const channel = String(g.channel || "").trim();
-  if (!/^#[^\s#]{1,80}$/.test(channel)) fail("channel is the channel's name as Slack shows it, like #support (a direct message is never the gift)");
-  out.channel = channel;
+  const out = { kind, who: nameOf(g.who, "the gift"), channel: channelOf(g.channel, "the gift") };
   if (g.channelId !== undefined && g.channelId !== "") {
     const id = String(g.channelId).trim();
     if (!/^[CG][A-Z0-9]{6,}$/.test(id)) fail("channelId is Slack's channel id, like C0123ABCD");
     out.channelId = id;
   }
   // When they asked comes from the message's own ts, never a typed date.
-  const ts = String(g.ts || "").trim();
-  if (!/^\d{9,11}(\.\d{1,6})?$/.test(ts)) fail("ts is the message's ts as Slack wrote it, like 1760432100.123456");
-  const at = new Date(Number(ts) * 1000);
-  if (at.getTime() > Date.now() + 5 * 60000 || at.getTime() < Date.now() - 14 * DAY) fail("refused, that message is not from the last 14 days");
-  out.ts = ts;
-  out.since = iso(at);
-  if (g.link !== undefined && g.link !== "" && g.link !== null) {
-    const link = String(g.link).trim();
-    if (!/^https:\/\/[a-z0-9-]+\.slack\.com\//i.test(link) || link.length > 400) fail("link is the message's permalink on slack.com, or leave it out");
-    out.link = link;
-  }
+  const t = tsOf(g.ts, 14, "the gift");
+  out.ts = t.ts;
+  out.since = t.at;
+  const link = linkOf(g.link, "the gift");
+  if (link) out.link = link;
   // The gist is one line in your words: what they want. No numbers, no quote of the message.
-  if (g.gist !== undefined && g.gist !== "") {
-    const gist = String(g.gist).trim();
-    if (gist.length > 140) fail("the gist is longer than 140 characters");
-    if (/\d/.test(gist)) fail("refused, a number in the gist: say what they want, without numbers");
-    out.gist = gist;
+  const gist = gistOf(g.gist, 140, true, "the gift");
+  if (gist) out.gist = gist;
+  return out;
+}
+
+// ── More things to do now, under the gift: each one a draft in the chat, never sent ──
+const OFFER_KINDS = ["catchup", "promised", "standup"];
+const MAX_OFFERS = 4;
+function offerOf(o) {
+  if (!o || typeof o !== "object" || Array.isArray(o)) fail("the offer must be an object");
+  const kind = String(o.kind || "");
+  if (!OFFER_KINDS.includes(kind)) fail(`the offer kind is ${OFFER_KINDS.join(", ")}, not "${kind}"`);
+  const out = { kind };
+  // Catch me up on the busiest channel; post a standup only where they set Write.
+  if (kind === "catchup" || kind === "standup") out.channel = channelOf(o.channel, `the ${kind} offer`);
+  if (kind === "catchup" && o.count !== undefined && o.count !== "" && o.count !== null) {
+    const n = Number(o.count);
+    if (!Number.isInteger(n) || n < 1 || n > 100000) fail("count is how many messages that channel had, counted from what Slack answered");
+    out.count = n;
   }
   return out;
 }
@@ -134,6 +207,9 @@ function latestOf(l) {
   if (!l || typeof l !== "object" || Array.isArray(l)) fail("latest.json must be an object");
   if (!Array.isArray(l.channels)) fail("latest.json needs channels (an empty list on a quiet day)");
   if (typeof l.headline !== "string" || !l.headline.trim()) fail("latest.json needs a headline (\"Here is what moved in your Slack\" or \"Your Slack was quiet\")");
+  for (const key of ["waiting", "recent", "decisions", "files", "promises"]) {
+    if (l[key] !== undefined && !Array.isArray(l[key])) fail(`latest.json: ${key} is a list (leave it out, or [] when there is none)`);
+  }
   l.channels.forEach((c, i) => {
     if (!c || typeof c !== "object" || typeof c.name !== "string" || !c.name.trim()) fail(`channels[${i}] needs a name`);
     if (!URGENCY.includes(c.urgency)) fail(`channels[${i}].urgency is High, Medium or Low, not "${c.urgency}"`);
@@ -166,6 +242,27 @@ if (cmd === "start") {
   r.lines.push(line);
   writeJson(readingFile, r);
   console.log(`line ${r.lines.length}: ${line}`);
+} else if (cmd === "recent") {
+  const recent = recentOf(workJson(args.join(" ").trim(), "the latest messages"));
+  lockReading();
+  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  if (r.done) fail("the reading is done: the latest messages come while you read");
+  if (r.recent) fail("the latest messages are there already: once is enough");
+  r.recent = recent;
+  writeJson(readingFile, r);
+  console.log(`latest messages: ${recent.length}`);
+} else if (cmd === "offer") {
+  const offer = offerOf(workJson(args.join(" ").trim(), "the offer"));
+  lockReading();
+  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  if (r.done) fail("the reading is done: offers come while you read");
+  const offers = Array.isArray(r.offers) ? r.offers : [];
+  if (offers.length >= MAX_OFFERS) fail(`there are ${MAX_OFFERS} offers already: that is enough`);
+  if (offers.some((x) => x.kind === offer.kind && (x.channel || "") === (offer.channel || ""))) fail("that offer is there already");
+  offers.push({ ...offer, at: iso(new Date()) });
+  r.offers = offers;
+  writeJson(readingFile, r);
+  console.log("offer: " + JSON.stringify(offer));
 } else if (cmd === "gift") {
   const gift = giftOf(workJson(args.join(" ").trim(), "the gift"));
   lockReading();
@@ -197,5 +294,5 @@ if (cmd === "start") {
   try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("data/.work/ is busy: delete it in your next call"); }
   console.log("reading done");
 } else {
-  fail("use start, push, gift, latest or done");
+  fail("use start, push, recent, gift, offer, latest or done");
 }

@@ -41,13 +41,20 @@ Each run writes three files in `your-slack/data/`:
    one plain sentence on what went wrong.
 
 Never write anything else, and never touch `EXAMPLE-latest.json`. The first catch-up also
-writes `reading.json` and `.work/`, only through its helper (see "The first catch-up").
+writes `reading.json` and `.work/`, only through its helper (see "The first catch-up"). In
+chat you may write `layout-change.json` (see "Changing the boxes on the page").
+
+The page is a grid of boxes each person arranges for themselves. Every list below feeds a
+box, so write each one every run, even on a quiet day (an empty list is `[]`): Waiting on
+you, Catch up by channel, Latest messages, Decisions made, Files shared, You promised, and the
+standup and one-channel idea boxes. Everything comes from the searches and reads the run
+already makes; no list needs a lookup of its own except the files.
 
 ### latest.json
 
 ```
 {
-  "schema": "slack-digest/your-slack@1",
+  "schema": "slack-digest/your-slack@2",
   "generatedAt": "<now, with offset>",
   "since": "<the start of the window you read, with offset>",
   "workspace": "<the workspace's name as Slack shows it>",
@@ -56,6 +63,13 @@ writes `reading.json` and `.work/`, only through its helper (see "The first catc
   "totals": { "messages": 214, "channels": 9, "quiet": 4, "mentions": 3, "dms": 2 },
   "quietChannels": ["#general", "#random", "#hiring", "#office"],
   "channels": [ ... ],
+  "waiting": [ ... ],
+  "recent": [ ... ],
+  "decisions": [ ... ],
+  "files": [ ... ],
+  "promises": [ ... ],
+  "standup": { "done": [ ... ], "next": [ ... ], "blocked": [ ... ] },
+  "spotlight": { "id": "c1", "name": "#eng", "lines": [ ... ] },
   "me": { "name": "Sahar", "id": "U0123ABCD" },
   "known": [ { "id": "C0123ABCD", "name": "#eng" }, { "id": "D0123ABCD", "name": "DM with Hila" } ]
 }
@@ -70,13 +84,14 @@ today's, and drop one that has had no message for 30 days.
 moved. The page writes its own headline and the line under it from `channels` and
 `totals`, so keep these exact words.
 
-Every channel has an `id`: `c1`, `c2`. `lead` names the single most consequential channel
-by its id; leave `lead` out on a day where nothing rises to it. Most days will not have one.
-Never write `waiting`, `decisions` or `promises` lists: the page no longer shows them.
+Every channel has an `id`: `c1`, `c2`, and every item in the other lists one of its own
+(`w1`, `r1`, `d1`, `f1`, `p1`). `lead` names the single most consequential channel by its id;
+leave `lead` out on a day where nothing rises to it. Most days will not have one.
 
 `totals`: `messages` read in the window (thread replies included), `channels` that moved,
 `quiet` channels you can see that did not move, `mentions` of the person, `dms` direct and
-group conversations that moved.
+group conversations that moved, and optionally `dmsWaiting`, the direct messages among
+`waiting`.
 
 `quietChannels`: the names of the channels counted in `totals.quiet`, as Slack shows them
 (`#general`), at most 50. The page lists them when the person opens "N more channels were
@@ -106,6 +121,59 @@ never repeats what was said in one.
 - Most urgent first, then busiest. At most 15; the rest count in `totals.quiet` only when
   they did not move.
 
+### waiting: who is waiting on the person
+
+Someone is waiting when they @-mentioned the person, asked them something directly, or sent
+them a direct message, and the person has not answered since (their own messages in that
+conversation or thread after it tell you; a reaction that answers counts, and so does someone
+else answering for them). At most 12, the urgent and the longest waiting first.
+
+```
+{ "id": "w1", "who": "Dana Levi", "where": "#eng", "kind": "mention",
+  "gist": "Wants your call on the release date",
+  "short": "<two or three sentences: what they asked and why it matters>",
+  "since": "<the message's time, with offset>", "urgent": true,
+  "url": "<the message's permalink>" }
+```
+
+- `kind` is `mention`, `question` or `dm`. A direct message is `"where": "DM"`; its `gist` and
+  `short` say what the person wants, never what was written, and never quote it.
+- `urgent` is true only when it asks for something today, or blocks other people.
+- `since` and `url` are copied from the search result, never typed.
+
+### recent: the latest messages
+
+The newest messages from other people in channels (never a direct or group message), newest
+first, at most 10, straight from the search results you already have:
+`{ "id": "r1", "who": "Shira", "where": "#support", "gist": "<a few of your own words>", "at": "<its time, with offset>", "url": "<permalink>" }`.
+
+### decisions: what the team agreed
+
+A conclusion people agreed on in a channel or thread ("we ship Thursday"), never from a direct
+message: `{ "id": "d1", "what": "<the decision, one line>", "where": "#eng", "who": ["Dana", "Omer"], "at": "<when>", "url": "<permalink>" }`.
+`who` is at most three display names of the people who agreed.
+
+### files: what was shared
+
+Every file shared in a channel in the window, newest first, at most 15, from
+`slack_list_files` for the window (one call) or the files in the search results:
+`{ "id": "f1", "name": "Release checklist.pdf", "kind": "pdf", "who": "Dana", "where": "#eng", "at": "<when>", "url": "<its permalink>" }`.
+`kind` is `pdf`, `image`, `doc`, `sheet`, `slides` or `other`. Never a file from a direct message.
+
+### promises: what the person said they would do
+
+From the person's own messages: "I'll send it tomorrow", "let me check", with no sign in Slack
+it was done. At most 8: `{ "id": "p1", "what": "<what, in a few words>", "to": "<the person or #channel>", "where": "#growth", "at": "<when>", "url": "<permalink>" }`.
+A promise in a direct message is `"where": "DM"`, in your words only.
+
+### standup and spotlight: the idea boxes
+
+- `standup`: from the person's own messages of the last working day, short lines in their
+  voice: `done` (at most 3), `next` (at most 3), `blocked` (at most 2, or `[]`). Leave
+  `standup` out when they wrote nothing.
+- `spotlight`: the busiest channel up close, its `id` and `name` from `channels`, and `lines`:
+  three to five short lines on what happened, what was decided and what is still open.
+
 ## The first catch-up: telling it as you go
 
 When `your-slack/data/latest.json` is not there yet, this is the person's first catch-up and
@@ -121,7 +189,8 @@ later catch-up stays as it is: no helper, no lines.
   "Catching up" card, and nothing is lost.
 - `push '<line>'` (single quotes) once per finding, in the Bash call right after the Slack
   lookup that found it. One `push` per call, never two at once.
-- `gift @gift.json` once, early (see below).
+- `recent @recent.json` once, very early (see below).
+- `gift @gift.json` once, early, then `offer @offer.json` two or three times (see below).
 - `latest @latest.json` writes `latest.json` from the file you wrote in `.work/`, with today's
   day file and `status.json` (`ok: true`). It sets `schema` and `generatedAt` itself. Give a
   partial run's `why` after it in single quotes: `latest @latest.json 'A very busy day: some
@@ -145,6 +214,14 @@ lines in all, the first within a minute of `start`.
 - A pushed line is final: check it before you push. The helper refuses an empty, broken or
   repeated line, and a finding of 0; when it refuses, fix the line or push nothing.
 
+**Their Slack within seconds.** Right after your first search of other people's messages,
+in the same Bash call that pushes its line, write the four or five newest of them (channels
+only, never a direct or group message) to `your-slack/data/.work/recent.json` and run
+`node your-slack/first-read.mjs recent @recent.json`:
+`[{"who":"Shira","channel":"#support","ts":"1760432100.123456","gist":"Tagged you: the billing bug needs an owner","link":"<permalink>"}]`.
+`who` is the display name, `channel`, `ts` and `link` are copied from the search result, and
+`gist` is a few of your own words on what it says. The page shows them at once.
+
 **The gift comes early.** While you read, the page shows one thing the person can do now: it
 is what makes the first minutes worth it. Find it right after you know who they are, before
 the sweep of step 5:
@@ -163,6 +240,15 @@ copied from the search result (the helper works out the day from `ts`); `gist` i
 line in your words, no numbers and no quote: what they want. If the helper refuses, fix the
 file or give `calm`; never skip the gift. You never draft or post the reply on this run: when
 the person presses the gift, the page asks you for a draft in the chat.
+
+**Then two or three more offers**, one `offer @offer.json` each, as you find what backs them,
+under the gift on the page ("While I read, you can..."):
+- `{"kind":"catchup","channel":"#random","count":63}` for the busiest channel, `count` the
+  messages your search returned for it.
+- `{"kind":"promised"}` when someone mentioned the person in the last day.
+- `{"kind":"standup","channel":"#standup"}` only for a channel `slack_list_channels` says is
+  `write` and whose name or recent messages show it is where the team posts standups.
+At most four. Each press asks you in the chat for a draft; nothing is posted from the page.
 
 ## In chat
 
@@ -195,7 +281,8 @@ short sentences, with names, channels and days written out.
   Write the job's prompt so it starts with the line `Posting routine approved by the person:`
   followed by the channels by name (or "every channel set to Write") and what to post.
 
-In chat you never change the files the morning catch-up writes in `your-slack/data/`.
+In chat you never change the files the morning catch-up writes in `your-slack/data/`
+(`layout-change.json` is yours to write, see above).
 Answer in words. If the person wants the page to show something new, say it
 shows after the next catch-up, or that they can press **Catch up now** on the page. A page
 they ask you to make, like a weekly summary, is fine.
@@ -205,6 +292,29 @@ routine, a run, a search, a tool, an id or a permission. If you could not read s
 say so in one plain sentence and what they can do, for example "I couldn't read your
 direct messages just now. Try again in a minute." If the page missed something you just
 found, give them the answer and leave the page alone.
+
+## Changing the boxes on the page
+
+Each person arranges Your Slack for themselves, and the page keeps that, not a file: you
+can't move boxes yourself, and you never edit `your-slack/index.html` for it. When someone
+asks to add or remove boxes ("show my standup", "hide the files"), write
+`your-slack/data/layout-change.json`, replacing it, and the page offers the change with
+Apply and No thanks:
+`{"schema":"slack-digest/layout-change@1","at":"<now, ISO with offset>","for":"<their name, if the message says it>","add":["idea-standup"],"remove":["files"],"note":"<one plain sentence on why>"}`
+Then say in one line that the change waits for them at the top of the page. The message often
+lists the boxes on their page now: don't add one that is there or remove one that isn't. Use
+only these ids:
+
+- `headline` Headline · `waiting` Waiting on you · `channels` Catch up by channel
+- `recent` Latest messages · `decisions` Decisions made · `files` Files shared
+- `promises` You promised
+- `n-waiting`, `n-messages`, `n-mentions`: the numbers Waiting on you, Messages, Mentions
+- `ask` Ask about your Slack · `ideas` Ideas for your Slack
+- one idea each: `idea-replies`, `idea-standup`, `idea-one-channel`, `idea-after-lunch`,
+  `idea-decisions`, `idea-weekly`, `idea-files`
+
+A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
+and `remove` empty, and offer the closest box or a page in this cabinet instead.
 
 ## What you may and may not do
 

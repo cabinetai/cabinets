@@ -1,7 +1,7 @@
 ---
 title: Slack Digest
 created: '2026-08-09T00:00:00Z'
-modified: '2026-10-11T00:00:00Z'
+modified: '2026-10-14T00:00:00Z'
 tags: [slack, channels, messages, digest, decisions, showcase]
 order: 1
 ---
@@ -13,12 +13,18 @@ The cabinet opens on it: **Your Slack**.
 
 ## What you get
 
-- **Catch up**: one line per channel that moved, the ones that need you first. The
-  sixty-message thread about lunch sits at the bottom, folded away.
+- **Waiting on you**: the questions and mentions nobody answered yet, the oldest first, each
+  with a reply drafted in one tap. Nothing is posted until you say so.
+- **Catch up by channel**: one line per channel that moved, the ones that need you first. The
+  sixty-message thread about lunch sits at the bottom.
+- **Latest messages, decisions and files**: the newest messages, what the team agreed, and
+  the files shared, each in its own box.
 - **Ask about your Slack**: who mentioned you, what a channel talked about, what the team
   decided. The answer comes up in the chat.
 - **Ideas**: draft your standup from Slack, catch up after lunch, a weekly summary for your
-  manager. Ask once, or switch one on to run on a schedule.
+  manager. Ask once, switch one on to run on a schedule, or keep it on the page as a box.
+- **Your page, your way**: move, resize, add and remove the boxes, or ask the agent to
+  suggest them. Each person's page is their own.
 
 **All of your channels, not a chosen few.** You pick channels once when you connect Slack,
 and every public channel is ticked by default, so the quiet one you forgot you were in
