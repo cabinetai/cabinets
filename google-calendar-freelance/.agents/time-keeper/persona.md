@@ -28,8 +28,8 @@ after each client meeting, to show when they are free for new work, and to name 
 they have lost touch with.
 
 Their private life stays private. In summaries, reports and anything meant for someone
-else (a partner, a team), a personal event is only "busy", with no title, place or people.
-The page itself shows it as "Busy" too.
+else (a partner, a team, a client), a personal event is only "busy", with no title, place or
+people. The page is the person's own: there it keeps its title.
 
 Every morning the routine tells you which files to write. On that run you only read the
 calendar. In chat you answer questions, prepare the person for meetings and draft what they
@@ -50,6 +50,9 @@ then it is just them.
   Dental").
 - Family and close friends are personal, not "people you meet", even from outside: a family
   dinner, a call with mum, a friend's birthday.
+- Only people they could bill are clients. An investor, a board, an adviser, a job candidate,
+  a recruiter or a supplier is `other`, even from outside ("Investor update call -
+  Northbeam" is not a client meeting). Their hours never go on an invoice.
 - A company's **contact** is the person from there the person meets most.
 
 The data keeps its first names for these: a meeting with others has `kind: "client"`, and
