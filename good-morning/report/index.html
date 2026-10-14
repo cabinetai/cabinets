@@ -166,6 +166,29 @@
   .add .plus { width: 20px; height: 20px; display: grid; place-items: center; color: var(--sun); }
   .foot { margin-top: 14px; font-size: 14px; color: var(--ink-3); text-align: center; }
 
+  /* Picking the apps the mornings read: first time, and whenever the person changes them. */
+  .pick { margin-top: 14px; background: var(--page); border-radius: var(--radius); border: 1px solid var(--line); padding: 24px clamp(18px, 3vw, 32px) 20px; }
+  .pick h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(26px, 2.6vw, 34px); line-height: 1.1; margin: 0 0 6px; letter-spacing: -.01em; }
+  .pick > p { margin: 0 0 14px; color: var(--ink-2); max-width: 62ch; }
+  .apps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); column-gap: 28px; }
+  .apps li { border-bottom: 1px solid var(--line); }
+  .apps label { display: flex; align-items: center; gap: 12px; padding: 12px 2px; min-height: 54px; cursor: pointer; }
+  .apps input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: var(--ink); cursor: pointer; }
+  .apps img, .apps .ph { width: 24px; height: 24px; border-radius: 6px; flex: none; }
+  .apps .ph { display: grid; place-items: center; border: 1px solid var(--line-2); font-size: 12px; font-weight: 700; color: var(--ink-2); }
+  .apps .nm { font-weight: 600; min-width: 0; }
+  .apps .st { margin-left: auto; font-size: 13px; color: var(--ink-3); text-align: right; }
+  .apps .st.warn { color: var(--warn); }
+  .apps .st.new { color: var(--sun); font-weight: 600; }
+  .pick-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .pick-foot .count { margin-right: auto; color: var(--ink-2); font-size: 15px; }
+  .pick-foot .first-run { margin-left: 0; }
+  .ghost { border: 1px solid var(--line-2); background: transparent; border-radius: 999px; padding: 8px 15px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .ghost:hover { background: var(--canvas); }
+  .linkish { border: 0; background: none; padding: 0; font-size: inherit; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  .mine { margin: 14px 0 0; font-size: 15px; color: var(--ink-2); }
+  .mine b { color: var(--ink); font-weight: 600; }
+
   .empty { margin-top: 14px; background: var(--page); border-radius: var(--radius); border: 1px solid var(--line); padding: 28px; font-size: 16px; color: var(--ink-2); }
 
   .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0; background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 15px; transition: opacity .2s ease, transform .2s ease; z-index: 50; max-width: calc(100% - 40px); text-align: center; pointer-events: none; }
@@ -229,7 +252,14 @@
   var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-  var state = { pinned: false, morning: 0, files: [], at: 0, data: null, name: "", connectors: [], jobs: [], role: "owner", running: false, jobFile: null };
+  /* The apps the person picked, kept in this app's own store (report/.data/shared.json),
+     where the routine reads them: { apps: [{ id, name }], at }. */
+  var APPS_KEY = "morningApps";
+  /* With nothing connected yet, the few worth offering first. */
+  var POPULAR = ["gmail", "google-calendar", "microsoft-365", "slack", "notion", "stripe", "whatsapp"];
+
+  var state = { pinned: false, morning: 0, files: [], at: 0, data: null, name: "", connectors: [], connectorsLoaded: false, jobs: [], role: "owner", running: false, jobFile: null,
+                picks: null, picking: false, draft: null, saving: false };
   var $ = function (id) { return document.getElementById(id); };
   var root = $("root");
 
@@ -240,6 +270,7 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  function listWords(names) { return names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1]; }
   function two(n) { return ("0" + n).slice(-2); }
   function dayWords(d) { return DAYS[d.getDay()] + ", " + d.getDate() + " " + MONTHS[d.getMonth()]; }
   function toast(msg) {
@@ -365,6 +396,10 @@
     return null;
   }
   function connectorFor(title) {
+    // A section named after the app itself ("Slack", "Linear") is that app.
+    var t = String(title).trim().toLowerCase(), named = null;
+    state.connectors.forEach(function (c) { if (!named && c.name && c.name.toLowerCase() === t) named = c; });
+    if (named) return named;
     var src = sourceOf(title);
     if (!src) return null;
     var hit = null;
@@ -397,8 +432,11 @@
                                  : esc(DAYS[d.getDay()]) + " <em>morning</em>.";
     var meta = data ? data.meta : {};
     $("headline").textContent = meta.headline ? meta.headline.replace(/\s*This page is a made-up example\.?$/i, "") : (data ? "Here is what came in." : $("headline").textContent);
-    $("when").textContent = data ? whenWords(meta, d) : "";
-    drawHorizon(today ? now : null, data, night);
+    // Picking for the first time: nothing from the example shows in the sky.
+    var firstPick = showPicker() && !state.picks;
+    $("when").textContent = data && !firstPick ? whenWords(meta, d) : "";
+    if (firstPick) $("headline").textContent = "First, pick the apps your mornings should read.";
+    drawHorizon(today ? now : null, firstPick ? null : data, night);
     drawNav();
   }
 
@@ -471,7 +509,7 @@
     var d = stamp(state.name), ago = morningsAgo(state.name);
     $("daylabel").textContent = !d ? "Example" : ago === 0 ? "Today" : ago === 1 ? "Yesterday" : d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3);
     var again = $("again");
-    again.hidden = !canRun();
+    again.hidden = !canRun() || (showPicker() && !state.picks);
     again.disabled = state.running;
     again.classList.toggle("spin", state.running);
     again.querySelector("span").textContent = state.running ? "Checking…" : "Check again";
@@ -481,12 +519,13 @@
 
   function drawBody() {
     var data = state.data, html = "";
+    if (showPicker()) { root.innerHTML = picker(); wirePicker(); wireConnect(); return; }
     if (!data) return;
     var meta = data.meta;
 
     if (isExample(state.name)) {
       html += '<div class="note"><span class="tag">Example</span><span><b>This morning is made up.</b> It shows the shape of the page. ' +
-        "Connect Gmail, Google Calendar or another app, and your first real morning takes its place.</span>" +
+        (state.picks ? "Your first real morning, from the apps you picked, takes its place.</span>" : "Connect Gmail, Google Calendar or another app, and your first real morning takes its place.</span>") +
         (canRun() && connectedCount() ? '<button type="button" class="first-run" id="first-run">Write my first morning now</button>' : "") + "</div>";
     }
     if (meta.status && meta.status !== "ok") {
@@ -511,6 +550,11 @@
     root.innerHTML = html;
     var fr = $("first-run");
     if (fr) fr.addEventListener("click", runAgain);
+    var change = $("change-apps");
+    if (change) change.addEventListener("click", openPicker);
+    wireConnect();
+  }
+  function wireConnect() {
     root.querySelectorAll("[data-connect]").forEach(function (b) {
       b.addEventListener("click", function () { connect(b.getAttribute("data-connect"), b.getAttribute("data-name")); });
     });
@@ -543,18 +587,126 @@
       return '<li class="chip' + (off ? " off" : "") + '">' + mark + "<span>" + esc(line.replace(/\s+[—–-]\s+/, ": ")) + "</span></li>";
     }).join("");
 
-    var adds = "";
-    if (V2 && state.role === "owner") {
-      adds = state.connectors.filter(function (c) { return c.state === "not-added" && c.canConnect; }).map(function (c) {
-        return '<button type="button" class="add" data-connect="' + esc(c.id) + '" data-name="' + esc(c.name) + '">' +
-          (c.logo ? '<img src="' + esc(c.logo) + '" alt="">' : '<span class="plus">+</span>') + "Add " + esc(c.name) + "</button>";
-      }).join("");
+    /* Which apps the mornings read, and a way to change them; a newly connected app is named. */
+    var mine = "";
+    if (state.picks && canPick()) {
+      var fresh = linked().filter(function (c) { return c.state === "connected" && !picked(c.id) && !wasThere(c.id); });
+      mine = '<p class="mine">Your mornings read <b>' + esc(listWords(state.picks.apps.map(function (a) { return a.name; }))) + "</b>. " +
+        (fresh.length ? "You also connected " + esc(listWords(fresh.map(function (c) { return c.name; }))) + ". " : "") +
+        '<button type="button" class="linkish" id="change-apps">' + (fresh.length ? "Add to my mornings" : "Change apps") + "</button></p>";
     }
-    if (!chips && !adds) return "";
+    var adds = V2 && state.picks ? addButtons(POPULAR) : "";
+    if (!chips && !mine && !adds) return "";
     return '<section class="looked" aria-labelledby="looked-h"><h2 id="looked-h">What I looked at</h2>' +
-      (chips ? '<ul class="chips">' + chips + "</ul>" : "") +
-      (adds ? '<div class="grow"><p>Connect one more and tomorrow&rsquo;s page gets a new section. Nothing else to set up.</p>' + adds + "</div>" : "") +
+      (chips ? '<ul class="chips">' + chips + "</ul>" : "") + mine + adds +
       "</section>" + '<p class="foot">Read only, everywhere. This page never sends, replies or changes anything.</p>';
+  }
+
+  // ── Picking the apps ───────────────────────────────────────────────────
+
+  function storeOk() { return !!(cab && cab.store && typeof cab.store.set === "function"); }
+  function readPicks() {
+    var v = storeOk() ? cab.store.get(APPS_KEY) : null;
+    return v && Array.isArray(v.apps) ? v : null;
+  }
+  function picked(id) { return !!(state.picks && state.picks.apps.some(function (a) { return a.id === id; })); }
+  /* Every app the person connected to Cabinet, working or not. */
+  function linked() { return state.connectors.filter(function (c) { return c.state !== "not-added" && c.state !== "not-available-here"; }); }
+  function canPick() { return V2 && storeOk() && state.role === "owner" && (typeof cab.canWrite !== "function" || cab.canWrite()); }
+  /* The picker shows the first time (nothing picked yet) and whenever asked for. */
+  function showPicker() { return canPick() && (state.picking || !state.picks); }
+
+  function openPicker() {
+    state.picking = true; state.draft = null;
+    drawSky(); drawBody();
+    var p = root.querySelector(".pick"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function draftOf() {
+    if (!state.draft) {
+      state.draft = {};
+      linked().forEach(function (c) { state.draft[c.id] = picked(c.id); });
+    }
+    return state.draft;
+  }
+  function statusWords(c) {
+    if (c.state === "connected") return state.picks && !picked(c.id) && !wasThere(c.id) ? ["new", "New"] : ["", "Connected"];
+    if (c.state === "needs-sign-in") return ["warn", "Needs you to sign in"];
+    return ["warn", c.problem && c.problem.text ? c.problem.text : "Needs you"];
+  }
+  /* An app connected after the person last picked: "seen" lists what the picker showed then. */
+  function wasThere(id) { return !!(state.picks && Array.isArray(state.picks.seen) && state.picks.seen.indexOf(id) >= 0); }
+
+  function picker() {
+    if (!state.connectorsLoaded) return '<div class="empty">Looking at the apps you connected&hellip;</div>';
+    var apps = linked(), draft = draftOf(), first = !state.picks;
+    var html = '<section class="pick" aria-labelledby="pick-h"><h2 id="pick-h">' + (first ? "Which apps should your mornings read?" : "Your morning apps") + "</h2>";
+    if (!apps.length) {
+      return html + "<p>You have not connected any apps to Cabinet yet. Connect one below and it shows up here, ready to pick.</p>" + addButtons(POPULAR) + "</section>";
+    }
+    html += "<p>These are all the apps you connected to Cabinet. Pick the ones you want. Every morning I read only these and sum them up on this page, one section each.</p>";
+    html += '<ul class="apps">' + apps.map(function (c) {
+      var st = statusWords(c);
+      return '<li><label><input type="checkbox" data-pick="' + esc(c.id) + '"' + (draft[c.id] ? " checked" : "") + ">" +
+        (c.logo ? '<img src="' + esc(c.logo) + '" alt="">' : '<span class="ph" aria-hidden="true">' + esc(c.name.charAt(0)) + "</span>") +
+        '<span class="nm">' + esc(c.name) + '</span><span class="st' + (st[0] ? " " + st[0] : "") + '">' + esc(st[1]) + "</span></label></li>";
+    }).join("") + "</ul>";
+    var n = apps.filter(function (c) { return draft[c.id]; }).length;
+    html += '<div class="pick-foot"><span class="count" id="pick-count">' + countWords(n, apps.length) + "</span>" +
+      '<button type="button" class="ghost" id="pick-all">' + (n === apps.length ? "Clear all" : "Pick all") + "</button>" +
+      (first ? "" : '<button type="button" class="ghost" id="pick-cancel">Cancel</button>') +
+      '<button type="button" class="first-run" id="pick-save"' + (n && !state.saving ? "" : " disabled") + ">" +
+      (state.saving ? "Saving&hellip;" : first ? "Start my mornings" : "Save my apps") + "</button></div>";
+    var more = POPULAR.filter(function (id) { return !apps.some(function (c) { return c.id === id; }); });
+    return html + (more.length ? addButtons(more) : "") + "</section>";
+  }
+  function countWords(n, of) { return n ? n + " of " + of + " picked" : "Pick at least one app"; }
+  function addButtons(ids) {
+    if (state.role !== "owner") return "";
+    var adds = ids.map(function (id) { return state.connectors.filter(function (c) { return c.id === id && c.state === "not-added" && c.canConnect; })[0]; })
+      .filter(Boolean).map(function (c) {
+        return '<button type="button" class="add" data-connect="' + esc(c.id) + '" data-name="' + esc(c.name) + '">' +
+          (c.logo ? '<img src="' + esc(c.logo) + '" alt="">' : '<span class="plus">+</span>') + "Connect " + esc(c.name) + "</button>";
+      }).join("");
+    return adds ? '<div class="grow"><p>Connect one more and it joins this list. Everything else is in Integrations in Cabinet.</p>' + adds + "</div>" : "";
+  }
+  function wirePicker() {
+    root.querySelectorAll("[data-pick]").forEach(function (box) {
+      box.addEventListener("change", function () {
+        draftOf()[box.getAttribute("data-pick")] = box.checked;
+        var apps = linked(), n = apps.filter(function (c) { return state.draft[c.id]; }).length;
+        $("pick-count").textContent = countWords(n, apps.length);
+        $("pick-all").textContent = n === apps.length ? "Clear all" : "Pick all";
+        $("pick-save").disabled = !n || state.saving;
+      });
+    });
+    var all = $("pick-all");
+    if (all) all.addEventListener("click", function () {
+      var apps = linked(), on = apps.some(function (c) { return !draftOf()[c.id]; });
+      apps.forEach(function (c) { state.draft[c.id] = on; });
+      drawBody();
+    });
+    var cancel = $("pick-cancel");
+    if (cancel) cancel.addEventListener("click", function () { state.picking = false; state.draft = null; drawSky(); drawBody(); });
+    var save = $("pick-save");
+    if (save) save.addEventListener("click", savePicks);
+  }
+  function savePicks() {
+    var draft = draftOf(), apps = linked(), first = !state.picks;
+    var chosen = apps.filter(function (c) { return draft[c.id]; }).map(function (c) { return { id: c.id, name: c.name }; });
+    if (!chosen.length || state.saving) return;
+    var value = { apps: chosen, seen: apps.map(function (c) { return c.id; }), at: new Date().toISOString() };
+    state.saving = true; drawBody();
+    cab.store.set(APPS_KEY, value).then(function () {
+      state.saving = false; state.picks = value; state.picking = false; state.draft = null;
+      // No real morning yet: write the first one now from the apps just picked.
+      var real = state.files.some(function (n) { return !isExample(n); });
+      if (first && !real && canRun()) { runAgain(); toast("Saved. Writing your first morning from " + chosen.length + (chosen.length === 1 ? " app" : " apps") + " now."); }
+      else toast(chosen.length === 1 ? "Saved. Tomorrow's morning reads 1 app." : "Saved. Tomorrow's morning reads " + chosen.length + " apps.");
+      drawSky(); drawBody();
+    }).catch(function (e) {
+      state.saving = false; drawBody();
+      toast((e && e.message) || "Your apps could not be saved. Try again in a moment.");
+    });
   }
 
   // ── Routine and connections ────────────────────────────────────────────
@@ -657,6 +809,7 @@
       state.files = sortFiles(names);
       if (!state.files.length) {
         state.data = null; drawSky();
+        if (showPicker()) { drawBody(); return; }
         $("headline").textContent = "Your first morning arrives after the routine runs.";
         root.innerHTML = '<div class="empty">Nothing here yet. The page fills in after the morning routine runs for the first time' +
           (nextRunWords() ? " (" + esc(nextRunWords().toLowerCase()) + ")" : "") + ".</div>";
@@ -701,9 +854,12 @@
     Promise.resolve(cab.ready).catch(function () {}).then(function () {
       readJobFile().then(load);
       if (typeof cab.here === "function") Promise.resolve(cab.here()).then(function (h) { if (h && h.role) state.role = h.role; drawSky(); drawBody(); }).catch(function () {});
+      state.picks = readPicks();
+      if (storeOk()) cab.store.onChange(function () { state.picks = readPicks(); drawSky(); drawBody(); });
       if (cab.connectors) {
-        cab.connectors.list().then(function (items) { state.connectors = items || []; drawBody(); }).catch(function () {});
-        cab.connectors.onChange(function (items) { state.connectors = items || []; drawBody(); });
+        var got = function (items) { state.connectors = items || []; state.connectorsLoaded = true; drawSky(); drawBody(); };
+        cab.connectors.list().then(got).catch(function () { state.connectorsLoaded = true; drawBody(); });
+        cab.connectors.onChange(got);
       }
       cab.jobs.list().then(setJobs).catch(function () {});
       cab.jobs.onChange(setJobs);
