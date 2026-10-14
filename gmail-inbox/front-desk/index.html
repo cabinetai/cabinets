@@ -2203,6 +2203,19 @@
   }
 
   /**
+   * How tall the rows in a box body are, not the body itself: an opened box stretches its body,
+   * so its scrollHeight would grow with every fit and the box would never stop growing.
+   */
+  function rowsHeight(body) {
+    var bottom = 0;
+    Array.prototype.forEach.call(body.children, function (child) {
+      if (child.hidden) return;
+      bottom = Math.max(bottom, child.offsetTop + child.offsetHeight + (parseFloat(getComputedStyle(child).marginBottom) || 0));
+    });
+    return bottom + (parseFloat(getComputedStyle(body).paddingBottom) || 0);
+  }
+
+  /**
    * A list shows the rows that fit its box, then "+N more". Opened (by that button, or by
    * opening one of its rows) it shows them all and the box grows to hold them.
    */
@@ -2239,7 +2252,7 @@
       var total = 2;
       Array.prototype.forEach.call(el.children, function (child) {
         if (child.matches(".box-x, .box-resize, .box-size")) return;
-        total += child === body ? body.scrollHeight : child.hidden ? 0 : child.offsetHeight;
+        total += child === body ? rowsHeight(body) : child.hidden ? 0 : child.offsetHeight;
       });
       need = Math.ceil((total + GAP) / (ROW + GAP));
     }
