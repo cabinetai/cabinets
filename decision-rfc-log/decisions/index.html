@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<!--
+  Decision & RFC Log: Decisions. The cabinet opens on this page.
+
+  For a team that decides things in Slack or Discord threads: someone reacts 🧠 on a
+  decision or 📝 on a proposal, Cabinet reads the whole thread, and a row lands in the
+  Decision Matrix (Topic, Decision Made, Key Stakeholders, Date, Original Thread Link).
+  A row opens into the summary, why it was decided, and quotes from the thread.
+
+  Where the rows come from: a routine writes data/latest.json next to this page (the shape
+  is data/EXAMPLE-latest.json, described in DATA.md). Until it exists the page shows the
+  example, always labelled as one. The routine check-decisions (every hour, agent
+  decision-keeper) writes it, and data/status.json says what the last check could read.
+
+  How it talks to Cabinet: window.cabinet v2 (connection state, ask, run the routine, read
+  files). Opened as a plain file it reads the same files over the page's own address.
+
+  One file on purpose: a sealed frame cannot load files next to it. Plus Jakarta Sans
+  from Google Fonts with system fallbacks; icons are inline SVG.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Decision &amp; RFC Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --page: #ffffff;
+    --panel: #f7f6f8;
+    --panel-2: #efedf1;
+    --line: #e7e4ea;
+    --line-2: #d6d1dc;
+    --ink: #1d1c1d;
+    --ink-2: #454245;
+    --ink-3: #696469;
+
+    --plum: #4a154b;
+    --plum-2: #611f69;
+    --plum-tint: #f4ecf5;
+    --red-ink: #b3134a;
+    --red-tint: #fdeaf0;
+    --blue-ink: #116a91;
+    --green: #2eb67d;
+    --green-ink: #1a7a52;
+    --green-tint: #e7f6ef;
+    --amber: #ecb22e;
+    --amber-ink: #7d5a00;
+    --amber-tint: #fdf5e1;
+
+    --shadow-1: 0 1px 2px rgba(29, 28, 29, .06);
+    --shadow-2: 0 1px 2px rgba(29, 28, 29, .05), 0 14px 36px -18px rgba(29, 28, 29, .28);
+    --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--blue-ink); }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--plum-2) 45%, transparent); outline-offset: 2px; border-radius: 10px; }
+  .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .logo { width: 16px; height: 16px; flex: none; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ── Top bar ─────────────────────────────────────────────────────────── */
+  .bar { border-top: 4px solid var(--plum); border-bottom: 1px solid var(--line); background: var(--page); }
+  .bar-in { max-width: 1280px; margin: 0 auto; padding: 16px 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark { width: 40px; height: 40px; border-radius: 11px; background: var(--plum); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 16px -8px rgba(74, 21, 75, .8); flex: none; }
+  .mark .icon { width: 22px; height: 22px; stroke-width: 2.2; }
+  .brand h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: var(--panel); font-weight: 600; font-size: 14px; }
+  .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); }
+  .pill.ok { background: var(--green-tint); color: var(--green-ink); }
+  .pill.ok .dot { background: var(--green); }
+  .pill.warn { background: var(--amber-tint); color: var(--amber-ink); }
+  .pill.warn .dot { background: var(--amber); }
+  .updated { color: var(--ink-3); font-size: 14px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px;
+    border-radius: 11px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink);
+    font-weight: 600; font-size: 15px; text-decoration: none; white-space: nowrap;
+    box-shadow: var(--shadow-1); transition: background .15s ease, border-color .15s ease, transform .1s ease;
+  }
+  .btn:hover { background: var(--panel); border-color: #c4bdcb; }
+  .btn:active { transform: translateY(1px); }
+  .btn[disabled] { cursor: default; opacity: .6; transform: none; }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.dark:hover { background: #333033; }
+  .btn.small { min-height: 38px; padding: 7px 12px; font-size: 14px; }
+
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 26px 28px 40px; }
+  .main { display: flex; flex-direction: column; gap: 26px; }
+
+  /* ── Hero: the one headline ──────────────────────────────────────────── */
+  .hero h2 { margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.12; font-weight: 800; letter-spacing: -.03em; }
+  .hero h2 .k { color: var(--ink-3); font-weight: 700; }
+  .hero .lead { margin: 10px 0 0; font-size: 18px; color: var(--ink-2); max-width: 75ch; }
+  .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
+  .hero .fine { margin: 10px 0 0; font-size: 15px; color: var(--ink-3); }
+  .hero .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  /* The panel before Slack or Discord is connected, or while the first check runs. */
+  .card-hero { padding: 26px 28px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fff, #fbfafc); box-shadow: var(--shadow-2); }
+  .card-hero h2 { font-size: clamp(24px, 2.8vw, 32px); }
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: var(--red-tint); color: var(--ink); border: 1px solid #f6c3d3; }
+  .notice .icon { color: var(--red-ink); margin-top: 2px; }
+  .notice p { margin: 0; }
+  .notice .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border-radius: 12px; background: var(--amber-tint); border: 1px solid #f3e0a8; }
+  .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .tag-example { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+  /* How to add a decision: the two reactions, side by side. */
+  .howto { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); gap: 12px 18px; align-items: center; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
+  .howto h2 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; }
+  .howto .step { display: flex; gap: 12px; align-items: center; min-width: 0; }
+  .howto .emo { width: 44px; height: 44px; flex: none; border-radius: 12px; background: var(--page); border: 1px solid var(--line); display: grid; place-items: center; font-size: 22px; line-height: 1; }
+  .howto p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .howto p b { color: var(--ink); }
+  .howto .then { grid-column: 2 / -1; color: var(--ink-3); font-size: 14.5px; }
+
+  /* ── Decision Matrix ─────────────────────────────────────────────────── */
+  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 14px; }
+  .section-head h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .section-head p { margin: 0; color: var(--ink-3); font-size: 15px; }
+
+  .tools { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 12px; }
+  .find { position: relative; flex: 1 1 320px; max-width: 460px; }
+  .find .icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--ink-3); width: 18px; height: 18px; pointer-events: none; }
+  .find input { width: 100%; min-height: 44px; padding: 9px 14px 9px 40px; border-radius: 11px; border: 1px solid var(--line-2); background: var(--page); font-size: 16px; }
+  .find input:focus { outline: none; border-color: var(--plum-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--plum-2) 22%, transparent); }
+  .seg { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--panel-2); gap: 2px; }
+  .seg button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 6px 14px; border: 0; border-radius: 9px; background: transparent; font-weight: 600; font-size: 14.5px; color: var(--ink-2); }
+  .seg button[aria-pressed="true"] { background: var(--page); color: var(--ink); box-shadow: var(--shadow-1); }
+
+  .matrix { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .matrix th { text-align: start; font-size: 13px; font-weight: 700; color: var(--ink-3); padding: 10px 14px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+  .matrix td { padding: 14px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .matrix col.c-topic { width: 22%; }
+  .matrix col.c-dec { width: 32%; }
+  .matrix col.c-who { width: 20%; }
+  .matrix col.c-date { width: 9%; }
+  .matrix col.c-link { width: 17%; }
+  .row { cursor: pointer; }
+  .row:hover td, .row.open td { background: var(--panel); }
+  .row.open td { border-bottom-color: transparent; }
+  .topic { display: flex; gap: 8px; align-items: flex-start; width: 100%; padding: 0; border: 0; background: transparent; text-align: start; font-weight: 700; color: var(--ink); font-size: 15.5px; }
+  .topic .chev { width: 16px; height: 16px; margin-top: 3px; color: var(--ink-3); transition: transform .15s; }
+  .row.open .topic .chev { transform: rotate(90deg); }
+  .kind { display: inline-flex; align-items: center; gap: 5px; margin: 6px 0 0 24px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700; }
+  .kind.decision { background: var(--green-tint); color: var(--green-ink); }
+  .kind.rfc { background: var(--amber-tint); color: var(--amber-ink); }
+  .kind.superseded { background: var(--panel-2); color: var(--ink-3); }
+  .dec { color: var(--ink); }
+  .row.superseded .dec { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--line-2); }
+  .who { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+  .who span { white-space: nowrap; }
+  .who span:not(:last-child)::after { content: ","; }
+  .date { white-space: nowrap; }
+  .thread { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--blue-ink); text-decoration: none; white-space: nowrap; }
+  .thread:hover { text-decoration: underline; }
+  .thread .src { color: var(--ink-3); font-weight: 500; font-size: 13.5px; }
+  .chan { display: block; color: var(--ink-3); font-size: 13.5px; margin-top: 2px; }
+
+  .detail td { background: var(--panel); padding: 0 14px 18px 38px; }
+  .detail-in { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px 28px; }
+  .detail h4 { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: var(--ink-3); }
+  .detail p { margin: 0 0 12px; color: var(--ink); font-size: 15px; }
+  .quotes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .quotes li { padding: 10px 12px; border-radius: 10px; background: var(--page); border: 1px solid var(--line); font-size: 14.5px; color: var(--ink-2); }
+  .quotes b { display: block; color: var(--ink); font-size: 13.5px; margin-bottom: 2px; }
+  .detail .row-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; }
+
+  .empty { padding: 26px 18px; text-align: center; color: var(--ink-3); border-bottom: 1px solid var(--line); }
+  .empty p { margin: 0 0 12px; }
+
+  /* ── Ask ─────────────────────────────────────────────────────────────── */
+  .ask { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 14px 28px; align-items: start; padding: 22px; border-radius: 18px; background: var(--plum); color: #fff; }
+  .ask h2 { margin: 0 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .ask .intro p { margin: 0; color: #e3d3e4; font-size: 15px; }
+  .ask form { display: flex; gap: 10px; }
+  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 12px; border: 1px solid #7a4a7b; background: #3a103b; color: #fff; padding: 10px 14px; font-size: 16px; }
+  .ask input::placeholder { color: #c6a9c7; }
+  .ask input:focus { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .25); }
+  .ask .btn.light { min-height: 50px; background: #fff; border-color: #fff; color: var(--plum); }
+  .ask .btn.light:hover { background: var(--plum-tint); }
+  .qs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .q { min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid #7a4a7b; background: #3a103b; color: #f6eef6; font-size: 14.5px; font-weight: 600; text-align: start; }
+  .q:hover { background: #561a57; }
+  .ask .note { margin: 12px 0 0; font-size: 14px; color: #e3d3e4; }
+
+  /* ── Ideas ───────────────────────────────────────────────────────────── */
+  .idea-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); box-shadow: var(--shadow-1); }
+  .idea:hover { box-shadow: var(--shadow-2); border-color: var(--line-2); }
+  /* The same carved-wood pictures as the template covers. The object sits on the right of
+     each cover, so the crop keeps the right side. */
+  .idea .art-img { aspect-ratio: 16 / 8; border-radius: 12px; overflow: hidden; background: var(--panel); }
+  .idea .art-img img { width: 100%; height: 100%; object-fit: cover; object-position: 75% center; display: block; }
+  .idea h3 { margin: 0; font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
+  .idea p { margin: 0; color: var(--ink-2); font-size: 15px; flex: 1; }
+  .idea .go { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 4px; }
+  .idea .go .btn { min-height: 44px; padding: 8px 12px; font-size: 14px; }
+
+  .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
+  .foot .icon { color: var(--green); }
+  .foot p { margin: 0; }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0; background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 15px; box-shadow: var(--shadow-2); transition: opacity .2s ease, transform .2s ease; z-index: 50; max-width: calc(100% - 40px); text-align: center; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .spin { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Narrow screens ──────────────────────────────────────────────────── */
+  @media (max-width: 1100px) {
+    .idea-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 920px) {
+    .ask { grid-template-columns: minmax(0, 1fr); }
+    .howto { grid-template-columns: minmax(0, 1fr); }
+    .howto .then { grid-column: auto; }
+  }
+  /* The table turns into stacked rows: topic, what was decided, then who, when and where. */
+  @media (max-width: 760px) {
+    .matrix, .matrix tbody { display: block; }
+    .matrix thead, .matrix colgroup { display: none; }
+    .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; border-bottom: 1px solid var(--line); }
+    .row.open { border-bottom-color: transparent; }
+    .matrix .row td { display: block; border: 0; padding: 0 14px; background: transparent; }
+    .row:hover, .row.open { background: var(--panel); }
+    .row td.t-topic { grid-column: 1 / -1; padding-top: 14px; }
+    .row td.t-dec { grid-column: 1 / -1; padding-top: 6px; padding-left: 38px; }
+    .row td.t-who { grid-column: 1 / -1; padding-top: 6px; padding-left: 38px; font-size: 14px; }
+    .row td.t-date { padding: 8px 0 14px 38px; font-size: 14px; color: var(--ink-3); }
+    .row td.t-link { padding: 8px 14px 14px 0; text-align: end; }
+    .row td.t-link .chan { display: none; }
+    .detail, .detail td { display: block; }
+    .detail td { padding: 0 14px 16px 38px; }
+    .detail-in { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .bar-in { padding: 12px 16px; }
+    .wrap { padding: 18px 16px 32px; }
+    .main { gap: 22px; }
+    .status { width: 100%; }
+    .status .btn { margin-inline-start: auto; }
+    .hero h2 { font-size: 26px; }
+    .hero .lead { font-size: 16.5px; }
+    .find { max-width: none; flex-basis: 100%; }
+    .seg { width: 100%; }
+    .seg button { flex: 1; justify-content: center; }
+    .idea-grid { grid-template-columns: minmax(0, 1fr); }
+    .ask { padding: 18px 16px; }
+    .ask form { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-split" viewBox="0 0 24 24"><path d="M16 3h5v5M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.2-2.9L3 3M15 9l6-6" /></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M20.5 20.5L16 16" /></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10.5 13.5" /><path d="M21 3l-6.5 18-4-7.5L3 9.5z" /></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3 3-3 3" /><path d="M4 11V9.5a4 4 0 0 1 4-4h12" /><path d="M7 21.5l-3-3 3-3" /><path d="M20 13v1.5a4 4 0 0 1-4 4H4" /></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9" /><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" /></symbol>
+  <symbol id="l-slack" viewBox="0 0 24 24">
+    <rect x="2" y="7" width="8.5" height="3.5" rx="1.75" fill="#36c5f0" /><rect x="7" y="2" width="3.5" height="3.5" rx="1.2" fill="#36c5f0" />
+    <rect x="13.5" y="2" width="3.5" height="8.5" rx="1.75" fill="#2eb67d" /><rect x="18.5" y="7" width="3.5" height="3.5" rx="1.2" fill="#2eb67d" />
+    <rect x="13.5" y="13.5" width="8.5" height="3.5" rx="1.75" fill="#ecb22e" /><rect x="13.5" y="18.5" width="3.5" height="3.5" rx="1.2" fill="#ecb22e" />
+    <rect x="7" y="13.5" width="3.5" height="8.5" rx="1.75" fill="#e01e5a" /><rect x="2" y="13.5" width="3.5" height="3.5" rx="1.2" fill="#e01e5a" />
+  </symbol>
+  <symbol id="l-discord" viewBox="0 0 24 24">
+    <rect width="24" height="24" rx="6" fill="#5865f2" />
+    <path d="M6.6 8.4c1.7-.9 3.5-1.3 5.4-1.3s3.7.4 5.4 1.3c1.1 1.7 1.7 3.8 1.6 6.3-1.3 1-2.6 1.6-3.9 1.9l-.9-1.4c.6-.2 1.1-.5 1.5-.8l-.3-.2c-2.3 1.1-4.5 1.1-6.8 0l-.3.2c.4.3.9.6 1.5.8l-.9 1.4c-1.3-.3-2.6-.9-3.9-1.9-.1-2.5.5-4.6 1.6-6.3z" fill="#fff" />
+    <circle cx="9.7" cy="12.4" r="1.2" fill="#5865f2" /><circle cx="14.3" cy="12.4" r="1.2" fill="#5865f2" />
+  </symbol>
+</svg>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg class="icon"><use href="#i-split" /></svg></span>
+      <h1>Decision &amp; RFC Log</h1>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <main class="main">
+    <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your decisions...</p></section>
+    <div id="ribbon"></div>
+    <section class="howto" id="howto" aria-labelledby="howto-title" hidden>
+      <h2 id="howto-title">How to add a decision</h2>
+      <div class="step"><span class="emo" aria-hidden="true">🧠</span><p>React <b>🧠</b> on a message where a decision was made.</p></div>
+      <div class="step"><span class="emo" aria-hidden="true">📝</span><p>React <b>📝</b> on a proposal that is still being discussed.</p></div>
+      <p class="then">Cabinet reads the whole thread and adds a row.</p>
+    </section>
+
+    <section id="matrix-section" aria-labelledby="matrix-title" hidden>
+      <div class="section-head"><h2 id="matrix-title">Decision Matrix</h2><p id="matrix-note"></p></div>
+      <div class="tools">
+        <label class="find"><span class="sr">Find a decision</span><svg class="icon" aria-hidden="true"><use href="#i-search" /></svg>
+          <input id="find" type="search" dir="auto" autocomplete="off" placeholder="Find a decision" /></label>
+        <div class="seg" role="group" aria-label="Where it was decided" id="seg">
+          <button type="button" data-src="all" aria-pressed="true">All</button>
+          <button type="button" data-src="slack" aria-pressed="false"><svg class="logo" aria-hidden="true"><use href="#l-slack" /></svg>Slack</button>
+          <button type="button" data-src="discord" aria-pressed="false"><svg class="logo" aria-hidden="true"><use href="#l-discord" /></svg>Discord</button>
+        </div>
+      </div>
+      <table class="matrix">
+        <colgroup><col class="c-topic" /><col class="c-dec" /><col class="c-who" /><col class="c-date" /><col class="c-link" /></colgroup>
+        <thead><tr><th scope="col">Topic</th><th scope="col">Decision Made</th><th scope="col">Key Stakeholders</th><th scope="col">Date</th><th scope="col">Original Thread Link</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+
+    <section class="ask" id="ask" aria-labelledby="ask-title">
+      <div class="intro">
+        <h2 id="ask-title">Ask about your decisions</h2>
+        <p>Anything from "what did we decide about pricing?" to "who was in on the auth RFC?"</p>
+      </div>
+      <div>
+        <form id="ask-form" autocomplete="off">
+          <label for="ask-input" class="sr">Your question</label>
+          <input id="ask-input" dir="auto" maxlength="600" placeholder="Ask about a decision, a topic, a person..." />
+          <button type="submit" class="btn light"><svg class="icon" aria-hidden="true"><use href="#i-send" /></svg>Ask</button>
+        </form>
+        <div class="qs" id="questions"></div>
+        <p class="note" id="ask-note">The answer comes up in the chat next to this page.</p>
+      </div>
+    </section>
+
+    <section id="ideas" aria-labelledby="ideas-title"></section>
+
+    <footer class="foot">
+      <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
+      <p>It reads only messages marked with 🧠 or 📝, in the channels you allow. Nothing is written in Slack or Discord unless you ask for it in the chat, and only in channels you set to Write. You see the words first.</p>
+    </footer>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  /** The routine that looks for newly marked threads, every hour. */
+  var CHECK = "check-decisions";
+  /** Questions go to the agent who keeps the log, not the cabinet's general assistant. */
+  var AGENT = "decision-keeper";
+  var SOURCES = [{ id: "slack", name: "Slack" }, { id: "discord", name: "Discord" }];
+  var POLL_MS = 60000;
+  var GRACE_MS = 5 * 60000;
+
+  var QUESTIONS = [
+    "What did we decide this week?",
+    "Which RFCs are still open?",
+    "Who decided the most?",
+    "What changed since last week?"
+  ];
+
+  /** Decision plays: one tap to ask now, or to switch on as a routine. */
+  var IDEAS = [
+    { art: "ideas/weekly-recap.jpg", title: "Weekly decisions recap",
+      text: "Every decision from this week on one page, with who decided and a link to each thread.",
+      ask: "Write a recap of every decision logged this week: what was decided, who decided, and a link to each thread. Save it as a page in this cabinet.",
+      when: "Every Friday", at: "every Friday at 4 pm" },
+    { art: "ideas/open-rfcs.jpg", title: "Open RFCs to close",
+      text: "The proposals still waiting for an answer, oldest first, with who needs to weigh in.",
+      ask: "List every RFC that is still open, oldest first: what it proposes, how long it has been open, and who still needs to weigh in.",
+      when: "Every Monday", at: "every Monday at 9:30 am" },
+    { art: "ideas/no-owner.jpg", title: "Decisions without an owner",
+      text: "Decisions where nobody said who will do the work, so they don't quietly stall.",
+      ask: "Find the decisions in the log where the thread never says who will do the work. For each one, say what was decided and who is most likely to own it.",
+      when: "Every Wednesday", at: "every Wednesday at 10 am" },
+    { art: "ideas/architecture.jpg", title: "Architecture decisions only",
+      text: "Just the technical choices: databases, APIs, auth, infrastructure, with why each was made.",
+      ask: "List only the architecture and technical decisions in the log (databases, APIs, auth, infrastructure, tooling), each with why it was decided.",
+      when: "Every month", at: "on the first day of every month at 10 am" },
+    { art: "ideas/share.jpg", title: "This week's decisions in a short note",
+      text: "This week's decisions with a link to each thread, short enough to copy anywhere.",
+      ask: "Write a short note with this week's decisions and a link to each thread, ready for me to copy. Do not post anything in Slack or Discord.",
+      when: "Every Friday", at: "every Friday at 5 pm" },
+    { art: "ideas/changed.jpg", title: "Decisions that changed",
+      text: "Decisions a later thread replaced or reversed, with what changed and why.",
+      ask: "Which decisions in the log were replaced or reversed by a later thread? For each, say what changed, when, and why.",
+      when: "Every Monday", at: "every Monday at 9 am" }
+  ];
+
+  var state = {
+    appPath: appPathFromUrl(),
+    here: null,
+    /** What Cabinet says about each connection; null until it answers (or outside Cabinet). */
+    links: null,
+    jobs: [],
+    jobsKnown: false,
+    /** The routine's cron and switch, read from its job file; null until read. */
+    schedule: null,
+    catchingUp: false,
+    loaded: false,
+    data: null,
+    example: true,
+    lastTry: null,
+    connecting: "",
+    connectNote: "",
+    running: false,
+    runNote: "",
+    open: {},
+    query: "",
+    source: "all"
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── Small helpers ──────────────────────────────────────────────────────
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function icon(id, cls) {
+    return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+  }
+  function logo(source) {
+    return '<svg class="logo" aria-hidden="true"><use href="#l-' + source + '"/></svg>';
+  }
+  function text(value, max) {
+    var s = typeof value === "string" ? value.trim() : "";
+    return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function names(value) { return Array.isArray(value) ? value.map(function (n) { return text(n, 40); }).filter(Boolean).slice(0, 8) : []; }
+
+  function appPathFromUrl() {
+    // /api/assets/<cabinet path>/<app folder>/index.html: the folder before the file.
+    var parts = location.pathname.split("/").filter(Boolean);
+    var at = parts.length - 2;
+    return at >= 0 ? decodeURIComponent(parts[at]) : "decisions";
+  }
+
+  var toastTimer = 0;
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
+  }
+
+  // ── Dates, in the person's own clock ───────────────────────────────────
+
+  var DAY_MS = 86400000;
+  function parseTime(value) {
+    if (typeof value !== "string" || !value) return null;
+    // A bare date is a calendar day, not midnight in another zone.
+    var m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  /** When a file was written, never later than now: a routine's own clock can be wrong. */
+  function writtenAt(value) {
+    var d = parseTime(value);
+    var now = new Date();
+    return d && d > now ? now : d;
+  }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / DAY_MS); }
+  function clock(d) { return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+  function shortDate(d) { return d.toLocaleDateString([], { month: "short", day: "numeric" }); }
+  /** "today at 9:00 AM", "yesterday at 9:00 AM", "Oct 7". */
+  function whenWords(d, now) {
+    var gap = daysBetween(d, now);
+    if (gap === 0) return "today at " + clock(d);
+    if (gap === 1) return "yesterday at " + clock(d);
+    return shortDate(d);
+  }
+
+  // ── The schedule ───────────────────────────────────────────────────────
+
+  /** One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function cronField(spec, min, max) {
+    var set = {};
+    spec.split(",").forEach(function (part) {
+      var bits = part.split("/"), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== "*") {
+        var r = bits[0].split("-");
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+  /** The nearest minute the schedule matches, walking back (dir -1) or forward (dir 1), up to eight days. */
+  function cronMatch(cron, from, dir) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = cronField(f[0], 0, 59), hrs = cronField(f[1], 0, 23), doms = cronField(f[2], 1, 31),
+        mons = cronField(f[3], 1, 12), dows = cronField(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;
+    var d = new Date(from.getTime());
+    d.setSeconds(0, 0);
+    if (dir > 0) d = new Date(d.getTime() + 60000);
+    for (var i = 0; i < 8 * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] && hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + dir * 60000);
+    }
+    return null;
+  }
+  function scheduleOn() { return !!(state.schedule && state.schedule.schedule && state.schedule.enabled !== "false"); }
+  /** The schedule is a nicety: a missing or renamed job file only means no catching up. */
+  function readSchedule() {
+    return fetch("../.jobs/" + CHECK + ".yaml", { cache: "no-store", credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : ""; })
+      .catch(function () { return ""; })
+      .then(function (t) {
+        var job = {};
+        t.split("\n").forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, "").trim();
+        });
+        state.schedule = job;
+        paintStatus();
+        catchUp();
+      });
+  }
+
+  // ── Reading the files the routine writes ───────────────────────────────
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  function readJson(rel) {
+    var got = V2 ? cab.files.read(state.appPath + "/" + rel)
+      : fetch(rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+        if (r.status === 404) throw notFound();
+        if (!r.ok) throw new Error("Could not read " + rel + ".");
+        return r.text();
+      });
+    return got.then(function (t) { return JSON.parse(t); });
+  }
+  function maybe(promise) { return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; }); }
+  function quiet(promise) { return promise.catch(function () { return null; }); }
+  function usable(d) { return d && typeof d === "object" && Array.isArray(d.rows); }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = Promise.all([
+      maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
+      quiet(maybe(readJson("data/status.json")))
+    ]).then(function (got) {
+      var latest = got[0];
+      state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
+      if (usable(latest) && latest.example !== true) {
+        state.data = latest;
+        state.example = false;
+        return null;
+      }
+      // A file half written a moment ago keeps what is on screen; the next change reloads it.
+      if (latest === "broken" && state.data && !state.example) return null;
+      return maybe(readJson("data/EXAMPLE-latest.json")).then(function (ex) {
+        state.data = usable(ex) ? ex : null;
+        state.example = true;
+      });
+    }).catch(function () {
+      if (!state.data) state.data = null;
+    }).then(function () {
+      state.loaded = true;
+      loading = null;
+      paint();
+      catchUp();
+    });
+    return loading;
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAsk() { return V2 && role() !== "viewer"; }
+  function canRun() { return V2 && role() !== "viewer"; }
+  function checkJob() {
+    for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === CHECK) return state.jobs[i];
+    return null;
+  }
+  function link(id) {
+    if (!state.links) return null;
+    for (var i = 0; i < state.links.length; i++) if (state.links[i] && state.links[i].id === id) return state.links[i];
+    return null;
+  }
+  /** A connection's state; outside Cabinet the example names its own, so the design reads right. */
+  function linkState(id) {
+    if (state.links) { var g = link(id); return g ? g.state : "not-added"; }
+    if (V2) return null;
+    var ex = state.example && state.data && state.data.connections;
+    return ex && typeof ex[id] === "string" ? ex[id] : null;
+  }
+  function anyConnected() { return SOURCES.some(function (s) { return linkState(s.id) === "connected"; }); }
+  /** Asking reads Slack or Discord, so it waits until one is connected. */
+  function askReady() { return !state.links || anyConnected(); }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var wasRunning = state.running;
+    state.jobs = items;
+    var job = checkJob();
+    state.running = !!(job && job.running);
+    state.jobsKnown = true;
+    if (wasRunning && !state.running) { state.catchingUp = false; load(); }
+    paint();
+    catchUp();
+  }
+
+  // ── Catching up on open ────────────────────────────────────────────────
+  // A laptop asleep at check time misses the run, or starts it with no network. When the
+  // page opens and the log on screen is older than the last time the schedule says it
+  // should have run, it runs once for that time. The time is remembered in this browser,
+  // so a run that fails again is not retried in a loop.
+
+  function catchUp() {
+    if (!canRun() || !state.loaded || !state.jobsKnown || state.running || state.catchingUp) return;
+    if (!anyConnected() || !checkJob() || !scheduleOn()) return;
+    // A few minutes' grace: the scheduled run itself may still be starting or writing.
+    var due = cronMatch(state.schedule.schedule, new Date(Date.now() - GRACE_MS), -1);
+    var shown = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
+    var tried = state.lastTry ? writtenAt(state.lastTry.at) : null;
+    if (tried && (!shown || tried > shown)) shown = tried;
+    if (!due || (shown && shown >= due)) return;
+    var key = "catch-up:" + CHECK + ":" + due.getTime();
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch (e) { return; }
+    state.catchingUp = true;
+    runNow();
+  }
+
+  function connect(id) {
+    if (!V2 || state.connecting) return;
+    state.connecting = id;
+    state.connectNote = "";
+    paint();
+    cab.connectors.connect(id).then(function (result) {
+      state.connecting = "";
+      return cab.connectors.list().then(function (items) {
+        if (Array.isArray(items)) state.links = items;
+        paint();
+        // The first check starts straight away, so the next thing they see is their own log.
+        if (result === "connected" && state.example && canRun() && checkJob()) runNow();
+      });
+    }).catch(function (e) {
+      state.connecting = "";
+      state.connectNote = e && e.message ? e.message : "That did not work. Try again.";
+      paint();
+    });
+  }
+
+  function runNow() {
+    if (!V2) { toast("Open this cabinet in Cabinet to check for new decisions."); return; }
+    if (state.running) return;
+    state.running = true;
+    state.runNote = "";
+    paint();
+    cab.jobs.run(CHECK).then(function () {
+      watchRun();
+    }).catch(function (e) {
+      if (e && e.code === "busy") { watchRun(); return; }
+      state.running = false;
+      state.catchingUp = false;
+      state.runNote = e && e.message ? e.message : "The check did not start. Try again.";
+      paint();
+    });
+  }
+
+  // jobs.onChange says when the run ends; this is the fallback if a change is ever missed.
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!state.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+
+  function ask(question) {
+    var q = text(question, 3900);
+    if (!q) return;
+    if (!V2) { toast("Open this cabinet in Cabinet to ask about your decisions."); return; }
+    if (!askReady()) { toast("Connect Slack or Discord first."); return; }
+    var note = $("ask-note");
+    note.textContent = "Asking...";
+    cab.ask(q, { agent: AGENT, send: true }).then(function () {
+      note.textContent = "Asked. The answer is coming in the chat next to this page.";
+      toast("Asked. The answer is coming in the chat.");
+      $("ask-input").value = "";
+    }).catch(function (e) {
+      note.textContent = e && e.message ? e.message : "That did not go through. Try again.";
+      toast(note.textContent);
+    });
+  }
+
+  /** A thread link, only on Slack's or Discord's own address. */
+  function threadLink(row) {
+    var url = typeof row.link === "string" ? row.link.trim() : "";
+    if (url.length > 400) return "";
+    if (row.source === "slack" && /^https:\/\/[a-z0-9-]+\.slack\.com\//i.test(url)) return url;
+    if (row.source === "discord" && /^https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/channels\//i.test(url)) return url;
+    return "";
+  }
+
+  // ── Painting ───────────────────────────────────────────────────────────
+
+  function rows() {
+    var r = state.data ? list(state.data.rows) : [];
+    return r.slice().sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); });
+  }
+  function rowId(row, i) { return text(row.id, 120) || "r" + i; }
+  function matches(row) {
+    if (state.source !== "all" && row.source !== state.source) return false;
+    if (!state.query) return true;
+    var hay = [row.topic, row.decision, row.channel, row.summary, row.why].concat(names(row.stakeholders)).join(" ").toLowerCase();
+    return state.query.toLowerCase().split(/\s+/).every(function (w) { return hay.indexOf(w) !== -1; });
+  }
+
+  function paint() {
+    paintStatus();
+    paintHero();
+    paintRibbon();
+    paintMatrix();
+    paintIdeas();
+    paintAsk();
+  }
+
+  function pill(id, label) {
+    var s = linkState(id);
+    if (s === "connected") return '<span class="pill ok"><span class="dot"></span>' + label + " connected</span>";
+    if (s === "needs-sign-in" || s === "needs-you") return '<span class="pill warn"><span class="dot"></span>' + label + " needs you</span>";
+    return "";
+  }
+
+  function paintStatus() {
+    var pills = SOURCES.map(function (s) { return pill(s.id, s.name); }).join("");
+    if (V2 && state.links && !pills) pills = '<span class="pill"><span class="dot"></span>Not connected</span>';
+    if (V2 && !state.links) pills = '<span class="pill"><span class="dot"></span>Checking connections</span>';
+    var when = "";
+    /* Inside Cabinet the example's date is not this cabinet's, so "Updated" waits for a real log. */
+    var g = state.data && !(V2 && state.example) ? writtenAt(state.data.generatedAt) : null;
+    var next = null;
+    if (!state.example && scheduleOn() && anyConnected()) next = cronMatch(state.schedule.schedule, new Date(), 1);
+    else if (state.example && !V2 && state.data) next = parseTime(state.data.nextCheck);
+    if (g) when = "Updated " + whenWords(g, new Date()) + ".";
+    if (next) when += (when ? " " : "") + "Next check at " + clock(next) + ".";
+    var button = "";
+    if (!V2) button = '<button class="btn" data-act="run">' + icon("i-refresh") + "Check now</button>";
+    else if (canRun() && anyConnected() && checkJob()) {
+      button = state.running
+        ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Checking...</button>"
+        : '<button class="btn" data-act="run">' + icon("i-refresh") + "Check now</button>";
+    }
+    $("status").innerHTML = (pills ? '<span class="pills">' + pills + "</span>" : "") +
+      (when ? '<span class="updated">' + esc(when) + "</span>" : "") + button;
+  }
+
+  function cardHero(title, body) {
+    return '<div class="card-hero"><h2>' + esc(title) + "</h2>" + body + "</div>";
+  }
+  function runNoteHtml() { return state.runNote ? '<div class="notice" style="margin-top:14px">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
+
+  function paintHero() {
+    var hero = $("hero");
+    if (!state.loaded) return;
+    var html;
+    if (V2 && state.links && !anyConnected()) {
+      var buttons = SOURCES.filter(function (s) { var g = link(s.id); return g && g.canConnect; }).map(function (s) {
+        var busy = state.connecting === s.id;
+        return '<button class="btn dark" data-act="connect" data-id="' + s.id + '"' + (state.connecting ? " disabled" : "") + ">" +
+          (busy ? icon("i-refresh", "spin") : logo(s.id)) + (busy ? "Connecting..." : "Connect " + s.name) + "</button>";
+      }).join("");
+      html = cardHero("Connect Slack or Discord",
+        '<p class="lead">Then react 🧠 on a decision or 📝 on a proposal, and it lands in the Decision Matrix. Either one is enough.</p>' +
+        (buttons ? '<div class="actions">' + buttons + "</div>" : '<p class="fine">Ask the person who owns this cabinet to connect Slack or Discord.</p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
+        '<p class="fine">Below is an example from a made-up team.</p>');
+    } else if (state.running && state.example) {
+      html = cardHero("Looking for marked threads...", '<p class="lead">This takes a minute or two. The page fills in by itself.</p>');
+    } else {
+      html = dataHero();
+    }
+    hero.innerHTML = html + failureHtml() + partialHtml();
+  }
+
+  function dataHero() {
+    var all = rows();
+    var latest = null;
+    for (var i = 0; i < all.length; i++) if (all[i].kind !== "rfc" && all[i].status !== "superseded") { latest = all[i]; break; }
+    if (!latest) {
+      var rfcs = all.filter(function (r) { return r.kind === "rfc" && r.status === "open"; });
+      if (rfcs.length) {
+        return '<h2><span class="k">Latest RFC:</span> <span dir="auto">' + esc(text(rfcs[0].topic, 100)) + "</span></h2>" +
+          '<p class="lead">No decision logged yet. When someone reacts 🧠 on a decision, it shows up here.</p>' + runNoteHtml();
+      }
+      return "<h2>No decisions yet</h2>" +
+        '<p class="lead">React 🧠 on a decision or 📝 on a proposal in Slack or Discord. It shows up here within the hour, or press Check now.</p>' + runNoteHtml();
+    }
+    var where = text(latest.channel, 60);
+    var src = latest.source === "discord" ? "Discord" : "Slack";
+    var d = parseTime(latest.date);
+    var who = names(latest.stakeholders);
+    var whoWords = who.length > 1 ? who.slice(0, -1).join(", ") + " and " + who[who.length - 1] : who[0] || "";
+    return '<h2><span class="k">' + (state.example ? "Example: " : "") + "Latest decision:</span> " +
+      '<span dir="auto">' + esc(text(latest.decision, 140).replace(/\.$/, "")) + "</span></h2>" +
+      '<p class="lead">Decided ' + (where ? "in " + esc(where) + " on " : "on ") + src +
+      (d ? ", " + esc(shortDate(d)) : "") + (whoWords ? ", by " + esc(whoWords) : "") + ".</p>" + runNoteHtml();
+  }
+
+  /** The last check that could not read anything says so, with Try again. */
+  function failureHtml() {
+    if (state.running || !state.lastTry || state.lastTry.ok !== false) return "";
+    var tryAt = writtenAt(state.lastTry.at);
+    var shownAt = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
+    if (!tryAt || (shownAt && shownAt >= tryAt)) return "";
+    if (V2 && state.links && !anyConnected()) return "";
+    var why = text(state.lastTry.why, 240) || "The last check could not read Slack or Discord.";
+    return '<div class="notice" style="margin-top:16px">' + icon("i-alert") + "<div><p><b>The check " + esc(whenWords(tryAt, new Date())) + " didn’t work.</b> " + esc(why) + "</p>" +
+      (canRun() && checkJob() ? '<div class="actions"><button class="btn small" data-act="run">' + icon("i-refresh") + "Try again</button></div>" : "") + "</div></div>";
+  }
+  /** A check that read one source but not the other says which, quietly. */
+  function partialHtml() {
+    if (state.example || state.running || !state.lastTry || state.lastTry.ok !== true) return "";
+    var s = state.lastTry.sources && typeof state.lastTry.sources === "object" ? state.lastTry.sources : {};
+    var failed = SOURCES.filter(function (x) { return s[x.id] === "failed"; }).map(function (x) { return x.name; });
+    var why = text(state.lastTry.why, 200) || (failed.length ? failed.join(" and ") + " could not be read on the last check." : "");
+    return why ? '<div class="ribbon" style="margin-top:16px">' + icon("i-alert") + '<p dir="auto">' + esc(why) + "</p></div>" : "";
+  }
+
+  function paintRibbon() {
+    var el = $("ribbon");
+    var showExample = state.loaded && state.data && state.example;
+    el.innerHTML = showExample
+      ? '<div class="ribbon"><span class="tag-example">Example</span><p>' +
+        (text(state.data.workspace, 60) ? "<b>" + esc(text(state.data.workspace, 60)) + "</b>, a made-up team. " : "A made-up team. ") +
+        "None of this is your team. Your first marked thread replaces it.</p></div>"
+      : "";
+    $("howto").hidden = !state.loaded || !(state.example || !rows().length);
+  }
+
+  function rowHtml(row, i) {
+    var id = rowId(row, i);
+    var open = !!state.open[id];
+    var src = row.source === "discord" ? "discord" : "slack";
+    var kind = row.status === "superseded" ? "superseded" : row.kind === "rfc" ? "rfc" : "decision";
+    var kindWords = kind === "superseded" ? "Replaced" : kind === "rfc" ? (row.status === "open" ? "RFC, open" : "RFC") : "Decision";
+    var d = parseTime(row.date);
+    var who = names(row.stakeholders);
+    var url = threadLink(row);
+    var linkHtml = '<a class="thread" href="' + esc(url || "#") + '"' +
+      (state.example || !url ? ' data-act="example-link"' : ' target="_blank" rel="noopener noreferrer"') + ">" +
+      logo(src) + "Open thread <span class=\"src\">" + (src === "discord" ? "Discord" : "Slack") + "</span></a>" +
+      (text(row.channel) ? '<span class="chan" dir="auto">' + esc(text(row.channel, 40)) + "</span>" : "");
+    var html = '<tr class="row' + (open ? " open" : "") + (kind === "superseded" ? " superseded" : "") + '" data-act="toggle" data-id="' + esc(id) + '">' +
+      '<td class="t-topic"><button type="button" class="topic" aria-expanded="' + open + '" aria-controls="d-' + esc(id) + '">' + icon("i-chev", "chev") +
+      '<span dir="auto">' + esc(text(row.topic, 80) || "A decision") + "</span></button>" +
+      '<span class="kind ' + kind + '">' + kindWords + "</span></td>" +
+      '<td class="t-dec"><span class="dec" dir="auto">' + esc(text(row.decision, 200)) + "</span></td>" +
+      '<td class="t-who"><span class="who">' + who.map(function (n) { return '<span dir="auto">' + esc(n) + "</span>"; }).join("") + "</span></td>" +
+      '<td class="t-date"><span class="date">' + (d ? esc(shortDate(d)) : "") + "</span></td>" +
+      '<td class="t-link">' + linkHtml + "</td></tr>";
+    if (open) {
+      var quotes = list(row.quotes).slice(0, 4);
+      html += '<tr class="detail" id="d-' + esc(id) + '"><td colspan="5"><div class="detail-in">' +
+        "<div><h4>Summary</h4><p dir=\"auto\">" + esc(text(row.summary, 600)) + "</p>" +
+        (text(row.why) ? "<h4>Why</h4><p dir=\"auto\">" + esc(text(row.why, 400)) + "</p>" : "") + "</div>" +
+        (quotes.length ? "<div><h4>From the thread</h4><ul class=\"quotes\">" + quotes.map(function (q) {
+          return '<li><b dir="auto">' + esc(text(q.author, 40)) + '</b><span dir="auto">' + esc(text(q.text, 300)) + "</span></li>";
+        }).join("") + "</ul></div>" : "") +
+        (canAsk() ? '<div class="row-actions"><button type="button" class="btn small dark" data-act="ask-row" data-id="' + esc(id) + '">' + icon("i-chat") + "Ask about this</button></div>" : "") +
+        "</div></td></tr>";
+    }
+    return html;
+  }
+
+  function paintMatrix() {
+    var section = $("matrix-section");
+    section.hidden = !state.loaded || !state.data;
+    if (section.hidden) return;
+    var all = rows();
+    var shown = all.filter(matches);
+    var open = all.filter(function (r) { return r.kind === "rfc" && r.status === "open"; }).length;
+    $("matrix-note").textContent = open ? open + (open === 1 ? " RFC is" : " RFCs are") + " still open." : all.length ? "Newest first." : "";
+    $("rows").innerHTML = shown.length ? shown.map(function (r) { return rowHtml(r, all.indexOf(r)); }).join("")
+      : '<tr><td colspan="5" class="empty"><p>' + (all.length ? "No decision matches that." : "No decisions yet. Each thread you mark with 🧠 or 📝 becomes a row here.") + "</p>" +
+        (all.length && state.query && canAsk() ? '<button type="button" class="btn small" data-act="ask-find">' + icon("i-chat") + "Ask in chat</button>" : "") + "</td></tr>";
+  }
+
+  function paintIdeas() {
+    var can = canAsk() && askReady();
+    $("ideas").innerHTML = '<div class="section-head"><h2 id="ideas-title">Ideas for your decisions</h2>' +
+      "<p>" + (!V2 ? "Ask for any of these in the cabinet’s chat." : !askReady() ? "Connect Slack or Discord and each of these is one tap away." : "One tap to ask now, or to have it done for you on a schedule.") + "</p></div>" +
+      '<div class="idea-grid">' + IDEAS.map(function (idea, i) {
+        return '<article class="idea"><div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>' +
+          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
+          '<div class="go"><button class="btn dark" data-act="idea-now" data-i="' + i + '"' + (can || !V2 ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
+          '<button class="btn" data-act="idea-routine" data-i="' + i + '"' + (can || !V2 ? "" : " disabled") + ' aria-label="' + esc(idea.when + ": " + idea.title) + '">' + icon("i-repeat") + esc(idea.when) + "</button></div>" +
+          "</article>";
+      }).join("") + "</div>";
+  }
+
+  /** A viewer cannot ask; outside Cabinet the box shows what it does. */
+  function paintAsk() {
+    $("ask").hidden = V2 && !canAsk();
+    $("ask-note").textContent = askReady()
+      ? "The answer comes up in the chat next to this page."
+      : "Connect Slack or Discord first, then ask anything.";
+  }
+
+  function paintQuestions() {
+    $("questions").innerHTML = QUESTIONS.map(function (q) {
+      return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+    }).join("");
+  }
+
+  function findRow(id) {
+    var all = rows();
+    for (var i = 0; i < all.length; i++) if (rowId(all[i], i) === id) return all[i];
+    return null;
+  }
+
+  // ── Presses ────────────────────────────────────────────────────────────
+
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest ? event.target.closest("[data-act]") : null;
+    if (!el || el.disabled) return;
+    var act = el.getAttribute("data-act");
+    if (act === "example-link") {
+      event.preventDefault();
+      event.stopPropagation();
+      toast(state.example ? "This is an example thread. Your own rows link to the real one." : "This thread has no link.");
+    } else if (act === "toggle") {
+      if (event.target.closest("a")) return;
+      var id = el.getAttribute("data-id");
+      state.open[id] = !state.open[id];
+      paintMatrix();
+      var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"] .topic');
+      if (again) again.focus();
+    } else if (act === "run") runNow();
+    else if (act === "connect") connect(el.getAttribute("data-id"));
+    else if (act === "ask") ask(el.getAttribute("data-q"));
+    else if (act === "ask-find") ask("Find what we decided about " + state.query + " in Slack or Discord.");
+    else if (act === "ask-row") {
+      var row = findRow(el.getAttribute("data-id"));
+      if (row) ask("Tell me more about the decision on " + text(row.topic, 80) + ": what was said in the thread, who agreed, and what happens next.");
+    } else if (act === "idea-now") {
+      var idea = IDEAS[+el.getAttribute("data-i")];
+      if (idea) ask(idea.ask);
+    } else if (act === "idea-routine") {
+      var r = IDEAS[+el.getAttribute("data-i")];
+      if (r) ask("Set this up as a routine that runs " + r.at + ": " + r.ask + " Show me the routine so I can approve it before it starts.");
+    }
+  });
+
+  $("seg").addEventListener("click", function (event) {
+    var b = event.target.closest("button[data-src]");
+    if (!b) return;
+    state.source = b.getAttribute("data-src");
+    Array.prototype.forEach.call($("seg").querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    paintMatrix();
+  });
+  $("find").addEventListener("input", function (event) {
+    state.query = event.target.value.trim();
+    paintMatrix();
+  });
+  $("ask-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    ask($("ask-input").value);
+  });
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  paintQuestions();
+  if (V2) {
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      // The routine's data lives in this app's folder.
+      try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+    cab.connectors.list().then(function (items) {
+      state.links = Array.isArray(items) ? items : [];
+      paint();
+      catchUp();
+    }).catch(function () { state.links = []; paint(); });
+    cab.connectors.onChange(function (items) { if (Array.isArray(items)) { state.links = items; paint(); } });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+    readSchedule();
+  } else {
+    load();
+    // No live changes in an older Cabinet: look again now and then while the page is in view.
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
+  }
+})();
+</script>
+</body>
+</html>
