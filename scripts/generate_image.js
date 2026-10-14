@@ -255,9 +255,6 @@ const CABINET_ICONS = {
   // ─── Added 2026-09-16 for the four-demo-integrations cabinets (PR #159/#17), which shipped after this table ──
   'aws-s3-asset-library':       { object: 'a small storage bucket with a labeled asset tag hanging from its rim', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'gemini-image-studio':        { object: 'an artist easel holding a canvas with a four-pointed star carved in relief', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'google-drive-client-folder': { object: 'a hanging file folder with a small triangular drive pennant clipped to its tab', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'google-drive-my-documents':  { object: 'a stack of three folded documents with a small triangular drive pennant resting on top', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'google-drive-team-drive':    { object: 'three small file folders fanned out together beneath one shared triangular drive pennant', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'sharepoint-bid-room':        { object: 'a single rolled proposal scroll tied with a ribbon, leaning against a small folder', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'sharepoint-policy-desk':     { object: 'a single open rulebook with one ribbon bookmark trailing out the bottom', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'slack-answers':              { object: 'a single speech bubble with a small question mark nested inside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },

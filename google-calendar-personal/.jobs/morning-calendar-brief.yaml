@@ -1,0 +1,92 @@
+id: morning-calendar-brief
+name: Morning week
+enabled: true
+schedule: 0 7 * * *
+provider: claude-code
+adapterType: claude_local
+adapterConfig:
+  model: sonnet
+  effort: low
+ownerAgent: week-keeper
+agentSlug: week-keeper
+timeout: 900
+prompt: |-
+  Update the My week page from the person's Google Calendar.
+
+  On the first read (no `calendar-brief/data/profile.json` yet), first follow "The first
+  read" in your persona: it also writes, only through `node calendar-brief/first-sort.mjs` (start, push, profile, done),
+  `calendar-brief/data/reading.json`, line by line
+  as you work, and `calendar-brief/data/profile.json`, every number computed from the
+  saved events file, never typed by hand.
+
+  You write only `calendar-brief/data/latest.json`; the page draws it. Never touch any other file, except on the first read: `reading.json` and `profile.json`
+  through the helper, and scratch files in `calendar-brief/data/.work/`. Your persona says the kinds and how to write an event, the plans further
+  ahead and the dates. Work in as few steps as you can (on the first read, one line per call wins): a short
+  node script (Python may not be installed) for reading and the numbers is best.
+
+  1. Find today's date, the time now and the calendar's time zone.
+  2. Read the primary calendar from midnight today to midnight 30 days ahead, the way the
+     "Connections this cabinet uses" section says:
+     - "connected through Sign in with Google": use `gws`, Google's own Workspace command
+       line tool. It is on your PATH and signs itself in with this run's token; never
+       print, copy or write the token, and never run `gws auth`. Save its answer to a file
+       in `calendar-brief/data/.work/` (never `/tmp`: on Windows the shell's and the
+       script's /tmp differ) and work from the file:
+
+       gws calendar events list --params '{"calendarId":"primary","timeMin":"<from, with offset>","timeMax":"<to, with offset>","singleEvents":true,"orderBy":"startTime","maxResults":2500,"fields":"items(id,status,summary,start,end,location,htmlLink,eventType,transparency,attendees(email,displayName,responseStatus,resource,self)),nextPageToken,timeZone"}'
+
+       Add `--page-all` if the answer has a `nextPageToken`. Guests with `resource: true`
+       are rooms: skip them.
+     - "connected by its secret address": read the same days through the Google Calendar
+       skill, at most 62 days per ask.
+     Leave out cancelled events and events the person declined.
+  3. This run only reads. Never create, move, shorten, cancel or answer an event.
+  4. If you could not read the calendar, set only `status` to one plain sentence and
+     `checkedAt` to now in `calendar-brief/data/latest.json`, keeping everything else (if
+     the file does not exist, write {"generatedAt": null, "checkedAt": "<now>", "status":
+     "<sentence>", "events": [], "upcoming": [], "dates": []}), then stop:
+     - not connected: "Google Calendar isn't connected yet."
+     - `401` or `UNAUTHENTICATED`: "Google Calendar needs you to sign in again." Also add
+       `NEEDS_CONNECTION: google-calendar | Google needs a new sign-in` in your cabinet block.
+     - `403`, `insufficientPermissions` or `ACCESS_TOKEN_SCOPE_INSUFFICIENT`: "Cabinet isn't
+       allowed to read your calendar."
+     - `429` or a code of 500 or more: try once more after a few seconds; then, or on
+       anything else: "Couldn't reach Google Calendar this morning."
+  The script that writes latest.json takes `today`, the offset and `timeZone` from `date` and
+  the events file, and `kind` and `client` from the guests' addresses; a `headline` or `note`
+  says only what that script counted.
+  5. Replace `calendar-brief/data/latest.json` with this shape (dates and times in the
+     calendar's own time zone, times as 24-hour HH:MM):
+
+     {"generatedAt": "<now, with offset>", "checkedAt": "<now>", "status": "ok",
+      "timeZone": "America/New_York", "today": "2026-09-25", "canChange": false,
+      "business": null, "headline": "12 plans this week, and Saturday is free.",
+      "note": "Leo's birthday is on Sunday.",
+      "events": [{"id": "...", "date": "2026-09-25", "start": "15:30", "end": "16:15",
+        "allDay": false, "title": "Dentist for Maya", "place": "Bright Smiles Dental",
+        "people": [], "morePeople": 0, "kind": "other", "client": null,
+        "link": "<the event's htmlLink, or null>"}],
+      "upcoming": [{"id": "...", "date": "2026-10-02", "start": "10:00",
+        "title": "Car service", "place": "Main Street Garage", "kind": "appointment"}],
+      "dates": [{"id": "...", "date": "2026-10-04", "title": "Mom's birthday",
+        "kind": "birthday"}],
+      "clients": []}
+
+     - `canChange`: true only when your Connections line for Google Calendar says "may read
+       and change events"; false when it says read only.
+     - `events`: every event of the seven days from today, with its `kind`. An all-day
+       event has `allDay: true`, `start` and `end` null, and `lastDate`
+       when it covers more than one day. A timed event that ends on a later day (a night
+       flight, a conference over several days) has `endDate`, the day it ends, and
+       `end` is the time on that day. Copy `eventType` when it is not `default` (such as
+       `outOfOffice`) and `transparency` when it is `transparent` (shown as free), as the
+       calendar gives them: the page counts free time from them. Keep an event that began
+       before today and still runs into today. At most 80.
+     - `headline`: the week in plain words, at most 80 characters. `note`: the one thing
+       worth knowing (a birthday soon, two plans that overlap); leave it out when nothing
+       stands out.
+
+  Finish in one or two plain sentences and nothing else: how busy the week is, the next
+  date to remember, and when they are free.
+createdAt: '2026-10-08T00:00:00.000Z'
+updatedAt: '2026-10-08T00:00:00.000Z'

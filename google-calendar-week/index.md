@@ -1,38 +1,45 @@
 ---
-title: Google Calendar Week
+title: Calendar for Business
 created: '2026-08-09T00:00:00Z'
-modified: '2026-09-25T00:00:00Z'
-tags: [google-calendar, calendar, clients, small-business, showcase]
+modified: '2026-10-08T00:00:00Z'
+tags: [google-calendar, business, clients, meetings, calendar, schedule, small-business]
 order: 1
 ---
-# Google Calendar Week
+# Calendar for Business
 
-Your calendar, working for your business. Every morning at 7 it lays out the week's client
-meetings, keeps a client list built from who you meet, and flags the clients going quiet.
+Your work week with clients, from your Google Calendar. It shows what is on now and next,
+helps you before and after every client meeting, and keeps track of the people you work
+with. It reads your calendar every morning at 7, and the page keeps time all day.
 
-The cabinet opens on it: **Your week in business**.
+The cabinet opens on it: **Your week**.
 
 ## What you get
 
-- **Your week in business**: client meetings, hours with clients, new clients, and the best
-  open time for sales calls.
-- **Every client meeting**, with "Prep me" before it and "Draft follow-up" after it.
-- **Clients**: a client list built from your meetings. Who you met, how often, when last,
-  what is next, hours this month, and who is going quiet. Each client also gets a page in
-  **Clients**, with room for your own notes.
-- **Ideas**: plays to try, like "Hours per client this month, for invoices". Ask once, or
-  switch one on to run every morning or every Monday.
+- **Today**: the meeting on now, the next one with a live countdown, and the rest of your
+  working day.
+- **Before and after**: meetings to prepare for, with a short brief ready, and follow-ups
+  to send after them.
+- **Send my free times**: your open times this week as a short message, ready to copy into an email when someone asks when you are free.
+- **This week**: your seven days, as a list by day or as a real week view.
+- **Clients you meet**: who you met, how often, and when you meet them next. **Going
+  quiet** names the clients you have not seen in a while, with a check-in ready.
+- **Double bookings**: meetings that overlap, with help to fix them.
+
+Press **Edit layout** to add, remove, move and resize the boxes. Your layout is yours.
+
+For your own life (family, school, appointments), use **Calendar for Personal**. For hours
+you bill to clients, use **Calendar for Freelancers**.
 
 ## Getting started
 
-1. In Calendar Brief, press **Connect Google Calendar**. You do it once.
-2. A minute later your own week and clients are there. They update every morning at 7.
+1. On the page, press **Connect Google Calendar**. You do it once.
+2. A minute later your own week is there. It updates every morning at 7.
 
-Until then, the app shows a made-up heating and cooling company, and says so.
+Until then, the page shows a made-up week, and says so.
 
 ## It only reads, unless you ask
 
 The morning update never adds, moves or deletes anything, and never sends anything.
 Drafts are written for you to send yourself. If you ask in the chat to move an event, it
 says exactly what will change and waits for your yes. Connected with your calendar's
-secret address, it can read your meetings but not change them.
+secret address, it can read your week but not change it.

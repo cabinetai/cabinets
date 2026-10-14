@@ -1,408 +1,718 @@
 <!DOCTYPE html>
 <!--
-  good-morning flagship page, in the Cabinet Kit "wooden" theme
-  (source of truth: kit/themes/wooden/ at the registry root, tokens inlined here
-  because an installed cabinet is one copied directory and links nothing outside itself).
+  Good Morning: one page from everything the person has connected.
 
   Reads ../reports/, one file per run, written by this cabinet's single routine. The
   report is generic on purpose: one "## Section" of bullets per connected source, in
-  whatever order setup.md asks for, this page renders whatever sections arrive, so a
-  newly connected source needs no page change at all.
-  Relative URLs on purpose. They resolve under /api/assets/<cabinet>/<app>/ at any
-  depth and survive the user renaming the cabinet at install time. The folder listing
-  comes from /api/tree because the assets route cannot list a directory.
+  whatever order setup.md asks for, and this page draws whatever sections arrive, so a
+  newly connected source needs no page change at all. "## Checked" is the honesty
+  footer: what the routine looked at and what it could not reach.
 
-  Zero external requests. System fonts, inline CSS, no libraries.
-  Every failure path renders something honest instead of a blank page.
+  The look: a morning sky that follows the clock (dawn, day, dusk, night), the greeting
+  by name, the morning's headline, and today's calendar laid along the horizon with the
+  sun at the present hour. Under it, the one thing that matters most, then one plain
+  sheet per source, then what was checked with a way to connect one more source.
+
+  How it talks to Cabinet: window.cabinet v2 (files, connectors, jobs, me). In an older
+  Cabinet it lists the folder through /api/tree and reads files over relative URLs, so
+  it still works when the cabinet is renamed at install time. It never changes anything
+  in a connected service: it reads files and, when asked, starts the routine.
+
+  One file on purpose: a sealed frame cannot load files next to it. Young Serif
+  for the big words, Onest for text, from Google Fonts with system fallbacks.
+  Every failure path draws something honest instead of a blank page.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Good Morning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Onest:wght@400..700&display=swap" rel="stylesheet" />
 <style>
-  /* ---- Cabinet Kit · wooden ------------------------------------------------------- */
   :root {
-    --cabinet-bg: #FAF6F1; --cabinet-surface: #FFFFFF; --cabinet-surface-muted: #FAF0E9;
-    --cabinet-ink: #221716; --cabinet-ink-muted: #99887F;
-    --cabinet-wood: #834A2B; --cabinet-wood-deep: #5C2603;
-    --cabinet-border: #E1D6CE; --cabinet-border-soft: rgba(225,214,206,.45);
-    --cabinet-border-card: rgba(225,214,206,.75);
-    --cabinet-danger: #D40924; --cabinet-success: #14823E; --cabinet-warning: #9A6722;
-    --cabinet-radius: 10px;
-    --cabinet-shadow-2: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
-    --cabinet-font-sans: Geist, "Geist Fallback", system-ui, sans-serif;
-    --cabinet-font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
-    --cabinet-font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
-    --cabinet-focus-ring: 0 0 0 3px rgba(92,38,3,.35);
+    --canvas: #f1f2ee;
+    --page: #ffffff;
+    --line: #e8e2d9;
+    --line-2: #d8d0c4;
+    --ink: #1c2230;
+    --ink-2: #434a59;
+    --ink-3: #636a78;
+    --sun: #c2551f;          /* the accent: 4.9:1 on white */
+    --sun-soft: #fbeee6;
+    --clear: #2f6b4f;        /* "nothing needs you" */
+    --clear-soft: #e9f3ed;
+    --warn: #8a5a12;
+    --warn-soft: #fbf1df;
+    --serif: "Young Serif", "Iowan Old Style", Georgia, serif;
+    --sans: "Onest", "Segoe UI Variable Text", system-ui, -apple-system, sans-serif;
+    --radius: 22px;
+    --focus: 0 0 0 3px #fff, 0 0 0 5px #1c2230;
+    /* The sky, set from the clock by the script. These are dawn. */
+    --sky-top: #f4c7a6; --sky-mid: #f9e1cd; --sky-low: #f7efe6;
+    --sky-ink: #1c2230; --sky-ink-2: #3d4352; --hill: #e9d8c6; --hill-2: #dcc6b0;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; padding: 32px 20px; background: var(--cabinet-bg); color: var(--cabinet-ink);
-    font: 15px/1.55 var(--cabinet-font-sans);
+    margin: 0; background: var(--canvas); color: var(--ink);
+    font: 16px/1.55 var(--sans); padding: 20px clamp(12px, 3vw, 32px) 48px;
   }
-  .wrap { max-width: 780px; margin: 0 auto; }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: none; box-shadow: var(--focus); border-radius: 10px; }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ── The sky ─────────────────────────────────────────────────────────── */
+  .sky {
+    position: relative; overflow: hidden; border-radius: 28px;
+    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-low) 100%);
+    color: var(--sky-ink); padding: 22px clamp(20px, 4vw, 44px) 0;
+    min-height: 380px; display: flex; flex-direction: column;
+  }
+  .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; z-index: 2; }
+  .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; margin-right: auto; }
+  .brand svg { width: 20px; height: 20px; }
+  .daynav { display: inline-flex; align-items: center; gap: 2px; background: rgba(255,255,255,.62); border-radius: 999px; padding: 3px; }
+  .daynav button { border: 0; background: transparent; border-radius: 999px; width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer; }
+  .daynav button:hover:not(:disabled) { background: rgba(255,255,255,.9); }
+  .daynav button:disabled { opacity: .35; cursor: default; }
+  .daynav span { font-size: 14px; font-weight: 600; padding: 0 8px; min-width: 92px; text-align: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; border: 0; cursor: pointer;
+    background: rgba(255,255,255,.72); border-radius: 999px; padding: 8px 15px; font-size: 14px; font-weight: 600;
+  }
+  .btn:hover:not(:disabled) { background: #fff; }
+  .btn:disabled { cursor: default; opacity: .75; }
+  .btn svg { width: 16px; height: 16px; }
+  .btn.spin svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hello { position: relative; z-index: 2; margin-top: clamp(22px, 4vw, 40px); max-width: 680px; }
+  .eyebrow { font-size: 15px; color: var(--sky-ink-2); font-weight: 500; }
   h1 {
-    font-family: var(--cabinet-font-heading); letter-spacing: -0.02em;
-    font-size: 24px; margin: 0; display: flex; align-items: center; gap: 10px;
+    font-family: var(--serif); font-weight: 400; margin: 2px 0 10px;
+    font-size: clamp(42px, 5.6vw, 76px); line-height: 1; letter-spacing: -.03em;
   }
-  .mark { width: 24px; height: 24px; flex: none; }
-  .sub { color: var(--cabinet-ink-muted); margin: 4px 0 0 34px; font-size: 14px; }
-  .card {
-    background: var(--cabinet-surface); border: none;
-    border-radius: var(--cabinet-radius); box-shadow: var(--cabinet-shadow-2);
-    padding: 18px 20px; margin-top: 18px;
+  h1 em { font-style: italic; }
+  .headline { font-size: clamp(18px, 1.9vw, 22px); line-height: 1.4; font-weight: 500; margin: 0; max-width: 34ch; }
+  .when { margin-top: 10px; font-size: 14px; color: var(--sky-ink-2); }
+
+  /* The horizon: today's calendar along the line, the sun at this hour. */
+  .horizon { position: relative; margin: auto calc(-1 * clamp(20px, 4vw, 44px)) 0; height: 128px; }
+  .horizon svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .hill { fill: var(--hill); } .hill-2 { fill: var(--hill-2); }
+  .hour { font: 600 12px var(--sans); fill: var(--sky-ink-2); }
+  .ev { fill: var(--sky-ink); opacity: .82; }
+  .ev-label { font: 600 12.5px var(--sans); fill: var(--sky-ink); }
+  .night .sky-star { fill: #fff; }
+
+  /* ── Under the sky ──────────────────────────────────────────────────── */
+  .note {
+    margin-top: 14px; padding: 12px 18px; border-radius: 16px; background: var(--page);
+    border: 1px solid var(--line); font-size: 15px; color: var(--ink-2);
+    display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap;
   }
-  .empty { color: var(--cabinet-ink-muted); font-size: 14px; }
-  .empty code { font: 13px var(--cabinet-font-mono); }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--cabinet-ink-muted); }
-  .picker select {
-    font: inherit; color: var(--cabinet-ink); background: var(--cabinet-surface);
-    max-width: 100%; border: 1px solid var(--cabinet-border);
-    border-radius: var(--cabinet-radius); padding: 5px 9px; margin-left: 6px;
+  .note b { color: var(--ink); }
+  .tag { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: var(--ink); color: #fff; }
+  .first-run { margin-left: auto; border: 0; cursor: pointer; background: var(--ink); color: #fff; border-radius: 999px; padding: 9px 16px; font-size: 15px; font-weight: 600; }
+  .first-run:hover { background: #2e3648; }
+  .first-run:disabled { opacity: .7; cursor: default; }
+  .note.warn { background: var(--warn-soft); border-color: #efd9b0; color: var(--warn); }
+
+  .first {
+    margin-top: 14px; background: var(--page); border-radius: var(--radius); border: 1px solid var(--line);
+    padding: 22px clamp(20px, 3vw, 32px); display: grid; grid-template-columns: auto 1fr; gap: 6px 22px; align-items: start;
   }
-  .picker select:focus-visible { outline: none; border-color: var(--cabinet-wood-deep); box-shadow: var(--cabinet-focus-ring); }
-  .picker .next { display: block; margin-top: 7px; }
-  .banner {
-    padding: 10px 14px; margin-top: 18px;
-    background: var(--cabinet-surface); border-radius: 6px;
-    font-size: 14px; color: var(--cabinet-ink-muted);
+  .first .label { grid-column: 1; grid-row: 1 / span 2; font-family: var(--serif); font-size: 26px; line-height: 1.1; color: var(--sun); padding-top: 4px; }
+  .first .what { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .first .verdict { font-family: var(--serif); font-size: clamp(24px, 2.4vw, 30px); line-height: 1.2; margin: 0; }
+
+  .grid { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 14px; }
+  .sheet { background: var(--page); border-radius: var(--radius); border: 1px solid var(--line); padding: 20px clamp(18px, 2.4vw, 28px) 14px; }
+  .sheet-head { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .sheet-head .ico { width: 22px; height: 22px; color: var(--sun); flex: none; }
+  .sheet-head .ico img { width: 22px; height: 22px; display: block; border-radius: 5px; }
+  .sheet-head h2 { font-family: var(--serif); font-weight: 400; font-size: 28px; line-height: 1; margin: 0; flex: 1; letter-spacing: -.01em; }
+  .pill { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .pill.clear { background: var(--clear-soft); color: var(--clear); }
+  .pill.count { background: var(--sun-soft); color: #9c3f12; }
+  .items { list-style: none; margin: 0; padding: 0; }
+  .items li { display: grid; grid-template-columns: 92px 1fr; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 16px; line-height: 1.45; }
+  .items li:last-child { border-bottom: 0; }
+  .items.no-times li { grid-template-columns: 1fr; }
+  .items .t { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink-2); font-size: 15px; white-space: nowrap; }
+  .items .num { font-weight: 650; font-variant-numeric: tabular-nums; }
+  .items li.ok { color: var(--clear); font-weight: 600; }
+  .items li.ok .t svg { width: 18px; height: 18px; vertical-align: -3px; }
+
+  /* What was looked at, and a way to grow the page. */
+  .looked { margin-top: 14px; background: var(--page); border-radius: var(--radius); border: 1px solid var(--line); padding: 18px clamp(18px, 2.4vw, 28px); }
+  .looked h2 { font-family: var(--serif); font-weight: 400; font-size: 24px; margin: 0 0 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px 6px 8px; font-size: 14.5px; }
+  .chip img, .chip .dot { width: 20px; height: 20px; border-radius: 5px; flex: none; }
+  .chip .dot { display: grid; place-items: center; background: var(--clear-soft); color: var(--clear); }
+  .chip.off { background: var(--warn-soft); border-color: #efd9b0; color: var(--warn); }
+  .chip.off .dot { background: #f5e3c2; color: var(--warn); }
+  .chip .dot svg { width: 13px; height: 13px; }
+  .grow { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .grow p { margin: 0 8px 0 0; color: var(--ink-2); font-size: 15px; flex-basis: 100%; }
+  .add { display: inline-flex; align-items: center; gap: 8px; border: 1px dashed var(--line-2); background: transparent; border-radius: 999px; padding: 6px 14px 6px 8px; font-size: 14.5px; font-weight: 600; cursor: pointer; }
+  .add:hover { border-style: solid; background: var(--canvas); }
+  .add img { width: 20px; height: 20px; border-radius: 5px; }
+  .add .plus { width: 20px; height: 20px; display: grid; place-items: center; color: var(--sun); }
+  .foot { margin-top: 14px; font-size: 14px; color: var(--ink-3); text-align: center; }
+
+  .empty { margin-top: 14px; background: var(--page); border-radius: var(--radius); border: 1px solid var(--line); padding: 28px; font-size: 16px; color: var(--ink-2); }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0; background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 15px; transition: opacity .2s ease, transform .2s ease; z-index: 50; max-width: calc(100% - 40px); text-align: center; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* Night: the sky goes dark and its words go light. */
+  .night { --sky-ink: #f4f1ea; --sky-ink-2: #c9cbe0; }
+  .night .daynav, .night .btn { background: rgba(255,255,255,.14); color: #f4f1ea; }
+  .night .daynav button:hover:not(:disabled), .night .btn:hover:not(:disabled) { background: rgba(255,255,255,.26); }
+
+  @media (max-width: 640px) {
+    .sky { min-height: 0; border-radius: 22px; }
+    .horizon { height: 96px; margin-top: 34px; }
+    .first { grid-template-columns: 1fr; }
+    .first .label { grid-row: auto; }
+    .items li { grid-template-columns: 1fr; gap: 2px; }
+    .items .t:empty { display: none; }
+    .brand span { display: none; }
   }
-  .tag {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .08em; color: var(--cabinet-wood); margin-bottom: 6px;
+  @media (prefers-reduced-motion: reduce) {
+    .btn.spin svg { animation: none; }
+    .toast { transition: none; }
   }
-  .lead-who { font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--cabinet-ink-muted); }
-  /* One card per source; the section name wears the serif. */
-  .src-head {
-    font-family: var(--cabinet-font-heading); font-size: 18px; letter-spacing: -0.01em;
-    margin: 0 0 8px;
-  }
-  .blist { margin: 0; padding-left: 18px; }
-  .blist li { margin-top: 6px; }
-  .blist li:first-child { margin-top: 0; }
-  /* "Nothing needs you" is the page's favorite sentence. It gets the good color. */
-  .blist li.allclear { color: var(--cabinet-success); list-style: none; margin-left: -18px; }
-  /* The honesty footer: what was actually looked at. */
-  .checked { padding: 12px 20px; }
-  .checked-list { margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--cabinet-ink-muted); }
-  .checked-list li { display: inline-block; margin-right: 14px; }
-  .checked-list .off { color: var(--cabinet-warning); }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>
-    <!-- A wooden sun over the desk: maple disc, brass rays. -->
-    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
-      <g stroke="#B08A4F" stroke-width="1.6" stroke-linecap="round">
-        <path d="M12 2.6v2.4M12 19v2.4M2.6 12h2.4M19 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7"/>
-      </g>
-      <circle cx="12" cy="12" r="4.6" fill="#E8CDA8"/>
-      <circle cx="12" cy="12" r="4.6" fill="none" stroke="#D9B98C" stroke-width="1"/>
-    </svg>
-    Good Morning
-  </h1>
-  <p class="sub">Everything you&rsquo;ve connected, on one page.</p>
-  <div id="root"><div class="card empty">Reading the reports folder&hellip;</div></div>
+  <header class="sky" id="sky">
+    <div class="top">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3v2M4.9 6.9l1.4 1.4M19.1 6.9l-1.4 1.4M3 16h18M6 16a6 6 0 0 1 12 0M8 20h8"/></svg>
+        <span>Good Morning</span>
+      </div>
+      <div class="daynav" id="daynav" hidden>
+        <button type="button" id="older" aria-label="Earlier morning"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+        <span id="daylabel" aria-live="polite">Today</span>
+        <button type="button" id="newer" aria-label="Later morning"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      </div>
+      <button type="button" class="btn" id="again" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/></svg><span>Check again</span></button>
+    </div>
+    <div class="hello">
+      <div class="eyebrow" id="eyebrow">&nbsp;</div>
+      <h1 id="greet">Good morning.</h1>
+      <p class="headline" id="headline">Reading this morning&rsquo;s page&hellip;</p>
+      <div class="when" id="when"></div>
+    </div>
+    <div class="horizon" aria-hidden="true"><svg id="horizon" preserveAspectRatio="none"></svg></div>
+  </header>
+  <main id="root"></main>
 </div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function () {
-  'use strict';
+  "use strict";
 
-  var DIR = 'reports';
-  var JOB = '.jobs/morning-report.yaml';
-  var EXAMPLE_LABEL = 'Example morning';
-  var root = document.getElementById('root');
-  var job = null;
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.files && typeof cab.files.list === "function" && cab.jobs);
+  var DIR = "reports";
+  var JOB = "morning-report";
+  var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  var MONTHS = ['January','February','March','April','May','June','July','August',
-                'September','October','November','December'];
+  var state = { pinned: false, morning: 0, files: [], at: 0, data: null, name: "", connectors: [], jobs: [], role: "owner", running: false, jobFile: null };
+  var $ = function (id) { return document.getElementById(id); };
+  var root = $("root");
 
-  function render(data, name, files) {
-    var meta = data.meta, html = picker(name, files);
-
-    /* The example ships in the box so the page is never blank on day one. */
-    if (/^EXAMPLE/i.test(name)) {
-      html += '<div class="banner banner--example">This morning is made up. The example ' +
-              'shows the shape of a report. Connect Gmail or Google Calendar from ' +
-              'Integrations in Cabinet, and your first real morning takes its place.</div>';
-    }
-
-    if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">Last run had a problem: ' + esc(meta.status) +
-              '. Showing the previous morning.</div>';
-    }
-
-    if (meta.headline) {
-      html += '<div class="card"><span class="tag">This morning</span>' + esc(meta.headline) + '</div>';
-    }
-
-    /* The one thing across every source, absent most mornings on purpose. */
-    if (meta.lead && meta.verdict) {
-      html += '<div class="card lead"><span class="tag">Lead</span>' +
-              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
-              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
-    }
-
-    /* One card per source section, in the order the report wrote them.
-       "Checked" is held back and rendered last as the honesty footer. */
-    var names = Object.keys(data.sections);
-    var any = false;
-    names.forEach(function (key) {
-      if (key === 'checked') return;
-      var bullets = data.sections[key];
-      if (!bullets.length) return;
-      any = true;
-      /* The heading as written in the file, first letter up, plain words, no mapping. */
-      var title = key.charAt(0).toUpperCase() + key.slice(1);
-      html += '<div class="card"><h2 class="src-head">' + esc(title) + '</h2><ul class="blist">' +
-              bullets.map(function (b) {
-                var clear = /^nothing( else)? (needs you|needed you|to report)\.?$/i.test(b.trim());
-                return '<li' + (clear ? ' class="allclear"' : '') + '>' +
-                       (clear ? '&#10003; ' : '') + esc(b) + '</li>';
-              }).join('') + '</ul></div>';
-    });
-
-    if (!any) {
-      html += '<div class="card empty">This report has no sections. The file may be mid-write. ' +
-              'Reload in a moment.</div>';
-    }
-
-    var checked = data.sections['checked'] || [];
-    if (checked.length) {
-      html += '<div class="card checked"><ul class="checked-list">' +
-              checked.map(function (c) {
-                var off = /not connected|couldn|failed|unreachable/i.test(c);
-                return '<li' + (off ? ' class="off"' : '') + '>' + esc(c) + '</li>';
-              }).join('') + '</ul></div>';
-    }
-
-    root.innerHTML = html;
-    bind(files);
-  }
-
-  /* ================= shared Cabinet Kit plumbing (digest apps) =================
-     Identical across the flagship digest apps; the render() above is what differs. */
+  // ── Small helpers ──────────────────────────────────────────────────────
 
   function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  function two(n) { return ("0" + n).slice(-2); }
+  function dayWords(d) { return DAYS[d.getDay()] + ", " + d.getDate() + " " + MONTHS[d.getMonth()]; }
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove("show"); }, 3200);
+  }
+  function myName() {
+    var me = cab && typeof cab.me === "function" ? cab.me() : null;
+    // Without a cloud sign-in Cabinet says "You": that is no name, so the greeting leaves it out.
+    var name = me && typeof me.name === "string" ? me.name.trim().split(/\s+/)[0] : "";
+    return /^you$/i.test(name) ? "" : name;
+  }
 
-  /* YAML frontmatter, any number of "## Heading" bullet sections, one markdown table.
-     Anything richer in the file is ignored rather than crashed on. */
+  // ── The sky follows the clock ──────────────────────────────────────────
+
+  var SKIES = [
+    // from hour, top, middle, low, hill, hill 2, night
+    [0, "#1e2440", "#30365a", "#4a4a6e", "#2a2d4a", "#23263f", true],
+    [5, "#f4c7a6", "#f9e1cd", "#f7efe6", "#f0e1d1", "#ead8c6", false],
+    [9, "#c9def0", "#e6eef4", "#f5f2ec", "#e6e9de", "#dfe3d5", false],
+    [17, "#f0b48e", "#f6d3bc", "#efe4e4", "#ecdad1", "#e5d0c6", false],
+    [20, "#1e2440", "#30365a", "#4a4a6e", "#2a2d4a", "#23263f", true]
+  ];
+  function paintSky(now) {
+    var h = now.getHours(), pick = SKIES[0];
+    SKIES.forEach(function (s) { if (h >= s[0]) pick = s; });
+    var el = $("sky").style;
+    el.setProperty("--sky-top", pick[1]); el.setProperty("--sky-mid", pick[2]); el.setProperty("--sky-low", pick[3]);
+    el.setProperty("--hill", pick[4]); el.setProperty("--hill-2", pick[5]);
+    $("sky").classList.toggle("night", pick[6]);
+    return pick[6];
+  }
+  function greeting(now) {
+    var h = now.getHours();
+    return h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : h < 22 ? "Good evening" : "Good night";
+  }
+
+  // ── Reading a report ───────────────────────────────────────────────────
+
+  /* YAML frontmatter and "## Heading" bullet sections; anything richer is ignored. */
   function parse(text) {
-    var meta = {}, sections = {}, cols = [], rows = [], current = null, rawHeadings = [];
-    var lines = text.split(/\r?\n/), i = 0;
-
-    if (lines[0] === '---') {
+    var meta = {}, sections = [], cur = null, lines = text.split(/\r?\n/), i = 0;
+    if (lines[0] === "---") {
       for (i = 1; i < lines.length; i++) {
-        if (lines[i] === '---') { i++; break; }
+        if (lines[i] === "---") { i++; break; }
         var kv = lines[i].match(/^(\w+):\s*(.*)$/);
-        if (kv) meta[kv[1]] = kv[2].replace(/^["']|["']$/g, '').trim();
+        if (kv) meta[kv[1]] = kv[2].replace(/^["']|["']$/g, "").trim();
       }
     }
     for (; i < lines.length; i++) {
-      var L = lines[i];
-      var h = L.match(/^##\s+(.*)$/);
-      if (h) {
-        rawHeadings.push(h[1].trim());  /* the heading as written, for display */
-        current = h[1].trim().toLowerCase();
-        sections[current] = sections[current] || [];
-        continue;
-      }
-      if (current) {
-        var b = L.match(/^\s*[-*]\s+(.*)$/);
-        if (b) { sections[current].push(b[1]); continue; }
-      }
-      if (/^\s*\|/.test(L)) {
-        var cells = L.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|')
-          .map(function (c) { return c.trim(); });
-        if (/^[:\-\s|]+$/.test(cells.join('|'))) continue;  /* the |---| separator row */
-        if (!cols.length) cols = cells; else rows.push(cells);
-      }
+      var h = lines[i].match(/^##\s+(.*)$/);
+      if (h) { cur = { title: h[1].trim(), items: [] }; sections.push(cur); continue; }
+      var b = cur && lines[i].match(/^\s*[-*]\s+(.*)$/);
+      if (b) cur.items.push(b[1].trim());
     }
-    return { meta: meta, sections: sections, cols: cols, rows: rows, rawHeadings: rawHeadings };
+    return { meta: meta, sections: sections };
   }
 
-  /* ---- the folder of runs ----------------------------------------------------------
-     <YYYY-MM-DD>T<HH-MM-SS>-<postfix>.md, the name carries the date, so the picker is
-     built from names alone. The EXAMPLE file is the one without one. */
+  /* <YYYY-MM-DD>T<HH-MM-SS>-good-morning.md: the name carries the time. The example has none. */
   function stamp(name) {
-    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
+    var m = String(name).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
     return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
   }
+  function isExample(name) { return /^EXAMPLE/i.test(name); }
 
-  function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
-           a.getDate() === b.getDate();
+  /* A morning lasts from the routine's hour (07:00 unless the job says otherwise) to the
+     same hour the next day. Its page stays up all that time, through midnight, until the
+     next morning is written. */
+  function morningAt() {
+    var f = state.jobFile && state.jobFile.schedule ? state.jobFile.schedule.split(/\s+/) : [];
+    return f.length === 5 && /^\d+$/.test(f[0]) && /^\d+$/.test(f[1]) ? { h: +f[1], m: +f[0] } : { h: 7, m: 0 };
   }
-
-  function human(d) {
-    return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' +
-           d.getFullYear();
+  function morningStart(at) {
+    var t = morningAt(), d = new Date(at.getTime());
+    d.setHours(t.h, t.m, 0, 0);
+    if (at < d) d.setDate(d.getDate() - 1);
+    return d;
   }
-
-  function label(name) {
+  /* 0: this morning's, 1: the one before, and so on. Null for the example. */
+  function morningsAgo(name) {
     var d = stamp(name);
-    if (!d) return EXAMPLE_LABEL;
-    var now = new Date(), yday = new Date(now.getTime() - 86400000);
-    if (sameDay(d, now)) return 'Today';
-    if (sameDay(d, yday)) return 'Yesterday';
-    return human(d);
+    if (!d) return null;
+    var now = morningStart(new Date()), then = morningStart(d);
+    return Math.round((now - then) / 864e5);
+  }
+  function morningClock() { var t = morningAt(); return two(t.h) + ":" + two(t.m); }
+
+  /* A bullet that starts with a time ("10:00", "10:00-11:30", "14:30 to 15:00") gets it pulled out. */
+  var TIME = /^((?:[01]?\d|2[0-3])[:.][0-5]\d(?:\s*(?:[-–]|to)\s*(?:[01]?\d|2[0-3])[:.][0-5]\d)?)\s*(?:[-–—,:]\s*)?(.*)$/;
+  function splitTime(text) {
+    var m = text.match(TIME);
+    return m && m[2] ? { time: m[1].replace(/\s*(?:[-–]|to)\s*/, "–"), text: m[2] } : { time: "", text: text };
+  }
+  function isClear(text) { return /^nothing( else)? (needs|needed) you\.?$|^all clear\.?$/i.test(text.trim()); }
+  /* Money stands out: $1,240.00, €80, 612.00 USD. */
+  function richText(text) {
+    return esc(text).replace(/([$€£₪]\s?\d[\d,]*(?:\.\d{2})?|\d[\d,]*(?:\.\d{2})?\s?(?:USD|EUR|GBP|ILS))/g, '<span class="num">$1</span>');
   }
 
-  function picker(current, files) {
-    var html = '';
-    if (files.length) {
-      var opts = files.map(function (f) {
-        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
-               esc(label(f)) + '</option>';
-      }).join('');
-      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
-    }
-    var next = nextRunText();
-    if (next) html += '<span class="next">' + esc(next) + '</span>';
-    return html ? '<div class="picker">' + html + '</div>' : '';
-  }
+  // ── Which connector a section is about ─────────────────────────────────
 
-  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
-  function bind(files) {
-    var sel = document.getElementById('pick');
-    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
-  }
-
-  function show(name, files) {
-    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      })
-      .then(function (text) { render(parse(text), name, files); })
-      .catch(function (err) {
-        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write, reload ' +
-          'in a moment.</div>';
-        bind(files);
-      });
-  }
-
-  /* ---- when the routine next runs ---------------------------------------------------
-     Read straight off this cabinet's own job file, so a user who edits the schedule or
-     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
-     which is the same host the routine runs on. */
-
-  /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
-  function field(spec, min, max) {
-    var set = {};
-    spec.split(',').forEach(function (part) {
-      var bits = part.split('/'), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
-      if (bits[0] !== '*') {
-        var r = bits[0].split('-');
-        lo = +r[0];
-        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
-      }
-      for (var v = lo; v <= hi; v += step) set[v] = true;
-    });
-    return set;
-  }
-
-  function nextRun(cron, from) {
-    var f = cron.trim().split(/\s+/);
-    if (f.length !== 5) return null;
-    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
-        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
-    if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
-    var d = new Date(from.getTime() + 60000);
-    d.setSeconds(0, 0);
-    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
-       stops a schedule that can never match (30 February) from spinning. */
-    for (var i = 0; i < 366 * 1440; i++) {
-      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
-          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
-      d = new Date(d.getTime() + 60000);
-    }
+  var SOURCE_WORDS = [
+    [/mail|inbox|gmail|outlook/i, ["gmail", "microsoft-365"], "mail"],
+    [/calendar|meeting|schedule/i, ["google-calendar", "microsoft-365"], "calendar"],
+    [/money|stripe|payment|sales|revenue/i, ["stripe"], "money"],
+    [/slack/i, ["slack"], "chat"],
+    [/telegram/i, ["telegram"], "chat"],
+    [/whatsapp/i, ["whatsapp"], "chat"],
+    [/notion|docs|notes/i, ["notion"], "doc"],
+    [/github|gitlab|code|repo/i, ["github"], "code"]
+  ];
+  var ICONS = {
+    mail: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><path d="m3.5 6 8.5 7 8.5-7"/>',
+    calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    money: '<rect x="2.5" y="6" width="19" height="12.5" rx="2"/><circle cx="12" cy="12.25" r="2.75"/><path d="M6 9.5v.01M18 15v.01"/>',
+    chat: '<path d="M20.5 12a8 8 0 0 1-11.8 7L3.5 20.5 5 15.6A8 8 0 1 1 20.5 12z"/>',
+    doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+    code: '<path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>',
+    other: '<circle cx="12" cy="12" r="8.5"/><path d="M12 8v4l2.5 2.5"/>'
+  };
+  function sourceOf(title) {
+    for (var i = 0; i < SOURCE_WORDS.length; i++) if (SOURCE_WORDS[i][0].test(title)) return SOURCE_WORDS[i];
     return null;
   }
-
-  function nextRunText() {
-    if (!job) return '';
-    if (job.enabled === 'false') return 'Routine paused';
-    if (!job.schedule) return '';
-    var d = nextRun(job.schedule, new Date());
-    if (!d) return '';
-    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    return 'Next run: ' + human(d) + ' at ' + clock;
-  }
-
-  /* /api/assets/<cabinet path>/<app folder>/index.html, dropping the last two segments
-     tells the page which cabinet it is installed in, whatever the user named it. */
-  function cabinetDir() {
-    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
-    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
-  }
-
-  /* Direct .md children of the folder only, never a nested one.
-     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
-     separately: `path` decides what lives in the folder, `name` is what we fetch. */
-  function listFiles(nodes, dir, out) {
-    (nodes || []).forEach(function (n) {
-      if (!n || !n.path) return;
-      if (n.path.indexOf(dir + '/') === 0 &&
-          n.path.indexOf('/', dir.length + 1) === -1 &&
-          /\.md$/i.test(n.name || '')) out.push(n.name);
-      if (n.children) listFiles(n.children, dir, out);
+  function connectorFor(title) {
+    var src = sourceOf(title);
+    if (!src) return null;
+    var hit = null;
+    src[1].forEach(function (id) {
+      state.connectors.forEach(function (c) { if (!hit && c.id === id && c.state === "connected") hit = c; });
     });
-    return out;
+    if (!hit) src[1].forEach(function (id) { state.connectors.forEach(function (c) { if (!hit && c.id === id) hit = c; }); });
+    return hit;
+  }
+  function iconFor(title) {
+    var c = connectorFor(title);
+    if (c && c.logo) return '<span class="ico"><img src="' + esc(c.logo) + '" alt=""></span>';
+    var src = sourceOf(title);
+    return '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[src ? src[2] : "other"] + "</svg>";
   }
 
-  /* An empty folder is the normal state before the first run, not an error to shout about.
-     `fresh=1` busts the tree cache so a file written minutes ago is already listed. */
-  Promise.all([
-    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }),
-    /* The schedule is a nicety, never let a missing or renamed job file break the page. */
-    fetch('../' + JOB, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .catch(function () { return ''; })
-  ])
-    .then(function (both) {
-      var tree = both[0];
-      job = {};
-      both[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+  // ── Drawing ────────────────────────────────────────────────────────────
+
+  function drawSky() {
+    var now = new Date(), name = state.name, d = stamp(name), data = state.data;
+    var night = paintSky(now);
+    var me = myName();
+    var ago = morningsAgo(name), today = ago === null || ago === 0;
+    var eyebrow = dayWords(today ? morningStart(now) : d) + ".";
+    // Opened on its own because this morning is not written yet: say so, and when it comes.
+    if (!today && !state.pinned) eyebrow = (ago === 1 ? "Yesterday's morning." : "Your last morning, " + dayWords(d) + ".") +
+      " Today's " + (now.getHours() * 60 + now.getMinutes() < morningAt().h * 60 + morningAt().m ? "comes at " + morningClock() + "." : "is not written yet.");
+    $("eyebrow").textContent = eyebrow;
+    $("greet").innerHTML = today || !state.pinned ? esc(greeting(now)) + (me ? ", <em>" + esc(me) + "</em>." : ".")
+                                 : esc(DAYS[d.getDay()]) + " <em>morning</em>.";
+    var meta = data ? data.meta : {};
+    $("headline").textContent = meta.headline ? meta.headline.replace(/\s*This page is a made-up example\.?$/i, "") : (data ? "Here is what came in." : $("headline").textContent);
+    $("when").textContent = data ? whenWords(meta, d) : "";
+    drawHorizon(today ? now : null, data, night);
+    drawNav();
+  }
+
+  function whenWords(meta, d) {
+    var bits = [];
+    var g = meta.generated && meta.generated.match(/(\d{1,2}):(\d{2})/);
+    if (isExample(state.name)) bits.push("An example morning");
+    else if (g) bits.push("Written at " + two(+g[1]) + ":" + g[2]);
+    else if (d) bits.push("Written at " + two(d.getHours()) + ":" + two(d.getMinutes()));
+    var srcs = (state.data.sections || []).filter(function (s) { return !/^checked$/i.test(s.title); }).length;
+    if (srcs) bits.push(srcs + (srcs === 1 ? " source" : " sources"));
+    var next = nextRunWords();
+    if (next) bits.push(next);
+    return bits.join(" · ");
+  }
+
+  /* Today's calendar along the horizon, 6:00 to 22:00, and the sun (or moon) at this hour. */
+  function drawHorizon(now, data, night) {
+    var svg = $("horizon"), W = svg.clientWidth || 1000, H = svg.clientHeight || 120;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    var base = H - 34, from = 6, to = 22;
+    var pad = Math.min(64, W * .06), X = function (hr) { return pad + (W - 2 * pad) * (hr - from) / (to - from); };
+    var out = "";
+    // Two soft hills, the far one lighter.
+    out += '<path class="hill" d="M0 ' + (base - 18) + " C " + W * .25 + " " + (base - 52) + ", " + W * .45 + " " + (base - 6) + ", " + W * .7 + " " + (base - 30) + " S " + W + " " + (base - 40) + ", " + W + " " + (base - 26) + " V " + H + " H 0 Z\"/>";
+    // Sun or moon, on an arc over the day.
+    var hr = now ? now.getHours() + now.getMinutes() / 60 : null;
+    if (hr !== null && hr >= from && hr <= to) {
+      var t = (hr - from) / (to - from), sx = X(hr), sy = base - 20 - Math.sin(Math.PI * t) * (W < 560 ? 26 : H * .45 + 20);
+      out += '<circle cx="' + sx + '" cy="' + sy + '" r="34" fill="#fff" opacity=".35"/><circle cx="' + sx + '" cy="' + sy + '" r="20" fill="#f3a35f"/>';
+    } else if (hr !== null || night) {
+      out += '<circle cx="' + (W - 120) + '" cy="' + (base - 70) + '" r="16" fill="#f4f1ea"/><circle cx="' + (W - 112) + '" cy="' + (base - 76) + '" r="14" fill="var(--sky-low)"/>';
+      [[.62, .1], [.7, .3], [.8, .05], [.9, .25], [.55, .35]].forEach(function (p) { out += '<circle class="sky-star" cx="' + W * p[0] + '" cy="' + H * p[1] + '" r="1.4" fill="#fff"/>'; });
+    }
+    out += '<path class="hill-2" d="M0 ' + base + " H " + W + " V " + H + " H 0 Z\"/>";
+    // Hour marks.
+    [6, 9, 12, 15, 18, 21].forEach(function (h) {
+      out += '<text class="hour" x="' + X(h) + '" y="' + (base + 22) + '" text-anchor="middle">' + h + ":00</text>";
+    });
+    // Today's events from the calendar section.
+    var events = [];
+    (data ? data.sections : []).forEach(function (s) {
+      if (!/calendar|meeting|schedule/i.test(s.title)) return;
+      s.items.forEach(function (it) {
+        var p = splitTime(it), m = p.time.match(/(\d{1,2})[:.](\d{2})(?:–(\d{1,2})[:.](\d{2}))?/);
+        if (!m) return;
+        var a = +m[1] + +m[2] / 60, b = m[3] ? +m[3] + +m[4] / 60 : a + .75;
+        if (b > from && a < to) events.push({ a: Math.max(a, from), b: Math.min(b, to), label: p.text.split(/[.,(]/)[0] });
       });
-      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
-      if (!files.length) {
-        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
+    });
+    var lastEnd = -1e9;
+    events.forEach(function (e, i) {
+      var x1 = X(e.a), x2 = Math.max(X(e.b), x1 + 10);
+      out += '<rect class="ev" x="' + x1 + '" y="' + (base - 9) + '" width="' + (x2 - x1) + '" height="9" rx="4.5"/>';
+      // A label only where it has room, so nothing overlaps.
+      var lab = e.label.length > 26 ? e.label.slice(0, 25) + "…" : e.label;
+      if (W > 560 && x1 >= lastEnd + 8) {
+        out += '<text class="ev-label" x="' + x1 + '" y="' + (base - 16) + '">' + esc(lab) + "</text>";
+        lastEnd = x1 + lab.length * 6.6;
+      }
+    });
+    svg.innerHTML = out;
+  }
+
+  function drawNav() {
+    var n = state.files.length;
+    $("daynav").hidden = n < 2;
+    $("older").disabled = state.at >= n - 1;
+    $("newer").disabled = state.at <= 0;
+    var d = stamp(state.name), ago = morningsAgo(state.name);
+    $("daylabel").textContent = !d ? "Example" : ago === 0 ? "Today" : ago === 1 ? "Yesterday" : d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3);
+    var again = $("again");
+    again.hidden = !canRun();
+    again.disabled = state.running;
+    again.classList.toggle("spin", state.running);
+    again.querySelector("span").textContent = state.running ? "Checking…" : "Check again";
+    var fr = $("first-run");
+    if (fr) { fr.disabled = state.running; fr.textContent = state.running ? "Writing your first morning…" : "Write my first morning now"; }
+  }
+
+  function drawBody() {
+    var data = state.data, html = "";
+    if (!data) return;
+    var meta = data.meta;
+
+    if (isExample(state.name)) {
+      html += '<div class="note"><span class="tag">Example</span><span><b>This morning is made up.</b> It shows the shape of the page. ' +
+        "Connect Gmail, Google Calendar or another app, and your first real morning takes its place.</span>" +
+        (canRun() && connectedCount() ? '<button type="button" class="first-run" id="first-run">Write my first morning now</button>' : "") + "</div>";
+    }
+    if (meta.status && meta.status !== "ok") {
+      html += '<div class="note warn"><b>The last run had a problem:</b> ' + esc(meta.status) + "</div>";
+    }
+
+    /* The one thing across every source. Absent most mornings, on purpose. */
+    if (meta.lead && meta.verdict) {
+      html += '<section class="first" aria-label="First, this"><div class="label">First, this</div>' +
+        '<div class="what">' + esc(meta.lead.replace(/\s+[—–-]\s+/, ": ")) + "</div>" +
+        '<p class="verdict">' + esc(meta.verdict) + "</p></section>";
+    }
+
+    var sources = data.sections.filter(function (s) { return !/^checked$/i.test(s.title) && s.items.length; });
+    if (sources.length) {
+      html += '<div class="grid">' + sources.map(sheet).join("") + "</div>";
+    } else {
+      html += '<div class="empty">This report has no sections yet. The file may still be being written. Look again in a moment.</div>';
+    }
+
+    html += looked(data.sections.filter(function (s) { return /^checked$/i.test(s.title); })[0]);
+    root.innerHTML = html;
+    var fr = $("first-run");
+    if (fr) fr.addEventListener("click", runAgain);
+    root.querySelectorAll("[data-connect]").forEach(function (b) {
+      b.addEventListener("click", function () { connect(b.getAttribute("data-connect"), b.getAttribute("data-name")); });
+    });
+  }
+
+  function sheet(s) {
+    var rows = s.items.map(function (it) { var p = splitTime(it); p.ok = isClear(it); return p; });
+    var timed = rows.some(function (r) { return r.time; });
+    var open = rows.filter(function (r) { return !r.ok; }).length;
+    var allClear = rows.length && rows.every(function (r) { return r.ok; });
+    var pill = allClear ? '<span class="pill clear">All clear</span>' : open ? '<span class="pill count">' + open + (open === 1 ? " item" : " items") + "</span>" : "";
+    var check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+    return '<section class="sheet"><div class="sheet-head">' + iconFor(s.title) + "<h2>" + esc(s.title) + "</h2>" + pill + "</div>" +
+      '<ul class="items' + (timed ? "" : " no-times") + '">' + rows.map(function (r) {
+        if (r.ok) return '<li class="ok">' + (timed ? '<span class="t">' + check + "</span>" : "") + "<span>" + (timed ? "" : "✓ ") + esc(r.text) + "</span></li>";
+        return "<li>" + (timed ? '<span class="t">' + esc(r.time) + "</span>" : "") + "<span>" + richText(r.text) + "</span></li>";
+      }).join("") + "</ul></section>";
+  }
+
+  /* The honesty footer, plus a way to connect one more source. */
+  function looked(checked) {
+    var lines = checked ? checked.items : [];
+    var chips = lines.map(function (line) {
+      var off = /not connected|couldn|could not|failed|unreachable|no access|error/i.test(line);
+      var name = line.split(/\s*[:—–-]\s+/)[0];
+      var c = connectorFor(name);
+      var mark = c && c.logo ? '<img src="' + esc(c.logo) + '" alt="">' :
+        '<span class="dot">' + (off ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6M12 17v.01"/></svg>'
+                                    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>') + "</span>";
+      return '<li class="chip' + (off ? " off" : "") + '">' + mark + "<span>" + esc(line.replace(/\s+[—–-]\s+/, ": ")) + "</span></li>";
+    }).join("");
+
+    var adds = "";
+    if (V2 && state.role === "owner") {
+      adds = state.connectors.filter(function (c) { return c.state === "not-added" && c.canConnect; }).map(function (c) {
+        return '<button type="button" class="add" data-connect="' + esc(c.id) + '" data-name="' + esc(c.name) + '">' +
+          (c.logo ? '<img src="' + esc(c.logo) + '" alt="">' : '<span class="plus">+</span>') + "Add " + esc(c.name) + "</button>";
+      }).join("");
+    }
+    if (!chips && !adds) return "";
+    return '<section class="looked" aria-labelledby="looked-h"><h2 id="looked-h">What I looked at</h2>' +
+      (chips ? '<ul class="chips">' + chips + "</ul>" : "") +
+      (adds ? '<div class="grow"><p>Connect one more and tomorrow&rsquo;s page gets a new section. Nothing else to set up.</p>' + adds + "</div>" : "") +
+      "</section>" + '<p class="foot">Read only, everywhere. This page never sends, replies or changes anything.</p>';
+  }
+
+  // ── Routine and connections ────────────────────────────────────────────
+
+  function canRun() { return !!(V2 && state.role === "owner" && jobById(JOB)); }
+  function connectedCount() { return state.connectors.filter(function (c) { return c.state === "connected"; }).length; }
+  function jobById(id) { for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === id) return state.jobs[i]; return null; }
+  function nextRunWords() {
+    var j = jobById(JOB);
+    if (j && typeof j.when === "string" && j.when) return j.when.charAt(0).toUpperCase() + j.when.slice(1);
+    if (state.jobFile && state.jobFile.enabled === "false") return "Routine paused";
+    var cron = state.jobFile && state.jobFile.schedule && state.jobFile.schedule.split(/\s+/);
+    if (cron && cron.length === 5 && /^\d+$/.test(cron[0]) && /^\d+$/.test(cron[1]) && cron[2] === "*" && cron[4] === "*") return "Every day at " + two(+cron[1]) + ":" + two(+cron[0]);
+    return "";
+  }
+  function setJobs(list) {
+    state.jobs = Array.isArray(list) ? list : [];
+    var j = jobById(JOB);
+    var was = state.running;
+    state.running = !!(j && j.running);
+    if (was && !state.running) { toast("This morning's page is updated."); load(); }
+    drawSky();
+  }
+  function runAgain() {
+    if (state.running) return;
+    state.pinned = false;
+    state.running = true; drawNav();
+    cab.jobs.run(JOB).then(function () { toast("Checking everything you connected. This takes a minute or two."); })
+      .catch(function (e) { state.running = false; drawNav(); toast((e && e.message) || "That could not start. Try again in a moment."); });
+  }
+  function connect(id, name) {
+    cab.connectors.connect(id).then(function () {
+      return cab.connectors.list().then(function (items) { state.connectors = items || []; drawBody(); });
+    }).catch(function (e) { toast((e && e.message) || "Could not open " + name + " right now."); });
+  }
+
+  // ── The folder of mornings ─────────────────────────────────────────────
+
+  function sortFiles(names) {
+    return names.filter(function (n) { return /\.md$/i.test(n); }).sort(function (a, b) {
+      var da = stamp(a), db = stamp(b);
+      if (da && db) return db - da;
+      return da ? -1 : db ? 1 : 0;
+    });
+  }
+  function listNames() {
+    if (V2) return cab.files.list(DIR).then(function (res) {
+      var items = Array.isArray(res) ? res : (res && res.entries) || [];
+      return items.filter(function (e) { return !e.isDir; }).map(function (e) { return e.name; });
+    });
+    // An older Cabinet: the tree, then this cabinet's own reports folder in it.
+    return fetch("/api/tree?fresh=1", { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }).then(function (tree) {
+      var p = location.pathname.replace(/^\/+/, "").replace(/^api\/assets\//, "");
+      var dir = p.split("/").slice(0, -2).map(decodeURIComponent).join("/") + "/" + DIR, out = [];
+      (function walk(nodes) {
+        (nodes || []).forEach(function (n) {
+          if (!n || !n.path) return;
+          if (n.path.indexOf(dir + "/") === 0 && n.path.indexOf("/", dir.length + 1) === -1 && /\.md$/i.test(n.name || "")) out.push(n.name);
+          if (n.children) walk(n.children);
+        });
+      })(tree);
+      return out;
+    });
+  }
+  function readReport(name) {
+    if (V2) return cab.files.read(DIR + "/" + name);
+    return fetch("../" + DIR + "/" + encodeURIComponent(name), { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.text();
+    });
+  }
+  function readJobFile() {
+    var p = V2 ? cab.files.read(".jobs/" + JOB + ".yaml") : fetch("../.jobs/" + JOB + ".yaml", { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : ""; });
+    return p.then(function (t) {
+      var j = {};
+      String(t || "").split("\n").forEach(function (line) { var kv = line.match(/^(enabled|schedule):\s*(.*)$/); if (kv) j[kv[1]] = kv[2].replace(/^['"]|['"]$/g, "").trim(); });
+      state.jobFile = j;
+    }).catch(function () {});
+  }
+
+  function show(at) {
+    state.at = at;
+    var name = state.files[at];
+    return readReport(name).then(function (text) {
+      state.name = name; state.data = parse(text);
+      drawSky(); drawBody();
+    }).catch(function (e) {
+      state.name = name; state.data = null; drawSky();
+      $("headline").textContent = "This morning could not be read.";
+      root.innerHTML = '<div class="empty">Could not read <b>' + esc(name) + "</b>. It may still be being written. Look again in a moment.</div>";
+    });
+  }
+
+  function load() {
+    return listNames().then(function (names) {
+      var current = state.files[state.at];
+      state.files = sortFiles(names);
+      if (!state.files.length) {
+        state.data = null; drawSky();
+        $("headline").textContent = "Your first morning arrives after the routine runs.";
+        root.innerHTML = '<div class="empty">Nothing here yet. The page fills in after the morning routine runs for the first time' +
+          (nextRunWords() ? " (" + esc(nextRunWords().toLowerCase()) + ")" : "") + ".</div>";
         return;
       }
-      /* Newest first; the example, having no date, sits at the bottom of the list. */
-      files.sort(function (a, b) {
-        var da = stamp(a), db = stamp(b);
-        if (da && db) return db - da;
-        return da ? -1 : db ? 1 : 0;
-      });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
-    })
-    .catch(function (err) {
-      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
-        esc(err.message) + '). Reload in a moment.</div>';
+      state.morning = morningStart(new Date()).getTime();
+      // Kept where the person stepped with the arrows; otherwise this morning's newest page,
+      // or, before it is written, the last one there is.
+      var keep = state.pinned && current ? state.files.indexOf(current) : -1;
+      if (keep < 0) {
+        state.pinned = false;
+        keep = 0;
+        for (var i = 0; i < state.files.length; i++) if (morningsAgo(state.files[i]) === 0) { keep = i; break; }
+      }
+      return show(keep);
+    }).catch(function (e) {
+      $("headline").textContent = "The reports folder could not be read.";
+      root.innerHTML = '<div class="empty">Could not list the reports folder (' + esc(e && e.message) + "). Look again in a moment.</div>";
     });
+  }
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  $("older").addEventListener("click", function () { if (state.at < state.files.length - 1) { state.pinned = true; show(state.at + 1); } });
+  $("newer").addEventListener("click", function () { if (state.at > 0) { state.pinned = true; show(state.at - 1); } });
+  $("again").addEventListener("click", runAgain);
+  document.addEventListener("keydown", function (e) {
+    if (e.target && /input|select|textarea/i.test(e.target.tagName)) return;
+    if (e.key === "ArrowLeft" && !$("older").disabled && !$("daynav").hidden) $("older").click();
+    if (e.key === "ArrowRight" && !$("newer").disabled && !$("daynav").hidden) $("newer").click();
+  });
+  var resizeT;
+  window.addEventListener("resize", function () { clearTimeout(resizeT); resizeT = setTimeout(drawSky, 120); });
+  // Each minute the sky moves on; at the morning hour the page turns to the new morning.
+  setInterval(function () {
+    if (state.morning && morningStart(new Date()).getTime() !== state.morning) { state.pinned = false; load(); }
+    else drawSky();
+  }, 60000);
+  drawSky();
+
+  if (V2) {
+    Promise.resolve(cab.ready).catch(function () {}).then(function () {
+      readJobFile().then(load);
+      if (typeof cab.here === "function") Promise.resolve(cab.here()).then(function (h) { if (h && h.role) state.role = h.role; drawSky(); drawBody(); }).catch(function () {});
+      if (cab.connectors) {
+        cab.connectors.list().then(function (items) { state.connectors = items || []; drawBody(); }).catch(function () {});
+        cab.connectors.onChange(function (items) { state.connectors = items || []; drawBody(); });
+      }
+      cab.jobs.list().then(setJobs).catch(function () {});
+      cab.jobs.onChange(setJobs);
+      try { cab.files.onChange(DIR, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+  } else {
+    readJobFile().then(load);
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") load(); });
+  }
 })();
 </script>
 </body>
