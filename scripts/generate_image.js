@@ -239,7 +239,7 @@ const CABINET_ICONS = {
   'openai-image-studio':      { object: 'an artist easel holding a canvas with a rising sun carved in relief', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'playwright-site-check':    { object: 'a theater comedy mask resting beside a small browser-window tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'safari-site-check':        { object: 'a navigation compass with its needle mid-swing, resting on a small map tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'sharepoint-week':          { object: 'a round table with four document tiles arranged evenly around its center', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'sharepoint-digest':        { object: 'a small wooden bookshelf holding a neat row of upright document folders of different heights, one folder lit warm gold and leaning slightly forward', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'slack-digest':             { object: 'a hashtag symbol carved as a chunky tile, with one small speech bubble leaning on it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'snowflake-brief':          { object: 'a single ornate snowflake ornament on a small display stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'stackadapt-brief':         { object: 'three stacked stepped layers forming a small pyramid with a flag on top', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
@@ -255,8 +255,6 @@ const CABINET_ICONS = {
   // ─── Added 2026-09-16 for the four-demo-integrations cabinets (PR #159/#17), which shipped after this table ──
   'aws-s3-asset-library':       { object: 'a small storage bucket with a labeled asset tag hanging from its rim', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'gemini-image-studio':        { object: 'an artist easel holding a canvas with a four-pointed star carved in relief', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'sharepoint-bid-room':        { object: 'a single rolled proposal scroll tied with a ribbon, leaning against a small folder', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'sharepoint-policy-desk':     { object: 'a single open rulebook with one ribbon bookmark trailing out the bottom', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'slack-answers':              { object: 'a single speech bubble with a small question mark nested inside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'slack-triage':                { object: 'a small inbox tray with three speech-bubble tags sorted into it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'whatsapp-catch-up':          { object: 'a vintage telephone handset resting inside a rounded speech bubble, with a small clock face beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
@@ -273,6 +271,7 @@ const VIVID_COLOR_OVERRIDES = {
   'telegram-digest':  { hex: '#165db8', name: 'vivid sky blue' },
   'hiring-pipeline':  { hex: '#e13c5a', name: 'vivid rose pink' },
   'phone-line':       { hex: '#ff6a2b', name: 'vivid tangerine orange' },
+  'sharepoint-digest': { hex: '#038387', name: 'vivid SharePoint teal' },
 };
 
 // bgNames close enough to neutral (cream, taupe, dove gray, parchment) that

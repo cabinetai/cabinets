@@ -1,11 +1,11 @@
 ---
-title: Microsoft SharePoint
+title: SharePoint Digest
 created: '2026-10-14T00:00:00Z'
 modified: '2026-10-14T00:00:00Z'
 tags: [sharepoint, microsoft, files, lists, sites, work]
 order: 1
 ---
-# Microsoft SharePoint
+# SharePoint Digest
 
 SharePoint keeps every file. This shows the few that changed for you, and which copy is the
 real one.
