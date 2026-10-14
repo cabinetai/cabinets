@@ -27,7 +27,7 @@
     --plum: #4a154b; --plum-2: #611f69;
     --red: #e01e5a; --red-ink: #b3134a; --red-tint: #fdeaf0;
     --green: #2eb67d; --green-ink: #1a7a52;
-    --amber: #ecb22e; --amber-ink: #7d5a00;
+    --amber: #ecb22e; --amber-ink: #7d5a00; --amber-tint: #fdf5e1;
     --blue-ink: #1264a3;
     --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
@@ -63,6 +63,15 @@
   .lead h2 { margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
   .lead p { margin: 10px 0 0; font-size: 18px; color: var(--ink-2); max-width: 70ch; }
   .banner { margin-top: 18px; padding: 12px 16px; border-radius: 12px; background: var(--red-tint); color: var(--ink); font-size: 15px; }
+  /* The example is a made-up team, and says so above everything else on the page. */
+  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 26px; padding: 12px 16px; border-radius: 12px; background: var(--amber-tint); border: 1px solid #f3e0a8; }
+  .ribbon p { margin: 0; flex: 1 1 280px; color: var(--ink-2); font-size: 15px; }
+  .ribbon .fine { flex-basis: 100%; font-size: 14px; color: var(--ink-3); }
+  .ribbon .run-note { color: var(--red-ink); }
+  .tag-example { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .btn.primary { background: var(--plum); border-color: var(--plum); color: #fff; }
+  .btn.primary:hover { background: var(--plum-2); }
+  .btn.primary[disabled]:hover { background: var(--plum); }
   .empty { color: var(--ink-3); margin-top: 18px; }
   .empty code { font-size: 14px; }
   .scroll { overflow-x: auto; }
@@ -110,6 +119,7 @@
 </header>
 
 <div class="wrap">
+  <div id="ribbon"></div>
   <main id="root"><p class="empty">Loading...</p></main>
 </div>
 
@@ -128,6 +138,10 @@
   /* What catching up on open waits for: who is looking, whether a run is going, Slack, the book. */
   var known = { here: !CAN || typeof cab.here !== 'function', jobs: false, slack: false, files: false };
   var slackOn = false, newest = null, catchingUp = null;
+  /* Slack as Cabinet reports it, and who is looking. The run button waits for Slack when the
+     bridge can say whether it is connected; an older one cannot, so the button stays as it was. */
+  var GATE = !!(CAN && cab.connectors && typeof cab.connectors.list === 'function');
+  var slack = null, role = '', example = false, connecting = false, connectNote = '';
   var REFRESH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></svg>';
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
@@ -171,6 +185,8 @@
 
   function render(data, name, files) {
     var meta = data.meta, html = head(name, files);
+    example = !stamp(name);
+    paintRibbon();
 
     /* The routine could not reach Slack. It said so rather than writing nothing. */
     if (meta.status && meta.status !== 'ok') {
@@ -207,7 +223,8 @@
     });
     t += '</tr></thead><tbody>';
     data.rows.forEach(function (r) {
-      var url = urlCol > -1 ? r[urlCol] : '';
+      /* The example's links point at a made-up workspace, so they are plain text. */
+      var url = urlCol > -1 && !example ? r[urlCol] : '';
       t += '<tr>';
       r.forEach(function (cell, i) {
         var head = (data.cols[i] || '').toLowerCase();
@@ -295,6 +312,8 @@
       })
       .then(function (text) { render(parse(text), name, files); })
       .catch(function (err) {
+        example = false;
+        paintRibbon();
         root.innerHTML = head(name, files) + '<div class="empty">Could not read <code>' +
           esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
           'in a moment.</div>';
@@ -393,11 +412,13 @@
      The same routine the schedule runs. While it runs the button says so; when it ends the
      page reads the folder again and opens the new board. */
   function paintRun() {
+    paintRibbon();
     var slot = document.getElementById('run-slot');
     if (!CAN || viewer) { slot.innerHTML = ''; return; }
     slot.innerHTML = (running
       ? '<button class="btn" disabled>' + REFRESH.replace('<svg', '<svg class="spin"') + 'Updating...</button>'
-      : '<button class="btn" id="run">' + REFRESH + 'Update the board</button>') +
+      : '<button class="btn" id="run"' + (GATE && !slackOn ? ' disabled title="Connect Slack first"' : '') + '>' +
+        REFRESH + 'Update the board</button>') +
       (running && catchingUp ? '<span class="next">Catching up on the ' + clockOf(catchingUp) + ' run you missed</span>' : '') +
       (runNote ? '<span class="run-note">' + esc(runNote) + '</span>' : '');
     var b = document.getElementById('run');
@@ -409,7 +430,9 @@
     var mine = items.filter(function (j) { return j && j.id === JOB_ID; })[0];
     var was = running;
     running = !!(mine && mine.running);
-    if (was && !running) { catchingUp = null; load(); }
+    /* The run just wrote a new result: catching up waits until the folder is read again, or it
+       would see the old newest and run a second time. */
+    if (was && !running) { catchingUp = null; known.files = false; load(); }
     known.jobs = true;
     paintRun();
     catchUp();
@@ -423,7 +446,7 @@
      should have run, the page runs it once for that time. The time is remembered in this
      browser, so a run that fails again is not retried in a loop: the button is still there. */
   function catchUp() {
-    if (!CAN || viewer || running || catchingUp) return;
+    if (!CAN || viewer || running || catchingUp || connecting) return;
     if (!known.here || !known.jobs || !known.slack || !known.files || !slackOn) return;
     if (!job || job.enabled === 'false' || !job.schedule) return;
     var due = prevRun(job.schedule, new Date());
@@ -461,6 +484,70 @@
     });
   }
 
+  /* ---- the example ------------------------------------------------------------------
+     Before the first run the page shows EXAMPLE-triage.md, a made-up team. It says so, its
+     links go nowhere, and the owner connects Slack from here. Once Slack is connected the
+     first run starts on its own, so the next thing they see is their own Slack. */
+  function paintRibbon() {
+    var el = document.getElementById('ribbon');
+    if (!example) { el.innerHTML = ''; return; }
+    var said = 'A made-up team. None of this is your Slack. ', act = '';
+    if (running) {
+      said += 'Reading your Slack now. Your own board replaces it when this first run is done.';
+    } else if (!GATE) {
+      said += 'Connect Slack from Integrations in Cabinet and your own board replaces it.';
+    } else if (slackOn) {
+      said += 'Your first update replaces it.';
+    } else {
+      said += 'Connect Slack and your own board replaces it.';
+      /* Nothing to offer until Cabinet has said what Slack is and who is looking. */
+      if (!known.slack || !known.here) {
+        act = '';
+      } else if (!slack) {
+        act = '<span class="fine">Slack can\u2019t be connected here yet.</span>';
+      } else if (role === 'owner' && slack.canConnect) {
+        act = '<button class="btn primary" id="connect"' + (connecting ? ' disabled' : '') + '>' +
+          (connecting ? REFRESH.replace('<svg', '<svg class="spin"') + 'Connecting...' : 'Connect Slack') + '</button>' +
+          (connecting ? '<span class="fine">Finish in the window Cabinet opened.</span>' : '');
+      } else {
+        act = '<span class="fine">Ask the person who owns this cabinet to connect Slack.</span>';
+      }
+      if (connectNote) act += '<span class="fine run-note">' + esc(connectNote) + '</span>';
+    }
+    el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' + said + '</p>' + act + '</div>';
+    var b = document.getElementById('connect');
+    if (b) b.addEventListener('click', connect);
+  }
+
+  /* Connecting is the owner's, and only from a press. */
+  function connect() {
+    if (connecting) return;
+    connecting = true;
+    connectNote = '';
+    paintRibbon();
+    cab.connectors.connect('slack').then(function (result) {
+      connecting = false;
+      return Promise.resolve(cab.connectors.list()).then(function (items) {
+        /* Started before the new state lands, so it runs as the first run, not as a catch-up. */
+        if (result === 'connected' && example && !viewer) runNow();
+        setSlack(items);
+      });
+    }).catch(function (e) {
+      connecting = false;
+      connectNote = e && e.message ? e.message : 'That did not work. Try again.';
+      paintRibbon();
+    });
+  }
+
+  function setSlack(items) {
+    if (!Array.isArray(items)) return;
+    slack = items.filter(function (c) { return c && c.id === 'slack'; })[0] || null;
+    slackOn = !!(slack && slack.state === 'connected');
+    known.slack = true;
+    paintRun();
+    catchUp();
+  }
+
   function load() {
     /* An empty folder is the normal state before the first run — not an error to shout about.
        `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
@@ -486,6 +573,8 @@
         known.files = true;
         catchUp();
         if (!files.length) {
+          example = false;
+          paintRibbon();
           root.innerHTML = head('', []) + '<div class="empty">Nothing yet. This page ' +
             'fills in after the routine runs for the first time.</div>';
           return;
@@ -507,6 +596,8 @@
         show(today || files[0], files);
       })
       .catch(function (err) {
+        example = false;
+        paintRibbon();
         root.innerHTML = '<div class="empty">Could not list <code>' + DIR + '/</code> (' +
           esc(err.message) + '). Reload in a moment.</div>';
       });
@@ -516,6 +607,7 @@
     if (typeof cab.here === 'function') {
       Promise.resolve(cab.here()).then(function (h) {
         viewer = !!(h && h.role === 'viewer');
+        role = h && h.role ? h.role : '';
         known.here = true;
         paintRun();
         catchUp();
@@ -523,11 +615,8 @@
     }
     /* Without Slack the routine has nothing to read, so it is not run on open. */
     if (cab.connectors && typeof cab.connectors.list === 'function') {
-      Promise.resolve(cab.connectors.list()).then(function (items) {
-        slackOn = (items || []).some(function (c) { return c && c.id === 'slack' && c.state === 'connected'; });
-        known.slack = true;
-        catchUp();
-      }).catch(function () {});
+      Promise.resolve(cab.connectors.list()).then(setSlack).catch(function () {});
+      if (typeof cab.connectors.onChange === 'function') cab.connectors.onChange(setSlack);
     }
     cab.jobs.list().then(setJobs).catch(function () {});
     if (typeof cab.jobs.onChange === 'function') cab.jobs.onChange(setJobs);
