@@ -132,14 +132,41 @@ page reads. Never call Graph with curl on this run, never write `reading.json`,
    counts and the hours. Fill the unanswered lines of `my-workday/setup.md` from what you saw.
 8. `latest @latest.json`: the same shape as every morning, but give refs and your own
    words only, the helper copies the rest from Outlook:
-   `{"headline":"<one sentence, counts only as placeholders>","person":{"name":"Tal"},"events":[{"id":"e2","prep":"...","prepMailId":"m4"}],"waiting":[{"id":"m4","gist":"...","minutes":15,"reply":"...","eventId":"e2","urgent":true,"kind":"manager"}],"promises":[{"id":"m31","what":"Send the Q4 hiring plan","due":"2026-10-16"}],"invites":[{"id":"e5"}],"fyi":[{"id":"m7","gist":"..."}],"setAside":{"ids":["m8","m9"],"what":"newsletters and notices"},"free":[{"start":"<ISO>","end":"<ISO>","replies":["m4"]}]}`.
-   Every meeting of `today` that counts goes in `events`. A promise's `id` is a message of
+   `{"headline":"<one sentence, counts only as placeholders>","person":{"name":"Tal"},"events":[{"id":"e2","prep":"...","prepMailId":"m4"}],"waiting":[{"id":"m4","gist":"...","minutes":15,"reply":"...","eventId":"e2","due":"2026-10-14","kind":"manager"}],"promises":[{"id":"m31","what":"Send the Q4 hiring plan","due":"2026-10-16"}],"invites":[{"id":"e5"}],"fyi":[{"id":"m7","gist":"..."}],"setAside":{"ids":["m8","m9"],"what":"newsletters and notices"},"free":[{"start":"<ISO>","end":"<ISO>","replies":["m4"]}]}`.
+   Every meeting of `today` that counts goes in `events`. The board is read *now*, at
+   `$NOW`, maybe late in the day: follow "Now, not 7:00" and "Asks" below as on a morning
+   (`week` holds tomorrow's meetings). A promise's `id` is a message of
    `sent14` or `sent30`; the helper adds who it went to and when. Then write the report, then
    `done` (it deletes `my-workday/data/.work/`). If anything fails after `start`, still run `done`.
 
 Lines are about *them*, one short sentence each, the finding in `**bold**`, five to seven
 in all. Never a line about yourself ("Searching..."), never a guess. A pushed line is
 final: check it before you push.
+
+## Now, not 7:00
+
+The board may be read at 7 or at 15:30 (the first reading runs when they connect). Look
+at the time first, and lay out what is *left* of the day:
+- A meeting that has ended is done: no prep for it, no reply tied to it (`eventId` only for
+  a meeting still ahead today; the helper drops the others).
+- Free stretches start now; the helper cuts the time already gone.
+- The headline is about what is still ahead. The helper refuses a time of today that is
+  over ("before the 11:00 focus block" at 15:30).
+
+## Asks
+
+- `gist` names every ask in the email, concretely: "Q4 slides by Thursday noon, and are
+  you presenting Atlas yourself?", "the price for forty seats and SSO by November".
+  Never "one more answer": say which.
+- `due` (YYYY-MM-DD) is the day they asked for ("by Friday", "Thursday noon", "by tomorrow's
+  standup"), or the day of the meeting it is needed for. The helper sets "Answer today" from
+  it: due today or earlier, or tied to a meeting still ahead today. A Friday ask is not today's.
+- Look one day ahead too (`week`, or tomorrow's meetings on a morning): when an ask is
+  needed for a meeting tomorrow ("Roadmap prep with Dana" tomorrow at 10:00 for Dana's
+  slides), say so in the gist and make that day the `due`.
+- An email to them by name that asks them to act by a date is waiting, even from a team
+  mailbox (Finance, HR, IT: "upload the receipt by October 17"), `kind` `other`. Only
+  newsletters, alerts and notices that ask nothing of them are set aside.
 
 ## The morning
 
@@ -148,13 +175,14 @@ final: check it before you push.
    that call (403), use this computer's zone (`node -p "Intl.DateTimeFormat().resolvedOptions().timeZone"`)
    and the hours in setup.md, else 8 to 18, and don't mention the refusal.
 2. Today's events (`calendarView`, today 00:00 to 24:00, `$top=50`). Skip cancelled ones
-   and those shown as free. All-day events go in with `allDay: true`.
+   and those shown as free. All-day events go in with `allDay: true`. Read tomorrow's too
+   (to the end of tomorrow), only to see what the asks are needed for.
 3. Mail: the Inbox since the last sort, or the last 3 working days the first time
    (`$filter=receivedDateTime ge ...`, `$top=50`, `$select=id,conversationId,subject,from,receivedDateTime,isRead,importance,inferenceClassification,bodyPreview,webLink`).
    Then the Sent Items of the same window, once, to drop anyone already answered.
 4. Sort every message into one of:
-   - **waiting**: a person (not a system) who asks or needs something from them and has
-     no answer yet. `urgent` when it must happen today or before a meeting today.
+   - **waiting**: a person, or a team mailbox writing to them by name, who asks or needs
+     something from them and has no answer yet. Give `due` as in "Asks" above.
    - **fyi**: worth knowing, nothing to do (at most 5).
    - **set aside**: newsletters, alerts, automatic notices, all-company mail. Count them.
    Follow setup.md: "who matters most" goes to the top, "set aside" is set aside.

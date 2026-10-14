@@ -29,10 +29,11 @@ sentence), `arrived`, `day { date, startHour, endHour }`, and:
   notResponded, organizer), `prep` (one sentence from the mail, or ""), `prepMailId`,
   `webLink`.
 - `free[]`: `start`, `end`, `replies[]` (ids from `waiting` that fit in it, shortest
-  first). Left out, the page works out the gaps itself.
+  first), only the free time still ahead when the board was written. Left out, the page works out the gaps itself.
 - `waiting[]`: `id`, `from`, `company`, `subject`, `gist`, `receivedAt`,
-  `waitingSince`, `urgent`, `minutes` (how long the reply takes), `eventId` (a meeting
-  it belongs to), `reply` (a reply idea in the person's voice), `webLink`, `kind`
+  `waitingSince`, `due` (YYYY-MM-DD, the day they asked for), `urgent` (due today or
+  earlier, or before a meeting still ahead today), `minutes` (how long the reply takes),
+  `eventId` (a meeting still ahead today it belongs to), `reply` (a reply idea in the person's voice), `webLink`, `kind`
   (`manager`, `leadership`, `team`, `external` or `other`: who they are to the person).
 - `promises[]`: `id`, `to`, `what`, `due` (YYYY-MM-DD, when a day was named), `sentAt`,
   `webLink`: what the person wrote they would do, from their sent mail.
