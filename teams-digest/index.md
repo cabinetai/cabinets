@@ -1,11 +1,11 @@
 ---
-title: Microsoft Teams
+title: Teams Digest
 created: '2026-08-09T00:00:00Z'
 modified: '2026-10-14T00:00:00Z'
 tags: [microsoft-teams, teams, microsoft, chats, channels, mentions, catch-up, work]
 order: 1
 ---
-# Microsoft Teams
+# Teams Digest
 
 Teams shows you everything. This shows what needs you, and what you can safely skip.
 
