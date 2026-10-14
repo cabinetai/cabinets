@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<!--
+  YouTube Watch: Watch Board. The cabinet opens on this page.
+
+  What on a YouTube channel needs a person, ranked: angry comments, complaints and bug
+  reports, spam and scams, questions waiting too long, videos doing much worse than usual,
+  false claims about the creator, and anything else that needs a human. Each item once,
+  with the comments behind it, a link, and one suggested next step. Plus an Ask box and
+  Ideas they can ask for once or switch on as a routine.
+
+  Where the words come from: the Daily Channel Watch routine reads the channel and writes
+  board/data.json (the shape is in .agents/channel-watcher/persona.md; this page reads it
+  as it is). Until that file exists, the page shows data/EXAMPLE-data.json, a made-up
+  channel in the same shape, always labelled as an example.
+
+  How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
+  routine, read files). In an older Cabinet it reads the same files over the page's own
+  address. The page never changes anything on YouTube, and no press here asks the agent to:
+  every button asks for a summary or a draft to copy. A reply is posted only when the
+  person asks for it in the chat.
+
+  One file on purpose: a sealed frame cannot load files next to it. Plus Jakarta Sans
+  from Google Fonts with system fallbacks; icons are inline SVG. Same type scale, spacing
+  and structure as Discord Feedback's board, in YouTube's colours.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Watch Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --page: #ffffff;
+    --panel: #f6f6f6;
+    --line: #e5e5e5;
+    --line-2: #d3d3d3;
+    --ink: #0f0f0f;
+    --ink-2: #3f3f3f;
+    --ink-3: #606060;
+
+    --brand: #cc0000;
+    --brand-2: #a30000;
+    --brand-tint: #fdeeee;
+    --deep: #0f0f0f;
+    --deep-2: #272727;
+    --deep-line: #3f3f3f;
+    --deep-soft: #cccccc;
+    --red: #d93025;
+    --red-ink: #b3261e;
+    --red-tint: #fce8e6;
+    --green: #1e8e3e;
+    --green-ink: #137333;
+    --green-tint: #e6f4ea;
+    --amber: #f9ab00;
+    --amber-ink: #7a5600;
+    --amber-tint: #fef7e0;
+
+    --shadow-1: 0 1px 2px rgba(15, 15, 15, .06);
+    --shadow-2: 0 1px 2px rgba(15, 15, 15, .05), 0 14px 36px -18px rgba(15, 15, 15, .28);
+    --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--brand-2); }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 45%, transparent); outline-offset: 2px; border-radius: 10px; }
+  .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ── Top bar ─────────────────────────────────────────────────────────── */
+  .bar { border-top: 4px solid var(--brand); border-bottom: 1px solid var(--line); background: var(--page); }
+  .bar-in { max-width: 1280px; margin: 0 auto; padding: 16px 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark { width: 40px; height: 40px; border-radius: 11px; background: var(--brand); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 16px -8px rgba(204, 0, 0, .55); flex: none; }
+  .mark .icon { width: 22px; height: 22px; stroke-width: 2.2; }
+  .brand h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: var(--panel); font-weight: 600; font-size: 14px; }
+  .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); }
+  .pill.ok { background: var(--green-tint); color: var(--green-ink); }
+  .pill.ok .dot { background: var(--green); }
+  .pill.warn { background: var(--amber-tint); color: var(--amber-ink); }
+  .pill.warn .dot { background: var(--amber); }
+  .pill.off { background: var(--red-tint); color: var(--red-ink); }
+  .pill.off .dot { background: var(--red); }
+  .updated { color: var(--ink-3); font-size: 14px; }
+  .next { color: var(--ink-3); font-size: 14px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px;
+    border-radius: 11px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink);
+    font-weight: 600; font-size: 15px; text-decoration: none; white-space: nowrap;
+    box-shadow: var(--shadow-1); transition: background .15s ease, border-color .15s ease, transform .1s ease;
+  }
+  .btn:hover { background: var(--panel); border-color: #cfcfcf; }
+  .btn:active { transform: translateY(1px); }
+  .btn[disabled] { cursor: default; opacity: .6; transform: none; }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: 0 8px 18px -10px rgba(204, 0, 0, .7); }
+  .btn.primary:hover { background: var(--brand-2); border-color: var(--brand-2); }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.dark:hover { background: #272727; }
+  .btn.big { min-height: 52px; padding: 13px 24px; font-size: 17px; border-radius: 13px; }
+  .btn.small { min-height: 38px; padding: 7px 12px; font-size: 14px; }
+
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 26px 28px 40px; }
+  .main { display: flex; flex-direction: column; gap: 26px; }
+
+  /* ── Hero: the one answer ────────────────────────────────────────────── */
+  .hero h2 { margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
+  .hero .lead { margin: 10px 0 0; font-size: 18px; color: var(--ink-2); max-width: 70ch; }
+  .hero .lead b { color: var(--ink); font-weight: 700; }
+  .hero .fine { margin: 8px 0 0; font-size: 15px; color: var(--ink-3); }
+  .hero .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+  .card-hero {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center;
+    padding: 26px 28px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fff, #fafafa);
+    box-shadow: var(--shadow-2);
+  }
+  .art { width: 132px; height: 104px; }
+  .card-hero h2 { font-size: clamp(24px, 2.8vw, 32px); }
+  .steps { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; padding: 0; list-style: none; color: var(--ink-2); font-size: 15px; }
+  .steps li { display: flex; align-items: center; gap: 8px; }
+  .steps .icon { color: var(--green); width: 18px; height: 18px; }
+
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: var(--red-tint); color: var(--ink); border: 1px solid #f6c6c2; margin-top: 16px; }
+  .notice .icon { color: var(--red-ink); margin-top: 2px; }
+  .notice p { margin: 0; }
+
+  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border-radius: 12px; background: var(--amber-tint); border: 1px solid #f3e0a8; }
+  .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .tag-example { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+  /* ── The board: ranked items, with the Ask box beside it ─────────────── */
+  .board {
+    display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    grid-template-areas: "main ask"; gap: 22px; align-items: start;
+  }
+  .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
+  .b-main { grid-area: main; min-width: 0; }
+  .board > .ask { grid-area: ask; }
+  .lane-head { padding: 0 18px 12px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+  .lane-head h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+  .lane-empty { padding: 18px; color: var(--ink-3); margin: 0; }
+
+  /* Filter by type: plain words in one row that scrolls sideways on a phone, never the page. */
+  .filters { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .filters::-webkit-scrollbar { display: none; }
+  .f { flex: none; min-height: 36px; padding: 6px 10px; border-radius: 8px; border: 0; background: transparent; font-size: 14px; font-weight: 600; color: var(--ink-3); }
+  .f:hover { background: var(--panel); color: var(--ink); }
+  .f[aria-pressed="true"] { background: var(--panel); color: var(--ink); }
+
+  /* The magnifier is drawn in the background so the input stays a plain input. */
+  .find { display: block; width: calc(100% - 36px); margin: 14px 18px 4px; min-height: 46px; padding: 10px 16px 10px 44px; border-radius: 12px; border: 1px solid var(--line-2); font-size: 16px;
+    background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23606060' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 16px center / 18px; }
+  .find::placeholder { color: var(--ink-3); }
+  .find:focus { outline: none; background-color: var(--page); border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-tint); }
+  .nohits { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+
+  .reqs { list-style: none; margin: 0; padding: 0; }
+  .req { border-bottom: 1px solid var(--line); }
+  .req:last-child { border-bottom: 0; }
+  .req-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; width: 100%; text-align: start; padding: 14px 18px; border: 0; background: transparent; align-items: start; }
+  .req-main:hover { background: var(--panel); }
+  .req.open .req-main { background: var(--panel); }
+  .req-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; font-weight: 700; font-size: 15.5px; }
+  .req-title b { overflow-wrap: anywhere; }
+  .req-people { font-size: 14px; color: var(--ink-3); white-space: nowrap; }
+  .req-sum { grid-column: 1 / -1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
+  .type { font-size: 13.5px; font-weight: 500; color: var(--ink-3); }
+  /* How urgent: a dot before the title, red, amber or grey. */
+  .lvl { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--line-2); }
+  .lvl.high { background: var(--red); }
+  .lvl.medium { background: var(--amber); }
+  .req-sum .under { color: var(--ink-3); font-size: 14px; }
+  .req-next { grid-column: 1 / -1; color: var(--ink); font-size: 14.5px; overflow-wrap: anywhere; }
+  .req-next b { color: var(--brand-2); font-weight: 700; }
+  .req-body { padding: 0 18px 16px 18px; background: var(--panel); }
+  .msgs { list-style: none; margin: 0 0 12px; padding: 0; border-radius: 12px; background: var(--page); border: 1px solid var(--line); }
+  .msg { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 14.5px; }
+  .msg:first-child { border-top: 0; }
+  .msg .who { font-weight: 700; }
+  .msg .when { color: var(--ink-3); font-size: 13px; margin-inline-start: 6px; font-weight: 500; }
+  .msg q { grid-column: 1 / 2; color: var(--ink-2); quotes: "\201C" "\201D"; overflow-wrap: anywhere; }
+  .msg .open { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 13.5px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .msg .open .icon { width: 15px; height: 15px; }
+  .row-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  /* ── Ideas ───────────────────────────────────────────────────────────── */
+  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 14px; }
+  .section-head h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .section-head p { margin: 0; color: var(--ink-3); font-size: 15px; }
+  .idea-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); box-shadow: var(--shadow-1); }
+  .idea:hover { box-shadow: var(--shadow-2); border-color: var(--line-2); }
+  .idea h3 { margin: 0; font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
+  .idea p { margin: 0; color: var(--ink-2); font-size: 15px; flex: 1; }
+  .idea .go { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 4px; }
+  .idea .go .btn { min-height: 44px; padding: 8px 12px; font-size: 14px; }
+  /* The same carved-wood pictures as the template covers. The object sits on the right of
+     each cover, so the crop keeps the right side. */
+  .idea .art-img { aspect-ratio: 16 / 8; border-radius: 12px; overflow: hidden; background: var(--panel); }
+  .idea .art-img img { width: 100%; height: 100%; object-fit: cover; object-position: 75% center; display: block; }
+
+  /* ── Ask ─────────────────────────────────────────────────────────────── */
+  .ask { padding: 22px; border-radius: 18px; background: var(--deep); color: #fff; }
+  .ask h2 { margin: 0 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .ask > p { margin: 0 0 14px; color: var(--deep-soft); font-size: 15px; }
+  .ask form { display: flex; gap: 10px; }
+  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 12px; border: 1px solid var(--deep-line); background: var(--deep-2); color: #fff; padding: 10px 14px; font-size: 16px; }
+  .ask input::placeholder { color: #aaaaaa; }
+  .ask input:focus { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .25); }
+  .ask .btn.light { min-height: 50px; background: #fff; border-color: #fff; color: var(--deep); }
+  .ask .btn.light:hover { background: var(--brand-tint); }
+  .qs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .q { min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--deep-line); background: var(--deep-2); color: #f1f1f1; font-size: 14.5px; font-weight: 600; text-align: start; }
+  .q:hover { background: #3a3a3a; }
+  .ask .note { margin: 12px 0 0; font-size: 14px; color: var(--deep-soft); min-height: 1.5em; }
+
+  .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
+  .foot .icon { color: var(--green); }
+  .foot p { margin: 0; }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0; background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 15px; box-shadow: var(--shadow-2); transition: opacity .2s ease, transform .2s ease; z-index: 50; max-width: calc(100% - 40px); text-align: center; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .spin { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; animation-delay: var(--d, 0ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
+
+  /* ── Narrow screens ──────────────────────────────────────────────────── */
+  @media (max-width: 1100px) {
+    .idea-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 920px) {
+    .board, .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "ask"; }
+  }
+  @media (max-width: 560px) {
+    .bar-in { padding: 12px 16px; }
+    .wrap { padding: 18px 16px 32px; }
+    .main { gap: 20px; }
+    .status { width: 100%; }
+    .updated { display: none; }
+    .hero h2 { font-size: 27px; }
+    .hero .lead { font-size: 16.5px; }
+    .card-hero { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; gap: 14px; }
+    .art { width: 104px; height: 82px; }
+    .card-hero .btn.big { width: 100%; }
+    .lane-head { padding: 0 0 12px; }
+    .req-main { padding: 14px 12px; gap: 4px 10px; }
+    .find { width: calc(100% - 24px); margin-inline: 12px; }
+    .req-body { padding: 0 12px 14px 12px; }
+    .msg { grid-template-columns: minmax(0, 1fr); }
+    .msg .open { grid-column: 1; grid-row: auto; margin-top: 4px; }
+    .idea-grid { grid-template-columns: minmax(0, 1fr); }
+    .ask { padding: 18px 16px; }
+    .ask form { flex-direction: column; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-watch" viewBox="0 0 24 24"><circle cx="6.5" cy="15" r="3.5" /><circle cx="17.5" cy="15" r="3.5" /><path d="M10 14.5h4M4 12.5l2-6h3l1 6M20 12.5l-2-6h-3l-1 6" /></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="2.5" /><path d="M10.5 8.3v4.9l4.2-2.45z" /><path d="M8 20.5h8" /></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10.5 13.5" /><path d="M21 3l-6.5 18-4-7.5L3 9.5z" /></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3 3-3 3" /><path d="M4 11V9.5a4 4 0 0 1 4-4h12" /><path d="M7 21.5l-3-3 3-3" /><path d="M20 13v1.5a4 4 0 0 1-4 4H4" /></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9" /><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" /></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9a4.8 4.8 0 0 1-.6 9.5z" /></symbol>
+</svg>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg class="icon"><use href="#i-watch" /></svg></span>
+      <h1>Watch Board</h1>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <main class="main">
+    <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your channel...</p></section>
+    <div id="ribbon"></div>
+    <section class="board" id="board" aria-label="What needs a look, most urgent first">
+      <div class="b-main" id="board-main"></div>
+      <section class="ask" id="ask" aria-labelledby="ask-title">
+        <h2 id="ask-title">Ask about your channel</h2>
+        <p>Anything from "is anyone angry?" to "why did my last video drop?"</p>
+        <form id="ask-form" autocomplete="off">
+          <label for="ask-input" class="sr">Your question</label>
+          <input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about a comment, a video, a viewer..." />
+          <button type="submit" class="btn light"><svg class="icon" aria-hidden="true"><use href="#i-send" /></svg>Ask</button>
+        </form>
+        <div class="qs" id="questions"></div>
+        <p class="note" id="ask-note">The answer comes up in the chat next to this page.</p>
+      </section>
+    </section>
+    <section id="ideas" aria-labelledby="ideas-title"></section>
+    <footer class="foot">
+      <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
+      <p>The board only reads, and nothing on this page writes on YouTube. A reply to a comment is posted only when you ask for it in the chat, and only if you allowed replies when you connected YouTube. You see the words first. Cabinet never deletes, hides or reports a comment: the board tells you where to do that in YouTube Studio.</p>
+    </footer>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var JOB = "daily-channel-watch";
+  var AGENT = "channel-watcher";
+  var POLL_MS = 60000;
+
+  /** The board's closed vocabulary, in the order the filter shows it, with the words people read. */
+  var KINDS = ["Angry", "Complaint", "Spam", "Waiting", "Drop", "Claim", "Other"];
+  var KIND_WORDS = { Angry: "Angry", Complaint: "Complaint", Spam: "Spam or scam", Waiting: "Waiting", Drop: "Video drop", Claim: "False claim", Other: "Other" };
+  /** A row whose comments can be answered offers a draft reply; the others offer a look. */
+  var ANSWERABLE = { Angry: 1, Complaint: 1, Waiting: 1, Claim: 1, Other: 1 };
+  var LEVEL_RANK = { High: 0, Medium: 1, Low: 2 };
+
+  /** Ready-made questions. None of them writes on YouTube. */
+  var QUESTIONS = [
+    "What needs my attention on the channel?",
+    "Are there spam comments I should remove?",
+    "Which video is doing worse than usual?",
+    "Is anyone angry in the comments?"
+  ];
+
+  /** Watch plays: one tap to ask now, or to switch on as a routine. Each reads or drafts to copy. */
+  var IDEAS = [
+    { art: "ideas/spam.jpg", title: "Clean up spam",
+      text: "Every spam and scam comment this week in one list, with a link to each so you can remove it.",
+      ask: "List every spam or scam comment under my videos this week: who wrote it, under which video, and why it looks like spam, with a link to each so I can remove them in YouTube Studio. Do not change anything on YouTube.",
+      when: "Every Monday", at: "every Monday at 9 am" },
+    { art: "ideas/angry.jpg", title: "Calm answers to angry comments",
+      text: "A short, calm reply to each angry comment worth answering, ready to copy.",
+      ask: "Find the angry comments under my videos from the last few days that are worth answering, and draft a short, calm reply to each in my voice, as drafts I can copy. Tell me which ones are better left alone. Do not post anything on YouTube.",
+      when: "Every day", at: "every day at 10 am" },
+    { art: "ideas/drop.jpg", title: "Why did a video drop?",
+      text: "For a video doing under your usual: its numbers, its title, what people said, and what to try.",
+      ask: "Look at my videos doing under my usual right now. For each, compare its daily views with my usual and with my best recent video, look at its title and what people said, and give me three things to try. Drafts only: do not change anything on YouTube.",
+      when: "Every Monday", at: "every Monday at 9:30 am" },
+    { art: "ideas/waiting.jpg", title: "Questions waiting too long",
+      text: "Questions under your videos nobody answered in three days, each with a reply to copy.",
+      ask: "List the questions under my videos that nobody from the channel answered for more than three days, the most liked first, and draft a short reply to each in my voice, as drafts I can copy. Do not post anything on YouTube.",
+      when: "Every Wednesday", at: "every Wednesday at 9 am" },
+    { art: "ideas/weekly.jpg", title: "Weekly channel check",
+      text: "What needed a look this week, what is still open, and what got better, in five lines.",
+      ask: "Write a five line check of my channel this week from the Watch Board: what needed a look, what is still open, what got better, and the one thing to do first.",
+      when: "Every Friday", at: "every Friday at 4 pm" },
+    { art: "ideas/claims.jpg", title: "What people say about you",
+      text: "Claims about you in the comments, how far they spread, and a calm way to answer, if at all.",
+      ask: "Look for comments under my videos from the last two weeks that say something about me as a person or about how I make my videos, true or not. Tell me what is said, how many people said or liked it, and whether it is worth answering. If it is, draft one calm answer I can copy. Do not post anything on YouTube.",
+      when: "Every Monday", at: "every Monday at 10 am" }
+  ];
+
+  var state = {
+    appPath: appPathFromUrl(),
+    here: null,
+    yt: null,
+    jobs: [],
+    jobsKnown: false,
+    /** The routine's cron and switch, read from its job file; null until read. */
+    schedule: null,
+    /** The missed run being caught up on, as a Date, while it runs. */
+    catchingUp: null,
+    query: "",
+    loaded: false,
+    data: null,
+    example: true,
+    broken: false,
+    filter: "All",
+    open: {},
+    running: false,
+    runNote: "",
+    connecting: false,
+    connectNote: "",
+    animate: true
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── Small helpers ──────────────────────────────────────────────────────
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function icon(id, cls) {
+    return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+  }
+  function text(value, max) {
+    var s = typeof value === "string" ? value.trim() : "";
+    return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function appPathFromUrl() {
+    var parts = location.pathname.split("/").filter(Boolean);
+    var at = parts.length - 2;
+    return at >= 0 ? decodeURIComponent(parts[at]) : "board";
+  }
+  var toastTimer = 0;
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
+  }
+
+  // ── Dates ──────────────────────────────────────────────────────────────
+
+  function parseTime(value) {
+    if (typeof value !== "string" || !value) return null;
+    var d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function ago(d, now) {
+    var mins = Math.round((now - d) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + " min ago";
+    var hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + " " + plural(hrs, "hour", "hours") + " ago";
+    var days = Math.round(hrs / 24);
+    if (days < 7) return days + " " + plural(days, "day", "days") + " ago";
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+  /** The example was written on a fixed day; its times are told from that day, not today. */
+  function nowRef() {
+    var g = state.example && state.data ? parseTime(state.data.generated) : null;
+    return g ? g.getTime() + 10 * 60000 : Date.now();
+  }
+
+  // ── Reading the board ──────────────────────────────────────────────────
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  function readText(rel) {
+    if (V2) return cab.files.read(state.appPath + "/" + rel);
+    return fetch(rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+      if (r.status === 404) throw notFound();
+      if (!r.ok) throw new Error("Could not read " + rel + ".");
+      return r.text();
+    });
+  }
+  function readJson(rel) { return readText(rel).then(function (t) { return JSON.parse(t); }); }
+  function maybe(promise) {
+    return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; });
+  }
+  function usable(d) { return d && typeof d === "object" && Array.isArray(d.items); }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = maybe(readJson("data.json")).catch(function () { return "broken"; }).then(function (got) {
+      state.broken = got === "broken";
+      if (usable(got) && got.example !== true) {
+        state.data = got;
+        state.example = false;
+        return null;
+      }
+      if (state.broken && state.data && !state.example) return null;
+      return maybe(readJson("data/EXAMPLE-data.json")).then(function (ex) {
+        state.data = usable(ex) ? ex : null;
+        state.example = true;
+      });
+    }).catch(function () {
+      if (!state.data) state.data = null;
+    }).then(function () {
+      state.loaded = true;
+      loading = null;
+      paint();
+      catchUp();
+    });
+    return loading;
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAsk() { return V2 && role() !== "viewer"; }
+  function canRun() { return V2 && role() !== "viewer"; }
+  function theJob() {
+    for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === JOB) return state.jobs[i];
+    return null;
+  }
+  function pickYouTube(items) {
+    if (!Array.isArray(items)) return null;
+    for (var i = 0; i < items.length; i++) if (items[i] && items[i].id === "youtube") return items[i];
+    return null;
+  }
+  function ytState() { return state.yt ? state.yt.state : null; }
+  function askReady() {
+    var s = ytState();
+    return !state.yt || s === "connected" || s === "needs-you" || s === "needs-sign-in";
+  }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var wasRunning = state.running;
+    state.jobs = items;
+    var job = theJob();
+    state.running = !!(job && job.running);
+    state.jobsKnown = true;
+    if (wasRunning && !state.running) { state.catchingUp = null; load(); }
+    paint();
+    catchUp();
+  }
+
+  // ── When the routine runs ──────────────────────────────────────────────
+  // Read straight off this cabinet's own job file, so a person who edits the schedule or
+  // pauses the routine sees the truth here. Cron is read in the browser's timezone, which is
+  // the same computer the routine runs on.
+
+  /** One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function cronField(spec, min, max) {
+    var set = {};
+    spec.split(",").forEach(function (part) {
+      var bits = part.split("/"), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== "*") {
+        var r = bits[0].split("-");
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+  /** The nearest minute the schedule matches, walking `dir` (1 forward, -1 back) up to `days`. */
+  function cronMatch(cron, from, dir, days) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = cronField(f[0], 0, 59), hrs = cronField(f[1], 0, 23), doms = cronField(f[2], 1, 31),
+        mons = cronField(f[3], 1, 12), dows = cronField(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;
+    var d = new Date(from.getTime() + (dir > 0 ? 60000 : 0));
+    d.setSeconds(0, 0);
+    for (var i = 0; i < days * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] && hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + dir * 60000);
+    }
+    return null;
+  }
+  function clockOf(d) { return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  /** "Next check at 08:30", "Next check Tuesday at 08:30", or "Routine paused". */
+  function nextRunText() {
+    var job = state.schedule;
+    if (!job) return "";
+    if (job.enabled === "false") return "Routine paused";
+    if (!job.schedule) return "";
+    var d = cronMatch(job.schedule, new Date(), 1, 366);
+    if (!d) return "";
+    var today = new Date().toDateString() === d.toDateString();
+    return "Next check " + (today ? "" : d.toLocaleDateString([], { weekday: "long" }) + " ") + "at " + clockOf(d);
+  }
+  /** The schedule is a nicety: a missing or renamed job file only means no next run and no catching up. */
+  function readSchedule() {
+    return fetch("../.jobs/" + JOB + ".yaml", { cache: "no-store", credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : ""; })
+      .catch(function () { return ""; })
+      .then(function (t) {
+        var job = {};
+        t.split("\n").forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, "").trim();
+        });
+        state.schedule = job;
+        paintStatus();
+        catchUp();
+      });
+  }
+
+  // ── Catching up on open ────────────────────────────────────────────────
+  // A laptop asleep at the scheduled time misses the run, or starts it with no network. When
+  // the page opens and the board is older than the last time the schedule says it should have
+  // run, it runs once for that time. The time is remembered in this browser, so a run that
+  // fails again is not retried in a loop: Check now is still there.
+  function catchUp() {
+    if (!canRun() || !state.loaded || !state.jobsKnown || state.running || state.catchingUp) return;
+    if (ytState() !== "connected" || !state.schedule || !state.schedule.schedule || state.schedule.enabled === "false") return;
+    var due = cronMatch(state.schedule.schedule, new Date(), -1, 8);
+    var shown = state.data && !state.example ? parseTime(state.data.generated) : null;
+    if (!due || (shown && shown >= due)) return;
+    var key = "catch-up:" + JOB + ":" + due.getTime();
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch (e) { return; }
+    state.catchingUp = due;
+    runNow();
+  }
+
+  function connect() {
+    if (!V2 || state.connecting) return;
+    state.connecting = true;
+    state.connectNote = "";
+    paint();
+    cab.connectors.connect("youtube").then(function (result) {
+      state.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        state.yt = pickYouTube(items) || state.yt;
+        paint();
+        if (result === "connected" && state.example && canRun()) runNow();
+      });
+    }).catch(function (e) {
+      state.connecting = false;
+      state.connectNote = e && e.message ? e.message : "That did not work. Try again.";
+      paint();
+    });
+  }
+
+  function runNow() {
+    if (!V2 || state.running) return;
+    state.running = true;
+    state.runNote = "";
+    paint();
+    cab.jobs.run(JOB).then(function () {
+      watchRun();
+    }).catch(function (e) {
+      if (e && e.code === "busy") { watchRun(); return; }
+      state.running = false;
+      state.catchingUp = null;
+      state.runNote = e && e.message ? e.message : "It did not start. Try again.";
+      paint();
+    });
+  }
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!state.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+
+  function ask(question) {
+    var q = text(question, 3900);
+    if (!q) return;
+    if (!V2) { toast("Open this cabinet in Cabinet to ask about your channel."); return; }
+    if (!askReady()) {
+      if (state.yt && state.yt.canConnect) { toast("Connect YouTube first. It takes about a minute."); connect(); }
+      else toast("Ask the person who owns this cabinet to connect YouTube.");
+      return;
+    }
+    var note = $("ask-note");
+    note.textContent = "Asking...";
+    cab.ask(q, { agent: AGENT, send: true }).then(function () {
+      note.textContent = "Asked. The answer is coming in the chat next to this page.";
+      toast("Asked. The answer is coming in the chat.");
+      $("ask-input").value = "";
+    }).catch(function (e) {
+      note.textContent = e && e.message ? e.message : "That did not go through. Try again.";
+      toast(note.textContent);
+    });
+  }
+
+  function ytLink(url) {
+    var u = typeof url === "string" ? url.trim() : "";
+    return /^https:\/\/(www\.|m\.)?youtube\.com\/watch\?v=/i.test(u) && u.length < 400 ? u : "";
+  }
+
+  // ── The items ──────────────────────────────────────────────────────────
+
+  function kindOf(item) { return KIND_WORDS[item.kind] ? item.kind : "Other"; }
+  function levelOf(item) { return LEVEL_RANK[item.level] == null ? "Low" : item.level; }
+  /** The most urgent first, then the ones with the most comments, then the newest. */
+  function items() {
+    var all = state.data ? list(state.data.items) : [];
+    return all.slice().sort(function (a, b) {
+      return LEVEL_RANK[levelOf(a)] - LEVEL_RANK[levelOf(b)] ||
+        (b.count || 0) - (a.count || 0) ||
+        ((parseTime(b.lastSeen) || 0) - (parseTime(a.lastSeen) || 0));
+    });
+  }
+
+  // ── Painting ───────────────────────────────────────────────────────────
+
+  function paint() {
+    paintStatus();
+    paintHero();
+    paintRibbon();
+    paintBoard();
+    paintIdeas();
+    paintAsk();
+    state.animate = false;
+  }
+
+  function paintStatus() {
+    var s = ytState();
+    var d = state.data;
+    var pill;
+    if (!V2) pill = '<span class="updated">Connect YouTube from Integrations in Cabinet.</span>';
+    else if (!state.yt) pill = '<span class="pill"><span class="dot pulse"></span>Checking YouTube</span>';
+    else if (s === "connected") pill = '<span class="pill ok"><span class="dot"></span>YouTube connected</span>';
+    else if (s === "not-available-here") pill = '<span class="pill"><span class="dot"></span>YouTube not available here</span>';
+    else if (s === "needs-sign-in" || s === "needs-you") pill = '<span class="pill warn"><span class="dot"></span>YouTube needs you</span>';
+    else pill = '<span class="pill off"><span class="dot"></span>YouTube not connected</span>';
+    // When it was updated and when it runs next share one line, which wraps on a phone.
+    var g = d && !state.example ? parseTime(d.generated) : null;
+    var when = [g ? "Checked " + ago(g, nowRef()) : "", nextRunText()].filter(Boolean).join(". ");
+    var updated = when ? '<span class="next">' + esc(when) + "</span>" : "";
+    // The same routine the schedule runs. It needs window.cabinet, so it is hidden outside
+    // Cabinet and for a viewer.
+    var button = "";
+    if (canRun()) {
+      button = state.running
+        ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Checking...</button>" +
+          (state.catchingUp ? '<span class="next">Catching up on the ' + clockOf(state.catchingUp) + " check you missed</span>" : "")
+        : '<button class="btn" data-act="run"' + (s === "connected" ? "" : " disabled") + ">" + icon("i-refresh") + "Check now</button>";
+    }
+    $("status").innerHTML = pill + updated + button;
+  }
+
+  /** Binoculars on a screen, with a badge that matches the state. */
+  function artBoard(badge) {
+    var mark = badge === "check"
+      ? '<circle cx="108" cy="24" r="14" fill="#1e8e3e"/><path d="M101 24l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+      : badge === "alert"
+        ? '<circle cx="108" cy="24" r="14" fill="#f9ab00"/><path d="M108 16.5v9M108 30.5v.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>'
+        : "";
+    return '<svg class="art" viewBox="0 0 132 104" aria-hidden="true">' +
+      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#fdeeee"/>' +
+      '<rect x="24" y="28" width="84" height="56" rx="9" fill="#fff" stroke="#0f0f0f" stroke-width="3"/>' +
+      '<circle cx="52" cy="58" r="10" fill="none" stroke="#cc0000" stroke-width="3"/><circle cx="80" cy="58" r="10" fill="none" stroke="#cc0000" stroke-width="3"/>' +
+      '<path d="M62 56h8M46 46l4-6h8M86 46l-4-6h-8" fill="none" stroke="#0f0f0f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' +
+      mark + "</svg>";
+  }
+  function cardHero(art, title, body, busy) {
+    var picture = busy
+      ? '<div class="art" aria-hidden="true" style="display:grid;place-items:center">' + icon("i-refresh", "spin") + "</div>"
+      : art && art.indexOf("<svg") === 0 ? '<div class="art" aria-hidden="true" style="display:grid;place-items:center;border-radius:18px;background:var(--panel)">' + art.replace('class="icon"', 'class="icon" style="width:44px;height:44px;color:var(--ink-3)"') + "</div>"
+      : artBoard(art);
+    return '<div class="card-hero">' + picture + "<div><h2>" + esc(title) + "</h2>" + body + "</div></div>";
+  }
+  function runNoteHtml() { return state.runNote ? '<div class="notice">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
+
+  function paintHero() {
+    var hero = $("hero");
+    if (!state.loaded) { hero.innerHTML = '<p class="skeleton">Opening your channel...</p>'; return; }
+    var s = ytState();
+    var g = state.yt;
+    var html;
+    if (V2 && s === "not-available-here") {
+      html = cardHero(icon("i-cloud"), "YouTube can’t be connected here yet",
+        "<p class=\"fine\">YouTube connects with Sign in with Google, in the Cabinet app on a computer. Below is an example from a made-up channel.</p>");
+    } else if (V2 && (s === "needs-sign-in" || s === "needs-you")) {
+      html = cardHero("alert", "YouTube needs you",
+        '<p class="lead">' + esc(g && g.problem && g.problem.text ? g.problem.text : "Google needs you to sign in again.") + "</p>" +
+        (g && g.canConnect ? '<div class="actions"><button class="btn primary big" data-act="connect">' + icon("i-play") + "Sign in again</button></div>" : ""));
+    } else if (V2 && s === "not-added") {
+      html = cardHero(null, "See what on your channel needs a look",
+        '<p class="lead">Connect YouTube and every morning this board lists the angry comments, the spam, the questions waiting too long and the videos doing worse than usual, the most urgent first.</p>' +
+        (g && g.canConnect
+          ? '<div class="actions"><button class="btn primary big" data-act="connect"' + (state.connecting ? " disabled" : "") + ">" + icon(state.connecting ? "i-refresh" : "i-play", state.connecting ? "spin" : "") + (state.connecting ? "Connecting..." : "Connect YouTube") + "</button>" +
+            '<span class="fine">Sign in with the Google account that owns your channel. About a minute.</span></div>'
+          : '<p class="fine"><b>Ask the person who owns this cabinet to connect YouTube.</b></p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
+        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never posts on its own</li><li>" + icon("i-check") + "Every morning at 8:30</li><li>" + icon("i-check") + "Below: an example from a made-up channel</li></ul>");
+    } else if (state.running && state.example) {
+      html = cardHero(null, "Checking your channel...", '<p class="lead">The first check reads two weeks of comments and takes a few minutes. Stay here or come back later: the board fills in by itself.</p>', true);
+    } else if (V2 && s === "connected" && state.example) {
+      html = cardHero("check", "YouTube is connected. Let’s check your channel.",
+        '<p class="lead">The first check reads the last two weeks of comments and your recent videos, and takes a few minutes. After that it runs by itself every morning.</p>' +
+        (canRun() ? '<div class="actions"><button class="btn primary big" data-act="run">' + icon("i-refresh") + "Check now</button></div>" : "") + runNoteHtml());
+    } else if (!state.data) {
+      html = cardHero(null, "Your channel shows up here", '<p class="lead">Nothing could be read yet. Try again in a moment.</p>');
+    } else {
+      html = dataHero();
+    }
+    var problem = state.data && !state.example && state.data.status && state.data.status !== "ok"
+      ? '<div class="notice">' + icon("i-alert") + "<p><b>The last check didn’t work.</b> " + esc(text(state.data.status, 200)) + "</p></div>" : "";
+    var broken = state.broken && !state.example ? '<div class="notice">' + icon("i-alert") + "<p>The board file could not be read. The next check rewrites it.</p></div>" : "";
+    hero.innerHTML = html + problem + broken;
+  }
+
+  /** One headline: how many things need a look, with the most urgent one's own words under it. */
+  function dataHero() {
+    var all = items();
+    var ex = state.example ? "Example: " : "";
+    if (!all.length) {
+      return "<div><h2>" + esc(ex + "Nothing needs a look") + '</h2><p class="lead">No angry comments, no spam, no question waiting too long, and your videos are doing as usual.</p>' + runNoteHtml() + "</div>";
+    }
+    var top = all[0];
+    var high = all.filter(function (x) { return levelOf(x) === "High"; }).length;
+    var head = all.length + " " + plural(all.length, "thing needs", "things need") + " a look";
+    var sum = text(top.summary, 220);
+    return "<div><h2>" + esc(ex + head) + "</h2>" +
+      '<p class="lead">' + (high ? "<b>" + high + " " + plural(high, "is", "are") + " urgent.</b> " : "") + "First: <b dir=\"auto\">" + esc(text(top.title, 80)) + ".</b> " + (sum ? '<span dir="auto">' + esc(sum) + "</span>" : "") + "</p>" +
+      runNoteHtml() + "</div>";
+  }
+
+  function paintRibbon() {
+    var el = $("ribbon");
+    if (!state.loaded || !state.data || !state.example) { el.innerHTML = ""; return; }
+    var name = state.data.channel ? text(state.data.channel.title, 60) : "";
+    el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
+      (name ? "<b>" + esc(name) + "</b>, a made-up channel. " : "A made-up channel. ") +
+      "None of this is your channel. " + (ytState() === "connected" ? "Your first check replaces it." : "Connect YouTube and your own board replaces it.") + "</p></div>";
+  }
+
+  function itemRow(r, rank, now) {
+    var id = text(r.id, 80) || "i" + rank;
+    var open = !!state.open[id];
+    var kind = kindOf(r);
+    var level = levelOf(r);
+    var n = typeof r.count === "number" && r.count > 0 ? Math.round(r.count) : 0;
+    var all = list(r.comments);
+    var msgs = all.slice().sort(function (a, b) { return (parseTime(b.at) || 0) - (parseTime(a.at) || 0); }).slice(0, 10);
+    var msgsHtml = msgs.length ? '<ul class="msgs">' + msgs.map(function (m) {
+      var link = state.example ? "" : ytLink(m.link || m.url);
+      var at = parseTime(m.at);
+      return '<li class="msg"><span><span class="who" dir="auto">' + esc(text(m.author, 40) || "Someone") + "</span>" +
+        (at ? '<span class="when">' + esc(ago(at, now)) + "</span>" : "") + "</span>" +
+        '<q dir="auto">' + esc(text(m.text, 220)) + "</q>" +
+        (link ? '<a class="open" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on YouTube</a>" : "") + "</li>";
+    }).join("") + "</ul>" : "";
+    var link = state.example ? "" : ytLink(r.link || r.url);
+    var acts = [];
+    if (canAsk()) {
+      acts.push('<button class="btn small dark" data-act="about" data-id="' + esc(id) + '">' + icon("i-chat") + "Ask about this</button>");
+      if (ANSWERABLE[kind] && msgs.length) acts.push('<button class="btn small" data-act="draft" data-id="' + esc(id) + '">' + icon("i-pen") + "Draft a reply</button>");
+    }
+    if (link) acts.push('<a class="btn small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on YouTube</a>");
+    var where = text(r.video, 70);
+    return '<li class="req' + (open ? " open" : "") + '">' +
+      '<button class="req-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
+      '<span class="req-title"><span class="lvl ' + level.toLowerCase() + '" title="' + esc(level === "High" ? "Urgent" : level === "Medium" ? "Worth a look" : "Can wait") + '"></span>' +
+      '<span class="sr">' + (level === "High" ? "Urgent" : level === "Medium" ? "Worth a look" : "Can wait") + ". </span>" +
+      '<b dir="auto">' + esc(text(r.title, 80) || "Something to look at") + "</b>" +
+      '<span class="type">' + esc(KIND_WORDS[kind]) + "</span></span>" +
+      '<span class="req-people num">' + (n ? n + " " + plural(n, "comment", "comments") : "") + "</span>" +
+      '<span class="req-sum" dir="auto">' + esc(text(r.summary, 220)) + (where ? ' <span class="under">Under ' + esc(where) + "</span>" : "") + "</span>" +
+      (text(r.next) ? '<span class="req-next" dir="auto"><b>Next:</b> ' + esc(text(r.next, 200)) + "</span>" : "") +
+      "</button>" +
+      '<div class="req-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" + msgsHtml +
+      (all.length > msgs.length ? '<p class="lane-empty" style="padding:0 0 10px">And ' + (all.length - msgs.length) + " older " + plural(all.length - msgs.length, "comment", "comments") + ".</p>" : "") +
+      (acts.length ? '<div class="row-actions">' + acts.join("") + "</div>" : "") + "</div>" +
+      "</li>";
+  }
+
+  function paintBoard() {
+    var main = $("board-main");
+    $("board").hidden = !state.loaded || !state.data;
+    if (!state.loaded || !state.data) { main.innerHTML = ""; return; }
+    var all = items();
+    var counts = {};
+    all.forEach(function (r) { var k = kindOf(r); counts[k] = (counts[k] || 0) + 1; });
+    if (state.filter !== "All" && !counts[state.filter]) state.filter = "All";
+    var kinds = KINDS.filter(function (k) { return counts[k]; });
+    var filters = kinds.length < 2 ? "" : '<div class="filters" role="group" aria-label="Show one kind">' +
+      ["All"].concat(kinds).map(function (k) {
+        return '<button class="f" data-act="filter" data-kind="' + esc(k) + '" aria-pressed="' + (state.filter === k) + '">' + esc(k === "All" ? "All" : KIND_WORDS[k]) + "</button>";
+      }).join("") + "</div>";
+    var now = nowRef();
+    var ranked = all.map(function (r, i) { return { r: r, rank: i + 1 }; });
+    var shown = state.filter === "All" ? ranked : ranked.filter(function (x) { return kindOf(x.r) === state.filter; });
+    var inner = all.length
+      ? '<input class="find" id="find" type="search" dir="auto" placeholder="Find on the board" aria-label="Find on the board" value="' + esc(state.query) + '" />' +
+        '<ul class="reqs">' + shown.map(function (x) { return itemRow(x.r, x.rank, now); }).join("") + "</ul>"
+      : '<p class="lane-empty">Nothing needs a look right now. The board fills in when something does.</p>';
+    main.innerHTML = '<section class="lane" aria-labelledby="lane-h"><div class="lane-head"><h3 id="lane-h">Needs a look</h3>' + (all.length ? filters : "") + "</div>" + inner + "</section>";
+    filterRows();
+  }
+
+  /** Finding one item runs over each row's words and hides the rest. No re-render. */
+  function filterRows() {
+    var needle = state.query.trim().toLowerCase();
+    var rows = document.querySelectorAll("#board-main .req");
+    var hits = 0;
+    Array.prototype.forEach.call(rows, function (row) {
+      var hit = !needle || row.textContent.toLowerCase().indexOf(needle) > -1;
+      row.hidden = !hit;
+      if (hit) hits++;
+    });
+    var none = $("nohits");
+    if (none) none.remove();
+    if (hits || !rows.length) return;
+    // Not on the board: the Channel Watcher can still look for it in the comments, in the chat.
+    var p = document.createElement("p");
+    p.id = "nohits";
+    p.className = "lane-empty nohits";
+    p.innerHTML = "<span>Nothing on the board for that.</span>" +
+      (canAsk() ? '<button class="btn small" type="button" data-act="find-ask">' + icon("i-chat") + "Ask in chat</button>" : "");
+    $("board-main").querySelector(".lane").appendChild(p);
+  }
+
+  /** A picture of what the idea is about, in the template covers' style. */
+  function preview(idea) {
+    return '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>';
+  }
+
+  function paintIdeas() {
+    var el = $("ideas");
+    if (!state.loaded) { el.innerHTML = ""; return; }
+    var can = canAsk() || !V2;
+    el.innerHTML = '<div class="section-head"><h2 id="ideas-title">Ideas for your channel</h2>' +
+      "<p>" + (!V2 ? "Ask for any of these in the cabinet’s chat." : !askReady() ? "Connect YouTube and each of these is one tap away." : "One tap to ask now, or to have it done for you on a schedule.") + "</p></div>" +
+      '<div class="idea-grid">' + IDEAS.map(function (idea, i) {
+        return '<article class="idea' + (state.animate ? " rise" : "") + '"' + (state.animate ? ' style="--d:' + (i * 40) + 'ms"' : "") + ">" +
+          preview(idea) +
+          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
+          '<div class="go"><button class="btn dark" data-act="idea-now" data-i="' + i + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
+          '<button class="btn" data-act="idea-routine" data-i="' + i + '"' + (can ? "" : " disabled") + ' aria-label="' + esc(idea.when + ": " + idea.title) + '">' + icon("i-repeat") + esc(idea.when) + "</button></div>" +
+          "</article>";
+      }).join("") + "</div>";
+  }
+
+  function paintAsk() {
+    $("ask").hidden = V2 && role() === "viewer";
+    $("ask-note").textContent = !V2
+      ? "Open this cabinet in Cabinet to ask. The answer comes up in the chat next to this page."
+      : askReady() ? "The answer comes up in the chat next to this page." : "Connect YouTube first, then ask anything.";
+  }
+  function paintQuestions() {
+    $("questions").innerHTML = QUESTIONS.map(function (q) {
+      return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+    }).join("");
+  }
+
+  // ── Presses ────────────────────────────────────────────────────────────
+
+  function findItem(id) {
+    var all = state.data ? list(state.data.items) : [];
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
+    return null;
+  }
+
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest ? event.target.closest("[data-act]") : null;
+    if (!el || el.disabled) return;
+    var act = el.getAttribute("data-act");
+    var id = el.getAttribute("data-id");
+    if (act === "toggle") {
+      state.open[id] = !state.open[id];
+      paintBoard();
+      var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+      if (again) again.focus();
+    } else if (act === "filter") {
+      state.filter = el.getAttribute("data-kind") || "All";
+      paintBoard();
+      var f = document.querySelector('[data-act="filter"][aria-pressed="true"]');
+      if (f) f.focus();
+    } else if (act === "connect") connect();
+    else if (act === "run") runNow();
+    else if (act === "ask") ask(el.getAttribute("data-q"));
+    else if (act === "find-ask") {
+      var q = state.query.trim();
+      if (q) ask("Look in the comments under my videos for this, and tell me who said it, where and when: " + q);
+    } else if (act === "about") {
+      var r = findItem(id);
+      if (r) ask("Tell me about \"" + text(r.title, 80) + "\" on the Watch Board: what happened, who is involved, under which video, whether it is growing, and what you would do first.");
+    } else if (act === "draft") {
+      var d = findItem(id);
+      if (d) ask("Draft a short, calm reply in my voice for \"" + text(d.title, 80) + "\" on the Watch Board" + (text(d.video) ? ", under \"" + text(d.video, 120) + "\"" : "") + ". Read the comments behind it first. Show it to me here as a draft I can copy. Do not post anything on YouTube.");
+    } else if (act === "idea-now") {
+      var idea = IDEAS[+el.getAttribute("data-i")];
+      if (idea) ask(idea.ask);
+    } else if (act === "idea-routine") {
+      var it = IDEAS[+el.getAttribute("data-i")];
+      if (it) ask("Set this up as a routine that runs " + it.at + ": " + it.ask + " Show me the routine so I can approve it before it starts.");
+    }
+  });
+
+  document.addEventListener("input", function (event) {
+    if (event.target && event.target.id === "find") {
+      state.query = event.target.value;
+      filterRows();
+    }
+  });
+
+  $("ask-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    ask($("ask-input").value);
+  });
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  paintQuestions();
+  paint();
+
+  if (V2) {
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+    cab.connectors.list().then(function (items) {
+      state.yt = pickYouTube(items) || { id: "youtube", state: "not-available-here", problem: null, canConnect: false };
+      paint();
+      catchUp();
+    }).catch(function () {
+      state.yt = { id: "youtube", state: "not-available-here", problem: null, canConnect: false };
+      paint();
+    });
+    cab.connectors.onChange(function (items) { var g = pickYouTube(items); if (g) { state.yt = g; paint(); } });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+    readSchedule();
+  } else {
+    load();
+    readSchedule();
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") load(); });
+  }
+})();
+</script>
+</body>
+</html>
