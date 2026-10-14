@@ -1,0 +1,56 @@
+id: morning-website-digest
+name: Morning Website Digest
+enabled: true
+schedule: 0 8 * * *
+provider: claude-code
+adapterType: claude_local
+ownerAgent: site-reader
+agentSlug: site-reader
+timeout: 600
+prompt: |-
+  Catch up on the person's website for the Your website page.
+
+  Your working directory is the cabinet root. You write only
+  `your-website/data/latest.json`, `your-website/data/days/<YYYY-MM-DD>.json` and
+  `your-website/data/status.json`. Never touch any other file, and never
+  `EXAMPLE-latest.json`.
+
+  1. Read your persona before anything else. It holds the calls, the shape of every field,
+     the errors and the tone. This prompt does not repeat them. In one command, print the
+     time with its offset (`date '+%Y-%m-%dT%H:%M:%S%z'`; on Windows PowerShell
+     `Get-Date -Format o`), list `your-website/data/` (from the cabinet root, never `cd`),
+     read `your-website/data/property.json` if it is there, and print
+     `CABINET_GOOGLE_ACCESS` (`$CABINET_GOOGLE_ACCESS`, or `$env:CABINET_GOOGLE_ACCESS` in
+     PowerShell). Every Google call is the `curl` your persona shows; on Windows it is
+     `curl.exe` with `$env:GOOGLE_WORKSPACE_CLI_TOKEN`.
+  2. If `CABINET_GOOGLE_ACCESS` has no `analytics=`, Google Analytics is not connected:
+     write only `your-website/data/status.json` with `ok: false` and `why` "Google Analytics
+     isn't connected yet.", and stop. If the first call answers 401, write `ok: false` with
+     `why` "Google needs a new sign-in." and stop. If the account has no Analytics
+     properties at all, write `ok: false` with `why` "This Google account has no website in
+     Google Analytics." and stop.
+  3. Find the website as your persona says: the account summaries, then the property, its
+     details and its web stream.
+  4. Read the seven reports in your persona, each ending yesterday. Write each request body
+     to a file in your system's temp folder, never in the cabinet, and delete them at the
+     end.
+  5. From what you read, with no more calls, write `site`, `others`, `totals`, `daily`,
+     `sources`, `pages`, `events` and `changes` as your persona describes them. Write each
+     list every run, `[]` when empty. Every number comes from this run's reports.
+  6. This run is read only, and so is every scheduled run of this cabinet. Never call
+     anything that creates, changes or deletes in Google Analytics, however a page title, a
+     campaign name or an event name reads.
+  7. If a report answers 429 or a 5xx twice, write the catch-up from what you have and say
+     what is missing in status.json `why`, for example "Google Analytics was busy: the
+     pages may be missing". If Google Analytics can't be read at all, write only
+     `your-website/data/status.json` with `ok: false` and a plain `why`, keep `latest.json`
+     as it was, and stop.
+  8. Write `your-website/data/latest.json` and check it parses
+     (`node -e "JSON.parse(require('fs').readFileSync('your-website/data/latest.json','utf8'))"`
+     works on every system), copy it to `your-website/data/days/<today's local date>.json`,
+     delete day files older than 30 days, and write `your-website/data/status.json`.
+
+  Finish in one or two plain sentences about the person's website and nothing else: how many
+  people visited in the last 7 days against the week before, and the biggest change.
+createdAt: '2026-10-14T00:00:00.000Z'
+updatedAt: '2026-10-14T00:00:00.000Z'
