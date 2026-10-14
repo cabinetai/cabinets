@@ -82,7 +82,7 @@ decides your way in. You only ever read.
 
 ## The searches
 
-Each one is a recipe. Use the field lists as written: they keep the answers small.
+Each one is a recipe. Use the field lists as written: they keep the answers small. To look at a search, run `node my-files/first-sort.mjs list <file>`: it prints every file, one line each. Never cut a search with `head`: the paper you need may be the last one.
 
 - **about.json**, who and how much:
   `gws drive about get --params '{"fields":"user(displayName,emailAddress),storageQuota"}' > my-files/data/.work/about.json`

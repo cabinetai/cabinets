@@ -316,6 +316,15 @@ function checkDates(d, files) {
   });
   d.dates.sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
+/** The searches every morning needs, and the lanes they fill: a lane left empty while its
+ *  answer holds files is a read that skipped a step. */
+const MORNING = ["mine.json", "shared.json"];
+function checkLanes(l) {
+  for (const name of MORNING) if (!fs.existsSync(path.join(workDir, name))) fail(`refused, ${name} is missing: run that search (your persona has it) before latest`);
+  const from14 = dayStart(-14).getTime();
+  const mine = pagesSafe("mine.json").flatMap((p) => (p && p.files) || []).filter((x) => x && (x.modifiedByMeTime || x.modifiedTime) && new Date(x.modifiedByMeTime || x.modifiedTime).getTime() >= from14);
+  if (mine.length && !(Array.isArray(l.recent) && l.recent.length)) fail(`refused, recent is empty while mine.json has ${mine.length} files they changed in the last 14 days`);
+}
 /** A gist that is the file name again (give or take its extension) is left out. */
 function dropEchoGists(o) {
   const bare = (v) => String(v || "").toLowerCase().replace(/\.[a-z0-9]{2,5}$/, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -568,6 +577,13 @@ if (cmd === "window") {
   fs.mkdirSync(workDir, { recursive: true });
   writeJson(readingFile, { schema: `${CONFIG.schema}/reading@1`, startedAt: iso(new Date()), done: false, lines: [] });
   console.log("reading started; save answers in " + path.relative(process.cwd(), workDir));
+} else if (cmd === "list") {
+  // Every file in a saved answer, one line each, so a long answer is never cut short to read it.
+  for (const name of args) {
+    const all = pagesSafe(name).flatMap((p) => [].concat((p && p.files) || [], (p && p.drives) || []));
+    console.log(`${name}: ${all.length} ${all.length === 1 ? "file" : "files"}`);
+    for (const x of all) console.log([x.id, kindOf(x.mimeType || ""), x.name, x.modifiedTime ? String(x.modifiedTime).slice(0, 10) : "", (x.parents || [])[0] || ""].join(" | "));
+  }
 } else if (cmd === "count") {
   for (const spec of args) { const c = countFile(spec); console.log(`${spec}: ${c.n}${c.more ? " (there is more than this)" : ""}`); }
 } else if (cmd === "push") {
@@ -694,6 +710,7 @@ if (cmd === "window") {
     if (CONFIG.drive) {
       // Every card names a file Drive answered with; storage, the account and what changed
       // this week come from Drive's own answers.
+      checkLanes(l);
       checkFiles(l, "latest", driveFiles());
       dropEchoGists(l);
       delete l.storage; delete l.changed7; delete l.changed7More; delete l.account;
