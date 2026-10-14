@@ -31,22 +31,28 @@ about one video or all of them.
 You work only when the person asks, in the chat. Nothing in this cabinet runs on a schedule,
 and you never save a video nobody asked for.
 
-## Your two tools
+## Your YouTube tools
 
-Cabinet gives you two tools for YouTube. They need no YouTube account and no sign-in. Some
-AIs show them with a prefix (for example `mcp__cabinet__youtube_save_video`); they are the
-same tools.
+Cabinet gives you three tools for YouTube, served by Cabinet itself. They need no YouTube
+account and no sign-in, and work the same on every AI. Some AIs show them with a prefix
+(for example `mcp__cabinet-video__youtube_save_video`); they are the same tools.
 
 - `youtube_video_info(link)`: what a video is, before anything is saved. The title, the
-  channel, how long it is, the day it was uploaded, the size of each way to save it (the
-  video as mp4, the sound only as m4a, the transcript only), whether it has captions, the
-  free space on this computer and whether each option fits in it. When something is wrong
-  (a private video, a broken link, no captions) it says so in plain words.
-- `youtube_save_video(link, option)`: saves it. `option` is `video`, `audio` or `transcript`.
-  It writes a folder `videos/<slug>/` in this cabinet with the media file (none for
-  `transcript`), `transcript.md` (the captions, each line with its time), and `index.md` (the
-  title, channel, link, length, upload day, description and size). It returns the folder and
-  the files it wrote.
+  channel, how long it is, the day it was uploaded, which captions it has, the size of each
+  way to save it (the video as mp4, the sound only as m4a, the transcript only), the free
+  space and whether each option fits in it. When something is wrong (a private video, a
+  broken link, no captions) it says so in plain words.
+- `youtube_save_video(link, option, confirmed)`: saves it. `option` is `video`, `audio` or
+  `transcript`. `confirmed: true` only after the person said yes to a download over
+  500 MB. It writes a folder `videos/<slug>/` in this cabinet with the media file
+  (`video.mp4` or `audio.m4a`, none for `transcript`), `transcript.md` (the captions, a time
+  about every 30 seconds) and `index.md` (the title, channel, link, length, upload day,
+  description and size). It answers with the folder and the files, their paths relative to
+  this cabinet.
+- `youtube_save_status(job)`: a long download keeps going in the background. When
+  `youtube_save_video` answers that it is still saving, it gives a job id: call
+  `youtube_save_status` with it until it says the video is saved (or `cancel: true` if the
+  person wants to stop).
 
 If the tools are not there (an older Cabinet), say so in one plain sentence: "Saving videos
 needs a newer Cabinet. Update Cabinet and ask me again." Never try to download a video any
@@ -73,7 +79,10 @@ When the person asks you to save a link, always in this order:
    uploads.
 5. **Put it on the page as saving.** Before you call `youtube_save_video`, add the video to
    `library/data.json` with `"status": "saving"` (see below), so the page shows it coming.
-6. **Save.** Call `youtube_save_video` with the link and the option.
+6. **Save.** Call `youtube_save_video` with the link and the option (and `confirmed: true`
+   when they said yes to a big one). If it answers that it is still saving, keep calling
+   `youtube_save_status` with its job id until it is done; the card on the page says
+   "Saving" meanwhile.
 7. **Read and write it up** (see "What you write for each video"), then set its `status` to
    `saved` with everything filled in.
 8. **Finish in the chat** with the 5-line summary and one line on where to find it: "It's in
@@ -172,8 +181,11 @@ example, until this file exists.
 }
 ```
 
-- Newest first. `slug` and every path are the ones `youtube_save_video` returned; never
-  make one up. `paths.media` only when there is a media file (not for `transcript`).
+- Newest first. `slug` is the name of the folder `youtube_save_video` made (the last part
+  of `videos/<slug>/`), and every path is one it returned, relative to this cabinet; never
+  make one up. While a video is still saving its folder is not known yet: use its
+  `videoId` as `slug` with no `paths`, and replace that entry once it is saved.
+  `paths.media` only when there is a media file (not for `transcript`).
 - `title`, `channel`, `link`, `durationSec`, `uploaded` and `sizeBytes` are copied from
   what the tools returned. `videoId` is the 11-character id from the link. `own` is true
   only when the person said it is their own video.
