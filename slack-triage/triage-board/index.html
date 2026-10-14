@@ -2,7 +2,7 @@
 <!--
   slack-triage showcase page.
 
-  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
+  Reads ../triage/, one file per run, written by this cabinet's single routine.
   The file names carry the timestamp, so the picker is built without opening any of them.
   Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
   and survive the user renaming the cabinet at install time. The folder listing comes from
@@ -25,9 +25,9 @@
     --page: #ffffff; --panel: #f7f6f8; --line: #e7e4ea; --line-2: #d6d1dc;
     --ink: #1d1c1d; --ink-2: #454245; --ink-3: #696469;
     --plum: #4a154b; --plum-2: #611f69;
-    --red: #e01e5a; --red-ink: #b3134a; --red-tint: #fdeaf0;
-    --green: #2eb67d; --green-ink: #1a7a52;
-    --amber: #ecb22e; --amber-ink: #7d5a00; --amber-tint: #fdf5e1;
+    --red-ink: #b3134a; --red-tint: #fdeaf0;
+    --green-ink: #1a7a52;
+    --amber-ink: #7d5a00; --amber-tint: #fdf5e1;
     --blue-ink: #1264a3;
     --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
@@ -341,38 +341,22 @@
     return set;
   }
 
-  function nextRun(cron, from) {
+  /* The nearest minute the schedule matches: forward (dir 1) for the next run, or back
+     (dir -1) for the run that should already have happened. Walks a minute at a time; a
+     scheduled routine lands within days, and the cap stops a schedule that can never match
+     (30 February) from spinning. */
+  function cronMatch(cron, from, dir, days) {
     var f = cron.trim().split(/\s+/);
     if (f.length !== 5) return null;
     var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
         mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
     if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
-    var d = new Date(from.getTime() + 60000);
+    var d = new Date(from.getTime() + (dir > 0 ? 60000 : 0));
     d.setSeconds(0, 0);
-    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
-       stops a schedule that can never match (30 February) from spinning. */
-    for (var i = 0; i < 366 * 1440; i++) {
+    for (var i = 0; i < days * 1440; i++) {
       if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
           hrs[d.getHours()] && mins[d.getMinutes()]) return d;
-      d = new Date(d.getTime() + 60000);
-    }
-    return null;
-  }
-
-  /* The last minute the schedule matched, so the run that should already have happened.
-     Walks back at most eight days, which covers any daily or weekday schedule. */
-  function prevRun(cron, from) {
-    var f = cron.trim().split(/\s+/);
-    if (f.length !== 5) return null;
-    var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
-        mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
-    if (dows[7]) dows[0] = true;
-    var d = new Date(from.getTime());
-    d.setSeconds(0, 0);
-    for (var i = 0; i < 8 * 1440; i++) {
-      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
-          hrs[d.getHours()] && mins[d.getMinutes()]) return d;
-      d = new Date(d.getTime() - 60000);
+      d = new Date(d.getTime() + dir * 60000);
     }
     return null;
   }
@@ -381,7 +365,7 @@
     if (!job) return '';
     if (job.enabled === 'false') return 'Routine paused';
     if (!job.schedule) return '';
-    var d = nextRun(job.schedule, new Date());
+    var d = cronMatch(job.schedule, new Date(), 1, 366);
     if (!d) return '';
     var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
     return 'Next run: ' + human(d) + ' at ' + clock;
@@ -449,7 +433,7 @@
     if (!CAN || viewer || running || catchingUp || connecting) return;
     if (!known.here || !known.jobs || !known.slack || !known.files || !slackOn) return;
     if (!job || job.enabled === 'false' || !job.schedule) return;
-    var due = prevRun(job.schedule, new Date());
+    var due = cronMatch(job.schedule, new Date(), -1, 8);
     if (!due || (newest && newest >= due)) return;
     var key = 'catch-up:' + JOB_ID + ':' + due.getTime();
     try {
