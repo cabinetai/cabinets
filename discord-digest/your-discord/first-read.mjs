@@ -2,6 +2,9 @@
 // The first read's lines, written only through here, so the page never gets a broken file
 // while it watches. Run it from anywhere:
 //   node <app>/first-read.mjs start                 new data/reading.json and data/.work/
+//   node <app>/first-read.mjs recent @<file>        the latest messages, shown at once (very early, again
+//                                                   later to refresh): a JSON list of 1 to 8
+//                                                   {"who","where","parent","gist","at","link"}
 //   node <app>/first-read.mjs push '<line>'         add one line (single quotes: "$" stays "$")
 //   node <app>/first-read.mjs gift @<file>          the one thing for the person, shown while you read:
 //                                                   {"kind":"question","who","channel","since","gist","link"}
@@ -9,6 +12,11 @@
 //                                                   {"kind":"calm"}
 //                                                   who, channel, name, since and link copied from
 //                                                   Discord's answers as they came.
+//   node <app>/first-read.mjs offer @<file>         one more thing the person can do now (at most 3):
+//                                                   {"kind":"reply","who","channel","since","gist","link"}
+//                                                   {"kind":"catchup","name","parent","gist","link"}
+//                                                   {"kind":"summary","name","parent","gist","link"}
+//                                                   {"kind":"announce","channel","level":"write","gist"}
 //   node <app>/first-read.mjs latest @<file>        write data/latest.json from your script's file, its
 //                                                   copy in data/days/, and data/status.json
 //                                                   (schema, generatedAt and the day set here; a
@@ -22,6 +30,9 @@ import { fileURLToPath } from "node:url";
 const SCHEMA = "discord-digest";
 const LATEST_SCHEMA = "discord-digest/your-discord@1";
 const GIFT_KINDS = { question: ["who", "channel", "since"], busy: ["name"], calm: [] };
+const OFFER_KINDS = { reply: ["who", "channel", "since"], catchup: ["name"], summary: ["name"], announce: ["channel", "level"] };
+const MAX_OFFERS = 3;
+const MAX_RECENT = 8;
 const DISCORD_LINK = /^https:\/\/(ptb\.|canary\.)?discord\.com\/channels\/[\d@me/]+$/i;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -65,6 +76,8 @@ function checkWords(s, where) {
   // <@194...> or <#1290...>: a raw mention. Name people and channels as Discord shows them.
   if (/<[@#][!&]?\d+>/.test(s)) fail(`refused, a raw Discord mention in ${where}: write the display name or the #channel`);
   if (/\b\d{17,20}\b/.test(s)) fail(`refused, a Discord id in ${where}: write the name instead`);
+  // A long dash reads as written by a machine: a comma, a period or plain words instead.
+  if (/[\u2014\u2013]/.test(s)) fail(`refused, a dash like "\u2014" in ${where}: use a comma or a period`);
 }
 
 /** One write to reading.json at a time: two at once would each write their own copy and lose one. */
@@ -82,38 +95,72 @@ function lockReading() {
 }
 
 // ── The gift: one thing the person can do now, shown while the reading goes on ──
-function giftOf(g) {
-  if (!g || typeof g !== "object" || Array.isArray(g)) fail("the gift must be an object");
+/** A time as discord_read_channel gave it ("at"), in the last 14 days. */
+function timeOf(value, key) {
+  const d = new Date(String(value).trim());
+  if (isNaN(d.getTime())) fail(`${key} "${value}" is not a time: copy the message's "at" as Discord gave it`);
+  if (d.getTime() > Date.now() + 5 * 60000 || d.getTime() < Date.now() - 14 * DAY) fail(`${key} must be a time in the last 14 days`);
+  return iso(d);
+}
+function linkOf(value) {
+  const link = String(value).trim();
+  if (!DISCORD_LINK.test(link) || link.length > 400) fail("link is the message's link exactly as Discord gave it (https://discord.com/channels/...)");
+  return link;
+}
+/** The words of a gift or an offer: each field plain, short, and copied as Discord wrote it. */
+function fieldsOf(g, kinds, what) {
+  if (!g || typeof g !== "object" || Array.isArray(g)) fail(`the ${what} must be an object`);
   const kind = String(g.kind || "");
-  if (!GIFT_KINDS[kind]) fail(`the gift kind is ${Object.keys(GIFT_KINDS).join(", ")}, not "${kind}"`);
-  for (const key of GIFT_KINDS[kind]) if (typeof g[key] !== "string" || !g[key].trim()) fail(`a ${kind} gift needs ${key}`);
+  if (!kinds[kind]) fail(`the ${what} kind is ${Object.keys(kinds).join(", ")}, not "${kind}"`);
+  for (const key of kinds[kind]) if (typeof g[key] !== "string" || !g[key].trim()) fail(`a ${kind} ${what} needs ${key}`);
   const out = { kind };
   for (const [key, max] of [["who", 80], ["channel", 80], ["name", 100], ["parent", 80], ["gist", 140]]) {
     if (g[key] === undefined || g[key] === null || g[key] === "") continue;
     const v = String(g[key]).trim();
     if (v.length > max) fail(`${key} is longer than ${max} characters`);
-    checkWords(v, "the gift's " + key);
+    checkWords(v, `the ${what}'s ${key}`);
     out[key] = v;
   }
   if (out.channel && !out.channel.startsWith("#")) fail(`channel is the #channel as Discord spells it, like "#help", not "${out.channel}"`);
   // When they asked: the message's "at" as discord_read_channel gave it.
-  if (g.since !== undefined && g.since !== "") {
-    const d = new Date(String(g.since).trim());
-    if (isNaN(d.getTime())) fail(`since "${g.since}" is not a time: copy the message's "at" as Discord gave it`);
-    if (d.getTime() > Date.now() + 5 * 60000 || d.getTime() < Date.now() - 14 * DAY) fail("since must be a time in the last 14 days");
-    out.since = iso(d);
-  }
+  if (g.since !== undefined && g.since !== "") out.since = timeOf(g.since, "since");
+  if (g.link !== undefined && g.link !== "") out.link = linkOf(g.link);
+  return out;
+}
+function offerOf(o) {
+  const out = fieldsOf(o, OFFER_KINDS, "offer");
+  // An announcement only where the team may write: the channel's level from discord_list_channels.
+  if (out.kind === "announce" && String(o.level).trim() !== "write") fail("an announce offer is only for a channel set to write (level \"write\" in discord_list_channels)");
+  return out;
+}
+function giftOf(g) {
+  const out = fieldsOf(g, GIFT_KINDS, "gift");
   if (g.messages !== undefined && g.messages !== "") {
     const n = Number(g.messages);
     if (!Number.isInteger(n) || n < 1 || n > 100000) fail("messages is a whole number of messages you read there, 1 or more");
     out.messages = n;
   }
-  if (g.link !== undefined && g.link !== "") {
-    const link = String(g.link).trim();
-    if (!DISCORD_LINK.test(link) || link.length > 400) fail("link is the message's link exactly as Discord gave it (https://discord.com/channels/...)");
-    out.link = link;
-  }
   return out;
+}
+/** The latest messages: who, where, what in a few words, and when, as Discord gave them. */
+function recentOf(list) {
+  if (!Array.isArray(list) || !list.length) fail("recent is a JSON list of 1 to 8 messages");
+  if (list.length > MAX_RECENT) fail(`recent holds at most ${MAX_RECENT} messages: the newest ones`);
+  return list.map((m, i) => {
+    if (!m || typeof m !== "object" || Array.isArray(m)) fail(`message ${i + 1} must be an object`);
+    const out = {};
+    for (const [key, max, need] of [["who", 60, true], ["where", 80, true], ["parent", 40, false], ["gist", 140, true]]) {
+      const v = m[key] === undefined || m[key] === null ? "" : String(m[key]).trim();
+      if (!v) { if (need) fail(`message ${i + 1} needs ${key}`); continue; }
+      if (v.length > max) fail(`message ${i + 1}: ${key} is longer than ${max} characters`);
+      checkWords(v, `message ${i + 1}'s ${key}`);
+      out[key] = v;
+    }
+    if (!m.at) fail(`message ${i + 1} needs at, its time as Discord gave it`);
+    out.at = timeOf(m.at, `message ${i + 1}'s at`);
+    if (m.link) out.link = linkOf(m.link);
+    return out;
+  });
 }
 
 const [cmd, ...args] = process.argv.slice(2);
@@ -153,6 +200,27 @@ if (cmd === "start") {
   r.gift = { ...gift, at: iso(new Date()) };
   writeJson(readingFile, r);
   console.log("gift: " + JSON.stringify(r.gift));
+} else if (cmd === "recent") {
+  const recent = recentOf(argFile(args, "the latest messages"));
+  lockReading();
+  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  if (r.done) fail("the reading is done: the latest messages come while you read");
+  r.recent = recent;
+  writeJson(readingFile, r);
+  console.log(`recent: ${recent.length} ${recent.length === 1 ? "message" : "messages"}`);
+} else if (cmd === "offer") {
+  const offer = offerOf(argFile(args, "the offer"));
+  lockReading();
+  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  if (r.done) fail("the reading is done: offers come while you read");
+  const offers = Array.isArray(r.offers) ? r.offers : [];
+  if (offers.length >= MAX_OFFERS) fail(`there are ${MAX_OFFERS} offers already: that is enough`);
+  const same = (a) => a.kind === offer.kind && (a.name || a.channel || a.who) === (offer.name || offer.channel || offer.who);
+  if (offers.some(same) || (r.gift && r.gift.kind === "question" && offer.kind === "reply" && r.gift.who === offer.who && r.gift.channel === offer.channel)) fail("that one is offered already");
+  offers.push({ ...offer, at: iso(new Date()) });
+  r.offers = offers;
+  writeJson(readingFile, r);
+  console.log(`offer ${offers.length}: ` + JSON.stringify(offers[offers.length - 1]));
 } else if (cmd === "latest") {
   // latest.json from the JSON your script wrote into data/.work/: the helper sets what it can
   // know for sure (the schema and the time), keeps the day's copy and writes status.json.
@@ -184,5 +252,5 @@ if (cmd === "start") {
   try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("data/.work/ is busy: delete it in your next call"); }
   console.log("reading done");
 } else {
-  fail("use start, push, gift, latest or done");
+  fail("use start, recent, push, gift, offer, latest or done");
 }

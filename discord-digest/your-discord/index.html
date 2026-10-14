@@ -2,9 +2,15 @@
 <!--
   Discord Digest: Your Discord. The cabinet opens on this page.
 
-  For someone in a Discord server busier than they can follow: what happened in each
-  channel, thread and forum post, the ones worth their time first, each one tap from a
-  question to the cabinet's agent, plus Ideas they can ask for once or switch on as a routine.
+  For someone in a Discord server busier than they can follow: the questions nobody has
+  answered, what moved in each channel, thread and forum post, the latest messages, the busy
+  threads, who is new and who is most active, each one tap from a question to the cabinet's
+  agent, plus Ideas they can ask for once, switch on as a routine, or add as a box.
+
+  The page is a grid of boxes, the same way Gmail's front desk works: 12 columns, each box
+  moved, resized, added and removed by mouse, finger or keyboard, with Undo. Each person's
+  layout is kept in cabinet.mine, so it follows them. "Ask the agent" lets the agent propose
+  boxes (data/layout-change.json); the page offers them with Apply and No thanks.
 
   Where the words come from: a morning routine reads Discord and writes data/latest.json
   next to this page (the shape is data/EXAMPLE-latest.json: a made-up server, always
@@ -12,15 +18,17 @@
   picker, and data/status.json with ok:false and why when it could not read Discord.
   The shape is described in DATA.md. Until the routine writes it, the page shows the example.
   On the very first catch-up the agent also tells what it finds as it reads, one line at a
-  time, in data/reading.json (written only through first-read.mjs), with one thing the
-  person can do right now. The page shows that reading while it lasts; without the file it
-  shows "Catching up on your server..." as before.
+  time, in data/reading.json (written only through first-read.mjs): the latest messages
+  first, then the lines, with a short list of things the person can do right now. The page
+  shows that reading while it lasts; without the file it shows "Catching up on your
+  server..." as before.
 
   How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
-  routine, read and list files). In an older Cabinet it reads the same files over the
-  page's own address and says to connect Discord from Integrations. The page itself never
-  changes anything in Discord: replies and routines go through the chat, where the agent
-  asks first, and it writes only in channels set to Write in Discord's settings in Cabinet.
+  routine, read and list files, the person's own layout). In an older Cabinet it reads the
+  same files over the page's own address and says to connect Discord from Integrations. The
+  page itself never changes anything in Discord: replies and routines go through the chat,
+  where the agent asks first, and it writes only in channels set to Write in Discord's
+  settings in Cabinet.
 
   One file on purpose: a sealed frame cannot load files next to it. Plus Jakarta Sans
   from Google Fonts with system fallbacks; icons are inline SVG. Same type scale, spacing
@@ -116,11 +124,14 @@
   .btn.primary:hover { background: var(--brand-2); border-color: var(--brand-2); }
   .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
   .btn.dark:hover { background: #313338; }
+  .btn.quiet { border-color: transparent; background: transparent; box-shadow: none; color: var(--ink-2); }
+  .btn.quiet:hover { background: var(--panel); }
   .btn.big { min-height: 52px; padding: 13px 24px; font-size: 17px; border-radius: 13px; }
   .btn.small { min-height: 38px; padding: 7px 12px; font-size: 14px; }
+  .btn.small .icon { width: 17px; height: 17px; }
 
   .wrap { max-width: 1280px; margin: 0 auto; padding: 26px 28px 40px; }
-  .main { display: flex; flex-direction: column; gap: 26px; }
+  .main { display: flex; flex-direction: column; gap: 22px; }
 
   /* ── Hero: the one answer ────────────────────────────────────────────── */
   .hero h2 { margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
@@ -150,19 +161,18 @@
   .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
   .tag-example { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 
-  /* ── The board: each place that moved, with the Ask box beside it ────── */
-  .board {
-    display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-    grid-template-areas: "main ask"; gap: 22px; align-items: start;
-  }
-  .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
-  .b-main { grid-area: main; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-  .board > .ask { grid-area: ask; }
-  .lane { min-width: 0; }
-  .lane-head { padding: 0 18px 10px; border-bottom: 1px solid var(--line); }
-  .lane-head h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+  /* ── Boxes with a list ───────────────────────────────────────────────── */
+  .lane { border: 1px solid var(--line); border-radius: 16px; background: var(--page); overflow: hidden; box-shadow: var(--shadow-1); }
+  .lane-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; border-bottom: 1px solid var(--line); }
+  .lane-head .lane-icon { display: inline-grid; place-items: center; color: var(--brand); }
+  .lane-head .lane-icon .icon { width: 20px; height: 20px; stroke-width: 2; }
+  .lane-head h3 { margin: 0; flex: 1; min-width: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+  .lane-head .total { font-size: 14px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+  .lane-head .count { min-width: 26px; padding: 1px 8px; border-radius: 999px; background: var(--panel-2); color: var(--ink-2); font-size: 13.5px; font-weight: 800; text-align: center; }
+  .lane-head .count.hot { background: var(--red); color: #fff; }
+  .lane-head .count.zero { background: var(--green-tint); color: var(--green-ink); }
   .lane-empty { padding: 18px; color: var(--ink-3); margin: 0; }
-  .lane-foot { margin: 0; padding: 12px 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .lane-foot { flex: none; margin: 0; padding: 12px 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; display: flex; align-items: center; gap: 8px; }
   .lane-foot .icon { width: 16px; height: 16px; color: var(--green); }
   button.lane-foot { width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; font: inherit; text-align: start; cursor: pointer; }
   button.lane-foot:hover { background: var(--brand-tint); }
@@ -174,11 +184,12 @@
 
   .row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 
+  .rows { list-style: none; margin: 0; padding: 0; }
   .chans { list-style: none; margin: 0; padding: 0; }
   .chan { border-bottom: 1px solid var(--line); }
   .chan:last-child { border-bottom: 0; }
   .chan-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; width: 100%; text-align: start; padding: 14px 18px; border: 0; background: transparent; }
-  .chan-main:hover { background: var(--panel); }
+  button.chan-main:hover { background: var(--panel); }
   .chan.open .chan-main { background: var(--panel); }
   .chan-name { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; font-size: 15.5px; }
   .chan-name b { overflow-wrap: anywhere; }
@@ -188,32 +199,72 @@
   .dot-u.high { background: var(--red); }
   .dot-u.medium { background: var(--amber); }
   .chan-count { font-size: 14px; color: var(--ink-3); white-space: nowrap; align-self: center; }
+  .chan-count.wait { color: var(--red-ink); font-weight: 700; }
   .chan-gist { grid-column: 1 / -1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; padding-inline-start: 18px; }
+  .chan-gist.flush { padding-inline-start: 0; }
   .chan-body { padding: 0 18px 16px 36px; background: var(--panel); }
   .chan-body .row-actions { margin-top: 0; }
-  .fold { width: 100%; padding: 12px 18px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--brand-2); font-weight: 700; font-size: 14.5px; text-align: start; display: flex; align-items: center; gap: 8px; }
-  .fold:hover { background: var(--brand-tint); }
+  .chan-main .go { grid-column: 1 / -1; justify-self: start; margin-top: 6px; }
+  .tag { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: var(--panel-2); color: var(--ink-2); white-space: nowrap; }
+  .tag.open { background: var(--red-tint); color: var(--red-ink); }
+  .tag.workaround { background: var(--amber-tint); color: var(--amber-ink); }
+  .tag.fixed { background: var(--green-tint); color: var(--green-ink); }
+  .sub-head { padding: 10px 18px 4px; font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); border-bottom: 0 !important; }
+
+  /* Small: one number and one line under it. */
+  .sum { display: flex; flex-direction: column; gap: 2px; padding: 14px 18px; }
+  .sum .value { font-size: 32px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+  .sum .value.none { color: var(--ink-3); }
+  .sum .sub { color: var(--ink-3); font-size: 14px; }
+  .sum .sub .hot { color: var(--red-ink); font-weight: 700; }
+  .sum .line { margin-top: 6px; color: var(--ink-2); font-size: 15px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  /* One channel up close, and the week: a few lines of story. */
+  .story { list-style: none; margin: 0; padding: 12px 18px; display: grid; gap: 8px; }
+  .story li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .story li::before { content: ""; width: 7px; height: 7px; margin-top: 8px; border-radius: 50%; background: var(--brand); }
+  .story-open { margin: 0 18px 12px; padding: 10px 12px; border-radius: 10px; background: var(--amber-tint); font-size: 14.5px; color: var(--ink); }
+  .story-open b { display: block; font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--amber-ink); }
+  .box-pad { padding: 12px 18px 16px; display: flex; flex-wrap: wrap; gap: 8px; }
 
   /* ── Ideas ───────────────────────────────────────────────────────────── */
-  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 14px; }
-  .section-head h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
-  .section-head p { margin: 0; color: var(--ink-3); font-size: 15px; }
-  .idea-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
   .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); box-shadow: var(--shadow-1); }
-  .idea:hover { box-shadow: var(--shadow-2); border-color: var(--line-2); }
   .idea h3 { margin: 0; font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
-  .idea p { margin: 0; color: var(--ink-2); font-size: 15px; flex: 1; }
-  .idea .go { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 4px; }
-  .idea .go .btn { min-height: 44px; padding: 8px 12px; font-size: 14px; }
+  .idea p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .idea .go .btn { min-height: 42px; padding: 8px 12px; font-size: 14px; }
+  .idea .today { padding: 8px 10px; border-radius: 10px; background: var(--brand-tint); font-size: 14px; font-weight: 600; color: var(--ink); }
+  .idea.off { background: var(--panel); }
+  .idea .off-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; color: var(--ink-3); }
+  .idea .on-page { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--green-ink); }
+  .idea .on-page .icon { width: 16px; height: 16px; }
   /* The same carved-wood pictures as the template covers. The object sits on the right of
      each cover, so the crop keeps the right side. */
-  .idea .art-img { aspect-ratio: 16 / 8; border-radius: 12px; overflow: hidden; background: var(--panel); }
-  .idea .art-img img { width: 100%; height: 100%; object-fit: cover; object-position: 75% center; display: block; }
+  .art-img { aspect-ratio: 16 / 8; border-radius: 12px; overflow: hidden; background: var(--panel); }
+  .art-img img { width: 100%; height: 100%; object-fit: cover; object-position: 75% center; display: block; }
+  .idea-rows > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 18px; border-bottom: 1px solid var(--line); }
+  .idea-rows > li:last-child { border-bottom: 0; }
+  .idea-rows b { display: block; font-size: 15px; }
+  .idea-rows span[dir] { display: block; color: var(--ink-3); font-size: 14px; }
+  .one-idea { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; }
+  .one-idea .art-img { flex: none; aspect-ratio: 16 / 6; }
+  .one-idea h3 { margin: 0; font-size: 16px; font-weight: 800; line-height: 1.3; }
+  .one-idea p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+  .one-idea .today { padding: 6px 10px; border-radius: 9px; background: var(--brand-tint); font-weight: 600; font-size: 14px; }
+  .one-idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+
+  /* An idea at the foot of a box, picked from today's catch-up. */
+  .nudge { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: start; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--brand-tint); }
+  .nudge > .icon { color: var(--brand); margin-top: 1px; }
+  .nudge p { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+  .nudge-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .nudge-hide { margin-inline-start: auto; min-height: 38px; border: 0; background: transparent; color: var(--ink-3); font-size: 13.5px; font-weight: 600; padding: 6px 10px; border-radius: 9px; }
+  .nudge-hide:hover { background: var(--panel-2); color: var(--ink); }
 
   /* ── Ask ─────────────────────────────────────────────────────────────── */
   .ask { padding: 22px; border-radius: 18px; background: var(--deep); color: #fff; }
   .ask h2 { margin: 0 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
-  .ask > p { margin: 0 0 14px; color: var(--deep-soft); font-size: 15px; }
+  .ask .sub-line { margin: 0 0 14px; color: var(--deep-soft); font-size: 15px; }
   .ask form { display: flex; gap: 10px; }
   .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 12px; border: 1px solid var(--deep-line); background: var(--deep-2); color: #fff; padding: 10px 14px; font-size: 16px; }
   .ask input::placeholder { color: #aeb3ec; }
@@ -224,10 +275,118 @@
   .q { min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--deep-line); background: var(--deep-2); color: #f1f2fd; font-size: 14.5px; font-weight: 600; text-align: start; }
   .q:hover { background: #3a41a6; }
   .ask .note { margin: 12px 0 0; font-size: 14px; color: var(--deep-soft); min-height: 1.5em; }
+  .ask .cancel { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+  .ask .nudge { margin-top: 12px; border: 1px solid var(--deep-line); border-radius: 14px; background: var(--deep-2); }
+  .ask .nudge > .icon { color: #c9cdfb; }
+  .ask .nudge p { color: #fff; }
+  .ask .nudge .btn:not(.light) { background: transparent; border-color: var(--deep-line); color: #fff; box-shadow: none; }
+  .ask .nudge .btn:not(.light):hover { background: #3a41a6; }
+  .ask .nudge-hide { color: var(--deep-soft); }
+  .ask .nudge-hide:hover { background: #3a41a6; color: #fff; }
+  .ask .qs-label { margin: 12px 0 0; font-size: 13px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--deep-soft); }
+  .ask .qs-label + .qs { margin-top: 6px; }
+  .box.ask { overflow: hidden; }
+  .box.ask[data-level="S"] form { flex-direction: column; }
+
+  /* ── The grid of boxes ───────────────────────────────────────────────── */
+  /* Each box sits on a 12 column grid at the place its layout gives it, and draws itself
+     small, medium or large by its own width (data-level). A list shows the rows that fit,
+     then "+N more". */
+  .grid { --row: 64px; --gap: 16px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: var(--row); gap: var(--gap); }
+  .box { display: flex; flex-direction: column; min-width: 0; min-height: 0; transition: box-shadow .2s ease; }
+  .box > .box-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .box-more { flex: none; display: flex; justify-content: center; width: 100%; padding: 10px 14px; border: 0; border-top: 1px solid var(--line); background: var(--page); color: var(--brand-2); font-weight: 700; font-size: 14px; }
+  .box-more:hover { background: var(--brand-tint); }
+  .box.nbox > .sum { flex: 1; justify-content: center; }
+  /* On a phone the boxes stack in their order and grow to fit. */
+  .grid.stack { display: flex; flex-direction: column; gap: 16px; }
+  .grid.stack .box { flex: none; }
+
+  /* Editing the page: a small bar of buttons, handles on every box. */
+  .editbar { position: sticky; top: 8px; z-index: 20; align-self: flex-end; display: flex; padding: 5px; border-radius: 999px; background: var(--brand-tint); border: 1px solid #d3d8fb; box-shadow: var(--shadow-2); }
+  .editbar-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .editbar .btn { min-height: 36px; padding: 6px 14px; font-size: 13.5px; gap: 6px; box-shadow: none; }
+  .editbar .btn .icon { width: 17px; height: 17px; }
+  .grid.editing .box { position: relative; overflow: visible; outline: 2px dashed #b9bff7; outline-offset: 5px; }
+  .grid.editing .box > :not(.box-x):not(.box-resize):not(.box-size) { pointer-events: none; user-select: none; }
+  .grid .box { -webkit-touch-callout: none; }
+  .grid.editing .box { cursor: grab; user-select: none; }
+  .grid.editing .box:focus-visible { outline: 3px solid var(--brand); outline-offset: 5px; }
+  .grid.editing .box:not(.lifted) { box-shadow: 0 14px 30px -18px rgba(30, 31, 34, .32); }
+  body.is-moving, body.is-moving * { cursor: grabbing !important; user-select: none; }
+  body.is-sizing, body.is-sizing * { cursor: nwse-resize !important; user-select: none; }
+  .box.lifted { z-index: 30; box-shadow: 0 26px 50px -18px rgba(30, 31, 34, .42); will-change: transform; }
+  .box.sizing { z-index: 30; }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } }
+  .grid.fresh .box-x, .grid.fresh .box-resize, .grid.fresh .box-size { animation: pop .45s var(--spring, ease-out) backwards; }
+  .grid.stack.editing { gap: 36px; padding-top: 8px; }
+  /* On a phone the size switch sits on the box's top edge: the title moves down out of its way. */
+  .grid.stack.editing .lane-head { padding-top: 28px; }
+  .grid.stack.editing .box.ask { padding-top: 34px; }
+  .grid.stack.arranging .box:not(.lifted) { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+  .drop-spot { z-index: 1; border: 2px dashed var(--brand); border-radius: 16px; background: color-mix(in srgb, var(--brand) 7%, transparent); pointer-events: none; }
+  .size-tag { z-index: 31; place-self: center; padding: 8px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-2); }
+  .size-tag:empty { display: none; }
+  .box-resize { position: absolute; inset-inline-end: -11px; bottom: -11px; z-index: 3; width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid var(--brand); border-radius: 50%; background: var(--page); box-shadow: var(--shadow-1); cursor: nwse-resize; touch-action: none; transition: transform .15s ease; }
+  .box-resize::after { content: ""; width: 8px; height: 8px; margin: 0 2px 2px 0; border-right: 2px solid var(--brand); border-bottom: 2px solid var(--brand); }
+  .box-resize:hover { transform: scale(1.12); }
+  .box-size { position: absolute; top: -16px; inset-inline-start: 12px; z-index: 3; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--ink); box-shadow: var(--shadow-2); }
+  .box-size button { min-height: 30px; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: #c8ccd4; font-size: 13px; font-weight: 700; }
+  .box-size button[aria-pressed="true"] { background: #fff; color: var(--ink); }
+  .box-x { position: absolute; top: -14px; inset-inline-end: -14px; z-index: 3; width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid var(--page); border-radius: 50%; background: var(--ink); color: #fff; box-shadow: var(--shadow-2); transition: transform .15s ease, background .15s ease; }
+  .box-x:hover { background: var(--red); transform: scale(1.1); }
+  .box-x .icon { width: 16px; height: 16px; stroke-width: 2.6; }
+  .box.leaving { opacity: 0; transform: scale(.94); transition: opacity .2s ease, transform .2s ease; }
+  .box.flash { animation: flash 1.4s ease; }
+  @keyframes flash { 25% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand) 40%, transparent); } }
+  .grid-empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 24px; border: 2px dashed var(--line-2); border-radius: 18px; color: var(--ink-2); }
+  .grid-empty p { margin: 0; }
+
+  /* The Layout button's two ways: by hand, or by asking the agent. */
+  .menu { position: fixed; z-index: 40; width: min(300px, calc(100vw - 32px)); padding: 6px; display: grid; gap: 2px; background: var(--page); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: var(--shadow-2); }
+  .menu button { display: grid; grid-template-columns: 20px 1fr; gap: 2px 10px; align-items: center; padding: 10px 12px; border: 0; border-radius: 10px; background: none; color: var(--ink); font: inherit; text-align: start; cursor: pointer; }
+  .menu button:hover, .menu button:focus-visible { background: var(--panel); outline: none; }
+  .menu .icon { width: 18px; height: 18px; color: var(--brand); }
+  .menu b { font-size: 14.5px; font-weight: 700; }
+  .menu span { grid-column: 2; color: var(--ink-3); font-size: 13.5px; }
+
+  /* What the agent suggests for the page, with Apply and No thanks. */
+  .suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 14px 18px; background: var(--brand-tint); border: 1px solid #d3d8fb; border-radius: 14px; }
+  .suggest p { flex: 1 1 320px; margin: 0; font-size: 15px; color: var(--ink-2); }
+  .suggest p b { color: var(--ink); }
+  .suggest .why { display: block; margin-top: 2px; color: var(--ink-3); font-size: 14px; }
+  .suggest-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* The Add a box and Ideas panels. */
+  .pick-group h3 { margin: 6px 4px 8px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--page); }
+  .pick.on { background: var(--panel); }
+  .pick-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-tint); color: var(--brand); }
+  .pick b { display: block; font-size: 15px; }
+  .pick span { display: block; color: var(--ink-3); font-size: 14px; }
+  .pick em { display: block; margin-top: 2px; font-style: normal; font-size: 13px; font-weight: 700; color: var(--green-ink); }
+  .pick em.wait { color: var(--ink-3); font-weight: 600; }
+  .pick-on { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--green-tint); color: var(--green-ink); }
+  .drawer { position: fixed; inset: 0; z-index: 40; }
+  .drawer-scrim { position: absolute; inset: 0; background: rgba(16, 18, 23, .38); opacity: 0; transition: opacity .25s ease; }
+  .drawer-panel { position: absolute; top: 0; bottom: 0; inset-inline-end: 0; width: min(460px, 100%); display: flex; flex-direction: column; background: var(--page); box-shadow: -24px 0 60px -24px rgba(16, 18, 23, .4); transform: translateX(100%); transition: transform .34s cubic-bezier(.2, .8, .2, 1); outline: none; }
+  .drawer.open .drawer-scrim { opacity: 1; }
+  .drawer.open .drawer-panel { transform: none; }
+  .drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 16px; border-bottom: 1px solid var(--line); }
+  .drawer-head .lane-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-tint); color: var(--brand); flex: none; }
+  .drawer-head h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .drawer-head p { margin: 2px 0 0; color: var(--ink-3); font-size: 14.5px; }
+  .drawer-close { margin-inline-start: auto; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: 11px; background: transparent; color: var(--ink-2); }
+  .drawer-close:hover { background: var(--panel); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .drawer .idea { box-shadow: none; }
 
   /* ── The first read, told as it happens: one line for each thing the agent finds ── */
-  .read-page { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 22px; align-items: start; }
-  .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+  .read-page { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-areas: "read side" "recent side"; gap: 22px; align-items: start; }
+  .read-page.solo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "read" "recent"; }
+  .read-page > .reading { grid-area: read; }
+  .read-page > .read-recent { grid-area: recent; }
+  .read-page > .gift { grid-area: side; }
   .reading {
     display: grid; gap: 6px; padding: 26px 28px; border: 1px solid var(--line); border-radius: 18px;
     background: linear-gradient(180deg, #fff, #fafafc); box-shadow: var(--shadow-2);
@@ -244,10 +403,12 @@
   .read-lines li.now .pulse-dot { margin: 8px 0 0 6px; }
   .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 14px; }
   @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  /* The latest messages, shown at once while the agent reads on. */
+  .read-recent { display: flex; flex-direction: column; animation: rise .5s cubic-bezier(.2, .8, .2, 1) both; }
   /* While the first read goes on, the reading is the page: no made-up example under it. */
-  .first-read #ribbon, .first-read #board, .first-read #ideas, .first-read #gift-keep { display: none !important; }
+  .first-read #ribbon, .first-read #grid, .first-read #grid-empty, .first-read #gift-keep, .first-read #suggest, .first-read #editbar { display: none !important; }
 
-  /* The gift: one thing the person can do now, found while the agent reads. Same deep panel as Ask. */
+  /* While I read, you can: the gift first, then a few more offers. Same deep panel as Ask. */
   .gift { display: grid; gap: 12px; padding: 22px; border-radius: 18px; background: var(--deep); color: #fff; }
   .gift.arrive { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; }
   .gift .eyebrow { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--deep-soft); }
@@ -266,9 +427,17 @@
   .gift .asked { display: flex; align-items: center; gap: 10px; margin: 4px 0 0; font-weight: 700; }
   .gift .asked .icon { color: #7ee2a6; }
   .gift .fine { margin: 0; font-size: 13.5px; color: var(--deep-soft); }
+  .offers { list-style: none; margin: 4px 0 0; padding: 0; display: grid; border-top: 1px solid var(--deep-line); }
+  .offers li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--deep-line); font-size: 15.5px; color: var(--deep-soft); overflow-wrap: anywhere; }
+  .offers li:last-child { border-bottom: 0; padding-bottom: 0; }
+  .offers li b { color: #fff; }
+  .offers li.arrive { animation: rise .5s cubic-bezier(.2, .8, .2, 1) both; }
+  .offers .asked { margin: 0; font-size: 14px; }
+  .offers-more { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--deep-soft); }
+  .offers-more .pulse-dot { width: 7px; height: 7px; background: #c9cdfb; }
   .gift.looking { align-content: center; justify-items: start; min-height: 180px; background: var(--brand-tint); color: var(--ink-3); }
   .gift.looking h3 { color: var(--ink-2); font-size: 19px; font-weight: 700; }
-  /* After the reading, the gift waits at the top of the page until it is used or put away. */
+  /* After the reading, the list waits at the top of the page until it is used or put away. */
   .gift-keep .gift { padding: 20px 22px; }
 
   .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
@@ -280,19 +449,16 @@
 
   .spin { animation: spin 1.2s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; animation-delay: var(--d, 0ms); }
+  /* "backwards": hidden until its turn, then it lets go, so it never holds a box still when dragged. */
+  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: var(--d, 0ms); }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .pulse { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .45; } }
   .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
 
   /* ── Narrow screens ──────────────────────────────────────────────────── */
-  @media (max-width: 1100px) {
-    .idea-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
   @media (max-width: 920px) {
-    .board, .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "ask"; }
-    .read-page { grid-template-columns: minmax(0, 1fr); }
+    .read-page, .read-page.solo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "read" "side" "recent"; }
     .gift.looking { display: none; }
   }
   @media (max-width: 560px) {
@@ -300,23 +466,29 @@
     .wrap { padding: 18px 16px 32px; }
     .main { gap: 20px; }
     .status { width: 100%; }
+    .status .btn { min-height: 40px; padding: 6px 12px; font-size: 14px; }
     .updated { display: none; }
     .hero h2 { font-size: 27px; }
     .hero .lead { font-size: 16.5px; }
     .card-hero { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; gap: 14px; }
     .art { width: 104px; height: 82px; }
     .card-hero .btn.big { width: 100%; }
+    .chan-main { padding: 14px 14px; }
+    .chan-name { flex-wrap: wrap; }
+    .chan-name .where { white-space: normal; }
+    .lane-head .total { display: none; }
+    .chan-body { padding: 0 14px 14px 32px; }
+    .ask { padding: 18px 16px; }
+    .ask form { flex-direction: column; }
     .reading { padding: 22px 18px; }
     .read-lines li { font-size: 16px; }
     .gift { padding: 20px 16px; }
     .gift h3 { font-size: 20px; }
     .gift .acts .btn { flex: 1 1 auto; }
-    .chan-main { padding: 14px 14px; }
-    .chan-name { flex-wrap: wrap; }
-    .chan-body { padding: 0 14px 14px 32px; }
-    .idea-grid { grid-template-columns: minmax(0, 1fr); }
-    .ask { padding: 18px 16px; }
-    .ask form { flex-direction: column; }
+    .offers li { grid-template-columns: minmax(0, 1fr); }
+    .offers li .btn { justify-self: start; }
+    .editbar { align-self: stretch; border-radius: 16px; }
+    .editbar-actions { justify-content: center; }
     .phone-only { display: inline; }
   }
   .phone-only { display: none; }
@@ -333,8 +505,10 @@
   <symbol id="i-thread" viewBox="0 0 24 24"><path d="M5 4v9a4 4 0 0 0 4 4h10" /><path d="M15 13l4 4-4 4" /></symbol>
   <symbol id="i-forum" viewBox="0 0 24 24"><path d="M4 5h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3.5V15H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" /><path d="M18 9h2a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1v3l-3.5-3H12" /></symbol>
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /><path d="M10 9.5a2.2 2.2 0 1 1 3 2c-.6.3-1 .8-1 1.5M12 15.8v.2" /></symbol>
   <symbol id="i-pad" viewBox="0 0 24 24"><path d="M7 7h10a5 5 0 0 1 4.9 6l-.8 4a2.5 2.5 0 0 1-4.3 1.2L14.5 16h-5l-2.3 2.2A2.5 2.5 0 0 1 2.9 17l-.8-4A5 5 0 0 1 7 7z" /><path d="M7.5 10.5v3M6 12h3M15.5 11h.01M17.5 13h.01" /></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10.5 13.5" /><path d="M21 3l-6.5 18-4-7.5L3 9.5z" /></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
   <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3 3-3 3" /><path d="M4 11V9.5a4 4 0 0 1 4-4h12" /><path d="M7 21.5l-3-3 3-3" /><path d="M20 13v1.5a4 4 0 0 1-4 4H4" /></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
@@ -343,6 +517,18 @@
   <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9" /><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" /></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
   <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9a4.8 4.8 0 0 1-.6 9.5z" /></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="13" rx="5" /><path d="M12 11v9M9 4.5l1.5 2.5M15 4.5L13.5 7M3.5 12H7M17 12h3.5M4.5 17.5L7.5 16M19.5 17.5L16.5 16M4.5 7.5L7.5 9M19.5 7.5L16.5 9" /></symbol>
+  <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="M3.5 10v4a1.5 1.5 0 0 0 1.5 1.5h2L13 20V4L7 8.5H5A1.5 1.5 0 0 0 3.5 10z" /><path d="M17 8.5a5 5 0 0 1 0 7M19.5 6a8.5 8.5 0 0 1 0 12" /></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z" /></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2" /><rect x="13" y="3" width="8" height="6" rx="2" /><rect x="13" y="11" width="8" height="10" rx="2" /><rect x="3" y="15" width="8" height="6" rx="2" /></symbol>
 </svg>
 
 <header class="bar">
@@ -358,28 +544,47 @@
 <div class="wrap">
   <main class="main">
     <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your Discord...</p></section>
-    <div class="gift-keep" id="gift-keep" role="region" aria-label="One thing for you" hidden></div>
+    <div class="editbar" id="editbar" role="region" aria-label="Editing your page" hidden>
+      <div class="editbar-actions">
+        <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>Add a box</button>
+        <button type="button" class="btn" data-act="undo" id="undo-btn" disabled><svg class="icon" aria-hidden="true"><use href="#i-undo" /></svg>Undo</button>
+        <button type="button" class="btn quiet" data-act="reset-layout">Reset to default</button>
+        <button type="button" class="btn dark" data-act="edit-done"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Done</button>
+      </div>
+    </div>
+    <div class="gift-keep" id="gift-keep" role="region" aria-label="Things you can do now" hidden></div>
+    <div class="suggest" id="suggest" role="region" aria-label="A change to your page" aria-live="polite" hidden></div>
     <div id="ribbon"></div>
-    <section class="board" id="board" aria-label="Your Discord, by what is worth your time">
-      <div class="b-main" id="board-main"></div>
-      <section class="ask" id="ask" aria-labelledby="ask-title">
-        <h2 id="ask-title">Ask about your Discord</h2>
-        <p>Anything from "what was announced this week?" to "what did people ask for help with?"</p>
-        <form id="ask-form" autocomplete="off">
-          <label for="ask-input" class="sr">Your question</label>
-          <input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about a channel, a thread, a person..." />
-          <button type="submit" class="btn light"><svg class="icon" aria-hidden="true"><use href="#i-send" /></svg>Ask</button>
-        </form>
-        <div class="qs" id="questions"></div>
-        <p class="note" id="ask-note">The answer comes up in the chat next to this page.</p>
-      </section>
-    </section>
-    <section id="ideas" aria-labelledby="ideas-title"></section>
+    <section class="grid" id="grid" aria-label="Your Discord, by what is worth your time" hidden></section>
+    <div class="grid-empty" id="grid-empty" hidden>
+      <p><b>Your page has no boxes.</b> Add the ones you want to see.</p>
+      <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>Add a box</button>
+    </div>
     <footer class="foot">
       <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
       <p>The morning catch-up only reads. Your team writes in your server only in channels you set to Write in Discord's settings in Cabinet: when you ask in the chat, or in a routine you set up to post, like a message every morning. Everywhere else, replies are drafted for you to send yourself.</p>
     </footer>
   </main>
+</div>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-scrim" data-act="drawer-close"></div>
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+    <div class="drawer-head">
+      <span class="lane-icon" id="drawer-icon" aria-hidden="true"></span>
+      <div>
+        <h2 id="drawer-title"></h2>
+        <p id="drawer-sub"></p>
+      </div>
+      <button type="button" class="drawer-close" data-act="drawer-close" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+</div>
+
+<div class="menu" id="layout-menu" role="menu" aria-label="Change your page" hidden>
+  <button type="button" role="menuitem" data-act="layout-edit"><svg class="icon" aria-hidden="true"><use href="#i-layout" /></svg><b>Add or remove boxes</b><span>Arrange the page yourself.</span></button>
+  <button type="button" role="menuitem" data-act="layout-ask"><svg class="icon" aria-hidden="true"><use href="#i-chat" /></svg><b>Ask the agent</b><span>Say what you need. It suggests the boxes, you say OK.</span></button>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -403,29 +608,33 @@
     "Save today's shared links into a page"
   ];
 
-  /** Discord plays: one tap to ask now, or to switch on as a routine. */
+  /**
+   * Discord plays: one tap to ask now, to switch on as a routine, or to add as a box. Each
+   * one belongs to a box and offers itself there when today's catch-up says it would help
+   * (see IDEA_FITS); all of them are always in the Ideas panel.
+   */
   var IDEAS = [
-    { art: "ideas/recap.jpg", title: "Weekly community recap",
+    { id: "recap", box: "ask", art: "ideas/recap.jpg", title: "Weekly community recap",
       text: "What happened in your server this week, in a few lines you can post or keep.",
       ask: "Write a weekly recap of my Discord server: the biggest moments, announcements, popular threads and forum posts, and anything still open. Keep it under 150 words and save it as a page in this cabinet.",
       when: "Every Friday", at: "every Friday at 5 pm" },
-    { art: "ideas/help.jpg", title: "Unanswered questions in #help",
+    { id: "help", box: "waiting", art: "ideas/help.jpg", title: "Unanswered questions in #help",
       text: "Questions nobody has answered yet, oldest first, so no one waits a whole day.",
-      ask: "List every question in #help from the last 24 hours that nobody has answered yet: who asked, what they asked in one line, and how long ago. Oldest first.",
+      ask: "List every question in my Discord server from the last 24 hours that nobody has answered yet: who asked, where, what they asked in one line, and how long ago. Oldest first.",
       when: "Every weekday", at: "every weekday at 10 am" },
-    { art: "ideas/links.jpg", title: "Links shared this week",
+    { id: "links", box: "latest", art: "ideas/links.jpg", title: "Links shared this week",
       text: "Every link people posted, grouped by channel and saved here as one page.",
       ask: "Collect every link shared in my Discord server this week, grouped by channel, with who shared it and a few words on what it is. Save it as a page in this cabinet.",
       when: "Every Friday", at: "every Friday at 4 pm" },
-    { art: "ideas/feedback.jpg", title: "Top feedback this week",
+    { id: "feedback", box: "bugs", art: "ideas/feedback.jpg", title: "Top feedback this week",
       text: "What people asked for most, counted by people, not by messages.",
-      ask: "From this week's messages in my Discord server, list the feature requests and complaints, each once, with how many different people asked for it. Most asked first.",
+      ask: "From this week's messages in my Discord server, list the feature requests, bug reports and complaints, each once, with how many different people raised it. Most raised first.",
       when: "Every Monday", at: "every Monday at 9:30 am" },
-    { art: "ideas/welcome.jpg", title: "New members to welcome",
+    { id: "welcome", box: "people", art: "ideas/welcome.jpg", title: "New members to welcome",
       text: "Who joined and said hello, and who asked something on day one.",
       ask: "Who joined my Discord server in the last week and posted something? For each one, their name, where they posted and what they said in one line. Flag anyone who asked a question nobody answered.",
       when: "Every evening", at: "every day at 6 pm" },
-    { art: "ideas/one-channel.jpg", title: "Catch up on one channel",
+    { id: "one-channel", box: "catchup", art: "ideas/one-channel.jpg", title: "Catch up on one channel",
       text: "The story of a busy channel or thread in five lines, so you can skip the scroll.",
       ask: "Which channel or thread in my Discord server moved the most this week? Summarize it in five short lines: what happened, what was decided, and what is still open.",
       when: "Every Monday", at: "every Monday at 9 am" }
@@ -452,17 +661,32 @@
     connectNote: "",
     running: false,
     runNote: "",
+    askNote: "",
     open: {},
-    showQuiet: false,
     showQuietList: false,
     animate: true,
+    /** The boxes on this person's page, from cabinet.mine; null is the default page. */
+    layout: null,
+    hiddenIdeas: {},
+    drawerOpen: false,
+    drawerKind: "ideas",
+    editing: false,
+    undo: [],
+    menuOpen: false,
+    layoutAsk: false,
+    change: null,
+    changeSeen: "",
+    changeApplied: false,
+    expanded: {},
+    need: {},
     /** The first read, as data/reading.json tells it; null when there is none. */
     reading: null,
     sawReading: false,
     readShown: 0,
     readStartedAt: null,
     giftShownAt: null,
-    giftAsked: null,
+    offersShown: 0,
+    asked: {},
     giftDone: null,
     mineReady: false
   };
@@ -541,6 +765,20 @@
     if (gap === 1) return "Yesterday";
     return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
   }
+  /** The moment the catch-up on screen speaks from: its own time for the example or an older day. */
+  function refDate() {
+    var g = state.data ? writtenAt(state.data.generatedAt) : null;
+    return (state.example || state.day) && g ? g : new Date();
+  }
+  /** "40 min", "5 h", "2 days": how long ago, short. */
+  function agoWords(d, ref) {
+    var mins = Math.max(1, Math.round(((ref || new Date()).getTime() - d.getTime()) / 60000));
+    if (mins < 60) return mins + " min";
+    var hours = Math.round(mins / 60);
+    if (hours < 24) return hours + " h";
+    var days = Math.round(hours / 24);
+    return days + " " + plural(days, "day", "days");
+  }
 
   // ── Reading the files the routine writes ───────────────────────────────
 
@@ -576,12 +814,14 @@
       maybe(readJson(which)).catch(function () { return "broken"; }),
       quiet(maybe(readJson("data/status.json"))),
       listDays(),
-      quiet(maybe(readJson("data/reading.json")))
+      quiet(maybe(readJson("data/reading.json"))),
+      quiet(maybe(readJson("data/layout-change.json")))
     ]).then(function (got) {
       var latest = got[0];
       state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
       state.days = got[2];
       setReading(cleanReading(got[3]));
+      state.change = cleanChange(got[4]);
       if (usable(latest) && latest.example !== true) {
         state.data = latest;
         state.example = false;
@@ -758,17 +998,23 @@
       else toast(discordState() === "not-available-here" ? "Discord can’t be connected here yet." : "Ask the person who owns this cabinet to connect Discord.");
       return;
     }
-    var note = $("ask-note");
-    note.textContent = "Asking...";
+    setAskNote("Asking...");
     cab.ask(q, { agent: AGENT, send: true }).then(function () {
-      note.textContent = "Asked. The answer is coming in the chat next to this page.";
+      setAskNote("Asked. The answer is coming in the chat next to this page.");
       toast("Asked. The answer is coming in the chat.");
-      $("ask-input").value = "";
+      if ($("ask-input")) $("ask-input").value = "";
     }).catch(function (e) {
-      note.textContent = e && e.message ? e.message : "That did not go through. Try again.";
-      toast(note.textContent);
+      setAskNote(e && e.message ? e.message : "That did not go through. Try again.");
+      toast(state.askNote);
     });
   }
+  /** The line under the Ask box; it lives in state because the box can be drawn again. */
+  function setAskNote(words) {
+    state.askNote = words;
+    if ($("ask-note")) $("ask-note").textContent = words;
+  }
+  /** What a draft request always ends with: the agent shows it here and never posts it. */
+  var NO_POST = " Show it to me here and do not post it in Discord.";
 
   /** A link into Discord (the row's `link`, or the older `url`), only on Discord's own address. */
   function discordLink(item) {
@@ -776,11 +1022,18 @@
     var url = typeof raw === "string" ? raw.trim() : "";
     return /^https:\/\/(ptb\.|canary\.)?discord\.com\/channels\//i.test(url) && url.length < 400 ? url : "";
   }
+  /** "#help", or "Patch 1.4 crash in #bugs" for a thread or forum post. */
+  function placeWords(name, parent) {
+    var n = text(name, 80);
+    var p = text(parent, 40);
+    return n + (p && p !== n ? " in " + p : "");
+  }
 
   // ── The first read ─────────────────────────────────────────────────────
   // On the very first catch-up the agent adds a line to data/reading.json for each thing it
-  // finds (first-read.mjs push), and the page shows them as they come. A reading older than
-  // 20 minutes, or from a run that is no longer going, is not shown.
+  // finds (first-read.mjs push), the latest messages early on (recent), and a short list of
+  // things the person can do right now (gift, offer). The page shows them as they come. A
+  // reading older than 20 minutes, or from a run that is no longer going, is not shown.
 
   var READ_FRESH_MIN = 20;
   /** Lines that arrive together are still told one by one, so nobody misses one. */
@@ -789,7 +1042,11 @@
   function cleanReading(d) {
     if (!d || typeof d !== "object" || !Array.isArray(d.lines)) return null;
     var lines = d.lines.map(function (l) { return text(typeof l === "string" ? l : l && l.text, 200); }).filter(Boolean).slice(-14);
-    return { startedAt: d.startedAt, done: d.done === true, lines: lines, gift: cleanGift(d.gift) };
+    var recent = list(d.recent).map(function (m) {
+      return { who: text(m.who, 60), where: text(m.where, 80), parent: text(m.parent, 40), gist: text(m.gist, 160), at: writtenAt(m.at), link: discordLink(m) };
+    }).filter(function (m) { return m.who && m.where && m.gist; }).slice(0, 8);
+    var offers = list(d.offers).map(cleanOffer).filter(Boolean).slice(0, 3);
+    return { startedAt: d.startedAt, done: d.done === true, lines: lines, gift: cleanGift(d.gift), recent: recent, offers: offers };
   }
   function freshReading() {
     var at = state.reading ? writtenAt(state.reading.startedAt) : null;
@@ -805,7 +1062,7 @@
   function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done ? 1 : 0)); }
   /** A new read (another startedAt) starts its lines from the first one. */
   function setReading(r) {
-    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; }
+    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; state.offersShown = 0; }
     state.reading = r;
   }
   /** A line may mark its finding in **bold**; everything else is plain text. */
@@ -817,23 +1074,32 @@
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done) && lines.length === all.length;
-    var gift = freshReading() ? state.reading.gift : null;
-    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your server</h2>' +
+    var fresh = freshReading();
+    var gift = fresh ? state.reading.gift : null;
+    var offers = fresh ? state.reading.offers : [];
+    var recent = fresh ? state.reading.recent : [];
+    var side = gift || offers.length ? offersHtml(gift, offers, "reading", done)
+      : done ? ""
+      : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing I can take off your plate right now.</h3></section>';
+    return '<div class="read-page' + (side ? "" : " solo") + '"><div class="reading" aria-live="polite"><h2>Reading your server</h2>' +
       "<p>Getting to know your channels, threads and forum posts. A few minutes. You don't need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + '<span dir="auto">' + lineHtml(l) + "</span></li>"; }).join("") +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Discord") + "...</span></li></ul>" +
       '<p class="fine">Only reads. Nothing is posted, and it all stays in your cabinet.</p></div>' +
-      (gift ? giftHtml(gift, "reading")
-        : done ? ""
-        : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing I can take off your plate right now.</h3></section>') +
-      "</div>";
+      (recent.length ? readRecentHtml(recent) : "") + side + "</div>";
+  }
+  /** The latest messages the agent saw, shown at once while it reads on. */
+  function readRecentHtml(recent) {
+    return '<section class="lane read-recent" aria-labelledby="h-read-recent">' + boxHead("read-recent", "Latest in your server", "i-clock", "", null) +
+      '<ul class="rows">' + recent.map(function (m) { return messageRow(m, new Date(), true); }).join("") + "</ul></section>";
   }
 
-  // ── The gift ───────────────────────────────────────────────────────────
+  // ── While I read, you can ──────────────────────────────────────────────
   // While it reads, the agent finds one thing the person can do now (first-read.mjs gift):
   // the question that has waited longest for an answer, the place everyone was talking, or,
-  // when the server was quiet, an offer to get people talking. A press asks the agent in the
-  // chat beside the page; nothing is posted from here.
+  // when the server was quiet, an offer to get people talking. Then up to three more offers
+  // as it finds them (first-read.mjs offer). A press asks the agent in the chat beside the
+  // page; nothing is posted from here.
   var GIFT_KEY = "discord-digest-gift-done@1";
   var GIFT_KEEP_DAYS = 3;
   function cleanGift(g) {
@@ -844,6 +1110,16 @@
     if (!kind || (kind === "question" && (!gift.who || !gift.channel || !gift.since)) || (kind === "busy" && !gift.name)) return null;
     return gift;
   }
+  function cleanOffer(o) {
+    var kind = ["reply", "catchup", "summary", "announce"].indexOf(o.kind) >= 0 ? o.kind : null;
+    var out = { kind: kind, at: o.at, who: text(o.who, 80), channel: text(o.channel, 80), name: text(o.name, 100), parent: text(o.parent, 80),
+      gist: text(o.gist, 140), since: writtenAt(o.since), link: discordLink(o) };
+    if (!kind || !writtenAt(o.at)) return null;
+    if (kind === "reply" && (!out.who || !out.channel || !out.since)) return null;
+    if ((kind === "catchup" || kind === "summary") && !out.name) return null;
+    if (kind === "announce" && !out.channel) return null;
+    return out;
+  }
   /** "40 minutes", "5 hours", "2 days": how long a question has waited. */
   function waitedWords(since) {
     var mins = Math.max(1, Math.round((Date.now() - since.getTime()) / 60000));
@@ -853,63 +1129,105 @@
     var days = Math.round(hours / 24);
     return days + " " + plural(days, "day", "days");
   }
+  function replyAsk(who, where, link, gist) {
+    return "Write a reply to " + who + "'s question in " + where + (link ? " (" + link + ")" : "") + "." +
+      (gist ? " They asked: \"" + gist + "\"" : "") + " Read the messages around it first. Keep it short and friendly, in my voice, with [brackets] around anything I need to decide." + NO_POST;
+  }
+  function catchupAsk(where, link) {
+    return "Catch me up on " + where + (link ? " (" + link + ")" : "") + ": what happened, what was decided, and what is still open, in a few short lines.";
+  }
   function giftParts(g) {
-    var link = g.link ? " (" + g.link + ")" : "";
     if (g.kind === "question") {
       return {
         head: "<b>" + esc(g.who) + "</b> has waited <b class=\"n\">" + esc(waitedWords(g.since)) + "</b> for an answer in <b>" + esc(g.channel) + "</b>.",
         button: "Write my reply", icon: "i-send", fine: "Nothing is posted. You see every word first.",
-        ask: "Write a reply to " + g.who + "'s question in " + g.channel + link + "." + (g.gist ? " They asked: \"" + g.gist + "\"" : "") + " Read the messages around it first. Keep it short and friendly, in my voice, with [brackets] around anything I need to decide. Show it to me here and do not post it in Discord."
+        ask: replyAsk(g.who, g.channel, g.link, g.gist)
       };
     }
     if (g.kind === "busy") {
-      var where = g.name + (g.parent ? " in " + g.parent : "");
+      var where = placeWords(g.name, g.parent);
       return {
         head: "Everyone was in <b>" + esc(where) + "</b>" + (g.messages ? ": <b class=\"n\">" + g.messages + " " + plural(g.messages, "message", "messages") + "</b>." : "."),
         why: "Get the story in a few lines instead of scrolling back through it.",
         button: "Catch me up", icon: "i-chat", fine: "Only reads. Nothing is posted.",
-        ask: "Catch me up on " + where + link + ": what happened, what was decided, and what is still open, in a few short lines."
+        ask: catchupAsk(where, g.link)
       };
     }
     return {
       head: "Your server was quiet. A good day to get people talking.",
       why: "Want a short post to start a conversation? You decide if it goes up.",
       button: "Write a post", icon: "i-send", fine: "Nothing is posted. You see every word first.",
-      ask: "Draft a short, friendly post to get people talking in my Discord server, for the channel set to Write where it fits best. Say which channel you picked. Show it to me here and do not post it in Discord."
+      ask: "Draft a short, friendly post to get people talking in my Discord server, for the channel set to Write where it fits best. Say which channel you picked." + NO_POST
     };
   }
-  function giftHtml(g, where) {
-    var p = giftParts(g);
-    var asked = state.giftAsked === g.at;
-    var arrive = where === "reading" && state.giftShownAt !== g.at;
-    if (where === "reading") state.giftShownAt = g.at;
-    // The gift comes from the person's own server, even while the page still shows the example.
-    var link = g.link;
-    return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
-      '<p class="eyebrow">' + icon("i-pad") + (where === "reading" ? "While I read, I found this for you" : "Found while reading your server") + "</p>" +
-      '<h3 dir="auto">' + p.head + "</h3>" +
-      (g.kind === "question" && g.gist ? '<p class="about"><b>What they asked</b><span dir="auto">' + esc(g.gist) + "</span></p>" : "") +
-      (p.why ? '<p class="why">' + esc(p.why) + "</p>" : "") +
-      (asked
-        ? '<p class="asked">' + icon("i-check") + "Asked. The answer is coming in the chat.</p>"
-        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn light" data-act="gift-do">' + icon(p.icon) + esc(p.button) + "</button>" : "") +
-          (link ? '<a class="btn ghost" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Discord</a>" : "") +
-          (where === "keep" ? '<button type="button" class="btn ghost" data-act="gift-skip">Not now</button>' : "") + "</div>") +
-      '<p class="fine">' + esc(p.fine) + "</p></section>";
+  /** One more thing to do now: its line, its button and what it asks. */
+  function offerParts(o) {
+    if (o.kind === "reply") {
+      return { line: "<b>" + esc(o.who) + "</b> asked in <b>" + esc(o.channel) + "</b> " + esc(waitedWords(o.since)) + " ago" + (o.gist ? ": " + esc(o.gist) : "."),
+        button: "Write my reply", ask: replyAsk(o.who, o.channel, o.link, o.gist) };
+    }
+    if (o.kind === "catchup") {
+      var where = placeWords(o.name, o.parent);
+      return { line: "Catch up on <b>" + esc(where) + "</b>" + (o.gist ? ": " + esc(o.gist) : ""), button: "Catch me up", ask: catchupAsk(where, o.link) };
+    }
+    if (o.kind === "summary") {
+      var thread = placeWords(o.name, o.parent);
+      return { line: "Sum up <b>" + esc(thread) + "</b>" + (o.gist ? ": " + esc(o.gist) : ""), button: "Sum it up",
+        ask: "Sum up " + thread + (o.link ? " (" + o.link + ")" : "") + " in five short lines: what it is about, what was decided, and what is still open." };
+    }
+    return { line: "Write an announcement for <b>" + esc(o.channel) + "</b>" + (o.gist ? ": " + esc(o.gist) : ""), button: "Draft it",
+      ask: "Draft a short, friendly announcement for my Discord channel " + o.channel + (o.gist ? " about " + o.gist : "") + ". Keep it under 80 words, in my voice." + NO_POST };
   }
-  /** After the reading: the gift stays on top for a few days, until used or put away. */
+  function giftKey(g) { return "gift:" + g.at; }
+  function offerKey(o) { return "offer:" + o.at + ":" + o.kind + ":" + (o.name || o.channel || o.who); }
+  /** The panel: the gift first, then the offers, each one press to the chat. */
+  function offersHtml(g, offers, where, done) {
+    var p = g ? giftParts(g) : null;
+    var arrive = where === "reading" && g && state.giftShownAt !== g.at;
+    if (where === "reading" && g) state.giftShownAt = g.at;
+    var link = g ? g.link : "";
+    var newFrom = where === "reading" ? state.offersShown : offers.length;
+    if (where === "reading") state.offersShown = offers.length;
+    var can = canAsk();
+    return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
+      '<p class="eyebrow">' + icon("i-pad") + (where === "reading" ? "While I read, you can..." : "Found while reading your server") + "</p>" +
+      (p
+        ? '<h3 dir="auto">' + p.head + "</h3>" +
+          (g.kind === "question" && g.gist ? '<p class="about"><b>What they asked</b><span dir="auto">' + esc(g.gist) + "</span></p>" : "") +
+          (p.why ? '<p class="why">' + esc(p.why) + "</p>" : "") +
+          (state.asked[giftKey(g)]
+            ? '<p class="asked">' + icon("i-check") + "Asked. The answer is coming in the chat.</p>"
+            : '<div class="acts">' + (can ? '<button type="button" class="btn light" data-act="gift-do">' + icon(p.icon) + esc(p.button) + "</button>" : "") +
+              (link ? '<a class="btn ghost" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Discord</a>" : "") + "</div>")
+        : "") +
+      (offers.length ? '<ul class="offers">' + offers.map(function (o, i) {
+        var op = offerParts(o);
+        return "<li" + (i >= newFrom ? ' class="arrive"' : "") + '><span dir="auto">' + op.line + "</span>" +
+          (state.asked[offerKey(o)] ? '<p class="asked">' + icon("i-check") + "Asked</p>"
+            : can ? '<button type="button" class="btn small light" data-act="offer-do" data-i="' + i + '">' + esc(op.button) + "</button>" : "") + "</li>";
+      }).join("") + "</ul>" : "") +
+      (where === "reading" && !done && offers.length < 3 ? '<p class="offers-more"><i class="pulse-dot" aria-hidden="true"></i>More as I find them</p>' : "") +
+      (where === "keep" ? '<div class="acts"><button type="button" class="btn ghost small" data-act="gift-skip">Not now</button></div>' : "") +
+      '<p class="fine">' + (p ? esc(p.fine) : "Nothing is posted. You see every word first.") + "</p></section>";
+  }
+  /** After the reading: the list stays on top for a few days, until used or put away. */
   function paintGiftKeep() {
     var el = $("gift-keep");
-    var g = state.reading && state.reading.gift;
-    var at = g ? writtenAt(g.at) : null;
-    var show = !!(g && at && state.mineReady && state.giftDone !== g.at && (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY_MS &&
-      !state.example && !state.day && !readingNow() && !revealing());
+    var r = state.reading;
+    var g = r && r.gift;
+    var at = g ? writtenAt(g.at) : r && r.offers.length ? writtenAt(r.offers[0].at) : null;
+    var key = g ? g.at : at ? r.offers[0].at : null;
+    var show = !!(at && state.mineReady && state.giftDone !== key && (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY_MS &&
+      !state.example && !state.day && !readingNow() && !revealing() && !state.editing);
     el.hidden = !show;
-    el.innerHTML = show ? giftHtml(g, "keep") : "";
+    el.innerHTML = show ? offersHtml(g, r.offers, "keep", true) : "";
   }
-  function giftDone(g) {
-    state.giftDone = g.at;
-    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(GIFT_KEY, g.at).catch(function () {});
+  function giftDone() {
+    var r = state.reading;
+    var key = r && r.gift ? r.gift.at : r && r.offers.length ? r.offers[0].at : null;
+    if (!key) return;
+    state.giftDone = key;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(GIFT_KEY, key).catch(function () {});
   }
 
   setInterval(function () {
@@ -923,15 +1241,16 @@
     if (!V2 || !state.running) return;
     quiet(maybe(readJson("data/reading.json"))).then(function (d) {
       var r = cleanReading(d);
-      if (!r || (state.reading && r.startedAt === state.reading.startedAt && r.lines.join("\n") === state.reading.lines.join("\n") &&
-        r.done === state.reading.done && (r.gift && r.gift.at) === (state.reading.gift && state.reading.gift.at))) return;
+      var same = function (a, b) { return JSON.stringify(a) === JSON.stringify(b); };
+      if (!r || (state.reading && r.startedAt === state.reading.startedAt && same(r.lines, state.reading.lines) && r.done === state.reading.done &&
+        same(r.gift, state.reading.gift) && same(r.recent, state.reading.recent) && same(r.offers, state.reading.offers))) return;
       setReading(r);
       paint();
       if (r.done) load();
     });
   }, 2500);
 
-  // ── Painting ───────────────────────────────────────────────────────────
+  // ── What the catch-up holds ────────────────────────────────────────────
 
   function channels() {
     var c = state.data ? list(state.data.channels) : [];
@@ -945,6 +1264,59 @@
     for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
     return null;
   }
+  /** Questions nobody answered, the one waiting longest first. */
+  function questions() {
+    return list(state.data && state.data.questions).filter(function (q) { return text(q.who) && text(q.gist); }).map(function (q, i) {
+      return { id: text(q.id, 30) || "q" + i, who: text(q.who, 60), channel: text(q.channel, 60), parent: text(q.parent, 80), gist: text(q.gist, 200), at: writtenAt(q.at), link: discordLink(q) };
+    }).sort(function (a, b) { return (a.at ? a.at.getTime() : 0) - (b.at ? b.at.getTime() : 0); });
+  }
+  function findQuestion(id) {
+    var all = questions();
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
+    return null;
+  }
+  function recentMessages() {
+    return list(state.data && state.data.recent).map(function (m) {
+      return { who: text(m.who, 60), where: text(m.where, 80), parent: text(m.parent, 40), gist: text(m.gist, 200), at: writtenAt(m.at), link: discordLink(m) };
+    }).filter(function (m) { return m.who && m.gist; }).slice(0, 15);
+  }
+  function busyThreads() {
+    return channels().filter(function (c) { return c.kind === "thread" || c.kind === "forum"; })
+      .sort(function (a, b) { return (count(b.messages) || 0) - (count(a.messages) || 0); });
+  }
+  function people() {
+    var p = state.data && state.data.people && typeof state.data.people === "object" ? state.data.people : {};
+    return {
+      active: list(p.active).filter(function (x) { return text(x.name); }).slice(0, 10),
+      newcomers: list(p.newcomers).filter(function (x) { return text(x.name); }).slice(0, 10)
+    };
+  }
+  var BUG_ORDER = { open: 0, workaround: 1, fixed: 2 };
+  function bugs() {
+    return list(state.data && state.data.bugs).filter(function (b) { return text(b.title); }).slice().sort(function (a, b) {
+      return ((BUG_ORDER[a.status] == null ? 0 : BUG_ORDER[a.status]) - (BUG_ORDER[b.status] == null ? 0 : BUG_ORDER[b.status])) ||
+        (count(b.people) || 0) - (count(a.people) || 0);
+    });
+  }
+  function announcements() { return list(state.data && state.data.announcements).filter(function (a) { return text(a.gist); }); }
+  function week() { var w = state.data && state.data.week; return w && typeof w === "object" ? w : null; }
+  function spotlight() { var s = state.data && state.data.spotlight; return s && typeof s === "object" && text(s.name) ? s : null; }
+  function totals() { return state.data && state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {}; }
+  function messagesTotal() {
+    var n = count(totals().messages);
+    return n != null ? n : channels().reduce(function (m, x) { return m + (count(x.messages) || 0); }, 0);
+  }
+  /** How many channels moved. A thread or forum post counts as the channel it lives in. */
+  function channelsMoved(c, t) {
+    var n = count(t.channels);
+    if (n != null) return n;
+    var seen = {};
+    c.forEach(function (x) { seen[(text(x.kind) && x.kind !== "channel" ? text(x.parent) : "") || text(x.name) || x.id] = 1; });
+    return Object.keys(seen).length;
+  }
+  function has(key) { return !!(state.data && Object.prototype.hasOwnProperty.call(state.data, key)); }
+
+  // ── Painting ───────────────────────────────────────────────────────────
 
   /** The first read is on screen: still going, or its last lines still being told. */
   function showingReading() { return !state.day && (readingNow() || revealing()); }
@@ -953,12 +1325,13 @@
     document.documentElement.classList.toggle("first-read", showingReading());
     paintStatus();
     paintGiftKeep();
+    paintSuggest();
     paintHero();
     paintRibbon();
-    paintBoard();
-    paintIdeas();
-    paintAsk();
-    state.animate = false;
+    paintGrid();
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+    if (state.loaded && state.data) state.animate = false;
   }
 
   function paintStatus() {
@@ -990,7 +1363,14 @@
         ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Catching up...</button>"
         : '<button class="btn" data-act="run">' + icon("i-refresh") + "Catch up now</button>";
     }
-    $("status").innerHTML = pill + updated + picker + button;
+    // Ideas, and the page's layout: by hand, or by asking the agent.
+    var page = state.loaded && state.data && !showingReading();
+    var ideas = page ? '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-bulb") + "Ideas</button>" : "";
+    var edit = !page || state.editing ? ""
+      : canAsk()
+        ? '<button class="btn" data-act="layout-menu" aria-haspopup="menu" aria-expanded="' + state.menuOpen + '">' + icon("i-layout") + "Layout</button>"
+        : '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Edit layout</button>";
+    $("status").innerHTML = pill + updated + picker + button + ideas + edit;
   }
 
   /** A chat bubble with a game pad, with a badge that matches the state. */
@@ -1087,26 +1467,18 @@
     return gap <= 0 ? "today" : gap === 1 ? "since yesterday" : "since " + shortDate(from);
   }
 
-  /** How many channels moved. A thread or forum post counts as the channel it lives in. */
-  function channelsMoved(c, t) {
-    var n = count(t.channels);
-    if (n != null) return n;
-    var seen = {};
-    c.forEach(function (x) { seen[(text(x.kind) && x.kind !== "channel" ? text(x.parent) : "") || text(x.name) || x.id] = 1; });
-    return Object.keys(seen).length;
-  }
-
   function dataHero() {
     var d = state.data;
     var c = channels();
-    var t = d.totals && typeof d.totals === "object" ? d.totals : {};
+    var t = totals();
     var ex = state.example ? "Example: " : "";
     var h = c.length ? "Here is what moved in your server" : "Your server was quiet";
-    var messages = count(t.messages);
-    if (messages == null) messages = c.reduce(function (m, x) { return m + (count(x.messages) || 0); }, 0);
+    var messages = messagesTotal();
     var moved = channelsMoved(c, t);
+    var q = questions().length;
     var leadHtml = c.length
-      ? '<p class="lead">' + messages + " " + plural(messages, "message", "messages") + " in " + moved + " " + plural(moved, "channel", "channels") + " " + esc(sinceWords(d)) + ".</p>"
+      ? '<p class="lead">' + messages + " " + plural(messages, "message", "messages") + " in " + moved + " " + plural(moved, "channel", "channels") + " " + esc(sinceWords(d)) + "." +
+        (q ? " <b>" + q + " " + plural(q, "question is", "questions are") + " still waiting for an answer.</b>" : "") + "</p>"
       : '<p class="lead">Nothing moved in your channels since the last catch-up.</p>';
     var fine = "";
     var g = writtenAt(d.generatedAt);
@@ -1153,6 +1525,459 @@
       "None of this is your Discord. " + (discordState() === "connected" ? "Your first catch-up replaces it." : "Connect Discord and your own catch-up replaces it.") + "</p></div>";
   }
 
+  // ── The grid of boxes ──────────────────────────────────────────────────
+  // Each box is drawn by its own function at one of three levels, picked by its width on
+  // screen: S (one number), M (the rows that fit), L (everything, with more detail). The
+  // layout is a list of { id, x, y, w, h } on a 12 column grid of fixed rows; each person's
+  // own layout is kept in cabinet.mine, so it follows them to any computer.
+
+  var COLS = 12;
+  var ROW = 64;
+  var GAP = 16;
+  var PHONE_ROWS = 3;
+  var LAYOUT_KEY = "your-discord-layout@1";
+  var DEFAULT_LAYOUT = [
+    { id: "waiting", x: 0, y: 0, w: 7, h: 6 },
+    { id: "latest", x: 7, y: 0, w: 5, h: 6 },
+    { id: "catchup", x: 0, y: 6, w: 7, h: 8 },
+    { id: "threads", x: 7, y: 6, w: 5, h: 5 },
+    { id: "people", x: 7, y: 11, w: 5, h: 7 },
+    { id: "ask", x: 0, y: 14, w: 7, h: 6 }
+  ];
+  /**
+   * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
+   * shows, its group and the size it starts at. `show` keeps a box off the page while it
+   * has nothing to be (`when` says what it waits for): a catch-up written before the box
+   * existed has no list for it.
+   */
+  var BOXES = {
+    waiting: { cls: "lane", list: true, draw: drawWaiting, group: "server", icon: "i-help", w: 7, h: 6, min: [3, 3],
+      title: "Questions waiting", desc: "Questions nobody has answered yet, the one waiting longest first, a reply one tap away.",
+      show: function () { return has("questions"); }, when: "Shows up after the next catch-up." },
+    catchup: { cls: "lane", list: true, draw: drawCatchup, group: "server", icon: "i-hash", w: 7, h: 8, min: [3, 3],
+      title: "Catch up by channel", desc: "Every channel, thread and forum post that moved, the ones worth your time first." },
+    latest: { cls: "lane", list: true, draw: drawLatest, group: "server", icon: "i-clock", w: 5, h: 6, min: [3, 3],
+      title: "Latest messages", desc: "The newest messages across your channels, who wrote them and where.",
+      show: function () { return has("recent"); }, when: "Shows up after the next catch-up." },
+    threads: { cls: "lane", list: true, draw: drawThreads, group: "server", icon: "i-thread", w: 5, h: 5, min: [3, 3],
+      title: "Busy threads and forum posts", desc: "The threads and forum posts with the most going on, each summed up on request." },
+    people: { cls: "lane", list: true, draw: drawPeople, group: "server", icon: "i-users", w: 5, h: 7, min: [3, 3],
+      title: "Who's new and most active", desc: "New faces who said hello, and the people who talked the most.",
+      show: function () { return has("people"); }, when: "Shows up after the next catch-up." },
+    spotlight: { cls: "lane", list: true, draw: drawSpotlight, group: "more", icon: "i-eye", w: 6, h: 6, min: [3, 3],
+      title: "One channel up close", desc: "The place most worth your time today, told as a short story, with what is still open.",
+      show: function () { return !!spotlight(); }, when: "Shows up after the next catch-up." },
+    bugs: { cls: "lane", list: true, draw: drawBugs, group: "more", icon: "i-bug", w: 6, h: 5, min: [3, 3],
+      title: "Bug reports", desc: "Problems people reported, counted by people, open ones first.",
+      show: function () { return has("bugs"); }, when: "Shows up after the next catch-up." },
+    announcements: { cls: "lane", list: true, draw: drawAnnouncements, group: "more", icon: "i-megaphone", w: 6, h: 4, min: [3, 3],
+      title: "Announcements", desc: "What was announced, and when.",
+      show: function () { return has("announcements"); }, when: "Shows up after the next catch-up." },
+    week: { cls: "lane", list: true, draw: drawWeek, group: "more", icon: "i-calendar", w: 6, h: 5, min: [3, 3],
+      title: "This week in your server", desc: "The week so far in a few lines: the biggest moments and the busiest place.",
+      show: function () { return !!week(); }, when: "Shows up after the next catch-up." },
+    "n-messages": { cls: "lane nbox", draw: drawNumber("messages"), group: "numbers", icon: "i-chat", w: 3, h: 2, min: [2, 2],
+      title: "Messages", desc: "How many messages since the last catch-up, and in how many channels." },
+    "n-waiting": { cls: "lane nbox", draw: drawNumber("waiting"), group: "numbers", icon: "i-help", w: 3, h: 2, min: [2, 2],
+      title: "Questions waiting", desc: "How many questions nobody has answered yet.",
+      show: function () { return has("questions"); }, when: "Shows up after the next catch-up." },
+    "n-quiet": { cls: "lane nbox", draw: drawNumber("quiet"), group: "numbers", icon: "i-check", w: 3, h: 2, min: [2, 2],
+      title: "Quiet channels", desc: "How many of your channels had no message." },
+    ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-chat", w: 7, h: 6, min: [3, 3],
+      title: "Ask, or try an idea", desc: "Ask anything about your server, with an idea for today.",
+      show: canAsk, when: "Only people who can ask in this cabinet see it." },
+    ideas: { cls: "lane", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 6, h: 5, min: [3, 3],
+      title: "All ideas", desc: "Every idea in one box, one tap each." }
+  };
+  IDEAS.forEach(function (idea) {
+    BOXES["idea-" + idea.id] = { cls: "lane", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
+      icon: "i-bulb", w: 4, h: 4, min: [3, 3], title: idea.title, desc: idea.text };
+  });
+  var GROUPS = [
+    { id: "server", title: "Your server" },
+    { id: "more", title: "More about your server" },
+    { id: "numbers", title: "Numbers" },
+    { id: "ask", title: "Ask and ideas" },
+    { id: "single", title: "One idea" }
+  ];
+  var PHONE = window.matchMedia ? window.matchMedia("(max-width: 720px)") : null;
+
+  function phone() { return !!(PHONE && PHONE.matches); }
+  function levelFor(width) { return width < 320 ? "S" : width < 640 ? "M" : "L"; }
+  var LEVEL_WORDS = { S: "Small", M: "Medium", L: "Large" };
+  /** The smallest a box may be made: wide and tall enough that what it shows still fits. */
+  function minSize(id) { var m = BOXES[id].min || [3, 3]; return { w: m[0], h: m[1] }; }
+  function whole(n) { return typeof n === "number" && n === Math.floor(n) && n >= 0; }
+
+  /** A saved layout, keeping only entries that name a box we have and fit the grid. */
+  function cleanLayout(value) {
+    if (!Array.isArray(value)) return null;
+    var seen = {};
+    var out = value.filter(function (b) {
+      var ok = !!(b && BOXES[b.id] && !seen[b.id] && whole(b.x) && whole(b.y) && whole(b.w) && whole(b.h) &&
+        b.w >= 1 && b.h >= 1 && b.x + b.w <= COLS && b.h <= 40);
+      if (ok) seen[b.id] = true;
+      return ok;
+    }).map(copyEntry);
+    return out.length ? out : null;
+  }
+  /** One layout entry: its place on the grid, and on a phone its order (o) and size (p). */
+  function copyEntry(b) {
+    var out = { id: b.id, x: b.x, y: b.y, w: b.w, h: b.h };
+    if (whole(b.o)) out.o = b.o;
+    if (b.p === "S" || b.p === "M" || b.p === "L") out.p = b.p;
+    return out;
+  }
+  function copyLayout(value) { return value.map(copyEntry); }
+
+  /**
+   * Where the boxes land: each keeps its columns, is pushed down past any box above it that
+   * it would overlap (an opened list grows), then rises into the space left above it, so a
+   * hidden or shorter box never leaves a hole. A pinned box (the one being moved or resized)
+   * is placed first, exactly where it was put, and the others make room around it.
+   */
+  function placed(source, pinId) {
+    var out = [];
+    function hits(b, y, h) {
+      return out.some(function (o) { return b.x < o.x + o.w && o.x < b.x + b.w && y < o.y + o.h && o.y < y + h; });
+    }
+    var boxes = (source || state.layout || DEFAULT_LAYOUT)
+      .filter(function (b) { return !BOXES[b.id].show || BOXES[b.id].show(); })
+      .slice().sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) out.push({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h });
+    });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) return;
+      var h = Math.max(b.h, state.need[b.id] || 0);
+      var y = b.y;
+      while (hits(b, y, h)) y++;
+      while (y > 0 && !hits(b, y - 1, h)) y--;
+      out.push({ id: b.id, x: b.x, y: y, w: b.w, h: h });
+    });
+    return out.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+  }
+  /** On a phone the boxes stand in the order the person gave them there, else top to bottom. */
+  function phoneOrder(spots) {
+    var at = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { at[b.id] = b; });
+    return spots.slice().sort(function (a, b) {
+      var oa = at[a.id] && whole(at[a.id].o) ? at[a.id].o : 1e6;
+      var ob = at[b.id] && whole(at[b.id].o) ? at[b.id].o : 1e6;
+      return oa - ob || a.y - b.y || a.x - b.x;
+    });
+  }
+  function entryOf(id) {
+    var l = state.layout || DEFAULT_LAYOUT;
+    for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+    return null;
+  }
+  /** The level a box draws at: by its width on a wide screen, by the person's choice on a phone. */
+  function levelOf(el) {
+    if (phone()) {
+      var e = entryOf(el.getAttribute("data-box"));
+      return e && e.p ? e.p : "M";
+    }
+    return levelFor(el.offsetWidth);
+  }
+
+  // ── Motion ─────────────────────────────────────────────────────────────
+  // Boxes glide to new places on a spring with a small, quick bounce. Before a change the
+  // page notes where every box is (and stops what is still moving); after it, each box
+  // starts where it was and glides to where it is now. A box that changes size grows or
+  // shrinks for real, so its words never stretch. People who asked their system for less
+  // motion get the change at once.
+
+  var MOVE_MS = 460;
+  var ENTER_MS = 380;
+  var lessMotion = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function motionOK() { return !(lessMotion && lessMotion.matches) && typeof document.body.animate === "function"; }
+
+  /** A damped spring as a CSS easing: about 4% past the mark, settled by the end. */
+  function springEasing(zeta, omega, steps) {
+    var wd = omega * Math.sqrt(1 - zeta * zeta);
+    var pts = [];
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      var v = 1 - Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + (zeta * omega / wd) * Math.sin(wd * t));
+      pts.push(i === steps ? 1 : Math.round(v * 1000) / 1000);
+    }
+    return "linear(" + pts.join(", ") + ")";
+  }
+  var SPRING = window.CSS && CSS.supports && CSS.supports("transition-timing-function", "linear(0, 1)")
+    ? springEasing(0.72, 10, 32)
+    : "cubic-bezier(.34, 1.3, .64, 1)";
+  document.documentElement.style.setProperty("--spring", SPRING);
+  /** No bounce: what the hand moves glides smoothly, so nothing seems to jump under it. */
+  var SMOOTH = "cubic-bezier(.22, 1, .36, 1)";
+
+  /** Where every box is now, then stops what is still gliding so the change starts clean. */
+  function snapshot(skip) {
+    var at = {};
+    if (!motionOK()) return at;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip) return;
+      at[id] = el.getBoundingClientRect();
+      el.getAnimations().forEach(function (a) { if (a.id === "glide" || a.id === "enter") a.cancel(); });
+    });
+    return at;
+  }
+  /** Each box glides from where the snapshot saw it to where it is now; a new box grows in. */
+  function glide(before, skip, easing) {
+    if (!motionOK() || !before) return;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip || el.hidden) return;
+      if (before[id]) glideFrom(el, before[id], true, MOVE_MS, easing);
+      else enter(el);
+    });
+  }
+  /** One element glides from the rectangle `a` to where it is now, growing for real if its size changed. */
+  function glideFrom(el, a, isBox, ms, easing) {
+    var b = el.getBoundingClientRect();
+    var dx = a.left - b.left;
+    var dy = a.top - b.top;
+    var resized = Math.abs(a.width - b.width) >= 1 || Math.abs(a.height - b.height) >= 1;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && !resized) return;
+    var from = { transform: "translate(" + dx + "px, " + dy + "px)" };
+    var to = { transform: "none" };
+    if (resized) {
+      from.width = a.width + "px";
+      from.height = a.height + "px";
+      to.width = b.width + "px";
+      to.height = b.height + "px";
+      // While it grows, the box is not drawn again at every in-between size.
+      if (isBox) el.setAttribute("data-gliding", "");
+    }
+    var anim = el.animate([from, to], { duration: ms, easing: easing || SPRING });
+    anim.id = "glide";
+    if (!isBox) return;
+    anim.onfinish = anim.oncancel = function () {
+      if (!el.hasAttribute("data-gliding")) return;
+      el.removeAttribute("data-gliding");
+      if (el.isConnected && el.offsetWidth) {
+        if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+        else fitBox(el);
+      }
+    };
+  }
+  function enter(el) {
+    if (!motionOK()) return;
+    var anim = el.animate([{ opacity: 0, transform: "scale(.94)" }, { opacity: 1, transform: "none" }], { duration: ENTER_MS, easing: SPRING });
+    anim.id = "enter";
+  }
+  /** Something new inside a box (the next idea) fades up into place. */
+  function fadeIn(el) {
+    if (el && motionOK()) el.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 320, easing: "ease-out" });
+  }
+  /** A box held by the hand lets go of its offset and its free size, so the glide can carry it home. */
+  function letGo() {
+    Object.keys(boxEls).forEach(function (id) {
+      var s = boxEls[id].style;
+      s.transform = "";
+      s.width = "";
+      s.height = "";
+    });
+  }
+
+  var sizeWatch = window.ResizeObserver ? new ResizeObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var el = entry.target;
+      if (!el.isConnected || !el.offsetWidth || el.hasAttribute("data-gliding")) return;
+      if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+      else fitBox(el);
+      sizeTag(el);
+    });
+  }) : null;
+
+  var boxEls = {};
+  /** What each box last drew, so a repaint that changes nothing leaves it (and its input) alone. */
+  var drawn = {};
+  function boxEl(id) {
+    if (!boxEls[id]) {
+      var el = document.createElement("section");
+      el.className = "box " + BOXES[id].cls;
+      el.id = "box-" + id;
+      el.setAttribute("data-box", id);
+      if (BOXES[id].list) el.setAttribute("aria-labelledby", "h-" + id);
+      boxEls[id] = el;
+      el.addEventListener("animationend", function (e) { if (e.animationName === "rise") el.classList.remove("rise"); });
+      if (sizeWatch) sizeWatch.observe(el);
+    }
+    return boxEls[id];
+  }
+
+  /** Puts every box in its place and order, without drawing what is inside. */
+  function placeBoxes() {
+    var grid = $("grid");
+    var stack = phone();
+    grid.classList.toggle("stack", stack);
+    grid.classList.toggle("editing", state.editing);
+    grid.style.setProperty("--row", ROW + "px");
+    grid.style.setProperty("--gap", GAP + "px");
+    var spots = stack ? phoneOrder(placed()) : placed();
+    var keep = {};
+    spots.forEach(function (spot, i) {
+      keep[spot.id] = true;
+      var el = boxEl(spot.id);
+      if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null);
+      el.style.gridColumn = stack ? "" : spot.x + 1 + " / span " + spot.w;
+      el.style.gridRow = stack ? "" : spot.y + 1 + " / span " + spot.h;
+      // In edit mode a box is one stop for the keyboard: arrows move it, Shift and arrows resize it.
+      if (state.editing) {
+        el.tabIndex = 0;
+        el.setAttribute("aria-label", BOXES[spot.id].title + (stack
+          ? ". Up and down arrows move it."
+          : ". Arrow keys move it. Shift and arrow keys change its size."));
+      } else {
+        el.removeAttribute("tabindex");
+        el.removeAttribute("aria-label");
+      }
+      if (state.animate) {
+        el.classList.add("rise");
+        el.style.setProperty("--d", i * 70 + "ms");
+      }
+    });
+    Array.prototype.slice.call(grid.children).forEach(function (el) {
+      if (el.hasAttribute("data-box") && !keep[el.getAttribute("data-box")]) grid.removeChild(el);
+    });
+    return spots;
+  }
+
+  function paintGrid() {
+    var grid = $("grid");
+    var show = state.loaded && !!state.data;
+    grid.hidden = !show;
+    if (!show) { $("grid-empty").hidden = true; return; }
+    var spots = placeBoxes();
+    $("grid-empty").hidden = spots.length > 0;
+    spots.forEach(function (spot) { drawBox(boxEl(spot.id)); });
+  }
+
+  /** Draws one box at the level its width gives it; what someone was typing survives. */
+  function drawBox(el) {
+    var id = el.getAttribute("data-box");
+    var level = levelOf(el);
+    var html = BOXES[id].draw(level);
+    if (state.editing) {
+      html += '<button type="button" class="box-x" data-act="remove-box" aria-label="Remove ' + esc(BOXES[id].title) + '">' + icon("i-x") + "</button>";
+      html += phone()
+        ? '<div class="box-size" role="group" aria-label="Size of ' + esc(BOXES[id].title) + '">' + ["S", "M", "L"].map(function (size) {
+            return '<button type="button" data-act="phone-size" data-size="' + size + '" aria-pressed="' + (level === size) + '">' + LEVEL_WORDS[size] + "</button>";
+          }).join("") + "</div>"
+        : '<span class="box-resize" title="Drag to resize" aria-hidden="true"></span>';
+    }
+    el.setAttribute("data-level", level);
+    if (drawn[id] !== html) {
+      var input = el.querySelector("input");
+      var typed = input ? input.value : "";
+      var focused = !!input && document.activeElement === input;
+      el.innerHTML = html;
+      drawn[id] = html;
+      var again = el.querySelector("input");
+      if (again && typed) again.value = typed;
+      if (again && focused) again.focus();
+    }
+    fitBox(el);
+  }
+
+  /**
+   * A list shows the rows that fit its box, then "+N more". Opened (by that button, or by
+   * opening one of its rows) it shows them all and the box grows to hold them.
+   */
+  function fitBox(el) {
+    var id = el.getAttribute("data-box");
+    var body = el.querySelector(".box-body");
+    var more = el.querySelector(".box-more");
+    if (!body || !more) return;
+    var rows = Array.prototype.slice.call(body.querySelectorAll(".rows > li"));
+    var open = !!state.expanded[id] || !!body.querySelector(".chan.open");
+    var stack = phone();
+    var cut = 0;
+    rows.forEach(function (r) { r.hidden = false; });
+    more.hidden = true;
+    // In a short box the rows come first: the idea at its foot steps aside for them.
+    var nudge = el.querySelector(".box-body ~ .nudge");
+    if (nudge) {
+      nudge.hidden = false;
+      if (!open && !stack && rows.length && body.clientHeight < rows[0].offsetHeight + 8) nudge.hidden = true;
+    }
+    if (!open && stack) {
+      var keepRows = el.getAttribute("data-level") === "L" ? rows.length : PHONE_ROWS;
+      rows.forEach(function (r, i) { if (i >= keepRows) { r.hidden = true; cut++; } });
+    } else if (!open && body.scrollHeight > body.clientHeight + 1) {
+      more.hidden = false;
+      for (var i = rows.length - 1; i > 0 && body.scrollHeight > body.clientHeight + 1; i--) { rows[i].hidden = true; cut++; }
+    }
+    more.hidden = !cut && !state.expanded[id];
+    more.textContent = cut ? "+" + cut + " more" : "Show less";
+    more.setAttribute("aria-expanded", String(!cut));
+
+    var need = 0;
+    if (open && !stack) {
+      var total = 2;
+      Array.prototype.forEach.call(el.children, function (child) {
+        if (child.matches(".box-x, .box-resize, .box-size")) return;
+        total += child === body ? body.scrollHeight : child.hidden ? 0 : child.offsetHeight;
+      });
+      need = Math.ceil((total + GAP) / (ROW + GAP));
+    }
+    if ((state.need[id] || 0) !== need) {
+      state.need[id] = need;
+      placeBoxes();
+    }
+  }
+
+  function boxHead(key, title, iconId, total, n, hot) {
+    return '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="h-' + key + '">' + esc(title) + "</h3>" +
+      (total ? '<span class="total num" dir="auto">' + esc(total) + "</span>" : "") +
+      (n === null ? "" : '<span class="count num' + (n ? (hot ? " hot" : "") : " zero") + '">' + n + "</span>") + "</div>";
+  }
+  function listBox(key, title, iconId, total, n, rowsHtml, emptyText, hot) {
+    return boxHead(key, title, iconId, total, n, hot) +
+      '<div class="box-body">' + (n ? rowsHtml : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
+  }
+  /** The small level: one number, a line under it, and the one that matters most. */
+  function sumBox(key, title, iconId, value, subHtml, lineHtml) {
+    return boxHead(key, title, iconId, "", null) +
+      '<div class="sum"><span class="value num' + (value ? "" : " none") + '" dir="auto">' + esc(value || "None") + "</span>" +
+      '<span class="sub">' + subHtml + "</span>" + (lineHtml ? '<span class="line" dir="auto">' + lineHtml + "</span>" : "") + "</div>";
+  }
+  function openLink(link, label) {
+    return link && !state.example ? '<a class="btn small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + esc(label || "Open in Discord") + "</a>" : "";
+  }
+
+  // Questions waiting: oldest first, each with a reply one tap away.
+  function drawWaiting(level) {
+    var q = questions();
+    var ref = refDate();
+    if (level === "S") {
+      var first = q[0];
+      return sumBox("waiting", "Questions waiting", "i-help", q.length ? String(q.length) : "",
+        q.length ? (first.at ? '<span class="hot">Oldest waited ' + esc(agoWords(first.at, ref)) + "</span>" : "waiting for an answer") : "Every question has an answer",
+        first ? "<b>" + esc(first.who) + ":</b> " + esc(first.gist) : "");
+    }
+    return listBox("waiting", "Questions waiting", "i-help", "", q.length,
+      '<ul class="rows chans">' + q.map(function (item) { return questionRow(item, ref); }).join("") + "</ul>",
+      "Every question has an answer. Nobody is waiting.", true) + nudgeHtml(boxIdea("waiting"));
+  }
+  function questionRow(item, ref) {
+    var open = !!state.open[item.id];
+    var where = placeWords(item.parent || item.channel, item.parent ? item.channel : "");
+    var actions = [];
+    if (canAsk()) actions.push('<button class="btn small dark" data-act="reply-q" data-id="' + esc(item.id) + '">' + icon("i-send") + "Write my reply</button>");
+    var link = openLink(item.link);
+    if (link) actions.push(link);
+    return '<li class="chan' + (open ? " open" : "") + '">' +
+      '<button class="chan-main" data-act="toggle" data-id="' + esc(item.id) + '" aria-expanded="' + open + '">' +
+      '<span class="chan-name"><b dir="auto">' + esc(item.who) + "</b>" + (where ? '<span class="where" dir="auto">in ' + esc(where) + "</span>" : "") + "</span>" +
+      '<span class="chan-count wait num">' + (item.at ? esc(agoWords(item.at, ref)) : "") + "</span>" +
+      '<span class="chan-gist flush" dir="auto">' + esc(item.gist) + "</span></button>" +
+      (actions.length ? '<div class="chan-body"' + (open ? "" : " hidden") + '><div class="row-actions">' + actions.join("") + "</div></div>" : "") + "</li>";
+  }
+
   // Catch up: every channel, thread and forum post that moved, worth-it first, quiet ones folded.
   function channelRow(item, index) {
     var id = text(item.id, 60) || "c" + index;
@@ -1162,46 +1987,34 @@
     var parent = text(item.parent, 40);
     var n = count(item.messages);
     var u = item.urgency === "High" ? "high" : item.urgency === "Medium" ? "medium" : "low";
-    var link = state.example ? "" : discordLink(item);
     var label = kind === "channel" ? name : (kind === "thread" ? "the thread " : "the post ") + name;
     var actions = [];
     if (canAsk()) actions.push('<button class="btn small dark" data-act="channel" data-id="' + esc(id) + '">' + icon("i-chat") + "Catch me up on " + esc(kind === "channel" ? name : kind === "thread" ? "this thread" : "this post") + "</button>");
-    if (link) actions.push('<a class="btn small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Discord</a>");
+    var link = openLink(discordLink(item));
+    if (link) actions.push(link);
     var urgencyWords = u === "high" ? "Worth reading first" : u === "medium" ? "Worth a look" : "Can wait";
     var where = kind === "thread" ? "Thread in " + parent : kind === "forum" ? "Post in " + parent : "";
     var kindIcon = kind === "thread" ? "i-thread" : kind === "forum" ? "i-forum" : "";
     return '<li class="chan' + (open ? " open" : "") + '">' +
-      '<button class="chan-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '"' + (actions.length ? ' aria-controls="body-' + esc(id) + '"' : "") + ' aria-label=""' + esc(urgencyWords + ". " + label) + '">' +
+      '<button class="chan-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-label="' + esc(urgencyWords + ". " + label) + '">' +
       '<span class="chan-name"><span class="dot-u ' + u + '" title="' + urgencyWords + '"></span>' +
       (kindIcon ? icon(kindIcon, "kind") : "") + '<b dir="auto">' + esc(name) + "</b>" +
       (where && parent ? '<span class="where" dir="auto">' + esc(where) + "</span>" : "") + "</span>" +
       '<span class="chan-count num">' + (n != null ? n + " " + plural(n, "message", "messages") : "") + "</span>" +
       '<span class="chan-gist" dir="auto">' + esc(text(item.gist, 160)) + "</span>" +
       "</button>" +
-      (actions.length ? '<div class="chan-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + '><div class="row-actions">' + actions.join("") + "</div></div>" : "") +
+      (actions.length ? '<div class="chan-body"' + (open ? "" : " hidden") + '><div class="row-actions">' + actions.join("") + "</div></div>" : "") +
       "</li>";
   }
-
-  function lane(key, title, total, inner, emptyText, foot) {
-    return '<section class="lane ' + key + '" id="lane-' + key + '" aria-labelledby="lane-' + key + '-h">' +
-      '<div class="lane-head"><h3 id="lane-' + key + '-h">' + esc(title) + "</h3></div>" +
-      (total ? inner : '<p class="lane-empty">' + esc(emptyText) + "</p>") + (foot || "") + "</section>";
-  }
-
-  function paintBoard() {
-    var main = $("board-main");
-    $("board").hidden = !state.loaded || !state.data;
-    if (!state.loaded || !state.data) { main.innerHTML = ""; return; }
+  function drawCatchup(level) {
     var c = channels();
-    var t = state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {};
-    var loud = c.filter(function (x) { return x.urgency !== "Low"; });
-    var calm = c.filter(function (x) { return x.urgency === "Low"; });
-    var shown = state.showQuiet || !loud.length ? c : loud;
-    var hidden = shown === c ? 0 : calm.length;
+    var t = totals();
+    var moved = channelsMoved(c, t);
+    if (level === "S") {
+      return sumBox("catchup", "Catch up", "i-hash", String(moved), plural(moved, "channel moved", "channels moved"),
+        c[0] ? "<b>" + esc(text(c[0].name, 60)) + ":</b> " + esc(text(c[0].gist, 120)) : "");
+    }
     var quietMore = count(t.quiet) || 0;
-    var inner = '<ul class="chans">' + shown.map(function (item, i) { return channelRow(item, i); }).join("") + "</ul>" +
-      (hidden ? '<button class="fold" data-act="quiet" aria-expanded="false">' + icon("i-down") + "Show " + hidden + " more that can wait</button>"
-        : state.showQuiet && calm.length && loud.length ? '<button class="fold" data-act="quiet" aria-expanded="true">' + icon("i-down") + "Show only the ones worth reading</button>" : "");
     var quietNames = Array.isArray(state.data.quietChannels)
       ? state.data.quietChannels.map(function (n) { return text(n, 60); }).filter(Boolean).slice(0, 50)
       : [];
@@ -1211,97 +2024,1218 @@
       : '<button class="lane-foot" data-act="quiet-list" aria-expanded="' + !!state.showQuietList + '" aria-controls="quiet-list">' + quietLine + icon("i-down", "more") + "</button>" +
         '<ul class="quiet-list" id="quiet-list"' + (state.showQuietList ? "" : " hidden") + ">" +
         quietNames.map(function (n) { return '<li><b dir="auto">' + esc(n) + "</b><span>No messages</span></li>"; }).join("") + "</ul>";
-    main.innerHTML = lane("channels", "Catch up", c.length, inner, "Nothing moved since the last catch-up.", foot);
+    return listBox("catchup", "Catch up by channel", "i-hash", messagesTotal() + " " + plural(messagesTotal(), "message", "messages"), c.length,
+      '<ul class="rows chans">' + c.map(function (item, i) { return channelRow(item, i); }).join("") + "</ul>",
+      "Nothing moved since the last catch-up.") + foot + nudgeHtml(boxIdea("catchup"));
   }
 
+  /** One message: who, where and when, and what it said. */
+  function messageRow(m, ref, bare) {
+    var where = placeWords(m.where, m.parent);
+    var link = bare ? "" : openLink(m.link, "Open");
+    return '<li class="chan"><div class="chan-main">' +
+      '<span class="chan-name"><b dir="auto">' + esc(m.who) + "</b>" + (where ? '<span class="where" dir="auto">' + esc(where) + "</span>" : "") + "</span>" +
+      '<span class="chan-count num">' + (m.at ? esc(agoWords(m.at, ref)) : "") + "</span>" +
+      '<span class="chan-gist flush" dir="auto">' + esc(m.gist) + "</span>" +
+      (link ? '<span class="go">' + link + "</span>" : "") + "</div></li>";
+  }
+  function drawLatest(level) {
+    var r = recentMessages();
+    var ref = refDate();
+    if (level === "S") {
+      var top = r[0];
+      return sumBox("latest", "Latest", "i-clock", top && top.at ? agoWords(top.at, ref) + " ago" : "", top ? "the newest message" : "No new messages",
+        top ? "<b>" + esc(top.who) + ":</b> " + esc(top.gist) : "");
+    }
+    return listBox("latest", "Latest messages", "i-clock", "", r.length,
+      '<ul class="rows chans">' + r.map(function (m) { return messageRow(m, ref); }).join("") + "</ul>",
+      "No new messages since the last catch-up.") + nudgeHtml(boxIdea("latest"));
+  }
+
+  function drawThreads(level) {
+    var t = busyThreads();
+    if (level === "S") {
+      return sumBox("threads", "Busy threads", "i-thread", t.length ? String(t.length) : "", plural(t.length, "thread or post moved", "threads and posts moved"),
+        t[0] ? "<b>" + esc(text(t[0].name, 60)) + ":</b> " + esc(text(t[0].gist, 100)) : "");
+    }
+    var can = canAsk();
+    return listBox("threads", "Busy threads and forum posts", "i-thread", "", t.length,
+      '<ul class="rows chans">' + t.map(function (item, i) {
+        var n = count(item.messages);
+        return '<li class="chan"><div class="chan-main">' +
+          '<span class="chan-name">' + icon(item.kind === "forum" ? "i-forum" : "i-thread", "kind") + '<b dir="auto">' + esc(text(item.name, 70)) + "</b>" +
+          (text(item.parent) ? '<span class="where" dir="auto">' + esc(text(item.parent, 40)) + "</span>" : "") + "</span>" +
+          '<span class="chan-count num">' + (n != null ? n + " " + plural(n, "message", "messages") : "") + "</span>" +
+          '<span class="chan-gist" dir="auto">' + esc(text(item.gist, 160)) + "</span>" +
+          (can ? '<span class="go"><button class="btn small" data-act="sum-thread" data-id="' + esc(text(item.id, 60) || "t" + i) + '">' + icon("i-chat") + "Sum it up</button></span>" : "") +
+          "</div></li>";
+      }).join("") + "</ul>",
+      "No thread or forum post moved since the last catch-up.");
+  }
+
+  function drawPeople(level) {
+    var p = people();
+    var ref = refDate();
+    if (level === "S") {
+      return sumBox("people", "People", "i-users", p.newcomers.length ? String(p.newcomers.length) : "", p.newcomers.length ? plural(p.newcomers.length, "new face", "new faces") : "No new faces",
+        p.active[0] ? "Most active: <b>" + esc(text(p.active[0].name, 40)) + "</b>" : "");
+    }
+    var can = canAsk();
+    var rows = "";
+    if (p.newcomers.length) {
+      rows += '<li class="sub-head">New faces</li>' + p.newcomers.map(function (x, i) {
+        var at = writtenAt(x.at);
+        return '<li class="chan"><div class="chan-main">' +
+          '<span class="chan-name"><b dir="auto">' + esc(text(x.name, 40)) + "</b>" + (text(x.where) ? '<span class="where" dir="auto">' + esc(text(x.where, 40)) + "</span>" : "") + "</span>" +
+          '<span class="chan-count num">' + (at ? esc(agoWords(at, ref)) : "") + "</span>" +
+          (text(x.gist) ? '<span class="chan-gist flush" dir="auto">' + esc(text(x.gist, 140)) + "</span>" : "") +
+          (can ? '<span class="go"><button class="btn small" data-act="welcome" data-i="' + i + '">' + icon("i-pen") + "Write a welcome</button></span>" : "") +
+          "</div></li>";
+      }).join("");
+    }
+    if (p.active.length) {
+      rows += '<li class="sub-head">Most active</li>' + p.active.map(function (x) {
+        var n = count(x.messages);
+        return '<li class="chan"><div class="chan-main">' +
+          '<span class="chan-name"><b dir="auto">' + esc(text(x.name, 40)) + "</b>" + (text(x.where) ? '<span class="where" dir="auto">mostly in ' + esc(text(x.where, 50)) + "</span>" : "") + "</span>" +
+          '<span class="chan-count num">' + (n != null ? n + " " + plural(n, "message", "messages") : "") + "</span></div></li>";
+      }).join("");
+    }
+    return listBox("people", "Who's new and most active", "i-users", "", p.newcomers.length + p.active.length,
+      '<ul class="rows chans">' + rows + "</ul>", "Nobody new, and nobody talked much.") + nudgeHtml(boxIdea("people"));
+  }
+
+  function drawSpotlight(level) {
+    var s = spotlight();
+    var name = placeWords(s.name, s.parent);
+    var n = count(s.messages);
+    var story = Array.isArray(s.story) ? s.story.map(function (l) { return text(l, 200); }).filter(Boolean).slice(0, 6) : [];
+    var openList = Array.isArray(s.open) ? s.open.map(function (l) { return text(l, 160); }).filter(Boolean).slice(0, 4) : [];
+    if (level === "S") return sumBox("spotlight", "Up close", "i-eye", text(s.name, 30), n != null ? n + " " + plural(n, "message", "messages") : "", story[0] ? esc(story[0]) : "");
+    var can = canAsk();
+    return boxHead("spotlight", "Up close: " + name, "i-eye", n != null ? n + " " + plural(n, "message", "messages") : "", null) +
+      '<div class="box-body"><ul class="story">' + story.map(function (l) { return '<li dir="auto">' + esc(l) + "</li>"; }).join("") + "</ul>" +
+      (openList.length ? '<p class="story-open"><b>Still open</b>' + openList.map(esc).join(". ") + ".</p>" : "") +
+      '<div class="box-pad">' + (can ? '<button class="btn small dark" data-act="spotlight">' + icon("i-chat") + "Catch me up on the rest</button>" : "") + openLink(discordLink(s)) + "</div></div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
+  }
+
+  var BUG_WORDS = { open: "Open", workaround: "Workaround", fixed: "Fixed" };
+  function drawBugs(level) {
+    var b = bugs();
+    var open = b.filter(function (x) { return x.status !== "fixed"; }).length;
+    if (level === "S") {
+      return sumBox("bugs", "Bug reports", "i-bug", b.length ? String(open) : "", open ? plural(open, "still open", "still open") : "Nothing open",
+        b[0] ? "<b>" + esc(text(b[0].title, 60)) + "</b>" : "");
+    }
+    var can = canAsk();
+    return listBox("bugs", "Bug reports", "i-bug", open ? open + " open" : "", b.length,
+      '<ul class="rows chans">' + b.map(function (x, i) {
+        var n = count(x.people);
+        var st = BUG_WORDS[x.status] ? x.status : "open";
+        return '<li class="chan"><div class="chan-main">' +
+          '<span class="chan-name"><span class="tag ' + st + '">' + BUG_WORDS[st] + '</span><b dir="auto">' + esc(text(x.title, 90)) + "</b></span>" +
+          '<span class="chan-count num">' + (n != null ? n + " " + plural(n, "person", "people") : "") + "</span>" +
+          '<span class="chan-gist flush" dir="auto">' + esc([placeWords(x.where, x.parent), text(x.gist, 140)].filter(Boolean).join(". ")) + "</span>" +
+          '<span class="go">' + (can && st !== "fixed" ? '<button class="btn small" data-act="bug-reply" data-i="' + i + '">' + icon("i-pen") + "Draft an update</button>" : "") + openLink(discordLink(x), "Open") + "</span>" +
+          "</div></li>";
+      }).join("") + "</ul>",
+      "No bug reports since the last catch-up.") + nudgeHtml(boxIdea("bugs"));
+  }
+
+  function drawAnnouncements(level) {
+    var a = announcements();
+    var ref = refDate();
+    if (level === "S") return sumBox("announcements", "Announcements", "i-megaphone", a.length ? String(a.length) : "", plural(a.length, "announcement", "announcements"), a[0] ? esc(text(a[0].gist, 120)) : "");
+    return listBox("announcements", "Announcements", "i-megaphone", "", a.length,
+      '<ul class="rows chans">' + a.map(function (x) {
+        return messageRow({ who: text(x.who, 60), where: text(x.where, 60), gist: text(x.gist, 200), at: writtenAt(x.at), link: discordLink(x) }, ref);
+      }).join("") + "</ul>", "Nothing was announced since the last catch-up.");
+  }
+
+  function drawWeek(level) {
+    var w = week();
+    var n = count(w.messages);
+    var lines = Array.isArray(w.highlights) ? w.highlights.map(function (l) { return text(l, 200); }).filter(Boolean).slice(0, 6) : [];
+    var from = parseTime(text(w.from));
+    var sub = (n != null ? n.toLocaleString("en-US") + " " + plural(n, "message", "messages") : "") + (from ? " since " + shortDate(from) : "");
+    if (level === "S") return sumBox("week", "This week", "i-calendar", n != null ? n.toLocaleString("en-US") : "", "messages" + (from ? " since " + esc(shortDate(from)) : ""), text(w.busiest) ? "Busiest: <b>" + esc(text(w.busiest, 40)) + "</b>" : "");
+    return boxHead("week", "This week in your server", "i-calendar", sub, null) +
+      '<div class="box-body"><ul class="story">' + lines.map(function (l) { return '<li dir="auto">' + esc(l) + "</li>"; }).join("") + "</ul>" +
+      (text(w.busiest) ? '<p class="story-open"><b>Busiest place</b>' + esc(text(w.busiest, 60)) + "</p>" : "") + "</div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
+  }
+
+  /** The number boxes: one number each, from the catch-up. */
+  function drawNumber(which) {
+    return function () {
+      if (which === "messages") {
+        var c = channels();
+        var moved = channelsMoved(c, totals());
+        return sumBox("n-messages", "Messages", "i-chat", messagesTotal().toLocaleString("en-US"), "in " + moved + " " + plural(moved, "channel", "channels") + " " + esc(sinceWords(state.data)), "");
+      }
+      if (which === "waiting") {
+        var q = questions();
+        return sumBox("n-waiting", "Questions waiting", "i-help", q.length ? String(q.length) : "0", q.length ? '<span class="hot">waiting for an answer</span>' : "Every question has an answer", "");
+      }
+      var quietN = count(totals().quiet) || 0;
+      return sumBox("n-quiet", "Quiet channels", "i-check", String(quietN), plural(quietN, "channel had no message", "channels had no message"), "");
+    };
+  }
+
+  /** Every idea the person has not hidden, one tap each; today's line when it fits. */
+  function drawIdeasBox(level) {
+    var shown = IDEAS.filter(function (idea) { return !state.hiddenIdeas[idea.id]; });
+    if (level === "S") {
+      return sumBox("ideas", "Ideas", "i-bulb", String(shown.length), "ideas, one tap each", "") +
+        '<div class="box-pad"><button class="btn small" data-act="ideas">' + icon("i-bulb") + "See them all</button></div>";
+    }
+    var facts = ideaFacts();
+    var can = canAsk();
+    return listBox("ideas", "Ideas", "i-bulb", "", shown.length,
+      '<ul class="rows idea-rows">' + shown.map(function (idea) {
+        var fit = IDEA_FITS[idea.id] ? IDEA_FITS[idea.id](facts) : null;
+        return "<li><div><b>" + esc(idea.title) + "</b>" + (level === "L" ? '<span dir="auto">' + esc(fit ? "Today: " + fit.line : idea.text) + "</span>" : "") + "</div>" +
+          '<button class="btn small" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask</button></li>";
+      }).join("") + "</ul>",
+      "Every idea is hidden from the page. Find them under Ideas.");
+  }
+
+  /** One idea as its own box, put there by the person, so it shows even on a day it does not fit. */
+  function drawOneIdea(idea, level) {
+    var fit = state.data && IDEA_FITS[idea.id] ? IDEA_FITS[idea.id](ideaFacts()) : null;
+    var can = canAsk();
+    return '<div class="one-idea">' + (level === "L" ? preview(idea) : "") +
+      "<h3>" + esc(idea.title) + "</h3>" +
+      (level === "S" ? "" : fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "<p>" + esc(idea.text) + "</p>") +
+      '<div class="go"><button class="btn small dark" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
+      (level === "S" ? "" : '<button class="btn small" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + esc(idea.when) + "</button>") +
+      "</div></div>";
+  }
   /** A picture of what the idea is about, in the template covers' style. */
   function preview(idea) {
     return '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>';
   }
 
-  function paintIdeas() {
-    var el = $("ideas");
-    if (!state.loaded) { el.innerHTML = ""; return; }
-    var can = canAsk() || !V2;
-    el.innerHTML = '<div class="section-head"><h2 id="ideas-title">Ideas for your Discord</h2>' +
-      "<p>" + (!V2 ? "Ask for any of these in the cabinet’s chat." : !askReady() ? "Connect Discord and each of these is one tap away." : "One tap to ask now, or to have it done for you on a schedule.") + "</p></div>" +
-      '<div class="idea-grid">' + IDEAS.map(function (idea, i) {
-        return '<article class="idea' + (state.animate ? " rise" : "") + '"' + (state.animate ? ' style="--d:' + (i * 40) + 'ms"' : "") + ">" +
-          preview(idea) +
-          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
-          '<div class="go"><button class="btn dark" data-act="idea-now" data-i="' + i + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
-          '<button class="btn" data-act="idea-routine" data-i="' + i + '"' + (can ? "" : " disabled") + ' aria-label="' + esc(idea.when + ": " + idea.title) + '">' + icon("i-repeat") + esc(idea.when) + "</button></div>" +
-          "</article>";
-      }).join("") + "</div>";
+  // Ask, or try an idea: the idea for today on top, the ready-made questions under it.
+  function drawAsk(level) {
+    if (state.layoutAsk) return drawLayoutAsk(level);
+    var featured = level === "S" ? null : askIdea();
+    var note = state.askNote || askHint();
+    return (level === "S" ? "" : '<h2 id="ask-title">Ask about your Discord</h2><p class="sub-line">Anything from "what was announced this week?" to "what did people ask for help with?"</p>') +
+      '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about a channel, a thread, a person..." />' +
+      '<button type="submit" class="btn light">' + icon("i-send") + "Ask</button></form>" +
+      (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
+      (level === "S" ? "" : '<div class="qs">' + QUESTIONS.map(function (q) {
+        return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+      }).join("") + "</div>") +
+      (level !== "S" ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "");
+  }
+  /** The Ask box while it takes a request about the boxes, from the Layout button. */
+  function drawLayoutAsk(level) {
+    var note = state.askNote || "The agent suggests the boxes. Nothing changes until you press Apply.";
+    return (level === "S" ? "" : '<h2 id="ask-title">Ask the agent about your boxes</h2>') +
+      '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">What you want on your page</label>' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="For example: show bug reports, hide the numbers" />' +
+      '<button type="submit" class="btn light">' + icon("i-send") + "Send</button></form>" +
+      '<p class="note" id="ask-note">' + esc(note) + "</p>" +
+      '<p class="note"><button type="button" class="cancel" data-act="layout-ask-cancel">Back to asking about your server</button></p>';
+  }
+  function askHint() {
+    if (!V2) return "Open this cabinet in Cabinet to ask. The answer comes up in the chat next to this page.";
+    if (askReady()) return "The answer comes up in the chat next to this page.";
+    return discordState() === "not-available-here"
+      ? "Once Discord works here, you can ask things like these."
+      : "Connect Discord first, then ask anything. A question here takes you to connecting.";
   }
 
-  /** A viewer cannot ask. Outside Cabinet the box still shows, so the page reads the same. */
-  function paintAsk() {
-    var box = $("ask");
-    var note = $("ask-note");
-    box.hidden = V2 && role() === "viewer";
-    var s = discordState();
-    note.textContent = !V2
-      ? "Open this cabinet in Cabinet to ask. The answer comes up in the chat next to this page."
-      : askReady()
-        ? "The answer comes up in the chat next to this page."
-        : s === "not-available-here"
-          ? "Once Discord works here, you can ask things like these."
-          : "Connect Discord first, then ask anything. A question here takes you to connecting.";
+  // ── Ideas, where and when they help ────────────────────────────────────
+  // An idea offers itself in its box when today's catch-up says it would help, with the real
+  // numbers, at most one per box. "Hide" takes it off the page for good (kept per person
+  // in cabinet.mine); the Ideas panel in the top bar always has every one, and each can be
+  // added to the page as a box of its own.
+
+  var HIDDEN_IDEAS_KEY = "your-discord-hidden-ideas@1";
+
+  /** What today's catch-up says, counted once for every idea. */
+  function ideaFacts() {
+    var c = channels();
+    return {
+      ref: refDate(),
+      waiting: questions().length,
+      bugs: bugs().filter(function (b) { return b.status !== "fixed"; }).length,
+      newcomers: people().newcomers.length,
+      top: c.slice().sort(function (a, b) { return (count(b.messages) || 0) - (count(a.messages) || 0); })[0] || null,
+      recent: recentMessages().length
+    };
   }
 
-  function paintQuestions() {
-    $("questions").innerHTML = QUESTIONS.map(function (q) {
-      return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+  /** For each idea: the line and the press that fit today, or null when it would not help now. */
+  var IDEA_FITS = {
+    help: function (f) {
+      var n = f.waiting;
+      return n >= 2 ? { line: n + " questions are still waiting for an answer.", act: "List them oldest first" } : null;
+    },
+    recap: function (f) {
+      var day = f.ref.getDay();
+      return day === 4 || day === 5
+        ? { line: "It’s " + f.ref.toLocaleDateString([], { weekday: "long" }) + ". Post or keep this week’s recap?", act: "Write the recap" }
+        : null;
+    },
+    feedback: function (f) {
+      var n = f.bugs;
+      return n ? { line: n + " " + plural(n, "problem is", "problems are") + " still open. See what people raised most?", act: "Count them by people" } : null;
+    },
+    welcome: function (f) {
+      var n = f.newcomers;
+      return n ? { line: n + " new " + plural(n, "person", "people") + " said hello.", act: n === 1 ? "Write them a welcome" : "Write them a welcome" } : null;
+    },
+    "one-channel": function (f) {
+      var n = f.top ? count(f.top.messages) : 0;
+      return n >= 20 ? { line: text(f.top.name, 60) + " moved the most: " + n + " messages.", act: "Sum it up in five lines" } : null;
+    },
+    // On a Friday the week's links are all in: worth one page before they scroll away.
+    links: function (f) { return f.recent && f.ref.getDay() === 5 ? { line: "It’s Friday. Keep this week’s links on one page?", act: "Collect this week’s links" } : null; }
+  };
+
+  function ideaById(id) {
+    for (var i = 0; i < IDEAS.length; i++) if (IDEAS[i].id === id) return IDEAS[i];
+    return null;
+  }
+  /** The idea with what fits today, or null when it is hidden or would not help now. */
+  function fitted(idea, facts) {
+    if (!idea || state.hiddenIdeas[idea.id] || !state.data) return null;
+    var fit = IDEA_FITS[idea.id] ? IDEA_FITS[idea.id](facts || ideaFacts()) : null;
+    return fit ? { idea: idea, line: fit.line, act: fit.act } : null;
+  }
+  function onPage(boxId) {
+    return placed().some(function (spot) { return spot.id === boxId; });
+  }
+  /** The first idea of this box that fits today, unless the idea has its own box on the page. */
+  function boxIdea(boxId) {
+    var facts = ideaFacts();
+    for (var i = 0; i < IDEAS.length; i++) {
+      if (IDEAS[i].box !== boxId || onPage("idea-" + IDEAS[i].id)) continue;
+      var f = fitted(IDEAS[i], facts);
+      if (f) return f;
+    }
+    return null;
+  }
+  /** Ideas the list boxes on the page are showing right now. */
+  function shownIdeas() {
+    var shown = {};
+    ["waiting", "catchup", "latest", "people", "bugs"].forEach(function (id) {
+      var el = boxEls[id];
+      if (!onPage(id) || (el && el.getAttribute("data-level") === "S")) return;
+      var f = boxIdea(id);
+      if (f) shown[f.idea.id] = true;
+    });
+    return shown;
+  }
+  /** The Ask box's idea for today: its own, or one whose box is not on the page. */
+  function askIdea() {
+    var facts = ideaFacts();
+    var shown = shownIdeas();
+    var best = null;
+    IDEAS.forEach(function (idea) {
+      if (best || shown[idea.id] || onPage("idea-" + idea.id) || (idea.box !== "ask" && onPage(idea.box))) return;
+      best = fitted(idea, facts);
+    });
+    return best;
+  }
+
+  /** "every Monday", "every evening": the schedule as the end of "Do this ...". */
+  function routineWords(idea) { return idea.when.charAt(0).toLowerCase() + idea.when.slice(1); }
+
+  function nudgeHtml(fit, lead) {
+    if (!fit) return "";
+    var idea = fit.idea;
+    var can = canAsk();
+    return '<div class="nudge">' + icon("i-bulb") + '<p dir="auto">' + esc((lead || "") + fit.line) + "</p>" +
+      '<div class="nudge-actions">' +
+      '<button type="button" class="btn small ' + (lead ? "light" : "dark") + '" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + esc(fit.act) + "</button>" +
+      '<button type="button" class="btn small" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + "Do this " + esc(routineWords(idea)) + "</button>" +
+      '<button type="button" class="nudge-hide" data-act="idea-hide" data-idea="' + idea.id + '" aria-label="Hide this idea from the page">Hide</button>' +
+      "</div></div>";
+  }
+
+  function setIdeaHidden(id, hidden) {
+    var before = snapshot();
+    if (hidden) state.hiddenIdeas[id] = true;
+    else delete state.hiddenIdeas[id];
+    paintGrid();
+    glide(before);
+    // The idea that takes its place fades up.
+    var idea = ideaById(id);
+    var home = idea && boxEls[idea.box];
+    if (home && home.isConnected) fadeIn(home.querySelector(".nudge"));
+    if (state.drawerOpen) paintDrawer();
+    toast(hidden ? "Hidden. You can always find it under Ideas." : "It’s back on your page when it fits your day.");
+    if (V2 && cab.mine && typeof cab.mine.set === "function") {
+      cab.mine.set(HIDDEN_IDEAS_KEY, Object.keys(state.hiddenIdeas)).catch(function () {
+        toast("That could not be saved. It comes back next time.");
+      });
+    }
+  }
+
+  var DRAWERS = {
+    ideas: { title: "Ideas", sub: "One tap to ask now, to have it done for you on a schedule, or to keep it on your page as a box.", icon: "i-bulb", paint: paintIdeasPanel },
+    add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker }
+  };
+  function paintDrawer() {
+    var kind = DRAWERS[state.drawerKind] || DRAWERS.ideas;
+    $("drawer-title").textContent = kind.title;
+    $("drawer-sub").textContent = kind.sub;
+    $("drawer-icon").innerHTML = icon(kind.icon);
+    kind.paint();
+  }
+
+  // The Add a box panel: every box by group, the ones on the page ticked.
+  function paintPicker() {
+    var on = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { on[b.id] = true; });
+    $("drawer-body").innerHTML = GROUPS.map(function (group) {
+      var ids = Object.keys(BOXES).filter(function (id) { return BOXES[id].group === group.id; });
+      return '<section class="pick-group"><h3>' + esc(group.title) + "</h3>" + ids.map(function (id) {
+        var box = BOXES[id];
+        var ready = !box.show || box.show();
+        var note = on[id] ? (ready ? "On your page" : "On your page. " + box.when) : ready ? "" : box.when;
+        return '<div class="pick' + (on[id] ? " on" : "") + '"><span class="pick-ic" aria-hidden="true">' + icon(box.icon) + "</span>" +
+          "<div><b>" + esc(box.title) + "</b><span>" + esc(box.desc) + "</span>" +
+          (note ? "<em" + (ready ? "" : ' class="wait"') + ">" + esc(note) + "</em>" : "") + "</div>" +
+          (on[id]
+            ? '<span class="pick-on" aria-hidden="true">' + icon("i-check") + "</span>"
+            : '<button type="button" class="btn small" data-act="add-this" data-add="' + id + '"' + (ready ? "" : " disabled") +
+              ' aria-label="Add ' + esc(box.title) + '">' + icon("i-plus") + "Add</button>") +
+          "</div>";
+      }).join("") + "</section>";
     }).join("");
   }
 
+  // The Ideas panel: every idea with its picture, today's line when it fits, and a way to
+  // keep it on the page as a box.
+  function paintIdeasPanel() {
+    var can = canAsk();
+    var facts = state.data ? ideaFacts() : null;
+    var on = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { on[b.id] = true; });
+    $("drawer-body").innerHTML =
+      (!V2 ? '<p class="fine" style="margin:0">Ask for any of these in the cabinet’s chat.</p>'
+        : !askReady() ? '<p class="fine" style="margin:0">Connect Discord and each of these is one tap away.</p>' : "") +
+      IDEAS.map(function (idea) {
+        var off = !!state.hiddenIdeas[idea.id];
+        var fit = !off && facts && IDEA_FITS[idea.id] ? IDEA_FITS[idea.id](facts) : null;
+        var boxed = !!on["idea-" + idea.id];
+        return '<article class="idea' + (off ? " off" : "") + '">' + preview(idea) +
+          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
+          (fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "") +
+          (off ? '<div class="off-note">Hidden from your page<button type="button" class="btn quiet small" data-act="idea-unhide" data-idea="' + idea.id + '">Show on my page</button></div>' : "") +
+          '<div class="go"><button class="btn dark" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
+          '<button class="btn" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + esc(idea.when) + "</button>" +
+          (boxed ? '<span class="on-page">' + icon("i-check") + "On your page</span>"
+            : '<button class="btn" data-act="add-this" data-add="idea-' + idea.id + '">' + icon("i-plus") + "Add as a box</button>") +
+          "</div></article>";
+      }).join("");
+  }
+
+  // ── Editing the page ───────────────────────────────────────────────────
+  // Edit layout turns on a bar above the grid; each box gets a remove button and stops
+  // reacting to presses. Every change is kept at once in cabinet.mine, and Undo steps back.
+
+  function startEdit() {
+    // Boxes show the size they were given while being arranged, not grown by an open list.
+    state.open = {};
+    state.expanded = {};
+    state.need = {};
+    state.editing = true;
+    state.undo = [];
+    // The page's opening fade ends here, so no box is caught half way into it while moving.
+    Object.keys(boxEls).forEach(function (id) { boxEls[id].classList.remove("rise"); });
+    paint();
+    // The remove and resize handles pop in once, as edit mode starts.
+    var grid = $("grid");
+    grid.classList.add("fresh");
+    setTimeout(function () { grid.classList.remove("fresh"); }, 700);
+    toast(phone() ? "Hold a box to move it. Pick its size on top." : "Drag a box to move it. Pull its corner to resize it.");
+  }
+  function doneEdit() {
+    state.editing = false;
+    state.undo = [];
+    closeDrawer();
+    paint();
+  }
+  function paintEditbar() {
+    $("editbar").hidden = !state.editing;
+    $("undo-btn").disabled = !state.undo.length;
+  }
+
+  function saveLayout() {
+    if (!V2 || !cab.mine || typeof cab.mine.set !== "function") return;
+    cab.mine.set(LAYOUT_KEY, state.layout).catch(function () {
+      toast("Your page could not be saved. It goes back to how it was next time.");
+    });
+  }
+  function changeLayout(next, easing) {
+    var before = snapshot();
+    letGo();
+    state.undo.push(copyLayout(state.layout || DEFAULT_LAYOUT));
+    if (state.undo.length > 30) state.undo.shift();
+    state.layout = next;
+    saveLayout();
+    paintGrid();
+    glide(before, null, easing);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  function removeBox(id) {
+    var el = boxEls[id];
+    var next = copyLayout(state.layout || DEFAULT_LAYOUT).filter(function (b) { return b.id !== id; });
+    if (el) el.classList.add("leaving");
+    setTimeout(function () {
+      if (el) el.classList.remove("leaving");
+      changeLayout(next);
+      toast(BOXES[id].title + " removed. Undo brings it back.");
+    }, 200);
+  }
+  /** The first place, reading left to right and top down, where a w by h box touches nothing. */
+  function freeSpot(w, h, source) {
+    var spots = placed(source);
+    for (var y = 0; ; y++) {
+      for (var x = 0; x + w <= COLS; x++) {
+        var hit = spots.some(function (o) { return x < o.x + o.w && o.x < x + w && y < o.y + o.h && o.y < y + h; });
+        if (!hit) return { x: x, y: y };
+      }
+    }
+  }
+  function addBox(id) {
+    var box = BOXES[id];
+    var w = Math.min(box.w, COLS);
+    var at = freeSpot(w, box.h);
+    changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).concat({ id: id, x: at.x, y: at.y, w: w, h: box.h }));
+    closeDrawer();
+    var el = boxEls[id];
+    if (el && el.isConnected) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+    }
+    toast(box.title + " added." + (state.editing ? "" : " Layout, then Add or remove boxes, to move it."));
+  }
+  function resetLayout() {
+    changeLayout(copyLayout(DEFAULT_LAYOUT));
+    toast("Back to the first page. Undo brings yours back.");
+  }
+  function undoLayout() {
+    if (!state.undo.length) return;
+    var before = snapshot();
+    state.layout = state.undo.pop();
+    saveLayout();
+    paintGrid();
+    glide(before);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  // ── Asking the agent to change the page ────────────────────────────────
+  // The agent cannot reach a person's layout (it lives in cabinet.mine), so it writes what
+  // to add and remove into data/layout-change.json. The page shows that with Apply and
+  // No thanks, and remembers in cabinet.mine which change it last showed.
+
+  var CHANGE_SEEN_KEY = "your-discord-layout-change-seen@1";
+  var CHANGE_DAYS = 2;
+
+  function openMenu(button) {
+    var menu = $("layout-menu");
+    var r = button.getBoundingClientRect();
+    state.menuOpen = true;
+    menu.hidden = false;
+    menu.style.top = r.bottom + 6 + "px";
+    menu.style.left = Math.max(16, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 16)) + "px";
+    button.setAttribute("aria-expanded", "true");
+    menu.querySelector("button").focus();
+  }
+  function closeMenu() {
+    if (!state.menuOpen) return;
+    state.menuOpen = false;
+    $("layout-menu").hidden = true;
+    var button = document.querySelector('[data-act="layout-menu"]');
+    if (button) { button.setAttribute("aria-expanded", "false"); button.focus(); }
+  }
+
+  /** The words sent with a layout request: the boxes on the page now and who is asking. */
+  function layoutWords(wish) {
+    var on = placed().map(function (spot) { return BOXES[spot.id].title; });
+    var me = cabName();
+    return "Change the boxes on my Your Discord page." + (me ? " I am " + me + "." : "") +
+      " On it now: " + (on.length ? on.join(", ") : "no boxes") + ". What I want: " + wish;
+  }
+  function cabName() {
+    var me = V2 && typeof cab.me === "function" ? cab.me() : null;
+    // Without a cloud sign-in Cabinet says "You": that is no name.
+    var name = me && typeof me.name === "string" ? me.name.trim() : "";
+    return /^you$/i.test(name) ? "" : name;
+  }
+  /** The Ask box takes the request when it is on the page; otherwise the chat's own box does. */
+  function askAboutLayout() {
+    var el = boxEls.ask;
+    if (onPage("ask") && el && el.isConnected) {
+      state.layoutAsk = true;
+      setAskNote("");
+      drawBox(el);
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if ($("ask-input")) $("ask-input").focus({ preventScroll: true });
+      return;
+    }
+    cab.ask(layoutWords(""), { agent: AGENT, send: false }).then(function () {
+      toast("Finish the sentence in the chat. The agent's suggestion shows up on this page.");
+    }).catch(function (e) { toast(e && e.message ? e.message : "The chat could not be opened. Try again."); });
+  }
+  function sendLayoutAsk(wish) {
+    var words = text(wish, 600);
+    if (!words) return;
+    setAskNote("Sending...");
+    cab.ask(layoutWords(words), { agent: AGENT, send: true }).then(function () {
+      state.layoutAsk = false;
+      if ($("ask-input")) $("ask-input").value = "";
+      setAskNote("Sent. The agent's suggestion shows up at the top of this page.");
+      if (boxEls.ask) drawBox(boxEls.ask);
+    }).catch(function (e) {
+      setAskNote(e && e.message ? e.message : "That did not go through. Try again.");
+    });
+  }
+  function stopLayoutAsk() {
+    state.layoutAsk = false;
+    setAskNote("");
+    if (boxEls.ask) drawBox(boxEls.ask);
+  }
+
+  /** data/layout-change.json, keeping only box ids the page knows. */
+  function cleanChange(d) {
+    if (!d || typeof d !== "object" || !writtenAt(d.at)) return null;
+    function ids(items) {
+      return Array.isArray(items) ? items.filter(function (id, i) { return typeof id === "string" && BOXES[id] && items.indexOf(id) === i; }) : [];
+    }
+    return { at: d.at, for: text(d.for, 80), add: ids(d.add), remove: ids(d.remove), note: text(d.note, 300) };
+  }
+  /** The change to offer now: new, recent, meant for this person, and not done already. */
+  function pendingChange() {
+    var c = state.change;
+    if (!c || !canAsk() || state.editing || c.at === state.changeSeen) return null;
+    if (daysBetween(writtenAt(c.at), new Date()) > CHANGE_DAYS) return null;
+    var me = cabName();
+    if (c.for && me && c.for.toLowerCase() !== me.toLowerCase()) return null;
+    // A box waiting for its data counts as there: it is in the layout, only not drawn yet.
+    var add = c.add.filter(function (id) { return !entryOf(id) && c.remove.indexOf(id) < 0; });
+    var remove = c.remove.filter(function (id) { return !!entryOf(id); });
+    if (!add.length && !remove.length && !c.note) return null;
+    return { at: c.at, add: add, remove: remove, note: c.note };
+  }
+  // A number box shares its title with a list ("Questions waiting"), so it says it is the number.
+  function titles(ids) {
+    return ids.map(function (id) { return BOXES[id].title + (BOXES[id].group === "numbers" ? " (number)" : ""); }).join(", ");
+  }
+  function paintSuggest() {
+    var el = $("suggest");
+    if (state.changeApplied) {
+      el.hidden = false;
+      el.innerHTML = "<p><b>Your page changed.</b></p>" +
+        '<div class="suggest-actions"><button type="button" class="btn" data-act="change-undo">' + icon("i-undo") + "Undo</button>" +
+        '<button type="button" class="btn dark" data-act="change-ok">OK</button></div>';
+      return;
+    }
+    var c = state.loaded ? pendingChange() : null;
+    el.hidden = !c;
+    if (!c) { el.innerHTML = ""; return; }
+    var parts = [];
+    if (c.add.length) parts.push("add " + titles(c.add));
+    if (c.remove.length) parts.push("remove " + titles(c.remove));
+    var waits = c.add.filter(function (id) { return BOXES[id].show && !BOXES[id].show(); });
+    var why = [c.note].concat(waits.map(function (id) { return BOXES[id].title + ": " + BOXES[id].when; })).filter(Boolean).join(" ");
+    el.innerHTML = "<p>" + (parts.length ? "<b>The agent suggests:</b> " + esc(parts.join(", and ")) + "." : "<b>From the agent:</b>") +
+      (why ? '<span class="why" dir="auto">' + esc(why) + "</span>" : "") + "</p>" +
+      '<div class="suggest-actions">' + (parts.length
+        ? '<button type="button" class="btn primary" data-act="change-apply">' + icon("i-check") + "Apply</button>" +
+          '<button type="button" class="btn" data-act="change-skip">No thanks</button>'
+        : '<button type="button" class="btn" data-act="change-skip">OK</button>') + "</div>";
+  }
+  function markChangeSeen(at) {
+    state.changeSeen = at;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(CHANGE_SEEN_KEY, at).catch(function () {});
+  }
+  function applyChange() {
+    var c = pendingChange();
+    if (!c) return;
+    var next = copyLayout(state.layout || DEFAULT_LAYOUT).filter(function (b) { return c.remove.indexOf(b.id) < 0; });
+    c.add.forEach(function (id) {
+      var box = BOXES[id];
+      var w = Math.min(box.w, COLS);
+      var at = freeSpot(w, box.h, next);
+      next.push({ id: id, x: at.x, y: at.y, w: w, h: box.h });
+    });
+    markChangeSeen(c.at);
+    state.changeApplied = true;
+    changeLayout(next);
+    paintSuggest();
+  }
+  function skipChange() {
+    var c = pendingChange();
+    if (c) markChangeSeen(c.at);
+    paintSuggest();
+  }
+
+  // ── Moving and resizing ────────────────────────────────────────────────
+  // A mouse or pen drags a box from anywhere on it in edit mode. A finger holds a box for a
+  // moment first, so the page still scrolls under a passing finger; outside edit mode the
+  // hold also starts editing. While a box moves, the others make room live and an outline
+  // shows where it lands. The corner handle resizes it on the grid, naming the size it
+  // reaches. On a phone a box moves up and down its column; its size is a switch.
+
+  var HOLD_MS = 600;
+  var SLOP = 8;
+  /** How far a mouse moves, pressed, before the box comes along: a slip of the hand is not a move. */
+  var DRAG_START = 10;
+  /** How far past a border (in cells) the moving box must be before the others make room. */
+  var STICK = 0.8;
+  var drag = null;
+  var press = null;
+  var hold = null;
+
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function spotIn(spots, id) {
+    for (var i = 0; i < spots.length; i++) if (spots[i].id === id) return spots[i];
+    return null;
+  }
+  function gridMetrics() {
+    var r = $("grid").getBoundingClientRect();
+    return { left: r.left, top: r.top, col: (r.width + GAP) / COLS, row: ROW + GAP };
+  }
+  /** The page with one box put at x, y and sized w by h, every other box making room. */
+  function previewWith(id, x, y, w, h) {
+    return placed(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+      if (b.id === id) { b.x = x; b.y = y; b.w = w; b.h = h; }
+      return b;
+    }), id);
+  }
+  function showSpots(spots) {
+    spots.forEach(function (s) {
+      var el = boxEls[s.id];
+      if (!el) return;
+      el.style.gridColumn = s.x + 1 + " / span " + s.w;
+      el.style.gridRow = s.y + 1 + " / span " + s.h;
+    });
+  }
+  /** Keeps the places a move or resize ended on; nothing is kept when nothing moved. */
+  function keepSpots(spots, easing) {
+    var at = {};
+    spots.forEach(function (s) { at[s.id] = s; });
+    var before = copyLayout(state.layout || DEFAULT_LAYOUT);
+    var next = copyLayout(before).map(function (b) {
+      var s = at[b.id];
+      if (s) { b.x = s.x; b.y = s.y; b.w = s.w; b.h = s.h; }
+      return b;
+    });
+    // Compared as the page shows them, so a drop back in the same place is no change.
+    var shown = function (l) { return JSON.stringify(placed(l).map(function (s) { return [s.id, s.x, s.y, s.w, s.h]; })); };
+    if (shown(next) === shown(before)) { settleBack(easing); return false; }
+    changeLayout(next, easing);
+    return true;
+  }
+  /** Nothing changed: every box glides back to the place it already had. */
+  function settleBack(easing) {
+    var before = snapshot();
+    letGo();
+    paintGrid();
+    glide(before, null, easing);
+  }
+
+  // The outline where a moving box lands, and the size a resized box has reached.
+  function overlay(cls) {
+    var grid = $("grid");
+    var el = grid.querySelector("." + cls);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = cls;
+      el.setAttribute("aria-hidden", "true");
+      grid.appendChild(el);
+    }
+    return el;
+  }
+  /** Puts the outline (or the size label) on a spot; once shown, it glides from spot to spot. */
+  function placeOverlay(el, s) {
+    var was = el.style.gridColumn && motionOK() ? el.getBoundingClientRect() : null;
+    if (was) el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.style.gridColumn = s.x + 1 + " / span " + s.w;
+    el.style.gridRow = s.y + 1 + " / span " + s.h;
+    if (was) glideFrom(el, was, false, 300, SMOOTH);
+  }
+  function clearOverlays() {
+    Array.prototype.slice.call($("grid").querySelectorAll(".drop-spot, .size-tag")).forEach(function (el) { el.parentNode.removeChild(el); });
+  }
+  /** "Medium: 3 rows": what a box shows at the size it has now. */
+  function sizeWords(el) {
+    var id = el.getAttribute("data-box");
+    var level = el.getAttribute("data-level") || "M";
+    var name = LEVEL_WORDS[level];
+    if (!BOXES[id].list) return name;
+    if (level === "S") return name + ": the total only";
+    var n = el.querySelectorAll(".rows > li.chan:not([hidden]), .idea-rows > li:not([hidden])").length;
+    return n ? name + ": " + n + " " + plural(n, "row", "rows") : name;
+  }
+
+  function beginDrag(kind, el, x, y, touch) {
+    var id = el.getAttribute("data-box");
+    var r = el.getBoundingClientRect();
+    var spot = spotIn(placed(), id);
+    if (!spot) return;
+    drag = { kind: kind, id: id, el: el, touch: !!touch, x: x, y: y, x0: x, y0: y, scroll0: window.scrollY, spots: null };
+    if (kind === "stack") {
+      var boxes = Array.prototype.filter.call($("grid").children, function (c) { return c.hasAttribute("data-box"); });
+      drag.boxes = boxes;
+      drag.from = boxes.indexOf(el);
+      drag.to = drag.from;
+      drag.gap = parseFloat(getComputedStyle($("grid")).rowGap) || GAP;
+      drag.step = r.height + drag.gap;
+      drag.mids = boxes.map(function (b) { var br = b.getBoundingClientRect(); return br.top + window.scrollY + br.height / 2; });
+    } else if (kind === "move") {
+      drag.w = spot.w;
+      drag.h = spot.h;
+      drag.grabX = x - r.left;
+      drag.grabY = y - r.top;
+    } else {
+      drag.sx = spot.x;
+      drag.sy = spot.y;
+      drag.pw0 = r.width;
+      drag.ph0 = r.height;
+    }
+    // Whatever was still animating this box lets go of it, or it would hold the box still
+    // while the hand moves.
+    el.classList.remove("rise");
+    el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.classList.add(kind === "size" ? "sizing" : "lifted");
+    $("grid").classList.add("arranging");
+    document.body.classList.add(kind === "size" ? "is-sizing" : "is-moving");
+    if (touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not allowed here */ } }
+    moveDrag(x, y);
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function moveDrag(x, y) {
+    drag.x = x;
+    drag.y = y;
+    if (drag.kind === "stack") moveInColumn();
+    else if (drag.kind === "move") moveOnGrid();
+    else resizeOnGrid();
+  }
+
+  function moveOnGrid() {
+    var m = gridMetrics();
+    var left = drag.x - drag.grabX;
+    var top = drag.y - drag.grabY;
+    // The spot only changes once the box is well past a border (four fifths of a cell),
+    // so a hand resting near the line does not flip it back and forth.
+    var fx = (left - m.left) / m.col;
+    var fy = (top - m.top) / m.row;
+    var tx = drag.spots && Math.abs(fx - drag.tx) < STICK ? drag.tx : clamp(Math.round(fx), 0, COLS - drag.w);
+    var ty = drag.spots && Math.abs(fy - drag.ty) < STICK ? drag.ty : Math.max(0, Math.round(fy));
+    if (!drag.spots || drag.tx !== tx || drag.ty !== ty) {
+      drag.tx = tx;
+      drag.ty = ty;
+      var before = snapshot(drag.el);
+      drag.spots = previewWith(drag.id, tx, ty, drag.w, drag.h);
+      showSpots(drag.spots);
+      glide(before, drag.el, SMOOTH);
+      placeOverlay(overlay("drop-spot"), spotIn(drag.spots, drag.id));
+    }
+    drag.el.style.transform = "translate(" + (left - (m.left + tx * m.col)) + "px," + (top - (m.top + ty * m.row)) + "px)";
+  }
+
+  // The box follows the hand pixel by pixel; the outline shows the grid size it will take,
+  // the neighbours make room for that size, and letting go glides the box into it.
+  function resizeOnGrid() {
+    var m = gridMetrics();
+    var min = minSize(drag.id);
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    var pw = clamp(drag.pw0 + drag.x - drag.x0, min.w * m.col - GAP, (COLS - drag.sx) * m.col - GAP);
+    var ph = clamp(drag.ph0 + dy, min.h * m.row - GAP, 40 * m.row - GAP);
+    drag.el.style.width = pw + "px";
+    drag.el.style.height = ph + "px";
+    var fw = (pw + GAP) / m.col;
+    var fh = (ph + GAP) / m.row;
+    var w = drag.spots && Math.abs(fw - drag.w) < STICK ? drag.w : clamp(Math.round(fw), min.w, COLS - drag.sx);
+    var h = drag.spots && Math.abs(fh - drag.h) < STICK ? drag.h : clamp(Math.round(fh), min.h, 40);
+    if (drag.spots && drag.w === w && drag.h === h) return;
+    drag.w = w;
+    drag.h = h;
+    var before = snapshot(drag.el);
+    drag.spots = previewWith(drag.id, drag.sx, drag.sy, w, h);
+    showSpots(drag.spots);
+    glide(before, drag.el, SMOOTH);
+    var spot = spotIn(drag.spots, drag.id);
+    placeOverlay(overlay("drop-spot"), spot);
+    placeOverlay(overlay("size-tag"), spot);
+  }
+  /** The label names what the box shows at the size it has under the hand. */
+  function sizeTag(el) {
+    var tag = drag && drag.kind === "size" && drag.el === el ? $("grid").querySelector(".size-tag") : null;
+    if (tag) tag.textContent = sizeWords(el);
+  }
+
+  function moveInColumn() {
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    drag.el.style.transform = "translateY(" + dy + "px) scale(1.02)";
+    // The edge leading the move passes a box once it crosses that box's middle, so a tall
+    // box does not have to travel its own height before the others make room.
+    var top = drag.mids[drag.from] - (drag.step - drag.gap) / 2 + dy;
+    var bottom = top + drag.step - drag.gap;
+    var to = drag.from;
+    drag.mids.forEach(function (mid, i) {
+      if (i > drag.from && bottom > mid + 24) to++;
+      if (i < drag.from && top < mid - 24) to--;
+    });
+    drag.to = to;
+    drag.boxes.forEach(function (b, i) {
+      if (b === drag.el) return;
+      var shift = drag.from < to && i > drag.from && i <= to ? -drag.step : drag.from > to && i >= to && i < drag.from ? drag.step : 0;
+      b.style.transform = shift ? "translateY(" + shift + "px)" : "";
+    });
+  }
+
+  /**
+   * Near the top or bottom of the window, the page scrolls while something is held: only
+   * after it has rested there for a moment, slowly at first and never fast, so a box carried
+   * past the edge does not send the page racing.
+   */
+  var EDGE = 56;
+  var EDGE_WAIT_MS = 300;
+  var EDGE_MAX = 7;
+  function edgeScroll(now) {
+    if (!drag) return;
+    var into = drag.y < EDGE ? -(EDGE - drag.y) : drag.y > window.innerHeight - EDGE ? drag.y - window.innerHeight + EDGE : 0;
+    if (!into) drag.edgeSince = 0;
+    else if (!drag.edgeSince) drag.edgeSince = now || performance.now();
+    var waited = drag.edgeSince ? (now || performance.now()) - drag.edgeSince : 0;
+    if (into && waited > EDGE_WAIT_MS) {
+      // Speed grows with how deep into the edge the hand is and how long it has stayed.
+      var ramp = Math.min(1, (waited - EDGE_WAIT_MS) / 600);
+      var v = Math.max(1, Math.round(Math.min(EDGE_MAX, Math.abs(into) / 6) * ramp));
+      window.scrollBy(0, into < 0 ? -v : v);
+      moveDrag(drag.x, drag.y);
+    }
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function endDrag(cancelled) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    cancelAnimationFrame(d.raf);
+    clearOverlays();
+    $("grid").classList.remove("arranging");
+    document.body.classList.remove("is-moving", "is-sizing");
+    d.el.classList.remove("lifted", "sizing");
+    // The held box and the ones that made room keep their offsets until the glide takes over.
+    if (d.kind === "stack") {
+      if (cancelled || d.to === d.from) { settleBack(SMOOTH); return; }
+      var ids = d.boxes.map(function (b) { return b.getAttribute("data-box"); });
+      ids.splice(d.to, 0, ids.splice(d.from, 1)[0]);
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+        var at = ids.indexOf(b.id);
+        if (at >= 0) b.o = at;
+        return b;
+      }), SMOOTH);
+      return;
+    }
+    if (cancelled || !d.spots) { settleBack(SMOOTH); return; }
+    if (keepSpots(d.spots, SMOOTH) && d.kind === "size") {
+      requestAnimationFrame(function () { toast(BOXES[d.id].title + ": " + sizeWords(d.el)); });
+    }
+  }
+
+  // Mouse and pen: press on a box and move a little; the corner handle resizes at once
+  // (for a finger too: it never scrolls the page).
+  document.addEventListener("pointerdown", function (e) {
+    if (!state.editing || drag || e.button !== 0) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el) return;
+    if (e.target.closest(".box-resize")) {
+      e.preventDefault();
+      beginDrag("size", el, e.clientX, e.clientY, false);
+      return;
+    }
+    if (e.pointerType === "touch" || e.target.closest(".box-x, .box-size")) return;
+    press = { el: el, x: e.clientX, y: e.clientY };
+  });
+  document.addEventListener("pointermove", function (e) {
+    if (drag && !drag.touch) { moveDrag(e.clientX, e.clientY); return; }
+    if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > DRAG_START) {
+      var p = press;
+      press = null;
+      beginDrag(phone() ? "stack" : "move", p.el, e.clientX, e.clientY, false);
+      // The grab point is where the press began, not where the move was noticed.
+      if (drag && drag.kind === "move") { drag.grabX -= e.clientX - p.x; drag.grabY -= e.clientY - p.y; moveDrag(e.clientX, e.clientY); }
+      if (drag && drag.kind === "stack") { drag.y0 = p.y; moveDrag(e.clientX, e.clientY); }
+    }
+  });
+  document.addEventListener("pointerup", function () { press = null; if (drag && !drag.touch) endDrag(false); });
+  document.addEventListener("pointercancel", function () { press = null; if (drag && !drag.touch) endDrag(true); });
+
+  // A finger: hold still on a box for a moment, then drag.
+  document.addEventListener("touchstart", function (e) {
+    if (drag || e.touches.length !== 1 || !state.data) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el || e.target.closest(".box-x, .box-size, .box-resize")) return;
+    var t = e.touches[0];
+    hold = { el: el, x: t.clientX, y: t.clientY, timer: setTimeout(function () {
+      var h = hold;
+      hold = null;
+      if (!h || !h.el.isConnected) return;
+      if (!state.editing) startEdit();
+      beginDrag(phone() ? "stack" : "move", h.el, h.x, h.y, true);
+    }, HOLD_MS) };
+  }, { passive: true });
+  document.addEventListener("touchmove", function (e) {
+    var t = e.touches[0];
+    if (hold && t && Math.abs(t.clientX - hold.x) + Math.abs(t.clientY - hold.y) > SLOP) {
+      clearTimeout(hold.timer);
+      hold = null;
+    }
+    if (drag && drag.touch && t) {
+      e.preventDefault();
+      moveDrag(t.clientX, t.clientY);
+    }
+  }, { passive: false });
+  function touchOver(e, cancelled) {
+    if (hold) { clearTimeout(hold.timer); hold = null; }
+    if (drag && drag.touch) {
+      // No tap reaches what was under the finger when it lets go of a box.
+      if (e.cancelable) e.preventDefault();
+      endDrag(cancelled);
+    }
+  }
+  document.addEventListener("touchend", function (e) { touchOver(e, false); }, { passive: false });
+  document.addEventListener("touchcancel", function (e) { touchOver(e, true); }, { passive: false });
+  document.addEventListener("contextmenu", function (e) { if (drag || hold) e.preventDefault(); });
+
+  // The keyboard: arrows move the box in focus, Shift and arrows resize it.
+  var ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  function keyMove(el, d, resize) {
+    var id = el.getAttribute("data-box");
+    if (phone()) {
+      if (!d[1]) return;
+      var ids = phoneOrder(placed()).map(function (s) { return s.id; });
+      var from = ids.indexOf(id);
+      var to = clamp(from + d[1], 0, ids.length - 1);
+      if (to === from) return;
+      ids.splice(to, 0, ids.splice(from, 1)[0]);
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+        var at = ids.indexOf(b.id);
+        if (at >= 0) b.o = at;
+        return b;
+      }));
+      el.focus();
+      toast(BOXES[id].title + " moved " + (d[1] < 0 ? "up" : "down") + ".");
+      return;
+    }
+    var s = spotIn(placed(), id);
+    if (!s) return;
+    var min = minSize(id);
+    if (resize) {
+      var w = clamp(s.w + d[0], min.w, COLS - s.x);
+      var h = clamp(s.h + d[1], min.h, 40);
+      if (keepSpots(previewWith(id, s.x, s.y, w, h))) {
+        el.focus();
+        requestAnimationFrame(function () { toast(BOXES[id].title + ": " + sizeWords(el)); });
+      }
+      return;
+    }
+    // Down past empty space would only float back up, so it goes as far as it takes to move.
+    for (var step = 1; step <= 40; step++) {
+      var x = clamp(s.x + d[0] * step, 0, COLS - s.w);
+      var y = Math.max(0, s.y + d[1] * step);
+      if (x === s.x && y === s.y) return;
+      if (keepSpots(previewWith(id, x, y, s.w, s.h))) {
+        el.focus();
+        toast(BOXES[id].title + " moved.");
+        return;
+      }
+      if (d[0]) return;
+    }
+  }
+  document.addEventListener("keydown", function (e) {
+    if (!state.editing || drag || !ARROWS[e.key]) return;
+    var el = document.activeElement;
+    if (!el || !el.matches || !el.matches("#grid > .box")) return;
+    e.preventDefault();
+    keyMove(el, ARROWS[e.key], e.shiftKey);
+  });
+
+  var drawerTimer = 0;
+  var drawerFrom = null;
+  function openDrawer(kind) {
+    var el = $("drawer");
+    clearTimeout(drawerTimer);
+    drawerFrom = document.activeElement;
+    state.drawerOpen = true;
+    state.drawerKind = kind;
+    el.querySelector(".drawer-body").scrollTop = 0;
+    paintDrawer();
+    el.hidden = false;
+    document.body.style.overflow = "hidden";
+    // One frame on screen closed first, so the panel slides in rather than appearing.
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("open"); }); });
+    el.querySelector(".drawer-panel").focus();
+  }
+  function closeDrawer() {
+    var el = $("drawer");
+    if (!state.drawerOpen) return;
+    state.drawerOpen = false;
+    el.classList.remove("open");
+    document.body.style.overflow = "";
+    drawerTimer = setTimeout(function () { el.hidden = true; }, 360);
+    if (drawerFrom && drawerFrom.focus) drawerFrom.focus();
+  }
+
   // ── Presses ────────────────────────────────────────────────────────────
+
+  // A press anywhere outside the Layout menu closes it.
+  document.addEventListener("pointerdown", function (event) {
+    if (!state.menuOpen || !event.target.closest) return;
+    if (event.target.closest("#layout-menu, [data-act='layout-menu']")) return;
+    state.menuOpen = false;
+    $("layout-menu").hidden = true;
+    var button = document.querySelector('[data-act="layout-menu"]');
+    if (button) button.setAttribute("aria-expanded", "false");
+  });
+  window.addEventListener("resize", function () { if (state.menuOpen) { state.menuOpen = false; $("layout-menu").hidden = true; } });
+
+  /** One press on the gift or an offer: ask the agent, mark it asked, put the list away once all are used. */
+  function askOffer(key, words) {
+    ask(words);
+    state.asked[key] = true;
+    if (showingReading()) { paintHero(); return; }
+    var r = state.reading;
+    var all = (r.gift ? [giftKey(r.gift)] : []).concat(r.offers.map(offerKey));
+    if (all.every(function (k) { return state.asked[k]; })) giftDone();
+    paintGiftKeep();
+  }
 
   document.addEventListener("click", function (event) {
     var el = event.target.closest ? event.target.closest("[data-act]") : null;
     if (!el || el.disabled) return;
     var act = el.getAttribute("data-act");
     var id = el.getAttribute("data-id");
-    var item = id ? findItem(id) : null;
     if (act === "toggle") {
+      var was = snapshot();
       state.open[id] = !state.open[id];
-      paintBoard();
+      paintGrid();
+      glide(was);
       var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
       if (again) again.focus();
     } else if (act === "quiet-list") {
       state.showQuietList = !state.showQuietList;
-      paintBoard();
-      var foot = document.querySelector('[data-act="quiet-list"]');
-      if (foot) foot.focus();
-    } else if (act === "quiet") {
-      state.showQuiet = !state.showQuiet;
-      paintBoard();
+      paintGrid();
+    } else if (act === "more-rows") {
+      var boxId = el.closest(".box").getAttribute("data-box");
+      var shown = snapshot();
+      state.expanded[boxId] = !state.expanded[boxId];
+      fitBox(boxEl(boxId));
+      glide(shown);
     } else if (act === "connect") connect();
     else if (act === "run") runNow();
     else if (act === "ask") ask(el.getAttribute("data-q"));
-    else if (act === "channel" && item) {
-      var what = item.kind === "thread" ? "the thread " + text(item.name, 70) + " in " + text(item.parent, 40)
-        : item.kind === "forum" ? "the forum post " + text(item.name, 70) + " in " + text(item.parent, 40)
-        : text(item.name, 60) || "this channel";
-      ask("Catch me up on " + what + " from the last day: what happened, what was decided, and what is still open, in a few short lines.");
+    else if (act === "channel") {
+      var item = findItem(id);
+      if (item) {
+        var what = item.kind === "thread" ? "the thread " + text(item.name, 70) + " in " + text(item.parent, 40)
+          : item.kind === "forum" ? "the forum post " + text(item.name, 70) + " in " + text(item.parent, 40)
+          : text(item.name, 60) || "this channel";
+        ask("Catch me up on " + what + " from the last day: what happened, what was decided, and what is still open, in a few short lines.");
+      }
+    } else if (act === "reply-q") {
+      var q = findQuestion(id);
+      if (q) ask(replyAsk(q.who, placeWords(q.parent || q.channel, q.parent ? q.channel : ""), q.link, q.gist));
+    } else if (act === "sum-thread") {
+      var t = findItem(id);
+      if (t) ask("Sum up " + placeWords(t.name, t.parent) + " in five short lines: what it is about, what was decided, and what is still open.");
+    } else if (act === "welcome") {
+      var n = people().newcomers[+el.getAttribute("data-i")];
+      if (n) ask("Draft a short, warm welcome for " + text(n.name, 40) + ", who is new in my Discord server" + (text(n.where) ? " and posted in " + text(n.where, 40) : "") +
+        (text(n.gist) ? " (" + text(n.gist, 140) + ")" : "") + ". In my voice, under 40 words." + NO_POST);
+    } else if (act === "bug-reply") {
+      var b = bugs()[+el.getAttribute("data-i")];
+      if (b) ask("Draft a short update for the people who reported \"" + text(b.title, 90) + "\" in " + placeWords(b.where, b.parent) +
+        ". Say what we know, with [brackets] around anything I need to decide, like a date." + NO_POST);
+    } else if (act === "spotlight") {
+      var s = spotlight();
+      if (s) ask(catchupAsk(placeWords(s.name, s.parent), discordLink(s)));
+    } else if (act === "idea-now") {
+      var idea = ideaById(el.getAttribute("data-idea"));
+      if (idea) { closeDrawer(); ask(idea.ask); }
+    } else if (act === "idea-routine") {
+      var r = ideaById(el.getAttribute("data-idea"));
+      if (r) { closeDrawer(); ask("Set this up as a routine that runs " + r.at + ": " + r.ask + " Show me the routine so I can approve it before it starts."); }
+    } else if (act === "idea-hide") {
+      setIdeaHidden(el.getAttribute("data-idea"), true);
+    } else if (act === "idea-unhide") {
+      setIdeaHidden(el.getAttribute("data-idea"), false);
+    } else if (act === "ideas") {
+      openDrawer("ideas");
+    } else if (act === "add-box") {
+      openDrawer("add");
+    } else if (act === "add-this") {
+      var add = el.getAttribute("data-add");
+      if (BOXES[add]) addBox(add);
+    } else if (act === "phone-size") {
+      var sized = el.closest(".box").getAttribute("data-box");
+      var size = el.getAttribute("data-size");
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (x) { if (x.id === sized) x.p = size; return x; }));
+      if (boxEls[sized]) { var btn = boxEls[sized].querySelector('[data-size="' + size + '"]'); if (btn) btn.focus(); }
+    } else if (act === "remove-box") {
+      removeBox(el.closest(".box").getAttribute("data-box"));
+    } else if (act === "layout-menu") {
+      if (state.menuOpen) closeMenu(); else openMenu(el);
+    } else if (act === "layout-edit") {
+      closeMenu();
+      startEdit();
+    } else if (act === "layout-ask") {
+      closeMenu();
+      askAboutLayout();
+    } else if (act === "layout-ask-cancel") {
+      stopLayoutAsk();
+    } else if (act === "change-apply") {
+      applyChange();
+    } else if (act === "change-skip") {
+      skipChange();
+    } else if (act === "change-undo") {
+      state.changeApplied = false;
+      undoLayout();
+      paintSuggest();
+      toast("Your page is back to how it was.");
+    } else if (act === "change-ok") {
+      state.changeApplied = false;
+      paintSuggest();
+    } else if (act === "edit-start") {
+      startEdit();
+    } else if (act === "edit-done") {
+      doneEdit();
+    } else if (act === "undo") {
+      undoLayout();
+    } else if (act === "reset-layout") {
+      resetLayout();
+    } else if (act === "drawer-close") {
+      closeDrawer();
     } else if (act === "gift-do") {
       var gift = state.reading && state.reading.gift;
-      if (gift) {
-        ask(giftParts(gift).ask);
-        state.giftAsked = gift.at;
-        giftDone(gift);
-        if (showingReading()) paintHero(); else paintGiftKeep();
-      }
+      if (gift) askOffer(giftKey(gift), giftParts(gift).ask);
+    } else if (act === "offer-do") {
+      var o = state.reading && state.reading.offers[+el.getAttribute("data-i")];
+      if (o) askOffer(offerKey(o), offerParts(o).ask);
     } else if (act === "gift-skip") {
-      if (state.reading && state.reading.gift) giftDone(state.reading.gift);
+      giftDone();
       paintGiftKeep();
-    } else if (act === "idea-now") {
-      var idea = IDEAS[+el.getAttribute("data-i")];
-      if (idea) ask(idea.ask);
-    } else if (act === "idea-routine") {
-      var r = IDEAS[+el.getAttribute("data-i")];
-      if (r) ask("Set this up as a routine that runs " + r.at + ": " + r.ask + " Show me the routine so I can approve it before it starts.");
     }
   });
 
@@ -1313,17 +3247,54 @@
     }
   });
 
-  $("ask-form").addEventListener("submit", function (event) {
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    if (drag) endDrag(true);
+    else if (state.menuOpen) closeMenu();
+    else if (state.drawerOpen) closeDrawer();
+    else if (state.editing) doneEdit();
+  });
+
+  // The Ask box is drawn again as it changes size, so its form is listened to from here.
+  document.addEventListener("submit", function (event) {
+    if (!event.target || event.target.id !== "ask-form") return;
     event.preventDefault();
-    ask($("ask-input").value);
+    if (state.layoutAsk) sendLayoutAsk($("ask-input").value);
+    else ask($("ask-input").value);
   });
 
   // ── Start ──────────────────────────────────────────────────────────────
 
-  paintQuestions();
   paint();
 
+  if (PHONE) {
+    var onPhoneChange = function () { if (state.loaded && state.data) paintGrid(); };
+    if (PHONE.addEventListener) PHONE.addEventListener("change", onPhoneChange);
+    else if (PHONE.addListener) PHONE.addListener(onPhoneChange);
+  }
+  // Rows are measured to fit their boxes; the web font changes their height once it arrives.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      Object.keys(boxEls).forEach(function (id) { if (boxEls[id].isConnected) fitBox(boxEls[id]); });
+    });
+  }
+
   if (V2) {
+    // This person's own layout, if they changed it; the default otherwise.
+    Promise.resolve(cab.ready).then(function () {
+      var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
+      var clean = cleanLayout(mine ? mine.get(LAYOUT_KEY) : null);
+      if (clean) state.layout = clean;
+      var giftSeen = mine ? mine.get(GIFT_KEY) : null;
+      if (typeof giftSeen === "string") state.giftDone = giftSeen;
+      var seen = mine ? mine.get(CHANGE_SEEN_KEY) : null;
+      if (typeof seen === "string") state.changeSeen = seen;
+      var hidden = mine ? mine.get(HIDDEN_IDEAS_KEY) : null;
+      if (Array.isArray(hidden)) hidden.forEach(function (id) { if (ideaById(id)) state.hiddenIdeas[id] = true; });
+    }).catch(function () {}).then(function () {
+      state.mineReady = true;
+      paint();
+    });
     Promise.resolve(cab.here()).then(function (here) {
       state.here = here || null;
       if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
@@ -1339,20 +3310,12 @@
       state.discord = { id: "discord", state: "not-available-here", problem: null, canConnect: false };
       paint();
     });
-    // Whether this person already used or put away the first read's gift.
-    Promise.resolve(cab.ready).then(function () {
-      var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
-      var giftSeen = mine ? mine.get(GIFT_KEY) : null;
-      if (typeof giftSeen === "string") state.giftDone = giftSeen;
-    }).catch(function () {}).then(function () {
-      state.mineReady = true;
-      paintGiftKeep();
-    });
     cab.connectors.onChange(function (items) { var g = pickDiscord(items); if (g) { state.discord = g; paint(); } });
     cab.jobs.list().then(setJobs).catch(function () {});
     cab.jobs.onChange(setJobs);
     readSchedule();
   } else {
+    state.mineReady = true;
     load();
     setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") load(); });

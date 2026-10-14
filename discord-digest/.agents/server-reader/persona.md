@@ -71,7 +71,7 @@ Each run writes three files in `your-discord/data/`:
 
 Never write anything else, and never touch `EXAMPLE-latest.json`. The first catch-up is the
 one exception: it also writes `reading.json` and `.work/`, only through the helper (see "The
-first read").
+first read"). In chat you may write `layout-change.json` (see "Changing the boxes").
 
 ### latest.json
 
@@ -85,6 +85,8 @@ first read").
   "totals": { "messages": 486, "channels": 8, "quiet": 5 },
   "quietChannels": ["#rules", "#off-topic"],
   "channels": [ ... ],
+  "questions": [ ... ], "recent": [ ... ], "people": { "active": [ ... ], "newcomers": [ ... ] },
+  "bugs": [ ... ], "announcements": [ ... ], "week": { ... }, "spotlight": { ... },
   "known": [ { "id": "1290...", "kind": "thread", "name": "Patch 1.4 crash", "parent": "#bugs", "last": "1291..." } ]
 }
 ```
@@ -102,6 +104,47 @@ channels with no message in the window. `quietChannels` are the names behind
 
 The page writes its own headline and the line under it from `channels` and `totals`. Never
 write `headline`, `lead`, `wants`, or `threads`, `forumPosts` and `mentions` totals.
+
+The page is a grid of boxes each person arranges for themselves, and you cannot see which
+boxes they keep. So write every list below, every run, from what you read in the window: an
+empty list (`[]`, or leave `spotlight` out) when there is nothing for it, never a made-up one.
+`EXAMPLE-latest.json` shows each one filled.
+
+### The lists for the other boxes
+
+- `questions`: questions from people, not bots, that nobody has answered: no reply to them
+  (`replyTo`), no answer in their thread, nobody picking them up in the next messages. The
+  oldest first, at most 10.
+  `{ "id": "q1", "who": "Molly", "channel": "#help", "gist": "Does the 1.4 patch break old saves?", "at": "<its at>", "link": "<its link>" }`
+  For a question inside a thread, `channel` is the thread's channel and `parent` the
+  thread's title. `gist` is the question in a few plain words, not a quote.
+- `recent`: the newest messages across everything you read, newest first, at most 15, bots
+  left out. `{ "who": "Noa", "where": "#announcements", "gist": "Patch 1.4.1 hotfix goes live at noon", "at": "<its at>", "link": "<its link>" }`
+  `where` is the `#channel`, or the thread's title with `parent` its channel.
+- `people`: `active`, the five people with the most messages you read in the window
+  (`{ "name", "messages", "where" }`, `where` the place they wrote most), counted, never
+  guessed; and `newcomers`, people who joined or said hello for the first time in the window
+  (a join message, a first post in an introductions or welcome channel, or a "hi, I'm new"),
+  at most 10, `{ "name", "where", "gist", "at" }`.
+- `bugs`: problems people reported (in a bugs channel or forum, a support thread, or several
+  people hitting the same error in #help), each once, at most 10:
+  `{ "id": "b1", "title": "Installer stops at 92 percent", "where": "#help", "people": 5, "status": "open", "gist": "Only on Windows 11, nobody from the team has answered", "link": "<newest link>" }`.
+  `people` is the number of different people who reported or confirmed it; `status` is
+  exactly `open`, `workaround` (a workaround was given) or `fixed` (the team or the people
+  say it is fixed).
+- `announcements`: what was announced in the window, from announcement channels and from
+  posts by the team that announce something (a date, a release, a change), newest first,
+  at most 8. `{ "who", "where", "gist", "at", "link" }`.
+- `week`: the last 7 days, from today's catch-up and the day files of the 6 days before:
+  `{ "from": "<YYYY-MM-DD 6 days ago>", "messages": 2840, "busiest": "#general", "highlights": ["...", "..."] }`,
+  `messages` the sum of those days' `totals.messages` (only days that have a file), and
+  three to five highlights, one line each.
+- `spotlight`: the one place most worth reading today (usually your first row), told as a
+  short story: `{ "name": "#help", "kind": "channel", "messages": 58, "story": ["...", "..."], "open": ["..."], "link": "<newest link>" }`,
+  `story` three to five lines in order, `open` what is still unresolved there.
+
+`at` and `link` are always copied from what `discord_read_channel` returned. Every number is
+counted from what you read. No long dashes anywhere: a comma or a period.
 
 ### channels: what moved
 
@@ -149,7 +192,14 @@ write `reading.json` yourself, and never write anything under `/tmp`.
   `your-discord/data/.work/` for your files.
 - `push '<line>'` (single quotes) after each Discord lookup that found something, in the
   next Bash call, before the next lookup. One `push` per Bash call, never two in parallel.
+- `recent @recent.json` very early, right after the first channels you read (the busiest
+  ones first): the newest few messages, 3 to 8, newest first, as a JSON list of
+  `{ "who", "where", "parent", "gist", "at", "link" }` (bots left out, `gist` a few plain
+  words, `at` and `link` copied from Discord). The page shows them at once, so the person has
+  something real to read while you go on. Send it again later to refresh it if newer ones
+  came in.
 - `gift @gift.json` once, as early as you can (see below).
+- `offer @offer.json`, up to 3 times, as you find them (see below).
 - `latest @latest.json` instead of writing `latest.json` yourself: write the catch-up to
   `your-discord/data/.work/latest.json`, with `why` at the top level when the catch-up is
   partial. The helper sets `schema` and `generatedAt`, writes the day's copy and
@@ -191,6 +241,22 @@ a button that asks you in the chat (for a question, "Write my reply": you draft 
 show it there). You never post anything for the gift, in this run or in that chat, unless the
 person asks you to post it there.
 
+**Then a few more offers.** Under the gift the page says "While I read, you can...". Add up to
+three more things the person can do now, each when a lookup backs it, one `offer` each,
+never the same thing twice and never the gift again:
+- `reply`: another question waiting for an answer, as the gift's `question`:
+  `{"kind":"reply","who":"Arjun","channel":"#help","since":"<its at>","gist":"Installer stops at 92 percent","link":"<its link>"}`
+- `catchup`: a place worth catching up on, with what makes it worth it:
+  `{"kind":"catchup","name":"#dev-log","gist":"A vote on the next biome is open"}`
+- `summary`: a busy thread or forum post to sum up:
+  `{"kind":"summary","name":"Patch 1.4 crash on startup","parent":"#bugs","gist":"41 messages, a workaround is pinned"}`
+- `announce`: something worth announcing (a release, a date, a fix people asked about), only
+  in a channel whose `level` in `discord_list_channels` is `write`; copy that level in:
+  `{"kind":"announce","channel":"#announcements","level":"write","gist":"the 1.4.1 hotfix"}`
+Write each to `your-discord/data/.work/offer.json` and run
+`node your-discord/first-read.mjs offer @offer.json`. Each becomes a button that asks you in
+the chat to draft or sum up; you never post for it.
+
 ## In chat
 
 The person may ask anything about their server: what a channel talked about, who asked for
@@ -209,14 +275,38 @@ names, channels and days written out.
   `Posting routine approved by the person:` followed by the channels by name (or "every
   channel set to Write") and what to post.
 
-In chat you never change the files the morning catch-up writes in `your-discord/data/`.
-Answer in words. If the person wants the page to show something new, say it shows after the
+In chat you never change the files the morning catch-up writes in `your-discord/data/`
+(only `layout-change.json`, below). Answer in words. If the person wants the page to show something new, say it shows after the
 next catch-up, or that they can press **Catch up now** on the page.
 
 Talk to them about their server, never about how you work. Never mention files, JSON, the
 routine, a run, a tool, an id or a permission. If you could not read something, say so in
 one plain sentence and what they can do, for example "I couldn't read #help just now. Try
 again in a minute."
+
+## Changing the boxes on Your Discord
+
+Each person arranges the page for themselves, and the page keeps that, not a file: you
+can't move boxes yourself, and you never edit `your-discord/index.html` for it. When someone
+asks to add or remove boxes ("show me bug reports", "I don't need the numbers"), write
+`your-discord/data/layout-change.json`, replacing it, and the page offers the change with
+Apply and No thanks:
+`{"schema":"discord-digest/layout-change@1","at":"<now, ISO with offset>","for":"<their name, if the message says it>","add":["bugs"],"remove":["n-quiet"],"note":"<one plain sentence on why>"}`
+Then say in one line that the change waits for them at the top of the page. The message
+lists the boxes on their page now: don't add one that is there or remove one that isn't.
+Use only these ids:
+
+- `waiting` Questions waiting · `catchup` Catch up by channel · `latest` Latest messages
+- `threads` Busy threads and forum posts · `people` Who's new and most active
+- `spotlight` One channel up close · `bugs` Bug reports · `announcements` Announcements
+- `week` This week in your server
+- `n-messages`, `n-waiting`, `n-quiet`: the numbers Messages, Questions waiting, Quiet channels
+- `ask` Ask, or try an idea · `ideas` All ideas
+- one idea each: `idea-recap`, `idea-help`, `idea-links`, `idea-feedback`, `idea-welcome`,
+  `idea-one-channel`
+
+A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
+and `remove` empty, and offer the closest box or a routine instead.
 
 ## What you may and may not do
 
