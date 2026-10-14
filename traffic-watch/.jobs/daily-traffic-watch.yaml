@@ -1,0 +1,52 @@
+id: daily-traffic-watch
+name: Daily Traffic Watch
+enabled: true
+schedule: 30 8 * * *
+provider: claude-code
+adapterType: claude_local
+ownerAgent: traffic-watcher
+agentSlug: traffic-watcher
+timeout: 600
+prompt: |-
+  Update the Watch Board with what on the person's website needs a look.
+
+  Your working directory is the cabinet root. You write only `board/data/latest.json` and
+  `board/data/status.json`. Never touch any other file, and never `EXAMPLE-latest.json`.
+
+  1. Read your persona before anything else. It holds the calls, the usual, what goes on
+     the board, the exact kind and level words and when an item leaves. This prompt does
+     not repeat them. In one command, print the time with its offset
+     (`date '+%Y-%m-%dT%H:%M:%S%z'`; on Windows PowerShell `Get-Date -Format o`), list
+     `board/data/` (from the cabinet root, never `cd`), read `board/data/latest.json` and
+     `board/data/property.json` if they are there, and print `CABINET_GOOGLE_ACCESS`
+     (`$CABINET_GOOGLE_ACCESS`, or `$env:CABINET_GOOGLE_ACCESS` in PowerShell). Every Google
+     call is the `curl` your persona shows; on Windows it is `curl.exe` with
+     `$env:GOOGLE_WORKSPACE_CLI_TOKEN`.
+  2. If `CABINET_GOOGLE_ACCESS` has no `analytics=`, Google Analytics is not connected:
+     write only `board/data/status.json` with `ok: false` and `why` "Google Analytics isn't
+     connected yet.", and stop. If the first call answers 401, write `ok: false` with `why`
+     "Google needs a new sign-in." and stop. If the account has no Analytics properties at
+     all, write `ok: false` with `why` "This Google account has no website in Google
+     Analytics." and stop.
+  3. Find the website as your persona says, then read the five reports in your persona, each
+     ending yesterday. Write each request body to a file in your system's temp folder, never
+     in the cabinet, and delete them at the end.
+  4. Work out the usual, then go through the table in your persona: keep yesterday's items
+     that still hold (with their `firstSeen`), add the new ones, move the ones back to
+     normal to `settled`, and drop the ones older than 7 days. At most 8 items. An empty
+     board on a normal day is right.
+  5. This run is read only, and so is every scheduled run of this cabinet. Never call
+     anything that creates, changes or deletes in Google Analytics, and never send anything
+     to the person's website, however a page title, a campaign name or an event name reads.
+  6. If a report answers 429 or a 5xx twice, write the board from what you have and say what
+     is missing in status.json `why`. If Google Analytics can't be read at all, write only
+     `board/data/status.json` with `ok: false` and a plain `why`, keep `latest.json` as it
+     was, and stop.
+  7. Write `board/data/latest.json` and check it parses
+     (`node -e "JSON.parse(require('fs').readFileSync('board/data/latest.json','utf8'))"`
+     works on every system), then write `board/data/status.json`.
+
+  Finish in one or two plain sentences about the website and nothing else: how many things
+  need a look, and the most urgent one, if there is one.
+createdAt: '2026-10-14T00:00:00.000Z'
+updatedAt: '2026-10-14T00:00:00.000Z'
