@@ -975,7 +975,8 @@
     var d = parseTime(value);
     if (!d) return "";
     var gap = daysBetween(d, ref);
-    if (gap <= 0) return clock(d);
+    // A bare date has no time of day to show: say the day, not midnight.
+    if (gap <= 0) return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value) ? "Today" : clock(d);
     if (gap === 1) return "Yesterday";
     if (gap < 7) return d.toLocaleDateString([], { weekday: "short" });
     return shortDate(d);
@@ -2458,7 +2459,7 @@
       var id = text(w.id, 60) || "w" + i;
       var days = waitingDays(w.waitingSince, ref);
       var kind = KIND_WORDS[w.kind] ? KIND_WORDS[w.kind].toLowerCase() : "";
-      var why = [kind, days >= 2 ? "waiting " + days + " days" : wroteWords(w.receivedAt, ref)].filter(Boolean).join(", ");
+      var why = [text(w.gist, 70), kind, days >= 2 ? "waiting " + days + " days" : wroteWords(w.receivedAt, ref)].filter(Boolean).join(", ");
       add(w.urgent === true ? 0 : w.kind === "lead" ? 4 : 5, -days, "reply", w, "Reply to " + (text(w.from, 60) || "someone"), why,
         text(w.reply) ? { label: "Copy the reply", act: "copy", id: id } : { label: "Draft a reply", act: "reply", id: id });
     });
@@ -2586,7 +2587,7 @@
   function dayWords(at, d) {
     return at === 0 ? "Today" : at === 1 ? "Tomorrow" : d.toLocaleDateString([], { weekday: "short", day: "numeric" });
   }
-  var TONE_WORDS = { person: "promised", quote: "a week with no answer" };
+  var TONE_WORDS = { person: "due", quote: "a week with no answer" };
 
   function drawWeek(level) {
     var items = weekItems();
