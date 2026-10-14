@@ -446,7 +446,7 @@
 
   /* ── Save a video ────────────────────────────────────────────────────── */
   /* The link, how to keep it, and Save: the one red button on the page. */
-  .box.save { justify-content: center; overflow: hidden; border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
+  .box.save { justify-content: flex-start; overflow: hidden; border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
   .save-in { display: grid; gap: 10px; padding: 18px 20px 16px; }
   .save-head { display: flex; align-items: center; gap: 11px; }
   .save-head .lane-icon { display: inline-grid; place-items: center; color: var(--brand); }
@@ -2166,6 +2166,18 @@
   }
 
   /**
+   * How tall a box's words are, its padding and the red band's included: from the top of the
+   * box to the lowest of the inner parts. The inner sheet itself fills the box, so its own
+   * height would say nothing.
+   */
+  function naturalHeight(el, inner) {
+    var top = el.getBoundingClientRect().top;
+    var bottom = top;
+    Array.prototype.forEach.call(inner.children, function (c) { bottom = Math.max(bottom, c.getBoundingClientRect().bottom); });
+    var pad = function (node) { return parseFloat(getComputedStyle(node).paddingBottom) || 0; };
+    return bottom - top + pad(inner) + pad(el);
+  }
+  /**
    * A list shows the rows that fit its box, then "+N more". Opened (by that button, or by
    * opening one of its rows) it shows them all and the box grows to hold them.
    */
@@ -2176,7 +2188,7 @@
     // The headline grows a row when its words need it (a narrow window wraps them).
     if (BOXES[id].grow && !phone()) {
       var inner = el.firstElementChild;
-      var grow = inner ? Math.ceil((inner.scrollHeight + 6 + GAP) / (ROW + GAP)) : 0;
+      var grow = inner ? Math.ceil((naturalHeight(el, inner) + 6 + GAP) / (ROW + GAP)) : 0;
       var entry = entryOf(id);
       grow = entry && grow > entry.h ? grow : 0;
       if ((state.need[id] || 0) !== grow) { state.need[id] = grow; placeBoxes(); }
