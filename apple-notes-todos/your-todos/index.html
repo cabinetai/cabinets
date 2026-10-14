@@ -8,7 +8,9 @@
   Where the words come from: the Gather My To-Dos routine reads the notes Cabinet copied in
   from Apple Notes and writes data/latest.json next to this page (the shape is
   data/EXAMPLE-latest.json: made-up notes, always labelled as an example here), and
-  data/status.json with ok:false and why when it could not finish.
+  data/status.json with ok:false and why when it could not finish. On the very first look,
+  first-read.mjs also writes data/reading.json: one line per note it finds to-dos in, and
+  one thing the person can do now (the gift). The page tells those lines as they come.
 
   How it talks to Cabinet: window.cabinet v2 (connection state, bring the notes in, ask,
   run the routine, read files). In an older Cabinet it reads the same files over the page's
@@ -122,6 +124,42 @@
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+  /* The first look, told as it happens: one line for each note the agent finds to-dos in. */
+  .read-page { margin-top: 22px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+  .reading { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px 24px; }
+  .reading h2 { margin: 0 0 4px; font-size: 19px; }
+  .reading > p { margin: 0 0 14px; color: var(--muted); }
+  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+  .read-lines li { display: flex; gap: 10px; align-items: flex-start; animation: line-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+  .read-lines li .icon { margin-top: 3px; color: var(--yellow-ink); }
+  .read-lines li b { font-weight: 650; }
+  .read-lines li.old { animation: none; }
+  .read-lines li.now { color: var(--muted); }
+  .pulse-dot { flex: none; width: 8px; height: 8px; margin: 7px 4px 0; border-radius: 50%; background: var(--yellow); animation: read-pulse 1.2s ease-in-out infinite; }
+  .reading .fine { margin-top: 14px; }
+  @keyframes line-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+
+  /* The gift: one thing the person can do now, found while the agent reads. */
+  .gift { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px 16px; border-top: 4px solid var(--yellow); }
+  .gift.arrive { animation: line-in .7s cubic-bezier(.2, .8, .2, 1) both; }
+  .gift .label { margin-bottom: 6px; }
+  .gift h3 { margin: 0; font-size: 17px; line-height: 1.35; }
+  .gift h3 b { font-weight: 700; }
+  .gift .items { margin-top: 8px; }
+  .gift .why { margin: 8px 0 0; color: var(--muted); }
+  .gift .actions { margin-top: 14px; }
+  .gift .asked { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0 0; font-weight: 600; color: var(--yellow-ink); }
+  .gift .asked .icon { margin-top: 3px; }
+  .gift .fine { margin-top: 10px; }
+  .gift.looking { background: none; box-shadow: none; border: 1.5px dashed var(--line); padding: 22px 20px; display: flex; gap: 10px; align-items: flex-start; }
+  .gift.looking h3 { color: var(--muted); font-weight: 600; }
+  .keep { margin-top: 22px; }
+  @media (min-width: 760px) {
+    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+  }
+
   @media (max-width: 640px) {
     body { padding: 22px 16px 64px; }
     h1 { font-size: 24px; }
@@ -131,8 +169,9 @@
     .ask form { flex-direction: column; }
     .banner { flex-wrap: wrap; }
     .banner .btn { margin-left: 26px; }
+    .gift.looking { display: none; }
   }
-  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } .toast { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .spin, .read-lines li, .pulse-dot, .gift.arrive { animation: none; } .toast { transition: none; } }
 </style>
 </head>
 <body>
@@ -142,6 +181,7 @@
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4 20-7z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
 </svg>
 <div class="wrap">
   <header>
@@ -201,7 +241,17 @@
     running: false,
     runNote: "",
     connecting: false,
-    connectNote: ""
+    connectNote: "",
+    jobsKnown: false,
+    looked: false,
+    reading: null,
+    readStartedAt: null,
+    readShown: 0,
+    sawReading: false,
+    giftShownAt: null,
+    giftAsked: null,
+    giftDone: null,
+    mineReady: false
   };
 
   function $(id) { return document.getElementById(id); }
@@ -298,9 +348,11 @@
     if (loading) return loading;
     loading = Promise.all([
       maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
-      quiet(maybe(readJson("data/status.json")))
+      quiet(maybe(readJson("data/status.json"))),
+      quiet(maybe(readJson("data/reading.json")))
     ]).then(function (got) {
       var latest = got[0];
+      setReading(cleanReading(got[2]));
       state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
       if (usable(latest) && latest.example !== true) {
         state.data = latest;
@@ -321,6 +373,7 @@
       state.loaded = true;
       loading = null;
       paint();
+      firstLook();
     });
     return loading;
   }
@@ -346,8 +399,22 @@
     state.jobs = items;
     var j = job();
     state.running = !!(j && j.running);
+    state.jobsKnown = true;
     if (wasRunning && !state.running) load();
     paint();
+    firstLook();
+  }
+
+  /**
+   * The owner opens the page with Apple Notes already brought in, and only the example on it:
+   * the first look starts by itself, once, as it does right after bringing the notes in. Not
+   * after a look that went wrong (that shows its own Try again), and not for anyone else.
+   */
+  function firstLook() {
+    if (state.looked || !V2 || role() !== "owner" || !state.loaded || !state.jobsKnown) return;
+    if (notesState() !== "connected" || !state.example || state.lastTry || state.running || !job()) return;
+    state.looked = true;
+    runNow();
   }
 
   /** Bring the notes in, or fresh ones: Cabinet's own Apple Notes step, then a look straight away. */
@@ -361,7 +428,7 @@
       return cab.connectors.list().then(function (items) {
         state.notes = pickNotes(items) || state.notes;
         paint();
-        if (result === "connected") runNow();
+        if (result === "connected") { state.looked = true; runNow(); }
       });
     }).catch(function (e) {
       state.connecting = false;
@@ -410,6 +477,168 @@
     });
   }
 
+  // ── The first look, told as it happens ─────────────────────────────────
+  // On the very first look the agent adds a line to data/reading.json for each note it finds
+  // to-dos in (first-read.mjs push), and the page shows them one by one. While it reads, it
+  // also finds one thing the person can do now (first-read.mjs gift): a plan for today from
+  // what is due soonest, a promise to keep, or, when there is nothing to do, ideas worth doing.
+  // A press asks the agent in the chat beside the page; no note changes. Without reading.json
+  // (an older helper, or any later look) the page is as it always was.
+
+  var READ_FRESH_MIN = 20;
+  var REVEAL_MS = 1200;
+  var GIFT_KEY = "your-todos-gift-done@1";
+  var GIFT_KEEP_DAYS = 3;
+
+  function cleanReading(d) {
+    if (!d || typeof d !== "object" || !Array.isArray(d.lines) || !parseTime(d.startedAt)) return null;
+    var lines = d.lines.map(function (l) { return text(l, 200); }).filter(Boolean).slice(-14);
+    return { startedAt: d.startedAt, done: d.done === true, lines: lines, gift: cleanGift(d.gift) };
+  }
+  function cleanGift(g) {
+    if (!g || typeof g !== "object" || !parseTime(g.at)) return null;
+    if (g.kind === "plan") {
+      var items = list(g.items).map(function (it) {
+        return { text: text(it.text, 140), due: parseTime(it.due), note: text(it.note, 60) };
+      }).filter(function (it) { return it.text; }).slice(0, 3);
+      return items.length ? { kind: "plan", at: g.at, items: items } : null;
+    }
+    if (g.kind === "promise") {
+      var t = text(g.text, 140);
+      return t ? { kind: "promise", at: g.at, text: t, note: text(g.note, 60) } : null;
+    }
+    return g.kind === "calm" ? { kind: "calm", at: g.at } : null;
+  }
+  /** A reading that started in the last 20 minutes: an older one is not this look's. */
+  function fresh(r) {
+    var at = r ? parseTime(r.startedAt) : null;
+    return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
+  }
+  /** The agent is still reading: the file says so, it is fresh, and the routine runs. */
+  function readingNow() { var r = state.reading; return !!(r && !r.done && state.running && fresh(r)); }
+  function freshLines() { return fresh(state.reading) ? state.reading.lines : []; }
+  // Lines that arrive together are still told one by one, and once done, one more beat on
+  // "Putting your page together" before the page. Only once this page has shown the reading.
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done ? 1 : 0)); }
+  /** A new read (another startedAt) starts its lines from the first one. */
+  function setReading(r) {
+    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; }
+    state.reading = r;
+  }
+  function giftNow() { return fresh(state.reading) ? state.reading.gift : null; }
+
+  function giftParts(g) {
+    var now = new Date();
+    var from = function (note) { return note ? ' (from my note "' + note + '")' : ""; };
+    if (g.kind === "plan") {
+      var first = g.items[0];
+      return {
+        head: "Next up: <b>" + esc(first.text) + "</b>" + (first.due ? ", " + esc(dueTail(first.due, now)) : "") + ".",
+        rest: g.items.slice(1),
+        why: "I can turn what's due soonest into a short plan for today.",
+        button: "Make me a plan for today",
+        ask: "Make me a plan for today from my to-dos in Apple Notes. Start with the ones due soonest: " +
+          g.items.map(function (it) { return '"' + it.text + '"' + (it.due ? ", due " + ymd(it.due) : "") + from(it.note); }).join("; ") +
+          ". Pick at most five things, say why each, and keep it short."
+      };
+    }
+    if (g.kind === "promise") {
+      return {
+        head: "You promised: <b>" + esc(g.text) + "</b>.",
+        why: "A promise kept is one less thing on your mind. I can help you do it now.",
+        button: "Help me do it now",
+        ask: 'I promised: "' + g.text + '"' + from(g.note) + ". Help me do it now: tell me the first step, and if it needs a message, write it for me to send myself."
+      };
+    }
+    return {
+      head: "No to-dos in your notes right now. A good place to be.",
+      why: "Want me to look for ideas you wrote down and never acted on?",
+      button: "Find ideas worth doing",
+      ask: "Look through my Apple Notes for ideas or plans I wrote down and never acted on. Tell me the three that look most worth doing, newest first, and the note each came from."
+    };
+  }
+  /** "today", "tomorrow", "due Friday", "due Oct 24", "was due Oct 13": after a comma. */
+  function dueTail(d, now) {
+    var w = dueWords(d, now);
+    if (w.late) return "was due " + shortDate(d);
+    return w.words === "Today" || w.words === "Tomorrow" ? w.words.toLowerCase() : "due " + w.words;
+  }
+  function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function giftHtml(g, where) {
+    var p = giftParts(g);
+    var now = new Date();
+    var asked = state.giftAsked === g.at;
+    var arrive = where === "reading" && state.giftShownAt !== g.at;
+    if (where === "reading") state.giftShownAt = g.at;
+    var rest = (p.rest || []).map(function (it) {
+      var tags = "";
+      if (it.due) { var w = dueWords(it.due, now); tags = '<span class="tag date' + (w.late ? " late" : "") + '">' + esc(w.words) + "</span>"; }
+      return '<li><span class="box" aria-hidden="true"></span><span>' + esc(it.text) + tags + "</span></li>";
+    }).join("");
+    return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
+      '<p class="label">' + (where === "reading" ? "While I read, I found this for you" : "Found while reading your notes") + "</p>" +
+      "<h3>" + p.head + "</h3>" +
+      (rest ? '<ul class="items">' + rest + "</ul>" : "") +
+      '<p class="why">' + esc(p.why) + "</p>" +
+      (asked
+        ? '<p class="asked">' + icon("i-check") + "Asked. The answer is coming in the chat next to this page.</p>"
+        : '<div class="actions">' + (canAct() ? '<button type="button" class="btn primary" data-act="gift-do">' + icon("i-send") + esc(p.button) + "</button>" : "") +
+          (where === "keep" ? '<button type="button" class="btn" data-act="gift-skip">Not now</button>' : "") + "</div>") +
+      '<p class="fine">Nothing in Apple Notes changes.</p></section>';
+  }
+  /** After the reading: the gift stays on top for a few days, until used or put away (once used, it says so until the page reloads). */
+  function giftKeepHtml() {
+    var g = state.reading && state.reading.gift;
+    var at = g ? parseTime(g.at) : null;
+    var show = !!(g && at && state.mineReady && (state.giftDone !== g.at || state.giftAsked === g.at) && (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY_MS &&
+      !state.example && !readingNow() && !revealing());
+    return show ? '<div class="keep">' + giftHtml(g, "keep") + "</div>" : "";
+  }
+  function giftDone(g) {
+    state.giftDone = g.at;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(GIFT_KEY, g.at).catch(function () {});
+  }
+  /** A line may mark its finding in **bold**; everything else is plain text. */
+  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  function readingHtml() {
+    var all = freshLines();
+    state.sawReading = true;
+    var lines = all.slice(0, Math.min(state.readShown, all.length));
+    // The last lines come with done: keep them on screen until the page itself is ready.
+    var done = !!(state.reading && state.reading.done) && lines.length === all.length;
+    var gift = giftNow();
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your notes</h2>' +
+      "<p>Finding every to-do you wrote down. A minute or two. You don't need to do anything.</p>" +
+      '<ul class="read-lines">' + lines.map(function (l, i) {
+        return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>";
+      }).join("") +
+      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your notes") + "...</span></li></ul>" +
+      '<p class="fine">Only reads. Nothing in Apple Notes changes, and it all stays in your cabinet.</p></div>' +
+      (gift ? giftHtml(gift, "reading")
+        : done ? ""
+        : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing I can take off your plate right now.</h3></section>') +
+      "</div>";
+  }
+  /** The reading is the whole page while it lasts: no made-up example under it. */
+  function showReading() { return ((state.running && state.example && fresh(state.reading)) || revealing()); }
+
+  setInterval(function () {
+    if (!revealing()) return;
+    state.readShown++;
+    paint();
+  }, REVEAL_MS);
+  setInterval(function () {
+    if (!V2 || (!state.running && !readingNow())) return;
+    quiet(maybe(readJson("data/reading.json"))).then(function (d) {
+      var r = cleanReading(d);
+      var was = state.reading;
+      if (!r || (was && r.lines.join("\n") === was.lines.join("\n") && r.done === was.done && (r.gift && r.gift.at) === (was.gift && was.gift.at))) return;
+      setReading(r);
+      paint();
+      if (r.done) load();
+    });
+  }, 2500);
+
   // ── Painting ───────────────────────────────────────────────────────────
 
   function paint() {
@@ -423,7 +652,7 @@
 
     var d = state.data;
     var sub = "Every to-do you wrote down in Apple Notes, gathered on one page.";
-    if (d && state.loaded) {
+    if (d && state.loaded && !showReading()) {
       var t = d.totals || {};
       var items = count(t.items), notes = count(t.withTodos);
       if (items === 0) sub = "Nothing to do in your notes. Enjoy it.";
@@ -455,7 +684,8 @@
         ? banner("i-info", "", "<b>These are made-up notes.</b> Open this cabinet in the Cabinet app on your Mac to bring in your own.")
         : "";
     }
-    if (state.running) {
+    // The first look said it is done: its page is here while the routine wraps up.
+    if (state.running && !(fresh(state.reading) && state.reading.done && !state.example)) {
       return banner("i-refresh", "", "<b>Looking through your notes.</b> This takes a few minutes the first time.");
     }
     if (state.example && s && s !== "connected") {
@@ -499,7 +729,8 @@
 
   function paintBody() {
     if (!state.loaded) { $("body").innerHTML = '<p class="fine" style="margin-top:22px">Loading...</p>'; return; }
-    var html = topHtml();
+    if (showReading()) { $("body").innerHTML = readingHtml(); return; }
+    var html = topHtml() + giftKeepHtml();
     var d = state.data;
     if (!d) {
       $("body").innerHTML = html || '<p class="fine" style="margin-top:22px">Nothing to show yet.</p>';
@@ -568,6 +799,18 @@
     var act = el.getAttribute("data-act");
     if (act === "run") runNow();
     else if (act === "bring") bringIn();
+    else if (act === "gift-do") {
+      var gift = state.reading && state.reading.gift;
+      if (gift) {
+        ask(giftParts(gift).ask);
+        state.giftAsked = gift.at;
+        giftDone(gift);
+        paint();
+      }
+    } else if (act === "gift-skip") {
+      if (state.reading && state.reading.gift) giftDone(state.reading.gift);
+      paint();
+    }
   });
   $("ask-form").addEventListener("submit", function (event) {
     event.preventDefault();
@@ -591,8 +834,18 @@
     cab.connectors.list().then(function (items) {
       state.notes = pickNotes(items) || unavailable;
       paint();
+      firstLook();
     }).catch(function () { state.notes = unavailable; paint(); });
     cab.connectors.onChange(function (items) { var n = pickNotes(items); if (n) { state.notes = n; paint(); } });
+    // Whether this person already used or put away the gift, on any computer.
+    Promise.resolve(cab.ready).then(function () {
+      var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
+      var seen = mine ? mine.get(GIFT_KEY) : null;
+      if (typeof seen === "string") state.giftDone = seen;
+    }).catch(function () {}).then(function () {
+      state.mineReady = true;
+      paint();
+    });
     cab.jobs.list().then(setJobs).catch(function () {});
     cab.jobs.onChange(setJobs);
   } else {
