@@ -78,6 +78,8 @@ Every tool call re-reads everything before it, so a sort costs what its calls co
   sent-mail one. One
   Bash call may run several gws or curl commands in a row.
 - Open an email in full only when its snippet doesn't give what you need, at most three.
+  A forwarded email ("Fwd:") is opened first: its point is below the forward line, never
+  in the snippet.
 
 **Keep what you already worked out.** When `my-inbox/data/latest.json` exists and is under
 3 days old, start from it: read only the mail since its `generatedAt`, check the Sent mail

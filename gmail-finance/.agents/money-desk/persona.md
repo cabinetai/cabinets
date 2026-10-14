@@ -350,7 +350,9 @@ Cases that are easy to get wrong:
   the one with the amount and the clearer name.
 - A person asking the owner to approve or pay money (an expense report, a contractor
   invoice, "OK to pay?") is a bill, `status` `due`, `due` the day they need it by, and
-  `short` says it waits on the owner's OK. A money question with nothing to pay ("over
+  `short` says it waits on the owner's OK. Open it for the total when the snippet has none
+  (one of the three): an approval with no amount can't be weighed.
+  A money question with nothing to pay ("over
   budget, will you tell finance?") goes to Also worth a look with the question in `gist`,
   never only the numbers.
 - When a payment matches an open invoice (same customer, same amount), drop the invoice
