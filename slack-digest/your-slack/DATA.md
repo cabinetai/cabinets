@@ -65,8 +65,3 @@ channel, count }`, `{ kind: "promised" }` or `{ kind: "standup", channel }`, eac
 that asks the agent for a draft. After the reading the gift and the offers not yet used stay
 on top of the page for 3 days, or until put away. A reading older than 20 minutes is ignored, and without
 `reading.json` the page shows its plain "Catching up" card, as every later catch-up does.
-
-The page writes its own headline and the line under it from `channels` and `totals`:
-"Here is what moved in your Slack" with "4 messages in 2 channels since yesterday.", or
-"Your Slack was quiet" when no channel moved. A catch-up written before this change may
-still hold `waiting`, `decisions` and `promises` lists; the page ignores them.
