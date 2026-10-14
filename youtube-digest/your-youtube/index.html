@@ -838,6 +838,16 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  /**
+   * Words someone else wrote (a name, a title, a gist), set apart so a right-to-left one reads
+   * whole inside an English line. A handle stays left to right, the @ first, as YouTube shows
+   * it: "@סהרברוך-ש1ת", never with the @ at the far end.
+   */
+  function bidi(value) { return "<bdi>" + esc(value) + "</bdi>"; }
+  function nameHtml(value) {
+    var name = String(value == null ? "" : value);
+    return /^@/.test(name) ? '<bdi dir="ltr">' + esc(name) + "</bdi>" : bidi(name);
+  }
   function icon(id, cls) {
     return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
   }
@@ -1270,7 +1280,7 @@
     return '<section class="recent-now' + (seen ? " seen" : "") + '" aria-label="The newest comments on your channel">' +
       boxHead("recent-now", "Just now on your channel", "i-chat", "", null) +
       '<ul class="rows mini">' + recent.map(function (m) {
-        return '<li><span class="top"><b dir="auto">' + esc(m.who) + '</b><span class="where" dir="auto">' + esc(m.video) + "</span></span>" +
+        return '<li><span class="top"><b>' + nameHtml(m.who) + '</b><span class="where" dir="auto">' + esc(m.video) + "</span></span>" +
           '<span class="side">' + esc(rowTime(m.at.toISOString(), now)) + "</span>" +
           '<span class="t" dir="auto">' + esc(m.gist) + (m.url ? ' <a href="' + esc(m.url) + '" target="_blank" rel="noopener noreferrer">Open</a>' : "") + "</span></li>";
       }).join("") + "</ul></section>";
@@ -1311,8 +1321,8 @@
   var NEXT_ASK = "Give me three ideas for my next video from what my viewers asked and what did well lately. For each, a working title and one line on what in the comments backs it.";
   function giftParts(g) {
     if (g.kind === "waiting") {
-      var who = "<b>" + esc(g.who) + "</b>";
-      var where = "<b>" + esc(g.video) + "</b>";
+      var who = "<b>" + nameHtml(g.who) + "</b>";
+      var where = "<b>" + bidi(g.video) + "</b>";
       var w = waitedWords(g.since);
       var ids = g.commentId && g.videoId ? " (comment " + g.commentId + " on video " + g.videoId + ")" : "";
       return {
@@ -1711,7 +1721,7 @@
         (w ? " " + w + " " + plural(w, "question is", "questions are") + " waiting for your answer." : " Every question has an answer.")
       : "<b>" + esc(ex) + "A quiet day: nothing new on your videos since the last catch-up.</b>" + (w ? " " + w + " " + plural(w, "question is", "questions are") + " still waiting for your answer." : "");
     var best = marked("best");
-    if (best && level === "L") news += ' <span dir="auto">Best: ' + esc(text(best.title, 90)) + ". " + esc(text(best.gist, 140)) + (/[.?]$/.test(text(best.gist)) ? "" : ".") + "</span>";
+    if (best && level === "L") news += ' <span dir="auto">Best: ' + bidi(text(best.title, 90)) + ". " + bidi(text(best.gist, 140)) + (/[.?]$/.test(text(best.gist)) ? "" : ".") + "</span>";
     var meta = [];
     var subs = count(ch.subscribers);
     if (subs != null) meta.push(big(subs) + " " + plural(subs, "subscriber", "subscribers"));
@@ -1757,7 +1767,7 @@
     if (link) actions.push('<a class="btn small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on YouTube</a>");
     return '<li class="row' + (open ? " open" : "") + '">' +
       '<button class="row-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
-      '<span class="who"><b dir="auto">' + esc(name) + '</b><span class="where" dir="auto">' + esc(text(item.video, 70)) + "</span>" +
+      '<span class="who"><b>' + nameHtml(name) + '</b><span class="where" dir="auto">' + esc(text(item.video, 70)) + "</span>" +
       '<span class="chips">' + chips.join("") + "</span></span>" +
       '<span class="when">' + esc(rowTime(item.since, ref)) + "</span>" +
       '<span class="gist" dir="auto">' + esc(text(item.gist, 160)) + "</span>" +
@@ -1774,7 +1784,7 @@
       var top = w[0];
       return sumBox("waiting", "Waiting for an answer", "i-help", String(w.length),
         w.length ? plural(w.length, "question", "questions") + " under your videos" : "Every question has an answer",
-        top ? "<b>" + esc(text(top.who, 60)) + ":</b> " + esc(text(top.gist, 120)) : "");
+        top ? "<b>" + nameHtml(text(top.who, 60)) + ":</b> " + bidi(text(top.gist, 120)) : "");
     }
     return listBox("waiting", "Waiting for an answer", "i-help", "", w.length,
       '<ol class="rows">' + w.map(function (item, i) { return waitingRow(item, i, ref); }).join("") + "</ol>",
@@ -1821,7 +1831,7 @@
       var best = marked("best") || v[0];
       return sumBox("videos", "Your videos", "i-play", gained != null ? big(gained) : String(v.length),
         gained != null ? plural(gained, "view", "views") + " " + esc(sinceWords(state.data)) : plural(v.length, "recent video", "recent videos"),
-        best ? "<b>Best:</b> " + esc(text(best.title, 100)) : "");
+        best ? "<b>Best:</b> " + bidi(text(best.title, 100)) : "");
     }
     return boxHead("videos", "How your videos did", "i-play", v.length ? "Your last " + v.length + " " + plural(v.length, "video", "videos") : "", null) +
       '<div class="box-body">' + (v.length ? '<ul class="rows chans">' + v.map(function (item, i) { return videoRow(item, i); }).join("") + "</ul>" : '<p class="lane-empty">No videos on the channel yet.</p>') + "</div>" +
@@ -1830,7 +1840,7 @@
 
   /** Who wrote, where, when, and the gist: the same short row in every small list. */
   function miniRow(who, where, when, gist, link, extraCls) {
-    return '<li' + (extraCls ? ' class="' + extraCls + '"' : "") + '><span class="top"><b dir="auto">' + esc(who) + "</b>" + (where ? '<span class="where" dir="auto">' + esc(where) + "</span>" : "") + "</span>" +
+    return '<li' + (extraCls ? ' class="' + extraCls + '"' : "") + '><span class="top"><b>' + nameHtml(who) + "</b>" + (where ? '<span class="where" dir="auto">' + esc(where) + "</span>" : "") + "</span>" +
       '<span class="side">' + esc(when) + "</span>" +
       '<span class="t" dir="auto">' + esc(gist) + (link ? ' <a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">Open</a>' : "") + "</span></li>";
   }
@@ -1839,7 +1849,7 @@
     var ref = refDate();
     if (level === "S") {
       var top = r[0];
-      return sumBox("recent", "Latest comments", "i-chat", String(r.length), "newest first", top ? "<b>" + esc(text(top.who, 60)) + "</b>: " + esc(text(top.gist, 100)) : "");
+      return sumBox("recent", "Latest comments", "i-chat", String(r.length), "newest first", top ? "<b>" + nameHtml(text(top.who, 60)) + "</b>: " + bidi(text(top.gist, 100)) : "");
     }
     return listBox("recent", "Latest comments", "i-chat", "", r.length,
       '<ul class="rows mini">' + r.map(function (m) {
@@ -1855,11 +1865,11 @@
       '<ul class="rows mini">' + a.map(function (x, i) {
         var n = count(x.people) || 0;
         var vids = Array.isArray(x.videos) ? x.videos.map(function (t) { return text(t, 60); }).filter(Boolean) : [];
-        var under = vids.length === 1 ? "Under " + vids[0] : vids.length ? "Under " + vids.length + " videos" : "";
+        var under = vids.length === 1 ? "Under " + bidi(vids[0]) : vids.length ? "Under " + vids.length + " videos" : "";
         var link = state.example ? "" : ytLink(x);
         return '<li><span class="top"><b dir="auto">' + esc(text(x.what, 140)) + "</b>" + (x.answered === true ? '<span class="where">Answered</span>' : "") + "</span>" +
           '<span class="side num">' + n + " " + plural(n, "person", "people") + "</span>" +
-          '<span class="t" dir="auto">' + esc(under) +
+          '<span class="t" dir="auto">' + under +
           (canAsk() ? ' <button type="button" class="btn quiet small" data-act="theme" data-i="' + i + '">' + icon("i-pen") + "Draft an answer</button>" : "") +
           (link ? ' <a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">Open</a>' : "") + "</span></li>";
       }).join("") + "</ul>", "Nobody asked the same thing twice lately.") + nudgeHtml(boxIdea("asks"));

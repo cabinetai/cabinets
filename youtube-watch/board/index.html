@@ -470,6 +470,16 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  /**
+   * Words someone else wrote (a name, a title), set apart so a right-to-left one reads whole
+   * inside an English line. A handle stays left to right, the @ first, as YouTube shows it:
+   * "@סהרברוך-ש1ת", never with the @ at the far end.
+   */
+  function bidi(value) { return "<bdi>" + esc(value) + "</bdi>"; }
+  function nameHtml(value) {
+    var name = String(value == null ? "" : value);
+    return /^@/.test(name) ? '<bdi dir="ltr">' + esc(name) + "</bdi>" : bidi(name);
+  }
   function icon(id, cls) {
     return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
   }
@@ -922,7 +932,7 @@
     var msgsHtml = msgs.length ? '<ul class="msgs">' + msgs.map(function (m) {
       var link = state.example ? "" : ytLink(m.link || m.url);
       var at = parseTime(m.at);
-      return '<li class="msg"><span><span class="by" dir="auto">' + esc(text(m.author, 40) || "Someone") + "</span>" +
+      return '<li class="msg"><span><span class="by">' + nameHtml(text(m.author, 40) || "Someone") + "</span>" +
         (at ? '<span class="at">' + esc(ago(at, now)) + "</span>" : "") + "</span>" +
         '<q dir="auto">' + esc(text(m.text, 220)) + "</q>" +
         (link ? '<a class="open" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on YouTube</a>" : "") + "</li>";
@@ -938,7 +948,7 @@
     var last = parseTime(r.lastSeen);
     var from = biz ? text(r.from, 40) : "";
     // A business ask names who asked and what for; every other kind names its kind.
-    var label = biz ? '<span class="chip">' + esc(askOf(r) === "Business" ? "Business" : askOf(r)) + (from ? " from " + '<span dir="auto">' + esc(from) + "</span>" : "") + "</span>" : '<span class="chip">' + esc(KIND_WORDS[kind]) + "</span>";
+    var label = biz ? '<span class="chip">' + esc(askOf(r) === "Business" ? "Business" : askOf(r)) + (from ? " from " + nameHtml(from) : "") + "</span>" : '<span class="chip">' + esc(KIND_WORDS[kind]) + "</span>";
     var step = biz
       ? '<span class="step" dir="auto">' + icon(reach.icon) + "<span><b>" + esc(reach.words) + ".</b> " + esc(text(r.next, 200)) + "</span></span>"
       : text(r.next) ? '<span class="step" dir="auto">' + icon("i-arrow") + "<span><b>Next:</b> " + esc(text(r.next, 200)) + "</span></span>" : "";
@@ -947,7 +957,7 @@
       '<span class="who"><b dir="auto">' + esc(text(r.title, 80) || "Something to look at") + "</b>" +
       '<span class="chips">' + levelWord(r) + label + "</span></span>" +
       '<span class="when num">' + (last ? "<span>" + esc(ago(last, now)) + "</span>" : "") + (n ? "<span>" + n + " " + plural(n, "comment", "comments") + "</span>" : "") + "</span>" +
-      '<span class="gist" dir="auto">' + esc(text(r.summary, 220)) + (where ? ' <span class="under">Under ' + esc(where) + "</span>" : "") + "</span>" +
+      '<span class="gist" dir="auto">' + esc(text(r.summary, 220)) + (where ? ' <span class="under">Under ' + bidi(where) + "</span>" : "") + "</span>" +
       step + "</button>" +
       '<div class="row-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" +
       (biz ? '<p class="route">' + icon(reach.icon) + "<span>" + esc(reach.how) + "</span></p>" : "") +
