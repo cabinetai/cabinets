@@ -2,22 +2,22 @@
 // The first reading of a person's Outlook, written only through here: every Graph answer is
 // saved by this helper, every number in a line is counted from those answers, and every
 // name, subject and time is copied from them, never typed. Run it from the cabinet root:
-//   node my-day/first-sort.mjs window              shell lines to eval: NOW TODAY FROM0 END0
+//   node my-workday/first-sort.mjs window              shell lines to eval: NOW TODAY FROM0 END0
 //                                                  END7 FROM14 FROM30 TZ_NAME (UTC times end in Z)
-//   node my-day/first-sort.mjs start               new data/reading.json and data/.work/
-//   node my-day/first-sort.mjs get <name> '<path>' [pages]
+//   node my-workday/first-sort.mjs start               new data/reading.json and data/.work/
+//   node my-workday/first-sort.mjs get <name> '<path>' [pages]
 //                                                  GET https://graph.microsoft.com/v1.0<path> with
 //                                                  $MICROSOFT_GRAPH_TOKEN, saved as data/.work/<name>.json.
 //                                                  The path starts with /me. pages: follow up to
 //                                                  that many pages (default 1, at most 10).
-//   node my-day/first-sort.mjs list <name>         one short line per item, with its ref (m1, e1)
-//   node my-day/first-sort.mjs senders <name>      who sent most in a saved inbox answer
-//   node my-day/first-sort.mjs count <name>        the exact count in a saved answer
-//   node my-day/first-sort.mjs push '<line>'       add one line (single quotes)
-//   node my-day/first-sort.mjs gift @<file>        the one thing for the person, shown while you read
-//   node my-day/first-sort.mjs profile @<file>     write data/profile.json ("This is you")
-//   node my-day/first-sort.mjs latest @<file>      write data/latest.json and data/status.json
-//   node my-day/first-sort.mjs done                mark the reading done, delete data/.work/
+//   node my-workday/first-sort.mjs list <name>         one short line per item, with its ref (m1, e1)
+//   node my-workday/first-sort.mjs senders <name>      who sent most in a saved inbox answer
+//   node my-workday/first-sort.mjs count <name>        the exact count in a saved answer
+//   node my-workday/first-sort.mjs push '<line>'       add one line (single quotes)
+//   node my-workday/first-sort.mjs gift @<file>        the one thing for the person, shown while you read
+//   node my-workday/first-sort.mjs profile @<file>     write data/profile.json ("This is you")
+//   node my-workday/first-sort.mjs latest @<file>      write data/latest.json and data/status.json
+//   node my-workday/first-sort.mjs done                mark the reading done, delete data/.work/
 // Placeholders in a line or a string of the profile:
 //   {count:<name>|one|many}     the items in a saved answer ("at least 50" when there is more)
 //   {meetings:<name>|one|many}  timed meetings in a saved calendarView answer (cancelled,
@@ -31,11 +31,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const SCHEMA = "outlook/my-day";
+const SCHEMA = "outlook/workday";
 // A stand-in Graph on this computer, for tests only.
 const GRAPH = /^http:\/\/127\.0\.0\.1:\d+\/v1\.0$/.test(process.env.FIRST_SORT_TEST_GRAPH || "") ? process.env.FIRST_SORT_TEST_GRAPH : "https://graph.microsoft.com/v1.0";
 const SAFE_LINK = /^https:\/\/(outlook\.office\.com|outlook\.office365\.com|outlook\.live\.com|teams\.microsoft\.com|teams\.live\.com)\//;
 const GIFT_KINDS = ["waiting", "prep", "noise", "calm"];
+const WAITING_KINDS = ["manager", "team", "leadership", "external", "other"];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(here, "data");
@@ -242,9 +243,9 @@ function lockReading() {
 }
 function argFile(args) {
   const arg = args.join(" ").trim();
-  if (!arg.startsWith("@")) fail("give it as @<file>: the JSON your script wrote into my-day/data/.work/");
+  if (!arg.startsWith("@")) fail("give it as @<file>: the JSON your script wrote into my-workday/data/.work/");
   const file = path.join(workDir, path.basename(arg.slice(1)));
-  try { return readJson(file); } catch { return fail(`${arg.slice(1)} is not JSON in my-day/data/.work/`); }
+  try { return readJson(file); } catch { return fail(`${arg.slice(1)} is not JSON in my-workday/data/.work/`); }
 }
 
 // ── Graph ──
@@ -401,7 +402,8 @@ function latestOf(l) {
       subject: String(m.subject || "").slice(0, 140), gist: typeof w.gist === "string" ? w.gist.slice(0, 200) : "",
       receivedAt: iso(new Date(m.receivedDateTime)), waitingSince: iso(new Date(m.receivedDateTime)), urgent: w.urgent === true,
       minutes: typeof w.minutes === "number" && w.minutes > 0 && w.minutes <= 60 ? Math.round(w.minutes) : 5,
-      reply: typeof w.reply === "string" ? w.reply.slice(0, 600) : ""
+      reply: typeof w.reply === "string" ? w.reply.slice(0, 600) : "",
+      kind: WAITING_KINDS.includes(w.kind) ? w.kind : "other"
     };
     if (typeof w.eventId === "string" && itemFor(w.eventId)) out.eventId = ref(itemFor(w.eventId).id);
     if (SAFE_LINK.test(m.webLink || "")) out.webLink = m.webLink;
@@ -424,6 +426,16 @@ function latestOf(l) {
     if (SAFE_LINK.test(m.webLink || "")) out.webLink = m.webLink;
     return out;
   }).filter(Boolean).slice(0, 5);
+  // Promises: a sent email of theirs that says they will do something. Who it went to and
+  // when come from Outlook; `what` and `due` (a plain date) are the agent's words.
+  const promises = (Array.isArray(l.promises) ? l.promises : []).map((p) => {
+    const m = itemFor(p && p.id);
+    if (!m || !m.sentDateTime || typeof p.what !== "string" || !p.what.trim()) return null;
+    const out = { id: ref(m.id), to: toNames(m)[0] ? String(toNames(m)[0]).slice(0, 80) : "", what: p.what.trim().slice(0, 140), sentAt: iso(new Date(m.sentDateTime)) };
+    if (typeof p.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.due)) out.due = p.due;
+    if (SAFE_LINK.test(m.webLink || "")) out.webLink = m.webLink;
+    return out;
+  }).filter(Boolean).slice(0, 8);
   const valid = new Set(waiting.map((w) => w.id));
   const free = (Array.isArray(l.free) ? l.free : []).map((f) => ({
     start: f && f.start, end: f && f.end,
@@ -436,7 +448,7 @@ function latestOf(l) {
     person: { name: l.person && typeof l.person.name === "string" ? l.person.name.slice(0, 60) : "" },
     headline: l.headline.slice(0, 200),
     day: { date: ymd(dayStart(0)), startHour: Math.floor(w.from), endHour: Math.ceil(w.to) },
-    events, waiting, invites, fyi
+    events, waiting, invites, fyi, promises
   };
   if (free.length) out.free = free;
   // Set aside: the emails the agent put there, each one a saved email, counted here.
@@ -466,7 +478,7 @@ if (cmd === "window") {
   if (fs.existsSync(workDir)) fs.rmSync(workDir, { recursive: true, force: true });
   fs.mkdirSync(workDir, { recursive: true });
   writeJson(readingFile, { schema: SCHEMA + "/reading@1", startedAt: iso(new Date()), done: false, lines: [] });
-  console.log("reading started; get saves Outlook's answers in my-day/data/.work/");
+  console.log("reading started; get saves Outlook's answers in my-workday/data/.work/");
 } else if (cmd === "get") {
   await graphGet(args[0], args[1], args[2]);
 } else if (cmd === "list") {
@@ -536,13 +548,13 @@ if (cmd === "window") {
   const l = latestOf(argFile(args));
   writeJson(path.join(dataDir, "latest.json"), l);
   writeJson(path.join(dataDir, "status.json"), { at: iso(new Date()), ok: true });
-  console.log(`latest.json written: ${l.events.length} meetings, ${l.waiting.length} waiting, ${l.invites.length} invites; and status.json`);
+  console.log(`latest.json written: ${l.events.length} meetings, ${l.waiting.length} waiting, ${l.invites.length} invites, ${l.promises.length} promises; and status.json`);
 } else if (cmd === "done") {
   calmIfNoGift();
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
   r.done = true;
   writeJson(readingFile, r);
-  try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("my-day/data/.work/ is busy: delete it in your next call"); }
+  try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("my-workday/data/.work/ is busy: delete it in your next call"); }
   console.log("reading done");
 } else {
   fail("use window, start, get, list, count, push, gift, profile, latest or done");

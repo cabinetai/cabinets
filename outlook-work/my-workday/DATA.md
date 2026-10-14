@@ -1,19 +1,20 @@
 ---
-title: How My day gets its mail and calendar
+title: How My workday gets its mail and calendar
 ---
-# How My day gets its mail and calendar
+# How My workday gets its mail and calendar
 
 The page never talks to Outlook. The morning routine reads Outlook through Microsoft
 Graph and writes files here, and the page shows them. The full rules for each field are
-in the agent's persona (`.agents/day-keeper/persona.md`).
+in the agent's persona (`.agents/chief-of-staff/persona.md`).
 
 | File | Written by | What it holds |
 |---|---|---|
-| `data/latest.json` | Morning day, every weekday at 7 | Today. Schema `outlook/my-day@1`. |
+| `data/latest.json` | Morning workday, every weekday at 7 | Today. Schema `outlook/workday@1`. |
 | `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up day in the same shape. Shown, marked as an example, until `latest.json` exists. |
 | `data/status.json` | Every routine | `{ at, ok, why }`. `ok: false` means the last run could not read Outlook; the page shows `why` with Try again. |
 | `setup.md` | The person, or the agent in a chat | Who matters, what to set aside, working hours, how replies sound. |
 | `data/reading.json` | The first reading only, through `first-sort.mjs` | `{ startedAt, done, lines[], gift }`: the lines the page tells while the agent reads, and one gift (`waiting`, `prep`, `noise` or `calm`) the person can act on. |
+| `data/layout-change.json` | The agent, when asked to change the boxes | `{ at, for, add[], remove[], note }`: offered on the page with Apply and No thanks. |
 | `data/profile.json` | The first reading, through `first-sort.mjs` | What it learned: `name`, `signOff`, `regulars`, `workHours`, `mail30`, `meetings7`. Shown once as "This is you". |
 
 `first-sort.mjs` is the only way the first reading talks to Outlook and writes these files:
@@ -31,7 +32,10 @@ sentence), `arrived`, `day { date, startHour, endHour }`, and:
   first). Left out, the page works out the gaps itself.
 - `waiting[]`: `id`, `from`, `company`, `subject`, `gist`, `receivedAt`,
   `waitingSince`, `urgent`, `minutes` (how long the reply takes), `eventId` (a meeting
-  it belongs to), `reply` (a reply idea in the person's voice), `webLink`.
+  it belongs to), `reply` (a reply idea in the person's voice), `webLink`, `kind`
+  (`manager`, `leadership`, `team`, `external` or `other`: who they are to the person).
+- `promises[]`: `id`, `to`, `what`, `due` (YYYY-MM-DD, when a day was named), `sentAt`,
+  `webLink`: what the person wrote they would do, from their sent mail.
 - `invites[]`: `id`, `title`, `start`, `from`, `webLink`, invitations not yet answered.
 - `fyi[]`: `from`, `gist`, `webLink`, worth knowing, nothing to do.
 - `setAside`: `{ count, what }`.
