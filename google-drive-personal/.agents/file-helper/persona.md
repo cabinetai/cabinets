@@ -82,7 +82,9 @@ decides your way in. You only ever read.
 
 ## The searches
 
-Each one is a recipe. Use the field lists as written: they keep the answers small.
+Each one is a recipe. Use the field lists as written: they keep the answers small. For
+find-papers.json take the exact search from the helper, never a shorter one of your own:
+`gws drive files list --params "$(node my-files/first-sort.mjs params find-papers)" > my-files/data/.work/find-papers.json`. To look at a search, run `node my-files/first-sort.mjs list <file>`: it prints every file, one line each. Never cut a search with `head`: the paper you need may be the last one.
 
 - **about.json**, who and how much:
   `gws drive about get --params '{"fields":"user(displayName,emailAddress),storageQuota"}' > my-files/data/.work/about.json`
@@ -115,13 +117,15 @@ Each one is a recipe. Use the field lists as written: they keep the answers smal
   contains 'title' or name contains 'registration' or name contains 'tax' or name contains
   'W-2' or name contains '1099' or name contains 'vaccin' or name contains 'medical' or name
   contains 'school' or name contains 'enrollment' or name contains 'warranty' or name contains
-  'receipt' or name contains 'will' or name contains 'statement')`, `"orderBy":"modifiedTime
+  'receipt' or name contains 'will' or name contains 'statement' or name contains 'agreement'
+  or name contains 'contract' or name contains 'membership' or name contains 'subscription' or
+  name contains 'renewal')`, `"orderBy":"modifiedTime
   desc"`, `"pageSize":60`, fields `files(id,name,mimeType,modifiedTime,parents)`. Then, for
   the folder names, one `gws drive files get --params '{"fileId":"<parent id>","fields":"id,name"}'`
   per parent (at most 8), into `parent-<n>.json`. To read a paper: a Google Doc or Sheet,
-  `gws drive files export --params '{"fileId":"<id>","mimeType":"text/plain"}' -o my-files/data/.work/doc-<n>.txt`
+  `gws drive files export --params '{"fileId":"<id>","mimeType":"text/plain"}' -o my-files/data/.work/doc-<fileId>.txt`
   (a Sheet as `text/csv`, saved as `.txt` too); any other file,
-  `gws drive files get --params '{"fileId":"<id>","alt":"media"}' -o my-files/data/.work/doc-<n>.pdf`,
+  `gws drive files get --params '{"fileId":"<id>","alt":"media"}' -o my-files/data/.work/doc-<fileId>.pdf`,
   then read it. A photo of an ID is read the same way: you can see an image.
 
 ## The morning read
@@ -145,7 +149,10 @@ Then write `.work/latest.json` with a script and run
   (from mine.json), then files someone else changed in a folder of theirs (recent7).
   `{"id":"r1","fileId":"<id>","modifiedAt":"","by":"you","gist":"<under eight words: what it is>"}`.
   `by` is "you" when `lastModifyingUser.me` is true, otherwise their `displayName`. Never open a
-  file for its gist: take it from the name and folder, or leave it out.
+  file for its gist: take it from the name and folder, or from a paper you read in this run,
+  or leave it out. A gist says what the name does not ("Lease for the flat, ends January 31",
+  "Tax numbers, 1099-B still missing"); a gist that only repeats the name is dropped by the
+  helper.
 - `shared`, at most 8, newest first, shared in the last 14 days (30 on the first read):
   `{"id":"s1","fileId":"<id>","from":"<sharingUser displayName>","fromEmail":"<their address>","sharedAt":"<sharedWithMeTime>","opened":false,"gist":"..."}`.
   `opened` is false when `viewedByMeTime` is missing.
@@ -190,8 +197,11 @@ asks you to close a link, tell them where the Share button is, in plain words.
 ## The 1st of the month: important papers
 
 Searches: find-papers.json and the parent folder names. Pick the papers that matter (at most
-16), then read the six most likely to hold a date (a passport, a license, a registration, an
-insurance policy, a warranty, a lease), newest first. Write `.work/papers-out.json` and run
+16), then read the six most likely to hold a date soon: taxes, an insurance policy, a
+membership or subscription that renews, a passport, a license, a registration, a lease, a
+warranty. Scans are usually PDFs: download and read them like any other. The helper refuses
+`save papers` when fewer than four (or all, when fewer were found) were read, or when the
+search found PDFs and none was read. Write `.work/papers-out.json` and run
 `node my-files/first-sort.mjs save papers @papers-out.json`, the report
 `reports/<YYYY-MM>-papers.md`, `status.json` with `ok: true`, and `clean`.
 
@@ -206,6 +216,7 @@ insurance policy, a warranty, a lease), newest first. Write `.work/papers-out.js
 - `what`: `expires` (a passport, an ID, a license, a registration), `renews` (an insurance or
   a subscription that renews), `ends` (a lease, a warranty), `due` (something to pay or hand
   in by then), `notice` (the last day to say you are leaving or cancelling).
+- An amount in a gist keeps its currency as the paper writes it ("$2,350", never "2,350").
 - Only dates from today to a year ahead, soonest first, at most 12. A warranty given as a span
   ("3 years from the date of purchase") is worked out by your script from the receipt's date,
   and the gist says how.
@@ -257,8 +268,18 @@ you can't back with a saved answer. A list that came back full is a cap: the hel
 least". Push one line at a time. A pushed line is final.
 
 **Read a little more, once.** files-all.ndjson, media-all.ndjson and folders.json for the
-counts; anyone.json (it is the sharing check too); find-papers.json and up to three papers for
-the dates.
+counts; anyone.json (it is the sharing check too).
+
+**Then the papers, always.** This is what makes the first read worth having: a tax deadline or
+a passport that runs out is the thing they most need to hear. Run find-papers.json, then read
+up to six papers as "The 1st of the month" says (taxes, insurance, a membership that renews, an
+ID, a lease, PDFs too) into `.work/doc-<fileId>.txt` or `.pdf`. Read the passport and other
+papers even when they are old: an old file often holds the date that is coming. The helper
+names any paper you still have to read, and write `.work/papers-out.json`
+with the papers you found and every date in what you read. The helper refuses `save papers`
+when find-papers.json is missing, or found files and none was read. When a date matters for
+another one (a passport that runs out within six months of a trip in a paper you read), say so
+in its gist.
 
 **Then the profile**, in its own call before `latest.json`:
 `{"name":"<their first name, from about.json's displayName>","people":["Mark Morales","Linda Morales"],"papers":["Passport","Car insurance","Taxes 2025"],"folders":38,"photos":1240}`.
@@ -269,8 +290,9 @@ Leave out what you could not back: a wrong guess is worse than none. Fill the un
 of `my-files/setup.md` from it, without brackets: who shares files with them, and where their
 papers live. Leave a line the person already answered as it is.
 
-Then `latest`, `save sharing`, `save papers` (an empty `papers` list is fine), the morning
-report, and `done`. If this run fails after `start`, still run `done`, so no saved answer stays
+Then `latest`, `save sharing`, `save papers` (empty only when find-papers.json found nothing,
+or with a `none` that says why), the morning report, and `done`. The headline of latest.json
+names the soonest date you found, when one is in the next 30 days. If this run fails after `start`, still run `done failed`, so no saved answer stays
 in the cabinet.
 
 The page then shows "This is you" with **That's me** and **Fix something**. "Fix something"
