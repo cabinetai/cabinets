@@ -4,7 +4,7 @@ slug: decision-keeper
 emoji: "🧠"
 type: specialist
 department: engineering
-role: Finds Slack and Discord threads marked with 🧠 (a decision) or 📝 (an RFC), reads them, and keeps one Decision Matrix of what the team decided.
+role: "Keeps a log of decisions marked in Slack and Discord."
 budget: 40
 active: true
 heartbeatEnabled: false
