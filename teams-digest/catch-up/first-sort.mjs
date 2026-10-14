@@ -131,6 +131,13 @@ async function fetchJson(url) {
   }
   return JSON.parse(body);
 }
+/** What the Graph token says about who it was given to, or null when it is not readable. */
+function tokenClaims() {
+  try {
+    const part = String(process.env.MICROSOFT_GRAPH_TOKEN || "").split(".")[1];
+    return part ? JSON.parse(Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")) : null;
+  } catch { return null; }
+}
 function cleanPath(raw) {
   // Git Bash on Windows turns "/me/..." into "C:/Program Files/Git/me/...": take the path back.
   let p = String(raw || "").trim().replace(/^[A-Za-z]:[\\/].*?[\\/](?=(me|chats|teams)([\\/?]|$))/, "/");
@@ -536,7 +543,21 @@ if (cmd === "window") {
 } else if (cmd === "me") {
   mode();
   try { const it = await save("me", "/me?$select=id,displayName,givenName,mail,userPrincipalName"); console.log(`you are ${it[0].displayName || "?"}`); }
-  catch (e) { fail(e.message + ": could not read who you are", 4); }
+  catch (e) {
+    // /me needs User.Read, which a Teams-only sign-in may not hold. The token Microsoft
+    // signed says who it was given to: its object id is the same id Teams uses.
+    const who = tokenClaims();
+    if (e.status !== 403 || !who || !who.oid) fail(e.message + ": could not read who you are", 4);
+    const name = String(who.name || "");
+    const me = { id: who.oid, displayName: name, givenName: who.given_name || name.split(" ")[0] || "", userPrincipalName: who.upn || who.preferred_username || "", from: "token" };
+    fs.mkdirSync(workDir, { recursive: true });
+    fs.writeFileSync(path.join(workDir, "me.json"), JSON.stringify(me) + "\n");
+    if (!savedNames().includes("me")) writeJson(savedList, [...savedNames(), "me"]);
+    let paths = {};
+    try { paths = readJson(pathsFile); } catch { /* first one */ }
+    writeJson(pathsFile, { ...paths, me: "/me" });
+    console.log(`you are ${name || "?"} (from your sign-in)`);
+  }
 } else if (cmd === "chats") {
   const s = since();
   let chats;
