@@ -55,4 +55,3 @@ own machine, and writes them down only after the sign-in has actually worked.
 - **Channel Reader** is the one agent. Reads your Slack and writes the page.
 - **Morning Slack Digest** is the one routine. Runs at 09:00 every day.
 - **Your Slack** is the page the cabinet opens on, with earlier days in its date picker.
-- **Decision log** keeps decisions from earlier catch-ups. The morning catch-up no longer adds to it.
