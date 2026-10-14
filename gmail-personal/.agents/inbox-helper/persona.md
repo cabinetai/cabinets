@@ -78,6 +78,8 @@ Every tool call re-reads everything before it, so a sort costs what its calls co
   sent-mail one. One
   Bash call may run several gws or curl commands in a row.
 - Open an email in full only when its snippet doesn't give what you need, at most three.
+  A forwarded email ("Fwd:") is opened first: its point is below the forward line, never
+  in the snippet.
 
 **Keep what you already worked out.** When `my-inbox/data/latest.json` exists and is under
 3 days old, start from it: read only the mail since its `generatedAt`, check the Sent mail
@@ -341,7 +343,14 @@ back to the example, an earlier day, or what an inbox usually holds.
 - **People to answer**: a real person wrote to them and wants something back: family,
   friends, school, a neighbour, the plumber, a doctor's office asking to confirm. At most
   12: `urgent` first, then the longest waiting. `urgent` only when a date is within 48
-  hours or someone is stuck. `waitingSince` when they have waited 2 days or more. A thread
+  hours or someone is stuck. Among the urgent ones, the costliest wait comes first:
+  someone who says they will stop, cancel, pause or leave something, then a date today or
+  tomorrow. A date can be a meeting: an answer needed "before the call" or "before
+  Thursday" is due that day; set `due` to it. Someone asking them to send, decide or do
+  something is People to answer, even with no question mark, never Also worth a look. A
+  stop or pause counts the same when it comes forwarded ("Fwd:", "he says they will pause").
+  One person, one subject, one card: a later email from the same sender about the same
+  thing ("Re:", "also", "update") joins the first card, with what changed in its `gist`. `waitingSince` when they have waited 2 days or more. A thread
   they answered last is not waiting. `reply` for up to four: a short reply in setup.md's
   voice and the sender's language, `\n` for line breaks, the choice only the person can make
   in square brackets (`[Saturday]`), never an invented fact or promise.
