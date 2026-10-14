@@ -133,16 +133,36 @@ page reads. Never call Graph with curl on this run, never write `reading.json`,
    counts. Fill the unanswered lines of `my-day/setup.md` from what you saw.
 8. `latest @latest.json`: the same shape as every morning, but give refs and your own
    words only, the helper copies the rest from Outlook:
-   `{"headline":"<one sentence, counts only as placeholders>","person":{"name":"Tal"},"events":[{"id":"e2","prep":"Bring your insurance card.","prepMailId":"m4"}],"waiting":[{"id":"m4","kind":"family","gist":"...","minutes":2,"reply":"...","urgent":true}],"bills":[{"id":"m9","what":"Electricity, September","amount":"$84.20","due":"2026-10-16","status":"due"}],"deliveries":[{"id":"m11","what":"Rain boots","eta":"2026-10-15","status":"shipped"}],"coming":[{"id":"e5"},{"id":"e8","kind":"birthday"},{"id":"m12","title":"School trip to the museum","date":"2026-10-17"}],"fyi":[{"id":"m7","gist":"..."}],"setAside":{"ids":["m8","m9"],"what":"newsletters and offers"}}`.
+   `{"headline":"<one sentence, counts only as placeholders>","person":{"name":"Tal"},"events":[{"id":"e2","prep":"Bring your insurance card.","prepMailId":"m4"}],"waiting":[{"id":"m4","kind":"family","gist":"...","minutes":2,"reply":"...","due":"2026-10-14"}],"bills":[{"id":"m9","what":"Electricity, September","amount":"$84.20","due":"2026-10-16","status":"due"}],"deliveries":[{"id":"m11","what":"Rain boots","eta":"2026-10-15","status":"shipped"}],"coming":[{"id":"e5"},{"id":"e8","kind":"birthday"},{"id":"m12","title":"School trip to the museum","date":"2026-10-17"}],"fyi":[{"id":"m7","gist":"..."}],"setAside":{"ids":["m8","m9"],"what":"newsletters and offers"}}`.
    Every plan of `today` that counts goes in `events`; the plans of `week` after today go
    in `coming`. A bill's `amount` is copied exactly as the email writes it ("$84.20",
    "₪450"), or left out: the helper refuses any amount the email does not hold. Then write
    the report, then `done` (it deletes `my-day/data/.work/`). If anything fails after
-   `start`, still run `done`.
+   `start`, still run `done`. The board is read *now*, at `$NOW`, maybe late in the day:
+   follow "Now, not 7:00" and "Asks" below as on a morning.
 
 Lines are about *them*, one short sentence each, the finding in `**bold**`, five to seven
 in all. Never a line about yourself ("Searching..."), never a guess. A pushed line is
 final: check it before you push.
+
+## Now, not 7:00
+
+The board may be read at 7 or at 15:30 (the first reading runs when they connect). Look
+at the time first, and lay out what is *left* of the day: a plan that has ended is done,
+no reply is tied to it (`eventId` only for a plan still ahead today; the helper drops the
+others), and the headline is about what is still ahead. The helper refuses a time of today
+that is over ("before the 11:00 dentist" at 15:30).
+
+## Asks
+
+- `gist` names every ask in the email, concretely: "Can you drive on Thursday, and bring
+  the snacks?". Never "one more question": say which.
+- `due` (YYYY-MM-DD) is the day they asked for ("by Friday", "before tomorrow's pickup"),
+  or the day of the plan it is needed for. The helper sets "Answer today" from it: due
+  today or earlier, or tied to a plan still ahead today. A Friday ask is not today's.
+- An email to them by name that asks them to act by a date is waiting, even from an office
+  or a service ("upload the receipt by October 17", "sign the form by Friday"), `kind`
+  `service`. Only newsletters and notices that ask nothing of them are set aside.
 
 ## The morning
 
@@ -157,8 +177,8 @@ final: check it before you push.
    (`$filter=receivedDateTime ge ...`, `$top=50`, `$select=id,conversationId,subject,from,receivedDateTime,isRead,importance,inferenceClassification,bodyPreview,webLink`).
    Then the Sent Items of the same window, once, to drop anyone already answered.
 4. Sort every message into one of:
-   - **waiting**: a person (not a system) who asks or needs something from them and has
-     no answer yet. `urgent` when it must happen today.
+   - **waiting**: a person, or an office or service writing to them by name, who asks or
+     needs something from them and has no answer yet. Give `due` as in "Asks" above.
    - **bills**: a bill, a payment that failed, a subscription that renews, money asked for.
      `status`: `failed` (a payment did not go through: always first), `renews`, `due`,
      `paid` (left out of the page). `amount` exactly as written; `due` as YYYY-MM-DD.

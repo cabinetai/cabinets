@@ -3,7 +3,7 @@
 // saved by this helper, every number in a line is counted from those answers, and every
 // name, subject and time is copied from them, never typed. Run it from the cabinet root:
 //   node my-day/first-sort.mjs window              shell lines to eval: NOW TODAY FROM0 END0
-//                                                  END7 FROM14 FROM30 TZ_NAME (UTC times end in Z)
+//                                                  END1 (end of tomorrow) END7 FROM14 FROM30 TZ_NAME (UTC times end in Z)
 //   node my-day/first-sort.mjs start               new data/reading.json and data/.work/
 //   node my-day/first-sort.mjs get <name> '<path>' [pages]
 //                                                  GET https://graph.microsoft.com/v1.0<path> with
@@ -376,6 +376,14 @@ function latestOf(l) {
   if (!l || typeof l !== "object" || Array.isArray(l)) fail("latest.json must be an object");
   if (typeof l.headline !== "string" || !l.headline.trim()) fail("latest.json needs a headline");
   l.headline = fill(l.headline, "the headline");
+  // The board is read now, not at 7: a time of today that is already over is not news.
+  for (const x of l.headline.matchAll(/\b(\d{1,2}):(\d{2})\b/g)) {
+    const [t, h, m] = x;
+    // "tomorrow's 10:00 pickup", "Thursday 16:00": a time of another day.
+    if (/\b(tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next)\b/i.test(l.headline.slice(Math.max(0, x.index - 30), x.index))) continue;
+    const d = dayStart(0); d.setHours(+h, +m);
+    if (d.getTime() < Date.now() - 5 * 60000) fail(`refused, the headline names ${t}, and it is ${hhmm(new Date())} now: write about what is left of the day`);
+  }
   const ref = (v) => (typeof v === "string" ? refs().byId[v] || v : v);
   const events = (Array.isArray(l.events) ? l.events : []).map((ev) => {
     const e = itemFor(ev && ev.id);
@@ -405,7 +413,18 @@ function latestOf(l) {
       reply: typeof w.reply === "string" ? w.reply.slice(0, 600) : "",
       kind: WAITING_KINDS.includes(w.kind) ? w.kind : "other"
     };
-    if (typeof w.eventId === "string" && itemFor(w.eventId)) out.eventId = ref(itemFor(w.eventId).id);
+    // Tied to a plan only while that plan is still ahead today: "before 13:00" means nothing at 15:00.
+    let ahead = false;
+    const ev = typeof w.eventId === "string" ? itemFor(w.eventId) : null;
+    if (ev && isEvent(ev)) {
+      const s = eventTime(ev.start), en = eventTime(ev.end);
+      if (s && en && en.getTime() > Date.now() && s.getTime() < dayStart(1).getTime()) { out.eventId = ref(ev.id); ahead = true; }
+    }
+    // "Answer today" follows the day they asked for, when there is one: a Friday ask is not today's.
+    if (typeof w.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(w.due)) {
+      out.due = w.due;
+      out.urgent = w.due <= ymd(dayStart(0)) || ahead;
+    } else if (out.urgent && ev && !ahead) out.urgent = false;
     if (SAFE_LINK.test(m.webLink || "")) out.webLink = m.webLink;
     return out;
   }).filter(Boolean);
@@ -490,7 +509,7 @@ const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "window") {
   const z = (d) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
   console.log([
-    `NOW='${iso(new Date())}'`, `TODAY='${ymd(dayStart(0))}'`, `FROM0='${z(dayStart(0))}'`, `END0='${z(dayStart(1))}'`,
+    `NOW='${iso(new Date())}'`, `TODAY='${ymd(dayStart(0))}'`, `FROM0='${z(dayStart(0))}'`, `END0='${z(dayStart(1))}'`, `END1='${z(dayStart(2))}'`,
     `END7='${z(dayStart(7))}'`, `FROM3='${z(dayStart(-3))}'`, `FROM14='${z(dayStart(-14))}'`, `FROM30='${z(dayStart(-30))}'`, `TZ_NAME='${TZ}'`,
   ].join("\n"));
 } else if (cmd === "start") {

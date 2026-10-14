@@ -28,7 +28,8 @@ sentence), `arrived`, `day { date, startHour, endHour }`, and:
   `where`, `people[]`, `prep` (what to bring or know, from the mail, or ""), `prepMailId`,
   `webLink`.
 - `waiting[]`: `id`, `kind` (`family`, `friend`, `school`, `service` or `other`), `from`,
-  `subject`, `gist`, `receivedAt`, `waitingSince`, `urgent`, `minutes`, `reply` (in the
+  `subject`, `gist`, `receivedAt`, `waitingSince`, `due` (YYYY-MM-DD, the day they asked for), `urgent` (due today or earlier,
+  or before a plan still ahead today), `minutes`, `reply` (in the
   person's voice, `[brackets]` for what they decide), `webLink`.
 - `bills[]`: `id`, `from`, `what`, `amount` (as the email writes it), `due` (YYYY-MM-DD),
   `status` (`due`, `failed`, `renews` or `paid`), `webLink`.
