@@ -361,6 +361,10 @@ function dropEchoGists(o) {
   if (typeof o.gist === "string" && (o.name || o.file) && bare(o.gist) === bare(o.name || o.file)) delete o.gist;
   for (const v of Object.values(o)) if (v && typeof v === "object") dropEchoGists(v);
 }
+/** The dates searches as the persona gives them. */
+const SEARCH_PARAMS = { "find-papers": { q: "trashed = false and (name contains 'passport' or name contains 'license' or name contains 'licence' or name contains ' ID' or name contains 'birth' or name contains 'marriage' or name contains 'insurance' or name contains 'policy' or name contains 'lease' or name contains 'mortgage' or name contains 'deed' or name contains 'title' or name contains 'registration' or name contains 'tax' or name contains 'W-2' or name contains '1099' or name contains 'vaccin' or name contains 'medical' or name contains 'school' or name contains 'enrollment' or name contains 'warranty' or name contains 'receipt' or name contains 'will' or name contains 'statement' or name contains 'agreement' or name contains 'contract' or name contains 'membership' or name contains 'subscription' or name contains 'renewal')", orderBy: "modifiedTime desc", pageSize: 60, fields: "files(id,name,mimeType,modifiedTime,parents)" } };
+/** Papers whose dates people miss, most important first. */
+const MUST_READ = [/passport/i, /\bID\b|licen[cs]e\b/i, /insurance|policy/i, /tax|1099|W-2/i, /membership|subscription|agreement|contract|renewal/i, /lease|mortgage|deed/i, /registration/i, /warranty/i];
 /** What a dates search is saved as, and what it looks for, by the file it fills. */
 const DATE_SEARCHES = { papers: ["find-papers.json", "papers"], dates: ["contracts.json", "contracts"] };
 /**
@@ -374,9 +378,25 @@ function checkRead(which, d) {
   if (!fs.existsSync(path.join(workDir, search))) fail(`refused, ${search} is missing: run that search first (your persona has it), then read the ${what} it finds`);
   const found = pagesSafe(search).flatMap((p) => (p && p.files) || []).filter((x) => x && x.mimeType !== "application/vnd.google-apps.folder").length;
   if (!found) return;
-  const docs = fs.readdirSync(workDir).filter((x) => /^doc-\d+\.(txt|pdf)$/i.test(x));
+  const docs = fs.readdirSync(workDir).filter((x) => /^doc-[A-Za-z0-9_-]+\.(txt|pdf)$/i.test(x));
   const need = Math.min(found, 4);
   if (docs.length < need) fail(`refused, ${search} found ${found} files and ${docs.length} ${docs.length === 1 ? "was" : "were"} read: read at least ${need} (up to six) as doc-<n>.txt or doc-<n>.pdf in data/.work/, the ones that matter most, and copy their dates`);
+  // The papers that hold the dates people miss, by kind, then newest: these are read by id.
+  if (which === "papers") {
+    const all = pagesSafe(search).flatMap((p) => (p && p.files) || []).filter((x) => x && x.id && x.mimeType !== "application/vnd.google-apps.folder");
+    // One of each kind first (the newest), then the next of each, up to twelve: a crowded kind
+    // never pushes a whole other kind out.
+    // Each paper counts under the first kind it fits ("Driver license renewal" is a license).
+    const kindOf_ = (x) => MUST_READ.findIndex((r) => r.test(x.name || ""));
+    const kinds = MUST_READ.map((r, i) => all.filter((x) => kindOf_(x) === i).sort((a, b) => String(b.modifiedTime || "").localeCompare(String(a.modifiedTime || ""))));
+    const must = [], seen = new Set();
+    for (let round = 0; must.length < 12 && kinds.some((k) => k.length > round); round++) {
+      for (const k of kinds) { const x = k[round]; if (x && !seen.has(x.id) && must.length < 12) { seen.add(x.id); must.push(x); } }
+    }
+    const readIds = new Set(docs.map((x) => x.replace(/^doc-|\.(txt|pdf)$/gi, "")));
+    const missing = must.filter((x) => !readIds.has(x.id));
+    if (missing.length) fail(`refused, read these papers too, each saved as doc-<fileId>.txt or doc-<fileId>.pdf in data/.work/: ${missing.map((x) => x.name + " (" + x.id + ")").join(", ")}`);
+  }
   // A signed contract or a scanned paper is usually a PDF: reading only what exports as text misses it.
   const pdfs = pagesSafe(search).flatMap((p) => (p && p.files) || []).filter((x) => x && x.mimeType === "application/pdf").length;
   if (pdfs && !docs.some((x) => /\.pdf$/i.test(x))) fail(`refused, ${search} found ${pdfs} PDF${pdfs === 1 ? "" : "s"} and you read none: a signed contract or a scanned paper is usually a PDF, so download the ones that matter (alt media, doc-<n>.pdf) and read them too`);
@@ -613,6 +633,11 @@ if (cmd === "window") {
   fs.mkdirSync(workDir, { recursive: true });
   writeJson(readingFile, { schema: `${CONFIG.schema}/reading@1`, startedAt: iso(new Date()), done: false, lines: [] });
   console.log("reading started; save answers in " + path.relative(process.cwd(), workDir));
+} else if (cmd === "params") {
+  // The exact --params of a dates search: copy it, never write your own shorter one.
+  const p = SEARCH_PARAMS[String(args[0] || "").replace(/\.json$/, "")];
+  if (!p) fail("use params " + Object.keys(SEARCH_PARAMS).join(" or "));
+  console.log(JSON.stringify(p));
 } else if (cmd === "list") {
   // Every file in a saved answer, one line each, so a long answer is never cut short to read it.
   for (const name of args) {
@@ -769,6 +794,10 @@ if (cmd === "window") {
   console.log("latest.json written" + (CONFIG.free ? "" : ", and status.json"));
 } else if (cmd === "done") {
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  // done deletes the saved answers: after a refusal that throws away the read. "done failed" when it really failed.
+  const latestFile = path.join(dataDir, "latest.json");
+  const wrote = fs.existsSync(latestFile) && fs.statSync(latestFile).mtimeMs >= new Date(r.startedAt).getTime();
+  if (!wrote && args[0] !== "failed") fail("refused, latest.json was not written in this read: fix what the helper refused and run latest first (or \"done failed\" when the read really failed)");
   r.done = true;
   writeJson(readingFile, r);
   try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("data/.work/ is busy: delete it in your next call"); }

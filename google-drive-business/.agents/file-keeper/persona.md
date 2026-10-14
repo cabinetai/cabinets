@@ -83,7 +83,9 @@ decides your way in. You only ever read.
 
 ## The searches
 
-Each one is a recipe. Use the field lists as written: they keep the answers small. To look at a search, run `node file-room/first-sort.mjs list <file>`: it prints every file, one line each. Never cut a search with `head`: the paper you need may be the last one.
+Each one is a recipe. Use the field lists as written: they keep the answers small. For
+contracts.json take the exact search from the helper, never a shorter one of your own:
+`gws drive files list --params "$(node file-room/first-sort.mjs params contracts)" > file-room/data/.work/contracts.json`. To look at a search, run `node file-room/first-sort.mjs list <file>`: it prints every file, one line each. Never cut a search with `head`: the paper you need may be the last one.
 
 - **about.json**, who and how much:
   `gws drive about get --params '{"fields":"user(displayName,emailAddress),storageQuota"}' > file-room/data/.work/about.json`
@@ -317,7 +319,7 @@ from it, without brackets: what the business does, and where client work lives. 
 the owner already answered as it is.
 
 Then `latest`, `save sharing`, `save dates` (empty only when what you read holds no date), the morning report,
-and `done`. If this run fails after `start`, still run `done`, so no saved answer stays in the
+and `done`. If this run fails after `start`, still run `done failed`, so no saved answer stays in the
 cabinet.
 
 The page then shows "This is you" with **That's me** and **Fix something**. "Fix something"

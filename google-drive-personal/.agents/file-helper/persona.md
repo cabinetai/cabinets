@@ -82,7 +82,9 @@ decides your way in. You only ever read.
 
 ## The searches
 
-Each one is a recipe. Use the field lists as written: they keep the answers small. To look at a search, run `node my-files/first-sort.mjs list <file>`: it prints every file, one line each. Never cut a search with `head`: the paper you need may be the last one.
+Each one is a recipe. Use the field lists as written: they keep the answers small. For
+find-papers.json take the exact search from the helper, never a shorter one of your own:
+`gws drive files list --params "$(node my-files/first-sort.mjs params find-papers)" > my-files/data/.work/find-papers.json`. To look at a search, run `node my-files/first-sort.mjs list <file>`: it prints every file, one line each. Never cut a search with `head`: the paper you need may be the last one.
 
 - **about.json**, who and how much:
   `gws drive about get --params '{"fields":"user(displayName,emailAddress),storageQuota"}' > my-files/data/.work/about.json`
@@ -121,9 +123,9 @@ Each one is a recipe. Use the field lists as written: they keep the answers smal
   desc"`, `"pageSize":60`, fields `files(id,name,mimeType,modifiedTime,parents)`. Then, for
   the folder names, one `gws drive files get --params '{"fileId":"<parent id>","fields":"id,name"}'`
   per parent (at most 8), into `parent-<n>.json`. To read a paper: a Google Doc or Sheet,
-  `gws drive files export --params '{"fileId":"<id>","mimeType":"text/plain"}' -o my-files/data/.work/doc-<n>.txt`
+  `gws drive files export --params '{"fileId":"<id>","mimeType":"text/plain"}' -o my-files/data/.work/doc-<fileId>.txt`
   (a Sheet as `text/csv`, saved as `.txt` too); any other file,
-  `gws drive files get --params '{"fileId":"<id>","alt":"media"}' -o my-files/data/.work/doc-<n>.pdf`,
+  `gws drive files get --params '{"fileId":"<id>","alt":"media"}' -o my-files/data/.work/doc-<fileId>.pdf`,
   then read it. A photo of an ID is read the same way: you can see an image.
 
 ## The morning read
@@ -271,7 +273,9 @@ counts; anyone.json (it is the sharing check too).
 **Then the papers, always.** This is what makes the first read worth having: a tax deadline or
 a passport that runs out is the thing they most need to hear. Run find-papers.json, then read
 up to six papers as "The 1st of the month" says (taxes, insurance, a membership that renews, an
-ID, a lease, PDFs too) into `.work/doc-<n>.txt` or `.pdf`, and write `.work/papers-out.json`
+ID, a lease, PDFs too) into `.work/doc-<fileId>.txt` or `.pdf`. Read the passport and other
+papers even when they are old: an old file often holds the date that is coming. The helper
+names any paper you still have to read, and write `.work/papers-out.json`
 with the papers you found and every date in what you read. The helper refuses `save papers`
 when find-papers.json is missing, or found files and none was read. When a date matters for
 another one (a passport that runs out within six months of a trip in a paper you read), say so
@@ -288,7 +292,7 @@ papers live. Leave a line the person already answered as it is.
 
 Then `latest`, `save sharing`, `save papers` (empty only when find-papers.json found nothing,
 or with a `none` that says why), the morning report, and `done`. The headline of latest.json
-names the soonest date you found, when one is in the next 30 days. If this run fails after `start`, still run `done`, so no saved answer stays
+names the soonest date you found, when one is in the next 30 days. If this run fails after `start`, still run `done failed`, so no saved answer stays
 in the cabinet.
 
 The page then shows "This is you" with **That's me** and **Fix something**. "Fix something"
