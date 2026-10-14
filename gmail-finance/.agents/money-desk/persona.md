@@ -341,6 +341,18 @@ Never fall back to the example, an earlier day, or what an inbox usually holds.
 Cases that are easy to get wrong:
 - An invoice the owner sent is money in. An invoice a supplier sent the owner is a bill.
 - A receipt is something already paid: `receipts`, never `bills`.
+- A receipt's `amount` is in the email, often only in the body or a table: open it
+  (`+read`, one of the three of Spend little) when the subject and snippet have no
+  amount. Leave `amount` out only when
+  the email truly has none.
+- One payment, one receipt. A card or bank alert and the seller's own receipt for the same
+  charge (same seller, same day, or the same amount within two days) are one receipt: keep
+  the one with the amount and the clearer name.
+- A person asking the owner to approve or pay money (an expense report, a contractor
+  invoice, "OK to pay?") is a bill, `status` `due`, `due` the day they need it by, and
+  `short` says it waits on the owner's OK. A money question with nothing to pay ("over
+  budget, will you tell finance?") goes to Also worth a look with the question in `gist`,
+  never only the numbers.
 - When a payment matches an open invoice (same customer, same amount), drop the invoice
   and keep the payment.
 - Sign-in, security, password and shipping alerts are set aside: never a card.

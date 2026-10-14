@@ -341,7 +341,11 @@ back to the example, an earlier day, or what an inbox usually holds.
 - **People to answer**: a real person wrote to them and wants something back: family,
   friends, school, a neighbour, the plumber, a doctor's office asking to confirm. At most
   12: `urgent` first, then the longest waiting. `urgent` only when a date is within 48
-  hours or someone is stuck. `waitingSince` when they have waited 2 days or more. A thread
+  hours or someone is stuck. Among the urgent ones, the costliest wait comes first:
+  someone who says they will stop, cancel, pause or leave something, then a date today or
+  tomorrow. A date can be a meeting: an answer needed "before the call" or "before
+  Thursday" is due that day; set `due` to it. Someone asking them to send, decide or do
+  something is People to answer, even with no question mark, never Also worth a look. `waitingSince` when they have waited 2 days or more. A thread
   they answered last is not waiting. `reply` for up to four: a short reply in setup.md's
   voice and the sender's language, `\n` for line breaks, the choice only the person can make
   in square brackets (`[Saturday]`), never an invented fact or promise.
