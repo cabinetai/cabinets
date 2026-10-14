@@ -54,7 +54,8 @@ Every event of the week gets one `kind`:
 
 - `upcoming`: appointments, bookings, school dates and trips from today to 30 days ahead,
   as `id`, `date`, `start` (or null), `title`, `place`, and `kind`: `appointment`,
-  `school`, `booking`, `travel`, `family` or `other`. Not the daily routine (school runs,
+  `school`, `booking`, `travel`, `family`, `todo` (something to do by then, with no one
+  to meet: renew the car insurance, pay a bill, send a form) or `other`. Not the daily routine (school runs,
   work, the gym). At most 20, soonest first.
 - `dates`: birthdays and anniversaries in the next 30 days, from all-day events or the
   calendar's own birthdays, as `id`, `date`, `title` ("Leo's 6th birthday" only when the
