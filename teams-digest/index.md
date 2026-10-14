@@ -1,57 +1,47 @@
 ---
-title: Teams Digest
+title: Microsoft Teams
 created: '2026-08-09T00:00:00Z'
-modified: '2026-09-15T00:00:00Z'
-tags: [microsoft-teams, microsoft-365, channels, digest, showcase]
+modified: '2026-10-14T00:00:00Z'
+tags: [microsoft-teams, teams, microsoft, chats, channels, mentions, catch-up, work]
 order: 1
 ---
-# Teams Digest
+# Microsoft Teams
 
-Every morning, what moved in your Teams channels in the last 24 hours, and which of it wants you.
+Teams shows you everything. This shows what needs you, and what you can safely skip.
 
-## What you get
+Every weekday at 8, your catch-up reads your chats and channels and opens on one page:
 
-One page, waiting for you at 9. Every channel that moved yesterday gets one line, the
-channel, how many messages piled up in it, what it actually wants from you, and how urgent
-that is. The loudest channel does not win: the ones waiting on an answer sit at the top,
-and the fifty-message thread about the coffee machine sits at the bottom where it belongs.
+- **Since yesterday**: every message as a small light, and the few that need you glowing.
+  "412 messages since yesterday. 4 need you." Every number is counted from Teams.
+- **Waiting on you**: people who asked you, @mentioned you or wrote to you, longest wait
+  first, each with a reply in your voice to copy.
+- **You said you would**: what you told people you would do, found in your own messages.
+  Teams never reminds you; this does.
+- **Decided while you were away**: one line each, from chats, meeting chats and channels.
+- **Channels**: each channel that moved, how much, and whether it wants you.
+- **Safe to skip**: the loud chats that never needed you, counted, so you can trust the rest.
 
-**Every channel is named with its team, like `Marketing > General`.** Teams puts channels
-inside teams, and half the teams in a company have a General, so the team name is part of
-the address rather than decoration.
+Ask anything about your chats in the box at the bottom, try an idea ("Catch me up after time
+off", "What did I promise this week?"), and arrange the page your way with **Layout**.
 
-**It covers the teams you are a member of.** You never pick channels or keep a list up to
-date here. You widen it by joining a team and narrow it by leaving one, in Teams itself.
+## To start
 
-Chats are left out on purpose: one-to-one and group chats are not in this at all. Channels
-only.
+Open **Catch up** and press **Connect Teams**. Sign in with Microsoft, with your work or
+school account (Microsoft does not let apps read Teams on personal accounts). The first
+reading takes about a minute and shows you what it finds as it reads. Until then the page
+shows a made-up team, clearly marked.
 
-Nothing is posted, replied to, reacted to or marked read. It only reads.
+Channel messages need your IT admin's OK on most company accounts. Without it, your chats
+are all there and the page says so.
 
-## Not the same as Microsoft 365 Brief
+## It only reads
 
-If you have its sibling **Microsoft 365 Brief** as well: that one gives you one line per
-*thing* across mail, meetings and messages, answering what today asks of you, a notable
-Teams post shows up there as a single line among your meetings. This one gives you one line
-per *channel*, with a message count, answering what happened while you were away. A channel
-that took sixty messages and needs nothing from you is a line only this page can give you,
-and on a busy morning it is the most useful line on it.
+It never posts, replies, reacts or marks anything as read. Replies are yours to copy and
+send.
 
-## How to look at it
+## Inside
 
-Open the **Channel Roundup** app in this cabinet. It comes pre-filled with a made-up example
-so you can see the shape of it straight away. The page says clearly that those channels are
-fake. Your first real digest takes its place.
-
-## Before it can read your real Teams
-
-Connect Microsoft 365 from Integrations in Cabinet, or when Cabinet asks. Teams has no
-connection of its own, and the same one covers Outlook, Calendar and SharePoint too. On a
-company account your IT department may have to allow it first. Until you connect, the page
-keeps the example.
-
-## What's inside
-
-- **Teams Reader**: the one agent. Reads the day's channels, writes the digest.
-- **Morning Teams Digest**: the one routine. Runs at 09:00 every day.
-- **Channel Roundup**: the one page. Opens on today, with a dropdown for earlier days.
+- **Catch up**: the app this cabinet opens on, and what you told it about your work.
+- **Teams Reader**: the agent. Reads your Teams, writes the page, answers in the chat.
+- **Morning catch-up**: the routine, every weekday at 8.
+- **Reports**: one page per morning.
