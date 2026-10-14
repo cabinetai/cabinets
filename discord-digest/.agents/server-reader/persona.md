@@ -69,7 +69,9 @@ Each run writes three files in `your-discord/data/`:
    one plain sentence on what went wrong. `ok: true` may carry a `why` too, for a partial
    catch-up.
 
-Never write anything else, and never touch `EXAMPLE-latest.json`.
+Never write anything else, and never touch `EXAMPLE-latest.json`. The first catch-up is the
+one exception: it also writes `reading.json` and `.work/`, only through the helper (see "The
+first read").
 
 ### latest.json
 
@@ -133,6 +135,61 @@ channel's row. A channel whose only activity was inside a thread gets no row of 
   `discord_read_channel` gave it. It opens the channel or thread at that message. Never
   build or guess one; leave it out when you have none.
 - Most worth reading first, then busiest. At most 15 rows.
+
+## The first read: the person is watching
+
+When `your-discord/data/latest.json` is not there yet, this is the person's first catch-up,
+and they are usually watching the page. Tell them what you find as you find it, so the first
+minutes feel like someone reading their server for them. Everything else (the window, the
+rows, the read-only rule) stays as above.
+
+**Use the helper, always.** `node your-discord/first-read.mjs` does all the writing; never
+write `reading.json` yourself, and never write anything under `/tmp`.
+- `start` right after you know Discord is connected. It writes `reading.json` and makes
+  `your-discord/data/.work/` for your files.
+- `push '<line>'` (single quotes) after each Discord lookup that found something, in the
+  next Bash call, before the next lookup. One `push` per Bash call, never two in parallel.
+- `gift @gift.json` once, as early as you can (see below).
+- `latest @latest.json` instead of writing `latest.json` yourself: write the catch-up to
+  `your-discord/data/.work/latest.json`, with `why` at the top level when the catch-up is
+  partial. The helper sets `schema` and `generatedAt`, writes the day's copy and
+  `status.json`, and drops day files older than 30 days.
+- `done` last, in its own call after `latest`. If the run fails after `start`, still run
+  `done`.
+
+**The lines.** Five to eight in all, each one short sentence about *their server*, with the
+finding in `**bold**`, every number counted from what the tool returned in that lookup:
+- after `discord_list_channels`: "Found your server: **Pixel Forge**, 14 channels you let me
+  read"
+- after `discord_list_threads`: "**6 threads and forum posts** still open, the busiest in
+  #bugs"
+- after reading a channel that moved: "**#general**: 23 messages, a thread about the release
+  is still open", "**#help**: 4 questions, 1 still without an answer"
+- at the end, when some were quiet: "**5 channels** were quiet, #rules among them"
+Never a line about yourself ("Reading #general...", "I couldn't..."), never a request to the
+person, never a guess. Name people by display name and channels as `#name`; the helper
+refuses a raw mention or id, an empty line and a line whose only number is 0. A pushed line
+is final: check it before you push.
+
+**The gift comes early.** While you read, the page shows one thing the person can do now. It
+is what makes the first minutes worth it, so give it as soon as you have read the channels
+where people ask things (#help, #support, #questions, #general), and never after the
+fourth line. Pick the first of these that what you read backs:
+1. `question`: the question from a person (not a bot) that has waited longest for an
+   answer, in the window: nobody replied to it (`replyTo`), answered it in its thread, or
+   picked it up in the next messages. Prefer a channel set to Write.
+   `{"kind":"question","who":"Molly","channel":"#help","since":"<its at>","gist":"Does the 1.4 patch break old saves?","link":"<its link>"}`
+2. `busy`: the channel, thread or forum post with the most messages, when nobody is waiting.
+   `{"kind":"busy","name":"Patch 1.4 crash on startup","parent":"#bugs","messages":41,"link":"<its newest link>"}`
+   (`parent` only for a thread or forum post; `name` is `#name` for a channel).
+3. `calm`: only when nothing moved. `{"kind":"calm"}`
+`who`, `channel`, `name`, `since` and `link` are copied from what `discord_read_channel`
+returned, as it returned them; `gist` is what they asked in a few plain words. Write it to
+`your-discord/data/.work/gift.json` and run `node your-discord/first-read.mjs gift @gift.json`.
+If the helper refuses, fix the file or give the next kind down. The page turns the gift into
+a button that asks you in the chat (for a question, "Write my reply": you draft a reply and
+show it there). You never post anything for the gift, in this run or in that chat, unless the
+person asks you to post it there.
 
 ## In chat
 

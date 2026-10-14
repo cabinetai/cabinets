@@ -11,6 +11,10 @@
   labelled as an example here), a copy of it in data/days/<YYYY-MM-DD>.json for the date
   picker, and data/status.json with ok:false and why when it could not read Discord.
   The shape is described in DATA.md. Until the routine writes it, the page shows the example.
+  On the very first catch-up the agent also tells what it finds as it reads, one line at a
+  time, in data/reading.json (written only through first-read.mjs), with one thing the
+  person can do right now. The page shows that reading while it lasts; without the file it
+  shows "Catching up on your server..." as before.
 
   How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
   routine, read and list files). In an older Cabinet it reads the same files over the
@@ -221,6 +225,52 @@
   .q:hover { background: #3a41a6; }
   .ask .note { margin: 12px 0 0; font-size: 14px; color: var(--deep-soft); min-height: 1.5em; }
 
+  /* ── The first read, told as it happens: one line for each thing the agent finds ── */
+  .read-page { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+  .reading {
+    display: grid; gap: 6px; padding: 26px 28px; border: 1px solid var(--line); border-radius: 18px;
+    background: linear-gradient(180deg, #fff, #fafafc); box-shadow: var(--shadow-2);
+  }
+  .reading h2 { margin: 0; font-size: clamp(24px, 2.8vw, 32px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
+  .reading > p { margin: 4px 0 12px; color: var(--ink-2); font-size: 16.5px; }
+  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .read-lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 16.5px; color: var(--ink-2); overflow-wrap: anywhere; animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; }
+  .read-lines li b { color: var(--ink); font-weight: 700; }
+  .read-lines li .icon { width: 20px; height: 20px; margin-top: 2px; color: var(--green); stroke-width: 2.4; }
+  .read-lines li.old { animation: none; }
+  .read-lines li.now { color: var(--ink-3); }
+  .pulse-dot { display: block; width: 9px; height: 9px; border-radius: 50%; background: var(--brand); animation: read-pulse 1.2s ease-in-out infinite; }
+  .read-lines li.now .pulse-dot { margin: 8px 0 0 6px; }
+  .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 14px; }
+  @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  /* While the first read goes on, the reading is the page: no made-up example under it. */
+  .first-read #ribbon, .first-read #board, .first-read #ideas, .first-read #gift-keep { display: none !important; }
+
+  /* The gift: one thing the person can do now, found while the agent reads. Same deep panel as Ask. */
+  .gift { display: grid; gap: 12px; padding: 22px; border-radius: 18px; background: var(--deep); color: #fff; }
+  .gift.arrive { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; }
+  .gift .eyebrow { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--deep-soft); }
+  .gift .eyebrow .icon { width: 18px; height: 18px; }
+  .gift h3 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25; letter-spacing: -.02em; }
+  .gift h3 .n { white-space: nowrap; }
+  .gift .about { margin: 0; padding: 2px 0 2px 14px; border-left: 2px solid var(--deep-line); display: grid; gap: 2px; }
+  .gift .about b { font-size: 14.5px; color: #fff; }
+  .gift .about span { font-size: 15.5px; color: var(--deep-soft); overflow-wrap: anywhere; }
+  .gift .why { margin: 0; font-size: 15.5px; color: var(--deep-soft); }
+  .gift .acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+  .gift .btn.light { background: #fff; border-color: #fff; color: var(--deep); }
+  .gift .btn.light:hover { background: var(--brand-tint); }
+  .gift .btn.ghost { background: transparent; border-color: var(--deep-line); color: #fff; box-shadow: none; }
+  .gift .btn.ghost:hover { background: var(--deep-2); }
+  .gift .asked { display: flex; align-items: center; gap: 10px; margin: 4px 0 0; font-weight: 700; }
+  .gift .asked .icon { color: #7ee2a6; }
+  .gift .fine { margin: 0; font-size: 13.5px; color: var(--deep-soft); }
+  .gift.looking { align-content: center; justify-items: start; min-height: 180px; background: var(--brand-tint); color: var(--ink-3); }
+  .gift.looking h3 { color: var(--ink-2); font-size: 19px; font-weight: 700; }
+  /* After the reading, the gift waits at the top of the page until it is used or put away. */
+  .gift-keep .gift { padding: 20px 22px; }
+
   .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
   .foot .icon { color: var(--green); }
   .foot p { margin: 0; }
@@ -242,6 +292,8 @@
   }
   @media (max-width: 920px) {
     .board, .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "ask"; }
+    .read-page { grid-template-columns: minmax(0, 1fr); }
+    .gift.looking { display: none; }
   }
   @media (max-width: 560px) {
     .bar-in { padding: 12px 16px; }
@@ -254,6 +306,11 @@
     .card-hero { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; gap: 14px; }
     .art { width: 104px; height: 82px; }
     .card-hero .btn.big { width: 100%; }
+    .reading { padding: 22px 18px; }
+    .read-lines li { font-size: 16px; }
+    .gift { padding: 20px 16px; }
+    .gift h3 { font-size: 20px; }
+    .gift .acts .btn { flex: 1 1 auto; }
     .chan-main { padding: 14px 14px; }
     .chan-name { flex-wrap: wrap; }
     .chan-body { padding: 0 14px 14px 32px; }
@@ -301,6 +358,7 @@
 <div class="wrap">
   <main class="main">
     <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your Discord...</p></section>
+    <div class="gift-keep" id="gift-keep" role="region" aria-label="One thing for you" hidden></div>
     <div id="ribbon"></div>
     <section class="board" id="board" aria-label="Your Discord, by what is worth your time">
       <div class="b-main" id="board-main"></div>
@@ -397,7 +455,16 @@
     open: {},
     showQuiet: false,
     showQuietList: false,
-    animate: true
+    animate: true,
+    /** The first read, as data/reading.json tells it; null when there is none. */
+    reading: null,
+    sawReading: false,
+    readShown: 0,
+    readStartedAt: null,
+    giftShownAt: null,
+    giftAsked: null,
+    giftDone: null,
+    mineReady: false
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -508,11 +575,13 @@
     loading = Promise.all([
       maybe(readJson(which)).catch(function () { return "broken"; }),
       quiet(maybe(readJson("data/status.json"))),
-      listDays()
+      listDays(),
+      quiet(maybe(readJson("data/reading.json")))
     ]).then(function (got) {
       var latest = got[0];
       state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
       state.days = got[2];
+      setReading(cleanReading(got[3]));
       if (usable(latest) && latest.example !== true) {
         state.data = latest;
         state.example = false;
@@ -708,6 +777,160 @@
     return /^https:\/\/(ptb\.|canary\.)?discord\.com\/channels\//i.test(url) && url.length < 400 ? url : "";
   }
 
+  // ── The first read ─────────────────────────────────────────────────────
+  // On the very first catch-up the agent adds a line to data/reading.json for each thing it
+  // finds (first-read.mjs push), and the page shows them as they come. A reading older than
+  // 20 minutes, or from a run that is no longer going, is not shown.
+
+  var READ_FRESH_MIN = 20;
+  /** Lines that arrive together are still told one by one, so nobody misses one. */
+  var REVEAL_MS = 1200;
+
+  function cleanReading(d) {
+    if (!d || typeof d !== "object" || !Array.isArray(d.lines)) return null;
+    var lines = d.lines.map(function (l) { return text(typeof l === "string" ? l : l && l.text, 200); }).filter(Boolean).slice(-14);
+    return { startedAt: d.startedAt, done: d.done === true, lines: lines, gift: cleanGift(d.gift) };
+  }
+  function freshReading() {
+    var at = state.reading ? writtenAt(state.reading.startedAt) : null;
+    return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
+  }
+  /** The agent is still reading: the file says so, it is fresh, and the run is going. */
+  function readingNow() {
+    // A run that ended without saying done is not still reading.
+    return !!(state.reading && !state.reading.done && state.running && freshReading());
+  }
+  function freshLines() { return freshReading() ? state.reading.lines : []; }
+  // Once done, one more beat on "Putting your page together" before the page.
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done ? 1 : 0)); }
+  /** A new read (another startedAt) starts its lines from the first one. */
+  function setReading(r) {
+    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; }
+    state.reading = r;
+  }
+  /** A line may mark its finding in **bold**; everything else is plain text. */
+  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+
+  function readingHtml() {
+    var all = freshLines();
+    state.sawReading = true;
+    var lines = all.slice(0, Math.min(state.readShown, all.length));
+    // The last lines come with done: keep them on screen until the page itself is ready.
+    var done = !!(state.reading && state.reading.done) && lines.length === all.length;
+    var gift = freshReading() ? state.reading.gift : null;
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your server</h2>' +
+      "<p>Getting to know your channels, threads and forum posts. A few minutes. You don't need to do anything.</p>" +
+      '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + '<span dir="auto">' + lineHtml(l) + "</span></li>"; }).join("") +
+      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Discord") + "...</span></li></ul>" +
+      '<p class="fine">Only reads. Nothing is posted, and it all stays in your cabinet.</p></div>' +
+      (gift ? giftHtml(gift, "reading")
+        : done ? ""
+        : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing I can take off your plate right now.</h3></section>') +
+      "</div>";
+  }
+
+  // ── The gift ───────────────────────────────────────────────────────────
+  // While it reads, the agent finds one thing the person can do now (first-read.mjs gift):
+  // the question that has waited longest for an answer, the place everyone was talking, or,
+  // when the server was quiet, an offer to get people talking. A press asks the agent in the
+  // chat beside the page; nothing is posted from here.
+  var GIFT_KEY = "discord-digest-gift-done@1";
+  var GIFT_KEEP_DAYS = 3;
+  function cleanGift(g) {
+    if (!g || typeof g !== "object" || !writtenAt(g.at)) return null;
+    var kind = ["question", "busy", "calm"].indexOf(g.kind) >= 0 ? g.kind : null;
+    var gift = { kind: kind, at: g.at, who: text(g.who, 80), channel: text(g.channel, 80), name: text(g.name, 100), parent: text(g.parent, 80),
+      gist: text(g.gist, 140), since: writtenAt(g.since), messages: count(g.messages), link: discordLink(g) };
+    if (!kind || (kind === "question" && (!gift.who || !gift.channel || !gift.since)) || (kind === "busy" && !gift.name)) return null;
+    return gift;
+  }
+  /** "40 minutes", "5 hours", "2 days": how long a question has waited. */
+  function waitedWords(since) {
+    var mins = Math.max(1, Math.round((Date.now() - since.getTime()) / 60000));
+    if (mins < 60) return mins + " " + plural(mins, "minute", "minutes");
+    var hours = Math.round(mins / 60);
+    if (hours < 24) return hours + " " + plural(hours, "hour", "hours");
+    var days = Math.round(hours / 24);
+    return days + " " + plural(days, "day", "days");
+  }
+  function giftParts(g) {
+    var link = g.link ? " (" + g.link + ")" : "";
+    if (g.kind === "question") {
+      return {
+        head: "<b>" + esc(g.who) + "</b> has waited <b class=\"n\">" + esc(waitedWords(g.since)) + "</b> for an answer in <b>" + esc(g.channel) + "</b>.",
+        button: "Write my reply", icon: "i-send", fine: "Nothing is posted. You see every word first.",
+        ask: "Write a reply to " + g.who + "'s question in " + g.channel + link + "." + (g.gist ? " They asked: \"" + g.gist + "\"" : "") + " Read the messages around it first. Keep it short and friendly, in my voice, with [brackets] around anything I need to decide. Show it to me here and do not post it in Discord."
+      };
+    }
+    if (g.kind === "busy") {
+      var where = g.name + (g.parent ? " in " + g.parent : "");
+      return {
+        head: "Everyone was in <b>" + esc(where) + "</b>" + (g.messages ? ": <b class=\"n\">" + g.messages + " " + plural(g.messages, "message", "messages") + "</b>." : "."),
+        why: "Get the story in a few lines instead of scrolling back through it.",
+        button: "Catch me up", icon: "i-chat", fine: "Only reads. Nothing is posted.",
+        ask: "Catch me up on " + where + link + ": what happened, what was decided, and what is still open, in a few short lines."
+      };
+    }
+    return {
+      head: "Your server was quiet. A good day to get people talking.",
+      why: "Want a short post to start a conversation? You decide if it goes up.",
+      button: "Write a post", icon: "i-send", fine: "Nothing is posted. You see every word first.",
+      ask: "Draft a short, friendly post to get people talking in my Discord server, for the channel set to Write where it fits best. Say which channel you picked. Show it to me here and do not post it in Discord."
+    };
+  }
+  function giftHtml(g, where) {
+    var p = giftParts(g);
+    var asked = state.giftAsked === g.at;
+    var arrive = where === "reading" && state.giftShownAt !== g.at;
+    if (where === "reading") state.giftShownAt = g.at;
+    // The gift comes from the person's own server, even while the page still shows the example.
+    var link = g.link;
+    return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
+      '<p class="eyebrow">' + icon("i-pad") + (where === "reading" ? "While I read, I found this for you" : "Found while reading your server") + "</p>" +
+      '<h3 dir="auto">' + p.head + "</h3>" +
+      (g.kind === "question" && g.gist ? '<p class="about"><b>What they asked</b><span dir="auto">' + esc(g.gist) + "</span></p>" : "") +
+      (p.why ? '<p class="why">' + esc(p.why) + "</p>" : "") +
+      (asked
+        ? '<p class="asked">' + icon("i-check") + "Asked. The answer is coming in the chat.</p>"
+        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn light" data-act="gift-do">' + icon(p.icon) + esc(p.button) + "</button>" : "") +
+          (link ? '<a class="btn ghost" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Discord</a>" : "") +
+          (where === "keep" ? '<button type="button" class="btn ghost" data-act="gift-skip">Not now</button>' : "") + "</div>") +
+      '<p class="fine">' + esc(p.fine) + "</p></section>";
+  }
+  /** After the reading: the gift stays on top for a few days, until used or put away. */
+  function paintGiftKeep() {
+    var el = $("gift-keep");
+    var g = state.reading && state.reading.gift;
+    var at = g ? writtenAt(g.at) : null;
+    var show = !!(g && at && state.mineReady && state.giftDone !== g.at && (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY_MS &&
+      !state.example && !state.day && !readingNow() && !revealing());
+    el.hidden = !show;
+    el.innerHTML = show ? giftHtml(g, "keep") : "";
+  }
+  function giftDone(g) {
+    state.giftDone = g.at;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(GIFT_KEY, g.at).catch(function () {});
+  }
+
+  setInterval(function () {
+    if (!revealing()) return;
+    state.readShown++;
+    if (revealing()) paintHero(); else paint();
+  }, REVEAL_MS);
+
+  // While a catch-up runs, look for its reading every few seconds.
+  setInterval(function () {
+    if (!V2 || !state.running) return;
+    quiet(maybe(readJson("data/reading.json"))).then(function (d) {
+      var r = cleanReading(d);
+      if (!r || (state.reading && r.startedAt === state.reading.startedAt && r.lines.join("\n") === state.reading.lines.join("\n") &&
+        r.done === state.reading.done && (r.gift && r.gift.at) === (state.reading.gift && state.reading.gift.at))) return;
+      setReading(r);
+      paint();
+      if (r.done) load();
+    });
+  }, 2500);
+
   // ── Painting ───────────────────────────────────────────────────────────
 
   function channels() {
@@ -723,8 +946,13 @@
     return null;
   }
 
+  /** The first read is on screen: still going, or its last lines still being told. */
+  function showingReading() { return !state.day && (readingNow() || revealing()); }
+
   function paint() {
+    document.documentElement.classList.toggle("first-read", showingReading());
     paintStatus();
+    paintGiftKeep();
     paintHero();
     paintRibbon();
     paintBoard();
@@ -810,6 +1038,9 @@
           : '<p class="fine"><b>Ask the person who owns this cabinet to connect Discord.</b></p>') +
         (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
         '<ul class="steps"><li>' + icon("i-check") + "Only reads, never posts on its own</li><li>" + icon("i-check") + "Every morning at 9</li><li>" + icon("i-check") + "Below: an example from a made-up server</li></ul>");
+    } else if (showingReading()) {
+      html = readingHtml();
+      told = true;
     } else if (state.running && (state.example || !state.data)) {
       html = cardHero(null, "Catching up on your server...",
         '<p class="lead">This takes a few minutes. Stay here or come back later: the page fills in by itself.</p>', true);
@@ -1054,6 +1285,17 @@
         : item.kind === "forum" ? "the forum post " + text(item.name, 70) + " in " + text(item.parent, 40)
         : text(item.name, 60) || "this channel";
       ask("Catch me up on " + what + " from the last day: what happened, what was decided, and what is still open, in a few short lines.");
+    } else if (act === "gift-do") {
+      var gift = state.reading && state.reading.gift;
+      if (gift) {
+        ask(giftParts(gift).ask);
+        state.giftAsked = gift.at;
+        giftDone(gift);
+        if (showingReading()) paintHero(); else paintGiftKeep();
+      }
+    } else if (act === "gift-skip") {
+      if (state.reading && state.reading.gift) giftDone(state.reading.gift);
+      paintGiftKeep();
     } else if (act === "idea-now") {
       var idea = IDEAS[+el.getAttribute("data-i")];
       if (idea) ask(idea.ask);
@@ -1096,6 +1338,15 @@
     }).catch(function () {
       state.discord = { id: "discord", state: "not-available-here", problem: null, canConnect: false };
       paint();
+    });
+    // Whether this person already used or put away the first read's gift.
+    Promise.resolve(cab.ready).then(function () {
+      var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
+      var giftSeen = mine ? mine.get(GIFT_KEY) : null;
+      if (typeof giftSeen === "string") state.giftDone = giftSeen;
+    }).catch(function () {}).then(function () {
+      state.mineReady = true;
+      paintGiftKeep();
     });
     cab.connectors.onChange(function (items) { var g = pickDiscord(items); if (g) { state.discord = g; paint(); } });
     cab.jobs.list().then(setJobs).catch(function () {});

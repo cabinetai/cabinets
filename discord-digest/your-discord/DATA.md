@@ -13,6 +13,8 @@ are in the agent's persona (`.agents/server-reader/persona.md`).
 | `data/days/<YYYY-MM-DD>.json` | The same routine | A copy of each day's catch-up, for the date picker. Kept for 30 days. |
 | `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up server in the same shape. Shown, marked as an example, until `latest.json` exists. |
 | `data/status.json` | The same routine | `{ at, ok, why }`. `ok: false` means the last run could not read Discord; the page shows `why` with a Try again button. |
+| `data/reading.json` | The first catch-up only, through `first-read.mjs` | What the agent finds as it reads, line by line, and one thing the person can do now. Schema `discord-digest/reading@1`. |
+| `data/.work/` | The first catch-up only | The agent's own files for `first-read.mjs` (the gift, the catch-up). Deleted when the reading is done. |
 
 `latest.json` in short: `generatedAt`, `since`, `server` (the server's name), `serverId`, `totals`
 `{ messages, channels, quiet }` (`channels` counts a thread or forum post as the channel it
@@ -36,6 +38,31 @@ moved. A catch-up that still holds `lead`, `wants`, or the older `threads`, `for
 
 The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
 about 15KB each, until unique ones are made.
+
+## The first catch-up, told as it happens
+
+When `latest.json` is not there yet, the run is the person's first, and they are usually
+watching the page. The agent then writes `data/reading.json`, only ever through
+`node your-discord/first-read.mjs` (`start`, `push '<line>'`, `gift @<file>`,
+`latest @<file>`, `done`): `{ schema, startedAt, done, lines: [], gift? }`, each write atomic
+(a `.part` file renamed into place) and one at a time under a lock. Each line is one short
+sentence from a real Discord lookup, its finding in `**bold**`: "**#general**: 23 messages, a
+thread about the release is still open". The helper refuses an empty line, a raw mention or
+id, a 0 as a finding and a broken value.
+
+`gift` is one thing the person can do now: `question` (`who`, `channel`, `since`, `gist`,
+`link`: the question that has waited longest for an answer), `busy` (`name`, `parent`,
+`messages`, `link`: where everyone was), or `calm` (nothing moved). The page shows it as a
+button that asks the agent in the chat ("Write my reply" drafts a reply and never posts it),
+and keeps it on top for three days after the reading, until it is used or put away.
+
+`latest @<file>` writes `latest.json` from the agent's file in `data/.work/` (it sets
+`schema` and `generatedAt`, moves a top-level `why` to `status.json`), its copy in `days/`,
+and `status.json`. `done` marks the reading done and deletes `data/.work/`.
+
+While a run is going the page reads `reading.json` every few seconds and tells its lines one
+at a time. A reading older than 20 minutes is ignored. Without `reading.json` (or the helper)
+the page shows "Catching up on your server..." as before, and later catch-ups never write it.
 
 If the morning run was missed (the computer was asleep at 9), the page runs it once when it
 opens, from the schedule in `../.jobs/morning-discord-digest.yaml`. That needs no change to
