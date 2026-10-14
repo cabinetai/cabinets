@@ -336,6 +336,33 @@ function checkPapers(d, files) {
   if (d.papers.length > 16) d.papers = d.papers.slice(0, 16);
   checkDates(d, files);
 }
+/** A gist that is the file name again (give or take its extension) is left out. */
+function dropEchoGists(o) {
+  const bare = (v) => String(v || "").toLowerCase().replace(/\.[a-z0-9]{2,5}$/, "").replace(/[^a-z0-9]+/g, " ").trim();
+  if (Array.isArray(o)) { o.forEach(dropEchoGists); return; }
+  if (!o || typeof o !== "object") return;
+  if (typeof o.gist === "string" && (o.name || o.file) && bare(o.gist) === bare(o.name || o.file)) delete o.gist;
+  for (const v of Object.values(o)) if (v && typeof v === "object") dropEchoGists(v);
+}
+/** What a dates search is saved as, and what it looks for, by the file it fills. */
+const DATE_SEARCHES = { papers: ["find-papers.json", "papers"], dates: ["contracts.json", "contracts"] };
+/**
+ * No dates without reading: the search must be saved, and when it found files, some of them
+ * read into data/.work/ as doc-<n>.txt or doc-<n>.pdf. A first read that skips this tells the
+ * person nothing needs them while a deadline sits in their Drive.
+ */
+function checkRead(which, d) {
+  const [search, what] = DATE_SEARCHES[which] || [];
+  if (!search) return;
+  if (!fs.existsSync(path.join(workDir, search))) fail(`refused, ${search} is missing: run that search first (your persona has it), then read the ${what} it finds`);
+  const found = pagesSafe(search).flatMap((p) => (p && p.files) || []).filter((x) => x && x.mimeType !== "application/vnd.google-apps.folder").length;
+  if (!found) return;
+  const read = fs.readdirSync(workDir).filter((x) => /^doc-\d+\.(txt|pdf)$/i.test(x)).length;
+  if (!read) fail(`refused, ${search} found ${found} files and none was read: export or download up to three of them as doc-<n>.txt or doc-<n>.pdf in data/.work/, read them and copy their dates`);
+  if (which === "papers" && Array.isArray(d.papers) && !d.papers.length && !(typeof d.none === "string" && d.none.trim())) {
+    fail(`refused, ${search} found ${found} files and papers is empty: list the ones that are papers, or say in "none" why none of them is`);
+  }
+}
 /** data/sharing.json: "anyone" only for a file a visibility search answered with; "outside"
  *  only with domains written in a saved answer. */
 function checkSharing(d, files) {
@@ -692,6 +719,9 @@ if (cmd === "window") {
       // Every card names a file Drive answered with; storage, the account and what changed
       // this week come from Drive's own answers.
       checkFiles(l, "latest", driveFiles());
+      dropEchoGists(l);
+      // "What fills your Drive" is for files that take room: a file under 1 MB is not one.
+      if (Array.isArray(l.big)) l.big = l.big.filter((b) => b && Number(b.size) >= 1024 * 1024);
       delete l.storage; delete l.changed7; delete l.changed7More; delete l.account;
       const storage = storageOf();
       if (storage) l.storage = storage;
@@ -726,6 +756,7 @@ if (cmd === "window") {
   if (!d || typeof d !== "object" || Array.isArray(d)) fail(`${which}.json must be an object`);
   if (typeof d.headline !== "string" || !d.headline.trim()) fail(`${which}.json needs a headline`);
   const files = driveFiles();
+  checkRead(which, d);
   if (which === "dates") checkDates(d, files);
   else if (which === "papers") checkPapers(d, files);
   else checkSharing(d, files);

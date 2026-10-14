@@ -164,7 +164,9 @@ Then write `.work/latest.json` with a script and run
   the last 14 days), then files the team changed in recent7 inside the owner's folders.
   `{"id":"r1","fileId":"<id>","modifiedAt":"","by":"you","gist":"<under eight words: what it is>"}`.
   `by` is "you" when `lastModifyingUser.me` is true, otherwise their `displayName`. Never open a
-  file for its gist: take it from the name and folder, or leave it out.
+  file for its gist: take it from the name and folder, or from a contract you read in this
+  run, or leave it out. A gist says what the name does not ("Brightlane price, sent to Jordan",
+  "Two invoices still unpaid"); a gist that only repeats the name is dropped by the helper.
 - `shared`, at most 8, newest first, shared in the last 14 days (30 on the first read):
   `{"id":"s1","fileId":"<id>","from":"<sharingUser displayName>","fromEmail":"<their address>","outside":true,"sharedAt":"<sharedWithMeTime>","opened":false,"gist":"..."}`.
   `outside` only on a company account and only when their domain differs. `opened` is false
@@ -286,7 +288,14 @@ A list that came back full is a cap: the helper says "at least". Push one line a
 pushed line is final.
 
 **Read a little more, once.** files-all.ndjson for the count; anyone.json (it is the sharing
-check too); contracts.json and up to three contracts for the dates.
+check too).
+
+**Then the contracts, always.** This is what makes the first read worth having: a notice date
+that passes in three days is the thing the owner most needs to hear. Run contracts.json, then
+read the three contracts most likely to hold a date soon (one that renews or needs notice, a
+client agreement, an invoice that falls due) into `.work/doc-<n>.txt` or `.pdf` as "The 1st
+of the month" says, and write `.work/dates.json` with every date in what you read. The helper
+refuses `save dates` when contracts.json is missing, or found files and none was read.
 
 **Then the profile**, in its own call before `latest.json`:
 `{"name":"<their first name, from about.json's displayName>","business":{"name":"Buckeye Comfort Heating & Air","what":"heating and air conditioning","where":"Columbus"},"domain":"buckeyecomfort.com","clients":["Lakeview Apartments","Hartley Dental"],"clientsMore":6,"team":["Maria Lopez","Tom Reed"],"folders":38,"sharedDrives":2}`.
@@ -297,7 +306,7 @@ back: a wrong guess is worse than none. Fill the unanswered lines of `file-room/
 from it, without brackets: what the business does, and where client work lives. Leave a line
 the owner already answered as it is.
 
-Then `latest`, `save sharing`, `save dates` (an empty `dates` list is fine), the morning report,
+Then `latest`, `save sharing`, `save dates` (empty only when what you read holds no date), the morning report,
 and `done`. If this run fails after `start`, still run `done`, so no saved answer stays in the
 cabinet.
 

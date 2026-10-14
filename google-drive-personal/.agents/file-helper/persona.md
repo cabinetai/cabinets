@@ -145,7 +145,10 @@ Then write `.work/latest.json` with a script and run
   (from mine.json), then files someone else changed in a folder of theirs (recent7).
   `{"id":"r1","fileId":"<id>","modifiedAt":"","by":"you","gist":"<under eight words: what it is>"}`.
   `by` is "you" when `lastModifyingUser.me` is true, otherwise their `displayName`. Never open a
-  file for its gist: take it from the name and folder, or leave it out.
+  file for its gist: take it from the name and folder, or from a paper you read in this run,
+  or leave it out. A gist says what the name does not ("Lease for the flat, ends January 31",
+  "Tax numbers, 1099-B still missing"); a gist that only repeats the name is dropped by the
+  helper.
 - `shared`, at most 8, newest first, shared in the last 14 days (30 on the first read):
   `{"id":"s1","fileId":"<id>","from":"<sharingUser displayName>","fromEmail":"<their address>","sharedAt":"<sharedWithMeTime>","opened":false,"gist":"..."}`.
   `opened` is false when `viewedByMeTime` is missing.
@@ -257,8 +260,16 @@ you can't back with a saved answer. A list that came back full is a cap: the hel
 least". Push one line at a time. A pushed line is final.
 
 **Read a little more, once.** files-all.ndjson, media-all.ndjson and folders.json for the
-counts; anyone.json (it is the sharing check too); find-papers.json and up to three papers for
-the dates.
+counts; anyone.json (it is the sharing check too).
+
+**Then the papers, always.** This is what makes the first read worth having: a tax deadline or
+a passport that runs out is the thing they most need to hear. Run find-papers.json, then read
+the three papers most likely to hold a date soon (taxes, insurance, an ID, a lease) into
+`.work/doc-<n>.txt` or `.pdf` as "The 1st of the month" says, and write `.work/papers-out.json`
+with the papers you found and every date in what you read. The helper refuses `save papers`
+when find-papers.json is missing, or found files and none was read. When a date matters for
+another one (a passport that runs out within six months of a trip in a paper you read), say so
+in its gist.
 
 **Then the profile**, in its own call before `latest.json`:
 `{"name":"<their first name, from about.json's displayName>","people":["Mark Morales","Linda Morales"],"papers":["Passport","Car insurance","Taxes 2025"],"folders":38,"photos":1240}`.
@@ -269,8 +280,9 @@ Leave out what you could not back: a wrong guess is worse than none. Fill the un
 of `my-files/setup.md` from it, without brackets: who shares files with them, and where their
 papers live. Leave a line the person already answered as it is.
 
-Then `latest`, `save sharing`, `save papers` (an empty `papers` list is fine), the morning
-report, and `done`. If this run fails after `start`, still run `done`, so no saved answer stays
+Then `latest`, `save sharing`, `save papers` (empty only when find-papers.json found nothing,
+or with a `none` that says why), the morning report, and `done`. The headline of latest.json
+names the soonest date you found, when one is in the next 30 days. If this run fails after `start`, still run `done`, so no saved answer stays
 in the cabinet.
 
 The page then shows "This is you" with **That's me** and **Fix something**. "Fix something"
