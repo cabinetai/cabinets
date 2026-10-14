@@ -911,6 +911,50 @@
   .mark { background: var(--acc-strong); box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--acc) 70%, transparent); }
   .nudge > .icon { color: var(--acc-strong); }
   .hl-name .gcal { width: 22px; height: 22px; }
+
+  /* ── The loading screen: a live scene from the banner ──────────────────── */
+  /* While the first sort reads, a small scene from the page's own banner sits on top of the
+     reading and grows with every line; when the reading is done it is complete. Calendar's
+     mark leads the title. The two sheets are as tall as their words, centred on the page. */
+  .read-scene { position: relative; isolation: isolate; height: 172px; margin: 0 0 24px; border-radius: 18px; overflow: hidden; }
+  .read-title { display: flex; align-items: center; gap: 14px; }
+  .read-title .gcal { width: .74em; height: .74em; }
+  .read-page .gift { background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 8%, var(--page)) 0, var(--page) 48%); }
+  .read-page .gift.looking { background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 9%, transparent) 0, color-mix(in srgb, var(--page) 55%, transparent) 60%); }
+  @media (min-width: 980px) {
+    .read-page { align-content: center; }
+    .read-page .reading { padding-top: 28px; }
+  }
+  @media (max-width: 979px) { .read-scene { height: 118px; margin-bottom: 16px; border-radius: 14px; } }
+  @keyframes rs-grow { from { transform: scaleY(0); } }
+  @keyframes rs-pop { from { transform: scale(.3); opacity: 0; } }
+  /* Calendar Personal: the sky band at this hour with its sun, and the coming week on it;
+     each line read puts a few more plans on the days, in Calendar's event colours. */
+  .read-scene.sky {
+    background:
+      radial-gradient(90% 120% at var(--sky-x) 108%, color-mix(in srgb, var(--sky-low) 90%, #fff) 0, transparent 60%),
+      linear-gradient(176deg, var(--sky-top) 0%, var(--sky-mid) 52%, var(--sky-low) 100%);
+  }
+  .read-scene.sky::before {
+    content: ""; position: absolute; z-index: -1; width: 64px; height: 64px; border-radius: 50%;
+    left: var(--sky-x); top: calc(var(--sky-y) - 48%); transform: translate(-50%, -50%);
+    background: radial-gradient(circle at 50% 42%, var(--sky-orb-core) 0, var(--sky-orb) 74%);
+    box-shadow: 0 0 30px 14px var(--sky-halo);
+  }
+  .sky-night .read-scene.sky::before { background: transparent; box-shadow: inset -14px 8px 0 0 var(--sky-orb); transform: translate(-50%, -50%) rotate(-18deg); }
+  .rs-week { position: absolute; left: 14px; right: 14px; bottom: 12px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+  .rs-day { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+  .rs-day .l { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sky-ink-2); }
+  .rs-day .d { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 14px; font-weight: 700; color: var(--sky-ink); }
+  .rs-day.today .d { background: var(--acc-strong); color: #fff; }
+  .rs-day .c { align-self: stretch; height: 12px; border-radius: 4px; background: color-mix(in srgb, var(--sky-ink) 10%, transparent); }
+  .rs-day .c.k-client { background: var(--ev-peacock); }
+  .rs-day .c.k-team { background: var(--ev-lavender); }
+  .rs-day .c.k-personal { background: var(--ev-banana); }
+  .rs-day .c.k-date { background: var(--ev-flamingo); }
+  .rs-day .c.fresh { animation: rs-pop .5s cubic-bezier(.2, .8, .2, 1) both; }
+  @media (max-width: 979px) { .read-scene.sky::before { width: 38px; height: 38px; top: calc(var(--sky-y) - 52%); } }
+  @media (max-width: 979px) { .rs-day .d { width: 22px; height: 22px; font-size: 12px; } .rs-day .c { height: 8px; } .rs-day .l { font-size: 10px; } .rs-week { bottom: 8px; gap: 5px; } }
 </style>
 </head>
 <body>
@@ -1847,6 +1891,26 @@
     state.reading = r;
   }
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  /** The sky for the reading: the coming week on it, two more plans for each line read. */
+  var SCENE_PLANS = [[0, 0, "k-team"], [2, 1, "k-personal"], [4, 0, "k-client"], [1, 0, "k-personal"], [5, 1, "k-date"], [3, 0, "k-team"],
+    [6, 0, "k-personal"], [0, 1, "k-personal"], [2, 0, "k-client"], [4, 1, "k-team"], [5, 0, "k-personal"], [1, 1, "k-client"]];
+  function readSceneHtml(n, done) {
+    var count = done ? SCENE_PLANS.length : Math.min(SCENE_PLANS.length, n * 2);
+    var before = done ? Math.min(SCENE_PLANS.length, n * 2) : Math.max(0, (n - 1) * 2);
+    var slot = {};
+    SCENE_PLANS.slice(0, count).forEach(function (p, i) { slot[p[0] + ":" + p[1]] = { kind: p[2], fresh: i >= before }; });
+    var days = "";
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(); d.setDate(d.getDate() + i);
+      var chips = "";
+      for (var row = 0; row < 2; row++) {
+        var s = slot[i + ":" + row];
+        chips += '<i class="c' + (s ? " " + s.kind + (s.fresh ? " fresh" : "") : "") + '"></i>';
+      }
+      days += '<span class="rs-day' + (i === 0 ? " today" : "") + '"><span class="l">' + esc(DAYS[d.getDay()].slice(0, 3)) + '</span><span class="d">' + d.getDate() + "</span>" + chips + "</span>";
+    }
+    return '<div class="read-scene sky" aria-hidden="true"><div class="rs-week">' + days + "</div></div>";
+  }
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
@@ -1856,7 +1920,7 @@
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     done = done && lines.length === all.length;
     var gift = giftNow();
-    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your calendar</h2>' +
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite">' + readSceneHtml(lines.length, done) + '<h2 class="read-title">' + GCAL_MARK + "<span>Reading your calendar</span></h2>" +
       "<p>Going through the last 90 days and the weeks ahead. About a minute. You don\u2019t need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Google Calendar") + "...</span></li></ul>" +

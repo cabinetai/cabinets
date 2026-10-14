@@ -823,6 +823,21 @@
   .cheer { stroke: #188038; }
   .kpi.calm { background: #e6f4ea; border-color: #ceead6; }
   .kpi.calm .value, .kpi.calm .sub { color: #0d652d; }
+
+  /* ── The reading scene ──────────────────────────────────────────────────── */
+  /* While the first read runs, the reading sheet opens on the banner's own painting and Docs, Sheets, Slides and PDFs file into the drawer
+     one per line. The gift sheet takes a soft wash of the banner colour in its corner. */
+  .read-scene { position: relative; overflow: hidden; margin: 0 0 14px; border-radius: 18px; background: var(--banner); aspect-ratio: 900 / 520; }
+  .read-scene svg { display: block; width: 100%; height: 100%; }
+  .read-scene .rs-new { animation: rs-drop .8s cubic-bezier(.2, .9, .25, 1.1) both; }
+  @keyframes rs-drop { from { opacity: 0; transform: translateY(-120px); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+  .rs-mark { position: absolute; top: 12px; inset-inline-start: 12px; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .16); }
+  .rs-mark .gdm { width: 20px; height: 18px; }
+  .read-page .gift { background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--banner) 26%, transparent) 0%, transparent 62%), var(--page); }
+  .read-page .gift.looking { background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--banner) 30%, transparent) 0%, transparent 62%), color-mix(in srgb, var(--page) 55%, transparent); }
+  @media (min-width: 980px) { .read-page .reading { gap: 6px; } .read-scene { margin-bottom: 18px; } }
+  @media (max-width: 600px) { .read-scene { aspect-ratio: 900 / 520; border-radius: 14px; } .rs-mark { width: 32px; height: 32px; top: 9px; } .rs-mark .gdm { width: 17px; height: 15px; } }
+  @media (prefers-reduced-motion: reduce) { .read-scene .rs-new { animation: none !important; } }
 </style>
 </head>
 <body>
@@ -1614,6 +1629,26 @@
   }
   /** A line may mark its finding in **bold**; everything else is plain text. */
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  /**
+   * The reading scene: the banner's own painting, and one Google file falling into it for each
+   * line read so far (Docs, Sheets, Slides and PDFs file into the drawer). When the read is done every place is filled. Drive's
+   * mark sits in the corner, so it reads "reading your Drive".
+   */
+  var READ_SCENE = { view: "300 10 900 520", size: 66, rim: "M0 0H1200V280L895 288 720 318 444 244 0 244Z",
+    files: [[540,226,-7,"doc"],[598,240,-3,"sheet"],[656,254,4,"pdf"],[714,258,-3,"slides"],[772,248,5,"doc"],[830,238,-2,"sheet"]] };
+  function readScene(count, done) {
+    var sc = READ_SCENE, n = done ? sc.files.length : Math.min(sc.files.length - 1, count);
+    var files = sc.files.slice(0, n).map(function (f, i) {
+      return '<g transform="translate(' + f[0] + " " + f[1] + ") rotate(" + f[2] + " " + sc.size / 2 + " " + sc.size / 2 + ')">' +
+        '<g class="rs-file' + (i === n - 1 ? " rs-new" : "") + '"><svg width="' + sc.size + '" height="' + sc.size + '" viewBox="1 1 18 18">' +
+        '<rect x="1.4" y="1.4" width="17.2" height="17.2" rx="3" fill="#fff"/>' + (GOOGLE_FILE_ART[f[3]] || GOOGLE_FILE_ART.other) + "</svg></g></g>";
+    }).join("");
+    var clip = sc.rim ? '<clipPath id="rs-rim"><path d="' + sc.rim + '"/></clipPath>' : "";
+    return '<div class="read-scene' + (done ? " done" : "") + '" aria-hidden="true"><svg viewBox="' + sc.view + '" preserveAspectRatio="xMidYMid slice">' + clip +
+      (BANNER_IMG ? '<image href="' + BANNER_IMG + '" x="0" y="0" width="1200" height="630"/>' : "") +
+      "<g" + (sc.rim ? ' clip-path="url(#rs-rim)"' : "") + ">" + files + "</g></svg>" +
+      '<span class="rs-mark">' + DRIVE_MARK + "</span></div>";
+  }
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
@@ -1622,7 +1657,7 @@
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     done = done && lines.length === all.length;
     var gift = giftNow();
-    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your Drive</h2>' +
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite">' + readScene(lines.length, done) + '<h2>Reading your Drive</h2>' +
       "<p>Getting to know you, your clients and your files. A minute or two. You don't need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your file room together" : lines.length ? "Reading on" : "Opening your Drive") + "...</span></li></ul>" +

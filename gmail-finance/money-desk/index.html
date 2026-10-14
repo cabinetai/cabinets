@@ -703,6 +703,46 @@
   .ask .btn.primary:hover { background: #e6f4ea; border-color: #e6f4ea; }
   .box.ask .nudge > .icon { color: #a8dab5; }
   .slip { box-shadow: 0 1px 2px rgba(13, 101, 45, .1), 0 18px 30px -18px rgba(13, 101, 45, .5); }
+  /* ── The reading scene ─────────────────────────────────────────────────── */
+  /* While the first sort reads, the foot of the reading sheet shows a small live piece of
+     the banner that grows with each line the agent finds, and is whole when the reading is
+     done. Gmail's M sits by the title. The gift sheet takes a soft wash of the banner. */
+  .reading { overflow: hidden; --rx: clamp(20px, 3vw, 36px); --ry: 26px; }
+  .reading h2 { display: flex; align-items: flex-start; gap: .32em; }
+  .reading h2 .gm { width: .78em; height: .6em; flex: none; margin-top: .26em; }
+  .read-scene { position: relative; isolation: isolate; overflow: hidden; min-height: 150px; margin: 20px calc(-1 * var(--rx)) calc(-1 * var(--ry)); }
+  @media (min-width: 980px) {
+    .read-page .reading { --rx: clamp(28px, 3.4vw, 52px); --ry: 40px; display: flex; flex-direction: column; gap: 6px; }
+    .read-page .read-scene { flex: 1 1 auto; min-height: 240px; margin-top: 28px; }
+  }
+  .read-page .gift:not(.looking) { background: linear-gradient(180deg, var(--paper-low) 0, var(--page) 46%); }
+  @media (prefers-reduced-motion: reduce) { .read-scene, .read-scene * { animation: none !important; transition: none !important; } }
+
+  /* Gmail Finance: a ruled ledger page; a new row is inked for every line found, and the
+     page is full, with the total ruled off, when the reading is done. */
+  .read-scene.ledger {
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 33px, var(--rule) 33px 34px),
+      linear-gradient(178deg, var(--paper-top) 0%, var(--paper-low) 100%);
+  }
+  .read-scene.ledger::before { content: ""; position: absolute; z-index: 0; top: 0; bottom: 0; left: calc(var(--rx) - 10px); width: 2px; background: rgba(30, 142, 62, .5); }
+  .ledger-rows { position: relative; z-index: 1; margin: 0; padding: 0 calc(var(--rx) + 4px) 0 calc(var(--rx) + 14px); list-style: none; display: grid; grid-auto-rows: 34px; }
+  .ledger-rows li { display: grid; grid-template-columns: minmax(0, 1fr) 72px; gap: 24px; align-items: end; padding-bottom: 7px; }
+  .ledger-rows svg { display: block; height: 12px; overflow: visible; }
+  .ledger-rows .a svg { width: 100%; }
+  .ledger-rows path { fill: none; stroke-width: 2.6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+  .ledger-rows li:not(.on) svg { visibility: hidden; }
+  .ledger-rows .d path { stroke: var(--ledger); }
+  .ledger-rows .a path { stroke: var(--copper); }
+  .ledger-rows li.new svg { animation: ink-in .9s cubic-bezier(.4, .1, .3, 1) both; }
+  .ledger-rows li.new .a svg { animation-delay: .55s; }
+  @keyframes ink-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  .ledger-rows li.total { grid-template-columns: minmax(0, 1fr) 72px; }
+  .ledger-rows li.total .a { height: 7px; border-top: 2px solid var(--ledger); border-bottom: 2px solid var(--ledger); align-self: end; margin-bottom: -4px; opacity: 0; }
+  .ledger-rows li.total.on .a { opacity: 1; }
+  .ledger-rows li.total.new .a { animation: rule-in .5s ease .9s both; }
+  @keyframes rule-in { from { opacity: 0; transform: scaleX(.2); } to { opacity: 1; transform: none; } }
+  @media (max-width: 979px) { .ledger-rows li:nth-child(n+5):not(.total) { display: none; } }
 </style>
 </head>
 <body>
@@ -1408,6 +1448,35 @@
     state.reading = r;
   }
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  /*
+   * The reading scene. How far it has grown: each line found takes it a fifth of the way
+   * that is left, so every line shows, and it is whole only when the reading is done. The
+   * scene remembers where it was, so only the new part moves in.
+   */
+  var sceneWas = 0;
+  function sceneProgress(n, done) { return done ? 1 : 1 - Math.pow(0.8, n); }
+  function sceneStep(p) { var from = Math.min(sceneWas, p); sceneWas = p; return from; }
+  var GMAIL_MARK = '<svg class="gm" viewBox="52 42 88 66" aria-hidden="true"><path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/><path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/><path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/><path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/><path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"/></svg>';
+  // The ledger rows: how long each entry's ink runs, as a share of the line.
+  var LEDGER_ROWS = [.64, .48, .72, .55, .68, .42, .6];
+  function inkPath(k) {
+    // A hand's line: a little rise and fall, never the same twice.
+    var a = 3 + (k * 37 % 5), b = 9 - (k * 53 % 4);
+    return "M1 7 C 30 " + a + ", 60 " + b + ", 100 6 S 170 " + (12 - a) + ", 199 6";
+  }
+  function readSceneHtml(n, done) {
+    var p = sceneProgress(n, done), from = sceneStep(p);
+    var count = LEDGER_ROWS.length, inked = Math.round(p * count), was = Math.round(from * count);
+    var rows = LEDGER_ROWS.map(function (w, k) {
+      var on = k < inked, fresh = on && k >= was;
+      return '<li class="' + (on ? "on" : "") + (fresh ? " new" : "") + '"' + '>' +
+        '<span class="d"><svg viewBox="0 0 200 12" preserveAspectRatio="none" style="width:' + Math.round(w * 100) + '%"><path d="' + inkPath(k) + '"/></svg></span>' +
+        '<span class="a"><svg viewBox="0 0 200 12" preserveAspectRatio="none"><path d="' + inkPath(k + 3) + '"/></svg></span></li>';
+    }).join("");
+    rows += '<li class="total' + (done ? " on" : "") + (done && from < 1 ? " new" : "") + '"><span></span><span class="a"></span></li>';
+    return '<div class="read-scene ledger" aria-hidden="true"><ul class="ledger-rows">' + rows + "</ul></div>";
+  }
+
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
@@ -1417,11 +1486,11 @@
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     done = done && lines.length === all.length;
     var gift = giftNow();
-    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your money email</h2>' +
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>' + GMAIL_MARK + '<span>Reading your money email</span></h2>' +
       "<p>Finding what you\u2019re owed, what came in and what\u2019s due. About a minute. You don\u2019t need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Gmail") + "...</span></li></ul>" +
-      '<p class="fine">Only reads. Nothing is sent, and it all stays in your cabinet.</p></div>' +
+      '<p class="fine">Only reads. Nothing is sent, and it all stays in your cabinet.</p>' + readSceneHtml(lines.length, done) + "</div>" +
       (gift ? giftHtml(gift, "reading")
         : done ? ""
         : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one money thing I can take off your plate right now.</h3></section>') +

@@ -893,6 +893,41 @@
   .bars li.today .d { padding: 0 7px; border-radius: 999px; background: var(--acc); color: #fff; }
   /* The bars stood on the words on narrow screens (the hide rule lost to the placing rule). */
   @media (max-width: 960px) { .box.headline > .sheet { display: none; } }
+
+  /* ── The loading screen: a live scene from the banner ──────────────────── */
+  /* While the first sort reads, a small scene from the page's own banner sits on top of the
+     reading and grows with every line; when the reading is done it is complete. Calendar's
+     mark leads the title. The two sheets are as tall as their words, centred on the page. */
+  .read-scene { position: relative; isolation: isolate; height: 172px; margin: 0 0 24px; border-radius: 18px; overflow: hidden; }
+  .read-title { display: flex; align-items: center; gap: 14px; }
+  .read-title .gcal { width: .74em; height: .74em; }
+  .read-page .gift { background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 8%, var(--page)) 0, var(--page) 48%); }
+  .read-page .gift.looking { background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 9%, transparent) 0, color-mix(in srgb, var(--page) 55%, transparent) 60%); }
+  @media (min-width: 980px) {
+    .read-page { align-content: center; }
+    .read-page .reading { padding-top: 28px; }
+  }
+  @media (max-width: 979px) { .read-scene { height: 118px; margin-bottom: 16px; border-radius: 14px; } }
+  @keyframes rs-grow { from { transform: scaleY(0); } }
+  @keyframes rs-pop { from { transform: scale(.3); opacity: 0; } }
+  /* Freelancers: a corner of the timesheet's graph paper; a day's bar grows for each line read,
+     today's in grape, and the whole week stands when the reading is done. */
+  .read-scene.timesheet {
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; align-items: stretch; padding: 18px 24px 12px;
+    background:
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(178deg, #fcfaf6 0%, #f4eee4 100%);
+  }
+  .rs-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; min-height: 0; font-family: var(--display); }
+  .rs-col .bar { width: 100%; max-width: 34px; min-height: 3px; border-radius: 7px 7px 3px 3px; background: var(--line-2); transform-origin: bottom; }
+  .rs-col .bar.on { background: var(--charcoal); opacity: .82; }
+  .rs-col.today .bar.on { background: var(--acc); opacity: 1; }
+  .rs-col .bar.fresh { animation: rs-grow .7s cubic-bezier(.2, .8, .2, 1) both; }
+  .rs-col .d { font-size: 12px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+  .rs-col.today .d { padding: 0 7px; border-radius: 999px; background: var(--acc); color: #fff; }
+  @media (min-width: 980px) { .read-page .reading h2.read-title { font-size: clamp(30px, 2.9vw, 40px); } }
+  @media (max-width: 979px) { .read-scene.timesheet { gap: 8px; padding: 12px 14px 8px; } .rs-col .d { font-size: 11px; } }
 </style>
 </head>
 <body>
@@ -1818,6 +1853,19 @@
     state.reading = r;
   }
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  /** The timesheet for the reading: a day's bar grows for each line, the whole week once done. */
+  var SCENE_BARS = [.42, .78, .6, .2, .12, .9, .66];
+  function readSceneHtml(n, done) {
+    var grown = done ? 7 : Math.min(7, n);
+    var before = done ? Math.min(7, n) : Math.max(0, n - 1);
+    var cols = SCENE_BARS.map(function (h, i) {
+      var d = new Date(); d.setDate(d.getDate() + i);
+      var on = i < grown;
+      return '<span class="rs-col' + (i === 0 ? " today" : "") + '"><i class="bar' + (on ? " on" + (i >= before ? " fresh" : "") : "") + '" style="height:' + (on ? Math.round(h * 100) : 3) + (on ? "%" : "px") + '"></i>' +
+        '<span class="d">' + esc(i === 0 ? "Today" : d.toLocaleDateString([], { weekday: "short" })) + "</span></span>";
+    }).join("");
+    return '<div class="read-scene timesheet" aria-hidden="true">' + cols + "</div>";
+  }
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
@@ -1827,7 +1875,7 @@
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     done = done && lines.length === all.length;
     var gift = giftNow();
-    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your calendar</h2>' +
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite">' + readSceneHtml(lines.length, done) + '<h2 class="read-title">' + GCAL_MARK + "<span>Reading your calendar</span></h2>" +
       "<p>Going through the last 90 days and the weeks ahead. About a minute. You don\u2019t need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Google Calendar") + "...</span></li></ul>" +
