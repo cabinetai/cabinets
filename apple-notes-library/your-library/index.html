@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<!--
+  Notes Library: Your Library. The cabinet opens on this page.
+
+  For someone with years of Apple Notes and no structure: the topics their notes keep
+  coming back to, each one tap from a question to the cabinet's agent, plus a short list
+  of notes worth tidying up.
+
+  Where the words come from: the Build The Library routine reads the notes Cabinet copied
+  in from Apple Notes, writes a page per topic into topics/, and writes data/latest.json
+  next to this page (the shape is data/EXAMPLE-latest.json: a made-up library, always
+  labelled as an example here), and data/status.json with ok:false and why when it could
+  not finish.
+
+  How it talks to Cabinet: window.cabinet v2 (connection state, bring the notes in, ask,
+  run the routine, read files). In an older Cabinet it reads the same files over the page's
+  own address. It never changes a note: Apple Notes is a one-way copy.
+
+  One file on purpose: a sealed frame cannot load files next to it. System fonts; icons are
+  inline SVG.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Your Library</title>
+<style>
+  :root {
+    --page: #fffdf7;
+    --panel: #ffffff;
+    --line: #ece5d3;
+    --ink: #1f1d1a;
+    --muted: #6f6a60;
+    --faint: #a59f92;
+    --yellow: #f5c518;
+    --yellow-ink: #7a5d00;
+    --yellow-tint: #fff5cf;
+    --red-ink: #b42318;
+    --red-tint: #fdecea;
+    --blue-ink: #1d5fa8;
+    --blue-tint: #e9f1fb;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(31, 29, 26, .05), 0 10px 28px -16px rgba(31, 29, 26, .18);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page); color: var(--ink); }
+  body { font: 15px/1.5 var(--font); padding: 36px 24px 72px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  .icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark { width: 40px; height: 40px; border-radius: 10px; flex: none; }
+  h1 { font-size: 28px; line-height: 1.15; margin: 0; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 4px 0 0; font-size: 14.5px; }
+  .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 14px; font-weight: 600;
+    padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink); cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--faint); }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .fine { color: var(--muted); font-size: 13px; margin: 0; }
+
+  .banner {
+    margin-top: 22px; padding: 12px 14px; border-radius: 12px; font-size: 14px;
+    background: var(--yellow-tint); color: var(--yellow-ink); display: flex; gap: 10px; align-items: flex-start;
+  }
+  .banner.err { background: var(--red-tint); color: var(--red-ink); }
+  .banner .icon { margin-top: 3px; }
+  .banner > div { flex: 1; min-width: 0; }
+  .banner b { font-weight: 650; }
+  .banner .btn { margin-left: auto; }
+
+  .hero { margin-top: 22px; background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 26px 24px; }
+  .hero h2 { margin: 0 0 6px; font-size: 19px; }
+  .hero p { margin: 0 0 14px; color: var(--muted); }
+
+  section { margin-top: 28px; }
+  .label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+
+  .totals { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+  .stat { background: var(--panel); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 16px; min-width: 120px; }
+  .stat b { display: block; font-size: 22px; letter-spacing: -0.02em; }
+  .stat span { color: var(--muted); font-size: 13px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .topic {
+    display: flex; flex-direction: column; text-align: left; font: inherit; color: inherit; cursor: pointer;
+    background: var(--panel); border: 0; border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px 18px; border-top: 4px solid var(--yellow);
+  }
+  .topic:hover { box-shadow: 0 2px 4px rgba(31, 29, 26, .08), 0 14px 32px -14px rgba(31, 29, 26, .26); }
+  .topic h3 { margin: 0; font-size: 16px; line-height: 1.3; }
+  .gist { margin: 6px 0 10px; font-size: 14.5px; }
+  .meta { color: var(--muted); font-size: 12.5px; margin-top: auto; display: flex; justify-content: space-between; gap: 8px; }
+  .meta .go { color: var(--yellow-ink); font-weight: 650; white-space: nowrap; }
+
+  .tidy { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 6px 0; }
+  .tidy-row { display: flex; align-items: baseline; gap: 12px; padding: 10px 18px; }
+  .tidy-row + .tidy-row { border-top: 1px solid var(--line); }
+  .kind { flex: none; width: 96px; font-size: 12.5px; font-weight: 650; color: var(--muted); }
+  .tidy-text { flex: 1; min-width: 0; }
+  .folder { color: var(--faint); font-size: 13px; white-space: nowrap; }
+  .more { color: var(--faint); font-size: 13px; margin: 14px 2px 0; }
+
+  .ask { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px; }
+  .ask form { display: flex; gap: 8px; }
+  .ask input {
+    flex: 1; min-width: 0; font: inherit; padding: 9px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--page); color: var(--ink);
+  }
+  .ask input:focus { outline: none; border-color: var(--yellow); box-shadow: 0 0 0 3px var(--yellow-tint); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--page); color: var(--ink); cursor: pointer; }
+  .chip:hover { border-color: var(--yellow); background: var(--yellow-tint); }
+  #ask-note { margin-top: 10px; min-height: 1em; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+    background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px;
+    transition: opacity .2s, transform .2s; max-width: calc(100vw - 32px);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 640px) {
+    body { padding: 22px 16px 64px; }
+    h1 { font-size: 24px; }
+    .grid { grid-template-columns: 1fr; }
+    .kind { width: 72px; }
+    .folder { display: none; }
+    .stat { flex: 1; min-width: 0; }
+    .ask form { flex-direction: column; }
+    .banner { flex-wrap: wrap; }
+    .banner .btn { margin-left: 26px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } .toast { transition: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4 20-7z"/></symbol>
+</svg>
+<div class="wrap">
+  <header>
+    <div class="title">
+      <img class="mark" id="mark" alt="" hidden />
+      <div>
+        <h1>Your library</h1>
+        <p class="sub" id="sub">Years of Apple Notes, sorted into the topics they keep coming back to.</p>
+      </div>
+    </div>
+    <div class="actions" id="actions"></div>
+  </header>
+
+  <div id="body"></div>
+
+  <section>
+    <p class="label">Ask about your notes</p>
+    <div class="ask">
+      <form id="ask-form">
+        <input id="ask-input" maxlength="3900" placeholder="What did I decide about the car?" autocomplete="off" />
+        <button class="btn primary" type="submit"><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg>Ask</button>
+      </form>
+      <div class="chips" id="chips"></div>
+      <p class="fine" id="ask-note"></p>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var JOB = "build-the-library";
+  var AGENT = "notes-librarian";
+  var POLL_MS = 60000;
+  var DAY_MS = 86400000;
+
+  var QUESTIONS = [
+    "What have I written about most this year?",
+    "Which notes look like duplicates?",
+    "What questions do my notes never answer?",
+    "Find my notes about recipes"
+  ];
+
+  var state = {
+    appPath: appPathFromUrl(),
+    here: null,
+    data: null,
+    example: true,
+    lastTry: null,
+    loaded: false,
+    notes: null,
+    jobs: [],
+    running: false,
+    runNote: "",
+    connecting: false,
+    connectNote: ""
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function icon(id, cls) {
+    return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+  }
+  function text(value, max) {
+    var s = typeof value === "string" ? value.trim() : "";
+    return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function count(value) { return typeof value === "number" && isFinite(value) && value >= 0 ? Math.round(value) : null; }
+
+  function appPathFromUrl() {
+    // /api/assets/<cabinet path>/<app folder>/index.html: the folder before the file.
+    var parts = location.pathname.split("/").filter(Boolean);
+    var at = parts.length - 2;
+    return at >= 0 ? decodeURIComponent(parts[at]) : "your-library";
+  }
+
+  var toastTimer = 0;
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
+  }
+
+  // ── Dates, in the person's own clock ───────────────────────────────────
+
+  function parseTime(value) {
+    if (typeof value !== "string" || !value) return null;
+    // A bare date is a calendar day, not midnight in another zone.
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    // "+0300" as `date +%z` prints it is read like "+03:00".
+    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / DAY_MS); }
+  function shortDate(d) { return d.toLocaleDateString([], { month: "short", day: "numeric" }); }
+  function ago(d, now) {
+    var gap = daysBetween(d, now);
+    if (gap <= 0) return "today";
+    if (gap === 1) return "yesterday";
+    if (gap < 7) return d.toLocaleDateString([], { weekday: "long" });
+    return shortDate(d);
+  }
+  /** The example keeps its shape over time: its dates move with today, so it never looks stale. */
+  var shift = 0;
+  function day(value) {
+    var d = parseTime(value);
+    return d && shift ? new Date(d.getTime() + shift * DAY_MS) : d;
+  }
+
+  // ── Reading the files the routine writes ───────────────────────────────
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  function readText(rel) {
+    if (V2) return cab.files.read(state.appPath + "/" + rel);
+    // An older Cabinet: the files sit next to this page on the same address.
+    return fetch(rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+      if (r.status === 404) throw notFound();
+      if (!r.ok) throw new Error("Could not read " + rel + ".");
+      return r.text();
+    });
+  }
+  function readJson(rel) { return readText(rel).then(function (t) { return JSON.parse(t); }); }
+  function maybe(promise) {
+    return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; });
+  }
+  function quiet(promise) { return promise.catch(function () { return null; }); }
+  function usable(d) { return d && typeof d === "object" && Array.isArray(d.topics); }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = Promise.all([
+      maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
+      quiet(maybe(readJson("data/status.json")))
+    ]).then(function (got) {
+      var latest = got[0];
+      state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
+      if (usable(latest) && latest.example !== true) {
+        state.data = latest;
+        state.example = false;
+        return null;
+      }
+      // A file half written a moment ago keeps what is on screen; the next change reloads it.
+      if (latest === "broken" && state.data && !state.example) return null;
+      return maybe(readJson("data/EXAMPLE-latest.json")).then(function (ex) {
+        state.data = usable(ex) ? ex : null;
+        state.example = true;
+      });
+    }).catch(function () {
+      if (!state.data) state.data = null;
+    }).then(function () {
+      var made = state.example && state.data ? parseTime(state.data.generatedAt) : null;
+      shift = made ? Math.max(0, daysBetween(made, new Date())) : 0;
+      state.loaded = true;
+      loading = null;
+      paint();
+    });
+    return loading;
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAct() { return V2 && role() !== "viewer"; }
+  function pickNotes(items) {
+    if (!Array.isArray(items)) return null;
+    for (var i = 0; i < items.length; i++) if (items[i] && items[i].id === "apple-notes") return items[i];
+    return null;
+  }
+  function notesState() { return state.notes ? state.notes.state : null; }
+  function job() {
+    for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === JOB) return state.jobs[i];
+    return null;
+  }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var wasRunning = state.running;
+    state.jobs = items;
+    var j = job();
+    state.running = !!(j && j.running);
+    if (wasRunning && !state.running) load();
+    paint();
+  }
+
+  /** Bring the notes in, or fresh ones: Cabinet's own Apple Notes step, then a look straight away. */
+  function bringIn() {
+    if (!V2 || state.connecting) return;
+    state.connecting = true;
+    state.connectNote = "";
+    paint();
+    cab.connectors.connect("apple-notes").then(function (result) {
+      state.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        state.notes = pickNotes(items) || state.notes;
+        paint();
+        if (result === "connected") runNow();
+      });
+    }).catch(function (e) {
+      state.connecting = false;
+      state.connectNote = e && e.message ? e.message : "That did not work. Try again.";
+      paint();
+    });
+  }
+
+  function runNow() {
+    if (!V2 || state.running) return;
+    state.running = true;
+    state.runNote = "";
+    paint();
+    cab.jobs.run(JOB).then(function () {
+      watchRun();
+    }).catch(function (e) {
+      if (e && e.code === "busy") { watchRun(); return; }
+      state.running = false;
+      state.runNote = e && e.message ? e.message : "That did not start. Try again.";
+      paint();
+    });
+  }
+
+  // jobs.onChange says when the run ends; this is the fallback if a change is ever missed.
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!state.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+
+  function ask(question) {
+    var q = text(question, 3900);
+    if (!q) return;
+    if (!V2) { toast("Open this cabinet in Cabinet to ask about your notes."); return; }
+    var note = $("ask-note");
+    note.textContent = "Asking...";
+    cab.ask(q, { agent: AGENT, send: true }).then(function () {
+      note.textContent = "Asked. The answer is coming in the chat next to this page.";
+      $("ask-input").value = "";
+    }).catch(function (e) {
+      note.textContent = e && e.message ? e.message : "That did not go through. Try again.";
+      toast(note.textContent);
+    });
+  }
+
+  // ── Painting ───────────────────────────────────────────────────────────
+
+  function paint() {
+    paintHeader();
+    paintBody();
+  }
+
+  function paintHeader() {
+    var mark = $("mark");
+    if (state.notes && state.notes.logo) { mark.src = state.notes.logo; mark.hidden = false; }
+
+    var d = state.data;
+    var sub = "Years of Apple Notes, sorted into the topics they keep coming back to.";
+    if (d && state.loaded) {
+      var newest = day(d.newestNote);
+      if (state.example) sub = "A made-up library, to show you the page.";
+      else if (newest) sub = "Built from your notes as of " + shortDate(newest) + ".";
+    }
+    $("sub").textContent = sub;
+
+    var html = "";
+    var s = notesState();
+    if (canAct() && s === "connected" && !(state.example && !state.lastTry)) {
+      html += '<button class="btn" data-act="run"' + (state.running ? " disabled" : "") + ">" +
+        icon("i-refresh", state.running ? "spin" : "") + (state.running ? "Building..." : "Rebuild") + "</button>";
+      if (state.notes && state.notes.canConnect) {
+        html += '<button class="btn" data-act="bring"' + (state.connecting ? " disabled" : "") + ">" +
+          icon("i-download") + "Bring in fresh notes</button>";
+      }
+    }
+    $("actions").innerHTML = html;
+  }
+
+  /** The first thing under the header: what is missing, what went wrong, or that this is an example. */
+  function topHtml() {
+    var s = notesState();
+    if (!V2) {
+      return state.example
+        ? banner("i-info", "", "<b>This is a made-up library.</b> Open this cabinet in the Cabinet app on your Mac to bring in your own notes.")
+        : "";
+    }
+    if (state.running) {
+      return banner("i-refresh", "", "<b>Building your library.</b> With many notes this can take a while.");
+    }
+    if (state.example && s && s !== "connected") {
+      if (s === "not-available-here" || !state.notes.canConnect) {
+        return hero("Apple Notes needs your Mac",
+          "Notes can only be brought in on a Mac, in the Cabinet app. Until then, below is a made-up library to show you the page.", "");
+      }
+      if (!canAct()) {
+        return hero("Your notes aren't here yet", "Ask the person who owns this cabinet to bring in their Apple Notes.", "");
+      }
+      return hero("Bring in your Apple Notes",
+        "Your Mac asks once whether Cabinet may read Notes. Every note is copied in, nothing in Apple Notes changes, and the library is built from your own notes.",
+        '<div class="actions"><button class="btn primary" data-act="bring"' + (state.connecting ? " disabled" : "") + ">" +
+          icon(state.connecting ? "i-refresh" : "i-download", state.connecting ? "spin" : "") +
+          (state.connecting ? "Bringing them in..." : "Bring in your notes") + "</button>" +
+          '<span class="fine">Below is a made-up library until then.</span></div>' +
+          (state.connectNote ? '<p class="fine" style="margin-top:10px">' + esc(state.connectNote) + "</p>" : ""));
+    }
+    var failed = state.lastTry && state.lastTry.ok === false;
+    var shown = state.data && !state.example ? parseTime(state.data.generatedAt) : null;
+    var tried = state.lastTry ? parseTime(state.lastTry.at) : null;
+    if (failed && (!shown || !tried || tried >= shown)) {
+      return banner("i-alert", "err", "<b>" + esc(text(state.lastTry.why, 200) || "The last build didn't finish.") + "</b>",
+        canAct() ? '<button class="btn" data-act="run">Try again</button>' : "");
+    }
+    if (state.runNote) return banner("i-alert", "err", esc(state.runNote));
+    if (state.connectNote) return banner("i-alert", "err", esc(state.connectNote));
+    if (state.example && s === "connected") {
+      return banner("i-info", "", "<b>This is a made-up library.</b> Yours appears after the first build.",
+        canAct() ? '<button class="btn" data-act="run">Build now</button>' : "");
+    }
+    return "";
+  }
+  function banner(iconId, cls, inner, action) {
+    return '<div class="banner' + (cls ? " " + cls : "") + '">' + icon(iconId, iconId === "i-refresh" ? "spin" : "") +
+      "<div>" + inner + "</div>" + (action || "") + "</div>";
+  }
+  function hero(title, body, actions) {
+    return '<div class="hero"><h2>' + esc(title) + "</h2><p>" + esc(body) + "</p>" + actions + "</div>";
+  }
+
+  function paintBody() {
+    if (!state.loaded) { $("body").innerHTML = '<p class="fine" style="margin-top:22px">Loading...</p>'; return; }
+    var html = topHtml();
+    var d = state.data;
+    if (!d) {
+      $("body").innerHTML = html || '<p class="fine" style="margin-top:22px">Nothing to show yet.</p>';
+      return;
+    }
+    var now = new Date();
+    var t = d.totals || {};
+    var topics = list(d.topics).slice(0, 20);
+    var notes = count(t.notes), sorted = count(t.sorted);
+
+    if (notes != null && topics.length) {
+      html += '<div class="totals">' +
+        stat(notes, plural(notes, "note", "notes")) +
+        stat(topics.length, plural(topics.length, "topic", "topics")) +
+        (sorted != null ? stat(sorted, plural(sorted, "note sorted", "notes sorted")) : "") + "</div>";
+    }
+
+    if (topics.length) {
+      html += '<section><p class="label">Topics</p><div class="grid">' + topics.map(function (x) {
+        var title = text(x.title, 80) || "Untitled topic";
+        var n = count(x.notes), last = day(x.lastEdited);
+        var meta = [n != null ? n + " " + plural(n, "note", "notes") : "", last ? "last written " + ago(last, now) : ""].filter(Boolean).join(" · ");
+        return '<button class="topic" type="button" data-topic="' + esc(title) + '"><h3>' + esc(title) + "</h3>" +
+          '<p class="gist">' + esc(text(x.gist, 140)) + "</p>" +
+          '<div class="meta"><span>' + esc(meta) + '</span><span class="go">Ask about it</span></div></button>';
+      }).join("") + "</div>" +
+        (state.example ? "" : '<p class="more">Each topic is also a page in this cabinet\u2019s Topics folder.</p>') + "</section>";
+    } else if (!state.example) {
+      html += '<div class="hero"><h2>No topics yet</h2><p>Your notes didn\u2019t add up to topics this time. With more notes, the next build tries again.</p></div>';
+    }
+
+    var tidy = d.tidy || {};
+    var rows = list(tidy.same).slice(0, 10).map(function (p) {
+      return tidyRow("Look the same", "\u201c" + text(p.a, 60) + "\u201d and \u201c" + text(p.b, 60) + "\u201d", p.folder);
+    }).concat(list(tidy.empty).slice(0, 10).map(function (e) {
+      return tidyRow("Empty", "\u201c" + (text(e.title, 60) || "Untitled") + "\u201d", e.folder);
+    }));
+    if (rows.length) {
+      html += '<section><p class="label">Worth tidying in Apple Notes</p><div class="tidy">' + rows.join("") + "</div>" +
+        '<p class="more">Cabinet never deletes or changes a note. Tidy these in Apple Notes if you like.</p></section>';
+    }
+    $("body").innerHTML = html;
+  }
+
+  function stat(n, words) { return '<div class="stat"><b>' + esc(n) + "</b><span>" + esc(words) + "</span></div>"; }
+  function tidyRow(kind, what, folder) {
+    return '<div class="tidy-row"><span class="kind">' + esc(kind) + '</span><span class="tidy-text">' + esc(what) +
+      '</span><span class="folder">' + esc(text(folder, 40)) + "</span></div>";
+  }
+
+  function paintQuestions() {
+    $("chips").innerHTML = QUESTIONS.map(function (q) {
+      return '<button class="chip" type="button" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+    }).join("");
+  }
+
+  // ── Events ─────────────────────────────────────────────────────────────
+
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest ? event.target.closest("[data-act],[data-q],[data-topic]") : null;
+    if (!el) return;
+    if (el.getAttribute("data-topic")) {
+      if (state.example) { toast("This topic is made up. Bring in your notes to ask about your own."); return; }
+      ask("What do my notes say about " + el.getAttribute("data-topic") + "?");
+      return;
+    }
+    if (el.getAttribute("data-q")) { ask(el.getAttribute("data-q")); return; }
+    var act = el.getAttribute("data-act");
+    if (act === "run") runNow();
+    else if (act === "bring") bringIn();
+  });
+  $("ask-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    ask($("ask-input").value);
+  });
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  paintQuestions();
+  paint();
+
+  if (V2) {
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+    var unavailable = { id: "apple-notes", state: "not-available-here", problem: null, canConnect: false };
+    cab.connectors.list().then(function (items) {
+      state.notes = pickNotes(items) || unavailable;
+      paint();
+    }).catch(function () { state.notes = unavailable; paint(); });
+    cab.connectors.onChange(function (items) { var n = pickNotes(items); if (n) { state.notes = n; paint(); } });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    load();
+    // No live changes in an older Cabinet: look again now and then while the page is in view.
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
+  }
+})();
+</script>
+</body>
+</html>
