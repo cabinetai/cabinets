@@ -53,7 +53,7 @@
 
     /* The street. These are the midday values; the script moves them with the hour. */
     --street-top: #d9e3ea; --street-low: #f1ece0; --street-city: #9aa9b8; --street-lit: #ffcf7a;
-    --street-ink: #18212f; --street-ink-2: #3c4555; --street-greet: #8a611a;
+    --street-ink: #18212f; --street-ink-2: #3c4555; --street-greet: #c5221f;
 
     --terra: #d95d39;
     --terra-ink: #a73918;
@@ -698,6 +698,53 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
+  /* Gmail's M in the "Gmail connected" pill, in place of the dot. */
+  .gm { width: 18px; height: 14px; flex: none; }
+  .pill.ok .gm + .dot { display: none; }
+
+  /* ── Gmail Business's Google colour ─────────────────────────────────────── */
+  /* Gmail red, the red of the M: the icons in the box titles, the workday line, the
+     greeting on the street, the main buttons, and a deep Gmail red for the Ask box.
+     Late keeps its own darker crimson, always in words with its warning. */
+  :root {
+    --brass: #ea4335;
+    --brass-ink: #c5221f;
+    --navy: #b31412;
+    --terra: #a50e0e;
+    --terra-ink: #8c1111;
+    --terra-deep: #6e0b0b;
+    --terra-tint: #fbeaea;
+    --terra-line: #f1c4c4;
+  }
+  .btn.primary { background: #d93025; border-color: #d93025; box-shadow: 0 8px 18px -10px rgba(179, 20, 18, .6); }
+  .btn.primary:hover { background: #c5221f; border-color: #c5221f; }
+  .ask .btn.primary { background: #fff; border-color: #fff; color: #b31412; }
+  .ask .btn.primary:hover { background: #fce8e6; border-color: #fce8e6; }
+  .ask input { border-color: rgba(255, 255, 255, .32); background: rgba(255, 255, 255, .12); }
+  .box.ask .nudge { background: rgba(0, 0, 0, .16); }
+  .box.ask .nudge > .icon { color: #ffd2cc; }
+  .workday .track b { box-shadow: 0 0 0 3px rgba(255, 255, 255, .85), 0 0 0 6px rgba(234, 67, 53, .18); }
+  /* ── The reading scene ─────────────────────────────────────────────────── */
+  /* While the first sort reads, the foot of the reading sheet shows a small live piece of
+     the banner that grows with each line the agent finds, and is whole when the reading is
+     done. Gmail's M sits by the title. The gift sheet takes a soft wash of the banner. */
+  .reading { overflow: hidden; --rx: clamp(20px, 3vw, 36px); --ry: 26px; }
+  .reading h2 { display: flex; align-items: flex-start; gap: .32em; }
+  .reading h2 .gm { width: .78em; height: .6em; flex: none; margin-top: .26em; }
+  .read-scene { position: relative; isolation: isolate; overflow: hidden; min-height: 150px; margin: 20px calc(-1 * var(--rx)) calc(-1 * var(--ry)); }
+  @media (min-width: 980px) {
+    .read-page .reading { --rx: clamp(28px, 3.4vw, 52px); --ry: 40px; display: flex; flex-direction: column; gap: 6px; }
+    .read-page .read-scene { flex: 1 1 auto; min-height: 240px; margin-top: 28px; }
+  }
+  .read-page .gift:not(.looking) { background: linear-gradient(180deg, color-mix(in srgb, var(--street-top) 34%, var(--page)) 0, var(--page) 46%); }
+  @media (prefers-reduced-motion: reduce) { .read-scene, .read-scene * { animation: none !important; transition: none !important; } }
+
+  /* Gmail Business: the street outside at this hour; an office window lights up for every
+     line found, and the whole street is lit when the reading is done. */
+  .read-scene.street { background: linear-gradient(178deg, var(--street-top) 0%, var(--street-low) 100%); }
+  .read-scene .city { display: block; position: absolute; z-index: 0; left: 0; right: 0; bottom: 0; width: 100%; height: auto; max-height: 100%; }
+  .read-scene .city rect.w.new { animation: window-on .8s ease both; }
+  @keyframes window-on { from { fill: #fff; opacity: .16; } }
 </style>
 </head>
 <body>
@@ -1401,6 +1448,34 @@
     state.reading = r;
   }
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  /*
+   * The reading scene. How far it has grown: each line found takes it a fifth of the way
+   * that is left, so every line shows, and it is whole only when the reading is done. The
+   * scene remembers where it was, so only the new part moves in.
+   */
+  var sceneWas = 0;
+  function sceneProgress(n, done) { return done ? 1 : 1 - Math.pow(0.8, n); }
+  function sceneStep(p) { var from = Math.min(sceneWas, p); sceneWas = p; return from; }
+  var GMAIL_MARK = '<svg class="gm" viewBox="52 42 88 66" aria-hidden="true"><path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/><path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/><path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/><path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/><path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"/></svg>';
+  function readSceneHtml(n, done) {
+    var p = sceneProgress(n, done), from = sceneStep(p);
+    var html = '<div class="read-scene street" aria-hidden="true"><svg class="city" viewBox="0 0 560 240" preserveAspectRatio="xMidYMax meet">';
+    BUILDINGS.forEach(function (b, k) {
+      var x = b[0], w = b[1], h = b[2], top = 240 - h;
+      html += '<rect class="b' + (b[3] ? " far" : "") + '" x="' + x + '" y="' + top + '" width="' + w + '" height="' + h + '" rx="2" />';
+      if (b[3]) return;
+      for (var y = top + 14, r = 0; y < 230; y += 18, r++) {
+        for (var c = 0, wx = x + 9; wx + 8 <= x + w - 6; wx += 14, c++) {
+          var seed = ((k * 97 + r * 31 + c * 17) * 2654435761 >>> 0) % 1000 / 1000;
+          var on = seed < p, fresh = on && seed >= from;
+          html += '<rect class="w' + (on ? " lit" : "") + (fresh ? " new" : "") + '"' + (fresh ? ' style="animation-delay:' + Math.round((seed - from) / Math.max(p - from, .001) * 900) + 'ms"' : "") +
+            ' x="' + wx + '" y="' + y + '" width="7" height="9" rx="1" />';
+        }
+      }
+    });
+    return html + "</svg></div>";
+  }
+
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
@@ -1410,11 +1485,11 @@
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     done = done && lines.length === all.length;
     var gift = giftNow();
-    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your email</h2>' +
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>' + GMAIL_MARK + '<span>Reading your email</span></h2>' +
       "<p>Getting to know you and your business. About a minute. You don't need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Gmail") + "...</span></li></ul>" +
-      '<p class="fine">Only reads. Nothing is sent, and it all stays in your cabinet.</p></div>' +
+      '<p class="fine">Only reads. Nothing is sent, and it all stays in your cabinet.</p>' + readSceneHtml(lines.length, done) + "</div>" +
       (gift ? giftHtml(gift, "reading")
         : done ? ""
         : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing I can take off your plate right now.</h3></section>') +
@@ -1520,7 +1595,7 @@
     // An older Cabinet cannot say whether Gmail is connected: plain words, no state dot.
     if (!V2) pill = '<span class="updated">Connect Gmail from Integrations in Cabinet.</span>';
     else if (!state.gmail) pill = '<span class="pill"><span class="dot pulse"></span>Checking Gmail</span>';
-    else if (s === "connected") pill = '<span class="pill ok"><span class="dot"></span>Gmail connected</span>';
+    else if (s === "connected") pill = '<span class="pill ok"><svg class="gm" viewBox="52 42 88 66" aria-hidden="true"><path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/><path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/><path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/><path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/><path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"/></svg><span class="dot"></span>Gmail connected</span>';
     else if (s === "not-available-here") pill = '<span class="pill"><span class="dot"></span>Gmail not available here</span>';
     else if (s === "needs-sign-in" || s === "needs-you") pill = '<span class="pill warn"><span class="dot"></span>Gmail needs you</span>';
     else pill = '<span class="pill off"><span class="dot"></span>Gmail not connected</span>';
@@ -1556,9 +1631,9 @@
         ? '<circle cx="108" cy="24" r="14" fill="#d95d39"/><path d="M108 16.5v9M108 30.5v.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>'
         : "";
     return '<svg class="art" viewBox="0 0 132 104" aria-hidden="true">' +
-      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#ebf3ee"/>' +
-      '<rect x="20" y="26" width="92" height="60" rx="9" fill="#fff" stroke="#3a6351" stroke-width="3"/>' +
-      '<path d="M22 30l44 30 44-30" fill="none" stroke="#3a6351" stroke-width="3" stroke-linejoin="round"/>' +
+      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#fce8e6"/>' +
+      '<rect x="20" y="26" width="92" height="60" rx="9" fill="#fff" stroke="#b31412" stroke-width="3"/>' +
+      '<path d="M22 30l44 30 44-30" fill="none" stroke="#b31412" stroke-width="3" stroke-linejoin="round"/>' +
       mark + "</svg>";
   }
 
@@ -2376,7 +2451,7 @@
     root.setProperty("--street-top", s.top); root.setProperty("--street-low", s.low); root.setProperty("--street-city", s.city);
     root.setProperty("--street-ink", s.dark ? "#f6f3ea" : "#18212f");
     root.setProperty("--street-ink-2", s.dark ? "rgba(246, 243, 234, .84)" : "#3c4555");
-    root.setProperty("--street-greet", s.dark ? "#f2c879" : "#8a611a");
+    root.setProperty("--street-greet", s.dark ? "#ff8a80" : "#c5221f");
     document.documentElement.classList.toggle("street-dark", s.dark);
     Array.prototype.forEach.call(document.querySelectorAll(".city rect.w"), function (w) { w.classList.toggle("lit", +w.getAttribute("data-seed") < s.lit); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-hello]"), function (el) { el.innerHTML = helloHtml(now); });
