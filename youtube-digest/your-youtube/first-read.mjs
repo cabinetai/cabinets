@@ -227,6 +227,9 @@ function latestOf(l) {
   l.videos.forEach((v, i) => {
     if (!v || typeof v !== "object" || typeof v.title !== "string" || !v.title.trim()) fail(`videos[${i}] needs a title`);
     if (v.mark !== undefined && !MARKS.includes(v.mark)) fail(`videos[${i}].mark is best, quiet or "", not "${v.mark}"`);
+    const viewers = v.viewerComments;
+    if (viewers !== undefined && !(Number.isInteger(viewers) && viewers >= 0)) fail(`videos[${i}].viewerComments is a whole number, 0 or more`);
+    if (Number.isInteger(viewers) && Number.isInteger(v.comments) && viewers > v.comments) fail(`videos[${i}].viewerComments is at most its comments: the channel's own are left out, never added`);
     if (!v.id) v.id = "v" + (i + 1);
   });
   for (const mark of ["best", "quiet"]) {

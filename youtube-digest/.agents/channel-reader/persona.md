@@ -129,7 +129,7 @@ boxes they keep. So write every list below, every run, even on a quiet day (an e
   "videos": [ ... ], "waiting": [ ... ], "recent": [ ... ], "asks": [ ... ], "next": [ ... ],
   "spotlight": { "id": "v1", "title": "<video title>", "lines": [ ... ] },
   "me": { "channelId": "<the channel's id>", "uploads": "<the uploads playlist id>" },
-  "known": [ { "videoId": "<id>", "views": 12840, "likes": 611, "comments": 98, "at": "<when read>" } ]
+  "known": [ { "videoId": "<id>", "views": 12840, "likes": 611, "comments": 98, "viewerComments": 91, "own": 7, "at": "<when read>" } ]
 }
 ```
 
@@ -184,16 +184,24 @@ The last 10 uploads (fewer on a new channel), newest first, one row each:
 
 ```
 { "id": "v1", "videoId": "<id>", "title": "<as YouTube shows it>", "published": "<publishedAt>",
-  "views": 12840, "likes": 611, "comments": 98,
+  "views": 12840, "likes": 611, "comments": 98, "viewerComments": 91,
   "gained": { "views": 3210, "likes": 140, "comments": 31 },
   "mark": "best", "gist": "Twice your usual in its first week",
   "url": "https://www.youtube.com/watch?v=<id>" }
 ```
 
-- `id` is `v1`, `v2`, in order. `videoId` and every count are copied from `videos`.
-- `gained`: what changed since the last catch-up (today's count minus the one in `known`).
-  For a video published in the window it is its whole count. Leave it out when the video is
-  not in `known`.
+- `id` is `v1`, `v2`, in order. `videoId`, `views`, `likes` and `comments` are copied from
+  `videos` (`comments` is YouTube's `commentCount`, which counts the channel's own comments too).
+- `viewerComments`: the comments from viewers, the number the page shows. Count the channel's
+  own comments on this video in the threads you read (a top comment or a reply whose
+  `authorChannelId.value` is the channel's id), take the larger of that and `own` in `known`,
+  and subtract it from `comments`, never below 0. Keep that larger number as `own` in `known`,
+  so an old reply of the channel's that left your 14 days is still left out. No extra calls:
+  only the threads you already read.
+- `gained`: what changed since the last catch-up (today's count minus the one in `known`);
+  `gained.comments` is the change in `viewerComments`. For a video published in the window it
+  is its whole count. Leave `gained` out when the video is not in `known`, and leave out only
+  `gained.comments` when its `known` entry has no `viewerComments` yet.
 - `mark` is exactly `best`, `quiet` or `""`. At most one of each.
   - `best`: the most views gained since the last catch-up; on the first catch-up, the most
     views per day since it was published.

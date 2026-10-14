@@ -25,7 +25,7 @@ first one), `analytics` (below), and one list for each box:
 
 | List | Box | Each item |
 |---|---|---|
-| `videos` | How your videos did | `id`, `videoId`, `title`, `published`, `views`, `likes`, `comments`, `gained` `{ views, likes, comments }`, `mark` best, quiet or empty, `gist`, `url` |
+| `videos` | How your videos did | `id`, `videoId`, `title`, `published`, `views`, `likes`, `comments` (YouTube's count, the channel's own included), `viewerComments` (the comments from viewers, which the row shows), `gained` `{ views, likes, comments }` (`comments` from viewers), `mark` best, quiet or empty, `gist`, `url` |
 | `waiting` | Waiting for an answer | `id`, `who`, `video`, `videoId`, `commentId`, `gist`, `short`, `since`, `likes`, `url` |
 | `recent` | Latest comments | `id`, `who`, `video`, `gist`, `at`, `url` |
 | `asks` | What viewers keep asking | `id`, `what`, `people` (different authors), `videos` (titles), `answered`, `url` |
@@ -44,7 +44,8 @@ morning. The Channel numbers box then shows the counts from `channel` and one qu
 what Analytics would add; the headline leaves out its chart.
 
 `me` (the channel's id and uploads playlist) and `known` (each video's counts at the last
-catch-up, so the next one can tell what changed) are for the routine; the page ignores
+catch-up, with `viewerComments` and `own`, the channel's own comments, so the next one can
+tell what changed) are for the routine; the page ignores
 them. A `url` on YouTube's own address (`https://www.youtube.com/watch?v=...`, with
 `&lc=<comment id>` for a comment) becomes an "Open on YouTube" link.
 
