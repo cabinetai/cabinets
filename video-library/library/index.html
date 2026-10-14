@@ -443,6 +443,9 @@
   /* On a phone the boxes stack in their order and grow to fit. */
   .grid.stack { display: flex; flex-direction: column; gap: 14px; }
   .grid.stack .box { flex: none; }
+  /* A list box is as tall as its rows, up to the size its layout gives it: no empty white
+     under a short list, and its foot sits right under the rows. */
+  .grid:not(.editing):not(.stack) > .box.lane:not(.nbox):not(.idea1) { align-self: start; max-height: 100%; }
 
   /* ── Save a video ────────────────────────────────────────────────────── */
   /* The link, how to keep it, and Save: the one red button on the page. */
@@ -776,6 +779,8 @@
     changeApplied: false,
     expanded: {},
     need: {},
+    /** Rows a short list gives back: it stands as tall as its rows and the boxes under it move up. */
+    fit: {},
     mineReady: false,
     animate: true
   };
@@ -1885,7 +1890,7 @@
     });
     boxes.forEach(function (b) {
       if (b.id === pinId) return;
-      var h = Math.max(b.h, state.need[b.id] || 0);
+      var h = Math.max(state.fit[b.id] || b.h, state.need[b.id] || 0);
       var y = b.y;
       while (hits(b, y, h)) y++;
       while (y > 0 && !hits(b, y - 1, h)) y--;
@@ -2201,10 +2206,16 @@
     var cut = 0;
     rows.forEach(function (r) { r.hidden = false; });
     more.hidden = true;
-    // In a short box the rows come first: the idea at its foot steps aside for them.
     var nudge = el.querySelector(".box-body ~ .nudge");
+    if (nudge) nudge.hidden = false;
+    // A list that gave rows back and now needs more takes back its own size before it measures.
+    var shrinks = !state.editing && !stack && el.matches(".lane:not(.nbox):not(.idea1)");
+    if (state.fit[id] && (!shrinks || body.scrollHeight > body.clientHeight + 1)) {
+      delete state.fit[id];
+      placeBoxes();
+    }
+    // In a short box the rows come first: the idea at its foot steps aside for them.
     if (nudge) {
-      nudge.hidden = false;
       if (!open && !stack && rows.length && body.clientHeight < rows[0].offsetHeight + 8) nudge.hidden = true;
     }
     if (!open && stack) {
@@ -2227,8 +2238,14 @@
       });
       need = Math.ceil((total + GAP) / (ROW + GAP));
     }
-    if ((state.need[id] || 0) !== need) {
+    // A list with rows to spare stands as tall as its rows, opened or not, and gives the
+    // rest back so the boxes under it move up: no empty white under a short list.
+    var own = entryOf(id);
+    var fit = !shrinks || cut ? 0 : open ? need : Math.ceil((el.offsetHeight + GAP) / (ROW + GAP));
+    if (!own || fit >= own.h) fit = 0;
+    if ((state.need[id] || 0) !== need || (state.fit[id] || 0) !== fit) {
       state.need[id] = need;
+      state.fit[id] = fit;
       placeBoxes();
     }
   }
@@ -2241,6 +2258,7 @@
     state.open = {};
     state.expanded = {};
     state.need = {};
+    state.fit = {};
     state.editing = true;
     state.undo = [];
     // The page's opening fade ends here, so no box is caught half way into it while moving.
