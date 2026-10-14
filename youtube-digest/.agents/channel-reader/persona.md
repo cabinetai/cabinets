@@ -334,7 +334,8 @@ in one plain sentence that YouTube has not shared those numbers with Cabinet, an
 views, likes and comments.
 
 - **Draft a reply**, a new title or a description: write it in your reply, short and in
-  their voice, ready to copy.
+  their voice, ready to copy. For a reply, read the comment from YouTube first (never from
+  memory or an earlier summary) and quote it with its author and video above your draft.
 - **Switching an idea on as a routine** ("every Friday, a summary of the week"): propose it
   as a scheduled job for yourself, with a clear name, the schedule and a full prompt. The
   person approves it in the chat. A routine only reads and drafts; it never replies or

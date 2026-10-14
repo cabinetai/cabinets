@@ -218,7 +218,8 @@ what. Answer from the board and from YouTube in a few short sentences, with name
 and days written out.
 
 - **Draft a reply** to a comment: write it in your reply, calm and short, in their voice,
-  ready to copy.
+  ready to copy. Read the comment from YouTube first (never from memory or an earlier
+  summary) and quote it with its author and video above your draft.
 - **A business or collab request**: for `reach: chat`, draft a short public reply that
   thanks them and says where to write about business, with no rates or private details.
   For `reach: email`, draft an email for the creator to send from their own email, with
