@@ -811,6 +811,8 @@
   .box.ask h2 { font-family: var(--display); font-size: 28px; font-weight: 600; }
   .lane-head h3 { font-size: 23px; font-weight: 600; letter-spacing: 0; }
   .lane-head .count, .lane-head .total { font-size: 19px; }
+  /* On a phone the day's sentence stays: it is the summary. */
+  .grid.stack .box.headline .lead { display: -webkit-box; }
 </style>
 </head>
 <body>
@@ -879,7 +881,7 @@
       </div>
     </div>
     <div class="gift-keep" id="gift-keep" role="region" aria-label="One thing for you" hidden></div>
-    <div class="welcome" id="welcome" role="region" aria-label="What your workday learned about you" hidden></div>
+    <div class="welcome" id="welcome" role="region" aria-label="What your Chief of Staff learned about you" hidden></div>
     <div class="suggest" id="suggest" role="region" aria-label="A change to your page" aria-live="polite" hidden></div>
     <section class="grid" id="grid" aria-label="Your workday" hidden></section>
     <div class="grid-empty" id="grid-empty" hidden>
@@ -888,7 +890,7 @@
     </div>
     <footer class="foot">
       <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
-      <p>Your workday only reads Outlook. It never sends, moves or deletes anything on its own. Replies wait in your Outlook Drafts, routines are set up in the chat, and nothing goes out without your OK.</p>
+      <p>Your Chief of Staff only reads Outlook. It never sends, moves or deletes anything on its own. Replies wait in your Outlook Drafts, routines are set up in the chat, and nothing goes out without your OK.</p>
     </footer>
   </main>
 </div>
@@ -1535,7 +1537,7 @@
     }
     if (g.kind === "noise") {
       return {
-        head: who + " sent you <b class=\"n\">" + esc(/^d+$/.test(g.count) ? g.count + " emails" : g.count) + "</b>" + (g.days ? " in " + g.days + " days" : "") + (g.unread ? ", <b class=\"n\">" + esc(g.unread) + "</b> of them unread." : "."),
+        head: who + " sent you <b class=\"n\">" + esc(/^\d+$/.test(g.count) ? g.count + " emails" : g.count) + "</b>" + (g.days ? " in " + g.days + " days" : "") + (g.unread ? ", <b class=\"n\">" + esc(g.unread) + "</b> of them unread." : "."),
         about: [], why: "Quieting them takes a minute and keeps your inbox for people.", button: "Quiet them", icon: "i-quiet",
         ask: g.who + " fills my Outlook inbox. Check how many emails they sent me in the last 30 days and how many I opened. Then offer ways to quiet them: an Outlook rule that moves them out of the inbox, or their unsubscribe link. Change nothing until I say yes.",
         fine: "Nothing changes in Outlook until you say yes."
@@ -1667,7 +1669,7 @@
     if (pr.signOff) facts.push(["i-pen", "You sign <b>“" + esc(pr.signOff) + "”</b>"]);
     if (pr.meetings7 !== null) facts.push(["i-calendar", "<b>" + pr.meetings7 + " " + plural(pr.meetings7, "meeting", "meetings") + "</b> in the next 7 days"]);
     if (pr.mail30 !== null) facts.push(["i-inbox", "<b>" + pr.mail30.toLocaleString() + " " + plural(pr.mail30, "email", "emails") + "</b> into your inbox in 30 days"]);
-    el.innerHTML = '<p class="eyebrow">Your workday read your Outlook. This is what it learned.</p>' +
+    el.innerHTML = '<p class="eyebrow">Your Chief of Staff read your Outlook. This is what it learned.</p>' +
       "<h3>" + (pr.name ? "Here is your workday, " + esc(pr.name) + "." : "Here is your workday.") + "</h3>" +
       (facts.length ? "<ul>" + facts.map(function (f) { return "<li>" + icon(f[0]) + "<span>" + f[1] + "</span></li>"; }).join("") + "</ul>" : "") +
       '<div class="acts"><button type="button" class="btn primary" data-act="profile-ok">' + icon("i-check") + "That’s me</button>" +
@@ -1998,6 +2000,8 @@
     boxes.forEach(function (b) {
       if (b.id === pinId) return;
       var h = Math.max(b.h, state.need[b.id] || 0);
+      // A list with nothing in it today is a short sheet, not a tall empty one.
+      if (!state.editing && boxEmpty(b.id)) h = Math.min(h, 3);
       var y = b.y;
       while (hits(b, y, h)) y++;
       while (y > 0 && !hits(b, y - 1, h)) y--;
@@ -2291,7 +2295,8 @@
     var nudge = el.querySelector(".box-body ~ .nudge");
     if (nudge) {
       nudge.hidden = false;
-      if (!open && !stack && rows.length && body.clientHeight < rows[0].offsetHeight + 8) nudge.hidden = true;
+      // An idea never takes the place of a row: when the rows don't all fit, it steps aside.
+      if (!open && !stack && rows.length && body.scrollHeight > body.clientHeight + 1) nudge.hidden = true;
     }
     if (!open && stack) {
       var keepRows = el.getAttribute("data-level") === "L" ? rows.length : PHONE_ROWS;
@@ -2329,7 +2334,7 @@
       (count === null ? "" : '<span class="count num' + (count ? "" : " zero") + '">' + count + "</span>") + "</div>";
   }
   function listBox(key, title, iconId, total, count, rowsHtml, emptyText) {
-    return boxHead(key, title, iconId, total, count) +
+    return boxHead(key, title, iconId, total, count || null) +
       '<div class="box-body">' + (count ? rowsHtml : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</div>" +
       '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
   }
@@ -2942,7 +2947,7 @@
     var featured = level === "S" ? null : askIdea();
     var shown = shownIdeas();
     if (featured) shown[featured.idea.id] = true;
-    var more = level === "S" ? [] : IDEAS.filter(function (idea) { return !shown[idea.id] && !state.hiddenIdeas[idea.id]; }).slice(0, featured ? 0 : level === "L" ? 4 : 2);
+    var more = level === "S" ? [] : IDEAS.filter(function (idea) { return !shown[idea.id] && !state.hiddenIdeas[idea.id] && ideaUseful(idea); }).slice(0, featured ? 0 : level === "L" ? 4 : 2);
     var note = state.askNote || (askReady() ? "" : askHint());
     return (level === "S" ? "" : '<h2 id="ask-title">Ask, or try an idea</h2>') +
       '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
@@ -3036,6 +3041,19 @@
       return f.ref.getDay() === 1 ? { line: "It’s Monday. Back from time off? A short catch-up of what you missed.", act: "Catch me up" } : null;
     }
   };
+
+  /** A list box with nothing in it today shrinks to a short sheet. */
+  function boxEmpty(id) {
+    if (!state.data) return false;
+    if (id === "waiting") return !waiting().length;
+    if (id === "prep") return !prepItems().length;
+    if (id === "promises") return !promises().length;
+    if (id === "invites") return !invites().length;
+    if (id === "more") return !fyi().length && !(state.data.setAside && state.data.setAside.count);
+    return false;
+  }
+  /** An idea is offered only when its box has something today. */
+  function ideaUseful(idea) { return idea.box === "ask" || idea.box === "day" || !boxEmpty(idea.box); }
 
   function ideaById(id) {
     for (var i = 0; i < IDEAS.length; i++) if (IDEAS[i].id === id) return IDEAS[i];
