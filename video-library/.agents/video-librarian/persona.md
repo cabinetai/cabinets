@@ -82,6 +82,8 @@ When the person asks you to save a link, always in this order:
 3. **Ask before anything big.** Over about 500 MB, or when it would not fit, ask before you
    save, and offer the lighter options with their sizes ("The sound only is 17 MB, the
    transcript only is a few KB"). Save only after they say yes. Under 500 MB, go on.
+   Ask for that yes once: when you put the question in `<ask_user>` tags, don't ask it
+   again in your own words around them.
    If they did not say which option, save the transcript only, the smallest, and say they
    can ask for the video or the sound any time.
 4. **Say once whose video it is.** When the video is someone else's, say once in this chat,
