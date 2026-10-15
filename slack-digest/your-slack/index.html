@@ -152,7 +152,7 @@
   .hero .lead { margin: 10px 0 0; font-size: 18px; color: var(--ink-2); max-width: 70ch; }
   .hero .lead b { color: var(--ink); font-weight: 700; }
   .hero .fine { margin: 8px 0 0; font-size: 15px; color: var(--ink-3); }
-  .hero .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .hero .actions, .box.headline .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
   .hero:empty { display: none; }
 
   /* The panel under a connection problem or before the first catch-up. */
@@ -358,6 +358,19 @@
   .box.headline .lead b { color: #fff; font-weight: 700; }
   .box.headline .fine { margin: 8px 0 0; font-size: 15px; color: rgba(255, 255, 255, .8); }
   .box.headline[data-level="S"] h2 { font-size: 28px; }
+  /* Before the first catch-up, or when it failed, the band says so in place of its headline. */
+  .box.headline .card-hero { grid-template-columns: minmax(0, 1fr) auto; gap: 28px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+  .box.headline .card-hero > .art { order: 2; }
+  .box.headline .card-hero .lead { display: block; }
+  .box.headline .steps { color: rgba(255, 255, 255, .9); }
+  .box.headline .steps .icon { color: #fff; }
+  .box.headline .card-hero .btn { border: 0; border-radius: 999px; background: rgba(255, 255, 255, .9); color: var(--ink); box-shadow: none; }
+  .box.headline .card-hero .btn:hover { background: #fff; }
+  .box.headline .card-hero .btn.primary { background: #fff; color: var(--plum); }
+  .box.headline .card-hero .btn.primary:hover { background: var(--plum-tint); }
+  .box.headline .notice, .box.headline .ribbon, .box.headline .read-strip { margin-top: 16px; }
+  /* The example ribbon right under the band, in the grid. */
+  .grid > #ribbon { align-self: center; }
 
   /* Small: one number and one line under it. */
   .sum { display: flex; flex-direction: column; gap: 2px; padding: 14px 18px; }
@@ -551,6 +564,8 @@
     .card-hero { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; gap: 14px; }
     .art { width: 104px; height: 82px; }
     .card-hero .btn.big { width: 100%; }
+    .box.headline .card-hero { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .box.headline .card-hero > .art { order: 0; }
     .chan-body { padding: 0 14px 14px 32px; }
     .ask { padding: 18px 16px; }
     .ask form { flex-direction: column; }
@@ -731,6 +746,8 @@
     connectNote: "",
     running: false,
     runNote: "",
+    /** What the hero says, told inside the headline band when that box is on the page. */
+    band: null,
     askNote: "",
     open: {},
     showQuietList: false,
@@ -1465,6 +1482,7 @@
     var g = state.slack;
     var html;
     var told = false;
+    var card = true;
 
     if (V2 && s === "not-available-here") {
       var why = g && g.problem && g.problem.text ? g.problem.text : "";
@@ -1497,6 +1515,7 @@
       // The page is there; the agent is still finishing. Its latest line, quietly.
       var last = state.reading.lines[state.reading.lines.length - 1];
       html = '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still reading your Slack' + (last ? ": " + lineHtml(last) : "...") + "</span></div>";
+      card = false;
     } else if (state.running && (state.example || !state.data)) {
       html = cardHero(null, "Catching up on your Slack...",
         '<p class="lead">This takes a few minutes. Stay here or come back later: the page fills in by itself.</p>', true);
@@ -1517,8 +1536,13 @@
     } else {
       // The headline is a box on the grid now; up here only what went wrong.
       html = runNoteHtml();
+      card = false;
     }
-    hero.innerHTML = html + (told ? "" : failureHtml() || partialHtml());
+    var notes = (card ? "" : html) + (told ? "" : failureHtml() || partialHtml());
+    // With the headline box on the page all of this is said inside its band, so the band stays
+    // the first thing on the page: a card in place of the headline, notes under it.
+    state.band = headlineShown() ? { card: card ? html : "", notes: notes } : null;
+    hero.innerHTML = state.band ? "" : (card ? html : "") + notes;
   }
 
   /** A catch-up that worked but could not read everything says what is missing, quietly. */
@@ -1620,7 +1644,9 @@
     var ex = state.example ? "Example: " : "";
     var h = c.length ? "Here is what moved in your Slack" : "Your Slack was quiet";
     var top = bandTop();
-    if (level === "S") return "<div>" + top + "<h2>" + esc(ex + h) + "</h2></div>";
+    var band = state.band || { card: "", notes: "" };
+    if (band.card) return "<div>" + top + band.card + band.notes + "</div>";
+    if (level === "S") return "<div>" + top + "<h2>" + esc(ex + h) + "</h2>" + band.notes + "</div>";
     var messages = count(t.messages);
     if (messages == null) messages = c.reduce(function (m, x) { return m + (count(x.messages) || 0); }, 0);
     var moved = count(t.channels);
@@ -1641,7 +1667,7 @@
     var g = writtenAt(d.generatedAt);
     if (state.day && g) fine = "This is the catch-up from " + esc(whenWords(g, new Date())) + ".";
     else if (g && !state.example) fine = "Updated " + esc(whenWords(g, new Date())) + ".";
-    return "<div>" + top + "<h2>" + esc(ex + h) + "</h2>" + leadHtml + (fine ? '<p class="fine">' + fine + "</p>" : "") + "</div>";
+    return "<div>" + top + "<h2>" + esc(ex + h) + "</h2>" + leadHtml + (fine ? '<p class="fine">' + fine + "</p>" : "") + band.notes + "</div>";
   }
 
   // Waiting on you: questions and mentions nobody answered, the urgent and oldest first.
@@ -2409,13 +2435,20 @@
     grid.style.setProperty("--row", ROW + "px");
     grid.style.setProperty("--gap", GAP + "px");
     var spots = stack ? phoneOrder(placed()) : placed();
+    var under = ribbonSpot(spots, stack);
     var keep = {};
+    var at = 0;
     spots.forEach(function (spot, i) {
       keep[spot.id] = true;
       var el = boxEl(spot.id);
-      if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null);
+      if (grid.children[at] !== el) grid.insertBefore(el, grid.children[at] || null);
+      at++;
+      if (under && spot.id === "headline") {
+        if (grid.children[at] !== $("ribbon")) grid.insertBefore($("ribbon"), grid.children[at] || null);
+        at++;
+      }
       el.style.gridColumn = stack ? "" : spot.x + 1 + " / span " + spot.w;
-      el.style.gridRow = stack ? "" : spot.y + 1 + " / span " + spot.h;
+      el.style.gridRow = stack ? "" : spot.y + 1 + (under && spot.y >= under.cut ? under.rows : 0) + " / span " + spot.h;
       // In edit mode a box is one stop for the keyboard: arrows move it, Shift and arrows resize it.
       if (state.editing) {
         el.tabIndex = 0;
@@ -2435,6 +2468,29 @@
       if (el.hasAttribute("data-box") && !keep[el.getAttribute("data-box")]) grid.removeChild(el);
     });
     return spots;
+  }
+
+  /**
+   * The example ribbon stands right under the headline band, in the grid: the boxes below the
+   * band move down to make room for it. While the boxes are arranged it steps aside.
+   */
+  function ribbonSpot(spots, stack) {
+    var grid = $("grid");
+    var rib = $("ribbon");
+    var band = spots.filter(function (spot) { return spot.id === "headline"; })[0];
+    rib.hidden = !!(band && rib.firstChild && state.editing);
+    if (!band || !rib.firstChild || rib.hidden) {
+      if (rib.parentNode === grid) $("hero").insertAdjacentElement("afterend", rib);
+      return null;
+    }
+    if (stack) { rib.style.gridColumn = rib.style.gridRow = ""; return { cut: 0, rows: 0 }; }
+    // The first row under the band that no box beside it runs across.
+    var cut = band.y + band.h;
+    while (spots.some(function (spot) { return spot.y < cut && spot.y + spot.h > cut; })) cut++;
+    rib.style.gridColumn = "1 / -1";
+    var rows = Math.max(1, Math.ceil((rib.offsetHeight + GAP) / (ROW + GAP)));
+    rib.style.gridRow = cut + 1 + " / span " + rows;
+    return { cut: cut, rows: rows };
   }
 
   function paintGrid() {
