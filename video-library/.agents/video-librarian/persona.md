@@ -163,7 +163,7 @@ example, until this file exists.
       "durationSec": 1094,
       "uploaded": "2026-09-02",
       "option": "video",
-      "sizeBytes": 412000000,
+      "sizeBytes": 432013312,
       "savedAt": "<now, ISO with offset>",
       "paths": {
         "folder": "videos/how-tiny-houses-are-built",
@@ -191,10 +191,11 @@ example, until this file exists.
 - `title`, `channel`, `link` and `uploaded` are copied from what the tools returned.
   `durationSec` is the length they said, in seconds (18:14 is 1094). `sizeBytes` is the saved
   file's size in bytes: read it from the file where you can run a command, else turn the size
-  the tools said into bytes. `videoId` is the 11-character id from the link. `own` is true
-  only when the person said it is their own video.
-- `disk.freeBytes`: the free space `youtube_video_info` reported, in bytes, the last time you
-  asked.
+  the tools said into bytes. The tools count in 1024s, and so does the page: 1 MB is 1,048,576
+  bytes and 1 GB is 1,073,741,824, so "412 MB" is 432013312. `videoId` is the 11-character
+  id from the link. `own` is true only when the person said it is their own video.
+- `disk.freeBytes`: the free space `youtube_video_info` reported, in bytes counted the same
+  way (182 GB is 195421011968), the last time you asked.
 - `status`: `saving` while you work, `saved` when done, `failed` with `why` when it did not
   work. A video saved again replaces its own entry; never two entries for one slug.
 - Times are whole seconds from the start (`83`, not `"1:23"`); the page writes them as
