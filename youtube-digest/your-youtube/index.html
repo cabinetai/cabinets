@@ -1745,11 +1745,16 @@
     var max = Math.max.apply(null, days.map(function (x) { return count(x.views); })) || 1;
     var week = days.slice(-7).reduce(function (m, x) { return m + count(x.views); }, 0);
     var until = dateWords(analytics().until);
-    return '<div class="spark" role="img" aria-label="' + esc("Views per day for " + days.length + " days until " + until + ". " + big(week) + " in the last 7 days.") + '">' +
+    // YouTube leaves out a day it has no number for, so the caption names the span the bars
+    // cover, from the 28 days' first day to `until`: the same 28 days the Channel numbers say.
+    var first = parseTime(spanOf("last28") ? text(spanOf("last28").from) : "") || parseTime(days[0].day);
+    var last = parseTime(analytics().until);
+    var span = first && last && last >= first ? Math.round((last - first) / 86400000) + 1 : days.length;
+    return '<div class="spark" role="img" aria-label="' + esc("Views per day for " + span + " days until " + until + ". " + big(week) + " in the last 7 days.") + '">' +
       '<div class="cols">' + days.map(function (x, i) {
         return '<i class="' + (i >= days.length - 7 ? "wk" : "") + '" style="height:' + Math.max(2, Math.round(count(x.views) / max * 100)) + '%"></i>';
       }).join("") + "</div>" +
-      '<div class="cap"><span><b>Views per day</b>, last ' + days.length + " days</span><span>until " + esc(until) + "</span></div></div>";
+      '<div class="cap"><span><b>Views per day</b>, last ' + span + " days</span><span>until " + esc(until) + "</span></div></div>";
   }
 
   // Waiting for an answer: real questions nobody from the channel answered, newest first.
