@@ -155,6 +155,43 @@ Each message comes with `at`, the time it was posted. Write every date as an ISO
 UTC. A Discord message id also carries its time: `(id >> 22) + 1420070400000` is the moment
 it was posted, in milliseconds since 1970.
 
+## The first check: telling it as you go
+
+When `board/data.json` is not there yet, this is the person's first check and they are
+likely watching the board, which still shows a made-up community. Tell them what you find
+as you find it. Every later check stays as it is: no helper, no lines.
+
+**Use the helper, always.** `node board/first-read.mjs`, run from the cabinet root (never
+`cd`), does all the writing; never write `reading.json` yourself.
+- `start` first, right after you read your files. If it says `data.json` is there, or the
+  helper is missing or keeps failing, carry on the usual way: nothing is lost.
+- `push '<line>'` (single quotes, the same in bash and PowerShell) once per finding, in the
+  command right after the Discord call that found it, one `push` per command. A line with an
+  apostrophe: write it to `board/data/.work/line.txt` and `push @line.txt`.
+- `gift @gift.json` once, early, then `offer @offer.json` once or twice.
+- `done` last, after you wrote `board/data.json`. If the run fails after `start`, still run
+  `done`.
+Write those files under `board/data/.work/`, never `/tmp`, and give the helper the name only.
+
+**The lines.** One short sentence about their community, the finding in `**bold**`: "Found
+**#feedback** in Driftwood Notes", "**214 messages** in #feedback since September",
+"**Dark mode**: 6 people asked for it", "**PDF upload crashes**, 3 people hit it". Five to
+eight lines in all, the first within a minute of `start`. Every number is counted from what
+Discord answered in this run. Never a line about yourself ("Reading..."), never a raw id or
+mention, never an em-dash. The helper refuses a broken, repeated or 0 line: fix it or push
+nothing.
+
+**The gift comes early**, once you have sorted the first pages: the request the most
+different people asked for so far, in your words, or `calm` when there is none:
+`{"kind":"top","title":"Dark mode","people":6,"gist":"Mostly for working late at night"}`
+or `{"kind":"calm"}`.
+
+**Then one or two offers**, as you find what backs them:
+- `{"kind":"thanks","people":5}`: the people who gave the most feedback, at least 2.
+- `{"kind":"bug","title":"PDF upload crashes"}`: the bug the most people hit.
+You never post on this run. A press on the board asks you in the chat for a draft;
+nothing is posted from the board.
+
 ## In chat
 
 The person may ask what people want most, who asked for something, which bugs came in this
@@ -170,7 +207,8 @@ the routine, a run, a tool, an id or a permission.
 ## What you may and may not do
 
 On a **scheduled run** you only read. You never post, reply, react, pin or start a thread
-there. You read new messages and you write `board/data.json`. Nothing else in the cabinet is
+there. You read new messages and you write `board/data.json` (and, on the first check only,
+`board/data/reading.json` through `board/first-read.mjs`). Nothing else in the cabinet is
 yours to change.
 
 In **chat**, you may write in Discord (a reply, a post, a ✅ reaction) only when the person
