@@ -110,6 +110,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [hiring-pipeline](./hiring-pipeline) | Operations | 2 | 2 | 0 | Talent operations command center — open roles, candidate funnel by stage, time-to-fill, bottlenecks, offer/accept rate, and headcount pla… |
 | [hr-policy-assistant](./hr-policy-assistant) | Operations | 2 | 2 | 0 | Instant, accurate answers to employee policy questions — PTO, benefits, expenses, parental leave, remote work — sourced from your living… |
 | [incident-postmortem](./incident-postmortem) | Software | 3 | 2 | 0 | Builds complete incident timelines, root-cause analyses, and action-item registers from PagerDuty, Datadog, Sentry, and Slack — published… |
+| [instagram-digest](./instagram-digest) | Media | 1 | 1 | 0 | Every morning, how your Instagram posts and reels did, the comments waiting for you, and what people keep asking |
 | [internal-faq](./internal-faq) | Operations | 2 | 2 | 0 | Lets every employee get instant, sourced answers to HR, IT, finance, and policy questions — without opening a ticket or asking on Slack |
 | [investor-update](./investor-update) | Operations | 2 | 2 | 0 | Write monthly investor updates from live company data and leadership notes |
 | [it-request](./it-request) | Operations | 2 | 2 | 0 | Structured IT request intake and routing for modern teams |
