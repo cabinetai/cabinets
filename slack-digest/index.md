@@ -44,8 +44,8 @@ Until then, the page shows a made-up team, and says so.
 
 ## It reads, and writes only where you allow
 
-The morning catch-up only reads, and nothing writes in Slack on its own. Your team writes in
-Slack only when you ask for it in the chat, and only in channels you set to Write in Slack's
+The morning catch-up only reads, and nothing is posted in Slack unless you asked for it.
+Your team writes in Slack only when you ask for it in the chat, and only in channels you set to Write in Slack's
 settings in Cabinet. You see the exact words first, and they are posted after you say yes.
 Everywhere else, replies and updates are drafted in the chat for you to send yourself. Cabinet keeps your Slack keys in a locked file on your
 own machine, and writes them down only after the sign-in has actually worked.
