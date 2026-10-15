@@ -930,7 +930,7 @@
       return;
     }
     var opt = optionOf(state.saveOption) || OPTIONS[0];
-    var have = id && !state.example ? videos().filter(function (v) { return v.videoId === id && v.option === opt.id && v.status !== "failed"; })[0] : null;
+    var have = id && !state.example ? videos().filter(function (v) { return v.videoId === id && keptAs(v, opt.id) && v.status !== "failed"; })[0] : null;
     if (have) { setSaveNote("Already in your library: " + text(have.title, 100) + ".", false); return; }
     var words = id
       ? "Save " + opt.ask + " of " + s + " to my library and sum it up."
@@ -1153,6 +1153,10 @@
     var words = timeWords(sec) + (toSec != null ? " to " + timeWords(toSec) : "");
     return '<button type="button" class="ts" data-act="seek" data-slug="' + esc(slug) + '" data-sec="' + count(sec) + '" aria-label="Play from ' + esc(timeWords(sec)) + '">' + esc(words) + "</button>";
   }
+  /** The sound file of a video that was saved as both the video and the sound only. */
+  function soundOf(v) { return v.option === "video" ? cabPath(v.paths && v.paths.audio) : ""; }
+  /** True when the library holds this video in this way, on its own or next to the other. */
+  function keptAs(v, id) { return v.option === id || (id === "audio" && !!soundOf(v)); }
   function bytesUsed() { return saved().reduce(function (m, v) { return m + (count(v.sizeBytes) || 0); }, 0); }
   function secondsSaved() { return saved().reduce(function (m, v) { return m + (count(v.durationSec) || 0); }, 0); }
   function disk() { var d = state.data && state.data.disk; return d && typeof d === "object" && count(d.freeBytes) != null ? d : null; }
@@ -1256,7 +1260,7 @@
     var free = diskWords();
     if (free) meta.push('<span class="disk">' + icon("i-disk") + esc(free) + "</span>");
     var kinds = OPTIONS.map(function (o) {
-      var k = all.filter(function (v) { return v.option === o.id; }).length;
+      var k = all.filter(function (v) { return keptAs(v, o.id); }).length;
       return k ? k + " " + (o.id === "video" ? plural(k, "video", "videos") : o.id === "audio" ? "sound only" : plural(k, "transcript", "transcripts")) : "";
     }).filter(Boolean);
     if (kinds.length > 1) meta.push(esc(kinds.join(", ")));
@@ -1288,7 +1292,7 @@
     if (text(v.channel)) parts.push('<span dir="auto">' + esc(text(v.channel, 80)) + "</span>");
     if (count(v.durationSec)) parts.push("<span>" + esc(timeWords(v.durationSec)) + "</span>");
     var o = optionOf(v.option);
-    if (o) parts.push("<span>" + esc(o.label + (count(v.sizeBytes) ? ", " + bytesWords(v.sizeBytes) : "")) + "</span>");
+    if (o) parts.push("<span>" + esc(o.label + (soundOf(v) ? " and sound only" : "") + (count(v.sizeBytes) ? ", " + bytesWords(v.sizeBytes) : "")) + "</span>");
     var at = parseTime(v.savedAt);
     if (at && v.status !== "saving") parts.push("<span>Saved " + esc(rowTime(v.savedAt, refDate()).replace(/^Yesterday$/, "yesterday")) + "</span>");
     return parts.length ? '<p class="vc-meta num">' + parts.join("") + "</p>" : "";
@@ -1309,6 +1313,7 @@
         (can && link ? '<div class="vc-acts"><button type="button" class="btn small" data-act="retry" data-slug="' + esc(v.slug) + '">' + icon("i-refresh") + "Try again</button></div>" : "");
     }
     var shown = open ? points.slice(0, 8) : points.slice(0, 3);
+    var sound = state.example ? "" : soundOf(v);
     return head + (text(v.oneLine) ? '<p class="vc-one" dir="auto">' + esc(text(v.oneLine, 240)) + "</p>" : "") +
       (shown.length ? '<ul class="pts">' + shown.map(function (p) {
         return "<li>" + tsButton(v.slug, p.sec) + '<span dir="auto">' + esc(text(p.text, 200)) + "</span></li>";
@@ -1316,6 +1321,7 @@
       '<div class="vc-acts">' +
       '<button type="button" class="btn small' + (open ? " dark" : "") + '" data-act="card" data-slug="' + esc(v.slug) + '" aria-expanded="' + open + '">' + icon("i-down") + (open ? "Show less" : "Summary, quotes and transcript") + "</button>" +
       (can ? '<button type="button" class="btn small" data-act="ask-video" data-slug="' + esc(v.slug) + '">' + icon("i-chat") + "Ask about it</button>" : "") +
+      (sound ? '<a class="btn small quiet" href="' + esc(cabUrl(sound)) + '" target="_blank" rel="noopener noreferrer">' + icon("i-music") + "Sound only</a>" : "") +
       (link ? '<a class="btn small quiet" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "YouTube</a>" : "") +
       "</div>";
   }

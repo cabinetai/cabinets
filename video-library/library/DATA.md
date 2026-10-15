@@ -23,9 +23,14 @@ Nothing runs on a schedule. The full rules are in the agent's persona
 read; the page shows it small under the headline), and `videos`, newest first, each:
 `slug`, `title`, `channel`, `link`, `videoId`, `own`, `durationSec`, `uploaded`, `option`
 (`video`, `audio` or `transcript`), `sizeBytes`, `savedAt`, `paths` `{ folder, media,
-transcript, info, summary }` (cabinet-relative, always under `videos/`), `oneLine`,
+audio, transcript, info, summary }` (cabinet-relative, always under `videos/`), `oneLine`,
 `summary` (five lines), `keyPoints` `[{ sec, text }]`, `quotes` `[{ sec, text }]`, `clips`
 `[{ fromSec, toSec, why }]`, and `status` (`saving`, `saved`, or `failed` with `why`).
+
+A video saved both ways keeps one entry: `option` is `video`, `paths.media` the video file,
+`paths.audio` (optional, only then) the sound file, and `sizeBytes` both files together. The
+card says "Video and sound only", plays the video and links to the sound file, and the
+numbers count it as a video and as a sound only.
 
 How a card plays: the cabinet's own copy (`../videos/<slug>/<file>`, served with byte ranges)
 when `paths.media` is there, else YouTube's privacy-enhanced player

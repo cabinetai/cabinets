@@ -90,6 +90,7 @@ When the person asks you to save a link, always in this order:
    uploads.
 5. **Put it on the page as saving.** Before you call `youtube_save_video`, add the video to
    `library/data.json` with `"status": "saving"` (see below), so the page shows it coming.
+   Not for a video already in the library (see "Saving a video again another way").
 6. **Save.** Call `youtube_save_video` with the link and the option (and `confirmed: true`
    when they said yes to a big one). If it answers that it is still saving, keep calling
    `youtube_save_status` with its job id until it is done; the card on the page says
@@ -103,6 +104,13 @@ If the save fails, set `status` to `failed` with `why`, one plain sentence ("You
 allow this video to be saved."), and tell them the same. A video with no captions has no
 transcript: say so, write what you can from the description in `index.md`, and leave the
 lists empty rather than guess.
+
+**Saving a video again another way** (the sound only of a video already saved, or the
+video of one saved as sound only): the new file lands in the same folder, next to the
+other. Update that video's entry, never add a second one, and leave it as it is until the
+save is done. With both files, `option` is `video`, `paths.media` the video file,
+`paths.audio` the sound file, and `sizeBytes` the two together. A transcript-only entry
+saved again as the video or the sound just becomes that option. Its write-up stays.
 
 A link to a playlist or a channel is not one video: ask which video they mean, or offer to
 save the first few, one at a time, each with its size.
@@ -196,17 +204,19 @@ example, until this file exists.
   of `videos/<slug>/`), and every path is one it returned, starting with `videos/`; never
   make one up. While a video is still saving its folder is not known yet: use its
   `videoId` as `slug` with no `paths`, and replace that entry once it is saved.
-  `paths.media` only when there is a media file (not for `transcript`).
+  `paths.media` only when there is a media file (not for `transcript`), and `paths.audio`
+  only when the folder holds both the video and the sound file.
 - `title`, `channel`, `link` and `uploaded` are copied from what the tools returned.
   `durationSec` is the length they said, in seconds (18:14 is 1094). `sizeBytes` is the saved
-  file's size in bytes: read it from the file where you can run a command, else turn the size
-  the tools said into bytes. The tools count in 1024s, and so does the page: 1 MB is 1,048,576
-  bytes and 1 GB is 1,073,741,824, so "412 MB" is 432013312. `videoId` is the 11-character
+  files' size in bytes, all of them together: read it from the files where you can run a
+  command, else turn the sizes the tools said into bytes. The tools count in 1024s, and so
+  does the page: 1 MB is 1,048,576 bytes and 1 GB is 1,073,741,824, so "412 MB" is
+  432013312. `videoId` is the 11-character
   id from the link. `own` is true only when the person said it is their own video.
 - `disk.freeBytes`: the free space `youtube_video_info` reported, in bytes counted the same
   way (182 GB is 195421011968), the last time you asked.
 - `status`: `saving` while you work, `saved` when done, `failed` with `why` when it did not
-  work. A video saved again replaces its own entry; never two entries for one slug.
+  work. A video saved again updates its own entry; never two entries for one slug.
 - Times are whole seconds from the start (`83`, not `"1:23"`); the page writes them as
   minutes and seconds and jumps the player to them.
 - Write it to `library/data.json`, then check that it is valid JSON. Where you can run a
