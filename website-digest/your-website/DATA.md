@@ -15,6 +15,8 @@ only: nothing here or in the agent changes a setting.
 | `data/days/<YYYY-MM-DD>.json` | The same routine | A copy of each day's catch-up, for the date picker. Kept for 30 days. |
 | `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up bakery in the same shape, with every box filled. Shown, marked as an example, until `latest.json` exists. |
 | `data/status.json` | The same routine | `{ at, ok, why, code }`. `ok: false` means the last run could not read Google Analytics; the page shows `why` with a Try again button. `code: "SERVICE_DISABLED"` means the Google Analytics API is turned off in the person's Google Cloud project: the page says to turn it on there, not to connect again. |
+| `data/reading.json` | The first catch-up only, through `first-read.mjs` | `{ schema, startedAt, done, lines, gift, offers }`: what the agent found, one line at a time, and the things to do now, while the person watches. Schema `website-digest/reading@1`. |
+| `data/.work/` | The first catch-up, through `first-read.mjs` | The agent's own files for the helper (`gift.json`, `offer.json`, `line.txt`). Deleted when the reading is done. |
 | `data/property.json` | The agent, in a chat | `{ propertyId, name }`: the website the page follows, when the person picked one of several. Without it the page follows the only website, or the busiest one. |
 | `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `website-digest/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet (`cabinet.mine`), not in a file. |
 
@@ -52,6 +54,21 @@ each of the 28 days stand on its right, the last seven in Analytics orange.
 
 Nothing on the page changes anything in Google Analytics. Every button asks the agent in
 the chat for a summary or an explanation.
+
+The first catch-up (no `latest.json` yet) is told as it happens. The agent runs
+`node your-website/first-read.mjs start`, then `push '<line>'` after each report that found
+something ("**2,140 visitors** in the last 7 days, 12% more than the week before"),
+`gift @gift.json` once, `offer @offer.json` up to twice, and `done` after it wrote
+`latest.json`. The helper writes `reading.json` atomically under a lock, refuses an empty,
+broken or repeated line, and checks every gift and offer (no raw ids, no long dash). The
+page shows the lines one by one under "Reading your website", and beside them "While I
+read, you can...": the gift `{ kind: "change", dir, title, gist, at }` (the biggest change
+since last week; "Explain this change" asks the agent in the chat) or `{ kind: "calm" }`
+("Give me three ideas"), then the `offers`: `{ kind: "note" }` (a note on the week for the
+team) or `{ kind: "next" }` (three things to try), each a button that asks the agent. After
+the reading the gift and the offers not yet used stay under the page's boxes for 3 days, or
+until put away. A reading older than 20 minutes is ignored, and without `reading.json` the
+page shows its plain "Reading your website's numbers" card, as every later catch-up does.
 
 The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
 about 10KB each, until unique ones are made.

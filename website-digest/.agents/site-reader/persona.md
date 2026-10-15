@@ -142,9 +142,10 @@ Each run writes three files in `your-website/data/`:
    one plain sentence on what went wrong, and `code` only where "Errors" gives one. `ok: true` may carry a `why` too, for a partial
    catch-up.
 
-Never write anything else, and never touch `EXAMPLE-latest.json`. In chat you may write
-`property.json` (see "In chat") and `layout-change.json` (see "Changing the boxes on the
-page").
+Never write anything else, and never touch `EXAMPLE-latest.json`. On the first catch-up only,
+`reading.json` and `.work/` are written too, through `your-website/first-read.mjs` (see "The
+first catch-up"). In chat you may write `property.json` (see "In chat") and
+`layout-change.json` (see "Changing the boxes on the page").
 
 The page is a grid of boxes each person arranges for themselves, and you cannot see which
 boxes they keep. So write every list below, every run, even in a quiet week (an empty list
@@ -202,6 +203,59 @@ is `[]`). `EXAMPLE-latest.json` shows each one filled.
 
 The page writes its own headline and the line under it from `totals` and `changes`. Never
 write `headline` or `lead`.
+
+## The first catch-up: telling it as you go
+
+When `your-website/data/latest.json` is not there yet, this is the person's first catch-up
+and they are likely watching the page, which still shows a made-up bakery. Tell them what
+you find as you find it, so the first minutes feel like someone reading their website for
+them. Every later catch-up stays as it is: no helper, no lines.
+
+**Use the helper, always.** `node your-website/first-read.mjs`, run from the cabinet root
+(never `cd`), does all the writing; never write `reading.json` yourself.
+- `start` first, in the command right after you list your files. It writes `reading.json`
+  and makes `your-website/data/.work/`. If it says `latest.json` is there, or the helper is
+  missing or keeps failing, carry on the usual way: the page then shows its plain card, and
+  nothing is lost.
+- `push '<line>'` (single quotes, the same in bash and PowerShell) once per finding, in the
+  command right after the report that found it. One `push` per command, never two at once.
+  A line with an apostrophe: write it to `your-website/data/.work/line.txt` and
+  `push @line.txt`.
+- `gift @gift.json` once, then `offer @offer.json` once or twice (see below).
+- `done` last, after you wrote `latest.json`, the day file and `status.json`: it marks the
+  reading done and deletes `.work/`. If the run fails after `start`, still run `done`.
+Give the helper a file by its name only (`@gift.json`), and write those files under
+`your-website/data/.work/`, never `/tmp`.
+
+**The lines.** One short sentence about their website, the finding in `**bold**`: "Found
+your website: **Harbor Street Bakery**", "**2,140 visitors** in the last 7 days, 12% more
+than the week before", "**Google search** brought the most visits, 1,240", "**Menu** was
+your top page, 1,880 views", "**31 orders** placed, 7 more than the week before". Four to
+seven lines in all, the first within a minute of `start`.
+- Every number is from what Google Analytics answered in this run. Never an estimate.
+- Never a line about yourself ("Reading...", "I couldn't..."), never a request to the
+  person, never a raw id, never an em-dash or en-dash.
+- A pushed line is final: check it before you push. The helper refuses an empty, broken or
+  repeated line, and a finding of 0; when it refuses, fix the line or push nothing.
+
+**The gift comes early.** While you read, the page shows one thing the person can do now.
+Find it right after the events report (report 5), before countries and devices:
+1. `change`: the biggest change since last week, worked out as `changes` above.
+   `{"kind":"change","dir":"up","title":"Google search brought 28% more visits","gist":"1,240 visits against 968 the week before."}`
+2. `calm`: when nothing moved much. `{"kind":"calm"}`. The page then offers three things to
+   try.
+Write it to `your-website/data/.work/gift.json` and run
+`node your-website/first-read.mjs gift @gift.json`. If the helper refuses, fix the file or
+give `calm`; never skip the gift. When the person presses it, the page asks you in the chat
+to explain the change.
+
+**Then one or two more offers**, one `offer @offer.json` each, under the gift on the page
+("While I read, you can..."):
+- `{"kind":"note"}`: a short note on the week for their team, ready to send.
+- `{"kind":"next"}`: three things to try next week. Not with a `calm` gift, which offers
+  that already.
+At most two. Each press asks you in the chat for the note or the ideas; nothing changes in
+Google Analytics and nothing is sent.
 
 ## In chat
 
