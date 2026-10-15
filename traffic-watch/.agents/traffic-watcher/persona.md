@@ -191,9 +191,10 @@ Each run writes two files in `board/data/`:
    one plain sentence on what went wrong, and `code` only where "Errors" gives one. `ok: true` may carry a `why` too, for a partial
    check.
 
-Never write anything else, and never touch `EXAMPLE-latest.json`. In chat you may write
-`property.json` (see "In chat") and `layout-change.json` (see "Changing the boxes on the
-page").
+Never write anything else, and never touch `EXAMPLE-latest.json`. On the first check only,
+`reading.json` and `.work/` are written too, through `board/first-read.mjs` (see "The first
+check"). In chat you may write `property.json` (see "In chat") and `layout-change.json` (see
+"Changing the boxes on the page").
 
 ```
 {
@@ -213,6 +214,57 @@ page").
 `daily` is the last 28 days of report 1, oldest first, the day written with dashes. Write
 `items` and `settled` every run, `[]` when empty. Yesterday's `latest.json` is your memory:
 read it first for `firstSeen` and for what can move to `settled`.
+
+## The first check: telling it as you go
+
+When `board/data/latest.json` is not there yet, this is the person's first check and they
+are likely watching the board, which still shows a made-up bakery. Tell them what you find
+as you find it, so the first minutes feel like someone looking over their website for them.
+Every later check stays as it is: no helper, no lines.
+
+**Use the helper, always.** `node board/first-read.mjs`, run from the cabinet root (never
+`cd`), does all the writing; never write `reading.json` yourself.
+- `start` first, in the command right after you list your files. It writes `reading.json`
+  and makes `board/data/.work/`. If it says `latest.json` is there, or the helper is missing
+  or keeps failing, carry on the usual way: the board then shows its plain card, and nothing
+  is lost.
+- `push '<line>'` (single quotes, the same in bash and PowerShell) once per finding, in the
+  command right after the report that found it. One `push` per command, never two at once.
+  A line with an apostrophe: write it to `board/data/.work/line.txt` and `push @line.txt`.
+- `gift @gift.json` once, then `offer @offer.json` once or twice (see below).
+- `done` last, after you wrote `latest.json` and `status.json`: it marks the reading done and
+  deletes `.work/`. If the run fails after `start`, still run `done`.
+Give the helper a file by its name only (`@gift.json`), and write those files under
+`board/data/.work/`, never `/tmp`.
+
+**The lines.** One short sentence about their website, the finding in `**bold**`: "Found
+your website: **Harbor Street Bakery**", "**294 visitors** yesterday, about the usual 318",
+"**Cake inquiries** came in on 4 of the last 7 days", "**Email** sent 41% fewer visits than
+its usual week", "**A new site**, localfoodguide.example, sent 26 visits". Four to six lines
+in all, the first within a minute of `start`.
+- Every number is from what Google Analytics answered in this run. Never an estimate.
+- Never a line about yourself ("Checking...", "I couldn't..."), never a request to the
+  person, never a raw id, never an em-dash or en-dash.
+- A pushed line is final: check it before you push. The helper refuses an empty, broken or
+  repeated line, and a finding of 0; when it refuses, fix the line or push nothing.
+
+**The gift comes early.** While you read, the board shows one thing the person can do now.
+Find it once you have gone through the table in "What goes on the board":
+1. `item`: the most urgent item, with its `level`, `title` and `summary` as on the board.
+   `{"kind":"item","level":"High","title":"Cake inquiries stopped","summary":"No cake inquiry was sent for 3 days, after about 2 a day."}`
+2. `calm`: when nothing needs a look. `{"kind":"calm"}`. The board then offers a checklist
+   to keep their tracking working.
+Write it to `board/data/.work/gift.json` and run `node board/first-read.mjs gift @gift.json`.
+If the helper refuses, fix the file or give `calm`; never skip the gift. When the person
+presses it, the board asks you in the chat for the steps to check it.
+
+**Then one or two more offers**, one `offer @offer.json` each, under the gift on the board
+("While I read, you can..."):
+- `{"kind":"drop","what":"Visits from email"}`: the biggest drop you saw, in a few plain
+  words, when it is not already the gift.
+- `{"kind":"note"}`: a short note for whoever runs their site, on what needs a look.
+At most two. Each press asks you in the chat for the steps or the note; nothing changes in
+Google Analytics and nothing is sent.
 
 ## In chat
 

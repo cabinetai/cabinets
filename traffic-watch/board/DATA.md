@@ -15,6 +15,8 @@ the agent changes a setting.
 | `data/latest.json` | Daily Traffic Watch, every day at 8:30 | What on the website needs a look, ranked. Replaced whole each run. Schema `traffic-watch/board@1`. |
 | `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up bakery's board in the same shape. Shown, marked as an example, until `latest.json` exists. |
 | `data/status.json` | The same routine | `{ at, ok, why, code }`. `ok: false` means the last check could not read Google Analytics; the page shows `why` with a Try again button. `code: "SERVICE_DISABLED"` means the Google Analytics API is turned off in the person's Google Cloud project: the page says to turn it on there, not to connect again. |
+| `data/reading.json` | The first check only, through `first-read.mjs` | `{ schema, startedAt, done, lines, gift, offers }`: what the agent found, one line at a time, and the things to do now, while the person watches. Schema `traffic-watch/reading@1`. |
+| `data/.work/` | The first check, through `first-read.mjs` | The agent's own files for the helper (`gift.json`, `offer.json`, `line.txt`). Deleted when the reading is done. |
 | `data/property.json` | The agent, in a chat | `{ propertyId, name }`: the website the board follows, when the person picked one of several. |
 | `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `traffic-watch/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet (`cabinet.mine`). |
 
@@ -55,6 +57,22 @@ would help.
 
 Nothing on the page changes anything in Google Analytics. Every button asks the agent in
 the chat for an explanation or a summary.
+
+The first check (no `latest.json` yet) is told as it happens. The agent runs
+`node board/first-read.mjs start`, then `push '<line>'` after each report that found
+something ("**294 visitors** yesterday, about the usual 318"), `gift @gift.json` once,
+`offer @offer.json` up to twice, and `done` after it wrote `latest.json`. The helper writes
+`reading.json` atomically under a lock, refuses an empty, broken or repeated line, and checks
+every gift and offer (no raw ids, no long dash). The board shows the lines one by one under
+"Checking your website", and beside them "While I read, you can...": the gift `{ kind:
+"item", level, title, summary, at }` (the most urgent thing found; "Help me check it" asks
+the agent in the chat for the steps) or `{ kind: "calm" }` ("Make my checklist", to keep the
+tracking working), then the `offers`: `{ kind: "drop", what }` (check the biggest drop) or
+`{ kind: "note" }` (a note for whoever runs the site), each a button that asks the agent.
+After the reading the gift and the offers not yet used stay under the board's boxes for 3
+days, or until put away. A reading older than 20 minutes is ignored, and without
+`reading.json` the board shows its plain "Checking your website" card, as every later check
+does.
 
 The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
 about 10KB each, until unique ones are made.
