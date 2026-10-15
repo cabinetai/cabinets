@@ -147,7 +147,7 @@
   .hero .lead { margin: 10px 0 0; font-size: 17px; color: var(--ink-2); max-width: 70ch; }
   .hero .lead b { color: var(--ink); font-weight: 700; }
   .hero .fine { margin: 8px 0 0; font-size: 15px; color: var(--ink-3); }
-  .hero .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .hero .actions, .box.headline .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 
   .card-hero {
     display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center;
@@ -386,6 +386,18 @@
   .box.headline .meta > span:not(:last-child)::after { content: "·"; margin: 0 8px; color: rgba(255, 255, 255, .5); }
   .box.headline .fine { margin: 6px 0 0; font-size: 14px; color: rgba(255, 255, 255, .88); }
   .box.headline[data-level="S"] h2 { font-size: 28px; }
+  /* Before the first catch-up, or when it failed, the band says so in place of its headline. */
+  .box.headline .card-hero { grid-template-columns: minmax(0, 1fr) auto; gap: 28px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
+  .box.headline .card-hero > .art { order: 2; }
+  .box.headline .steps { color: rgba(255, 255, 255, .9); }
+  .box.headline .steps .icon { color: #fff; }
+  .box.headline .card-hero .btn { border-color: transparent; background: rgba(255, 255, 255, .9); color: var(--ink); }
+  .box.headline .card-hero .btn:hover { background: #fff; }
+  .box.headline .card-hero .btn.primary { background: #fff; color: var(--brand); }
+  .box.headline .card-hero .btn.primary:hover { background: var(--brand-tint); }
+  .box.headline .notice, .box.headline .ribbon, .box.headline .read-strip { margin-top: 16px; }
+  /* The example ribbon right under the band, in the grid. */
+  .grid > #ribbon { align-self: center; }
   .hl-status { flex: none; justify-content: flex-end; gap: 6px 10px; }
   /* The connection is a quiet see-through pill: a small dot, then the time. */
   .box.headline .hl-status .pill { min-height: 32px; padding: 4px 12px; gap: 7px; background: rgba(255, 255, 255, .16); color: #fff; font-size: 13.5px; }
@@ -609,6 +621,8 @@
     /* Over the title on a phone, the spinner alone needs no picture-sized box. */
     .art.busy { width: auto; height: auto; justify-items: start; }
     .card-hero .btn.big { width: 100%; }
+    .box.headline .card-hero { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .box.headline .card-hero > .art { order: 0; }
     .lane-head { margin: 0 16px; padding-top: 16px; }
     .row-main, .chan-main { padding: 12px 16px; }
     .row-body, .chan-body { padding: 0 16px 16px; }
@@ -791,6 +805,8 @@
     connectNote: "",
     running: false,
     runNote: "",
+    /** What the hero says, told inside the headline band when that box is on the page. */
+    band: null,
     askNote: "",
     open: {},
     /** Channel numbers: the last "28" days, or "7". */
@@ -1532,6 +1548,7 @@
     var g = state.yt;
     var html;
     var told = false;
+    var card = true;
 
     if (V2 && s === "not-available-here") {
       var why = g && g.problem && g.problem.text ? g.problem.text : "";
@@ -1562,6 +1579,7 @@
       // The page is there; the agent is still finishing. Its latest line, quietly.
       var last = state.reading.lines[state.reading.lines.length - 1];
       html = '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still reading your channel' + (last ? ": " + lineHtml(last) : "...") + "</span></div>";
+      card = false;
     } else if (state.running && (state.example || !state.data)) {
       html = cardHero(null, "Catching up on your channel...",
         '<p class="lead">This takes a few minutes. Stay here or come back later: the page fills in by itself.</p>', true);
@@ -1582,8 +1600,13 @@
     } else {
       // The headline is a box on the grid now; up here only what went wrong.
       html = runNoteHtml();
+      card = false;
     }
-    hero.innerHTML = html + (told ? "" : failureHtml() || partialHtml());
+    var notes = (card ? "" : html) + (told ? "" : failureHtml() || partialHtml());
+    // With the headline box on the page all of this is said inside its band, so the band stays
+    // the first thing on the page: a card in place of the headline, notes under it.
+    state.band = state.data && !showReading() && onPage("headline") ? { card: card ? html : "", notes: notes } : null;
+    hero.innerHTML = state.band ? "" : (card ? html : "") + notes;
   }
 
   /** A catch-up that worked but could not read everything says what is missing, quietly. */
@@ -1696,7 +1719,9 @@
     var name = text(ch.title, 80) || "Your channel";
     var top = '<div class="hl-top"><p class="hl-name"><span class="mark" aria-hidden="true"></span>Your YouTube</p>' +
       '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>";
-    if (level === "S") return '<div class="hl">' + top + '<div class="hl-text"><h2 dir="auto">' + esc(name) + "</h2></div></div>";
+    var band = state.band || { card: "", notes: "" };
+    if (band.card) return '<div class="hl">' + top + '<div class="hl-text">' + band.card + band.notes + "</div></div>";
+    if (level === "S") return '<div class="hl">' + top + '<div class="hl-text"><h2 dir="auto">' + esc(name) + "</h2>" + band.notes + "</div></div>";
     var v = videos();
     var gained = viewsGained();
     var comments = commentsCount();
@@ -1723,7 +1748,7 @@
     return '<div class="hl">' + top + '<div class="hl-text"><p class="hello">' + helloHtml(new Date()) + "</p>" +
       '<h2 dir="auto">' + esc(name) + "</h2>" + '<p class="lead">' + news + "</p>" +
       (meta.length ? '<p class="meta num">' + meta.map(function (m) { return "<span>" + m + "</span>"; }).join("") + "</p>" : "") +
-      (fine ? '<p class="fine">' + fine + "</p>" : "") + "</div>" + sparkHtml() + "</div>";
+      (fine ? '<p class="fine">' + fine + "</p>" : "") + band.notes + "</div>" + sparkHtml() + "</div>";
   }
   /** Views per day for the 28 days YouTube Analytics has, the last seven in red. */
   function sparkHtml() {
@@ -2613,13 +2638,20 @@
     grid.style.setProperty("--row", ROW + "px");
     grid.style.setProperty("--gap", GAP + "px");
     var spots = stack ? phoneOrder(placed()) : placed();
+    var under = ribbonSpot(spots, stack);
     var keep = {};
+    var at = 0;
     spots.forEach(function (spot, i) {
       keep[spot.id] = true;
       var el = boxEl(spot.id);
-      if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null);
+      if (grid.children[at] !== el) grid.insertBefore(el, grid.children[at] || null);
+      at++;
+      if (under && spot.id === "headline") {
+        if (grid.children[at] !== $("ribbon")) grid.insertBefore($("ribbon"), grid.children[at] || null);
+        at++;
+      }
       el.style.gridColumn = stack ? "" : spot.x + 1 + " / span " + spot.w;
-      el.style.gridRow = stack ? "" : spot.y + 1 + " / span " + spot.h;
+      el.style.gridRow = stack ? "" : spot.y + 1 + (under && spot.y >= under.cut ? under.rows : 0) + " / span " + spot.h;
       // In edit mode a box is one stop for the keyboard: arrows move it, Shift and arrows resize it.
       if (state.editing) {
         el.tabIndex = 0;
@@ -2639,6 +2671,29 @@
       if (el.hasAttribute("data-box") && !keep[el.getAttribute("data-box")]) grid.removeChild(el);
     });
     return spots;
+  }
+
+  /**
+   * The example ribbon stands right under the headline band, in the grid: the boxes below the
+   * band move down to make room for it. While the boxes are arranged it steps aside.
+   */
+  function ribbonSpot(spots, stack) {
+    var grid = $("grid");
+    var rib = $("ribbon");
+    var band = spots.filter(function (spot) { return spot.id === "headline"; })[0];
+    rib.hidden = !!(band && rib.firstChild && state.editing);
+    if (!band || !rib.firstChild || rib.hidden) {
+      if (rib.parentNode === grid) $("hero").insertAdjacentElement("afterend", rib);
+      return null;
+    }
+    if (stack) { rib.style.gridColumn = rib.style.gridRow = ""; return { cut: 0, rows: 0 }; }
+    // The first row under the band that no box beside it runs across.
+    var cut = band.y + band.h;
+    while (spots.some(function (spot) { return spot.y < cut && spot.y + spot.h > cut; })) cut++;
+    rib.style.gridColumn = "1 / -1";
+    var rows = Math.max(1, Math.ceil((rib.offsetHeight + GAP) / (ROW + GAP)));
+    rib.style.gridRow = cut + 1 + " / span " + rows;
+    return { cut: cut, rows: rows };
   }
 
   function paintGrid() {
@@ -2690,7 +2745,16 @@
     // The headline grows a row when its words need it (a narrow window wraps them).
     if (BOXES[id].grow && !phone()) {
       var inner = el.firstElementChild;
-      var grow = inner ? Math.ceil((inner.scrollHeight + 6 + GAP) / (ROW + GAP)) : 0;
+      // Measured at its own height (not stretched to the box). A status card in the band keeps
+      // clear of the box's padding too, so its last line is never cut off.
+      var grow = 0;
+      if (inner) {
+        var css = getComputedStyle(el);
+        var pad = state.band && state.band.card ? (parseFloat(css.paddingTop) || 0) + (parseFloat(css.paddingBottom) || 0) : 6;
+        inner.style.minHeight = "0";
+        grow = Math.ceil((inner.scrollHeight + pad + GAP) / (ROW + GAP));
+        inner.style.minHeight = "";
+      }
       var entry = entryOf(id);
       grow = entry && grow > entry.h ? grow : 0;
       if ((state.need[id] || 0) !== grow) { state.need[id] = grow; placeBoxes(); }
