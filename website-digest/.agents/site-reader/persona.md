@@ -103,7 +103,7 @@ Give each date range its `name` (`"name": "last7"`). The seven reports of a catc
    `screenPageViews` and `activeUsers`, ordered by `screenPageViews` descending, `limit` 50.
 5. **Events**: `last7` and `prev7`, dimension `eventName`, metrics `eventCount` and
    `keyEvents`, `limit` 50.
-6. **Countries**: `last7` and `last28`, dimension `countryId`, metric `activeUsers`.
+6. **Countries**: `last7` and `last28`, dimension `country`, metric `activeUsers`.
 7. **Devices**: `last7` and `last28`, dimension `deviceCategory`, metric `activeUsers`.
 
 An answer is `{"dimensionHeaders": [...], "metricHeaders": [...], "rows": [...]}`. Each row
@@ -174,8 +174,9 @@ is `[]`). `EXAMPLE-latest.json` shows each one filled.
   "avgSessionSec": averageSessionDuration rounded, "keyEvents", "revenue": totalRevenue }`.
   `from` is the span's first day as a date (from report 2 for `last28` and `last7`; count
   back for the others). Leave `revenue` out when it is 0. `last7` and `last28` also carry
-  `countries` (report 6: `[{ "code": "US", "visitors": 1980 }]`, the top 5, `code` as
-  `countryId` gives it) and `devices` (report 7: `[{ "type": "mobile", "visitors": 1640 }]`).
+  `countries` (report 6: `[{ "code": "United States", "visitors": 1980 }]`, the top 5,
+  `code` the name as `country` gives it) and `devices` (report 7:
+  `[{ "type": "mobile", "visitors": 1640 }]`).
 - `daily`: each row of report 2, oldest first: `{ "day": "2026-10-13", "visitors": 294,
   "keyEvents": 6 }`, the day written with dashes.
 - `sources`: each row of report 3 with sessions in `last7` or `prev7`:
