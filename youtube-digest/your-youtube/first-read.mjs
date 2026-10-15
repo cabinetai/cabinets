@@ -18,7 +18,7 @@
 //                                                   {"kind":"asked","what","people"} or {"kind":"next"}
 //   node <app>/first-read.mjs latest @<file> ['why'] write data/latest.json, today's day file and
 //                                                   data/status.json from your file in data/.work/
-//                                                   (generatedAt, schema and example set here)
+//                                                   (schema and generatedAt set here, example dropped)
 //   node <app>/first-read.mjs done                  mark the reading done, delete data/.work/
 // A line is one short sentence about their channel, the finding in **bold**:
 //   "**31 new comments** since yesterday, 4 of them questions"
