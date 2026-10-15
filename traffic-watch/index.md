@@ -42,7 +42,8 @@ one line.
 
 1. On the board, press **Connect Google Analytics** and sign in with the Google account that
    sees your website in Google Analytics.
-2. The board fills on its first check, right away when you press **Check now**.
+2. The first check starts right away and takes a minute or two. After that the board checks
+   again every morning at 8:30.
 
 Until then, the board shows a made-up bakery, and says so.
 
