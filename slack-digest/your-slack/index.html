@@ -694,10 +694,6 @@
       text: "What you did yesterday, what is next, and what is blocking you, from your own messages.",
       ask: "Draft my standup update from my Slack messages of the last working day: what I did, what I'm doing next, and anything blocking me. Keep it to three short lines I can paste.",
       when: "Every weekday", at: "every weekday at 8:45 am" },
-    { id: "one-channel", box: "channels", icon: "i-hash", art: "ideas/one-channel.jpg", title: "Catch up on one channel",
-      text: "The story of a busy channel in five lines, so you can skip the scroll.",
-      ask: "Which channel moved the most this week? Summarize it in five short lines: what happened, what was decided, and what is still open.",
-      when: "Every Monday", at: "every Monday at 9:30 am" },
     { id: "decisions", box: "decisions", icon: "i-gavel", art: "ideas/decisions.jpg", title: "This week's decisions on one page",
       text: "Everything the team agreed this week, with who and where, saved as a page.",
       ask: "List every decision the team made in Slack this week: what was decided, who agreed, in which channel, and when. Save it as a page in this cabinet.",
@@ -1881,14 +1877,13 @@
 
   /**
    * One idea as its own box, put there by the person, so it shows even on a day it does not
-   * fit. The standup and the one-channel ideas show what the morning catch-up prepared.
+   * fit. The standup idea shows what the morning catch-up prepared.
    */
   function drawOneIdea(idea, level) {
     var fit = state.data ? fitted(idea, null, true) : null;
     var can = canAsk();
     var body = "";
     var sd = state.data && state.data.standup && typeof state.data.standup === "object" ? state.data.standup : null;
-    var spot = state.data && state.data.spotlight && typeof state.data.spotlight === "object" ? state.data.spotlight : null;
     var lines = function (v, n) { return Array.isArray(v) ? v.map(function (x) { return text(x, 140); }).filter(Boolean).slice(0, n) : []; };
     if (idea.id === "standup" && sd && level !== "S") {
       var parts = [["Done", lines(sd.done, 3)], ["Next", lines(sd.next, 3)], ["Blocked", lines(sd.blocked, 2)]].filter(function (p) { return p[1].length; });
@@ -1897,11 +1892,6 @@
           return "<div><dt>" + p[0] + '</dt><dd><ul>' + p[1].map(function (l) { return '<li dir="auto">' + esc(l) + "</li>"; }).join("") + "</ul></dd></div>";
         }).join("") + "</dl>";
       }
-    }
-    if (idea.id === "one-channel" && spot && level !== "S") {
-      var sl = lines(spot.lines, 5);
-      if (sl.length) body = '<p><b dir="auto">' + esc(text(spot.name, 60)) + "</b> up close</p>" +
-        '<dl class="parts"><div><dd><ul>' + sl.map(function (l) { return '<li dir="auto">' + esc(l) + "</li>"; }).join("") + "</ul></dd></div></dl>";
     }
     var art = idea.art && level !== "S" && !body ? '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>' : "";
     return '<div class="one-idea">' + art + "<h3>" + esc(idea.title) + "</h3>" +
@@ -1921,13 +1911,11 @@
   /** What today's Slack says, counted once for every idea. */
   function ideaFacts() {
     var ref = refDate();
-    var busiest = channels().slice().sort(function (a, b) { return (count(b.messages) || 0) - (count(a.messages) || 0); })[0] || null;
     return {
       ref: ref,
       longWait: waiting().filter(function (x) { return waitingDays(x.since, ref) >= 1; }).length,
       decisions: decisions().length,
       files: files().length,
-      busiest: busiest && (count(busiest.messages) || 0) >= 20 ? busiest : null,
       standup: !!(state.data && state.data.standup && typeof state.data.standup === "object")
     };
   }
@@ -1941,13 +1929,6 @@
     standup: function (f) {
       var day = f.ref.getDay();
       return f.standup && day >= 1 && day <= 5 ? { line: "Your standup is ready from your own messages.", act: "Draft my standup" } : null;
-    },
-    "one-channel": function (f) {
-      var c = f.busiest;
-      if (!c) return null;
-      var name = text(c.name, 60);
-      return { line: name + " had " + count(c.messages) + " messages. Get it in five lines?", act: "Catch me up on " + name,
-        ask: "Catch me up on " + name + " from the last day: what happened, what was decided, and what is still open, in five short lines." };
     },
     decisions: function (f) {
       var n = f.decisions;
@@ -2160,8 +2141,8 @@
       title: "Ideas for your Slack", desc: "Every idea in one box, one tap each." }
   };
   IDEAS.forEach(function (idea) {
-    // The standup and the one channel show what the catch-up prepared, so they start wider.
-    var rich = idea.id === "standup" || idea.id === "one-channel";
+    // The standup shows what the catch-up prepared, so it starts wider.
+    var rich = idea.id === "standup";
     BOXES["idea-" + idea.id] = { cls: "lane idea1", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
       icon: idea.icon, art: idea.art, w: rich ? 6 : 4, h: 5, min: [3, 3], title: idea.title, desc: idea.text };
   });

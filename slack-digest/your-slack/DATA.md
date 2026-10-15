@@ -30,7 +30,6 @@ dmsWaiting }`, `quietChannels` (the names behind `totals.quiet`), and one list f
 | `files` | Files shared | `id`, `name`, `kind` pdf, image, doc, sheet, slides or other, `who`, `where`, `at`, `url` |
 | `promises` | You promised (a box to add) | `id`, `what`, `to`, `where`, `at`, `url` |
 | `standup` | The standup idea box | `{ done[], next[], blocked[] }`, short lines from the person's own messages |
-| `spotlight` | The one-channel idea box | `{ id, name, lines[] }`, the busiest channel up close |
 
 `me` (the person's Slack name and id) and `known` (the conversations seen before, read
 directly next time so nothing search misses is lost) are for the routine; the page ignores

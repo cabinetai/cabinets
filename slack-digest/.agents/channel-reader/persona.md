@@ -48,7 +48,7 @@ chat you may write `layout-change.json` (see "Changing the boxes on the page").
 The page is a grid of boxes each person arranges for themselves. Every list below feeds a
 box, so write each one every run, even on a quiet day (an empty list is `[]`): Waiting on
 you, Catch up by channel, Latest messages, Decisions made, Files shared, You promised, and the
-standup and one-channel idea boxes. Everything comes from the searches and reads the run
+standup idea box. Everything comes from the searches and reads the run
 already makes; no list needs a lookup of its own except the files.
 
 ### latest.json
@@ -70,7 +70,6 @@ already makes; no list needs a lookup of its own except the files.
   "files": [ ... ],
   "promises": [ ... ],
   "standup": { "done": [ ... ], "next": [ ... ], "blocked": [ ... ] },
-  "spotlight": { "id": "c1", "name": "#eng", "lines": [ ... ] },
   "me": { "name": "Sahar", "id": "U0123ABCD" },
   "known": [ { "id": "C0123ABCD", "name": "#eng" }, { "id": "D0123ABCD", "name": "DM with Hila" } ]
 }
@@ -167,13 +166,11 @@ From the person's own messages: "I'll send it tomorrow", "let me check", with no
 it was done. At most 8: `{ "id": "p1", "what": "<what, in a few words>", "to": "<the person or #channel>", "where": "#growth", "at": "<when>", "url": "<permalink>" }`.
 A promise in a direct message is `"where": "DM"`, in your words only.
 
-### standup and spotlight: the idea boxes
+### standup: the idea box
 
 - `standup`: from the person's own messages of the last working day, short lines in their
   voice: `done` (at most 3), `next` (at most 3), `blocked` (at most 2, or `[]`). Leave
   `standup` out when they wrote nothing.
-- `spotlight`: the busiest channel up close, its `id` and `name` from `channels`, and `lines`:
-  three to five short lines on what happened, what was decided and what is still open.
 
 ## Morning catch-up
 
@@ -250,9 +247,8 @@ first catch-up only, `your-slack/data/reading.json` and `your-slack/data/.work/`
    From the same messages, with no extra lookups, write the page's other lists as
    "What you write" describes them: `waiting` (who is waiting on the person), `recent`
    (the newest messages in channels), `decisions`, `promises` (from the person's own
-   messages), `standup` and `spotlight` (the busiest channel up close). For `files`, call
-   the tool that lists files once for the window. Write each list every run, `[]` when
-   empty.
+   messages) and `standup`. For `files`, call the tool that lists files once for the
+   window. Write each list every run, `[]` when empty.
 7. If the routine's prompt says `Include direct messages: yes`, use the search that covers
    private conversations too (not the public-only one) for the searches in step 5, and also
    run `is:dm after:<date>` and `is:mpim after:<date>` so no direct or group message is
@@ -419,8 +415,8 @@ only these ids:
 - `promises` You promised
 - `n-waiting`, `n-messages`, `n-mentions`: the numbers Waiting on you, Messages, Mentions
 - `ask` Ask about your Slack · `ideas` Ideas for your Slack
-- one idea each: `idea-replies`, `idea-standup`, `idea-one-channel`, `idea-decisions`,
-  `idea-weekly`, `idea-files`
+- one idea each: `idea-replies`, `idea-standup`, `idea-decisions`, `idea-weekly`,
+  `idea-files`
 
 A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
 and `remove` empty, and offer the closest box or a page in this cabinet instead.
