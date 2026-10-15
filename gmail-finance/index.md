@@ -16,6 +16,9 @@ The money in your business inbox. Every morning at 7 it pulls out:
   failed.
 - **Receipts**: this month's receipts in one list, ready for your accountant.
 
+**Write an email** from the page: write it yourself, or tell the agent what to say. It goes
+out only when you press Approve.
+
 Newsletters and ads are set aside and counted. The **Ideas** on the page go further: see
 which customers pay late, get a money summary every Friday, or send your accountant the
 month's receipts. Each one is a tap, now or on a schedule.
