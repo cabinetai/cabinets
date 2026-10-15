@@ -1312,6 +1312,9 @@
     }).slice(0, 2);
   }
   function giftNow() { return freshReading() ? state.reading.gift : null; }
+  /** The asks for a follow-up to a video that did well, and for what to change after a quiet one. */
+  function followUpAsk(title) { return "Plan a follow-up to my TikTok video \"" + title + "\": three opening hooks, a short outline and a caption I can copy. Tell me which of its numbers backs it."; }
+  function quietAsk(title) { return "My TikTok video \"" + title + "\" is doing under my usual. From how my other videos did, tell me in a few lines what to try differently next time: the hook, the length, the caption."; }
   var NEXT_ASK = "Give me three ideas for my next TikTok from what did well lately. For each, a working title, an opening hook and one line on which of my videos backs it.";
   function giftParts(g) {
     if (g.kind === "best") {
@@ -1321,7 +1324,7 @@
           (days ? " in " + days + " " + plural(days, "day", "days") : "") + ".",
         why: "Want a follow-up planned from it?",
         button: "Plan a follow-up", icon: "i-bulb",
-        ask: "Plan a follow-up to my TikTok video \"" + g.video + "\": three opening hooks, a short outline and a caption I can copy. Tell me which of its numbers backs it."
+        ask: followUpAsk(g.video)
       };
     }
     return {
@@ -1352,7 +1355,7 @@
     if (o.kind === "quiet") {
       return { icon: "i-pen", title: "Learn from a quiet video",
         sub: o.video + " is doing under your usual.", button: "What to change",
-        ask: "My TikTok video \"" + o.video + "\" is doing under my usual. From how my other videos did, tell me in a few lines what to try differently next time: the hook, the length, the caption." };
+        ask: quietAsk(o.video) };
     }
     return { icon: "i-bulb", title: "Three ideas for your next video", sub: "From what did well lately.", button: "Give me ideas", ask: NEXT_ASK };
   }
@@ -1699,7 +1702,8 @@
     var name = text(acc.name, 80) || text(acc.handle, 60) || "Your account";
     var top = '<div class="hl-top"><p class="hl-name"><span class="mark" aria-hidden="true"></span>Your TikTok</p>' +
       '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>";
-    if (level === "S") return '<div class="hl">' + top + '<div class="hl-text"><h2 dir="auto">' + esc(name) + "</h2></div></div>";
+    var example = state.example ? '<p class="hl-example"><span class="tag-example">Example</span><span>' + exampleWords() + "</span></p>" : "";
+    if (level === "S") return '<div class="hl">' + top + '<div class="hl-text"><h2 dir="auto">' + esc(name) + "</h2></div>" + example + "</div>";
     var v = videos();
     var views = viewsGained();
     var likes = gainedOf("likes");
@@ -1735,7 +1739,7 @@
       '<h2 dir="auto">' + esc(name) + "</h2>" + '<p class="lead">' + news + "</p>" +
       (meta.length ? '<p class="meta num">' + meta.map(function (m) { return "<span>" + m + "</span>"; }).join("") + "</p>" : "") +
       (fine ? '<p class="fine">' + fine + "</p>" : "") + "</div>" + sparkHtml() +
-      (state.example ? '<p class="hl-example"><span class="tag-example">Example</span><span>' + exampleWords() + "</span></p>" : "") + "</div>";
+      example + "</div>";
   }
   /** Views on the last videos, oldest first, the one that moved most in cyan. TikTok has no views per day. */
   function sparkHtml() {
@@ -1766,7 +1770,8 @@
         : '<button class="btn small dark" data-act="followup" data-id="' + esc(id) + '">' + icon("i-bulb") + "Plan a follow-up</button>");
     }
     if (link) actions.push('<a class="btn small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on TikTok</a>");
-    var markWords = mark === "best" ? (gv != null && viewsGained() != null ? "Moved most" : "Best") : mark === "quiet" ? "Quietest" : "";
+    // After the first catch-up, best is the video that gained most views since the last one.
+    var markWords = mark === "best" ? (viewsGained() != null ? "Moved most" : "Best") : mark === "quiet" ? "Quietest" : "";
     var stats = ["views", "likes", "comments", "shares"].map(function (k, i) {
       var n = count(item[k]) || 0;
       return "<span>" + big(n) + " " + plural(n, k.slice(0, -1), k) + "</span>" + (i === 0 && gv ? '<span class="up">+' + big(gv) + " since yesterday</span>" : "");
@@ -1999,14 +2004,14 @@
       if (!b) return null;
       var title = videoName(b, 70);
       return { line: title + " moved most. Plan a follow-up while it is hot?", act: "Plan the follow-up",
-        ask: "Plan a follow-up to my TikTok video \"" + title + "\": three opening hooks, a short outline and a caption I can copy. Tell me which of its numbers backs it." };
+        ask: followUpAsk(title) };
     },
     quiet: function (f) {
       var q = f.quiet;
       if (!q) return null;
       var title = videoName(q, 70);
       return { line: title + " is doing under your usual. See what to change next time?", act: "What to change",
-        ask: "My TikTok video \"" + title + "\" is doing under my usual. From how my other videos did, tell me in a few lines what to try differently next time: the hook, the length, the caption." };
+        ask: quietAsk(title) };
     },
     plan: function (f) {
       return f.next ? { line: plural(f.next, "One idea is", f.next + " ideas are") + " ready from what did well. Plan one?", act: "Plan my next video" } : null;
@@ -3319,8 +3324,8 @@
     else if ((act === "followup" || act === "learn") && item) {
       var named = videoName(item, 120);
       ask(act === "followup"
-        ? "Plan a follow-up to my TikTok video \"" + named + "\": three opening hooks, a short outline and a caption I can copy. Tell me which of its numbers backs it."
-        : "My TikTok video \"" + named + "\" is doing under my usual. From how my other videos did, tell me in a few lines what to try differently next time: the hook, the length, the caption.");
+        ? followUpAsk(named)
+        : quietAsk(named));
     } else if (act === "plan") {
       var nx = nextIdeas()[+el.getAttribute("data-i")];
       if (nx) ask("Plan a TikTok from this idea: " + text(nx.title, 120) + " (" + text(nx.why, 160) + "). Give me three opening hooks, a short outline and a caption I can copy, and tell me which of my videos backs it.");
