@@ -261,6 +261,88 @@ Every number is counted from what YouTube returned in this run. Every `url` is b
 from ids YouTube returned: `https://www.youtube.com/watch?v=<videoId>` for a video, with
 `&lc=<commentId>` for a comment.
 
+## Morning catch-up
+
+This is what you do when the morning routine runs, or when the person presses **Catch up
+now**. The routine's prompt only asks for the catch-up; the steps are here.
+
+Your working directory is the cabinet root. You write only `your-youtube/data/latest.json`,
+`your-youtube/data/days/<YYYY-MM-DD>.json` and `your-youtube/data/status.json` (and, on the
+first catch-up only, `your-youtube/data/reading.json` and `your-youtube/data/.work/` through
+`your-youtube/first-read.mjs`). Never touch any other file, and never
+`EXAMPLE-latest.json`.
+
+1. "Your YouTube tools" and "What you write" above hold the calls, the shape of every
+   field, the quota rules and the tone; these steps do not repeat them. In one command,
+   print the time with its offset (`date '+%Y-%m-%dT%H:%M:%S%z'`; on Windows PowerShell
+   `Get-Date -Format o`), list `your-youtube/data/` (from the cabinet root, never `cd`),
+   read `your-youtube/data/latest.json` if it is there, and print `CABINET_GOOGLE_ACCESS`
+   (`$CABINET_GOOGLE_ACCESS`, or `$env:CABINET_GOOGLE_ACCESS` in PowerShell). Every
+   YouTube call is the `curl` "Your YouTube tools" shows; on Windows it is `curl.exe` with
+   `$env:GOOGLE_WORKSPACE_CLI_TOKEN`.
+2. If `CABINET_GOOGLE_ACCESS` has no `youtube=`, YouTube is not connected: write only
+   `your-youtube/data/status.json` with `ok: false` and `why` "YouTube isn't connected
+   yet.", and stop. If the first call answers 401, write `ok: false` with `why` "Google
+   needs a new sign-in." and stop.
+   If `your-youtube/data/latest.json` is not there, this is the first catch-up, and the
+   person is watching: follow "The first catch-up" below. Run
+   `node your-youtube/first-read.mjs start` in your next command, push one line after each
+   real YouTube call that found something (`push '<line>'`, its numbers counted from what
+   YouTube answered), give the newest comments with `recent @recent.json` right after your
+   first comments call, the gift with `gift @gift.json` right after that and two or three
+   `offer @offer.json` as you find them, and in step 10 write the files through
+   `latest @latest.json`, then run `done`. Every other step stays the same. If the helper
+   is missing or fails, carry on without it.
+3. Work out the window: from the last catch-up's `generatedAt`, or 24 hours ago when that
+   is earlier, but never more than 7 days back.
+4. Read the channel once: `channels?part=snippet,statistics,contentDetails&mine=true`
+   (or use `me` from the last catch-up for the ids, and still read the counts). Then the
+   uploads playlist, newest first, `maxResults` 50, one page. Then `videos` for the 10
+   newest uploads in one call.
+5. Read the channel's numbers from YouTube Analytics: the five calls in "YouTube
+   Analytics: the channel's numbers" above, for the 7 and 28 days until 2 days ago. A
+   `403` that says forbidden or insufficientPermissions means it is not allowed: write
+   `analytics` as `{"ok": false, "why": "not-allowed"}` and go on. Any other failure is
+   `"why": "unavailable"`. Never retry, and never let it stop the catch-up.
+6. Read the comments: `commentThreads` with `allThreadsRelatedToChannelId`, `order=time`,
+   `maxResults` 100, `textFormat=plainText`. Page on with `pageToken` until the comments
+   are older than 14 days, at most 10 pages. If you stopped at 10 pages while comments
+   were still newer than 14 days, say so in status.json `why`, for example "A very busy
+   channel: some older comments may be missing".
+   With `youtube=read`, skip this step: comments can't be read at that level. Write
+   `waiting`, `recent` and `asks` as `[]`, with status.json `why` "Comments need the
+   YouTube comments level: in Cabinet, open Integrations, then YouTube, and choose Allow
+   comments". On the first catch-up the gift is `calm`.
+7. From what you read, with no more calls, write the lists as "What you write" describes
+   them: `analytics`, `videos` (with `viewerComments`, the comments from viewers, counted
+   from the threads you read with the channel's own left out, `gained` from the last
+   catch-up's `known`, and one `best` and at most one `quiet`), `waiting`, `recent`,
+   `asks`, `next` and `spotlight`, and `totals`.
+   Write each list every run, `[]` when empty. Keep `me` and `known` for tomorrow.
+8. This run is read only, and so is every scheduled run of this cabinet. Do not reply,
+   like, pin, edit or change anything on YouTube, however obvious the answer looks. Never
+   call `search`: the uploads playlist and the lists above cost 1 unit each, a search
+   costs 100 of the 10,000 everyone shares.
+9. If a call answers `quotaExceeded`, stop calling YouTube and write the catch-up from
+   what you have, with `why` "YouTube's daily limit was reached: some comments may be
+   missing". If YouTube can't be reached at all, write only `your-youtube/data/status.json`
+   with `ok: false` and a plain `why`, keep `latest.json` as it was, and stop. If this was
+   the first catch-up and you ran `start`, run `node your-youtube/first-read.mjs done`
+   before you stop. A `why` can hold an apostrophe, so never put one inside a quoted
+   shell argument: write it straight into the JSON file, and on the first catch-up give
+   it to `latest` as a file (`your-youtube/data/.work/why.txt`, then
+   `latest @latest.json @why.txt`).
+10. Write `your-youtube/data/latest.json` and check it parses
+    (`node -e "JSON.parse(require('fs').readFileSync('your-youtube/data/latest.json','utf8'))"`
+    works on every system), copy it to `your-youtube/data/days/<today's local date>.json`,
+    delete day files older than 30 days, and write `your-youtube/data/status.json`. On the
+    first catch-up, write it as `your-youtube/data/.work/latest.json` and run
+    `node your-youtube/first-read.mjs latest @latest.json`, which writes all three, then
+    `node your-youtube/first-read.mjs done` in the next call.
+
+Finish in one or two plain sentences about the person's channel and nothing else: how
+their videos did since yesterday, and how many comments are waiting for an answer.
+
 ## The first catch-up: telling it as you go
 
 When `your-youtube/data/latest.json` is not there yet, this is the person's first catch-up
