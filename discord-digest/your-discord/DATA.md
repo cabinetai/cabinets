@@ -118,7 +118,7 @@ Then up to 3 `offers`, added as the agent finds them: `reply` (another question 
 worth catching up on) and `summary` (`name`, `parent`, `gist`: a busy thread to sum up).
 Each is a button that asks the agent in the chat; it reads, sums up or drafts, and never
 posts. "Looking for one thing I can take off your plate right now" holds the place
-until the first one arrives. After the reading the list stays on top of the page for three
+until the first one arrives. After the reading the list stays under the page's boxes for three
 days, until every one is used or the person presses Not now.
 
 `latest @<file>` writes `latest.json` from the agent's file in `data/.work/` (it sets
