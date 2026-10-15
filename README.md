@@ -166,7 +166,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [sales-call-prep](./sales-call-prep) | Sales | 2 | 2 | 0 | Prep reps for every call with account context, recent activity, likely pain points, discovery questions, and competitive notes — delivere… |
 | [security-questionnaire](./security-questionnaire) | Professional Services | 3 | 2 | 0 | Auto-answers customer and vendor security questionnaires using your existing policies, SOC2 docs, and past answers |
 | [seo-content](./seo-content) | Media | 2 | 3 | 0 | Keyword research, content briefs, rankings tracking, and refresh tasks — all in one workspace |
-| [sharepoint-week](./sharepoint-week) | Operations | 1 | 1 | 0 | Every Monday, what your team changed in SharePoint while you weren't looking |
+| [sharepoint-digest](./sharepoint-digest) | Operations | 1 | 1 | 0 | SharePoint keeps every file. This shows the few that changed for you, and which copy is the real one |
 | [slack-digest](./slack-digest) | Operations | 1 | 1 | 0 | Every morning, what moved in all your Slack channels in the last 24 hours, and which of it wants you |
 | [snowflake-brief](./snowflake-brief) | Marketing | 1 | 1 | 0 | Every Monday, the numbers out of your warehouse, in plain words |
 | [spend-policy](./spend-policy) | Professional Services | 2 | 2 | 0 | Answers "can I expense this?" instantly, flags anomalous transactions before month-end, and keeps department spend summaries current — so… |
