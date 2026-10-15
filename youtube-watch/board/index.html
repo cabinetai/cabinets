@@ -148,7 +148,6 @@
   .hero h2 { margin: 0; font-family: var(--serif); font-size: clamp(40px, 5vw, 68px); line-height: 1; font-weight: 600; letter-spacing: -.025em; }
   .hero .lead { margin: 12px 0 0; font-size: 17px; color: rgba(255, 255, 255, .9); max-width: 72ch; }
   .hero .lead b { color: #fff; font-weight: 700; }
-  .hero .lead .hot { color: #fff; font-weight: 700; }
   .hero .meta { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 14px; color: rgba(255, 255, 255, .88); }
   .hero .meta button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .5); text-underline-offset: 3px; }
   .hero .meta button:hover { color: #fff; text-decoration-color: currentColor; }
@@ -788,7 +787,11 @@
   // ── The items ──────────────────────────────────────────────────────────
 
   function kindOf(item) { return KIND_WORDS[item.kind] ? item.kind : "Other"; }
-  function levelOf(item) { return LEVEL_RANK[item.level] == null ? "Low" : item.level; }
+  function levelOf(item) {
+    if (LEVEL_RANK[item.level] == null) return "Low";
+    // A business ask is never urgent: at most "worth a look", ranked after the trouble.
+    return item.kind === "Business" && item.level === "High" ? "Medium" : item.level;
+  }
   function reachOf(item) { return item.reach === "email" ? "email" : "chat"; }
   function askOf(item) { return ASKS[item.ask] ? item.ask : "Business"; }
   /** How urgent, in words. Red only for urgent; a business ask is at most "worth a look". */
@@ -881,7 +884,7 @@
     var html;
     if (V2 && s === "not-available-here") {
       html = cardHero(icon("i-cloud"), "YouTube can’t be connected here yet",
-        "<p class=\"fine\">YouTube connects with Sign in with Google, in the Cabinet app on a computer. Below is an example from a made-up channel.</p>");
+        "<p class=\"fine\">YouTube connects with Sign in with Google, in the Cabinet app on a computer." + (state.example ? " Below is an example from a made-up channel." : "") + "</p>");
     } else if (V2 && (s === "needs-sign-in" || s === "needs-you")) {
       html = cardHero("alert", "YouTube needs you",
         '<p class="lead">' + esc(g && g.problem && g.problem.text ? g.problem.text : "Google needs you to sign in again.") + "</p>" +
@@ -894,7 +897,7 @@
             '<span class="fine">Sign in with the Google account that owns your channel. About a minute.</span></div>'
           : '<p class="fine"><b>Ask the person who owns this cabinet to connect YouTube.</b></p>') +
         (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
-        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never posts on its own</li><li>" + icon("i-check") + "Every morning at 8:30</li><li>" + icon("i-check") + "Below: an example from a made-up channel</li></ul>");
+        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never posts on its own</li><li>" + icon("i-check") + "Every morning at 8:30</li>" + (state.example ? "<li>" + icon("i-check") + "Below: an example from a made-up channel</li>" : "") + "</ul>");
     } else if (state.running && state.example) {
       html = cardHero(null, "Checking your channel...", '<p class="lead">The first check reads two weeks of comments and takes a few minutes. Stay here or come back later: the board fills in by itself.</p>', true);
     } else if (V2 && s === "connected" && state.example) {
@@ -974,7 +977,7 @@
     var last = parseTime(r.lastSeen);
     var from = biz ? text(r.from, 40) : "";
     // A business ask names who asked and what for; every other kind names its kind.
-    var label = biz ? '<span class="chip">' + esc(askOf(r) === "Business" ? "Business" : askOf(r)) + (from ? " from " + nameHtml(from) : "") + "</span>" : '<span class="chip">' + esc(KIND_WORDS[kind]) + "</span>";
+    var label = biz ? '<span class="chip">' + esc(askOf(r)) + (from ? " from " + nameHtml(from) : "") + "</span>" : '<span class="chip">' + esc(KIND_WORDS[kind]) + "</span>";
     var step = biz
       ? '<span class="step" dir="auto">' + icon(reach.icon) + "<span><b>" + esc(reach.words) + ".</b> " + esc(text(r.next, 200)) + "</span></span>"
       : text(r.next) ? '<span class="step" dir="auto">' + icon("i-arrow") + "<span><b>Next:</b> " + esc(text(r.next, 200)) + "</span></span>" : "";
@@ -988,7 +991,7 @@
       '<div class="row-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" +
       (biz ? '<p class="route">' + icon(reach.icon) + "<span>" + esc(reach.how) + "</span></p>" : "") +
       msgsHtml +
-      (all.length > msgs.length ? '<p class="more">And ' + (all.length - msgs.length) + " older " + plural(all.length - msgs.length, "comment", "comments") + ".</p>" : "") +
+      (n > msgs.length ? '<p class="more">And ' + (n - msgs.length) + " older " + plural(n - msgs.length, "comment", "comments") + ".</p>" : "") +
       (acts.length ? '<div class="row-actions">' + acts.join("") + "</div>" : "") + "</div>" +
       "</li>";
   }
