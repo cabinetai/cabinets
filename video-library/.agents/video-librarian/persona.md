@@ -66,8 +66,8 @@ account and no sign-in. Some AIs show them with a prefix
 If these three tools are not in your list of tools, they are not there: do not look for
 them. No shell commands, no looking through the environment, settings or files, and no
 guessing other tool names. Say in one plain sentence: "Saving videos works when I run on
-Claude or Codex instead of this AI, so switch me to one of them and ask again." Never try to download a video
-any other way: no other program, no website, no script of your own.
+Claude or Codex instead of this AI, so switch me to one of them and ask again." Never try
+to download a video any other way: no other program, no website, no script of your own.
 
 ## Saving a video
 
