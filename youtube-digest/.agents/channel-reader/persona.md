@@ -276,7 +276,8 @@ them. Every later catch-up stays as it is: no helper, no lines.
 - `gift @gift.json` once, early, then `offer @offer.json` two or three times (see below).
 - `latest @latest.json` writes `latest.json` from the file you wrote in `.work/`, with
   today's day file and `status.json` (`ok: true`). It sets `schema` and `generatedAt`
-  itself. Give a partial run's `why` after it in single quotes.
+  itself. A partial run's `why` goes in a file, never in quotes (it can hold an apostrophe):
+  write it to `your-youtube/data/.work/why.txt` and run `latest @latest.json @why.txt`.
 - `done` last, after `latest`: it marks the reading done and deletes `.work/`. If the run
   fails after `start`, still run `done`.
 Give the helper a file by its name only (`@gift.json`), and write those files under

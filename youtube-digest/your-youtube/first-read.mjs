@@ -16,9 +16,10 @@
 //   node <app>/first-read.mjs offer @<file>         one more thing they can do now, under the gift, at
 //                                                   most 3: {"kind":"video","title","views"},
 //                                                   {"kind":"asked","what","people"} or {"kind":"next"}
-//   node <app>/first-read.mjs latest @<file> ['why'] write data/latest.json, today's day file and
+//   node <app>/first-read.mjs latest @<file> [@why.txt] write data/latest.json, today's day file and
 //                                                   data/status.json from your file in data/.work/
-//                                                   (schema and generatedAt set here, example dropped)
+//                                                   (schema and generatedAt set here, example dropped);
+//                                                   a partial run's why: write it to data/.work/why.txt
 //   node <app>/first-read.mjs done                  mark the reading done, delete data/.work/
 // A line is one short sentence about their channel, the finding in **bold**:
 //   "**31 new comments** since yesterday, 4 of them questions"
@@ -328,7 +329,9 @@ if (cmd === "start") {
   writeJson(path.join(days, ymd(n) + ".json"), l);
   const oldest = ymd(dayStart(-30));
   for (const f of fs.readdirSync(days)) if (/^\d{4}-\d{2}-\d{2}\.json$/.test(f) && f.slice(0, 10) < oldest) fs.rmSync(path.join(days, f), { force: true });
-  const note = why.join(" ").replace(/\s+/g, " ").trim().slice(0, 200);
+  // "@why.txt" reads the note from data/.work/, for a note no shell can quote ("YouTube's limit").
+  const said = why.join(" ").trim();
+  const note = (/^@[\w.-]+$/.test(said) ? fs.readFileSync(workFile(said.slice(1)), "utf8") : said).replace(/\s+/g, " ").trim().slice(0, 200);
   writeJson(path.join(dataDir, "status.json"), { at: iso(n), ok: true, ...(note ? { why: note } : {}) });
   console.log(`latest.json written (${l.videos.length} videos), days/${ymd(n)}.json and status.json`);
 } else if (cmd === "done") {
