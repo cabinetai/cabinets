@@ -67,6 +67,12 @@ function workJson(arg, what) {
   try { return readJson(workFile(arg.slice(1).replace(/^.*data[\\/]\.work[\\/]/, ""))); } catch { return fail(`${arg.slice(1)} is not JSON in data/.work/`); }
 }
 
+/** data/reading.json as start wrote it, or a plain stop when it is missing or broken. */
+function readReading() {
+  if (!fs.existsSync(readingFile)) fail("run start first");
+  try { return readJson(readingFile); } catch { return fail("data/reading.json is broken (not JSON): carry on without the helper"); }
+}
+
 /** One write to reading.json at a time: two at once would each write their own copy and lose one. */
 function lockReading() {
   const lock = path.join(dataDir, ".reading.lock");
@@ -277,7 +283,7 @@ if (cmd === "start") {
   console.log("reading started; write your files in " + path.relative(process.cwd(), workDir));
 } else if (cmd === "push") {
   lockReading();
-  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  const r = readReading();
   if (r.done) fail("the reading is done: no more lines");
   // "@line.txt" reads the line from data/.work/, for a line no shell can quote.
   const raw = args.join(" ");
@@ -291,7 +297,7 @@ if (cmd === "start") {
 } else if (cmd === "recent") {
   const recent = recentOf(workJson(args.join(" ").trim(), "the newest comments"));
   lockReading();
-  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  const r = readReading();
   if (r.done) fail("the reading is done: the newest comments come while you read");
   if (r.recent) fail("the newest comments are there already: once is enough");
   r.recent = recent;
@@ -300,7 +306,7 @@ if (cmd === "start") {
 } else if (cmd === "offer") {
   const offer = offerOf(workJson(args.join(" ").trim(), "the offer"));
   lockReading();
-  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  const r = readReading();
   if (r.done) fail("the reading is done: offers come while you read");
   const offers = Array.isArray(r.offers) ? r.offers : [];
   if (offers.length >= MAX_OFFERS) fail(`there are ${MAX_OFFERS} offers already: that is enough`);
@@ -312,7 +318,7 @@ if (cmd === "start") {
 } else if (cmd === "gift") {
   const gift = giftOf(workJson(args.join(" ").trim(), "the gift"));
   lockReading();
-  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  const r = readReading();
   if (r.done) fail("the reading is done: the gift comes while you read");
   if (r.gift) fail("there is a gift already: one is enough");
   r.gift = { ...gift, at: iso(new Date()) };
@@ -336,7 +342,7 @@ if (cmd === "start") {
   console.log(`latest.json written (${l.videos.length} videos), days/${ymd(n)}.json and status.json`);
 } else if (cmd === "done") {
   lockReading();
-  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  const r = readReading();
   r.done = true;
   writeJson(readingFile, r);
   try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("data/.work/ is busy: delete it in your next call"); }
