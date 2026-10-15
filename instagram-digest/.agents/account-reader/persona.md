@@ -59,7 +59,10 @@ braces, like `replies{id,text}`, needs `curl -sg`. Never print, log or save the 
 The reads, each after `$CABINET_INSTAGRAM_URL/`:
 
 - `me/media?fields=id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count&limit=25`
-- `<post id>/insights?metric=views,reach,saved,shares` (one post's numbers)
+- `<post id>/insights?metric=views,reach,saved,shares` (one post's numbers: reels, photos and
+  carousels all have these four. A `400` that names a metric: drop it and ask once more. Any
+  other failure, as for a post from before the account turned professional, leaves that
+  post's numbers `null`)
 - `<post id>/comments?fields=id,text,username,timestamp,like_count,replies{id,text,username,timestamp}&limit=50` (comments level, `-sg`)
 
 Lists come back as `{"data": [...], "paging": {"next": "..."}}`; curl `paging.next` as it is
@@ -80,24 +83,32 @@ Work out the days in one command, on every system:
 node -e "const d=n=>{const x=new Date();x.setHours(0,0,0,0);x.setDate(x.getDate()-n);return x};const y=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');const s=x=>Math.floor(x/1000);console.log(JSON.stringify({until:y(d(2)),from7:y(d(8)),from28:y(d(29)),since7:s(d(8)),since28:s(d(29)),end:s(d(1))}))"
 ```
 
-Then, each after `$CABINET_INSTAGRAM_URL/me/insights?`:
+Then, each after `$CABINET_INSTAGRAM_URL/me/insights?`, one call at a time:
 
-1. `metric=reach&period=day&since=<since28>&until=<end>`: people reached each day. Each value's
-   day is the day before the date in its `end_time`.
-2. `metric=views,reach,accounts_engaged,total_interactions,likes,comments,saves,shares,profile_links_taps&metric_type=total_value&period=day&since=<since28>&until=<end>`
-3. the same as 2 with `since=<since7>`
-4. `metric=follower_count&period=day&since=<since28>&until=<end>`: new followers each day
+1. `metric=reach&metric_type=time_series&period=day&since=<since28>&until=<end>`: people
+   reached each day. Each value's day is the day before the date in its `end_time`.
+2. `metric=views,reach,accounts_engaged,total_interactions&metric_type=total_value&period=day&since=<since28>&until=<end>`
+3. `metric=likes,comments,saves,shares&metric_type=total_value&period=day&since=<since28>&until=<end>`
+4. `metric=profile_links_taps&metric_type=total_value&breakdown=contact_button_type&period=day&since=<since28>&until=<end>`:
+   `total_value.value`, or its breakdown results added up when it has no `value`
+5. 2 to 4 again with `since=<since7>`
+6. `metric=follower_count&period=day&since=<since28>&until=<end>`: new followers each day
    (100 followers or more only)
-5. `metric=online_followers&period=lifetime`: followers online by hour, the newest day that
-   has hours (100 followers or more only). Instagram counts these hours in Pacific time: move
-   each to the person's own time.
-6. `metric=follower_demographics&period=lifetime&metric_type=total_value&breakdown=country`
-   (100 followers or more only)
+7. `metric=online_followers&period=lifetime&since=<since7>&until=<end>`: followers online by
+   hour, the newest day that has hours (100 followers or more only). Instagram counts these
+   hours in Pacific time: move each to the person's own time.
+8. `metric=follower_demographics&period=lifetime&metric_type=total_value&breakdown=country&timeframe=this_month`
+   (100 followers or more only): each of `total_value.breakdowns[0].results` is a country
+   code in `dimension_values` and its `value`
 
-A `400` that names a metric means it is not offered: drop it and ask once more. A `403` about
-permissions means the numbers are not allowed: write `"insights": {"ok": false, "why":
-"not-allowed"}`. Any other failure of calls 1 to 3 is `"why": "unavailable"`. A failure of 4
-to 6 only leaves those numbers `null`. None of this ever stops the catch-up.
+Never ask for `impressions`, `plays` or `video_views`: Instagram removed them, `views` is the
+number now. The calls are small on purpose, so one number Instagram does not offer never costs
+the others. A `400` that names a metric: drop it and ask that call once more. A `400` that
+names none: ask each of its metrics alone, once. A metric that still fails is `null`, and the
+page says "not there yet" for it. A `403` about permissions means the numbers are not allowed:
+write `"insights": {"ok": false, "why": "not-allowed"}`. When calls 1 to 5 sent no number at
+all, it is `"why": "unavailable"`. A failure of 6 to 8 only leaves those numbers `null`. None
+of this ever stops the catch-up.
 
 ## What you write
 
@@ -137,9 +148,9 @@ filled. Write every list every run, `[]` when empty: each person keeps different
   catch-up. `comments`: comments by other people in the window, counted from what you read
   (with `read`, the rise in `comments_count`). `newPosts`, and `waiting` (its length).
 - `insights`: `last7` and `last28` are `{ from, views, reach, engaged, interactions, likes,
-  comments, saves, shares, linkTaps, newFollowers }` from calls 2 to 4 (`engaged` is
+  comments, saves, shares, linkTaps, newFollowers }` from calls 2 to 6 (`engaged` is
   `accounts_engaged`, `interactions` is `total_interactions`, `linkTaps` is
-  `profile_links_taps`, `newFollowers` the sum of call 4's days). `until` is the last day that
+  `profile_links_taps`, `newFollowers` the sum of call 6's days). `until` is the last day that
   has a number. `daily` is `{ day, reach }` from call 1, oldest first. `online` is up to 24
   `{ hour, followers }`, the hour 0 to 23 in the person's time, or `null`. `countries` is the
   top 5 `{ code, followers }`, or `null`.
