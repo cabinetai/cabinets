@@ -1,7 +1,7 @@
 ---
 title: "Pricing Your First Product (Without Guessing)"
 channel: "Maker Notes"
-link: https://www.youtube.com/watch?v=EXAMPLE
+link: https://www.linkedin.com/posts/EXAMPLE
 madeBy: video-librarian
 example: true
 ---

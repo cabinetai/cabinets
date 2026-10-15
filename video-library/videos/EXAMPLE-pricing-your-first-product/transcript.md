@@ -1,6 +1,7 @@
 ---
 title: "Transcript: Pricing Your First Product (Without Guessing)"
-youtube_id: EXAMPLE
+source: linkedin
+video_id: EXAMPLE
 language: "en"
 example: true
 ---

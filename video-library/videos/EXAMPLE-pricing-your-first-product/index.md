@@ -1,8 +1,8 @@
 ---
 title: "Pricing Your First Product (Without Guessing)"
-source: youtube
-youtube_id: EXAMPLE
-link: https://www.youtube.com/watch?v=EXAMPLE
+source: linkedin
+video_id: EXAMPLE
+link: https://www.linkedin.com/posts/EXAMPLE
 channel: "Maker Notes"
 duration: "24:30"
 uploaded: "2026-08-19"
@@ -11,17 +11,20 @@ example: true
 ---
 # Pricing Your First Product (Without Guessing)
 
-EXAMPLE: a made-up video from a made-up channel. Nothing was saved.
+EXAMPLE: a made-up post from a made-up page. Nothing was saved.
 
-- **Channel:** Maker Notes
-- **Link:** https://www.youtube.com/watch?v=EXAMPLE
+- **Site:** LinkedIn
+- **Posted by:** Maker Notes
+- **Link:** https://www.linkedin.com/posts/EXAMPLE
 - **Length:** 24:30
 - **Uploaded:** 2026-08-19
 - **Transcript:** [transcript.md](./transcript.md) (English, captions written by a person)
 
-## Description
+## Post text
 
-How to choose a first price for something you made. Cost plus, value, and the price your customer already pays.
+Pricing was the hardest call when I launched.
+
+This talk walks through cost plus, value, and what your buyer already pays for the problem. Which one did you start with?
 
 ---
 

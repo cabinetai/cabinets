@@ -2,23 +2,26 @@
 title: Video Library
 created: '2026-10-14T00:00:00Z'
 modified: '2026-10-14T00:00:00Z'
-tags: [youtube, videos, transcripts, library, learning, clips]
+tags: [youtube, videos, transcripts, library, learning, clips, social]
 order: 1
 ---
 # Video Library
 
-Save YouTube videos into your cabinet, then read, search and ask about them. A talk you want
-to keep, a lesson to study, an interview to quote, or one of your own uploads.
+Save videos from YouTube, Instagram, TikTok, X, LinkedIn and Facebook into your cabinet, then
+read, search and ask about them. A talk you want to keep, a lesson to study, an interview to
+quote, a post worth keeping, or one of your own uploads.
 
 The cabinet opens on it: **Your Video Library**.
 
 ## What you get
 
-- **Save a video**: paste a YouTube link and pick how to keep it: the whole video, the
+- **Save a video**: paste a link from YouTube, Instagram, TikTok, X, LinkedIn or Facebook
+  and pick how to keep it: the whole video, the
   sound only, or the transcript only. You see its size and your free space first, and
   anything big waits for your yes.
 - **Your videos**: each one as a card you can play right on the page, from your own copy
-  when you saved the video or the sound, from YouTube otherwise.
+  when you saved the video or the sound, from YouTube otherwise. Each card says which site
+  the video came from, and a post from Instagram, LinkedIn and the rest shows its text.
 - **What is in it**: five lines on what the video says, the key points with the minute they
   come up (press one and the player jumps there), the lines worth quoting, and the parts
   that would make a good short clip.
@@ -32,12 +35,13 @@ The cabinet opens on it: **Your Video Library**.
 
 ## Getting started
 
-1. Copy a YouTube link.
+1. Copy a video link from YouTube, Instagram, TikTok, X, LinkedIn or Facebook.
 2. On the page, paste it, pick Video, Sound only or Transcript only, and press **Save**.
 3. The chat opens next to the page. A minute or two later the video is on your page,
    summed up. The first time, the page tells you each step as it happens.
 
-No YouTube account and no sign-in. Until you save your first video, the page shows a
+No account and no sign-in on any of these sites. Vimeo and Reddit links do not work: both
+ask for a sign-in to download. Until you save your first video, the page shows a
 made-up library, and says so.
 
 ## It saves only what you ask for

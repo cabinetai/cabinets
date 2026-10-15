@@ -2,8 +2,8 @@
 <!--
   Video Library: Your Video Library. The cabinet opens on this page.
 
-  For someone who wants to keep YouTube videos (a talk, a lesson, an interview, or one of their
-  own uploads) and know what is in them: paste a link, pick the video, the sound only or the
+  For someone who wants to keep videos from YouTube, Instagram, TikTok, X, LinkedIn or Facebook
+  (a talk, a lesson, an interview, a post, or one of their own uploads) and know what is in them: paste a link, pick the video, the sound only or the
   transcript only, and the cabinet's agent saves it and writes it up. Each saved video is a
   card: play it here, five lines on what it says, the key points with their times (a press
   jumps the player there), the lines worth quoting, clip ideas, and the transcript.
@@ -21,8 +21,9 @@
   How it talks to Cabinet: window.cabinet v2 (ask, read and list files, this person's own
   layout). The page never saves a video itself: Save asks the agent in the chat, which checks
   the size and the free space first. A saved video or sound plays from the cabinet's own copy
-  (../videos/...), and from YouTube's privacy-enhanced player when there is no copy or the
-  copy cannot be reached (a sealed frame on Cloud has no login to send).
+  (../videos/...), and a YouTube video from YouTube's privacy-enhanced player when there is no
+  copy or the copy cannot be reached (a sealed frame on Cloud has no login to send). A video
+  from another site plays only from the cabinet's copy, and its card shows the post's text.
 
   The first save is told as it happens: the agent adds a line to reading.json (through
   first-read.mjs) at each step, and the things the person can do meanwhile (the gift, then a
@@ -451,6 +452,11 @@
   .vc-meta { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 2px 0; font-size: 14px; color: var(--ink-3); }
   .vc-meta > span:not(:last-child)::after { content: "·"; margin: 0 7px; color: var(--line-2); }
   .vc-one { margin: 8px 0 0; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
+  /* Where a video came from, first in the line under its title. */
+  .vc-meta .vc-site { font-weight: 700; color: var(--ink-2); }
+  /* The words posted with a video on Instagram, LinkedIn and the rest: two lines here, all of them under the card. */
+  .vc-post { margin: 8px 0 0; color: var(--ink-2); font-size: 14.5px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .post-text { margin: 0; color: var(--ink); font-size: 15px; white-space: pre-line; overflow-wrap: anywhere; }
   .vc-state { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
   .vc-state .icon { width: 15px; height: 15px; }
   .vc-state.bad { color: var(--red-ink); }
@@ -641,7 +647,7 @@
     </div>
     <footer class="foot">
       <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
-      <p>A video is saved only when you ask, one link at a time, and anything over about 500 MB waits for your yes. Saving someone else's video is for your own use: the video and its rights stay with the creator. Everything stays in this cabinet. No YouTube account or sign-in is used.</p>
+      <p>A video is saved only when you ask, one link at a time, and anything over about 500 MB waits for your yes. Saving someone else's video is for your own use: the video and its rights stay with the creator. Everything stays in this cabinet. No account or sign-in is used on any of the sites.</p>
     </footer>
   </main>
 </div>
@@ -984,6 +990,39 @@
     return id ? id[1] : null;
   }
   function isPlaylist(link) { return /^(?:https?:\/\/)?(?:www\.|m\.|music\.)?youtube\.com\/(playlist\?|@|channel\/|c\/)/i.test(text(link, 600)); }
+
+  /** The sites a video can be saved from, as the save tool reads them. YouTube's player and pictures are for YouTube only. */
+  var SITES = [
+    { id: "youtube", name: "YouTube", host: /^(?:www\.|m\.|music\.)?(?:youtube\.com|youtube-nocookie\.com|youtu\.be)$/i },
+    { id: "instagram", name: "Instagram", host: /^(?:www\.|m\.)?instagram\.com$/i },
+    { id: "tiktok", name: "TikTok", host: /^(?:www\.|m\.|vm\.|vt\.)?tiktok\.com$/i },
+    { id: "x", name: "X", host: /^(?:www\.|mobile\.|m\.)?(?:x|twitter)\.com$/i },
+    { id: "linkedin", name: "LinkedIn", host: /^(?:www\.)?linkedin\.com$/i },
+    { id: "facebook", name: "Facebook", host: /^(?:(?:www\.|m\.|web\.)?facebook\.com|fb\.watch)$/i }
+  ];
+  var SITE_WORDS = "YouTube, Instagram, TikTok, X, LinkedIn or Facebook";
+  /** The host of a pasted link, "https://" added when it was left off; "" when it is no web link. */
+  function hostOf(link) {
+    var s = text(link, 600);
+    try { return new URL(/^[a-z]+:\/\//i.test(s) ? s : "https://" + s).hostname.toLowerCase(); } catch (e) { return ""; }
+  }
+  function siteOfLink(link) {
+    var host = hostOf(link);
+    for (var i = 0; i < SITES.length; i++) if (host && SITES[i].host.test(host)) return SITES[i];
+    return null;
+  }
+  /** Where a saved video came from: its source, else its link's site, else YouTube (the first site there was). */
+  function siteOf(v) {
+    for (var i = 0; i < SITES.length; i++) if (SITES[i].id === text(v.source)) return SITES[i];
+    return siteOfLink(v.link) || SITES[0];
+  }
+  /** The video's own page on its site, or "" when the link is not one on that site. */
+  function siteLink(v) {
+    var link = text(v.link, 400);
+    return /^https:\/\//i.test(link) && siteOfLink(link) === siteOf(v) ? link : "";
+  }
+  /** A pasted link without what follows a "?" or "#", to know one already saved. */
+  function bareLink(link) { return text(link, 600).replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/[?#].*$/, "").replace(/\/+$/, "").toLowerCase(); }
   function setSaveNote(words, bad) {
     state.saveNote = words;
     state.saveBad = !!bad;
@@ -995,25 +1034,30 @@
   }
   function save(link) {
     var s = text(link, 600);
-    if (!s) { setSaveNote("Paste a YouTube link first.", true); return; }
+    if (!s) { setSaveNote("Paste a video link first.", true); return; }
     var id = youTubeId(s);
-    if (!id && !isPlaylist(s)) { setSaveNote("That doesn't look like a YouTube link. Copy it from the address bar or YouTube's Share button.", true); return; }
+    var site = siteOfLink(s);
+    if (/(^|\.)(vimeo\.com|reddit\.com|redd\.it)$/.test(hostOf(s))) { setSaveNote("Vimeo and Reddit ask for a sign-in before a download, so Cabinet can't save from them. Links from " + SITE_WORDS + " work.", true); return; }
+    if (!id && !isPlaylist(s) && (!site || site.id === "youtube")) { setSaveNote("That doesn't look like a video link from " + SITE_WORDS + ". Copy it from the address bar or the Share button.", true); return; }
     if (!canAsk()) {
       setSaveNote(V2 ? "Only people who can ask in this cabinet can save a video." : "Open this cabinet in Cabinet to save a video.", true);
       return;
     }
     var opt = optionOf(state.saveOption) || OPTIONS[0];
-    var have = id && !state.example ? videos().filter(function (v) { return v.videoId === id && keptAs(v, opt.id) && v.status !== "failed"; })[0] : null;
+    var have = (id || site) && !state.example ? videos().filter(function (v) {
+      return (id ? v.videoId === id : bareLink(v.link) === bareLink(s)) && keptAs(v, opt.id) && v.status !== "failed";
+    })[0] : null;
     if (have) { setSaveNote("Already in your library: “\u2068" + text(have.title, 100) + "\u2069”.", false); return; }
-    var words = id
+    var one = id || (site && site.id !== "youtube");
+    var words = one
       ? "Save " + opt.ask + " of " + s + " to my library and sum it up."
       : "This link is a playlist or a channel: " + s + ". Which videos are in it? I may want to save " + opt.ask + " of some of them.";
     setSaveNote("Asking...", false);
     cab.ask(words, { agent: AGENT, send: true }).then(function () {
-      setSaveNote(id ? "Asked. The chat next to this page shows its size first, then it lands here." : "Asked. The answer is coming in the chat.", false);
+      setSaveNote(one ? "Asked. The chat next to this page shows its size first, then it lands here." : "Asked. The answer is coming in the chat.", false);
       if ($("save-input")) $("save-input").value = "";
       // The first save fills the page from this moment, before the agent's first line.
-      if (id && firstSave()) { state.saveAskedAt = Date.now(); paint(); }
+      if (one && firstSave()) { state.saveAskedAt = Date.now(); paint(); }
     }).catch(function (e) {
       setSaveNote(e && e.message ? e.message : "That did not go through. Try again.", true);
     });
@@ -1213,8 +1257,8 @@
   }, 2500);
 
   // ── Playing a video ────────────────────────────────────────────────────
-  // A card plays the cabinet's own copy when there is one (a video or the sound), and YouTube's
-  // privacy-enhanced player otherwise, or when the copy cannot be reached. The player is made
+  // A card plays the cabinet's own copy when there is one (a video or the sound), and for a
+  // YouTube video YouTube's privacy-enhanced player otherwise, or when the copy cannot be reached. The player is made
   // once per card and moved back into place whenever the box is drawn again, so a press
   // elsewhere on the page never stops it.
 
@@ -1406,7 +1450,12 @@
   /** The saved videos, newest first, each with a slug the page can use. */
   function videos() {
     return (state.data ? list(state.data.videos) : []).filter(function (v) { return /^[\p{L}\p{N}_.-]{1,120}$/u.test(text(v.slug)); })
-      .map(function (v) { v.slug = text(v.slug); return v; }).slice().sort(byNewest("savedAt"));
+      .map(function (v) {
+        v.slug = text(v.slug);
+        // An id is YouTube's only: anything else would ask YouTube for a picture and a player that are not there.
+        v.videoId = siteOf(v).id === "youtube" && /^[\w-]{11}$/.test(text(v.videoId)) ? text(v.videoId) : null;
+        return v;
+      }).slice().sort(byNewest("savedAt"));
   }
   function saved() { return videos().filter(function (v) { return v.status !== "saving" && v.status !== "failed"; }); }
   function videoBySlug(slug) {
@@ -1474,7 +1523,7 @@
     // Under the band: the Example line, or, after the first save, the gift kept for a few days.
     if (!state.example) { el.innerHTML = giftKeepHtml(); return; }
     el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
-      "A made-up library. None of these videos were saved. Paste a YouTube link below and your own videos replace them.</p></div>";
+      "A made-up library. None of these videos were saved. Paste a video link below and your own videos replace them.</p></div>";
   }
 
   // ── The boxes ──────────────────────────────────────────────────────────
@@ -1526,7 +1575,7 @@
     var lead = n
       ? "<b>" + esc(ex + lengthWords(secondsSaved()) + " to watch, " + (bytesWords(bytesUsed()) || "a few KB") + " in this cabinet.") + "</b>" +
         (newest ? ' <span dir="auto">The newest: ' + bidi(text(newest.title, 90)) + ".</span>" : "")
-      : "<b>Paste a YouTube link below to save your first video.</b> A talk, a lesson, or one of your own uploads.";
+      : "<b>Paste a video link below to save your first video.</b> A talk, a lesson, a post, or one of your own uploads.";
     if (busy) lead += " " + busy + " " + plural(busy, "video is", "videos are") + " being saved now.";
     var meta = [];
     var free = diskWords();
@@ -1546,21 +1595,21 @@
     var can = canAsk();
     var note = state.saveNote;
     return '<div class="save-in"><div class="save-head"><span class="lane-icon" aria-hidden="true">' + icon("i-save") + "</span>" +
-      '<h2 id="h-save">Save a YouTube video</h2></div>' +
-      '<form class="save-form" id="save-form" autocomplete="off"><label for="save-input" class="sr">YouTube link</label>' +
-      '<input id="save-input" name="link" type="url" inputmode="url" dir="ltr" maxlength="600" placeholder="Paste a YouTube link" />' +
+      '<h2 id="h-save">Save a video</h2></div>' +
+      '<form class="save-form" id="save-form" autocomplete="off"><label for="save-input" class="sr">Video link</label>' +
+      '<input id="save-input" name="link" type="url" inputmode="url" dir="ltr" maxlength="600" placeholder="Paste a video link" />' +
       '<span class="opts" role="group" aria-label="What to keep">' + OPTIONS.map(function (o) {
         return '<button type="button" data-act="save-option" data-option="' + o.id + '" aria-pressed="' + (state.saveOption === o.id) + '">' + icon(o.icon) + esc(o.label) + "</button>";
       }).join("") + "</span>" +
       '<button type="submit" class="btn primary"' + (can || !V2 ? "" : " disabled") + ">" + icon("i-save") + "Save</button></form>" +
       '<p class="save-note' + (state.saveBad ? " bad" : "") + '" id="save-note" aria-live="polite"' + (note ? "" : " hidden") + ">" + (note ? icon(state.saveBad ? "i-alert" : "i-check") + "<span>" + esc(note) + "</span>" : "") + "</p>" +
-      (level === "S" ? "" : '<p class="save-fine">Video plays here, sound only is much smaller, transcript is the words with their times. You see the size first, and anything over ' + BIG_MB + " MB waits for your yes. Someone else's video is for your own use; the rights stay with the creator.</p>") +
+      (level === "S" ? "" : '<p class="save-fine">Links from ' + esc(SITE_WORDS.replace(" or ", " and ")) + '. Video plays here, sound only is much smaller, transcript is the words with their times. You see the size first, and anything over ' + BIG_MB + " MB waits for your yes. Someone else's video is for your own use; the rights stay with the creator.</p>") +
       "</div>";
   }
 
   // Your videos: a card each, newest first.
   function metaHtml(v) {
-    var parts = [];
+    var parts = ['<span class="vc-site">' + esc(siteOf(v).name) + "</span>"];
     if (text(v.channel)) parts.push("<span>" + bidi(text(v.channel, 80)) + "</span>");
     if (count(v.durationSec)) parts.push("<span>" + esc(timeWords(v.durationSec)) + "</span>");
     var o = optionOf(v.option);
@@ -1573,7 +1622,7 @@
     var open = !!state.open[v.slug];
     var points = times(v.keyPoints);
     var can = canAsk();
-    var link = /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(text(v.link)) && !state.example ? text(v.link, 400) : "";
+    var link = state.example ? "" : siteLink(v);
     var head = '<h4 class="vc-title" dir="auto">' + esc(text(v.title, 160) || "A video") + "</h4>" + metaHtml(v);
     if (v.status === "saving") {
       return head + '<p class="vc-state">' + icon("i-refresh", "spin") + "Saving and reading it</p>" +
@@ -1587,6 +1636,7 @@
     var shown = open ? points.slice(0, 8) : points.slice(0, 3);
     var sound = state.example ? "" : soundOf(v);
     return head + (text(v.oneLine) ? '<p class="vc-one" dir="auto">' + esc(text(v.oneLine, 240)) + "</p>" : "") +
+      (text(v.postText) && !open ? '<p class="vc-post" dir="auto">' + esc(text(v.postText, 400).replace(/\s+/g, " ")) + "</p>" : "") +
       (shown.length ? '<ul class="pts">' + shown.map(function (p) {
         return "<li>" + tsButton(v.slug, p.sec) + '<span dir="auto">' + esc(text(p.text, 200)) + "</span></li>";
       }).join("") + "</ul>" : "") +
@@ -1594,7 +1644,7 @@
       '<button type="button" class="btn small' + (open ? " dark" : "") + '" data-act="card" data-slug="' + esc(v.slug) + '" aria-expanded="' + open + '">' + icon("i-down") + (open ? "Show less" : "Summary, quotes and transcript") + "</button>" +
       (can ? '<button type="button" class="btn small" data-act="ask-video" data-slug="' + esc(v.slug) + '">' + icon("i-chat") + "Ask about it</button>" : "") +
       (sound ? '<a class="btn small quiet" href="' + esc(cabUrl(sound)) + '" target="_blank" rel="noopener noreferrer">' + icon("i-music") + "Sound only</a>" : "") +
-      (link ? '<a class="btn small quiet" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "YouTube</a>" : "") +
+      (link ? '<a class="btn small quiet" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + esc(siteOf(v).name) + "</a>" : "") +
       "</div>";
   }
   function cardMoreHtml(v) {
@@ -1603,6 +1653,7 @@
     var quotes = times(v.quotes);
     var clips = times(v.clips, "fromSec");
     var parts = [];
+    if (text(v.postText)) parts.push('<div class="wide"><h4>Post text</h4><p class="post-text" dir="auto">' + esc(text(v.postText, 3000)) + "</p></div>");
     if (five.length) parts.push('<div><h4>In five lines</h4><ul class="five">' + five.map(function (l) { return '<li dir="auto">' + esc(l) + "</li>"; }).join("") + "</ul></div>");
     if (quotes.length) parts.push('<div><h4>Worth quoting</h4><div class="quotes-list">' + quotes.map(function (q) {
       return '<p class="quote" dir="auto">“' + esc(text(q.text, 300)) + "”" + tsButton(v.slug, q.sec) + "</p>";
@@ -1650,7 +1701,7 @@
     }
     return listBox("library", "Your videos", "i-library", n ? lengthWords(secondsSaved()) + " in all" : "", all.length,
       '<ul class="rows vcards">' + all.map(function (v) { return cardHtml(v, level); }).join("") + "</ul>",
-      "No videos yet. Paste a YouTube link above to save your first one.") + nudgeHtml(boxIdea("library"));
+      "No videos yet. Paste a video link above to save your first one.") + nudgeHtml(boxIdea("library"));
   }
 
   /** Key points, clip ideas or quotes from every video, newest video first. */
@@ -2005,7 +2056,7 @@
     headline: { cls: "headline", draw: drawHeadline, group: "library", icon: "i-library", w: 12, h: 3, min: [4, 2], grow: true,
       title: "Headline", desc: "How many videos you saved, how long they run, and the space they take." },
     save: { cls: "save", draw: drawSave, group: "library", icon: "i-save", w: 12, h: 2, min: [4, 2], grow: true,
-      title: "Save a video", desc: "Paste a YouTube link and keep the video, the sound only, or the transcript." },
+      title: "Save a video", desc: "Paste a link from YouTube, Instagram, TikTok and more, and keep the video, the sound only, or the transcript." },
     library: { cls: "lane library", list: true, draw: drawLibrary, after: mountPlayers, group: "library", icon: "i-library", w: 8, h: 14, min: [4, 5],
       title: "Your videos", desc: "Each video you saved: play it, what it says, the key points with their times, the transcript." },
     points: { cls: "lane points", list: true, draw: drawPoints, group: "library", icon: "i-list", w: 4, h: 7, min: [3, 3],
