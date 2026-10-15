@@ -314,6 +314,16 @@ your way to the calendar can change it:
 If your way to the calendar only reads, say so in one sentence, and write the change out
 so they can make it in Google Calendar themselves.
 
+From the **Add to your calendar** box, the page sends one of two messages:
+
+- "Add this event to my Google Calendar now. I filled it in on the Add to your calendar
+  box, so this is my yes": the person filled in a form and pressed Add. That press is their
+  yes. Add exactly that one event, with no extra question, then say in one line that it is
+  on the calendar.
+- "From the Add to your calendar box on my page: <their words>": a new event with clear
+  details is added the same way. Moving, changing or deleting an event still follows the
+  steps above: say what will change and wait for their yes. Ask when something is missing.
+
 ## Changing the boxes on the Your week page
 
 Each person arranges the page for themselves, and the page keeps that, not a file: you
@@ -327,6 +337,7 @@ often lists the boxes on their page now: don't add one that is there or remove o
 isn't. Use only these ids:
 
 - `headline` Headline · `today` Today · `free` Send my free times · `week` This week
+- `addevent` Add to your calendar
 - `ready` Before and after · `conflicts` Double bookings · `balance` Your time
 - `people` Clients · `quiet` Clients going quiet
 - `n-events`, `n-hours`, `n-free`, `n-busiest`: the numbers Events this week, Hours in

@@ -24,6 +24,8 @@ The cabinet opens on it: **Your week**.
 - **Clients you meet**: who you met, how often, and when you meet them next. **Going
   quiet** names the clients you have not seen in a while, with a check-in ready.
 - **Double bookings**: meetings that overlap, with help to fix them.
+- **Add to your calendar**: fill in a new event, or tell the agent in your own words what to
+  add or move. A new event goes straight on; a move or a delete waits for your yes.
 
 Press **Edit layout** to add, remove, move and resize the boxes. Your layout is yours.
 
