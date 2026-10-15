@@ -50,8 +50,8 @@ Until then, the page shows a made-up channel, and says so.
 ## It reads, and replies only when you ask
 
 The morning catch-up only reads. Your team replies to a comment, or changes a video's title
-or description, only when you ask in the chat and only if you allowed writing when you
-connected YouTube. You see the exact words first. Everywhere else, replies are drafted in
+or description, only when you ask in the chat and only if you chose Allow comments when
+you connected YouTube. You see the exact words first. Everywhere else, replies are drafted in
 the chat for you to post yourself. Cabinet never uploads or deletes a video, never changes
 who can see one, and never removes a comment.
 
