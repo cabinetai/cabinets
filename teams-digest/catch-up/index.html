@@ -450,15 +450,17 @@
   .btn.small .icon { width: 17px; height: 17px; }
   .nudge-hide { margin-inline-start: auto; min-height: 38px; border: 0; background: transparent; color: var(--ink-3); font-size: 13.5px; font-weight: 600; padding: 6px 10px; border-radius: 9px; }
   .nudge-hide:hover { background: var(--panel-2); color: var(--ink); }
-  .box.ask .nudge { margin-top: 12px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 16px; background: rgba(0, 0, 0, .14); }
+  .box.ask .nudge { margin-top: 10px; padding-block: 10px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 16px; background: rgba(0, 0, 0, .14); }
+  .box.ask .nudge .btn.primary { min-height: 38px; }
   .box.ask .nudge > .icon { color: #f1d9a6; }
   .box.ask .nudge p { color: #fff; }
   .box.ask .nudge .btn:not(.primary) { background: transparent; border-color: rgba(255, 255, 255, .3); color: #fff; box-shadow: none; }
   .box.ask .nudge .btn:not(.primary):hover { background: rgba(255, 255, 255, .12); }
   .box.ask .nudge-hide { color: rgba(255, 255, 255, .72); }
   .box.ask .nudge-hide:hover { background: rgba(255, 255, 255, .12); color: #fff; }
-  .box.ask .qs-label { margin: 10px 0 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: rgba(255, 255, 255, .62); }
+  .box.ask .qs-label { margin: 8px 0 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: rgba(255, 255, 255, .62); }
   .box.ask .qs { margin-top: 6px; }
+  .box.ask .q { min-height: 38px; }
 
   /* The boxes you can add. */
   .box.nbox > .kpi { flex: 1; min-height: 0; justify-content: center; }
@@ -2180,7 +2182,7 @@
     var id = el.getAttribute("data-box");
     var body = el.querySelector(".box-body");
     var more = el.querySelector(".box-more");
-    if (!body || !more) return;
+    if (!body || !more) return fitWhole(el, id);
     var rows = Array.prototype.slice.call(body.querySelectorAll(".rows > li, .cards > li"));
     var open = !!state.expanded[id] || !!body.querySelector(".row.open, .mc-body:not([hidden])");
     var stack = phone();
@@ -2216,6 +2218,31 @@
         total += child === body ? inner : child.hidden ? 0 : child.offsetHeight;
       });
       need = Math.ceil((total + GAP) / (ROW + GAP));
+    }
+    if ((state.need[id] || 0) !== need) {
+      state.need[id] = need;
+      placeBoxes();
+    }
+  }
+
+  /**
+   * A box with no list (the ask box) cannot cut rows, so when what it holds is taller than
+   * the box, the box grows: its last line keeps the same space under it as on top.
+   */
+  function fitWhole(el, id) {
+    var need = 0;
+    if (!phone() && !state.editing) {
+      // Measured from the first line to the last, not from the box, so a grown box does not
+      // read as "fits now" and shrink back.
+      var shown = Array.prototype.filter.call(el.children, function (child) {
+        return !child.hidden && !child.matches(".box-x, .box-resize, .box-size");
+      });
+      if (shown.length) {
+        var css = getComputedStyle(el);
+        var held = shown[shown.length - 1].getBoundingClientRect().bottom - shown[0].getBoundingClientRect().top +
+          parseFloat(css.paddingTop) + parseFloat(css.paddingBottom);
+        if (held > el.clientHeight + 1 || state.need[id]) need = Math.ceil((held + GAP) / (ROW + GAP));
+      }
     }
     if ((state.need[id] || 0) !== need) {
       state.need[id] = need;
