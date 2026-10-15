@@ -373,8 +373,7 @@ Use only these ids:
 - `week` This week in your server
 - `n-messages`, `n-waiting`, `n-quiet`: the numbers Messages, Questions waiting, Quiet channels
 - `ask` Ask, or try an idea · `ideas` All ideas
-- one idea each: `idea-recap`, `idea-help`, `idea-links`, `idea-feedback`, `idea-welcome`,
-  `idea-one-channel`
+- one idea each: `idea-recap`, `idea-links`, `idea-feedback`, `idea-welcome`
 
 A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
 and `remove` empty, and offer the closest box or a routine instead.

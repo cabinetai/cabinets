@@ -43,7 +43,7 @@ The boxes, by id (the ids the agent uses in `layout-change.json`):
 | `week` | This week in your server | `week` |
 | `n-messages`, `n-waiting`, `n-quiet` | The numbers: messages, questions waiting, quiet channels | `totals`, `questions` |
 | `ideas` | All ideas | nothing |
-| `idea-recap`, `idea-help`, `idea-links`, `idea-feedback`, `idea-welcome`, `idea-one-channel` | One idea each | nothing |
+| `idea-recap`, `idea-links`, `idea-feedback`, `idea-welcome` | One idea each | nothing |
 
 A box whose list is missing from `latest.json` (a catch-up written before the box existed)
 stays off the page and says it shows up after the next catch-up. The routine fills every
