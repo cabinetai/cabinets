@@ -17,6 +17,7 @@ file here, and the page shows it. The full rules for each field are in the agent
 | Field | What it is |
 |---|---|
 | `version` | Always `1`. |
+| `example` | Only in `data/EXAMPLE-data.json`. A file with `example: true` is shown as the example; the routine never writes it. |
 | `generated` | When the run finished, ISO time in UTC. |
 | `status` | `"ok"`, or one plain sentence on what went wrong. The page shows it above the board. |
 | `channel` | `{ id, title }` of the channel. |
