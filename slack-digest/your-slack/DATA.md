@@ -42,8 +42,8 @@ Ideas for your Slack to start with, and more to add (You promised, three numbers
 idea as its own box with its picture from `ideas/`). Each person moves, resizes, adds and
 removes them (mouse, finger or keyboard, with Undo), or asks the agent through Layout, which
 answers with `layout-change.json`. An idea offers itself at the foot of its box when the
-day's Slack says it would help. The after-lunch and weekly-summary ideas take nothing from
-the file: they ask the agent when pressed.
+day's Slack says it would help. The weekly-summary idea takes nothing from the file: it
+asks the agent when pressed.
 
 The page writes its own headline and the line under it from `channels`, `waiting` and
 `totals`: "Here is what moved in your Slack" with "4 messages in 2 channels since

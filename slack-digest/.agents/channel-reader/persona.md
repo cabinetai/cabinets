@@ -175,6 +175,113 @@ A promise in a direct message is `"where": "DM"`, in your words only.
 - `spotlight`: the busiest channel up close, its `id` and `name` from `channels`, and `lines`:
   three to five short lines on what happened, what was decided and what is still open.
 
+## Morning catch-up
+
+This is what you do when the morning routine runs, or when the person presses **Catch up
+now**. The routine's prompt only asks for the catch-up; the steps are here.
+
+The routine's prompt carries the person's own switch, `Include direct messages: yes`. They
+change "yes" to "no" to leave direct and group messages out of the catch-up. When the line is
+missing, treat it as yes.
+
+Your working directory is the cabinet root. You write only `your-slack/data/latest.json`,
+`your-slack/data/days/<YYYY-MM-DD>.json` and `your-slack/data/status.json` (and, on the
+first catch-up only, `your-slack/data/reading.json` and `your-slack/data/.work/` through
+`your-slack/first-read.mjs`). Never touch any other file, and never
+`EXAMPLE-latest.json`.
+
+1. "What you write" above holds the shape of every field, the urgency words and the tone;
+   these steps do not repeat them. In one Bash call, print the time with
+   `date '+%Y-%m-%dT%H:%M:%S%z'` and read `your-slack/data/latest.json` if it is there.
+2. If Slack is not connected, write only `your-slack/data/status.json` with `ok: false`
+   and `why` "Slack isn't connected yet.", and stop.
+   If `your-slack/data/latest.json` is not there, this is the first catch-up, and the
+   person is watching: follow "The first catch-up" below. Run
+   `node your-slack/first-read.mjs start` in your next Bash call, push one line after each
+   real Slack lookup (`push '<line>'`, its numbers counted from what Slack answered), give
+   the newest messages with `recent @recent.json` right after your first search of other
+   people's messages, the gift with `gift @gift.json` right after step 4 and two or three
+   `offer @offer.json` as you find them, and in step 11 write the files through
+   `latest @latest.json`, then run `done`. Every other step stays the same. If the helper
+   is missing or fails, carry on without it.
+3. Look at which Slack tools you have, because they decide how much you may read:
+   - **`slack_search_messages`**: Slack is connected through Cabinet's own Slack app.
+     Search is fast and complete, but each `slack_read_channel` or `slack_read_thread`
+     costs about a minute (Slack limits it). So find everything with search: in step 5
+     use only search a (skip b); in step 6 write each channel's row from the search
+     results, without reading the channel; read a thread only for a new reply whose
+     thread started before the window and that matters, at most 5 threads a run. Here a
+     date filter alone works, and `from:me` and `-from:me` stand in for the id.
+   - **Slack's own tools** (such as `slack_search_public_and_private`): Slack is
+     connected through the person's own app. Follow every step as written.
+4. Find out who the person is in Slack: their display name and their user id (`U...`).
+   If the last catch-up has `me` and the same `workspace`, use it (a reconnect to another
+   workspace makes it stale). With Cabinet's app, search `from:me` once: the
+   `user` on any result is the person's id. Otherwise run the search that covers private
+   conversations with only the filter `is:dm after:<a week ago>`: every result lists its
+   participants with their ids, and the person is the one in every direct message. If
+   they have no direct messages that week, find them with the user search tool by the
+   name your memory or the cabinet gives. You need the id for the searches below; never
+   show it to them.
+5. Find what moved in two independent ways, so a message one way misses the other
+   catches:
+   a. Search with filters only, no search words. A single common word ("the", "a",
+      "you") matches almost nothing, and a date filter alone returns nothing, but a date
+      filter together with a person or conversation filter returns every message.
+      Slack's `after:` excludes the date it names, so set it to the day before yesterday,
+      sort by newest first, include bot messages, and keep only messages from the last
+      24 hours. Page through each search until the results are older than 24 hours, or
+      twenty pages, whichever comes first:
+      - Other people's messages: `after:<date> -from:<@USER_ID>`.
+      - The person's own messages: `after:<date> from:<@USER_ID>`. They count in the
+        channels they moved, and they tell you which questions they already answered.
+   b. Read directly every conversation in the last catch-up's `known` list (channels
+      and direct messages seen before), with the channel reading tool, only messages
+      from the last 24 hours. Search can lag a few minutes behind Slack and stops at its
+      page limit; reading the conversation does not.
+   The channels and conversations with a message in the window are what moved; one with
+   none gets no row. Never look channels up by searching their names one letter at a
+   time: Slack rate-limits it long before the sweep is done. If a search stopped at its
+   page limit while results were still inside the window, say so in status.json `why`,
+   for example "A very busy day: some older messages may be missing".
+6. For each channel that moved, read its last 24 hours one channel at a time. When a
+   message is a reply in a thread, read the whole thread, even when the thread started
+   before the window. From that, write its channel row.
+   From the same messages, with no extra lookups, write the page's other lists as
+   "What you write" describes them: `waiting` (who is waiting on the person), `recent`
+   (the newest messages in channels), `decisions`, `promises` (from the person's own
+   messages), `standup` and `spotlight` (the busiest channel up close). For `files`, call
+   the tool that lists files once for the window. Write each list every run, `[]` when
+   empty.
+7. If the routine's prompt says `Include direct messages: yes`, use the search that covers
+   private conversations too (not the public-only one) for the searches in step 5, and also
+   run `is:dm after:<date>` and `is:mpim after:<date>` so no direct or group message is
+   missed. Read each conversation that moved and count it in `totals.dms`; it is never a
+   channel row. If it says no, use the public-only search and leave direct and group
+   messages out entirely. If Slack refuses access to direct messages, the Slack
+   connection was made before it allowed them: skip them, write the rest, and set `why`
+   in status.json to "Direct messages not included: reconnect Slack to allow them" with
+   `ok: true`.
+8. This run is read only. Do not post, reply in a thread, react, or mark anything read,
+   however obvious the one-line answer looks.
+9. If Slack rate-limits a call, wait about a minute and try that call again, up to three
+   times, and no more than five minutes of waiting in the whole run. If some channels
+   still can't be read, write the catch-up from the ones you did read and put a short
+   `why` in status.json, for example "2 channels could not be read (Slack rate limit)".
+   A partial catch-up is better than none.
+10. If Slack can't be reached at all, or even the first search stays rate-limited after
+    its retries, write only `your-slack/data/status.json` with `ok: false` and a plain
+    `why`, keep `latest.json` as it was, and stop.
+11. In one Bash call, write `your-slack/data/latest.json` (and check it parses), copy it
+    to `your-slack/data/days/<today's local date>.json`, delete day files older than 30
+    days, and write `your-slack/data/status.json`. On the first catch-up, write it as
+    `your-slack/data/.work/latest.json` and run
+    `node your-slack/first-read.mjs latest @latest.json`, which writes all three, then
+    `node your-slack/first-read.mjs done`.
+
+Finish in one or two plain sentences about the person's Slack and nothing else: how many
+messages moved in how many channels, and the channel that needs them most, if there is one.
+
 ## The first catch-up: telling it as you go
 
 When `your-slack/data/latest.json` is not there yet, this is the person's first catch-up and
@@ -312,8 +419,8 @@ only these ids:
 - `promises` You promised
 - `n-waiting`, `n-messages`, `n-mentions`: the numbers Waiting on you, Messages, Mentions
 - `ask` Ask about your Slack · `ideas` Ideas for your Slack
-- one idea each: `idea-replies`, `idea-standup`, `idea-one-channel`, `idea-after-lunch`,
-  `idea-decisions`, `idea-weekly`, `idea-files`
+- one idea each: `idea-replies`, `idea-standup`, `idea-one-channel`, `idea-decisions`,
+  `idea-weekly`, `idea-files`
 
 A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
 and `remove` empty, and offer the closest box or a page in this cabinet instead.

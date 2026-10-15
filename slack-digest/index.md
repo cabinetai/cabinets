@@ -21,8 +21,9 @@ The cabinet opens on it: **Your Slack**.
   the files shared, each in its own box.
 - **Ask about your Slack**: who mentioned you, what a channel talked about, what the team
   decided. The answer comes up in the chat.
-- **Ideas**: draft your standup from Slack, catch up after lunch, a weekly summary for your
-  manager. Ask once, switch one on to run on a schedule, or keep it on the page as a box.
+- **Ideas**: draft your standup from Slack, keep the week's decisions on one page, a weekly
+  summary for your manager. Ask once, switch one on to run on a schedule, or keep it on the
+  page as a box.
 - **Your page, your way**: move, resize, add and remove the boxes, or ask the agent to
   suggest them. Each person's page is their own.
 
