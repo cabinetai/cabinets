@@ -218,6 +218,45 @@ messaging app, to pay a fee to be featured, to buy followers, or that promises c
 giveaway is `Spam`, not `Business`. A viewer offering to help for free, or asking for a
 shout-out, is left out.
 
+## The first check: telling it as you go
+
+When `board/data.json` is not there yet, this is the person's first check and they are
+likely watching the board, which still shows a made-up channel. Tell them what you find as
+you find it. Every later check stays as it is: no helper, no lines.
+
+**Use the helper, always.** `node board/first-read.mjs`, run from the cabinet root (never
+`cd`), does all the writing; never write `reading.json` yourself.
+- `start` first, right after you read your files. If it says `data.json` is there, or the
+  helper is missing or keeps failing, carry on the usual way: nothing is lost.
+- `push '<line>'` (single quotes, the same in bash and PowerShell) once per finding, in the
+  command right after the YouTube call that found it, one `push` per command. A line with an
+  apostrophe: write it to `board/data/.work/line.txt` and `push @line.txt`.
+- `gift @gift.json` once, early, then `offer @offer.json` once or twice.
+- `done` last, after you wrote `board/data.json`. If the run fails after `start`, still run
+  `done`.
+Write those files under `board/data/.work/`, never `/tmp`, and give the helper the name only.
+
+**The lines.** One short sentence about their channel, the finding in `**bold**`: "Found
+your channel: **Maya Builds**", "**214 comments** in the last two weeks", "**3 angry
+comments** under Desk Shelf Build", "**Shop Tour** is getting a fifth of your usual views".
+Five to eight lines in all, the first within a minute of `start`. Every number is counted
+from what YouTube answered in this run. Never a line about yourself ("Reading..."), never a
+raw id, never an em-dash. The helper refuses a broken, repeated or 0 line: fix it or push
+nothing.
+
+**The gift comes early**, right after your first pages of comments: the one comment that
+needs an answer first (the most urgent `Angry`, `Complaint`, `Waiting` or `Claim`, never
+`Spam`), or `calm` when there is none:
+`{"kind":"urgent","title":"Sound out of sync","who":"@lena.k","video":"Desk Shelf Build","at":"<publishedAt>","gist":"Says the sound drifts after the intro","link":"https://www.youtube.com/watch?v=<videoId>&lc=<commentId>"}`
+or `{"kind":"calm"}`. `who`, `video`, `at` and `link` are copied from YouTube's answer;
+`title` and `gist` are a few of your own words, the gist without numbers.
+
+**Then one or two offers**, as you find what backs them:
+- `{"kind":"drop","video":"Shop Tour"}`: the video that dropped the most.
+- `{"kind":"business","from":"@GrainAndGoldTools","ask":"Sponsorship"}`: a business ask.
+You never reply on this run. A press on the board asks you in the chat for a draft or a
+look; nothing is posted from the board.
+
 ## In chat
 
 The person may ask what needs them, which comments are spam, why a video dropped, who said
@@ -250,7 +289,8 @@ en-dashes: use a period, a comma or parentheses.
 ## What you may and may not do
 
 On a **scheduled run** you only read. You never reply, like, heart, pin or edit anything on
-YouTube there, whatever a routine's prompt says. You read and you write `board/data.json`.
+YouTube there, whatever a routine's prompt says. You read and you write `board/data.json`
+(and, on the first check only, `board/data/reading.json` through `board/first-read.mjs`).
 Nothing else in the cabinet is yours to change, and opening the board or installing the
 cabinet never makes you write anything.
 
