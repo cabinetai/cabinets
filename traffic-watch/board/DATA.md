@@ -14,7 +14,7 @@ the agent changes a setting.
 |---|---|---|
 | `data/latest.json` | Daily Traffic Watch, every day at 8:30 | What on the website needs a look, ranked. Replaced whole each run. Schema `traffic-watch/board@1`. |
 | `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up bakery's board in the same shape. Shown, marked as an example, until `latest.json` exists. |
-| `data/status.json` | The same routine | `{ at, ok, why }`. `ok: false` means the last check could not read Google Analytics; the page shows `why` with a Try again button. |
+| `data/status.json` | The same routine | `{ at, ok, why, code }`. `ok: false` means the last check could not read Google Analytics; the page shows `why` with a Try again button. `code: "SERVICE_DISABLED"` means the Google Analytics API is turned off in the person's Google Cloud project: the page says to turn it on there, not to connect again. |
 | `data/property.json` | The agent, in a chat | `{ propertyId, name }`: the website the board follows, when the person picked one of several. |
 | `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `traffic-watch/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet (`cabinet.mine`). |
 

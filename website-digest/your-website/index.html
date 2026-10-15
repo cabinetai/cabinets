@@ -1354,7 +1354,7 @@
       // The very first catch-up did not work: that is the news, told once, with its fixes.
       var first = failureInfo();
       html = cardHero("alert", "Your first catch-up didn’t work",
-        '<p class="lead">' + esc(first.why) + "</p>" + '<div class="actions">' + failureButtons(true, first.google) + "</div>");
+        '<p class="lead">' + esc(first.why) + (first.next ? " " + esc(first.next) : "") + "</p>" + '<div class="actions">' + failureButtons(true, first.google) + "</div>");
       told = true;
     } else if (V2 && s === "connected" && state.example) {
       var sched = scheduleWords();
@@ -1410,7 +1410,10 @@
     // Only a catch-up that reached the routine and could not read Google is a Google problem.
     // A run that did not finish (no network, the computer asleep) is fixed by trying again.
     var google = !!(tryAt && (!shownAt || tryAt > shownAt));
-    return { why: why, google: google, head: !words ? "The last catch-up didn’t work." : "The catch-up " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work." };
+    // Google Analytics turned off in the person's Google Cloud project: signing in again does not fix it.
+    var off = google && state.lastTry.code === "SERVICE_DISABLED";
+    var next = off ? "In the Google Cloud console, turn on the Google Analytics Data API and the Google Analytics Admin API for your project, then try again." : "";
+    return { why: why, next: next, google: google && !off, head: !words ? "The last catch-up didn’t work." : "The catch-up " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work." };
   }
   function failureButtons(primary, google) {
     return (canRun() ? '<button class="btn' + (primary ? " primary big" : "") + '" data-act="run">' + icon("i-refresh") + "Try again</button>" : "") +
@@ -1421,7 +1424,7 @@
     var fail = failureInfo();
     if (!fail) return "";
     var buttons = failureButtons(false, fail.google);
-    return '<div class="notice">' + icon("i-alert") + "<div><p><b>" + esc(fail.head) + "</b> " + esc(fail.why) + "</p>" +
+    return '<div class="notice">' + icon("i-alert") + "<div><p><b>" + esc(fail.head) + "</b> " + esc(fail.why) + (fail.next ? " " + esc(fail.next) : "") + "</p>" +
       (buttons ? '<div class="actions">' + buttons + "</div>" : "") + "</div></div>";
   }
 

@@ -110,8 +110,11 @@ not an error.
 public demo account answers this way); try the next, and leave it out of `others`. When every
 property answers it, write `ok: false` with `why` "Google Analytics shows your sites, but
 their reports can't be read with this account." and stop. `403`
-with `insufficientPermissions`, `ACCESS_TOKEN_SCOPE_INSUFFICIENT`, `SERVICE_DISABLED` or
-`accessNotConfigured`: Cabinet cannot read Google Analytics; say so and stop. `429` with
+with `insufficientPermissions` or `ACCESS_TOKEN_SCOPE_INSUFFICIENT`: Cabinet cannot read
+Google Analytics; say so and stop. `403` with `SERVICE_DISABLED` or `accessNotConfigured`:
+the Google Analytics API is turned off in the person's Google Cloud project, and a new
+sign-in does not fix it; write `ok: false` with `code` `"SERVICE_DISABLED"` and `why` "The
+Google Analytics API is turned off in your Google Cloud project." and stop. `429` with
 `RESOURCE_EXHAUSTED`: the property's quota for now is used up; finish with what you have.
 `400` `INVALID_ARGUMENT` names what Google could not combine: drop that one and try once
 more. A `5xx`: try once more after a few seconds. Never retry more than once.
@@ -128,7 +131,7 @@ Each run writes three files in `your-website/data/`:
 2. `days/<YYYY-MM-DD>.json`, the same content under today's local date, for the page's date
    picker. A second run today replaces today's file. Delete day files older than 30 days.
 3. `status.json`: `{"at": "<now, with offset>", "ok": true}`, or `ok: false` with `why`,
-   one plain sentence on what went wrong. `ok: true` may carry a `why` too, for a partial
+   one plain sentence on what went wrong, and `code` only where "Errors" gives one. `ok: true` may carry a `why` too, for a partial
    catch-up.
 
 Never write anything else, and never touch `EXAMPLE-latest.json`. In chat you may write
