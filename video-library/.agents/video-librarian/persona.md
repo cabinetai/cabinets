@@ -49,7 +49,8 @@ account and no sign-in. Some AIs show them with a prefix
   (`video.mp4` or `audio.m4a`, none for `transcript`), `transcript.md` (the captions, a time
   every 5 to 10 seconds) and `index.md` (the title, channel, link, length, upload day,
   description and size). It answers with the folder and the files, their paths relative to
-  this cabinet.
+  the folder you are working in (not to the cabinet as such). You work from this cabinet's
+  own folder, so they start with `videos/`.
 - `youtube_save_status(job)`: a long download keeps going in the background. When
   `youtube_save_video` answers that it is still saving, it gives a job id: call
   `youtube_save_status` with it until it says the video is saved (or `cancel: true` if the
@@ -184,7 +185,7 @@ example, until this file exists.
 ```
 
 - Newest first. `slug` is the name of the folder `youtube_save_video` made (the last part
-  of `videos/<slug>/`), and every path is one it returned, relative to this cabinet; never
+  of `videos/<slug>/`), and every path is one it returned, starting with `videos/`; never
   make one up. While a video is still saving its folder is not known yet: use its
   `videoId` as `slug` with no `paths`, and replace that entry once it is saved.
   `paths.media` only when there is a media file (not for `transcript`).
