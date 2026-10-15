@@ -35,10 +35,10 @@ Until then, the page shows a made-up server, and says so.
 
 ## It reads, and writes only where you allow
 
-The morning catch-up only reads, and nothing writes in Discord on its own. Your team writes
-in Discord only when you ask for it in the chat, and only in channels you set to Write in
-Discord's settings in Cabinet. You see the exact words first, and they are posted after you
-say yes. Everywhere else, replies are drafted in the chat for you to send yourself.
+The morning catch-up only reads, and nothing is posted in Discord unless you asked for it.
+Your team writes in Discord only when you ask for it in the chat, and only in channels you
+set to Write in Discord's settings in Cabinet. You see the exact words first, and they are
+posted after you say yes. Everywhere else, replies are drafted in the chat for you to send yourself.
 
 ## What's inside
 
