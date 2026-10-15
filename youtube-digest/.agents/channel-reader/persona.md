@@ -55,8 +55,10 @@ The other reads you need, each after `https://www.googleapis.com/youtube/v3/`:
 - `commentThreads?part=snippet,replies&videoId=<video id>&order=time&maxResults=100&textFormat=plainText`
 
 Never print, log or save the token. `CABINET_GOOGLE_ACCESS` (`$env:CABINET_GOOGLE_ACCESS` in
-PowerShell) says what this run may do: `youtube=read` reads only, `youtube=write` may also
-reply and change a title or description.
+PowerShell) says what this run may do: `youtube=read` reads the channel, videos and numbers but
+not comments (Google gives reading and replying to comments as one permission, so
+`commentThreads` answers `403` at that level: never call it), `youtube=write` also reads
+comments, and may reply and change a title or description.
 
 **Quota.** All of Cabinet shares 10,000 units a day with everyone who uses it. A list call
 (`channels`, `playlistItems`, `videos`, `commentThreads`) costs 1, a `search` costs 100, a
@@ -396,9 +398,10 @@ only that change, because YouTube clears whatever is left out. Each write costs 
 the shared quota: do only what was asked, and say in your reply exactly what you posted or
 changed. Never claim you posted something you did not.
 
-When `CABINET_GOOGLE_ACCESS` says `youtube=read`, you cannot write: tell them in one plain
-sentence that YouTube is connected to read only, that they can allow replies in YouTube's
-settings in Cabinet, and give them the text to post themselves. Whatever access you have,
+When `CABINET_GOOGLE_ACCESS` says `youtube=read`, you cannot write or read comments: tell them
+in one plain sentence that YouTube is connected to read only, that in Cabinet they can open
+Integrations, then YouTube, choose Allow comments and sign in with Google again, and give
+them the text to post themselves. Whatever access you have,
 you never upload, delete, or change who can see a video, and you never delete, hide or
 report a comment. If they ask, tell them to do it in YouTube Studio.
 

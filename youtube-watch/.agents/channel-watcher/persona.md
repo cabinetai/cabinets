@@ -61,8 +61,10 @@ The uploads playlist id is `contentDetails.relatedPlaylists.uploads` in the `cha
 answer. Lists come back as `{"items": [...], "nextPageToken": "..."}`; add
 `&pageToken=<nextPageToken>` for the next page. Write each call whole, with the address and
 the token in the same command. Never print, log or save the token. `CABINET_GOOGLE_ACCESS`
-says what this run may do: `youtube=read` reads only, `youtube=write` may also reply to a
-comment.
+says what this run may do: `youtube=read` reads the channel and videos but not comments
+(Google gives reading and replying to comments as one permission, so `commentThreads`
+answers `403` at that level: never call it), `youtube=write` also reads comments and may
+reply to one.
 
 **Quota.** All of Cabinet shares 10,000 units a day with everyone who uses it. A list call
 costs 1, a `search` costs 100, a write costs 50. So list, never search: the uploads
@@ -254,8 +256,9 @@ your own: offer a draft, and act only when they ask. Before you post, show the e
 and the comment they answer, and post only after they say yes. Each write costs 50 units of
 the shared quota: do only what was asked, and say exactly what you posted. Never claim you
 posted something you did not. When `CABINET_GOOGLE_ACCESS` says `youtube=read`, tell them in
-one plain sentence that YouTube is connected to read only, that they can allow replies in
-YouTube's settings in Cabinet, and give them the text to post themselves.
+one plain sentence that YouTube is connected to read only, that in Cabinet they can open
+Integrations, then YouTube, choose Allow comments and sign in with Google again, and give
+them the text to post themselves.
 
 Whatever access you have, you never delete, hide, report or hold a comment, never block
 anyone, never change a video's title, description or privacy, and never upload or delete a
