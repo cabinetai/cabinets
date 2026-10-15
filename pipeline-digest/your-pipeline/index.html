@@ -1370,15 +1370,30 @@
     }).slice(0, 2);
   }
   function giftNow() { return freshReading() ? state.reading.gift : null; }
+  /** How a deal is named in a question to the agent: "Riverside Schools workshop refit" with Riverside School District (deal 006...). */
+  function dealRef(d) {
+    return "my deal \"" + (text(d.name, 120) || "this deal") + "\"" + (text(d.account) ? " with " + text(d.account, 100) : "") +
+      (text(d.recordId) ? " (deal " + text(d.recordId, 18) + ")" : "");
+  }
+  /** The follow-up (or, for a deal just won, the thank-you) every press asks for in the same words. */
+  function followAsk(d, days) {
+    return "Draft a short " + (d.change === "won" ? "thank-you" : "follow-up") + " email for " + dealRef(d) + "." +
+      (days ? " It has had no call, email or meeting for " + days + " days." : "") +
+      " Read the deal, its account and its contacts in Salesforce first, pick the right person, and write it in my voice, short, with [brackets] around anything I need to fill in. Show it to me here as a draft I can copy.";
+  }
+  function closePlanAsk(d) {
+    return "Make a close plan for " + dealRef(d) + ", set to close " + (dayAhead(d.closeDate, new Date()) || "soon") +
+      ". Read it in Salesforce first: what is still missing, who decides, the next step with a day, and a short email I can send today, ready to copy.";
+  }
+  var NO_CHANGE = " Do not change anything in Salesforce.";
   var WEEK_ASK = "Plan my sales week from Salesforce: the three deals most worth my time this week and why, one next step for each with a day, and who to call first. Do not change anything in Salesforce.";
   function giftParts(g) {
     var deal = "<b>" + bidi(g.name) + "</b>" + (g.amount != null ? ", " + esc(money(g.amount)) + "," : "");
-    var id = g.recordId ? " (deal " + g.recordId + ")" : "";
     if (g.kind === "quiet") {
       return {
         head: deal + " has had no call, email or meeting for <b class=\"n\">" + g.days + " " + plural(g.days, "day", "days") + "</b>.",
         button: "Draft a follow-up", icon: "i-mail",
-        ask: "Draft a short follow-up email for my deal \"" + g.name + "\"" + (g.account ? " with " + g.account : "") + id + ". It has had no call, email or meeting for " + g.days + " days. Read the deal, its account and its contacts in Salesforce first, pick the right person, and write it in my voice, short, with [brackets] around anything I need to fill in. Show it to me here as a draft I can copy. Do not change anything in Salesforce."
+        ask: followAsk(g, g.days) + NO_CHANGE
       };
     }
     if (g.kind === "closing") {
@@ -1386,7 +1401,7 @@
       return {
         head: deal + " is set to close <b class=\"n\">" + esc(when) + "</b>.",
         button: "Make a close plan", icon: "i-target",
-        ask: "Make a close plan for my deal \"" + g.name + "\"" + (g.account ? " with " + g.account : "") + id + ", set to close " + when + ". Read it in Salesforce first: what is still missing, who decides, the next step with a day, and a short email I can send today, ready to copy. Do not change anything in Salesforce."
+        ask: closePlanAsk(g) + NO_CHANGE
       };
     }
     return {
@@ -1475,23 +1490,31 @@
     return function (a, b) { var x = parseTime(a[key]), y = parseTime(b[key]); var d = (x ? x.getTime() : 0) - (y ? y.getTime() : 0); return newest ? -d : d; };
   }
   function byAmount(a, b) { return (amount(b.amount) || 0) - (amount(a.amount) || 0); }
+  var byClose = byDate("closeDate");
+  /**
+   * Each list sorted once for the catch-up on screen: a paint draws many boxes and ideas that
+   * all ask for the same lists. A new catch-up (another state.data) starts afresh. Never change
+   * what comes back.
+   */
+  var sorted = { data: null };
+  function once(key, make) {
+    if (sorted.data !== state.data) sorted = { data: state.data };
+    if (!Object.prototype.hasOwnProperty.call(sorted, key)) sorted[key] = make(state.data ? list(state.data[key]) : []);
+    return sorted[key];
+  }
+  var MOVE_RANK = { won: 0, lost: 1, stage: 2, amount: 3, date: 4, "new": 5 };
+  function moveRank(m) { return MOVE_RANK[m.change] == null ? 6 : MOVE_RANK[m.change]; }
   /** What moved since yesterday, as the routine wrote it: won and lost first, then the biggest. */
-  function moved() {
-    var rank = { won: 0, lost: 1, stage: 2, amount: 3, date: 4, "new": 5 };
-    return (state.data ? list(state.data.moved) : []).slice().sort(function (a, b) {
-      return (rank[a.change] == null ? 6 : rank[a.change]) - (rank[b.change] == null ? 6 : rank[b.change]) || byAmount(a, b);
-    });
-  }
+  function moved() { return once("moved", function (l) { return l.sort(function (a, b) { return moveRank(a) - moveRank(b) || byAmount(a, b); }); }); }
   /** Deals set to close in the next 7 days, the ones whose day already passed first. */
-  function closing() {
-    return (state.data ? list(state.data.closing) : []).slice().sort(function (a, b) { return (b.late === true) - (a.late === true) || byDate("closeDate")(a, b); });
-  }
+  function closing() { return once("closing", function (l) { return l.sort(function (a, b) { return (b.late === true) - (a.late === true) || byClose(a, b); }); }); }
   /** Open deals with no call, email or meeting for a while, the biggest first. */
-  function stale() { return (state.data ? list(state.data.stale) : []).slice().sort(byAmount); }
-  /** Tasks due today or late, the latest first. */
-  function tasks() { return (state.data ? list(state.data.tasks) : []).slice().sort(byDate("due")); }
-  function leads() { return (state.data ? list(state.data.leads) : []).slice().sort(byDate("created", true)); }
-  function changes() { return (state.data ? list(state.data.changes) : []).slice(0, 5); }
+  function stale() { return once("stale", function (l) { return l.sort(byAmount); }); }
+  /** Tasks due today or late, the oldest due date first. */
+  function tasks() { return once("tasks", function (l) { return l.sort(byDate("due")); }); }
+  function leads() { return once("leads", function (l) { return l.sort(byDate("created", true)); }); }
+  function changes() { return once("changes", function (l) { return l.slice(0, 5); }); }
+  function closingSum() { return once("closingSum", function () { return closing().reduce(function (sum, x) { return sum + (amount(x.amount) || 0); }, 0); }); }
   function overdue() { return tasks().filter(function (t) { return (count(t.overdue) || 0) > 0; }); }
   function findItem(id) {
     var all = moved().concat(closing(), stale(), tasks(), leads());
@@ -1919,7 +1942,7 @@
   function drawClosing(level) {
     var c = closing();
     var ref = refDate();
-    var sum = c.reduce(function (s, x) { return s + (amount(x.amount) || 0); }, 0);
+    var sum = closingSum();
     if (level === "S") {
       return sumBox("closing", "Closing this week", "i-calendar", String(c.length), c.length ? esc(money(sum)) + " in all" : "Nothing set to close this week",
         c[0] ? bidi(text(c[0].name, 100)) + ", " + esc(c[0].late === true ? "close date passed" : dayAhead(c[0].closeDate, ref)) : "");
@@ -2045,7 +2068,7 @@
   }
   function drawNumClosing() {
     var c = closing();
-    var sum = c.reduce(function (s, x) { return s + (amount(x.amount) || 0); }, 0);
+    var sum = closingSum();
     return kpi("Closing this week", "i-calendar", String(c.length), c.length ? esc(money(sum)) + " in all" : "nothing set to close");
   }
   function drawNumOverdue() {
@@ -2198,16 +2221,15 @@
 
   /** What today's pipeline says, counted once for every idea. */
   function ideaFacts() {
-    var ref = refDate();
-    var q = stale();
-    return {
-      ref: ref,
-      quietest: q.slice().sort(function (a, b) { return (count(b.days) || 0) - (count(a.days) || 0); })[0] || null,
-      due: tasks().length,
-      closing: closing().length,
-      leads: leads().length,
-      moved: moved().length
-    };
+    return once("facts", function () {
+      return {
+        ref: refDate(),
+        quietest: stale().reduce(function (top, d) { return !top || (count(d.days) || 0) > (count(top.days) || 0) ? d : top; }, null),
+        due: tasks().length,
+        closing: closing().length,
+        leads: leads().length
+      };
+    });
   }
 
   /** For each idea: the line and the press that fit today, or null when it would not help now. */
@@ -2215,10 +2237,9 @@
     followup: function (f) {
       var d = f.quietest;
       if (!d) return null;
-      var name = text(d.name, 70);
       var days = count(d.days) || 0;
-      return { line: name + " has gone " + days + " days without a word. Draft a follow-up?", act: "Draft the follow-up",
-        ask: "Draft a short follow-up email for my deal \"" + name + "\"" + (text(d.account) ? " with " + text(d.account, 80) : "") + (text(d.recordId) ? " (deal " + text(d.recordId, 18) + ")" : "") + ". It has had no call, email or meeting for " + days + " days. Read the deal, its account and its contacts in Salesforce first, pick the right person, and write it in my voice, ready to copy. Then show me the follow-up task you would add in Salesforce, and add it only if I say yes." };
+      return { line: text(d.name, 70) + " has gone " + days + " days without a word. Draft a follow-up?", act: "Draft the follow-up",
+        ask: followAsk(d, days) + " Then show me the follow-up task you would add in Salesforce, and add it only if I say yes." };
     },
     calls: function (f) {
       var n = f.due;
@@ -3590,14 +3611,9 @@
     }
     else if (act === "ask") ask(el.getAttribute("data-q"));
     else if (act === "follow" && item) {
-      var won = item.change === "won";
-      ask((won ? "Draft a short thank-you email for my deal \"" : "Draft a short follow-up email for my deal \"") + (text(item.name, 120) || "this deal") + "\"" +
-        (text(item.account) ? " with " + text(item.account, 100) : "") + (text(item.recordId) ? " (deal " + text(item.recordId, 18) + ")" : "") +
-        ". Read the deal, its account and its contacts in Salesforce first, pick the right person, and write it in my voice, short, with [brackets] around anything I need to fill in. Show it to me here as a draft I can copy. Do not change anything in Salesforce.");
+      ask(followAsk(item, count(item.days)) + NO_CHANGE);
     } else if (act === "closeplan" && item) {
-      ask("Make a close plan for my deal \"" + (text(item.name, 120) || "this deal") + "\"" + (text(item.account) ? " with " + text(item.account, 100) : "") +
-        (text(item.recordId) ? " (deal " + text(item.recordId, 18) + ")" : "") + ", set to close " + (dateWords(item.closeDate) || "soon") +
-        ". Read it in Salesforce first: what is still missing, who decides, the next step with a day, and a short email I can send today, ready to copy. Do not change anything in Salesforce.");
+      ask(closePlanAsk(item) + NO_CHANGE);
     } else if (act === "prep" && item) {
       ask("Get me ready for my task \"" + (text(item.subject, 120) || "this task") + "\"" + (text(item.what) ? " on " + text(item.what, 100) : "") +
         (text(item.recordId) ? " (task " + text(item.recordId, 18) + ")" : "") + ". Read the task, its deal and the last activity in Salesforce, and give me what I need in a few lines: who, where things stand, and what to say. If it is an email, draft it, ready to copy. Do not change anything in Salesforce.");

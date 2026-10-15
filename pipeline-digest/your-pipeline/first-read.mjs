@@ -64,9 +64,15 @@ function workFile(name) {
   return file;
 }
 /** "@your-pipeline/data/.work/gift.json" means "@gift.json". */
+function workName(arg) { return arg.slice(1).replace(/^.*data[\\/]\.work[\\/]/, ""); }
 function workJson(arg, what) {
   if (!arg.startsWith("@")) fail(`give ${what} as @<file>: the JSON you wrote into data/.work/`);
-  try { return readJson(workFile(arg.slice(1).replace(/^.*data[\\/]\.work[\\/]/, ""))); } catch { return fail(`${arg.slice(1)} is not JSON in data/.work/`); }
+  try { return readJson(workFile(workName(arg))); } catch { return fail(`${arg.slice(1)} is not JSON in data/.work/`); }
+}
+/** "@line.txt" reads plain text from data/.work/, for words no shell can quote; anything else is the words. */
+function workText(arg) {
+  const said = String(arg || "").trim();
+  return /^@\S+$/.test(said) ? fs.readFileSync(workFile(workName(said)), "utf8") : said;
 }
 
 /** data/reading.json as start wrote it, or a plain stop when it is missing or broken. */
@@ -99,9 +105,9 @@ function checkLine(line) {
   if (!line) fail("refused, an empty line: say what that query found, or push nothing");
   // "$4" in double quotes reaches here as "": refuse what the shell ate.
   if (/(^|[\s(*])[,.]\d/.test(line)) fail("refused, a number lost its start (a $ in double quotes?): use single quotes");
-  if (/\bundefined\b|\bNaN\b|\bnull\b|\[object|\{|\}/.test(line) || RAW_ID.test(line)) fail(`refused, the line is broken or carries a raw id: ${line}`);
+  if (/\{|\}/.test(line)) fail(`refused, the line is broken: ${line}`);
+  checkWords(line, "the line");
   if (line.length > 200) fail("refused, the line is longer than 200 characters");
-  if (/[—–]/.test(line)) fail("refused, a long dash: use a comma or a period");
   if (!/\*\*[^*]+\*\*/.test(line)) fail("refused, mark the finding in **bold**, like 'Found **12 open deals**, $263,750 in all'");
   if (/^(I|I'm|I've|Searching|Reading|Looking|Checking|Opening|Trying|Querying)\b/i.test(line.replace(/\*/g, ""))) fail("refused, a line about the reading: say what you found in their pipeline");
   // "**0 deals**" is not a finding: a line whose numbers are all 0 says nothing.
@@ -271,9 +277,7 @@ if (cmd === "start") {
   const r = readReading();
   if (r.done) fail("the reading is done: no more lines");
   // "@line.txt" reads the line from data/.work/, for a line no shell can quote.
-  const raw = args.join(" ");
-  const fromFile = /^@[\w.-]+$/.test(raw.trim()) ? fs.readFileSync(workFile(raw.trim().slice(1)), "utf8") : raw;
-  const line = String(fromFile || "").replace(/\s+/g, " ").trim();
+  const line = workText(args.join(" ")).replace(/\s+/g, " ").trim();
   checkLine(line);
   if (r.lines.includes(line)) fail("that line is already there");
   r.lines.push(line);
@@ -321,8 +325,7 @@ if (cmd === "start") {
   const oldest = ymd(dayStart(-30));
   for (const f of fs.readdirSync(days)) if (/^\d{4}-\d{2}-\d{2}\.json$/.test(f) && f.slice(0, 10) < oldest) fs.rmSync(path.join(days, f), { force: true });
   // "@why.txt" reads the note from data/.work/, for a note no shell can quote ("Salesforce's limit").
-  const said = why.join(" ").trim();
-  const note = (/^@[\w.-]+$/.test(said) ? fs.readFileSync(workFile(said.slice(1)), "utf8") : said).replace(/\s+/g, " ").trim().slice(0, 200);
+  const note = workText(why.join(" ")).replace(/\s+/g, " ").trim().slice(0, 200);
   writeJson(path.join(dataDir, "status.json"), { at: iso(n), ok: true, ...(note ? { why: note } : {}) });
   console.log(`latest.json written (${l.moved.length} moved, ${(l.closing || []).length} closing), days/${ymd(n)}.json and status.json`);
 } else if (cmd === "done") {
