@@ -38,9 +38,11 @@ daily, online, countries }`. `until` is the last day Instagram has a number for;
 `last28` are each `{ from, views, reach, engaged, interactions, likes, comments, saves,
 shares, linkTaps, newFollowers }`; `daily` is `{ day, reach }` for each day; `online` is
 `{ hour, followers }` (the hour in the person's own time) and `countries` the top 5
-`{ code, followers }`. A number Instagram has not sent is `null`, and the page says "Not there
-yet" in its place, never a 0. Under 100 followers Instagram sends no follower numbers at all
-(`newFollowers`, `online`, `countries`), and the page says why. Without the numbers it is
+`{ code, followers }`. A number Instagram has not sent, or no longer offers, is `null`, and
+the page says "Not there yet" in its place, never a 0. The routine asks for the numbers in
+small groups, so one Instagram turns down never costs the others. Under 100 followers
+Instagram sends no follower numbers at all (`newFollowers`, `online`, `countries`), and the
+page says why. Without the numbers it is
 `{ ok: false, why: "not-allowed" }` or `why: "unavailable"`, and the Account numbers box shows
 the public counts from `account` and `posts` with one quiet line on what is missing.
 
