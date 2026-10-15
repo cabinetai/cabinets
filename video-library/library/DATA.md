@@ -15,7 +15,7 @@ Nothing runs on a schedule. The full rules are in the agent's persona
 | `library/data.json` | The agent, in a chat | The library the page shows. Schema `video-library/library@1`. |
 | `library/EXAMPLE-data.json` | Nobody (it ships with the template) | A made-up library in the same shape, shown, marked as an example, until `data.json` exists. |
 | `library/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `video-library/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet (`cabinet.mine`). |
-| `videos/<slug>/` | `youtube_save_video` | The media file (`video` or `audio` only), `transcript.md` (each line with its time) and `index.md` (title, channel, link, length, upload day, description, size). |
+| `videos/<slug>/` | `youtube_save_video` | The media file (`video` or `audio` only), `transcript.md` (a time every 5 to 10 seconds) and `index.md` (title, channel, link, length, upload day, description, size). |
 | `videos/<slug>/summary.md` | The agent | Five lines, key points with times, lines worth quoting, clip ideas. |
 | `videos/EXAMPLE-*/` | Nobody | The made-up videos' transcripts and summaries. No media. |
 
@@ -34,7 +34,7 @@ reached (deleted, or a sealed frame on Cloud with no login to send) falls back t
 YouTube player. A time anywhere on the page jumps the card's player there.
 
 The transcript under a card is read from `paths.transcript` when the person opens it. Any
-line that starts with a time (`[00:01:23]`, `1:23`, `**1:23**`, `(1:23)`) gets a button
+line that starts with a time (`**[1:23]**` as Cabinet writes it, or `[00:01:23]`, `1:23`, `**1:23**`, `(1:23)`) gets a button
 that jumps the player there.
 
 The page is a 12-column grid of boxes on YouTube's light grey under a red headline band,
