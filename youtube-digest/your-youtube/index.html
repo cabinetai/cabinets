@@ -329,12 +329,6 @@
   .one-idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
   .one-idea .art-img { aspect-ratio: auto; height: 96px; }
   .box[data-level="L"] .one-idea .art-img { height: 130px; }
-  .one-idea .parts { display: grid; gap: 8px; margin: 0; }
-  .one-idea .parts div { padding: 8px 12px; border-radius: 12px; background: var(--panel); }
-  .one-idea .parts dt { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
-  .one-idea .parts dd { margin: 2px 0 0; color: var(--ink); font-size: 14.5px; }
-  .one-idea .parts ul { margin: 2px 0 0; padding-inline-start: 18px; }
-  .box[data-level="L"] .one-idea .parts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .idea-rows > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; margin: 0 20px; padding: 10px 0; border-top: 1px solid var(--line); }
   .idea-rows .ic { width: 34px; height: 34px; }
   .idea-rows b { display: block; font-size: 15px; font-weight: 500; }
@@ -755,10 +749,6 @@
       text: "Short replies in your voice to each question under your videos, ready to copy.",
       ask: "Draft a short reply, in my voice, to every comment under my videos that asked me a real question and is still waiting for an answer. Show them to me one by one, with the video and who asked, as drafts I can copy. Do not post anything on YouTube.",
       when: "Every morning", at: "every day at 9:30 am" },
-    { id: "one-video", box: "videos", icon: "i-play", art: "ideas/one-video.jpg", title: "One video up close",
-      text: "How one video is doing: its numbers, what people say, and what they ask.",
-      ask: "Which of my videos moved the most since yesterday? Tell me about it in five short lines: how it is doing next to my usual, what people say, what they ask, and what is still open.",
-      when: "Every Monday", at: "every Monday at 9:30 am" },
     { id: "faq", box: "asks", icon: "i-help", art: "ideas/faq.jpg", title: "Answer what everyone asks",
       text: "The questions viewers keep asking, answered once in a short FAQ for a description or a comment.",
       ask: "Look at the questions viewers asked under my videos in the last two weeks, and write a short FAQ that answers the ones asked most, in my voice, for me to paste into a description or a comment. Do not post or change anything on YouTube.",
@@ -2100,22 +2090,14 @@
 
   /**
    * One idea as its own box, put there by the person, so it shows even on a day it does not
-   * fit. The one-video idea shows the video the morning catch-up looked at up close.
+   * fit.
    */
   function drawOneIdea(idea, level) {
     var fit = state.data ? fitted(idea, null, true) : null;
     var can = canAsk();
-    var body = "";
-    var spot = state.data && state.data.spotlight && typeof state.data.spotlight === "object" ? state.data.spotlight : null;
-    var lines = function (v, n) { return Array.isArray(v) ? v.map(function (x) { return text(x, 140); }).filter(Boolean).slice(0, n) : []; };
-    if (idea.id === "one-video" && spot && level !== "S") {
-      var sl = lines(spot.lines, 5);
-      if (sl.length) body = '<p><b dir="auto">' + esc(text(spot.title, 90)) + "</b> up close</p>" +
-        '<dl class="parts"><div><dd><ul>' + sl.map(function (l) { return '<li dir="auto">' + esc(l) + "</li>"; }).join("") + "</ul></dd></div></dl>";
-    }
-    var art = idea.art && level !== "S" && !body ? '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>' : "";
+    var art = idea.art && level !== "S" ? '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>' : "";
     return '<div class="one-idea">' + art + "<h3>" + esc(idea.title) + "</h3>" +
-      (level === "S" ? "" : body || (fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "<p>" + esc(idea.text) + "</p>")) +
+      (level === "S" ? "" : (fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "<p>" + esc(idea.text) + "</p>")) +
       '<div class="go"><button class="btn small dark" data-act="idea-now" data-idea="' + idea.id + '"' + (fit && fit.ask ? ' data-fit="1"' : "") + (can ? "" : " disabled") + ">" + icon("i-send") + esc(fit && level !== "S" ? fit.act : "Ask now") + "</button>" +
       (level === "S" ? "" : '<button class="btn small" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + "Do this " + esc(routineWords(idea)) + "</button>") +
       "</div></div>";
@@ -2131,18 +2113,12 @@
   /** What today's channel says, counted once for every idea. */
   function ideaFacts() {
     var ref = refDate();
-    var mover = videos().slice().sort(function (a, b) {
-      var ga = a.gained && typeof a.gained === "object" ? count(a.gained.views) || 0 : 0;
-      var gb = b.gained && typeof b.gained === "object" ? count(b.gained.views) || 0 : 0;
-      return gb - ga;
-    })[0] || null;
     return {
       ref: ref,
       waiting: waiting().length,
       asked: asks().filter(function (a) { return a.answered !== true && (count(a.people) || 0) >= 2; }).length,
       next: nextIdeas().length,
       quiet: marked("quiet"),
-      mover: mover && mover.gained && (count(mover.gained.views) || 0) >= 100 ? mover : null,
       kind: recent().length
     };
   }
@@ -2152,13 +2128,6 @@
     replies: function (f) {
       var n = f.waiting;
       return n ? { line: n + " " + plural(n, "question is", "questions are") + " waiting for your answer.", act: n === 1 ? "Draft the reply" : "Draft the replies" } : null;
-    },
-    "one-video": function (f) {
-      var v = f.mover;
-      if (!v) return null;
-      var title = text(v.title, 70);
-      return { line: title + " got " + big(v.gained.views) + " views since yesterday. See what people say?", act: "Tell me about it",
-        ask: "Tell me how my video \"" + title + "\" is doing, in five short lines: its numbers next to my usual, what people say, what they ask, and what is still open." };
     },
     faq: function (f) {
       var n = f.asked;
@@ -2384,10 +2353,8 @@
       title: "Ideas for your channel", desc: "Every idea in one box, one tap each." }
   };
   IDEAS.forEach(function (idea) {
-    // The one-video idea shows what the catch-up prepared, so it starts wider.
-    var rich = idea.id === "one-video";
     BOXES["idea-" + idea.id] = { cls: "lane idea1", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
-      icon: idea.icon, art: idea.art, w: rich ? 6 : 4, h: 5, min: [3, 3], title: idea.title, desc: idea.text };
+      icon: idea.icon, art: idea.art, w: 4, h: 5, min: [3, 3], title: idea.title, desc: idea.text };
   });
   var GROUPS = [
     { id: "youtube", title: "Your YouTube" },

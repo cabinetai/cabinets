@@ -135,7 +135,6 @@ boxes they keep. So write every list below, every run, even on a quiet day (an e
   "totals": { "views": 18420, "likes": 912, "comments": 214, "newVideos": 1, "waiting": 9 },
   "analytics": { "ok": true, "until": "2026-10-06", "last7": { ... }, "last28": { ... }, "daily": [ ... ] },
   "videos": [ ... ], "waiting": [ ... ], "recent": [ ... ], "asks": [ ... ], "next": [ ... ],
-  "spotlight": { "id": "v1", "title": "<video title>", "lines": [ ... ] },
   "me": { "channelId": "<the channel's id>", "uploads": "<the uploads playlist id>" },
   "known": [ { "videoId": "<id>", "views": 12840, "likes": 611, "comments": 98, "viewerComments": 91, "own": 7, "at": "<when read>" } ]
 }
@@ -253,9 +252,6 @@ never typed.
   `{ "id": "n1", "title": "<a working title>", "why": "6 people asked where the lamp is from, under 3 videos", "from": "a1" }`.
   `from` is the `asks` id it comes from, when it does. Fewer than three only when nothing
   backs a third; never an idea from nowhere.
-- `spotlight`: the video that moved most in the window, up close: its `id` and `title` from
-  `videos`, and `lines`, three to five short lines on how it is doing, what people say,
-  what they ask, and what is still open.
 
 Every number is counted from what YouTube returned in this run. Every `url` is built only
 from ids YouTube returned: `https://www.youtube.com/watch?v=<videoId>` for a video, with
@@ -317,7 +313,7 @@ first catch-up only, `your-youtube/data/reading.json` and `your-youtube/data/.wo
    them: `analytics`, `videos` (with `viewerComments`, the comments from viewers, counted
    from the threads you read with the channel's own left out, `gained` from the last
    catch-up's `known`, and one `best` and at most one `quiet`), `waiting`, `recent`,
-   `asks`, `next` and `spotlight`, and `totals`.
+   `asks` and `next`, and `totals`.
    Write each list every run, `[]` when empty. Keep `me` and `known` for tomorrow.
 8. This run is read only, and so is every scheduled run of this cabinet. Do not reply,
    like, pin, edit or change anything on YouTube, however obvious the answer looks. Never
@@ -457,8 +453,8 @@ isn't. Use only these ids:
 - `n-views`, `n-waiting`, `n-comments`, `n-watch`: the numbers Views, Waiting for an answer,
   Comments, Watch time (Watch time shows only with Analytics)
 - `ask` Ask about your channel · `ideas` Ideas for your channel
-- one idea each: `idea-replies`, `idea-one-video`, `idea-faq`, `idea-plan`, `idea-weekly`,
-  `idea-titles`, `idea-thanks`
+- one idea each: `idea-replies`, `idea-faq`, `idea-plan`, `idea-weekly`, `idea-titles`,
+  `idea-thanks`
 
 A box that is not on the list can't be made. Say so in `note` and in the chat, with `add`
 and `remove` empty, and offer the closest box or a page in this cabinet instead.

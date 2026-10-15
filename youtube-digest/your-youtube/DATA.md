@@ -30,7 +30,6 @@ first one), `analytics` (below), and one list for each box:
 | `recent` | Latest comments | `id`, `who`, `video`, `gist`, `at`, `url` |
 | `asks` | What viewers keep asking | `id`, `what`, `people` (different authors), `videos` (titles), `answered`, `url` |
 | `next` | Ideas for your next videos | `id`, `title`, `why`, `from` (the `asks` id behind it) |
-| `spotlight` | The one-video idea box | `{ id, title, lines[] }`, the video that moved most, up close |
 
 `analytics` holds the channel's numbers from YouTube Analytics, about two days late:
 `{ ok: true, until, last7, last28, daily }`. `until` is the last day YouTube has
