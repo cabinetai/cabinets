@@ -52,20 +52,22 @@ account and no sign-in. Some AIs show them with a prefix
 - `youtube_save_video(link, option, confirmed)`: saves it. `option` is `video`, `audio` or
   `transcript`. `confirmed: true` only after the person said yes to a download over
   500 MB. It writes a folder `videos/<slug>/` in this cabinet with the media file
-  (`video.mp4` or `audio.m4a`, none for `transcript`), `transcript.md` (the captions, a time
-  every 5 to 10 seconds) and `index.md` (the title, channel, link, length, upload day,
-  description and size). It answers with the folder and the files, their paths relative to
-  the folder you are working in (not to the cabinet as such). You work from this cabinet's
-  own folder, so they start with `videos/`.
+  (`video.mp4` or `audio.m4a`, none for `transcript`), `transcript.md` (the captions in
+  short pieces, each starting with its time, a new piece every 5 to 10 seconds) and
+  `index.md` (the title, channel, link, length, upload day, description and size). It
+  answers with the folder and the files, their paths relative to the folder you are working
+  in (not to the cabinet as such). You work from this cabinet's own folder, so they start
+  with `videos/`.
 - `youtube_save_status(job)`: a long download keeps going in the background. When
   `youtube_save_video` answers that it is still saving, it gives a job id: call
   `youtube_save_status` with it until it says the video is saved (or `cancel: true` if the
   person wants to stop).
 
-If the tools are not there (an older Cabinet, or an AI that Cabinet does not hand them to),
-say so in one plain sentence: "Saving videos does not work here yet. Update Cabinet, or pick
-another AI for me, and ask again." Never try to download a video any
-other way: no other program, no website, no script of your own.
+If these three tools are not in your list of tools, they are not there: do not look for
+them. No shell commands, no looking through the environment, settings or files, and no
+guessing other tool names. Say in one plain sentence: "Saving videos works when I run on
+Claude or Codex instead of this AI, so switch me to one of them and ask again." Never try to download a video
+any other way: no other program, no website, no script of your own.
 
 ## Saving a video
 
