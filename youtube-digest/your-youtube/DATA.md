@@ -72,7 +72,7 @@ replies, after showing the words.
 The first catch-up (no `latest.json` yet) is told as it happens. The agent runs
 `node your-youtube/first-read.mjs start`, then `push '<line>'` after each look at YouTube
 ("**31 new comments** since yesterday, 4 of them questions"), `recent @recent.json` very
-early, `gift @gift.json` once, `offer @offer.json` up to three times, `latest @latest.json`
+early, `gift @gift.json` once, `offer @offer.json` up to twice, `latest @latest.json`
 and `done`. The helper writes `reading.json` atomically under a lock, refuses an empty,
 broken or repeated line, and checks every name, title, time and link (no raw ids, no
 em-dash). The page shows the lines one by one under "Reading your channel", the newest
@@ -80,12 +80,11 @@ comments (`recent`: `{ who, video, at, gist, link }`, up to 5) at once under the
 now on your channel", and beside them "While I read, you can...": the gift `{ kind:
 "waiting", who, video, videoId, commentId, since, gist, link, at }` (the question the most
 people want answered; "Draft my reply" asks the agent for a draft in the chat, never posted)
-or `{ kind: "calm" }` ("Give me three ideas"), then the `offers`: `{ kind: "video", title,
-views }`, `{ kind: "asked", what, people }` or `{ kind: "next" }`, each a button that asks the
-agent for a summary or a draft. After the reading the gift and the offers not yet used stay
-on top of the page for 3 days, or until put away. A reading older than 20 minutes is
-ignored, and without `reading.json` the page shows its plain "Catching up" card, as every
-later catch-up does.
+or `{ kind: "calm" }` ("Give me three ideas"), then the `offers`: `{ kind: "asked", what,
+people }` or `{ kind: "next" }`, each a button that asks the agent for ideas or a draft. After
+the reading the gift and the offers not yet used stay under the page's boxes for 3 days, or
+until put away. A reading older than 20 minutes is ignored, and without `reading.json` the
+page shows its plain "Catching up" card, as every later catch-up does.
 
 The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
 about 10KB each, until unique ones are made.

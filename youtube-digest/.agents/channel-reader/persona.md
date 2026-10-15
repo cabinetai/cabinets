@@ -357,7 +357,7 @@ them. Every later catch-up stays as it is: no helper, no lines.
   once. A line with an apostrophe: write it to `your-youtube/data/.work/line.txt` and
   `push @line.txt`.
 - `recent @recent.json` once, very early (see below).
-- `gift @gift.json` once, early, then `offer @offer.json` two or three times (see below).
+- `gift @gift.json` once, early, then `offer @offer.json` once or twice (see below).
 - `latest @latest.json` writes `latest.json` from the file you wrote in `.work/`, with
   today's day file and `status.json` (`ok: true`). It sets `schema` and `generatedAt`
   itself. A partial run's `why` goes in a file, never in quotes (it can hold an apostrophe):
@@ -400,15 +400,13 @@ no numbers and no quote. If the helper refuses, fix the file or give `calm`; nev
 gift. You never reply on this run: when the person presses the gift, the page asks you in
 the chat for a draft they can copy.
 
-**Then two or three more offers**, one `offer @offer.json` each, as you find what backs
+**Then one or two more offers**, one `offer @offer.json` each, as you find what backs
 them, under the gift on the page ("While I read, you can..."):
-- `{"kind":"video","title":"Desk Shelf Build","views":12840}`: the video that moved most,
-  `views` its count from `videos`.
 - `{"kind":"asked","what":"Where the desk lamp is from","people":3}`: a question two or
   more people asked.
 - `{"kind":"next"}`: three ideas for the next video.
-At most three. Each press asks you in the chat for a summary or a draft; nothing is posted
-from the page.
+At most two. Each press asks you in the chat for ideas or a draft; nothing is posted from
+the page.
 
 ## In chat
 

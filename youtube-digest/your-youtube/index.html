@@ -571,7 +571,8 @@
   .gift.looking { justify-items: start; min-height: 220px; background: color-mix(in srgb, var(--page) 55%, transparent); box-shadow: none; }
   .gift.looking h3 { color: var(--ink-3); }
   @media (max-width: 979px) { .gift.looking { display: none; } }
-  /* After the reading, the gift and the offers wait at the top of the page until used or put away. */
+  /* After the reading, the gift and the offers wait under the boxes, so the band stays on top,
+     until used or put away. */
   .gift-keep { display: grid; gap: 12px; }
 
   /* ── Narrow screens ──────────────────────────────────────────────────── */
@@ -681,9 +682,9 @@
         <button type="button" class="btn dark" data-act="edit-done"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Done</button>
       </div>
     </div>
-    <div class="gift-keep" id="gift-keep" role="region" aria-label="Things you can do now" hidden></div>
     <div class="suggest" id="suggest" role="region" aria-label="A change to your page" aria-live="polite" hidden></div>
     <section class="grid" id="grid" aria-label="Your YouTube, by what needs you" hidden></section>
+    <div class="gift-keep" id="gift-keep" role="region" aria-label="Things you can do now" hidden></div>
     <div class="grid-empty" id="grid-empty" hidden>
       <p><b>Your page has no boxes.</b> Add the ones you want to see.</p>
       <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>Add a box</button>
@@ -1284,9 +1285,9 @@
   // ── The gift and the offers ────────────────────────────────────────────
   // While it reads, the agent finds one thing the person can do now (first-read.mjs gift):
   // the question under their videos that the most people want answered, or, when nobody is
-  // waiting, three ideas for the next video. Then up to three more (first-read.mjs offer):
-  // one video up close, what viewers keep asking, ideas for the next video. A press asks the
-  // agent in the chat beside the page for a summary or a draft to copy; nothing is posted.
+  // waiting, three ideas for the next video. Then up to two more (first-read.mjs offer):
+  // what viewers keep asking, ideas for the next video. A press asks the agent in the chat
+  // beside the page for ideas or a draft to copy; nothing is posted.
   var GIFT_KEY = "youtube-digest-gift-done@1";
   var GIFT_KEEP_DAYS = 3;
   function cleanGift(g) {
@@ -1300,10 +1301,10 @@
   }
   function cleanOffers(value) {
     return list(value).map(function (o) {
-      return { kind: o.kind, title: text(o.title, 120), views: count(o.views), what: text(o.what, 100), people: count(o.people), at: text(o.at, 40) };
+      return { kind: o.kind, what: text(o.what, 100), people: count(o.people), at: text(o.at, 40) };
     }).filter(function (o) {
-      return ((o.kind === "video" && o.title) || (o.kind === "asked" && o.what) || o.kind === "next") && o.at;
-    }).slice(0, 3);
+      return ((o.kind === "asked" && o.what) || o.kind === "next") && o.at;
+    }).slice(0, 2);
   }
   function giftNow() { return freshReading() ? state.reading.gift : null; }
   /** "2 days", "yesterday", "today": how long, from the comment's own time. */
@@ -1351,14 +1352,8 @@
           (where === "keep" ? '<button type="button" class="btn quiet" data-act="gift-skip">Not now</button>' : "") + "</div>") +
       '<p class="fine">Nothing is posted. A reply is a draft for you to copy.</p></section>';
   }
-  function offerKey(o) { return o.at + "|" + o.kind + "|" + (o.title || o.what || ""); }
+  function offerKey(o) { return o.at + "|" + o.kind + "|" + (o.what || ""); }
   function offerParts(o) {
-    if (o.kind === "video") {
-      return { icon: "i-play", title: "See how " + o.title + " is doing",
-        sub: (o.views ? o.views.toLocaleString("en-US") + " " + plural(o.views, "view", "views") + " so far. " : "") + "What people say, in five lines.",
-        button: "Tell me",
-        ask: "Tell me how my video \"" + o.title + "\" is doing, in five short lines: its numbers next to my usual, what people say, what they ask, and what is still open." };
-    }
     if (o.kind === "asked") {
       return { icon: "i-help", title: "Answer what viewers keep asking",
         sub: (o.people ? o.people + " people asked: " : "Asked again and again: ") + o.what + ".", button: "Draft an answer",
@@ -1381,7 +1376,7 @@
         "</li>";
     }).join("") + "</ul>";
   }
-  /** After the reading: the gift and the offers stay on top for a few days, until used or put away. */
+  /** After the reading: the gift and the offers stay under the boxes for a few days, until used or put away. */
   function paintGiftKeep() {
     var el = $("gift-keep");
     var r = state.reading;

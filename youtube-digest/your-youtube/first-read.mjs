@@ -14,8 +14,8 @@
 //                                                   "at","gist","link"} or {"kind":"calm"}; who, video,
 //                                                   ids, at and link copied from a YouTube answer
 //   node <app>/first-read.mjs offer @<file>         one more thing they can do now, under the gift, at
-//                                                   most 3: {"kind":"video","title","views"},
-//                                                   {"kind":"asked","what","people"} or {"kind":"next"}
+//                                                   most 2: {"kind":"asked","what","people"} or
+//                                                   {"kind":"next"}
 //   node <app>/first-read.mjs latest @<file> [@why.txt] write data/latest.json, today's day file and
 //                                                   data/status.json from your file in data/.work/
 //                                                   (schema and generatedAt set here, example dropped);
@@ -198,22 +198,14 @@ function giftOf(g) {
   return out;
 }
 
-// ── More things to do now, under the gift: each one a summary or a draft in the chat ──
-const OFFER_KINDS = ["video", "asked", "next"];
-const MAX_OFFERS = 3;
+// ── More things to do now, under the gift: each one ideas or a draft in the chat ──
+const OFFER_KINDS = ["asked", "next"];
+const MAX_OFFERS = 2;
 function offerOf(o) {
   if (!o || typeof o !== "object" || Array.isArray(o)) fail("the offer must be an object");
   const kind = String(o.kind || "");
   if (!OFFER_KINDS.includes(kind)) fail(`the offer kind is ${OFFER_KINDS.join(", ")}, not "${kind}"`);
   const out = { kind };
-  if (kind === "video") {
-    out.title = titleOf(o.title, "the video offer");
-    if (o.views !== undefined && o.views !== "" && o.views !== null) {
-      const n = Number(o.views);
-      if (!Number.isInteger(n) || n < 1) fail("views is the video's view count, copied from YouTube");
-      out.views = n;
-    }
-  }
   if (kind === "asked") {
     out.what = gistOf(o.what, 100, false, "the asked offer");
     if (!out.what) fail("the asked offer needs what: the question, in a few plain words");
