@@ -30,7 +30,8 @@ group", "Every plan in one list"), and arrange the page your way with **Layout**
 
 Open **Catch up** and press **Connect Telegram**. BotFather makes you a bot in about two
 minutes, and you paste its key into Cabinet. Add the bot to the groups you want read: it sees
-a group from the moment it joins. The first reading takes about a minute and shows you what it
+a group from the moment it joins. To let it see every message in a group, not only the ones
+that mention it, send BotFather `/setprivacy`, pick your bot and choose Disable. The first reading takes about a minute and shows you what it
 finds as it reads. Until then the page shows a made-up Telegram, clearly marked.
 
 ## It only reads

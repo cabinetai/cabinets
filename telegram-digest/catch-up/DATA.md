@@ -3,8 +3,9 @@ title: How Catch up gets your Telegram
 ---
 # How Catch up gets your Telegram
 
-The page never talks to Telegram. The morning routine reads the chats the person's Cabinet bot
-is in and writes files here, and the page shows them. The rules for each field are in the
+The page never talks to Telegram. Cabinet keeps every message the person's bot receives in a
+log on this computer (found through `CABINET_TELEGRAM_MESSAGES`). The morning routine reads
+that log with `first-sort.mjs` and writes files here, and the page shows them. The rules for each field are in the
 agent's persona (`.agents/chat-reader/persona.md`).
 
 | File | Written by | What it holds |
@@ -18,7 +19,12 @@ agent's persona (`.agents/chat-reader/persona.md`).
 | `setup.md` | The person, or the agent in a chat | Who matters, what to skip, how replies sound. |
 
 The bot only sees what Telegram gives a bot: messages sent to it, and the groups and channels
-it was added to, from the moment it joined. Nothing on the page comes from anywhere else.
+it was added to, from the moment it joined (every group message only with group privacy off
+in BotFather). Nothing on the page comes from anywhere else.
+
+`first-sort.mjs` is the only way a run reads the log and writes these files: it counts every
+number and copies every name, quote, time and link, so nothing on the page is typed by the
+agent except its own short words (gists, replies, the headline), and those hold no numbers.
 
 `latest.json` in short: `schema`, `generatedAt`, `since`, `timeZone`, `person { name }`,
 `headline`, `totals { messages, chats, groups, channels, mine, mentions, skipped }`,
