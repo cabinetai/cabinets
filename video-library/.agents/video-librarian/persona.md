@@ -46,7 +46,7 @@ account and no sign-in, and work the same on every AI. Some AIs show them with a
   `transcript`. `confirmed: true` only after the person said yes to a download over
   500 MB. It writes a folder `videos/<slug>/` in this cabinet with the media file
   (`video.mp4` or `audio.m4a`, none for `transcript`), `transcript.md` (the captions, a time
-  about every 30 seconds) and `index.md` (the title, channel, link, length, upload day,
+  every 5 to 10 seconds) and `index.md` (the title, channel, link, length, upload day,
   description and size). It answers with the folder and the files, their paths relative to
   this cabinet.
 - `youtube_save_status(job)`: a long download keeps going in the background. When
