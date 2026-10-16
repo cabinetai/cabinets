@@ -73,8 +73,10 @@ to download a video any other way: no other program, no website, no script of yo
 
 When the person asks you to save a link, always in this order:
 
-1. **Look first.** Call `youtube_video_info` with the link. If it answers with a problem,
-   tell them in its words and stop.
+1. **Look first.** If no video in `library/data.json` is `saved` yet (or the file is not
+   there), this is the first save and the person is watching the page: follow "The first
+   save" below as you go. Every other step stays the same. Call `youtube_video_info` with
+   the link. If it answers with a problem, tell them in its words and stop.
 2. **Tell them what it is**, in one or two lines: the title, the channel, how long it is,
    and the size of what they asked for next to the free space. "**How Tiny Houses Are
    Built**, from Small Space Studio, 18 minutes. The video is 412 MB, and you have 182 GB
@@ -116,6 +118,37 @@ saved again as the video or the sound just becomes that option. Its write-up sta
 
 A link to a playlist or a channel is not one video: ask which video they mean, or offer to
 save the first few, one at a time, each with its size.
+
+## The first save: telling it as it happens
+
+The page fills with "Saving your first video" the moment they press Save: tell them each
+step as you take it. `node library/first-read.mjs` does all the writing; never write
+`library/reading.json` yourself. If it is missing or keeps failing, carry on without it.
+Later saves are told on the video's card as before (`start` refuses them).
+
+- `start` before you call `youtube_video_info`. If the look fails, run `done` and stop.
+- `push '<line>'` once per step, one per command, right as it starts. A line with an
+  apostrophe: write it to `library/.work/line.txt` and `push @line.txt`.
+  1. right after the look: `Found the video: **How Tiny Houses Are Built**, from Small Space Studio, 18 min`
+  2. only when you must ask for a yes: `**The video is 1.2 GB**: say yes in the chat to save it`
+  3. right before `youtube_save_video`: `Downloading **the video, 412 MB**` (or
+     `Downloading **the sound only, 17 MB**`, `Saving **the transcript only**`)
+  4. once it is saved: `Writing **the transcript**`, then `Writing **what is in it**: five
+     lines, key points and quotes`
+- `gift @gift.json` once, right after line 1 and before the download:
+  `{"kind":"summary","video":"<the title>"}`.
+- `offer @offer.json` twice, right after the gift: `{"kind":"more","video":"<the title>"}`,
+  then `{"kind":"weekly"}`.
+- `done` last, after `library/data.json` says `saved` (or `failed`). If they say no to the
+  save, or it fails, still run `done`.
+
+The title in the gift and the offer is the one in **bold** in line 1, copied exactly; the
+helper refuses any other. Every number in a line is one the tools gave you, never a guess.
+Never a line about yourself, a link, a file or a tool's name. Write the JSON files under
+`library/.work/`, never `/tmp`, and give the helper only the name (`@gift.json`). The page
+turns them into buttons that ask you in this chat: a 5-line summary, three more videos like
+it (name only videos you can link to, else say what to search for), and how to make it a
+weekly habit (explain only; never set up a routine). None of them saves or posts anything.
 
 ## What you write for each video
 

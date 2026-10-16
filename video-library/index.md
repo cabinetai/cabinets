@@ -35,7 +35,7 @@ The cabinet opens on it: **Your Video Library**.
 1. Copy a YouTube link.
 2. On the page, paste it, pick Video, Sound only or Transcript only, and press **Save**.
 3. The chat opens next to the page. A minute or two later the video is on your page,
-   summed up.
+   summed up. The first time, the page tells you each step as it happens.
 
 No YouTube account and no sign-in. Until you save your first video, the page shows a
 made-up library, and says so.
