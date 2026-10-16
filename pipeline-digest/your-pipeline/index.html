@@ -960,10 +960,6 @@
     if (gap < 7) return d.toLocaleDateString([], { weekday: "short" });
     return shortDate(d);
   }
-  function daysAgo(value, ref) {
-    var d = parseTime(value);
-    return d ? daysBetween(d, ref) : 0;
-  }
   /** A close or due date in words: "today", "tomorrow", "Friday", "Oct 30", or "Oct 9" when it passed. */
   function dayAhead(value, ref) {
     var d = parseTime(value);
@@ -1881,22 +1877,22 @@
   function dateWords(value) { var d = parseTime(value); return d ? shortDate(d) : ""; }
 
   /** The buttons under an opened deal: a draft or a plan in the chat, and the record in Salesforce. */
-  function dealActions(item, act, label, iconId) {
+  function dealActions(item, act, label, iconId, id) {
     var actions = [];
     var link = state.example ? "" : sfLink(item);
-    if (canAsk()) actions.push('<button class="btn small dark" data-act="' + act + '" data-id="' + esc(text(item.id, 60)) + '">' + icon(iconId) + esc(label) + "</button>");
+    if (canAsk()) actions.push('<button class="btn small dark" data-act="' + act + '" data-id="' + esc(id || text(item.id, 60)) + '">' + icon(iconId) + esc(label) + "</button>");
     if (link) actions.push('<a class="btn small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Salesforce</a>");
     return actions;
   }
   /** One deal: its name and a word for what happened, the amount, the facts in plain words, then the presses. */
-  function dealRow(item, index, markWords, markCls, statsHtml, gist, actions) {
+  function dealRow(item, index, markWords, statsHtml, gist, actions) {
     var id = text(item.id, 60) || "d" + index;
     var open = !!state.open[id];
     var who = [text(item.account, 70), text(item.owner, 40)].filter(Boolean);
     return '<li class="chan' + (open ? " open" : "") + '">' +
       '<button class="chan-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '"' + (actions.length ? ' aria-controls="body-' + esc(id) + '"' : "") + ">" +
       '<span class="chan-name"><b dir="auto">' + esc(text(item.name, 110) || "A deal") + "</b>" +
-      (markWords ? '<span class="vmark ' + markCls + '">' + esc(markWords) + "</span>" : "") + "</span>" +
+      (markWords ? '<span class="vmark ' + markWords.toLowerCase() + '">' + esc(markWords) + "</span>" : "") + "</span>" +
       '<span class="deal-amt num">' + esc(money(item.amount)) + "</span>" +
       '<span class="vstats">' + (who.length ? '<span dir="auto">' + who.map(esc).join(", ") + "</span>" : "") + statsHtml + "</span>" +
       (gist ? '<span class="chan-gist" dir="auto">' + gist + "</span>" : "") +
@@ -1910,7 +1906,7 @@
   }
 
   // Moved since yesterday: won and lost first, then a new stage, a new amount, a new close date.
-  var MOVE_MARK = { won: ["Won", "won"], lost: ["Lost", "lost"], "new": ["New", "new"] };
+  var MOVE_MARK = { won: "Won", lost: "Lost", "new": "New" };
   function moveStats(m) {
     var from = text(m.from, 60), to = text(m.to, 60);
     if (m.change === "amount") {
@@ -1931,9 +1927,8 @@
     }
     return listBox("moved", "Moved since yesterday", "i-move", "", m.length,
       '<ul class="rows chans">' + m.map(function (item, i) {
-        var mark = MOVE_MARK[item.change] || null;
         var label = item.change === "won" ? "Draft a thank-you" : "Draft a follow-up";
-        return dealRow(item, i, mark ? mark[0] : "", mark ? mark[1] : "", moveStats(item), "", dealActions(item, "follow", label, "i-mail"));
+        return dealRow(item, i, MOVE_MARK[item.change] || "", moveStats(item), "", dealActions(item, "follow", label, "i-mail"));
       }).join("") + "</ul>",
       "No deal moved stage, amount or close date since the last catch-up.") + nudgeHtml(boxIdea("moved"));
   }
@@ -1952,7 +1947,7 @@
         var late = item.late === true;
         var stats = "<span>" + (late ? '<span class="down">Close date ' + esc(dateWords(item.closeDate)) + " passed</span>" : "Closes " + esc(dayAhead(item.closeDate, ref))) + "</span>" +
           (text(item.stage) ? "<span>" + bidi(text(item.stage, 60)) + "</span>" : "");
-        return dealRow(item, i, late ? "Late" : "", late ? "late" : "", stats, nextStepHtml(item), dealActions(item, "closeplan", "Make a close plan", "i-target"));
+        return dealRow(item, i, late ? "Late" : "", stats, nextStepHtml(item), dealActions(item, "closeplan", "Make a close plan", "i-target"));
       }).join("") + "</ul>",
       "No deal is set to close in the next 7 days.") + nudgeHtml(boxIdea("closing"));
   }
@@ -1970,7 +1965,7 @@
         var n = count(item.days) || 0;
         var stats = '<span class="down">' + n + " " + plural(n, "day", "days") + " without a call, email or meeting</span>" +
           (text(item.stage) ? "<span>" + bidi(text(item.stage, 60)) + "</span>" : "");
-        return dealRow(item, i, "", "", stats, nextStepHtml(item), dealActions(item, "follow", "Draft a follow-up", "i-mail"));
+        return dealRow(item, i, "", stats, nextStepHtml(item), dealActions(item, "follow", "Draft a follow-up", "i-mail"));
       }).join("") + "</ul>",
       "Every open deal had a call, email or meeting in the last " + days + " days.") + nudgeHtml(boxIdea("stale"));
   }
@@ -1984,10 +1979,7 @@
     if (late) chips.push('<span class="chip wait">' + late + " " + plural(late, "day", "days") + " overdue</span>");
     else chips.push('<span class="chip">Due today</span>');
     if (text(item.priority) === "High") chips.push('<span class="chip">High priority</span>');
-    var actions = [];
-    var link = state.example ? "" : sfLink(item);
-    if (canAsk()) actions.push('<button class="btn small dark" data-act="prep" data-id="' + esc(id) + '">' + icon("i-pen") + "Get me ready</button>");
-    if (link) actions.push('<a class="btn small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open in Salesforce</a>");
+    var actions = dealActions(item, "prep", "Get me ready", "i-pen", id);
     var about = [text(item.who, 60), text(item.owner, 40) ? "for " + text(item.owner, 40) : ""].filter(Boolean).join(", ");
     return '<li class="row' + (open ? " open" : "") + '">' +
       '<button class="row-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
@@ -2127,8 +2119,10 @@
     }).join("") + "</span>" : '<span class="total">Last ' + days + " days</span>";
     var won = count(s.won) || 0, lost = count(s.lost) || 0;
     var rate = rateWords(s.winRate);
-    var figs = fig("New deals", big(nd), "", esc(money(s.newAmount) || money(0)) + (againstLine(nd, count(b.newDeals), days) ? ", " + againstLine(nd, count(b.newDeals), days) : "")) +
-      fig("Won", esc(money(s.wonAmount) || money(0)), "", won + " " + plural(won, "deal", "deals") + (againstLine(s.wonAmount, amount(b.wonAmount), days) ? ", " + againstLine(s.wonAmount, amount(b.wonAmount), days) : "")) +
+    var newAgainst = againstLine(nd, count(b.newDeals), days);
+    var wonAgainst = againstLine(s.wonAmount, amount(b.wonAmount), days);
+    var figs = fig("New deals", big(nd), "", esc(money(s.newAmount) || money(0)) + (newAgainst ? ", " + newAgainst : "")) +
+      fig("Won", esc(money(s.wonAmount) || money(0)), "", won + " " + plural(won, "deal", "deals") + (wonAgainst ? ", " + wonAgainst : "")) +
       fig("Lost", big(lost), "", lost ? esc(money(s.lostAmount)) + " in all" : "none lost") +
       fig("Win rate", rate || "Not yet", "", rate ? "of " + (won + lost) + " closed" + (rateWords(b.winRate) ? ", " + esc(rateWords(b.winRate)) + " before" : "") : "nothing closed yet");
     var open = openTotals();
