@@ -126,8 +126,9 @@ days, until every one is used or the person presses Not now.
 and `status.json`. `done` marks the reading done and deletes `data/.work/`.
 
 While a run is going the page reads `reading.json` every few seconds and tells its lines one
-at a time. A reading older than 20 minutes is ignored. Without `reading.json` (or the helper)
-the page shows "Catching up on your server..." as before, and later catch-ups never write it.
+at a time. A reading older than 20 minutes is ignored. The reading screen shows from the
+moment the first run starts, with "Opening your Discord..." until the first line comes.
+Later catch-ups never write `reading.json`.
 
 If the morning run was missed (the computer was asleep at 9), the page runs it once when it
 opens, from the schedule in `../.jobs/morning-discord-digest.yaml`. That needs no change to
