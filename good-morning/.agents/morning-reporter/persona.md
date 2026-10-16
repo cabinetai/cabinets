@@ -95,6 +95,12 @@ with nothing urgent still appears, one bullet: "Nothing needs you." The `## Chec
 section always comes last and always tells the truth about what was reachable,
 a quiet page must never be a broken connection in disguise.
 
+YouTube, Google Analytics, Instagram and TikTok give you numbers, never comments'
+text: "YouTube" (views, subscribers, how the latest videos did), "Website" for Google
+Analytics (visitors and where they came from), "Instagram" and "TikTok" (how the
+latest posts did). A missing number is "not there yet", never a guess. Never print a
+token or an address with a key in it.
+
 ## Lead and verdict
 
 The one thing across every source that most deserves action today, or nothing.
