@@ -123,6 +123,68 @@ Two files in `your-library/data/`:
   words. `lastEdited`: the newest edit date among its notes.
 - `tidy.same` and `tidy.empty`: empty lists when there is nothing to tidy.
 
+On the first build, also `reading.json`, only ever through the helper (see "The first
+build").
+
+## The first build
+
+When `your-library/data/latest.json` is not there, this is the first build, and the person
+is watching the page: it started the moment they brought their notes in, or opened the
+page. Show them their notes being read, one finding at a time, without asking them
+anything.
+
+**Use the helper, always.** `node your-library/first-read.mjs` does all the writing of
+`reading.json`; never write it yourself. Run it from the cabinet root, never `cd`:
+- `start` first, in your first Bash call (it writes `reading.json` and makes
+  `your-library/data/.work/`). Save every file you make in `your-library/data/.work/`,
+  never `/tmp`.
+- `push '<line>'` (single quotes) for each thing you find, in the same Bash call that
+  found it. One line is one short sentence, with the finding in `**bold**`. The first line,
+  right after you list the notes, says what you looked through: "Looked through **412
+  notes** in 9 folders, the newest edited yesterday". Then one line as each topic becomes
+  clear: "**Flat move**: 31 notes, from the boxes to the deposit", "**Recipes we actually
+  make**: 28 notes, most in Home". A line may also name what is worth tidying: "**2 notes**
+  look the same: Shopping and Shopping list". Five to eight lines in all.
+- `gift @gift.json` once, right after the first line (see below), and `offer @offer.json`
+  up to twice, right after the gift.
+- `latest @latest.json` writes `latest.json` and `status.json` from the file you saved as
+  `your-library/data/.work/latest.json`, in the shape above, after the topic pages are
+  written. It sets `schema`, `example` and `generatedAt` itself.
+- `done` last, after `latest`. It marks the reading done and deletes
+  `your-library/data/.work/`. Run it even when the build cannot finish, after writing
+  `status.json` with `ok: false`.
+
+**Every line comes from a note you read.** Count the notes in a line from what you just
+read, never from memory or an earlier run, and only by the same rules as `latest.json`: a
+topic that would not be on the page is not in a line. Never a line about yourself
+("Searching...", "I can't..."), never a request to the person, never a line that says
+nothing was found. A pushed line is final: check it before you push, and never push the
+same topic twice. One `push` at a time, never two in parallel calls. If the helper refuses
+a line, fix it and push it again, or leave it out.
+
+**The gift and the offers.** Beside the lines, under "While I read, you can...", the page
+shows one thing the person can do right now (the gift), and up to two more (the offers).
+Each is a button that asks you in the chat; none changes anything. Pick the gift as the
+first of these that their notes back, and the offers from the rest:
+1. `old`: notes nobody touched in a year, at least 10 of them. The page offers a list of
+   the ones worth tidying. `{"kind":"old","from":"../Apple Notes"}`
+2. `meetings`: two or more notes kept for meetings (an agenda, minutes, a weekly sync, a
+   call), in whatever language the notes are in. The page offers to turn them into one
+   list of to-dos. `{"kind":"meetings","files":["<a meeting note's index.md>", ...]}`, two
+   to five of them, the newest first.
+3. `folders`: the notes sit in two or more folders. The page names the three biggest and
+   offers to say what each holds. `{"kind":"folders","from":"../Apple Notes"}`
+4. `calm`, only as the gift, when none of the others fit. `{"kind":"calm"}`
+
+`from` is the path of the `Apple Notes` folder from the cabinet root, and each file is the
+path of a note's `index.md` from the cabinet root. The helper counts the notes and the
+folders itself and adds the titles, so the page never shows a number you guessed. Save the
+gift as `your-library/data/.work/gift.json` and run
+`node your-library/first-read.mjs gift @gift.json`; each offer the same way as
+`offer.json` with `offer @offer.json`. If the helper refuses one, give the next kind down.
+Never skip the gift: `calm` is always true when nothing else is. Never give an offer of the
+gift's kind or the same offer twice.
+
 ## In chat
 
 The person may ask anything about their notes: what they decided about something, where
