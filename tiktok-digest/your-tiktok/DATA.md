@@ -43,7 +43,7 @@ becomes an "Open on TikTok" link.
 The page is a 12-column grid of boxes on a light grey, laid out like the Gmail front desk:
 Headline, How your videos did, Ideas for your next videos, Ideas for your account, Account
 numbers and Ask about your account to start with, and more to add (four numbers: Views,
-Followers, Likes, Shares, and each idea as its own box with its picture from `ideas/`). The
+Followers, Likes, Shares, and each idea as its own box with its picture). The
 connection, Catch up now, Ideas and Layout sit in the headline; without the headline they
 move to a slim bar on top. Each person moves, resizes, adds and removes them (mouse, finger
 or keyboard, with Undo), or asks the agent through Layout, which answers with
@@ -82,8 +82,10 @@ until the catch-up is done. Every later catch-up shows "Catching up..." on its b
 title is at most 120 characters; at most 5 newest videos and 2 offers; a day file is
 `data/days/<YYYY-MM-DD>.json`, kept for 30 days. Change one, change both.
 
-The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
-about 10KB each, until unique ones are made.
+The page's ideas show pictures of existing template covers, shrunk to about 7KB each and
+written into `index.html` itself, until unique ones are made. A page shown to anyone but its
+owner on Cloud cannot load a file beside it, so a picture in its own file would stay blank for
+them.
 
 If the morning run was missed (the computer was asleep at 9), the page runs it once when it
 opens, from the schedule in `../.jobs/morning-tiktok-digest.yaml`.
