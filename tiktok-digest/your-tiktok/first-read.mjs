@@ -236,6 +236,12 @@ function latestOf(l) {
   (l.history || []).forEach((h, i) => {
     if (!h || !/^\d{4}-\d{2}-\d{2}$/.test(String(h.day || ""))) fail(`history[${i}].day is YYYY-MM-DD`);
   });
+  // The first catch-up has nothing to compare with: what changed since the last one is left out
+  // (the persona says so), so a gain written anyway is never shown as one. The counts stay.
+  if (!fs.existsSync(latestFile)) {
+    if (l.totals && typeof l.totals === "object") for (const k of [...COUNTS, "followers"]) delete l.totals[k];
+    for (const v of l.videos) delete v.gained;
+  }
   const n = new Date();
   l.schema = LATEST_SCHEMA;
   l.generatedAt = iso(n);

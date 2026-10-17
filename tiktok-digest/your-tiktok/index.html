@@ -1454,8 +1454,21 @@
   function signed(n) { return (n > 0 ? "+" : n < 0 ? "−" : "") + big(Math.abs(n)); }
   /** What one video gained since the last catch-up, or null when it is new to the routine. */
   function gainedOn(v, key) { return v && v.gained && typeof v.gained === "object" ? count(v.gained[key]) : null; }
+  /**
+   * The first catch-up has nothing to compare with: at most one morning read, and no video
+   * gained anything (a routine may still write its gains as 0). A run later the same day,
+   * with real gains, is not.
+   */
+  function firstCatchUp() {
+    if (history().length > 1) return false;
+    var t = totals();
+    return !["views", "likes", "comments", "shares"].some(function (k) {
+      return count(t[k]) || videos().some(function (v) { return gainedOn(v, k); });
+    });
+  }
   /** A count gained since the last catch-up, from totals or summed over the videos; null on the first one. */
   function gainedOf(key) {
+    if (firstCatchUp()) return null;
     var t = count(totals()[key]);
     if (t != null) return t;
     var any = false;
@@ -1466,6 +1479,8 @@
     }, 0);
     return any ? sum : null;
   }
+  /** Followers gained (below 0 when lost) since the last catch-up; null on the first one. */
+  function followersGained() { return firstCatchUp() ? null : delta(totals().followers); }
   /** A count summed over the recent videos. */
   function recentSum(key) { return videos().reduce(function (m, v) { return m + (count(v[key]) || 0); }, 0); }
 
@@ -1740,9 +1755,9 @@
     var best = marked("best");
     var bestGain = gainedOn(best, "views");
     var news;
-    // One morning read in history is the first catch-up, even when the routine wrote its gains as 0.
-    var first = history().length === 1;
-    if (views == null || first) {
+    // Nothing to compare with: on the first catch-up that is said, after it only the counts.
+    var first = views == null && firstCatchUp();
+    if (views == null) {
       // The first catch-up has nothing to compare with: what the recent videos hold between them.
       news = "<b>" + esc(ex) + (first ? "Your first catch-up. " : "") + (v.length
         ? big(recentSum("views")) + " views across your last " + counted(v.length, "video", "videos") + ".</b>"
@@ -1755,7 +1770,7 @@
     } else {
       news = "<b>" + esc(ex) + "A quiet day: nothing new on your videos since the last catch-up.</b>";
     }
-    var gainedFollowers = delta(totals().followers);
+    var gainedFollowers = followersGained();
     if (gainedFollowers) news += " " + (gainedFollowers > 0 ? "You gained " + counted(gainedFollowers, "follower", "followers") + "." : "You lost " + counted(-gainedFollowers, "follower", "followers") + ".");
     var meta = [];
     var followers = count(acc.followers);
@@ -1859,7 +1874,7 @@
   function drawNumShares() { return gainedKpi("shares", "Shares", "i-share"); }
   function drawNumFollowers() {
     var f = count(accountInfo().followers);
-    var g = delta(totals().followers);
+    var g = followersGained();
     return kpi("Followers", "i-user", f != null ? big(f) : "0", g != null ? signed(g) + " " + sinceWords(state.data) : "on your account");
   }
 
@@ -1949,7 +1964,7 @@
     var note = state.askNote || askHint();
     var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? 6 : 3);
     return (level === "S" ? "" : '<h2 id="ask-title">Ask about your account</h2>') +
-      askForm("Your question", "Ask about a video, a trend, your next post...", "Ask") +
+      askForm("Your question", "A video or your next post...", "Ask") +
       (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
       (qs.length ? '<div class="qs">' + qs.map(function (q) {
         return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
