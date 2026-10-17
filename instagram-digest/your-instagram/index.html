@@ -2765,7 +2765,18 @@
     // The headline grows a row when its words need it (a narrow window wraps them).
     if (BOXES[id].grow && !phone()) {
       var inner = el.firstElementChild;
-      var grow = inner ? Math.ceil((inner.scrollHeight + 6 + GAP) / (ROW + GAP)) : 0;
+      var tall = inner ? inner.scrollHeight : 0;
+      // The band stretches its inside to its own height, so it is measured by where its words
+      // end, with its padding: a card in place of the headline is never cut off.
+      if (inner && id === "headline") {
+        var top = el.getBoundingClientRect().top;
+        // The bars sit at the band's foot, so they count by their own height under the top row.
+        var bottom = function (sel) { var c = inner.querySelector(sel); return c ? c.getBoundingClientRect().bottom - top : 0; };
+        var spark = inner.querySelector(".spark");
+        tall = Math.max(bottom(".hl-text"), bottom(".hl-top") + (spark ? spark.offsetHeight + 18 : 0)) +
+          (parseFloat(getComputedStyle(el).paddingBottom) || 0);
+      }
+      var grow = inner ? Math.ceil((tall + 6 + GAP) / (ROW + GAP)) : 0;
       var entry = entryOf(id);
       grow = entry && grow > entry.h ? grow : 0;
       if ((state.need[id] || 0) !== grow) { state.need[id] = grow; placeBoxes(); }
