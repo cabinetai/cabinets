@@ -172,7 +172,7 @@
   /* Ask: the near-black box, the one dark sheet on the page. */
   .ask { padding: 22px; border-radius: var(--radius); background: var(--deep); color: #fff; }
   .ask h2 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
-  .ask > p { margin: 0 0 14px; color: var(--deep-soft); font-size: 15px; }
+  .ask-in > p { margin: 0 0 14px; color: var(--deep-soft); font-size: 15px; }
   .ask form { display: flex; gap: 10px; margin-top: 10px; }
   .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 999px; border: 1px solid var(--deep-line); background: var(--deep-2); color: #fff; padding: 10px 18px; font-size: 16px; }
   .ask input::placeholder { color: #aaaaaa; }
@@ -230,7 +230,7 @@
   .box[data-level="L"] .one-idea .art-img { height: 130px; }
   .idea-rows > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; margin: 0 20px; padding: 10px 0; border-top: 1px solid var(--line); }
   .idea-rows .ic { width: 34px; height: 34px; }
-  .idea-rows b { display: block; font-size: 15px; font-weight: 500; }
+  .idea-rows div > b { display: block; font-size: 15px; font-weight: 500; }
   .idea-rows span[dir] { display: block; color: var(--ink-3); font-size: 14px; }
 
   .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line-2); color: var(--ink-3); font-size: 14px; }
@@ -517,7 +517,7 @@
   .offer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); }
   .offer:first-child { border-top: 0; }
   .offer.arrive { animation: rise .5s cubic-bezier(.2, .8, .2, 1) both; }
-  .offer b { display: block; font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
+  .offer div > b { display: block; font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
   .offer span.sub { display: block; color: var(--ink-3); font-size: 14px; overflow-wrap: anywhere; }
   .offer .asked { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: var(--green-ink); white-space: nowrap; }
   .offer .asked .icon { width: 17px; height: 17px; color: var(--green); }
@@ -967,6 +967,7 @@
   function setAskNote(words) {
     state.askNote = words;
     if ($("ask-note")) $("ask-note").textContent = words;
+    if (boxEls.ask && boxEls.ask.isConnected) fitBox(boxEls.ask);
   }
 
   // ── Saving a video ─────────────────────────────────────────────────────
@@ -1004,7 +1005,7 @@
     }
     var opt = optionOf(state.saveOption) || OPTIONS[0];
     var have = id && !state.example ? videos().filter(function (v) { return v.videoId === id && keptAs(v, opt.id) && v.status !== "failed"; })[0] : null;
-    if (have) { setSaveNote("Already in your library: " + text(have.title, 100) + ".", false); return; }
+    if (have) { setSaveNote("Already in your library: “\u2068" + text(have.title, 100) + "\u2069”.", false); return; }
     var words = id
       ? "Save " + opt.ask + " of " + s + " to my library and sum it up."
       : "This link is a playlist or a channel: " + s + ". Which videos are in it? I may want to save " + opt.ask + " of some of them.";
@@ -1080,8 +1081,8 @@
     if (revealing()) paintHero(); else paint();
   }, REVEAL_MS);
 
-  /** A line may mark its finding in **bold**; everything else is plain text. */
-  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  /** A line may mark its finding in **bold** (often a title, set apart like one); everything else is plain text. */
+  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b><bdi>$1</bdi></b>"); }
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
@@ -1158,7 +1159,7 @@
   function offerKey(o) { return o.at + "|" + o.kind + "|" + (o.video || ""); }
   function offerParts(o) {
     if (o.kind === "more") {
-      return { icon: "i-library", title: "Three more videos like this one", sub: "Like " + o.video + ", and worth saving next.", button: "Suggest three", ask: moreAsk(o.video) };
+      return { icon: "i-library", title: "Three more videos like this one", sub: "Like <b>" + bidi(o.video) + "</b>, and worth saving next.", button: "Suggest three", ask: moreAsk(o.video) };
     }
     return { icon: "i-clock", title: "Turn this into a weekly habit", sub: "How to look back on what you save each week.", button: "Show me how", ask: WEEKLY_ASK };
   }
@@ -1171,7 +1172,7 @@
       var arrive = where === "reading" && !state.offersShown[key];
       if (where === "reading") state.offersShown[key] = true;
       return '<li class="offer' + (arrive ? " arrive" : "") + '"><span class="ic" aria-hidden="true">' + icon(p.icon) + "</span>" +
-        '<div><b dir="auto">' + esc(p.title) + '</b><span class="sub" dir="auto">' + esc(p.sub) + "</span></div>" +
+        '<div><b dir="auto">' + esc(p.title) + '</b><span class="sub" dir="auto">' + p.sub + "</span></div>" +
         (state.offersAsked[key] ? '<span class="asked">' + icon("i-check") + "Asked</span>"
           : can ? '<button type="button" class="btn small" data-act="offer-do" data-key="' + esc(key) + '">' + esc(p.button) + "</button>" : "") +
         "</li>";
@@ -1292,7 +1293,7 @@
     wrap.style.setProperty("--poster", tone(v.slug));
     var label = state.example ? '<span class="pl-label">Example</span>'
       : v.status === "saving" ? '<span class="pl-label">' + icon("i-refresh", "spin") + "Saving</span>" : "";
-    wrap.innerHTML = label + '<b dir="auto">' + esc(title) + '</b><span dir="auto">' + esc(text(v.channel, 80)) +
+    wrap.innerHTML = label + '<b dir="auto">' + esc(title) + '</b><span>' + bidi(text(v.channel, 80)) +
       (state.example ? ". A made-up video: nothing to play." : "") + "</span>";
     if (state.example) {
       wrap.setAttribute("data-act", "play");
@@ -1566,7 +1567,7 @@
   // Your videos: a card each, newest first.
   function metaHtml(v) {
     var parts = [];
-    if (text(v.channel)) parts.push('<span dir="auto">' + esc(text(v.channel, 80)) + "</span>");
+    if (text(v.channel)) parts.push("<span>" + bidi(text(v.channel, 80)) + "</span>");
     if (count(v.durationSec)) parts.push("<span>" + esc(timeWords(v.durationSec)) + "</span>");
     var o = optionOf(v.option);
     if (o) parts.push("<span>" + esc(o.label + (soundOf(v) ? " and sound only" : "") + (count(v.sizeBytes) ? ", " + bytesWords(v.sizeBytes) : "")) + "</span>");
@@ -1728,7 +1729,8 @@
       ? '<label class="ask-about"><span>About</span><select id="ask-about"><option value="">All my videos</option>' + all.map(function (v) {
           return '<option value="' + esc(v.slug) + '"' + (state.askAbout === v.slug ? " selected" : "") + ">" + esc(text(v.title, 70)) + "</option>";
         }).join("") + "</select></label>" : "";
-    return (level === "S" ? "" : '<h2 id="ask-title">Ask about your videos</h2>') + about +
+    // One inner sheet, so the box can measure its words and grow a row when they need it.
+    return '<div class="ask-in">' + (level === "S" ? "" : '<h2 id="ask-title">Ask about your videos</h2>') + about +
       '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
       '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="What does it say about...?" />' +
       '<button type="submit" class="btn light">' + icon("i-send") + "Ask</button></form>" +
@@ -1736,17 +1738,17 @@
       (qs.length ? '<div class="qs">' + qs.map(function (q) {
         return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
       }).join("") + "</div>" : "") +
-      (level !== "S" && note ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "");
+      (level !== "S" && note ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "") + "</div>";
   }
   /** The Ask box while it takes a request about the boxes, from the Layout button. */
   function drawLayoutAsk(level) {
     var note = state.askNote || "The agent suggests the boxes. Nothing changes until you press Apply.";
-    return (level === "S" ? "" : '<h2 id="ask-title">Ask the agent about your boxes</h2>') +
+    return '<div class="ask-in">' + (level === "S" ? "" : '<h2 id="ask-title">Ask the agent about your boxes</h2>') +
       '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">What you want on your page</label>' +
       '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="For example: show the key points, hide the quotes" />' +
       '<button type="submit" class="btn light">' + icon("i-send") + "Send</button></form>" +
       '<p class="note" id="ask-note">' + esc(note) + "</p>" +
-      '<p class="note"><button type="button" class="cancel" data-act="layout-ask-cancel">Back to asking about your videos</button></p>';
+      '<p class="note"><button type="button" class="cancel" data-act="layout-ask-cancel">Back to asking about your videos</button></p></div>';
   }
   function askHint() {
     return state.example ? "Once you save a video, ask anything about it. The answer comes up in the chat next to this page."
@@ -1766,7 +1768,7 @@
       '<ul class="rows idea-rows">' + shown.map(function (idea) {
         var fit = IDEA_FITS[idea.id] ? IDEA_FITS[idea.id](facts) : null;
         return '<li><span class="ic" aria-hidden="true">' + icon(idea.icon) + "</span>" +
-          "<div><b>" + esc(idea.title) + "</b>" + (level === "L" ? '<span dir="auto">' + esc(fit ? "Today: " + fit.line : idea.text) + "</span>" : "") + "</div>" +
+          "<div><b>" + esc(idea.title) + "</b>" + (level === "L" ? '<span dir="auto">' + (fit ? "Today: " + fit.line : esc(idea.text)) + "</span>" : "") + "</div>" +
           '<button class="btn small" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask</button></li>";
       }).join("") + "</ul>",
       "Every idea is hidden from the page. Find them under Ideas.");
@@ -1778,7 +1780,7 @@
     var can = canAsk();
     var art = idea.art && level !== "S" ? '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>' : "";
     return '<div class="one-idea">' + art + "<h3>" + esc(idea.title) + "</h3>" +
-      (level === "S" ? "" : fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "<p>" + esc(idea.text) + "</p>") +
+      (level === "S" ? "" : fit ? '<p class="today" dir="auto">Today: ' + fit.line + "</p>" : "<p>" + esc(idea.text) + "</p>") +
       '<div class="go"><button class="btn small dark" data-act="idea-now" data-idea="' + idea.id + '"' + (fit && fit.ask ? ' data-fit="1"' : "") + (can ? "" : " disabled") + ">" + icon("i-send") + esc(fit && level !== "S" ? fit.act : "Ask now") + "</button>" +
       "</div></div>";
   }
@@ -1804,7 +1806,7 @@
     };
   }
 
-  /** For each idea: the line and the press that fit now, or null when it would not help. */
+  /** For each idea: the line (HTML, a title in bold and set apart) and the press that fit now, or null when it would not help. */
   var IDEA_FITS = {
     weekly: function (f) {
       return f.week >= 2 ? { line: "You saved " + f.week + " videos this week. See them in one short note?", act: "Write the note" } : null;
@@ -1816,27 +1818,27 @@
       var v = f.newest;
       if (!v) return null;
       var title = text(v.title, 70);
-      return { line: title + " is in your library. Turn it into study notes?", act: "Write the notes",
+      return { line: "<b>" + bidi(title) + "</b> is in your library. Turn it into study notes?", act: "Write the notes",
         ask: "Write study notes from my saved video \"" + title + "\": the main ideas in order, the words to know, and the minutes worth watching again. Save them as notes.md in its folder." };
     },
     quiz: function (f) {
       var v = f.newest;
       if (!v) return null;
       var title = text(v.title, 70);
-      return { line: "Test yourself on " + title + "?", act: "Quiz me",
+      return { line: "Test yourself on <b>" + bidi(title) + "</b>?", act: "Quiz me",
         ask: "Make me a quiz of eight questions on my saved video \"" + title + "\". Ask them one at a time here, and after each answer tell me if I got it right and the minute it comes from." };
     },
     post: function (f) {
       var v = f.all.filter(function (x) { return times(x.quotes).length; })[0];
       if (!v) return null;
       var title = text(v.title, 70);
-      return { line: "Turn " + title + " into a short post?", act: "Draft the post",
+      return { line: "Turn <b>" + bidi(title) + "</b> into a short post?", act: "Draft the post",
         ask: "Write a short post in my words about my saved video \"" + title + "\": what I learned from it, its best quote with the time, and a link back to the video and its creator. Show it here as a draft I can copy." };
     },
     compare: function (f) {
       if (f.all.length < 2) return null;
       var a = text(f.all[0].title, 50), b = text(f.all[1].title, 50);
-      return { line: "Compare " + a + " with " + b + "?", act: "Compare them",
+      return { line: "Compare <b>" + bidi(a) + "</b> with <b>" + bidi(b) + "</b>?", act: "Compare them",
         ask: "Compare my saved videos \"" + a + "\" and \"" + b + "\": where they agree, where they differ, and which one to watch first. Give the minute for each point." };
     },
     quotes: function (f) {
@@ -1894,7 +1896,7 @@
     if (!fit) return "";
     var idea = fit.idea;
     var can = canAsk();
-    return '<div class="nudge">' + icon("i-bulb") + '<p dir="auto">' + esc((lead || "") + fit.line) + "</p>" +
+    return '<div class="nudge">' + icon("i-bulb") + '<p dir="auto">' + esc(lead || "") + fit.line + "</p>" +
       '<div class="nudge-actions">' +
       '<button type="button" class="btn small ' + (lead ? "primary" : "dark") + '" data-act="idea-now" data-idea="' + idea.id + '"' + (fit.ask ? ' data-fit="1"' : "") + (can ? "" : " disabled") + ">" + esc(fit.act) + "</button>" +
       '<button type="button" class="nudge-hide" data-act="idea-hide" data-idea="' + idea.id + '" aria-label="Hide this idea from the page">Hide</button>' +
@@ -1971,7 +1973,7 @@
         return '<article class="idea' + (off ? " off" : "") + '">' +
           (idea.art ? '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>' : '<span class="ic" aria-hidden="true">' + icon(idea.icon) + "</span>") +
           "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
-          (fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "") +
+          (fit ? '<p class="today" dir="auto">Today: ' + fit.line + "</p>" : "") +
           (off ? '<div class="off-note">Hidden from your page<button type="button" class="btn quiet" data-act="idea-unhide" data-idea="' + idea.id + '">Show on my page</button></div>' : "") +
           '<div class="go"><button class="btn dark" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button></div>" +
           (state.data ? (boxed ? '<p class="fine" style="margin:0;color:var(--green-ink);font-weight:700">' + icon("i-check") + " On your page as a box</p>"
@@ -2024,7 +2026,7 @@
       title: "Hours to watch", desc: "How long all your saved videos run." },
     "n-space": { cls: "lane nbox", draw: drawNumSpace, group: "numbers", icon: "i-disk", w: 3, h: 2, min: [2, 2],
       title: "Space used", desc: "The space your videos take, and how much is free." },
-    ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-chat", w: 7, h: 5,
+    ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-chat", w: 7, h: 5, grow: true,
       title: "Ask about your videos", desc: "Ask about one video or all of them, with an idea for today.",
       show: canAsk, when: "Only people who can ask in this cabinet see it." },
     ideas: { cls: "lane ideas", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 5, h: 5,
