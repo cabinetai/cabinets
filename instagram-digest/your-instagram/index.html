@@ -531,7 +531,7 @@
   .grid.stack .box { flex: none; }
   /* A list box is as tall as its rows, up to the size its layout gives it: no empty white
      under a short list, and its foot sits right under the rows. */
-  .grid:not(.editing):not(.stack) > .box.lane:not(.nbox):not(.idea1):not(.account) { align-self: start; max-height: 100%; }
+  .grid:not(.editing):not(.stack) > .box.lane:not(.nbox):not(.idea1) { align-self: start; max-height: 100%; }
 
   /* ── The first catch-up, told as it happens: one line for each thing found ── */
   .reading { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; padding: 28px clamp(20px, 3vw, 36px); border-radius: 24px; background: var(--page); box-shadow: var(--shadow-1); }
@@ -2766,6 +2766,11 @@
     if (BOXES[id].grow && !phone()) {
       var inner = el.firstElementChild;
       var tall = inner ? inner.scrollHeight : 0;
+      // A box of numbers counts what sits under its first part too: the number under its head
+      // at its smallest size, the idea at its foot.
+      if (id !== "headline") Array.prototype.forEach.call(el.children, function (child) {
+        if (child !== inner && !child.matches(".box-x, .box-resize, .box-size")) tall += child.scrollHeight;
+      });
       // The band stretches its inside to its own height, so it is measured by where its words
       // end, with its padding: a card in place of the headline is never cut off.
       if (inner && id === "headline") {
@@ -2778,8 +2783,11 @@
       }
       var grow = inner ? Math.ceil((tall + 6 + GAP) / (ROW + GAP)) : 0;
       var entry = entryOf(id);
+      // A box with rows to spare stands as tall as what is in it and gives the rest back, so
+      // the boxes under it move up. While arranging it keeps the size it was given.
+      var fit = entry && id !== "headline" && !state.editing && grow && grow < entry.h ? grow : 0;
       grow = entry && grow > entry.h ? grow : 0;
-      if ((state.need[id] || 0) !== grow) { state.need[id] = grow; placeBoxes(); }
+      if ((state.need[id] || 0) !== grow || (state.fit[id] || 0) !== fit) { state.need[id] = grow; state.fit[id] = fit; placeBoxes(); }
       return;
     }
     if (!body || !more) return;
