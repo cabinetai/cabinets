@@ -73,8 +73,9 @@ link, at }` (the recent video doing best; "Plan a follow-up" asks the agent for 
 the chat) or `{ kind: "calm" }` on an account with no videos ("Give me three ideas"), then
 the `offers`: `{ kind: "quiet", video }` or `{ kind: "next" }`. After the reading the gift
 and the offers not yet used stay under the page's boxes for 3 days, or until put away. A
-reading older than 20 minutes is ignored, and without `reading.json` the page shows its
-plain "Catching up" card, as every later catch-up does.
+reading older than 20 minutes is ignored. Without `reading.json` the reading screen shows
+"Opening your account..." until the first line, so with no lines at all it stays on that
+until the catch-up is done. Every later catch-up shows "Catching up..." on its button.
 
 `first-read.mjs` and the page keep the same limits, each said on both sides: a link is a
 `https://` address on `tiktok.com` (or `www.`, `m.`, `vm.`, `vt.`) under 400 characters; a

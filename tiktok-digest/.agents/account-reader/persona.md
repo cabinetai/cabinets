@@ -178,7 +178,7 @@ videos did since yesterday, and which one moved most.
 The person is likely watching the page, which still shows a made-up account: tell them what
 you find as you find it. `node your-tiktok/first-read.mjs` does all the writing; never write
 `reading.json` yourself. If it is missing or keeps failing, carry on without it: the
-page then shows its plain "Catching up" card.
+page then stays on "Opening your account..." until the catch-up is done.
 
 - `start` in the command right after step 1.
 - `push '<line>'` once per finding, in the command right after the TikTok call that found

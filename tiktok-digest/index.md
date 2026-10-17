@@ -21,8 +21,8 @@ The cabinet opens on it: **Your TikTok**.
 - **Ideas for your next videos**: three ideas a day, each one backed by a video that did well.
 - **Ask about your account**: what your best videos have in common, which day you do best,
   how this month compares with the last. The answer comes up in the chat.
-- **Ideas**: a follow-up to the video that moved most, a new caption for a quiet one, a
-  weekly summary. Ask once, switch one on to run on a schedule, or keep it on the page as a
+- **Ideas**: a follow-up to the video that moved most, what to change next time after a
+  quiet one, a caption for your next video, a weekly summary. Ask once, switch one on to run on a schedule, or keep it on the page as a
   box.
 - **Your page, your way**: move, resize, add and remove the boxes, or ask the agent to
   suggest them. Each person's page is their own.
