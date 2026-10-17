@@ -89,6 +89,13 @@ put away; an offer of ideas steps aside once the Ideas for your next posts box s
 ideas. A reading older than 20 minutes is ignored, and without `reading.json` the page shows
 its plain "Catching up" card, as every later catch-up does.
 
+`first-read.mjs` and the page keep the same limits, each said on both sides: who is at most 80
+characters, a post's name at most 120, a gist at most 140 (120 for one of the newest
+comments) and an offer's question at most 100; at most 5 newest comments and 2 offers; a day
+file is `data/days/<YYYY-MM-DD>.json`, kept for 30 days. The helper takes only a post's link
+(`https://www.instagram.com/p/...`, `/reel/...` or `/tv/...`); the page opens those and the
+profile's, under 400 characters. Change one, change both.
+
 The page's ideas show pictures from `ideas/`, the same shrunk template covers YouTube Digest
 uses, until unique ones are made.
 
