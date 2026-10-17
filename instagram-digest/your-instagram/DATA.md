@@ -27,7 +27,7 @@ box:
 
 | List | Box | Each item |
 |---|---|---|
-| `posts` | How your posts did | `id`, `mediaId`, `kind` (reel, photo, video, carousel), `title` (the caption's start), `published`, `views`, `reach`, `likes`, `comments` (Instagram's count), `viewerComments` (by others), `saves`, `shares`, `gained` `{ views, likes, comments }`, `mark` best, quiet or empty, `gist`, `url` |
+| `posts` | How your posts did | `id`, `mediaId`, `kind` (reel, photo, video, carousel), `title` (the caption's start), `published`, `views`, `reach`, `likes`, `comments` (Instagram's count), `viewerComments` (by others), `saves`, `shares`, `gained` `{ views, likes, comments }` (left out on the first catch-up), `mark` best, quiet or empty, `gist`, `url` |
 | `waiting` | Waiting for an answer | `id`, `who` (`@username`), `post`, `mediaId`, `commentId`, `gist`, `short`, `since`, `likes`, `url` |
 | `recent` | Latest comments | `id`, `who`, `post`, `gist`, `at`, `url` |
 | `asks` | What people keep asking | `id`, `what`, `people` (different authors), `posts` (titles), `answered`, `url` |
@@ -65,8 +65,12 @@ day's account says it would help.
 The page writes its own headline from `account`, `totals`, `posts` and `waiting`: the
 account's name, then "1,846 likes and 64 comments from others since yesterday. 5 questions are
 waiting for your answer.", or "A quiet day: nothing new on your posts since the last
-catch-up.", and a line of followers, posts and the handle. With Instagram's numbers, the
-people reached on each of the 28 days stand on its right, the last seven solid.
+catch-up.", and a line of followers, posts and the handle. On the first catch-up there is
+nothing to compare with: `first-read.mjs latest` drops the likes and views gained and every
+post's `gained`, and while at most one day is kept and nothing gained a like or a view the
+page shows the counts instead ("64 comments from others since yesterday, across your last 10
+posts."), never "0 likes since yesterday". With Instagram's numbers, the people reached on
+each of the 28 days stand on its right, the last seven solid.
 
 Nothing on the page writes on Instagram. Every button asks the agent in the chat for a
 summary, a plan or a draft to copy. The agent replies to a comment, or hides one, only when
@@ -86,8 +90,9 @@ asks the agent for a draft in the chat, never posted) or `{ kind: "calm" }` ("Gi
 ideas"), then the `offers`: `{ kind: "asked", what, people }` or `{ kind: "next" }`. After the
 reading, the gift and the offers not yet used wait under the page's boxes for 3 days, or until
 put away; an offer of ideas steps aside once the Ideas for your next posts box shows the day's
-ideas. A reading older than 20 minutes is ignored, and without `reading.json` the page shows
-its plain "Catching up" card, as every later catch-up does.
+ideas. A reading older than 20 minutes is ignored. Without `reading.json` the reading screen
+shows "Opening your account..." until the first line, so with no lines at all it stays on that
+until the catch-up is done. Every later catch-up shows "Catching up..." on its button.
 
 `first-read.mjs` and the page keep the same limits, each said on both sides: who is at most 80
 characters, a post's name at most 120, a gist at most 140 (120 for one of the newest

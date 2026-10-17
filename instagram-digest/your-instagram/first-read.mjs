@@ -262,6 +262,12 @@ function latestOf(l) {
     if (l.posts.filter((v) => v.mark === mark).length > 1) fail(`only one post is ${mark}`);
   }
   if (l.insights !== undefined) insightsOf(l.insights);
+  // The first catch-up has nothing to compare with: what changed since the last one is left out
+  // (the persona says so), so a gain written anyway is never shown as one. The counts stay.
+  if (!fs.existsSync(latestFile)) {
+    if (l.totals && typeof l.totals === "object") for (const k of ["likes", "views"]) delete l.totals[k];
+    for (const v of l.posts) delete v.gained;
+  }
   const n = new Date();
   l.schema = LATEST_SCHEMA;
   l.generatedAt = iso(n);
