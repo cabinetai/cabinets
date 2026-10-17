@@ -55,7 +55,7 @@ then "191,900 views and 16,452 likes since yesterday. Moved most: Sourdough star
 days, +142,300 views. You gained 1,240 followers.", or "A quiet day: nothing new on your
 videos since the last catch-up.", and a line of followers, likes, videos and the handle. On
 the right, the views of the last 10 videos, oldest first, the one that moved most in
-TikTok's cyan. Until the first catch-up the band ends with the Example line.
+TikTok's cyan. Until the first catch-up the Example line sits right under the band.
 
 Nothing on the page writes on TikTok, and Cabinet's TikTok cannot: it only reads. Every
 button asks the agent in the chat for a plan, a caption or a page in the cabinet.
@@ -75,6 +75,11 @@ the `offers`: `{ kind: "quiet", video }` or `{ kind: "next" }`. After the readin
 and the offers not yet used stay under the page's boxes for 3 days, or until put away. A
 reading older than 20 minutes is ignored, and without `reading.json` the page shows its
 plain "Catching up" card, as every later catch-up does.
+
+`first-read.mjs` and the page keep the same limits, each said on both sides: a link is a
+`https://` address on `tiktok.com` (or `www.`, `m.`, `vm.`, `vt.`) under 400 characters; a
+title is at most 120 characters; at most 5 newest videos and 2 offers; a day file is
+`data/days/<YYYY-MM-DD>.json`, kept for 30 days. Change one, change both.
 
 The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
 about 10KB each, until unique ones are made.

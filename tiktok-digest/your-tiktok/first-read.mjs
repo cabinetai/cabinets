@@ -49,21 +49,28 @@ function dayStart(days) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDat
 
 function fail(msg) { console.error("first-read: " + msg); process.exit(1); }
 function readJson(file) { return JSON.parse(fs.readFileSync(file, "utf8")); }
-function writeJson(file, value) {
-  const tmp = file + ".part";
-  fs.writeFileSync(tmp, JSON.stringify(value, null, 2));
+/** Written whole or not at all. The part file starts with a dot, so Cabinet's look at the folder skips it. */
+function writeText(file, text) {
+  const tmp = path.join(path.dirname(file), "." + path.basename(file) + ".part");
+  fs.writeFileSync(tmp, text);
   fs.renameSync(tmp, file);
 }
+function writeJson(file, value) { writeText(file, JSON.stringify(value, null, 2)); }
 function workFile(name) {
   const file = path.resolve(workDir, name);
   if (!file.startsWith(workDir + path.sep)) fail(`${name} is not inside data/.work/`);
   if (!fs.existsSync(file)) fail(`${name} is not in data/.work/ (write it there first)`);
   return file;
 }
+/** "@line.txt" is the text of that file in data/.work/, for words no shell can quote; anything else is the words themselves. */
+function workText(arg) {
+  const said = String(arg || "").trim();
+  return /^@[\w.-]+$/.test(said) ? fs.readFileSync(workFile(said.slice(1)), "utf8") : said;
+}
 /** "@your-tiktok/data/.work/gift.json" means "@gift.json". */
 function workJson(arg, what) {
   if (!arg.startsWith("@")) fail(`give ${what} as @<file>: the JSON you wrote into data/.work/`);
-  try { return readJson(workFile(arg.slice(1).replace(/^.*data[\\/]\.work[\\/]/, ""))); } catch { return fail(`${arg.slice(1)} is not JSON in data/.work/`); }
+  try { return JSON.parse(workText("@" + arg.slice(1).replace(/^.*data[\\/]\.work[\\/]/, ""))); } catch { return fail(`${arg.slice(1)} is not JSON in data/.work/`); }
 }
 
 /** data/reading.json as start wrote it, or a plain stop when it is missing or broken. */
@@ -71,16 +78,30 @@ function readReading() {
   if (!fs.existsSync(readingFile)) fail("run start first");
   try { return readJson(readingFile); } catch { return fail("data/reading.json is broken (not JSON): carry on without the helper"); }
 }
+/** One change to a reading still going (`doneMsg` when it is done): `change` makes it and says what it did. */
+function editReading(doneMsg, change) {
+  lockReading();
+  const r = readReading();
+  if (r.done) fail(doneMsg);
+  const said = change(r);
+  writeJson(readingFile, r);
+  console.log(said);
+}
 
-/** One write to reading.json at a time: two at once would each write their own copy and lose one. */
+/**
+ * One write to reading.json at a time: two at once would each write their own copy and lose one.
+ * A lock older than 5 seconds was left by a call that died (a write takes a moment), so it goes
+ * well before the 8 seconds a call waits.
+ */
 function lockReading() {
   const lock = path.join(dataDir, ".reading.lock");
   const until = Date.now() + 8000;
+  const nap = new Int32Array(new SharedArrayBuffer(4));
   for (;;) {
     try { fs.mkdirSync(lock); break; } catch {
-      try { if (Date.now() - fs.statSync(lock).mtimeMs > 15000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+      try { if (Date.now() - fs.statSync(lock).mtimeMs > 5000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
       if (Date.now() > until) fail("another push is still running: push one line at a time");
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+      Atomics.wait(nap, 0, 0, 100);
     }
   }
   process.on("exit", () => { try { fs.rmSync(lock, { recursive: true, force: true }); } catch { /* gone */ } });
@@ -112,7 +133,7 @@ function checkWords(text, what) {
   if (RAW_ID.test(text)) fail(`refused, a raw TikTok id or link in ${what}: write the title`);
   if (/\bundefined\b|\bNaN\b|\bnull\b|\[object/.test(text)) fail(`refused, ${what} is broken: ${text}`);
 }
-/** A video's title, or its caption's first words, as the persona says. */
+/** A video's title, or its caption's first words, as the persona says. The page cuts titles at the same 120. */
 function titleOf(value, what) {
   const title = String(value || "").replace(/\s+/g, " ").trim();
   if (!title) fail(`${what} needs the video's title, or its caption's first words`);
@@ -132,6 +153,7 @@ function countOf(value, what) {
   if (!Number.isInteger(n) || n < 0) fail(`${what}: views is a whole number copied from TikTok`);
   return n;
 }
+/** The page's ttLink takes the same TikTok addresses, with the same 400-character cap. */
 function linkOf(value, what) {
   if (value === undefined || value === "" || value === null) return "";
   const link = String(value).trim();
@@ -140,6 +162,7 @@ function linkOf(value, what) {
 }
 
 // ── The newest videos: a few real ones, so the person sees their account within seconds ──
+/** At most 5: the page's cleanRecent keeps no more. */
 function recentOf(list) {
   if (!Array.isArray(list) || !list.length) fail("the newest videos are a JSON list of 1 to 5 videos");
   if (list.length > 5) fail("at most 5 newest videos");
@@ -173,6 +196,7 @@ function giftOf(g) {
 
 // ── More things to do now, under the gift: each one ideas or a draft in the chat ──
 const OFFER_KINDS = ["quiet", "next"];
+/** The page's cleanOffers shows no more than 2. */
 const MAX_OFFERS = 2;
 function offerOf(o) {
   if (!o || typeof o !== "object" || Array.isArray(o)) fail("the offer must be an object");
@@ -217,7 +241,6 @@ function latestOf(l) {
   l.generatedAt = iso(n);
   if (!l.since) l.since = iso(dayStart(-1));
   delete l.example;
-  delete l.headline;
   return l;
 }
 
@@ -231,62 +254,53 @@ if (cmd === "start") {
   writeJson(readingFile, { schema: `${SCHEMA}/reading@1`, startedAt: iso(new Date()), done: false, lines: [] });
   console.log("reading started; write your files in " + path.relative(process.cwd(), workDir));
 } else if (cmd === "push") {
-  lockReading();
-  const r = readReading();
-  if (r.done) fail("the reading is done: no more lines");
-  // "@line.txt" reads the line from data/.work/, for a line no shell can quote.
-  const raw = args.join(" ");
-  const fromFile = /^@[\w.-]+$/.test(raw.trim()) ? fs.readFileSync(workFile(raw.trim().slice(1)), "utf8") : raw;
-  const line = String(fromFile || "").replace(/\s+/g, " ").trim();
-  checkLine(line);
-  if (r.lines.includes(line)) fail("that line is already there");
-  r.lines.push(line);
-  writeJson(readingFile, r);
-  console.log(`line ${r.lines.length}: ${line}`);
+  editReading("the reading is done: no more lines", (r) => {
+    // "@line.txt" reads the line from data/.work/, for a line no shell can quote.
+    const line = workText(args.join(" ")).replace(/\s+/g, " ").trim();
+    checkLine(line);
+    if (r.lines.includes(line)) fail("that line is already there");
+    r.lines.push(line);
+    return `line ${r.lines.length}: ${line}`;
+  });
 } else if (cmd === "recent") {
   const recent = recentOf(workJson(args.join(" ").trim(), "the newest videos"));
-  lockReading();
-  const r = readReading();
-  if (r.done) fail("the reading is done: the newest videos come while you read");
-  if (r.recent) fail("the newest videos are there already: once is enough");
-  r.recent = recent;
-  writeJson(readingFile, r);
-  console.log(`newest videos: ${recent.length}`);
+  editReading("the reading is done: the newest videos come while you read", (r) => {
+    if (r.recent) fail("the newest videos are there already: once is enough");
+    r.recent = recent;
+    return `newest videos: ${recent.length}`;
+  });
 } else if (cmd === "offer") {
   const offer = offerOf(workJson(args.join(" ").trim(), "the offer"));
-  lockReading();
-  const r = readReading();
-  if (r.done) fail("the reading is done: offers come while you read");
-  const offers = Array.isArray(r.offers) ? r.offers : [];
-  if (offers.length >= MAX_OFFERS) fail(`there are ${MAX_OFFERS} offers already: that is enough`);
-  if (offers.some((x) => x.kind === offer.kind)) fail("that offer is there already");
-  offers.push({ ...offer, at: iso(new Date()) });
-  r.offers = offers;
-  writeJson(readingFile, r);
-  console.log("offer: " + JSON.stringify(offer));
+  editReading("the reading is done: offers come while you read", (r) => {
+    const offers = Array.isArray(r.offers) ? r.offers : [];
+    if (offers.length >= MAX_OFFERS) fail(`there are ${MAX_OFFERS} offers already: that is enough`);
+    if (offers.some((x) => x.kind === offer.kind)) fail("that offer is there already");
+    offers.push({ ...offer, at: iso(new Date()) });
+    r.offers = offers;
+    return "offer: " + JSON.stringify(offer);
+  });
 } else if (cmd === "gift") {
   const gift = giftOf(workJson(args.join(" ").trim(), "the gift"));
-  lockReading();
-  const r = readReading();
-  if (r.done) fail("the reading is done: the gift comes while you read");
-  if (r.gift) fail("there is a gift already: one is enough");
-  r.gift = { ...gift, at: iso(new Date()) };
-  writeJson(readingFile, r);
-  console.log("gift: " + JSON.stringify(r.gift));
+  editReading("the reading is done: the gift comes while you read", (r) => {
+    if (r.gift) fail("there is a gift already: one is enough");
+    r.gift = { ...gift, at: iso(new Date()) };
+    return "gift: " + JSON.stringify(r.gift);
+  });
 } else if (cmd === "latest") {
   const [file, ...why] = args;
   const l = latestOf(workJson(String(file || "").trim(), "latest.json"));
   const n = new Date();
-  writeJson(latestFile, l);
-  // The same catch-up under today's date for the picker, and day files past 30 days go.
+  const text = JSON.stringify(l, null, 2);
+  writeText(latestFile, text);
+  // The same catch-up under today's date for the picker, and day files past 30 days go
+  // (the page's listDays reads the same names and keeps the same 30).
   const days = path.join(dataDir, "days");
   fs.mkdirSync(days, { recursive: true });
-  writeJson(path.join(days, ymd(n) + ".json"), l);
+  writeText(path.join(days, ymd(n) + ".json"), text);
   const oldest = ymd(dayStart(-30));
   for (const f of fs.readdirSync(days)) if (/^\d{4}-\d{2}-\d{2}\.json$/.test(f) && f.slice(0, 10) < oldest) fs.rmSync(path.join(days, f), { force: true });
   // "@why.txt" reads the note from data/.work/, for a note no shell can quote ("TikTok's limit").
-  const said = why.join(" ").trim();
-  const note = (/^@[\w.-]+$/.test(said) ? fs.readFileSync(workFile(said.slice(1)), "utf8") : said).replace(/\s+/g, " ").trim().slice(0, 200);
+  const note = workText(why.join(" ")).replace(/\s+/g, " ").trim().slice(0, 200);
   writeJson(path.join(dataDir, "status.json"), { at: iso(n), ok: true, ...(note ? { why: note } : {}) });
   console.log(`latest.json written (${l.videos.length} videos), days/${ymd(n)}.json and status.json`);
 } else if (cmd === "done") {
