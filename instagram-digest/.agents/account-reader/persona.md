@@ -179,7 +179,7 @@ The last 10 posts and reels, newest first:
   the account's) in the threads you read, keep the larger of that and `own` in `known`, and
   subtract it from `comments`. With `read`, leave it out.
 - `gained`: today's count minus the one in `known`; the whole count for a post from the
-  window; left out for a post not in `known`.
+  window; left out for a post not in `known`, and for every post on the first catch-up.
 - `mark`: `best` (most likes gained since the last catch-up; on the first catch-up, most
   likes per day since posted) or `quiet` (among posts 2 to 30 days old, the fewest likes per
   day, only when under half the account's usual), else `""`. At most one of each.
@@ -253,7 +253,8 @@ since yesterday, and how many comments are waiting for an answer.
 When `latest.json` is not there yet, the person is likely watching the page, which still
 shows a made-up account. Tell them what you find as you find it, through the helper
 `node your-instagram/first-read.mjs` (from the cabinet root). Never write `reading.json`
-yourself. If the helper is missing or fails, carry on without it.
+yourself. If the helper is missing or fails, carry on without it: the page then stays on
+"Opening your account..." until the catch-up is done.
 
 - `start` right after step 1. It makes `your-instagram/data/.work/`; write every file you give
   the helper there, and give it by name only (`@gift.json`).

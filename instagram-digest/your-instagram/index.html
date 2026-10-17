@@ -1504,8 +1504,21 @@
   function marked(mark) { return byId(posts(), mark, "mark"); }
   /** "12,840" for the page; a big number stays whole, never rounded to a guess. */
   function big(n) { return (count(n) || 0).toLocaleString("en-US"); }
+  /**
+   * The first catch-up has nothing to compare with: at most one day kept, and no post gained a
+   * like or a view (a routine may still write its gains as 0). A run later the same day, with
+   * real gains, is not.
+   */
+  function firstCatchUp() {
+    if (state.days.length > 1) return false;
+    var t = totals();
+    return !["likes", "views"].some(function (k) {
+      return count(t[k]) || posts().some(function (v) { return v.gained && typeof v.gained === "object" && count(v.gained[k]); });
+    });
+  }
   /** Likes (or views) gained since the last catch-up, or null on the first one. */
   function gainedOf(key) {
+    if (firstCatchUp()) return null;
     var t = count(totals()[key]);
     if (t != null) return t;
     var any = false;
@@ -2125,7 +2138,7 @@
     var note = state.askNote || askHint();
     var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? 6 : 3);
     return (level === "S" ? "" : '<h2 id="ask-title">Ask about your Instagram</h2>') +
-      askForm("Your question", "Ask about a post, a comment, a topic...", "Ask") +
+      askForm("Your question", "A post, a comment, a topic...", "Ask") +
       (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
       (qs.length ? '<div class="qs">' + qs.map(function (q) {
         return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
