@@ -55,7 +55,7 @@ The page is a 12-column grid of boxes on a light grey, laid out like the Gmail f
 Headline, Waiting for an answer, Latest comments, Account numbers, How your posts did, What
 people keep asking, Ideas for your next posts, Ask about your Instagram and Ideas for your
 Instagram to start with, and more to add (four numbers, People reached only with Instagram's
-numbers, and each idea as its own box with its picture from `ideas/`). The headline is a band
+numbers, and each idea as its own box with its picture). The headline is a band
 in Instagram's purple to pink to orange, with the connection, Catch up now, Ideas and Layout
 in it; without the headline they move to a slim bar on top. Each person moves, resizes, adds
 and removes boxes (mouse, finger or keyboard, with Undo), or asks the agent through Layout,
@@ -101,8 +101,10 @@ file is `data/days/<YYYY-MM-DD>.json`, kept for 30 days. The helper takes only a
 (`https://www.instagram.com/p/...`, `/reel/...` or `/tv/...`); the page opens those and the
 profile's, under 400 characters. Change one, change both.
 
-The page's ideas show pictures from `ideas/`, the same shrunk template covers YouTube Digest
-uses, until unique ones are made.
+The page's ideas show the same template covers YouTube Digest uses, shrunk to about 7KB each
+and written into `index.html` itself, until unique ones are made. A page shown to anyone but
+its owner on Cloud cannot load a file beside it, so a picture in its own file would stay blank
+for them.
 
 If the morning run was missed (the computer was asleep at 9), the page runs it once when it
 opens, from the schedule in `../.jobs/morning-instagram-digest.yaml`.
