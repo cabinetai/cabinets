@@ -54,6 +54,8 @@ const GRAPH = /^http:\/\/127\.0\.0\.1:\d+\/v1\.0$/.test(process.env.FIRST_SORT_T
 // Links kept on the page open SharePoint itself, nothing else.
 const SAFE_LINK = /^https:\/\/[a-z0-9-]+\.sharepoint(-df)?\.(com|us|cn|de)\//i;
 const GIFT_KINDS = ["yours", "row", "open", "twins", "calm"];
+// A file read for its words: at most this much downloaded, and this much unpacked from it.
+const MAX_FILE_BYTES = 20 * 1024 * 1024, MAX_UNZIPPED_BYTES = 50 * 1024 * 1024;
 const MAX_HITS = 500, MAX_SITES = 25, MAX_VERSIONS = 40, MAX_LIST_SITES = 8, MAX_LISTS = 12, MAX_SHARING = 30, MAX_FOLDERS = 12, MAX_CHANGES = 8;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -224,25 +226,37 @@ async function searchChanged(s) {
 
 // ── The words in a Word, Excel or PowerPoint file: a small zip reader, nothing installed ──
 function zipEntries(buf) {
-  // The end of the central directory, then each entry it lists.
+  // The end of the central directory, then each entry it lists. A damaged zip (a broken save
+  // by someone else) ends the reading of that zip, never the run: every offset is checked first.
   let end = -1;
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 66000); i--) if (buf.readUInt32LE(i) === 0x06054b50) { end = i; break; }
   if (end < 0) fail("that file is not a readable Office file", 4);
+  const fits = (at, len) => at >= 0 && at + len <= buf.length;
   const count = buf.readUInt16LE(end + 10);
   let at = buf.readUInt32LE(end + 16);
+  let left = MAX_UNZIPPED_BYTES;
   const out = [];
-  for (let n = 0; n < count && buf.readUInt32LE(at) === 0x02014b50; n++) {
+  for (let n = 0; n < count && fits(at, 46) && buf.readUInt32LE(at) === 0x02014b50; n++) {
     const method = buf.readUInt16LE(at + 10), size = buf.readUInt32LE(at + 20);
     const nameLen = buf.readUInt16LE(at + 28), extraLen = buf.readUInt16LE(at + 30), commentLen = buf.readUInt16LE(at + 32);
     const local = buf.readUInt32LE(at + 42);
+    if (!fits(at, 46 + nameLen)) break;
     const name = buf.toString("utf8", at + 46, at + 46 + nameLen);
     out.push({ name, read: () => {
+      if (!fits(local, 30)) throw new Error("a broken part");
       const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+      if (!fits(start, size)) throw new Error("a broken part");
+      // A few MB can unpack to many GB: each part gets only what is left of the file's share.
+      if (left <= 0) throw new Error("too much to unpack");
       const raw = buf.subarray(start, start + size);
-      return (method === 8 ? zlib.inflateRawSync(raw) : raw).toString("utf8");
+      const bytes = method === 8 ? zlib.inflateRawSync(raw, { maxOutputLength: left }) : raw.subarray(0, left);
+      left -= bytes.length;
+      return bytes.toString("utf8");
     } });
     at += 46 + nameLen + extraLen + commentLen;
   }
+  // Nothing listed is a broken file, not an empty one: an empty text would read as every line taken out.
+  if (!out.length) fail("that file is not a readable Office file", 4);
   return out;
 }
 function xmlText(xml, para) {
@@ -272,18 +286,28 @@ async function fileWords(driveId, itemId, version) {
   const base = `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}`;
   let meta;
   try { meta = await call(GRAPH + base + "?$select=name,size"); } catch (e) { if (e instanceof Exit) throw e; return { error: e.message + ": that file can't be read" }; }
-  if ((meta.size || 0) > 20 * 1024 * 1024) return { error: "the file is too big to read here (over 20 MB)" };
+  const big = { error: "the file is too big to read here (over 20 MB)" };
+  if ((meta.size || 0) > MAX_FILE_BYTES) return big;
   const res = await fetch(GRAPH + base + (version ? `/versions/${encodeURIComponent(version)}` : "") + "/content", { headers: { Authorization: "Bearer " + token } });
   if (res.status === 401) fail("SharePoint needs a new sign-in (401)", 3);
   if (!res.ok) return { error: `SharePoint answered ${res.status}: that ${version ? "version" : "file"} can't be read` };
-  const buf = Buffer.from(await res.arrayBuffer());
+  // An older save can be bigger than the file is now: what comes down is counted too.
+  if (Number(res.headers.get("content-length")) > MAX_FILE_BYTES) { await res.body?.cancel().catch(() => {}); return big; }
+  const parts = [];
+  let got = 0;
+  for await (const part of res.body || []) {
+    got += part.length;
+    if (got > MAX_FILE_BYTES) return big;
+    parts.push(part);
+  }
+  const buf = Buffer.concat(parts);
   const ext = extOf(meta.name);
   let text = "";
   try {
     if (/^(txt|md|csv|json|xml|html?)$/.test(ext)) text = buf.toString("utf8");
     else if (/^(docx|docm|xlsx|xlsm|pptx|pptm)$/.test(ext)) text = officeText(buf, ext);
     else return { error: `a .${ext || "?"} file has no words this helper can read: say so plainly` };
-  } catch (e) { if (e instanceof Exit) { process.exitCode = 0; return { error: "that save is not a readable Office file" }; } throw e; }
+  } catch (e) { if (e instanceof Exit) process.exitCode = 0; return { error: "that save is not a readable Office file" }; }
   return { name: meta.name, text: text.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim() };
 }
 function readChanges() { try { return readJson(changesFile); } catch { return {}; } }
