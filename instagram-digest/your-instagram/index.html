@@ -330,6 +330,8 @@
   .one-idea h3 { margin: 0; font-size: 16.5px; font-weight: 700; line-height: 1.3; }
   .one-idea p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
   .one-idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+  /* Its own height, never the box's: the Keep box grows to fit it (grow), and a stretched child would grow it forever. */
+  .one-idea.hug { flex: none; }
   .one-idea .art-img { aspect-ratio: auto; height: 96px; }
   .box[data-level="L"] .one-idea .art-img { height: 130px; }
   .idea-rows > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; margin: 0 20px; padding: 10px 0; border-top: 1px solid var(--line); }
@@ -522,6 +524,18 @@
   .drawer-close { margin-inline-start: auto; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2); }
   .drawer-close:hover { background: var(--panel); }
   .drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--canvas); }
+
+  /* ── The export guide, in its drawer: numbered steps, each with a picture of the screen ── */
+  .guide { display: grid; gap: 4px; padding: 4px 16px 14px; border-radius: var(--radius); background: var(--page); color: var(--ink); }
+  .g-note { margin: 12px 0 0; color: var(--ink-3); font-size: 15px; }
+  .g-steps { list-style: none; margin: 0; padding: 0; }
+  .g-step { display: grid; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .g-step:last-child { border-bottom: 0; padding-bottom: 6px; }
+  .g-txt { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .g-num { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--brand); color: var(--brand-2); font-weight: 700; font-size: 15px; }
+  .g-txt b { display: block; margin-top: 3px; font-size: 16.5px; font-weight: 700; line-height: 1.3; }
+  .g-txt p { margin: 6px 0 0; color: var(--ink-2); font-size: 14.5px; line-height: 1.6; }
+  .g-shot { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); box-shadow: var(--shadow-2); }
 
   /* On a phone the boxes stack in their order and grow to fit. */
   .grid.stack { display: flex; flex-direction: column; gap: 14px; }
@@ -756,6 +770,8 @@
     "Which of my posts got saved the most?",
     "Which hashtags did my best posts use?"
   ];
+  /** The one question that reads Instagram's copy of the person's data, not Instagram itself. */
+  var IMPORT_ASK = "Bring in my Instagram export";
 
   /**
    * Account plays: one tap to ask now, or to switch on as a routine. Each one belongs to a box
@@ -1217,8 +1233,8 @@
     var q = text(question, 3900);
     if (!q) return;
     if (!V2) { toast("Open this cabinet in Cabinet to ask about your account."); return; }
-    // Before Instagram is connected there is nothing to read yet: the press leads to connecting.
-    if (!askReady()) {
+    // Before Instagram is connected there is nothing to read yet, the export aside: the press leads to connecting.
+    if (!askReady() && q !== IMPORT_ASK) {
       if (state.ig && state.ig.canConnect) { toast("Connect Instagram first. It takes about a minute."); connect(); }
       else toast(igState() === "not-available-here" ? "Instagram can’t be connected here yet." : "Ask the person who owns this cabinet to connect Instagram.");
       return;
@@ -2144,7 +2160,7 @@
     if (state.layoutAsk) return drawLayoutAsk(level);
     var featured = level === "S" ? null : askIdea();
     var note = state.askNote || askHint();
-    var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? 6 : 3);
+    var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? 6 : 3).concat(IMPORT_ASK);
     return (level === "S" ? "" : '<h2 id="ask-title">Ask about your Instagram</h2>') +
       askForm("Your question", "A post, a comment, a topic...", "Ask") +
       (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
@@ -2203,6 +2219,163 @@
       '<div class="go">' + ideaButton(idea, fit, "btn small dark", icon("i-send") + esc(fit && level !== "S" ? fit.act : "Ask now")) +
       (level === "S" ? "" : routineButton(idea, "btn small")) +
       "</div></div>";
+  }
+
+  // ── The export guide ───────────────────────────────────────────────────
+  // Every step a person takes to ask Instagram for a copy of their data and bring it into the
+  // cabinet, each with a picture of what they will see (drawn from Instagram's and Cabinet's
+  // real screens, with a made-up account). The Keep more of your Instagram in Cabinet box says
+  // the same steps by their heads.
+
+  /** The guide's pictures: Instagram's, the email's and Cabinet's screens, each built once. */
+  var SHOTS = (function () {
+    /** A picture, 600 by 380 on a light grey, the way the guide shows it, as an image address. */
+    function svg(body) {
+      return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif">' +
+        '<defs><linearGradient id="ig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#feda75"/><stop offset=".35" stop-color="#fa7e1e"/><stop offset=".65" stop-color="#d62976"/><stop offset="1" stop-color="#4f5bd5"/></linearGradient></defs>' +
+        '<rect width="600" height="380" fill="#f2f2f4"/>' + body + "</svg>");
+    }
+    var INK = "#0c1014";
+    var GREY = "#737373";
+    var BLUE = "#0064e0";
+    /** Words at x, y. more: other attributes, such as bold or centred. */
+    function t(x, y, words, size, fill, more) {
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 12) + '" fill="' + (fill || INK) + '"' + (more ? " " + more : "") + ">" + words + "</text>";
+    }
+    var B = 'font-weight="700"';
+    var MID = 'text-anchor="middle"';
+    var BMID = B + " " + MID;
+    /** A button at x, y: its words centred and bold, stroke an outline when it has one. */
+    function pill(x, y, w, h, r, fill, words, size, ink, stroke) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + r + '" fill="' + fill + '"' + (stroke ? ' stroke="' + stroke + '"' : "") + "/>" +
+        t(x + w / 2, y + h / 2 + Math.round(size * .35), words, size, ink, BMID);
+    }
+    /** The magenta ring around what to press. */
+    function mark(x, y, w, h, r) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + r + '" fill="none" stroke="#e1306c" stroke-width="3"/>';
+    }
+    /** Instagram's mark at x, y, s wide: the camera on its purple to orange tile. */
+    function logo(x, y, s) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + s + '" height="' + s + '" rx="' + s * .28 + '" fill="url(#ig)"/>' +
+        '<rect x="' + (x + s * .22) + '" y="' + (y + s * .22) + '" width="' + s * .56 + '" height="' + s * .56 + '" rx="' + s * .16 + '" fill="none" stroke="#fff" stroke-width="' + s * .07 + '"/>' +
+        '<circle cx="' + (x + s / 2) + '" cy="' + (y + s / 2) + '" r="' + s * .13 + '" fill="none" stroke="#fff" stroke-width="' + s * .07 + '"/>' +
+        '<circle cx="' + (x + s * .67) + '" cy="' + (y + s * .33) + '" r="' + s * .04 + '" fill="#fff"/>';
+    }
+    /** A phone at x, 200 wide, its screen white. */
+    function phone(x) {
+      return '<rect x="' + x + '" y="12" width="200" height="356" rx="26" fill="#121212"/><rect x="' + (x + 7) + '" y="19" width="186" height="342" rx="20" fill="#fff"/>';
+    }
+    /** A ticked box at x, y, or an empty one. */
+    function tick(x, y, on) {
+      return '<rect x="' + x + '" y="' + y + '" width="16" height="16" rx="4" fill="' + (on ? BLUE : "#fff") + '" stroke="' + (on ? BLUE : "#c4c4c4") + '" stroke-width="1.6"/>' +
+        (on ? '<path d="M' + (x + 4) + " " + (y + 8) + "l3 3 6-6" + '" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' : "");
+    }
+    /**
+     * A settings screen on a phone at x, the way Accounts Center draws one: a back arrow, its
+     * title large on the left, then rows (each one or more lines), the marked one ringed.
+     */
+    function screen(x, title, rows, marked) {
+      var y = 74 + title.length * 20;
+      return phone(x) + t(x + 20, 46, "‹", 22) + title.map(function (line, i) { return t(x + 20, 82 + i * 20, line, 16, INK, B); }).join("") +
+        rows.map(function (row, i) {
+          var lines = [].concat(row);
+          var h = 22 + lines.length * 15;
+          var out = lines.map(function (line, j) { return t(x + 20, y + 25 + j * 15, line, 12); }).join("") +
+            t(x + 176, y + h / 2 + 5, "›", 15, GREY) + '<rect x="' + (x + 20) + '" y="' + (y + h) + '" width="160" height="1" fill="#ececef"/>' +
+            (i === marked ? mark(x + 12, y + 4, 176, h - 8, 10) : "");
+          y += h;
+          return out;
+        }).join("");
+    }
+
+    return {
+      settings: svg(
+        // The profile, with the menu at the top right.
+        phone(76) + t(96, 50, "lior.ceramics", 14, INK, B) +
+        '<path d="M244 38h16M244 45h16M244 52h16" stroke="' + INK + '" stroke-width="2.4" stroke-linecap="round"/>' + mark(234, 28, 36, 34, 10) +
+        '<circle cx="118" cy="98" r="24" fill="none" stroke="url(#ig)" stroke-width="3.5"/><circle cx="118" cy="98" r="19" fill="#e9c9ad"/>' +
+        [["318", "posts", 168], ["12.4K", "followers", 208], ["612", "following", 248]].map(function (s) {
+          return t(s[2], 96, s[0], 12, INK, BMID) + t(s[2], 110, s[1], 8.5, GREY, MID);
+        }).join("") +
+        t(96, 146, "Lior Ceramics", 11.5, INK, B) + t(96, 162, "Speckled mugs, made by hand", 11, GREY) +
+        pill(96, 176, 78, 26, 8, "#efefef", "Edit profile", 10.5, INK) + pill(180, 176, 78, 26, 8, "#efefef", "Share profile", 10.5, INK) +
+        ["#c98a4b", "#e8d5c0", "#7b5a43", "#d9b48f", "#a8714a", "#efe4d6", "#8c6b52", "#caa27c", "#b98d66"].map(function (c, i) {
+          return '<rect x="' + (83 + (i % 3) * 62) + '" y="' + (214 + Math.floor(i / 3) * 44) + '" width="60" height="42" fill="' + c + '"/>';
+        }).join("") +
+        // Settings and activity, with Accounts Center on top.
+        screen(324, ["Settings and activity"], [], -1) +
+        '<rect x="344" y="96" width="160" height="26" rx="9" fill="#efefef"/>' + t(358, 113, "Search", 11, GREY) +
+        t(344, 146, "Your account", 10.5, GREY, B) +
+        t(344, 176, "∞", 20, BLUE, B) + t(370, 170, "Accounts Center", 12, INK, B) + t(370, 186, "Password, security, details", 9.5, GREY) + t(500, 178, "›", 15, GREY) +
+        mark(336, 154, 176, 42, 10) +
+        t(344, 222, "How you use Instagram", 10.5, GREY, B) +
+        ["Saved", "Archive", "Your activity", "Notifications"].map(function (row, i) { return t(344, 250 + i * 30, row, 12) + t(500, 250 + i * 30, "›", 15, GREY); }).join("")),
+
+      accounts: svg(
+        screen(76, ["Accounts Center"], ["Profiles", "Connected experiences", "Password and security", "Personal details", ["Your information", "and permissions"], "Ad preferences"], 4) +
+        screen(324, ["Your information", "and permissions"], ["Download your information", "Access your information", "Search history", ["Transfer a copy of", "your information"]], 0)),
+
+      download: svg(
+        // Which profile: the Instagram account ticked.
+        screen(76, ["Download or transfer", "information"], [], -1) +
+        t(96, 130, "Which profiles do you want", 11, GREY) + t(96, 145, "to include?", 11, GREY) +
+        [["lior.ceramics", "Instagram", true], ["Lior Ceramics", "Facebook", false]].map(function (p, i) {
+          var y = 168 + i * 48;
+          return '<circle cx="110" cy="' + (y + 16) + '" r="14" fill="' + (i ? "#d8c3ae" : "#e9c9ad") + '"/>' + t(132, y + 13, p[0], 12, INK, B) + t(132, y + 28, p[1], 10.5, GREY) + tick(242, y + 8, p[2]);
+        }).join("") + mark(88, 162, 184, 44, 10) +
+        pill(96, 312, 160, 34, 17, BLUE, "Next", 13, "#fff") +
+        // Create files: JSON, then Create files.
+        screen(324, ["Create files to", "download"], [["Date range", "All time"], ["Format", "JSON"], ["Media quality", "Medium"]], 1) +
+        pill(344, 312, 160, 34, 17, BLUE, "Create files", 13, "#fff") + mark(337, 305, 174, 48, 22)),
+
+      email: svg(
+        // Instagram's email, with its download button.
+        phone(16) + t(36, 46, "‹ Inbox", 12, BLUE) + logo(36, 64, 28) + t(72, 76, "Instagram", 12, INK, B) + t(72, 91, "today", 10.5, GREY) +
+        t(36, 128, "Your Instagram information", 11.5, INK, B) + t(36, 145, "is ready to download", 11.5, INK, B) +
+        t(36, 174, "Hi lior.ceramics,", 11, "#3d3f44") + t(36, 192, "The files you asked for are", 11, "#3d3f44") + t(36, 208, "ready. Download them before", 11, "#3d3f44") + t(36, 224, "they expire.", 11, "#3d3f44") +
+        pill(36, 246, 160, 34, 17, BLUE, "Download information", 12, "#fff") + mark(29, 239, 174, 48, 22) +
+        // Cabinet: the zip in the cabinet's imports folder, and the question.
+        '<rect x="232" y="16" width="352" height="348" rx="18" fill="#fff"/>' +
+        t(256, 48, "instagram-digest  ›  imports", 12, GREY) + t(256, 84, "imports", 24, INK, B) +
+        '<rect x="256" y="102" width="308" height="62" rx="14" fill="#fff" stroke="#e2e2e2"/>' +
+        '<path d="M272 116h16l8 8v28h-24z" fill="#fdf0f7" stroke="#c13584" stroke-width="1.6"/><path d="M280 124v4m0 4v4m0 4v4" stroke="#c13584" stroke-width="2"/>' +
+        t(308, 128, "instagram-lior.ceramics.zip", 12.5, INK, B) + t(308, 148, "From Instagram, today", 11, GREY) + mark(249, 95, 322, 76, 18) +
+        pill(256, 236, 224, 36, 18, "#fff", "Bring in my Instagram export", 12.5, INK, "#dbdbdb") + mark(249, 229, 238, 50, 25) +
+        '<rect x="256" y="296" width="308" height="46" rx="23" fill="#fff" stroke="#dbdbdb"/>' + t(278, 324, "Ask about your Instagram...", 12.5, GREY) +
+        '<circle cx="540" cy="319" r="16" fill="' + INK + '"/><path d="M534 319h12m-5-5l5 5-5 5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>')
+    };
+  })();
+
+  var GUIDE = {
+    note: "Instagram gives apps no saved posts, likes or messages. Your own copy of your data has them.",
+    steps: [
+      { shot: SHOTS.settings, head: "In Instagram, open Settings, then Accounts Center.",
+        text: "In the app, go to your profile and tap the menu at the top right: Settings and activity. On the web it is More, then Settings. Accounts Center is at the top.",
+        alt: "An Instagram profile with the menu at the top right marked, and Settings and activity with Accounts Center marked." },
+      { shot: SHOTS.accounts, head: "Open Your information and permissions, then Download your information.",
+        text: "Both are in Accounts Center. Some accounts call it Export your information.",
+        alt: "Accounts Center with Your information and permissions marked, and that screen with Download your information marked." },
+      { shot: SHOTS.download, head: "Pick your Instagram account and JSON, then Create files.",
+        text: "Choose Download or transfer information and your Instagram account, then Download to device. Set Format to JSON and Date range to All time, or the dates you want, and press Create files.",
+        alt: "The profile list with the Instagram account ticked, and Create files to download with Format JSON and the Create files button marked." },
+      { shot: SHOTS.email, head: "When the email comes, put the zip in imports and ask.",
+        text: "It takes minutes to days. Download the zip and put it, or its folder, in this cabinet’s imports folder (on Cloud, upload it in Files). Then ask Bring in my Instagram export. Your saved posts and likes come in; ask for comments or messages by name.",
+        alt: "Instagram's email with the Download information button marked, and the zip in the cabinet's imports folder with the Bring in my Instagram export question marked." }
+    ]
+  };
+  function paintGuidePanel() {
+    $("drawer-body").innerHTML = '<div class="guide"><p class="g-note">' + esc(GUIDE.note) + '</p><ol class="g-steps">' +
+      GUIDE.steps.map(function (st, i) {
+        return '<li class="g-step"><div class="g-txt"><span class="g-num" aria-hidden="true">' + (i + 1) + "</span><div><b>" + esc(st.head) + "</b><p>" + esc(st.text) + "</p></div></div>" +
+          '<img class="g-shot" src="' + st.shot + '" alt="' + esc(st.alt) + '" width="600" height="380" decoding="async" /></li>';
+      }).join("") + "</ol></div>";
+  }
+
+  /** How to bring in Instagram's copy of your data: the guide's steps by their heads, in the idea card look. */
+  function drawKeep() {
+    return '<div class="one-idea hug"><h3>' + esc(BOXES.keep.title) + "</h3><p>" + esc(GUIDE.note) + "</p>" +
+      GUIDE.steps.map(function (st) { return "<p>" + esc(st.head) + "</p>"; }).join("") +
+      '<div class="go"><button type="button" class="btn small" data-act="guide" aria-haspopup="dialog">Show me how</button></div></div>';
   }
 
   // ── Ideas, where and when they help ────────────────────────────────────
@@ -2345,7 +2518,8 @@
 
   var DRAWERS = {
     ideas: { title: "Ideas for your Instagram", sub: "One tap to ask now, or to have it done for you on a schedule.", icon: "i-bulb", paint: paintIdeasPanel },
-    add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker }
+    add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker },
+    guide: { title: "Bring in your Instagram export", sub: "Every step, with a picture of each screen.", icon: "i-camera", paint: paintGuidePanel }
   };
   function paintDrawer() {
     var kind = DRAWERS[state.drawerKind];
@@ -2422,7 +2596,8 @@
     { id: "asks", x: 7, y: 14, w: 5, h: 5 },
     { id: "next", x: 7, y: 19, w: 5, h: 5 },
     { id: "ask", x: 0, y: 24, w: 7, h: 5 },
-    { id: "ideas", x: 7, y: 24, w: 5, h: 5 }
+    { id: "ideas", x: 7, y: 24, w: 5, h: 5 },
+    { id: "keep", x: 0, y: 29, w: 7, h: 4 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -2457,7 +2632,9 @@
       title: "Ask about your Instagram", desc: "Ask anything about your account, with an idea for today.",
       show: canAsk, when: "Only people who can ask in this cabinet see it." },
     ideas: { cls: "lane ideas", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 5, h: 5,
-      title: "Ideas for your Instagram", desc: "Every idea in one box, one tap each." }
+      title: "Ideas for your Instagram", desc: "Every idea in one box, one tap each." },
+    keep: { cls: "lane idea1", draw: drawKeep, group: "instagram", icon: "i-camera", w: 7, h: 4, grow: true,
+      title: "Keep more of your Instagram in Cabinet", desc: "How to bring in your saved posts and likes from Instagram’s copy of your data." }
   };
   IDEAS.forEach(function (idea) {
     BOXES["idea-" + idea.id] = { cls: "lane idea1", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
@@ -3640,6 +3817,8 @@
       openDrawer("ideas");
     } else if (act === "add-box") {
       openDrawer("add");
+    } else if (act === "guide") {
+      openDrawer("guide");
     } else if (act === "add-this") {
       var add = el.getAttribute("data-add");
       if (BOXES[add]) addBox(add);
