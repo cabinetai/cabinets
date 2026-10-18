@@ -30,6 +30,10 @@ The cabinet opens on it: **Your Instagram**.
   post.
 - **Ask about your Instagram**: how a post did, what people said, which posts get saved. The
   answer comes up in the chat.
+- **Keep more of your Instagram**: Instagram gives apps no saved posts, likes or messages,
+  so a box shows how to ask Instagram for your own copy, with a picture of each screen. Put it
+  in the cabinet's `imports` folder and ask "Bring in my Instagram export": your saved posts and
+  likes come in as pages (comments and messages only if you ask for them).
 - **Ideas**: draft replies to everyone waiting, a caption with hashtags for your next post, a
   weekly summary. Ask once, switch one on to run on a schedule, or keep it on the page as a box.
 - **Your page, your way**: move, resize, add and remove the boxes, or ask the agent to
@@ -58,6 +62,18 @@ ask in the chat and only if you chose Allow comments when you connected Instagra
 exact words first, and nothing happens until you say yes. Everywhere else, replies are drafted
 in the chat for you to post yourself. Cabinet never posts, never publishes a story or a reel,
 never sends a message, and never deletes a comment.
+
+## Bring in your saved posts and likes
+
+1. In Instagram: Settings, Accounts Center, Your information and permissions, Download your
+   information. Pick your Instagram account, JSON, and all time or the dates you want.
+2. Instagram emails you when the file is ready, as a zip. Download it.
+3. Put the zip, or the folder it unzips to, in this cabinet's `imports` folder (on Cloud,
+   upload it in Files), and ask **Bring in my Instagram export**.
+
+You see how many saved posts and likes there are before anything is written. Nothing is
+uploaded or sent anywhere, and a saved reel can be kept as a video by pasting its link into
+Video Library.
 
 ## What's inside
 

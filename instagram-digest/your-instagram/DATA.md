@@ -17,6 +17,7 @@ files here, and the page shows them. The full rules for each field are in the ag
 | `data/reading.json` | The first catch-up only, through `first-read.mjs` | `{ schema, startedAt, done, lines, recent, gift, offers }`: what the agent found, one line at a time, while the person watches. Schema `instagram-digest/reading@1`. |
 | `data/.work/` | The first catch-up, through `first-read.mjs` | The agent's own files for the helper. Deleted when the reading is done. |
 | `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `instagram-digest/layout-change@1`. The page offers it with Apply and No thanks; each person's layout stays in Cabinet (`cabinet.mine`), not in a file. |
+| `../imports/<YYYY-MM-DD>-<list>.md` | The agent, in a chat, when the person asks "Bring in my Instagram export" | One page per list read from Instagram's own copy of their data, which they put in the cabinet's `imports/` folder: `saved` and `likes` by default, `comments` and `messages` only when asked for by name. Each item's link, date, author and caption when there is one, newest first; from messages only the posts shared in them. `../imports/<YYYY-MM-DD>.md` says what was brought in. The page never reads them. |
 
 `latest.json` in short: `generatedAt`, `since`, `account` `{ username, name, followers,
 follows, posts, url }`, `readComments` (false when Instagram is connected to read only, so the
@@ -53,8 +54,8 @@ Instagram" link. Instagram has no link to one comment, so a comment opens its po
 
 The page is a 12-column grid of boxes on a light grey, laid out like the Gmail front desk:
 Headline, Waiting for an answer, Latest comments, Account numbers, How your posts did, What
-people keep asking, Ideas for your next posts, Ask about your Instagram and Ideas for your
-Instagram to start with, and more to add (four numbers, People reached only with Instagram's
+people keep asking, Ideas for your next posts, Ask about your Instagram, Ideas for your
+Instagram and Keep more of your Instagram in Cabinet to start with, and more to add (four numbers, People reached only with Instagram's
 numbers, and each idea as its own box with its picture). The headline is a band
 in Instagram's purple to pink to orange, with the connection, Catch up now, Ideas and Layout
 in it; without the headline they move to a slim bar on top. Each person moves, resizes, adds
@@ -71,6 +72,14 @@ post's `gained`, and while at most one day is kept and nothing gained a like or 
 page shows the counts instead ("64 comments from others since yesterday, across your last 10
 posts."), never "0 likes since yesterday". With Instagram's numbers, the people reached on
 each of the 28 days stand on its right, the last seven solid.
+
+Instagram gives apps no saved posts, likes or messages, so the Keep more of your Instagram in
+Cabinet box (`keep`) says, in four steps, how to ask Instagram for a copy of the data and bring
+it in, and its Show me how opens a guide with a drawing of each screen (Settings, Accounts
+Center, Download your information, the email). It is the same for everyone and reads no file.
+It is on the page for anyone new; a layout saved before it came gets it from Add a box. The Ask
+box has the question "Bring in my Instagram export", which goes to the chat even before
+Instagram is connected, since it reads only the export.
 
 Nothing on the page writes on Instagram. Every button asks the agent in the chat for a
 summary, a plan or a draft to copy. The agent replies to a comment, or hides one, only when
