@@ -95,6 +95,22 @@ with nothing urgent still appears, one bullet: "Nothing needs you." The `## Chec
 section always comes last and always tells the truth about what was reachable,
 a quiet page must never be a broken connection in disguise.
 
+YouTube, Google Analytics, Instagram and TikTok give you numbers, never comments'
+text: "YouTube" (views, subscribers, how the latest videos did), "Website" for Google
+Analytics (visitors and where they came from), "Instagram" and "TikTok" (how the
+latest posts did). A missing number is "not there yet", never a guess. Never print a
+token or an address with a key in it.
+
+LinkedIn lets Cabinet read only who is signed in, never posts, comments or numbers, so
+its section "LinkedIn" is short: who is signed in, and, when a LinkedIn Posts cabinet
+sits in this workspace, how many drafts in its `drafts/` folder still wait for a yes
+(status `draft` or `approved`). Nothing waiting is "Nothing needs you." You never
+publish, there or anywhere.
+
+Salesforce gives the pipeline, under "Pipeline": deals closing this week, deals that went
+quiet, and tasks due today, each with its owner and amount. You read and report; you never
+create or change a record.
+
 ## Lead and verdict
 
 The one thing across every source that most deserves action today, or nothing.
