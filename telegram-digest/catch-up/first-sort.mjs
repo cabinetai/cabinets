@@ -35,7 +35,8 @@ const DAY = 86400000;
 const FIRST_DAYS = 7;
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-const PROMISE = /\b(i'?ll|i will|i'm going to|i am going to|let me|will do|i can do|on it|leave it with me)\b/i;
+// ['’]: iPhones type a curly apostrophe. "let me" only with a doing verb ("let me know" asks). Not "I will not", "I’ll never".
+const PROMISE = /\b(i['’]?ll|i will|i['’]m going to|i am going to|let me (?:check|send|look|ask|get back|find|sort|fix|confirm|call|see)|will do|i can do|on it|leave it with me)\b(?!\s+(?:not|never)\b)/i;
 const AGREE = /^(ok|okay|yes|yep|yeah|sure|deal|agreed|sounds good|perfect|great|fine|works for me|\+1|👍|👌|✅)(?=$|[\s!.,])/iu;
 const QUESTION = /\?\s*$|\?\s/;
 
@@ -312,9 +313,11 @@ function dueFrom(text, at) {
       return dateOnly(new Date(day.getTime() + ahead * DAY));
     }
   }
-  const m = /\b(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(\d{1,2})\b/.exec(t);
+  // Whole month words only, so "2 separate" or "mark 5" is no date.
+  const MON = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+  const m = new RegExp("\\b(\\d{1,2})(?:st|nd|rd|th)?\\s*" + MON + "\\b|\\b" + MON + "\\.?\\s*(\\d{1,2})(?:st|nd|rd|th)?\\b").exec(t);
   if (m) {
-    const mon = MONTHS.indexOf(m[2] || m[3]);
+    const mon = MONTHS.indexOf((m[2] || m[3]).slice(0, 3));
     const d = +(m[1] || m[4]);
     let when = new Date(day.getFullYear(), mon, d);
     if (when < day) when = new Date(day.getFullYear() + 1, mon, d);
