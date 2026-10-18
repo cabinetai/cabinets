@@ -18,6 +18,32 @@ are in the agent's persona (`.agents/notes-librarian/persona.md`).
 `totals` `{ notes, topics, sorted }`, `topics` (`title`, `page`, `notes`, `gist`,
 `lastEdited`), and `tidy` with `same` (pairs `a` and `b`) and `empty` notes.
 
+## The page is a grid of boxes
+
+The library works like the digests: a grid of 12 columns, and each box is moved, resized,
+added and removed by mouse, finger or keyboard, with Undo. Each person's layout is kept for
+them in Cabinet (`cabinet.mine`, key `apple-notes-library-layout@1`), so it follows them.
+**Layout** turns on editing (Add a box, Undo, Reset to default, Done). **Ideas** shows every
+idea with its picture: ask now, switch it on as a routine (shown in the chat to approve
+first), or add it as a box. Every idea only reads: the answer comes in the chat, and no note
+changes.
+
+The boxes, by id:
+
+| Id | Box | From `latest.json` |
+|---|---|---|
+| `n-notes`, `n-topics`, `n-sorted` | The numbers: notes looked through, topics, notes sorted into topics (on the page at first) | `totals`, `topics` |
+| `topics` | Topics: cards on a large box, rows on a medium one, each one tap from a question (on the page at first) | `topics` |
+| `tidy` | Worth tidying in Apple Notes (on the page at first; it shows only when there is something to tidy) | `tidy` |
+| `ask` | Ask about your notes (on the page at first) | nothing |
+| `ideas` | All ideas (on the page at first) | nothing |
+| `idea-again`, `idea-week`, `idea-people`, `idea-lists`, `idea-decisions` | One idea each | nothing |
+
+The ideas: Notes worth reading again, Your week in notes, Who you write about, Every list you
+keep, What you decided. Their pictures are small SVGs drawn in `index.html` itself, so they
+show on Cloud too. While the first build reads, the reading takes the place of the grid, and
+the gift and the offers kept afterwards sit above it.
+
 ## The first build
 
 The first time the routine runs (there is no `latest.json` yet), the person is usually
