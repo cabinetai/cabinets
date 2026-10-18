@@ -210,6 +210,12 @@ function who(c, m) {
 function needs() {
   const c = cache();
   const open = c.mentions.filter((m) => !m.answered);
+  const quotes = c.mentions.filter((m) => m.kind === "quote");
+  if (quotes.length) {
+    say(`Quotes of your posts (give each a gist in latest's "quoted"):`);
+    for (const m of quotes) say(`${m.ref} · ${who(c, m).name} · "${short(m.text, 160)}"`);
+    say("");
+  }
   if (!open.length) { say("Nobody is waiting: every mention was answered, or there were none."); return; }
   say(`${plural(open.length, "mention", "mentions")} not answered, oldest first:`);
   for (const m of open) {
@@ -375,6 +381,14 @@ function latest(arg) {
     };
   });
 
+  const quotedGists = {};
+  for (const q of Array.isArray(l.quoted) ? l.quoted : []) {
+    if (!q || !q.id) continue;
+    if (!c.mentions.some((m) => m.ref === q.id && m.kind === "quote")) stop(`${q.id} is not a quote of the person's post. Use a ref that \`needs\` shows as a quote.`);
+    if (!q.gist || typedNumber(q.gist)) stop(`${q.id}: give the quote a gist with no numbers.`);
+    quotedGists[q.id] = String(q.gist).trim();
+  }
+
   const n = counts(c);
   const p = pulse(c);
   const listed = new Set(waiting.map((w) => w.id));
@@ -389,9 +403,98 @@ function latest(arg) {
     pulse: p,
     cost: cost(c),
     waiting,
+    quoted: quotedOf(c, quotedGists),
+    posts: postsOf(c),
+    regulars: regularsOf(c),
+    skip: skipOf(c, listed),
   };
   writeJson(path.join(DATA, "latest.json"), out);
   say(`Page written: ${plural(waiting.length, "person", "people")} waiting, headline "${out.headline}".`);
+}
+
+// The other boxes come from what `start` already read, so they cost nothing more.
+
+function whoOut(u) {
+  return { name: u.name, username: u.username, verified: !!u.verified, pic: /^https:\/\/pbs\.twimg\.com\//.test(u.pic || "") ? u.pic : "" };
+}
+
+/** Quotes of the person's posts, newest first, with the agent's gist when it gave one. */
+function quotedOf(c, gists) {
+  return c.mentions
+    .filter((m) => m.kind === "quote")
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, 6)
+    .map((m) => {
+      const u = who(c, m);
+      const about = m.about && c.others[m.about] ? { text: c.others[m.about].text, at: c.others[m.about].at, link: postLink(ME_NAME, m.about) } : null;
+      return {
+        id: m.ref, postId: m.postId, who: whoOut(u), said: m.text, at: m.at, answered: m.answered,
+        metrics: { replies: m.metrics.reply_count || 0, reposts: m.metrics.retweet_count || 0, likes: m.metrics.like_count || 0, views: m.metrics.impression_count || 0 },
+        about, gist: gists[m.ref] || "", link: postLink(u.username, m.postId),
+      };
+    });
+}
+
+/** The person's own posts since the window opened, newest first, and how many mentions each drew. */
+function postsOf(c) {
+  return c.own
+    .filter((o) => !o.replyTo)
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, 5)
+    .map((o) => ({
+      postId: o.id, text: o.text, at: o.at,
+      metrics: { replies: o.metrics.reply_count || 0, reposts: o.metrics.retweet_count || 0, likes: o.metrics.like_count || 0, quotes: o.metrics.quote_count || 0 },
+      open: c.mentions.filter((m) => m.conv === o.conv && !m.answered).length,
+      link: postLink(ME_NAME, o.id),
+    }));
+}
+
+/** Who wrote to the person most, and how many of theirs are still unanswered. */
+function regularsOf(c) {
+  const by = {};
+  for (const m of c.mentions) {
+    if (BOT_NAME.test((c.users[m.authorId] || {}).username || "") || shortPost(m.text)) continue;
+    const r = (by[m.authorId] ||= { count: 0, open: 0, last: m.at });
+    r.count += 1;
+    if (!m.answered) r.open += 1;
+    if (Date.parse(m.at) > Date.parse(r.last)) r.last = m.at;
+  }
+  return Object.entries(by)
+    .filter(([, r]) => r.count > 1 || r.open > 0)
+    .sort((a, b) => b[1].count - a[1].count || Date.parse(b[1].last) - Date.parse(a[1].last))
+    .slice(0, 5)
+    .map(([id, r]) => ({ ...whoOut(c.users[id] || { name: "Someone on X", username: "unknown" }), count: r.count, open: r.open, last: r.last }));
+}
+
+/** An account that calls itself a bot. */
+const BOT_NAME = /bot\b|_bot|bot_/i;
+
+/** A mention with almost no words of its own: "gm", a thank-you, a lone emoji. */
+function shortPost(text) {
+  const own = String(text || "").replace(/@\w+/g, "").replace(/https?:\/\/\S+/g, "").replace(/[\s\p{P}\p{Extended_Pictographic}]/gu, "");
+  return own.length < 6 || /^(gm|gn|ty|thanks?|thankyou|lol|wow|nice|congrats)+$/i.test(own);
+}
+
+/** The unanswered mentions left off Waiting on you, counted by why they can wait. */
+function skipOf(c, listed) {
+  const left = c.mentions.filter((m) => !m.answered && !listed.has(m.ref));
+  const perAuthor = {};
+  for (const m of c.mentions) perAuthor[m.authorId] = (perAuthor[m.authorId] || 0) + 1;
+  const reason = (m) => {
+    const u = c.users[m.authorId] || {};
+    if (BOT_NAME.test(u.username || "") || (perAuthor[m.authorId] > 3 && /https?:\/\//.test(m.text))) return "bots";
+    if (shortPost(m.text)) return "short";
+    return "other";
+  };
+  const out = { count: left.length, bots: 0, short: 0, other: 0, examples: [] };
+  for (const m of left) {
+    out[reason(m)] += 1;
+    if (out.examples.length < 4) {
+      const u = who(c, m);
+      out.examples.push({ name: u.name, username: u.username, said: short(m.text, 120), link: postLink(u.username, m.postId) });
+    }
+  }
+  return out;
 }
 
 function status(ok, why) {

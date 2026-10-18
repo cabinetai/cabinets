@@ -87,6 +87,14 @@ the ones setup.md names first, otherwise oldest first.
 - `headline`: one sentence, plain and true, about what matters most this morning, no numbers
   except clock times.
 
+## The other boxes
+
+The person can turn on more boxes: Your posts, Quoted you, Who talks to you most and Safe to
+skip. The helper fills them from what it already read, so they cost nothing more. Your only
+part: `needs` lists every quote of the person's posts first; give each one a `gist` in
+`quoted` (what they think of the post, one plain line, no numbers), even quotes already
+answered. Leave out an abusive quote.
+
 ## The first reading: getting to know them
 
 When `catch-up/data/profile.json` is not there, this is their first morning with you, and they
@@ -118,5 +126,6 @@ Then `latest` and `done`. No lines, no gift.
 {"headline":"Rina from the Weekend Table needs a yes today to feature your focaccia.",
  "person":{"name":"Maya"},
  "waiting":[{"id":"m14","gist":"Wants to feature your focaccia this Sunday, needs a yes today","urgent":true,
-   "reply":"Hi Rina, I would love that! Yes from me. [Do you need photos from me?]"}]}
+   "reply":"Hi Rina, I would love that! Yes from me. [Do you need photos from me?]"}],
+ "quoted":[{"id":"m9","gist":"Loves the sourdough thread and asks for a gluten free version"}]}
 ```

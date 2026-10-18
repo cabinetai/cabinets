@@ -33,6 +33,19 @@ skipped, more }`, `pulse { start, stepHours, counts[], you[] }` (the banner's do
   post it answers or quotes), `gist`, `urgent`, `reply` (a draft in the person's voice, at
   most 280 characters, `[brackets]` for what they must fill in), `link`.
 
+- `quoted[]`: quotes of the person's posts, newest first, at most six: `id`, `postId`, `who`,
+  `said`, `at`, `answered`, `metrics`, `about`, `gist` (the agent's line), `link`.
+- `posts[]`: the person's own posts in the window, not replies, newest first, at most five:
+  `postId`, `text`, `at`, `metrics { replies, reposts, likes, quotes }`, `open` (mentions in
+  that thread still unanswered), `link`.
+- `regulars[]`: who wrote most, bots and "gm" left out, at most five: `name`, `username`,
+  `verified`, `pic`, `count`, `open`, `last`.
+- `skip { count, bots, short, other, examples[] {name, username, said, link} }`: the
+  unanswered mentions left off Waiting on you, by why they can wait.
+
+Which boxes show, and in what order, is each person's own choice (Edit layout), saved with
+`cabinet.mine` under `x-digest-layout@1`. Waiting on you and Ask always stay.
+
 Links are kept only when they open X (`https://x.com/...`), and pictures only from X's own
 image host. **Reply on X** opens `https://x.com/intent/post?in_reply_to=<postId>&text=<reply>`,
 so X shows the reply ready and the person presses Post. Nothing is ever posted by Cabinet.

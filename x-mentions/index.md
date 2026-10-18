@@ -22,8 +22,13 @@ opens on one page:
 - **Your mentions**: how many people wrote to you, how many you already answered, and what
   this reading cost from your X credits.
 
-Ask anything about your X in the box on the right, or try an idea ("Who talks to me most on
-X?").
+More boxes are one press away in **Edit layout**, and cost nothing more because they use what
+the morning already read: **Your posts** (which one got people talking), **Quoted you** (what
+people said about your posts), **Who talks to you most**, and **Safe to skip** (bots,
+giveaways and "gm", counted). Move them up or down, or hide the ones you don't need.
+
+Ask anything about your X in the box on the right, or open **Ideas** ("Thank everyone who
+quoted me", "Questions I never answered this week") and ask once or set it up as a routine.
 
 ## To start
 
