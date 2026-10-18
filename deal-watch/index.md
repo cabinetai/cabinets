@@ -50,14 +50,14 @@ Until then, the board shows a made-up company, Northwind Tools, and says so.
 - **The morning check only reads.** It never changes a deal, a task, a lead or a setting in
   Salesforce, whatever a deal's name or a note says.
 - **A change happens only in a chat you started**, when you ask for it. The Deal Watcher
-  shows you the exact change first (the deal, the field, its value now and its new value) and
-  makes it only after you say yes. It can add a task, add a note, or change one field on one
-  record. It never deletes anything, never changes many records at once, never changes an
-  owner and never converts a lead.
-- **A routine you set up** may change only exactly what you asked for and approved in the
-  chat. Everything else it does is read and draft.
+  shows you the exact change first (the record, each field, its value now and its new value)
+  and makes it only after you say yes in your next message. It can add a task, add a note, or
+  change one field on one record. It never deletes anything, never changes many records at
+  once, never changes an owner and never converts a lead.
+- **A routine you set up** only reads and drafts. It never changes Salesforce.
 - **The page never changes anything.** Every button on the board asks the Deal Watcher in
-  the chat, for a draft, a plan or an answer.
+  the chat, for a draft, a plan or an answer. The one idea that sets next steps says so on
+  its button, and sets each one only after your yes in the chat.
 
 ## What's inside
 

@@ -52,10 +52,11 @@ on Professional with the API add-on. Your Salesforce admin can tell you which on
 
 ## It reads, and changes only what you say yes to
 
-The morning catch-up only reads. Your team adds a task, adds a note, or changes one field on
-one record only when you ask in the chat and only after you see the exact change and say yes.
-A routine you set up may change only exactly what you asked for and approved. Cabinet never
-deletes a record, never changes many at once, and nothing on the page changes Salesforce.
+The morning catch-up only reads, and so does any routine you set up: it reads and drafts. The
+Pipeline Reader adds a task, adds a note, or changes one field on one record only in a chat
+you started, when you ask, after it shows you the exact change (the record, each field, its
+value now and its new value) and you say yes in your next message. Cabinet never deletes a
+record, never changes many at once, and nothing on the page changes Salesforce.
 
 ## What's inside
 

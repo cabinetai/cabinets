@@ -851,7 +851,9 @@
    * a box and offers itself there when the board says it would help (see IDEA_FITS); each can
    * also be its own box, and all of them are always in the Ideas panel. Every one makes
    * something (a draft, a plan, a list, a page) in the chat. None of them changes Salesforce on
-   * its own: a routine only reads and drafts (`routine` is its prompt when it differs).
+   * its own: a routine only reads and drafts (`routine` is its prompt when it differs). The one
+   * that can change Salesforce, in the chat after a yes for each change, says so on its press
+   * (`act`).
    */
   var IDEAS = [
     { id: "nudges", box: "needs", icon: "i-pen", art: "ideas/nudges.jpg", title: "Draft a nudge for each slipping deal",
@@ -866,7 +868,7 @@
       text: "One next step proposed for each open deal that has none. Each is set in Salesforce only after you say yes to it.",
       ask: "List my open deals in Salesforce with no next step. For each one, read its latest activity and propose one next step in a few words. Then go through them with me one deal at a time, and set a next step in Salesforce only after I say yes to it.",
       routine: "List my open deals in Salesforce with no next step, and propose one next step for each in a few words, for me to look at. Do not change anything in Salesforce.",
-      when: "Every Monday", at: "every Monday at 8:45 am" },
+      act: "Set next steps with me", when: "Every Monday", at: "every Monday at 8:45 am" },
     { id: "calls", box: "needs", icon: "i-users", art: "ideas/calls.jpg", title: "Call list for untouched leads",
       text: "Every new lead nobody has called or emailed, oldest first, with where they came from and a line to open each call.",
       ask: "From Salesforce, list my leads from the last 30 days that nobody has called, emailed or met yet, oldest first. For each, give the name, the company, where they came from, and one line I can open the call with. Make it a short call list I can work through today. Do not change anything in Salesforce.",
@@ -1955,7 +1957,7 @@
         var fit = IDEA_FITS[idea.id] ? IDEA_FITS[idea.id](facts) : null;
         return '<li><span class="ic" aria-hidden="true">' + icon(idea.icon) + "</span>" +
           "<div><b>" + esc(idea.title) + "</b>" + (level === "L" ? '<span dir="auto">' + esc(fit ? "Today: " + fit.line : idea.text) + "</span>" : "") + "</div>" +
-          '<button class="btn small" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask</button></li>";
+          '<button class="btn small" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + esc(idea.act || "Ask") + "</button></li>";
       }).join("") + "</ul>",
       "Every idea is hidden from the page. Find them under Ideas.");
   }
@@ -1967,7 +1969,7 @@
     var art = idea.art && level !== "S" ? '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>' : "";
     return '<div class="one-idea">' + art + "<h3>" + esc(idea.title) + "</h3>" +
       (level === "S" ? "" : fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "<p>" + esc(idea.text) + "</p>") +
-      '<div class="go"><button class="btn small dark" data-act="idea-now" data-idea="' + idea.id + '"' + (fit && fit.ask ? ' data-fit="1"' : "") + (can ? "" : " disabled") + ">" + icon("i-send") + esc(fit && level !== "S" ? fit.act : "Ask now") + "</button>" +
+      '<div class="go"><button class="btn small dark" data-act="idea-now" data-idea="' + idea.id + '"' + (fit && fit.ask ? ' data-fit="1"' : "") + (can ? "" : " disabled") + ">" + icon("i-send") + esc(fit && level !== "S" ? fit.act : idea.act || "Ask now") + "</button>" +
       (level === "S" ? "" : '<button class="btn small" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + "Do this " + esc(routineWords(idea)) + "</button>") +
       "</div></div>";
   }
@@ -2012,7 +2014,7 @@
     },
     steps: function (f) {
       var n = f.noStep.length;
-      return n ? { line: n === 1 ? "A deal on the board has no next step. Propose one?" : n + " deals on the board have no next step. Propose one for each?", act: "Propose next steps" } : null;
+      return n ? { line: n === 1 ? "A deal on the board has no next step. Propose one?" : n + " deals on the board have no next step. Propose one for each?", act: "Set next steps with me" } : null;
     },
     calls: function (f) {
       var n = f.leads.length;
@@ -2171,7 +2173,7 @@
           "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
           (fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "") +
           (off ? '<div class="off-note">Hidden from your page<button type="button" class="btn quiet" data-act="idea-unhide" data-idea="' + idea.id + '">Show on my page</button></div>' : "") +
-          '<div class="go"><button class="btn dark" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
+          '<div class="go"><button class="btn dark" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + esc(idea.act || "Ask now") + "</button>" +
           '<button class="btn" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + "Do this " + esc(routineWords(idea)) + "</button></div>" +
           (state.data ? (boxed ? '<p class="fine" style="margin:0;color:var(--green-ink);font-weight:700">' + icon("i-check") + " On your page as a box</p>"
             : '<button type="button" class="btn quiet small" data-act="add-this" data-add="idea-' + idea.id + '">' + icon("i-plus") + "Add it to my page as a box</button>") : "") +

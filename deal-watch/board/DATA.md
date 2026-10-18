@@ -60,7 +60,9 @@ offers to add the Salesforce address.
 
 Nothing on the page changes anything in Salesforce. Every button asks the agent in the chat
 for a draft, a plan or an answer. A change happens only in that chat, when the person asks
-for it, after the agent shows the exact change and they say yes.
+for it, after the agent shows the exact change and they say yes in their next message. The
+one idea that asks for changes, Next steps for deals without one, says so on its button
+("Set next steps with me"), and its routine only proposes them.
 
 The first check (no `latest.json` yet) is told as it happens. The agent runs
 `node board/first-read.mjs start`, then `push '<line>'` after each query that found
