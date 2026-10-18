@@ -113,7 +113,11 @@ string, numbers included. With two or more date ranges each row also carries the
 fraction (`0.62` is 62%); durations are seconds. No `rows` means no data for that range,
 not an error.
 
-**Errors.** `401` on the first call: Google needs a new sign-in. `403` with
+**Errors.** When a run has to stop, it writes only `status.json`, with `ok: false` and one
+plain `why`, keeps `latest.json` as it was, and stops (after `done` on a first catch-up). No
+`analytics=` in `CABINET_GOOGLE_ACCESS`: `why` "Google Analytics isn't connected yet." `401`
+on the first call: `why` "Google needs a new sign-in." An account list with no property in it
+at all: `why` "This Google account has no website in Google Analytics." `403` with
 `PERMISSION_DENIED` on one property: its reports can't be read with this account (Google's
 public demo account answers this way); try the next, and leave it out of `others`. When every
 property answers it, write `ok: false` with `why` "Google Analytics shows your sites, but
@@ -125,7 +129,11 @@ sign-in does not fix it; write `ok: false` with `code` `"SERVICE_DISABLED"` and 
 Google Analytics API is turned off in your Google Cloud project." and stop. `429` with
 `RESOURCE_EXHAUSTED`: the property's quota for now is used up; finish with what you have.
 `400` `INVALID_ARGUMENT` names what Google could not combine: drop that one and try once
-more. A `5xx`: try once more after a few seconds. Never retry more than once.
+more. A `5xx`: try once more after a few seconds. Never retry more than once. A report
+that still fails (a `429`, or a `5xx` twice) is left out: write the catch-up from what you
+have, with `ok: true` and a `why` that says what is missing, for example "Google Analytics
+was busy: the pages may be missing". Anything else that keeps Google Analytics from being
+read at all: a plain `why`, and stop.
 
 **Quota.** A property allows about 40,000 quota tokens an hour, shared with every app the
 person uses; a plain report costs about ten. A catch-up is the seven reports above and no
@@ -204,12 +212,31 @@ is `[]`). `EXAMPLE-latest.json` shows each one filled.
 The page writes its own headline and the line under it from `totals` and `changes`. Never
 write `headline` or `lead`.
 
+## A catch-up, start to end
+
+Start with one command, from the cabinet root (never `cd`): print the time with its offset
+(`date '+%Y-%m-%dT%H:%M:%S%z'`, or `Get-Date -Format o` in PowerShell), list
+`your-website/data/`, read `property.json` there if it exists, and print
+`CABINET_GOOGLE_ACCESS`. Then find the website and read the seven reports. Everything in
+`latest.json` is worked out from those reports with no more calls, and every number in it
+is from this run.
+
+Write `latest.json` first and check that it parses:
+`node -e "JSON.parse(require('fs').readFileSync('your-website/data/latest.json','utf8'))"`
+works on every system. Fix it until it does, then copy it to
+`days/<today's local date>.json`, delete day files older than 30 days, and write
+`status.json`.
+
+End the run with one or two plain sentences about their website and nothing else: how many
+people visited in the last 7 days against the week before, and the biggest change.
+
 ## The first catch-up: telling it as you go
 
 When `your-website/data/latest.json` is not there yet, this is the person's first catch-up
 and they are likely watching the page, which still shows a made-up bakery. Tell them what
 you find as you find it, so the first minutes feel like someone reading their website for
-them. Every later catch-up stays as it is: no helper, no lines.
+them. Every later catch-up stays as it is: no helper, no lines. The first catch-up itself does
+every step of any other catch-up; the helper and its lines come on top.
 
 **Use the helper, always.** `node your-website/first-read.mjs`, run from the cabinet root
 (never `cd`), does all the writing; never write `reading.json` yourself.
