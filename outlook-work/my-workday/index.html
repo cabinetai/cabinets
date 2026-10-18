@@ -1174,6 +1174,15 @@
   function bareClock(d) { return clock(d).replace(/\s?[AaPp]\.?\s?[Mm]\.?$/, ""); }
   function shortDate(d) { return d.toLocaleDateString([], { month: "short", day: "numeric" }); }
   function weekdayDate(d) { return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }); }
+  /** "today", "tomorrow", "Thursday", "Oct 24": a day in words, from `ref`. */
+  function dayWords(d, ref) {
+    var gap = daysBetween(ref, d);
+    if (gap === 0) return "today";
+    if (gap === 1) return "tomorrow";
+    if (gap === -1) return "yesterday";
+    if (gap > 1 && gap < 7) return d.toLocaleDateString([], { weekday: "long" });
+    return shortDate(d);
+  }
 
   /** "7:02 this morning", "yesterday at 7:02 AM", "Tuesday at 7:02 AM", "Sep 12". */
   function whenWords(d, now) {
@@ -1618,12 +1627,12 @@
     }
     if (g.kind === "prep") {
       var withWho = g.people.length ? "with " + names(g.people.concat(g.morePeople ? [g.morePeople + " more"] : [])) : "";
-      var today = sameDay(g.start, new Date());
+      var day = dayWords(g.start, new Date());
       return {
-        head: "Next up: <b>" + esc(g.title) + "</b>, " + (today ? "at " : "tomorrow at ") + esc(clock(g.start)) + ".",
+        head: "Next up: <b>" + esc(g.title) + "</b>, " + (day === "today" ? "" : esc(day) + " ") + "at " + esc(clock(g.start)) + ".",
         about: [withWho + (g.place ? (withWho ? ", " : "") + g.place : ""), g.mailWho ? g.mailWho + " wrote about it: " + (g.mailSubject || "an email") : g.gist],
         button: "Get me ready", icon: "i-briefcase",
-        ask: "Get me ready for my meeting \"" + g.title + "\" at " + clock(g.start) + (today ? " today" : " tomorrow") + ". Read the invite and the recent emails with " + (g.people.join(", ") || "the guests") +
+        ask: "Get me ready for my meeting \"" + g.title + "\" " + day + " at " + clock(g.start) + ". Read the invite and the recent emails with " + (g.people.join(", ") || "the guests") +
           " about it. Tell me in five short lines what it is about, what was asked of me, and what to bring or decide. Change nothing in Outlook.",
         fine: "It only reads your mail and calendar."
       };
@@ -1670,6 +1679,7 @@
     var g = state.reading && state.reading.gift;
     var at = g ? writtenAt(g.at) : null;
     var show = !!(g && at && state.mineReady && state.giftDone !== g.at && (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY_MS &&
+      !(g.kind === "prep" && g.start <= new Date()) &&
       !state.example && !readingNow() && !revealing());
     el.hidden = !show;
     el.innerHTML = show ? giftHtml(g, "keep") : "";
