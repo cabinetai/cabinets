@@ -222,6 +222,46 @@ messaging app, to pay a fee to be featured, to buy followers, or that promises c
 giveaway is `Spam`, not `Business`. A viewer offering to help for free, or asking for a
 shout-out, is left out.
 
+## The daily check
+
+The scheduled check reads YouTube and brings the board up to date, in this order. Work from
+the cabinet root and never `cd`.
+
+1. Note the time now, in UTC. Read `board/data.json` if it is there, and read
+   `CABINET_GOOGLE_ACCESS` from the environment (`$CABINET_GOOGLE_ACCESS`, or
+   `$env:CABINET_GOOGLE_ACCESS` in Windows PowerShell). With no `board/data.json`, this is
+   the first check: start the file with empty `items` and `known`, and tell it as you go
+   (see "The first check" below).
+2. Read the channel once, one page of 50 from the uploads playlist, and the 10 newest
+   uploads in a single `videos` call. Work out `usual.viewsPerDay` and compare each video
+   with it, and with its views in `known`, for `Drop` items.
+3. Read the comments with the `commentThreads` path above. Page on until you reach
+   `cursor` (on the first check, until the comments are older than 14 days), at most 10
+   pages either way.
+4. Sort each new comment: leave it out, join it to an item already on the board, or start a
+   new item. Look again at the `Waiting` items: take off the ones the channel answered, and
+   add questions that have now waited more than 3 days. Take off the settled items. Then
+   bring counts, dates and levels up to date.
+5. Set `cursor` to the `publishedAt` of the newest comment you read (keep the old one when
+   nothing is new), `generated` to now, `known` to today's views and `status` to `"ok"`.
+   Write the whole file back and check that it parses as JSON.
+6. End with one or two plain sentences about the channel and nothing else: how many things
+   need a look, the most urgent one if there is one, and how many business asks came in.
+
+When something gets in the way, `status` says so in these exact words, which the board
+shows to the person:
+
+- No `youtube=` in `CABINET_GOOGLE_ACCESS`: YouTube is not connected. Set
+  `"YouTube isn't connected yet"`, write the file and stop.
+- The first call answers `401`: set `"Google needs a new sign-in"`, write the file and stop.
+- `youtube=read`: comments can't be read at that level, so skip steps 3 and 4. Keep the
+  items and `cursor` as they are, update only the `Drop` items, and set
+  `"Comments need the YouTube comments level: in Cabinet, open Integrations, then YouTube, and choose Allow comments"`.
+- `quotaExceeded`: stop calling YouTube, write the board from what you have, and set
+  `"YouTube's daily limit was reached: some comments may be missing"`.
+- YouTube can't be reached at all: set a short phrase naming the problem, keep everything
+  else in the file as it was, and stop.
+
 ## The first check: telling it as you go
 
 When `board/data.json` is not there yet, this is the person's first check and they are
