@@ -101,6 +101,12 @@ Analytics (visitors and where they came from), "Instagram" and "TikTok" (how the
 latest posts did). A missing number is "not there yet", never a guess. Never print a
 token or an address with a key in it.
 
+LinkedIn lets Cabinet read only who is signed in, never posts, comments or numbers, so
+its section "LinkedIn" is short: who is signed in, and, when a LinkedIn Posts cabinet
+sits in this workspace, how many drafts in its `drafts/` folder still wait for a yes
+(status `draft` or `approved`). Nothing waiting is "Nothing needs you." You never
+publish, there or anywhere.
+
 ## Lead and verdict
 
 The one thing across every source that most deserves action today, or nothing.
