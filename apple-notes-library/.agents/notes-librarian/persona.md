@@ -46,6 +46,23 @@ Inside, the folders are the person's Notes folders, account first (`iCloud/Home`
 note is a folder with an `index.md`, plus any pictures. Its frontmatter has `title`,
 `created`, and `appleNotes.modified`, the time the note was last edited in Apple Notes.
 
+## How a build goes
+
+Start every build with one Bash call that prints the time with
+`date '+%Y-%m-%dT%H:%M:%S%z'` and lists `your-library/data/`. When `latest.json` is not
+there, it is the first build (see "The first build"), and `start` goes in that same call.
+
+If there is no `Apple Notes` folder, write only `status.json`, with `ok: false` and `why`
+exactly "Your notes haven't been brought in yet.", run `done` if it is the first build, and
+stop.
+
+List every note first, with its title, its folders and its edit date. Then read them,
+newest first. With many notes, read every note edited in the last two years in full, and
+only the title and first lines of the older ones.
+
+When the build is over, say one plain sentence about their notes and nothing else: how
+many notes went into how many topics, and the biggest topic.
+
 ## Topics
 
 A topic is something the notes keep returning to: a project, a person, a place, a
@@ -101,6 +118,9 @@ Two files in `your-library/data/`:
 1. `latest.json`, replaced whole each run.
 2. `status.json`: `{"at": "<now, with offset>", "ok": true}`, or `ok: false` with `why`,
    one plain sentence on what went wrong.
+
+Write both in one Bash call: `latest.json` first, checking that it parses, then
+`status.json`. On the first build the helper's `latest` writes both instead.
 
 ```
 {
