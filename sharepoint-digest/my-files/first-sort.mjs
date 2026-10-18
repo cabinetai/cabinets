@@ -67,7 +67,7 @@ const savedList = path.join(workDir, ".saved.json");
 const pathsFile = path.join(workDir, ".paths.json");
 const modeFile = path.join(workDir, ".mode.json");
 const changesFile = path.join(workDir, ".changes.json");
-const HOUR = 3600000, DAY = 86400000;
+const DAY = 86400000;
 
 // ── Time, in this machine's zone (the person's own) ──
 const pad = (n) => String(Math.floor(Math.abs(n))).padStart(2, "0");
