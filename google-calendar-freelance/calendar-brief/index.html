@@ -2905,8 +2905,10 @@
   function clientHours() {
     var f = state.facts;
     var nowM = nowMinutes();
-    var gen = (state.data && state.data.generatedAt) || "";
-    var runM = f.days.length && gen.slice(0, 10) === f.days[0].key ? Number(gen.slice(11, 13)) * 60 + Number(gen.slice(14, 16)) : 0;
+    // generatedAt has the helper machine's offset (a cloud runner may be on UTC): read it on
+    // this browser's clock, the same one as the day keys and nowMinutes().
+    var gen = new Date((state.data && state.data.generatedAt) || "");
+    var runM = f.days.length && ymd(gen) === f.days[0].key ? gen.getHours() * 60 + gen.getMinutes() : 0;
     var seen = {}, booked = {}, since = {};
     f.days.forEach(function (d, i) {
       d.events.forEach(function (e) {
@@ -3070,6 +3072,7 @@
   // person in cabinet.mine) and the next one moves up.
 
   var DONE_KEY = "calendar-week-done@1";
+  var ROUTINE_DAYS = 3;       // a title on this many days of the week is a routine
   function todayKey() { return ymd(new Date()); }
   function readyThings() {
     var f = state.facts;
@@ -3081,7 +3084,7 @@
     f.days.forEach(function (d) { d.events.forEach(function (e) { var k = e.title.toLowerCase(); times[k] = (times[k] || 0) + 1; }); });
     f.days.slice(0, 2).forEach(function (d, di) {
       d.events.forEach(function (e) {
-        if (!withPeople(e) || e.day !== d.key || times[e.title.toLowerCase()] >= 3 || isNow(e)) return;
+        if (!withPeople(e) || e.day !== d.key || times[e.title.toLowerCase()] >= ROUTINE_DAYS || isNow(e)) return;
         var who = whoWords(e);
         if (!hasEnded(e)) {
           out.push({ key: pre + "prep:" + e.id + ":" + e.day, rank: 0, order: di * 1440 + e.start, title: "Prepare for " + e.title,
@@ -3234,7 +3237,7 @@
   function worthHelp(f) {
     var times = {};
     f.days.forEach(function (d) { d.events.forEach(function (e) { var k = e.title.toLowerCase(); times[k] = (times[k] || 0) + 1; }); });
-    return function (e) { return withPeople(e) && (times[e.title.toLowerCase()] || 0) < 3; };
+    return function (e) { return withPeople(e) && (times[e.title.toLowerCase()] || 0) < ROUTINE_DAYS; };
   }
   var IDEA_FITS = {
     prep: function (f) {
