@@ -134,6 +134,28 @@ button { font: inherit; color: inherit; }
 .reading .fine { color: var(--night-2); margin-top: 18px; }
 .pulse-dot { width: 10px; height: 10px; margin: 5px 4px 0; border-radius: 50%; background: var(--blue); flex-shrink: 0; animation: beat 1.4s ease-in-out infinite; }
 @keyframes beat { 50% { opacity: .35; transform: scale(.8); } }
+/* While the first reading runs, it is the whole page: no made-up example under it, and it
+   fills the window: the reading on the left in Lights out, the gift on the right. */
+.first-read #ribbon, .first-read #page, .first-read #gift-keep, .first-read #welcome { display: none !important; }
+.first-read .app { min-height: 100vh; max-width: none; padding-inline: clamp(16px, 2.2vw, 28px); }
+.first-read #hero { flex: 1; display: flex; flex-direction: column; }
+.first-read .read-page { flex: 1; }
+@media (min-width: 900px) {
+  .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 20px; min-height: calc(100vh - 110px); }
+  .read-page .reading { display: flex; flex-direction: column; padding: 40px clamp(28px, 3.4vw, 52px); }
+  .read-page .reading h2 { font-size: clamp(40px, 4vw, 56px); }
+  .read-page .read-lines li { font-size: 17.5px; }
+  .read-page .gift { justify-content: center; padding: 40px clamp(24px, 3.4vw, 52px); }
+  .read-page .gift h3 { font-size: clamp(30px, 3vw, 42px); max-width: 22ch; }
+  .read-page .gift.looking { flex-direction: column; background: transparent; border-style: dashed; }
+  .read-page .gift.looking h3 { color: var(--ink-3); font-size: clamp(26px, 2.6vw, 34px); }
+}
+@media (max-width: 899px) { .read-page .gift.looking { display: none; } }
+/* The night fills up as it reads: more mentions light up with every line, the ones for you in blue. */
+.read-sky { margin-top: auto; padding-top: 28px; display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 10px 4px; align-items: end; }
+.read-sky i { width: 8px; height: 8px; border-radius: 50%; justify-self: center; background: #1d1f22; transition: background .6s, box-shadow .6s; }
+.read-sky i.lit { background: #4a4e52; }
+.read-sky i.you { background: var(--blue); box-shadow: 0 0 0 3px rgba(29, 155, 240, .25); }
 .read-strip { display: flex; gap: 8px; align-items: center; background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; color: var(--ink-2); }
 
 .gift { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sheet); padding: 22px; display: flex; flex-direction: column; gap: 10px; }
@@ -736,11 +758,26 @@ button { font: inherit; color: inherit; }
       "<p>Looking at the last week of your mentions and your own posts. About a minute. You don't need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your X") + "...</span></li></ul>" +
-      '<p class="fine">Only reads. Nothing is posted, liked or followed.</p></div>' +
+      '<p class="fine">Only reads. Nothing is posted, liked or followed.</p>' + skyHtml(lines.length, done, !!gift) + "</div>" +
       (gift ? giftHtml(gift, "reading")
         : done ? ""
         : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for the one person who most needs your answer.</h3></section>') +
       "</div>";
+  }
+
+  /**
+   * A week of nights as dots, lighting up as the reading goes on: each line lights more of
+   * them, and a few turn blue once someone waiting is found. A picture of reading, not data.
+   */
+  function skyHtml(shown, done, found) {
+    var share = done ? 1 : Math.min(0.92, (shown + 1) / 6);
+    var dots = "";
+    for (var i = 0; i < 120; i++) {
+      var h = Math.abs(Math.sin(i * 12.9898 + 78.233) * 43758.5453) % 1;
+      var cls = found && h < 0.05 * share ? "you" : h < share * 0.7 ? "lit" : "";
+      dots += cls ? '<i class="' + cls + '"></i>' : "<i></i>";
+    }
+    return '<div class="read-sky" aria-hidden="true">' + dots + "</div>";
   }
 
   function cleanProfile(d) {
@@ -1080,6 +1117,7 @@ button { font: inherit; color: inherit; }
   }
 
   function paint() {
+    document.documentElement.classList.toggle("first-read", !!((state.running && (state.example || !state.data)) || revealing()));
     paintHero();
     paintGiftKeep();
     paintWelcome();
