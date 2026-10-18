@@ -1,6 +1,6 @@
 ---
 title: "Transcript: Pricing Your First Product (Without Guessing)"
-source: linkedin
+source: instagram
 video_id: EXAMPLE
 language: "en"
 example: true

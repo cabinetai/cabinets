@@ -1,7 +1,7 @@
 ---
 title: "Pricing Your First Product (Without Guessing)"
-channel: "Maker Notes"
-link: https://www.linkedin.com/posts/EXAMPLE
+channel: "@makernotes"
+link: https://www.instagram.com/reel/EXAMPLE/
 madeBy: video-librarian
 example: true
 ---

@@ -1,9 +1,9 @@
 ---
 title: "Pricing Your First Product (Without Guessing)"
-source: linkedin
+source: instagram
 video_id: EXAMPLE
-link: https://www.linkedin.com/posts/EXAMPLE
-channel: "Maker Notes"
+link: https://www.instagram.com/reel/EXAMPLE/
+channel: "@makernotes"
 duration: "24:30"
 uploaded: "2026-08-19"
 saved: "2026-10-12T06:15:00.000Z"
@@ -11,11 +11,11 @@ example: true
 ---
 # Pricing Your First Product (Without Guessing)
 
-EXAMPLE: a made-up post from a made-up page. Nothing was saved.
+EXAMPLE: a made-up post from a made-up account. Nothing was saved.
 
-- **Site:** LinkedIn
-- **Posted by:** Maker Notes
-- **Link:** https://www.linkedin.com/posts/EXAMPLE
+- **Site:** Instagram
+- **Posted by:** @makernotes
+- **Link:** https://www.instagram.com/reel/EXAMPLE/
 - **Length:** 24:30
 - **Uploaded:** 2026-08-19
 - **Transcript:** [transcript.md](./transcript.md) (English, captions written by a person)
