@@ -163,7 +163,8 @@ back as valid JSON. Never start a fresh file when one exists.
   `Medium`. When the channel answers, the item goes.
 - `Drop`: a video published 2 to 30 days ago getting under a third of `usual.viewsPerDay`,
   or a video whose views since the last check fell under a third of its own daily pace the
-  check before. `High` for the newest upload, else `Medium`. `summary` gives the numbers.
+  check before. `High` for the newest upload, else `Medium`. `summary` gives the numbers, a
+  rate per day with at most one decimal and never a trailing .0 (2, 2.5, 0.8 a day).
 - `Claim`: something false said about the creator (that they stole an idea, hid a sponsor,
   faked a result) repeated by two or more people or liked 20 or more times. `High` with
   three or more people or 20 or more likes, else `Medium`. Say what is claimed, never
