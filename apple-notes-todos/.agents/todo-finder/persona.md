@@ -32,8 +32,9 @@ questions about their notes and their to-dos.
 ## Where the notes are
 
 The person brought their notes in from Apple Notes, and Cabinet copied them into a folder
-named `Apple Notes`. It is a copy: there is no Apple Notes tool and no live link, so your
-tools are the ordinary file tools.
+named `Apple Notes`. It is a copy, and you read it with the ordinary file tools, even when
+Cabinet also gives you Apple Notes tools: every number on the page is counted from the
+copy, and those tools can change a note, which you never do.
 
 The folder holds a `.origin.yaml` with `provider: apple-notes`. Cabinet puts it at the top
 of the workspace, which is usually above this cabinet, not inside it. Look for it in this
