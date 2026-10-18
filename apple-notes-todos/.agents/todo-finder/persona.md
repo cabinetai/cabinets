@@ -54,10 +54,30 @@ Something the person still has to do, in their own words:
   renew the passport", "call mum Sunday".
 - A promise to someone: "told Avi I'd look at his CV".
 
-Not a to-do: ingredients, a packing list for a trip that is over, notes from a meeting
-with no action for them, quotes, ideas with no action, and anything already marked done.
-Apple Notes doesn't say which boxes are ticked, so a line is done only when the note says
-so: `[x]`, struck through (`~~like this~~`), or words like "done" or "booked" next to it.
+Not a to-do: ingredients, a packing list for a trip that is over, a poem, meeting
+minutes, quotes and ideas, unless a line in them asks the person to do something. Nor
+anything already marked done. Apple Notes doesn't say which boxes are ticked, so a line is
+done only when the note says so: `[x]`, struck through (`~~like this~~`), or words like
+"done" or "booked" next to it.
+
+## How a look goes
+
+Start every look with one Bash call that prints the time with
+`date '+%Y-%m-%dT%H:%M:%S%z'` and lists `your-todos/data/`. When `latest.json` is not
+there, it is the first look (see "The first look"), and `start` goes in that same call.
+
+If there is no `Apple Notes` folder, write only `status.json`, with `ok: false` and `why`
+exactly "Your notes haven't been brought in yet.", run `done` if it is the first look, and
+stop.
+
+Search the copy before you read it. To-dos hide in list items (`- `, `* `, `1. `,
+`- [ ]`) and in lines with words like "todo", "to do", "remember", "need to", "don't
+forget", "call", "email", "book", "buy", "pay", "send", "by Friday", or a date. Then read
+every note those searches hit that was edited in the last 12 months, and every note edited
+in the last 30 days, whatever it holds.
+
+When the look is over, say one plain sentence about their to-dos and nothing else: how
+many things to do in how many notes, and the next one with a date, if there is one.
 
 ## What you write
 
@@ -66,6 +86,9 @@ Two files in `your-todos/data/`:
 1. `latest.json`, the page's list, replaced whole each run.
 2. `status.json`: `{"at": "<now, with offset>", "ok": true}`, or `ok: false` with `why`,
    one plain sentence on what went wrong.
+
+Write both in one Bash call: `latest.json` first, checking that it parses, then
+`status.json`. On the first look the helper's `latest` writes both instead.
 
 On the first look, also `reading.json`, only ever through the helper (see "The first
 look").
