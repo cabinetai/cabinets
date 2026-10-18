@@ -8,12 +8,15 @@ it. The full rules are in the agent's persona (`.agents/post-writer/persona.md`)
 
 LinkedIn lets apps like Cabinet read only the person's name and picture, and post, comment or
 like as them. It shares no posts, comments, reactions or numbers. So the page has no box for
-how a post did: it shows the drafts, their status, and the week's ideas.
+how a post did: it shows the drafts, their status, and the week's ideas. The person's past
+posts come in only from LinkedIn's copy of their data, which they ask LinkedIn for themselves;
+the agent writes them in `imports/`, and the page does not show them.
 
 | File | Written by | What it holds |
 |---|---|---|
 | `../drafts/<YYYY-MM-DD>-<words>.md` | Post Writer, in a chat, only when asked | One post each. Frontmatter `title`, `status` (`draft`, `approved` or `posted`), `created`, `audience` (`everyone` or `connections`), and once it is on LinkedIn `posted_urn` and `posted_date`. Under it, exactly the words of the post. |
 | `../ideas/<YYYY-MM-DD>.md` | Weekly post ideas, every Monday at 9 | Three ideas, each a `## ` title, a line or two on the angle, and a `From:` line naming the note it comes from. The page shows the newest page. |
+| `../imports/<YYYY-MM-DD>-posts.md` | Post Writer, in a chat, only when asked ("Bring in my LinkedIn posts") | The person's past posts and articles from their LinkedIn export, newest first. Frontmatter `title`, `created`, `status: posted`, `source: export`; then each post a `## <date> <first words>` head, a line with the day, who saw it and its link, and its words. `-comments.md` and `-reactions.md` sit beside it only when asked for by name. The export itself (the .zip or its folder, put there by the person) stays in `imports/`. The export's files and columns are not fixed, so the agent finds them by the words in their names (share, post, article, comment, reaction) and says what it found. The page reads none of it. What I shipped this week, Three takes on a draft and Month in review read these past posts as the person's own voice and history; Month in review counts what they posted that month next to their notes. |
 | `data/EXAMPLE-posts.json` | Nobody (it ships with the template) | Made-up drafts and ideas, each page written out as the agent would write it, so the page reads them the same way. Shown, marked as an example, until LinkedIn is connected, and only while the cabinet has no drafts or ideas of its own. Schema `linkedin-posts/example@1`. |
 | `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `linkedin-posts/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet (`cabinet.mine`), not in a file. |
 

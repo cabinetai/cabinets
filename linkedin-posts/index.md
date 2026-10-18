@@ -21,7 +21,9 @@ The cabinet opens on it: **Your posts**.
 - **Ask about your posts**: "Draft a post about what I shipped this week", "Which of my
   drafts is ready?". The answer comes up in the chat.
 - **Ideas**: a post about your week, three takes on a draft, a month in review. Ask once,
-  switch one on to run on a schedule, or keep it on the page as a box.
+  switch one on to run on a schedule, or keep it on the page as a box. Once your past posts
+  are in, these read them, so a draft sounds like you and a month in review counts what you
+  posted.
 - **Your page, your way**: move, resize, add and remove the boxes, or ask the agent to
   suggest them. Each person's page is their own.
 
@@ -45,6 +47,12 @@ posts, comments, messages or numbers, so this page shows what you wrote here, ne
 post did. LinkedIn asks apps to keep only what they need: the cabinet keeps the words you
 published and the post's id, and nothing about other people on LinkedIn.
 
+Your past posts can come in from LinkedIn's own copy of your data. On linkedin.com: Me,
+Settings and Privacy, Data privacy, Get a copy of your data. LinkedIn emails you a file,
+usually within a day. Put it in this cabinet's `imports/` folder (on Cabinet Cloud, upload it
+in Files) and ask "Bring in my LinkedIn posts". The agent counts what is there, asks once, and writes your posts down in `imports/`.
+Nothing is uploaded or posted, and the file stays in this cabinet.
+
 A sign-in lasts 60 days. After that, the page asks you to sign in again.
 
 ## What's inside
@@ -52,4 +60,5 @@ A sign-in lasts 60 days. After that, the page asks you to sign in again.
 - **Post Writer** is the one agent. Writes drafts when you ask and publishes after your yes.
 - **Weekly post ideas** is the one routine. Runs at 09:00 every Monday and only writes ideas.
 - **Your posts** is the page the cabinet opens on.
-- `drafts/` holds your drafts, one page each. `ideas/` holds each week's ideas.
+- `drafts/` holds your drafts, one page each. `ideas/` holds each week's ideas. `imports/`
+  holds your LinkedIn export and the past posts brought in from it.
