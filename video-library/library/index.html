@@ -1084,14 +1084,15 @@
   /** A line may mark its finding in **bold** (often a title, set apart like one); everything else is plain text. */
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b><bdi>$1</bdi></b>"); }
   function readingHtml() {
-    // The last lines come with done: keep them on screen until the page itself is ready.
-    var done = !!(state.reading && state.reading.done);
-    var all = freshLines();
+    var r = state.reading;
+    var fresh = freshReading();
+    var all = fresh ? r.lines : [];
     state.sawReading = true;
-    var lines = all.slice(0, Math.min(state.readShown, all.length));
-    done = done && lines.length === all.length;
-    var gift = giftNow();
-    var offers = freshReading() ? state.reading.offers : [];
+    var lines = all.slice(0, state.readShown);
+    // The last lines come with done: keep them on screen until the page itself is ready.
+    var done = !!(r && r.done) && lines.length === all.length;
+    var gift = fresh ? r.gift : null;
+    var offers = fresh ? r.offers : [];
     var side = gift || offers.length
       ? '<div class="side-list"><p class="side-title">While I save it, you can...</p>' + (gift ? giftHtml(gift, "reading") : "") + offersHtml(offers, "reading") + "</div>"
       : done ? ""
@@ -1129,31 +1130,22 @@
       return ((o.kind === "more" && o.video) || o.kind === "weekly") && o.at;
     }).slice(0, 2);
   }
-  function giftNow() { return freshReading() ? state.reading.gift : null; }
   function summaryAsk(title) { return "Give me a 5-line summary of my newest saved video, \"" + title + "\", and the one minute most worth watching. If it is still saving, wait until it is in. Do not save anything else."; }
   function moreAsk(title) { return "Find me three more videos like \"" + title + "\" that are worth saving: for each, the title, the channel and one line on why it fits. Only name videos you can find with a working link; if you can't look on YouTube, give me three things to search for instead. Do not save anything."; }
   var WEEKLY_ASK = "How could I make a weekly habit of the videos I save here? In a few short lines, explain how to look back each week on what I saved and pick what to watch next. Only explain: do not set up a routine or anything that runs on its own.";
-  function giftParts(g, where) {
-    return {
-      head: "<b>" + bidi(g.video) + "</b> " + (where === "reading" ? "is on its way in." : "is in your library."),
-      why: where === "reading" ? "Want a 5-line summary the moment it’s in?" : "Want its 5-line summary and the minute most worth watching?",
-      button: "Yes, sum it up", icon: "i-list",
-      ask: summaryAsk(g.video)
-    };
-  }
+  /** The gift while the save goes on (`where` "reading"), or kept under the band after it ("keep"). */
   function giftHtml(g, where) {
-    var p = giftParts(g, where);
-    var asked = state.giftAsked === g.at;
-    var arrive = where === "reading" && state.giftShownAt !== g.at;
-    if (where === "reading") state.giftShownAt = g.at;
+    var reading = where === "reading";
+    var arrive = reading && state.giftShownAt !== g.at;
+    if (reading) state.giftShownAt = g.at;
     return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
-      '<p class="eyebrow">' + icon("i-bulb") + (where === "reading" ? "First, the gist" : "From your first save") + "</p>" +
-      '<h3 dir="auto">' + p.head + "</h3>" +
-      '<p class="why">' + esc(p.why) + "</p>" +
-      (asked
+      '<p class="eyebrow">' + icon("i-bulb") + (reading ? "First, the gist" : "From your first save") + "</p>" +
+      '<h3 dir="auto"><b>' + bidi(g.video) + "</b> " + (reading ? "is on its way in." : "is in your library.") + "</h3>" +
+      '<p class="why">' + (reading ? "Want a 5-line summary the moment it’s in?" : "Want its 5-line summary and the minute most worth watching?") + "</p>" +
+      (state.giftAsked === g.at
         ? '<p class="asked">' + icon("i-check") + "Asked. The answer is coming in the chat.</p>"
-        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do">' + icon(p.icon) + esc(p.button) + "</button>" : "") +
-          (where === "keep" ? '<button type="button" class="btn quiet" data-act="gift-skip">Not now</button>' : "") + "</div>") +
+        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do">' + icon("i-list") + "Yes, sum it up</button>" : "") +
+          (reading ? "" : '<button type="button" class="btn quiet" data-act="gift-skip">Not now</button>') + "</div>") +
       '<p class="fine">Nothing is posted. The answer comes in the chat next to this page.</p></section>';
   }
   function offerKey(o) { return o.at + "|" + o.kind + "|" + (o.video || ""); }
@@ -1437,7 +1429,6 @@
   function disk() { var d = state.data && state.data.disk; return d && typeof d === "object" && count(d.freeBytes) != null ? d : null; }
 
   function paint() {
-    document.documentElement.classList.toggle("first-read", showReading());
     paintStatus();
     paintHero();
     paintSuggest();
@@ -1470,15 +1461,17 @@
 
   function paintHero() {
     var hero = $("hero");
-    document.documentElement.classList.toggle("first-read", showReading());
+    var reading = showReading();
+    document.documentElement.classList.toggle("first-read", reading);
     if (!state.loaded) { hero.innerHTML = '<p class="skeleton">Opening your library...</p>'; return; }
-    hero.innerHTML = showReading() ? readingHtml() : state.data ? "" : '<div class="notice">' + icon("i-alert") + "<p><b>Your library could not be read just now.</b> Try again in a moment.</p></div>";
+    hero.innerHTML = reading ? readingHtml() : state.data ? "" : '<div class="notice">' + icon("i-alert") + "<p><b>Your library could not be read just now.</b> Try again in a moment.</p></div>";
   }
 
   function paintRibbon() {
     var el = $("ribbon");
+    if (!state.loaded || !state.data) { el.innerHTML = ""; return; }
     // Under the band: the Example line, or, after the first save, the gift kept for a few days.
-    if (!state.loaded || !state.data || !state.example) { el.innerHTML = state.loaded && state.data ? giftKeepHtml() : ""; return; }
+    if (!state.example) { el.innerHTML = giftKeepHtml(); return; }
     el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
       "A made-up library. None of these videos were saved. Paste a YouTube link below and your own videos replace them.</p></div>";
   }
@@ -3197,7 +3190,7 @@
     } else if (act === "gift-do") {
       var gift = state.reading && state.reading.gift;
       if (gift) {
-        ask(giftParts(gift, "reading").ask);
+        ask(summaryAsk(gift.video));
         state.giftAsked = gift.at;
         if (showReading()) paintHero();
         else { giftDone(); paint(); }

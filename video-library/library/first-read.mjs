@@ -47,6 +47,11 @@ function workFile(name) {
   if (!fs.existsSync(file)) fail(`${name} is not in library/.work/ (write it there first)`);
   return file;
 }
+/** "@line.txt" is the text of that file in library/.work/, for words no shell can quote; anything else is the words themselves. */
+function workText(arg) {
+  const said = String(arg || "").trim();
+  return /^@[\w.-]+$/.test(said) ? fs.readFileSync(workFile(said.slice(1)), "utf8") : said;
+}
 /** "@library/.work/gift.json" means "@gift.json". */
 function workJson(arg, what) {
   if (!arg.startsWith("@")) fail(`give ${what} as @<file>: the JSON you wrote into library/.work/`);
@@ -63,16 +68,26 @@ function writeReading(r) {
   r.updatedAt = iso(new Date());
   writeJson(readingFile, r);
 }
+/** One change to a save still being told (`doneMsg` when it is told): `change` makes it and says what it did. */
+function editReading(doneMsg, change) {
+  lockReading();
+  const r = readReading();
+  if (r.done) fail(doneMsg);
+  const said = change(r);
+  writeReading(r);
+  console.log(said);
+}
 
 /** One write to reading.json at a time: two at once would each write their own copy and lose one. */
 function lockReading() {
   const lock = path.join(here, ".reading.lock");
   const until = Date.now() + 8000;
+  const nap = new Int32Array(new SharedArrayBuffer(4));
   for (;;) {
     try { fs.mkdirSync(lock); break; } catch {
       try { if (Date.now() - fs.statSync(lock).mtimeMs > 15000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
       if (Date.now() > until) fail("another push is still running: push one line at a time");
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+      Atomics.wait(nap, 0, 0, 100);
     }
   }
   process.on("exit", () => { try { fs.rmSync(lock, { recursive: true, force: true }); } catch { /* gone */ } });
@@ -145,40 +160,31 @@ if (cmd === "start") {
   writeReading({ schema: `${SCHEMA}/reading@1`, startedAt: iso(new Date()), done: false, lines: [] });
   console.log("save started; write your files in " + path.relative(process.cwd(), workDir));
 } else if (cmd === "push") {
-  lockReading();
-  const r = readReading();
-  if (r.done) fail("the save is told: no more lines");
-  // "@line.txt" reads the line from .work/, for a line no shell can quote.
-  const raw = args.join(" ");
-  const fromFile = /^@[\w.-]+$/.test(raw.trim()) ? fs.readFileSync(workFile(raw.trim().slice(1)), "utf8") : raw;
-  const line = String(fromFile || "").replace(/\s+/g, " ").trim();
-  checkLine(line);
-  if (r.lines.includes(line)) fail("that line is already there");
-  r.lines.push(line);
-  writeReading(r);
-  console.log(`line ${r.lines.length}: ${line}`);
+  editReading("the save is told: no more lines", (r) => {
+    const line = workText(args.join(" ")).replace(/\s+/g, " ").trim();
+    checkLine(line);
+    if (r.lines.includes(line)) fail("that line is already there");
+    r.lines.push(line);
+    return `line ${r.lines.length}: ${line}`;
+  });
 } else if (cmd === "offer") {
   const file = workJson(args.join(" ").trim(), "the offer");
-  lockReading();
-  const r = readReading();
-  if (r.done) fail("the save is told: offers come while you save");
-  const offer = offerOf(file, r);
-  const offers = Array.isArray(r.offers) ? r.offers : [];
-  if (offers.length >= MAX_OFFERS) fail(`there are ${MAX_OFFERS} offers already: that is enough`);
-  if (offers.some((x) => x.kind === offer.kind)) fail("that offer is there already");
-  offers.push({ ...offer, at: iso(new Date()) });
-  r.offers = offers;
-  writeReading(r);
-  console.log("offer: " + JSON.stringify(offer));
+  editReading("the save is told: offers come while you save", (r) => {
+    const offer = offerOf(file, r);
+    const offers = Array.isArray(r.offers) ? r.offers : [];
+    if (offers.length >= MAX_OFFERS) fail(`there are ${MAX_OFFERS} offers already: that is enough`);
+    if (offers.some((x) => x.kind === offer.kind)) fail("that offer is there already");
+    offers.push({ ...offer, at: iso(new Date()) });
+    r.offers = offers;
+    return "offer: " + JSON.stringify(offer);
+  });
 } else if (cmd === "gift") {
   const file = workJson(args.join(" ").trim(), "the gift");
-  lockReading();
-  const r = readReading();
-  if (r.done) fail("the save is told: the gift comes while you save");
-  if (r.gift) fail("there is a gift already: one is enough");
-  r.gift = { ...giftOf(file, r), at: iso(new Date()) };
-  writeReading(r);
-  console.log("gift: " + JSON.stringify(r.gift));
+  editReading("the save is told: the gift comes while you save", (r) => {
+    if (r.gift) fail("there is a gift already: one is enough");
+    r.gift = { ...giftOf(file, r), at: iso(new Date()) };
+    return "gift: " + JSON.stringify(r.gift);
+  });
 } else if (cmd === "done") {
   lockReading();
   const r = readReading();
