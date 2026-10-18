@@ -80,8 +80,8 @@ day's quota is gone: stop calling YouTube and finish with what you have.
 A comment thread's `id` is its top comment's id. The words are in
 `snippet.topLevelComment.snippet.textDisplay`, the author in `authorDisplayName`, the time
 in `publishedAt`, the likes in `likeCount`, the video in `snippet.videoId`, and
-`snippet.totalReplyCount` counts its replies. A reply written by the channel itself has
-`authorChannelId.value` equal to the channel's id.
+`snippet.totalReplyCount` counts its replies. A top comment or a reply written by the channel
+itself has `authorChannelId.value` equal to the channel's id.
 
 ## The board file
 
@@ -158,9 +158,9 @@ back as valid JSON. Never start a fresh file when one exists.
 - `Spam`: fake giveaways, accounts copying the channel's name or picture, scam links,
   the same comment pasted again and again. `High` for anything pretending to be the
   creator or sending people to a scam, else `Medium`. Group copies of one scam into one item.
-- `Waiting`: a real question to the creator nobody from the channel answered for more than
-  3 days. `High` with 10 or more likes, else `Medium`. When the channel answers, the item
-  goes.
+- `Waiting`: a real question to the creator, from someone other than the channel, that
+  nobody from the channel answered for more than 3 days. `High` with 10 or more likes, else
+  `Medium`. When the channel answers, the item goes.
 - `Drop`: a video published 2 to 30 days ago getting under a third of `usual.viewsPerDay`,
   or a video whose views since the last check fell under a third of its own daily pace the
   check before. `High` for the newest upload, else `Medium`. `summary` gives the numbers.
@@ -175,6 +175,10 @@ back as valid JSON. Never start a fresh file when one exists.
   `Medium`.
 
 `level` is exactly `High`, `Medium` or `Low`. Re-check the level of every item you changed.
+
+The channel's own comments are not viewer comments: a top comment or a reply whose
+`authorChannelId.value` is the channel's id is never an item, never joins one, and is left
+out of every `count` and every number on the board. It only tells you the channel answered.
 
 Leave out praise, jokes, ordinary disagreement and questions already answered. When you
 cannot tell, leave it out. Never put the same comment on two items. A new comment that
@@ -240,9 +244,9 @@ Write those files under `board/data/.work/`, never `/tmp`, and give the helper t
 your channel: **Maya Builds**", "**214 comments** in the last two weeks", "**3 angry
 comments** under Desk Shelf Build", "**Shop Tour** is getting a fifth of your usual views".
 Five to eight lines in all, the first within a minute of `start`. Every number is counted
-from what YouTube answered in this run. Never a line about yourself ("Reading..."), never a
-raw id, never an em-dash. The helper refuses a broken, repeated or 0 line: fix it or push
-nothing.
+from what YouTube answered in this run, with the channel's own comments left out. Never a
+line about yourself ("Reading..."), never a raw id, never an em-dash. The helper refuses a
+broken, repeated or 0 line: fix it or push nothing.
 
 **The gift comes early**, right after your first pages of comments: the one comment that
 needs an answer first (the most urgent `Angry`, `Complaint`, `Waiting` or `Claim`, never
