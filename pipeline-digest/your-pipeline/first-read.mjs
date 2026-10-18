@@ -38,6 +38,8 @@ const readingFile = path.join(dataDir, "reading.json");
 const latestFile = path.join(dataDir, "latest.json");
 const DAY = 86400000;
 const CHANGES = ["stage", "amount", "date", "won", "lost", "new"];
+/** The changes that need the last catch-up's known: none of them on the first one. */
+const COMPARED = ["stage", "amount", "date"];
 const DIRS = ["up", "down", "new"];
 const LISTS = ["moved", "closing", "stale", "tasks", "leads", "changes", "daily", "known"];
 
@@ -254,6 +256,13 @@ function latestOf(l) {
     if (!s || typeof s !== "object") fail(`totals.${key} is an object`);
     if (s.winRate !== undefined && s.winRate !== null && !(typeof s.winRate === "number" && s.winRate >= 0 && s.winRate <= 1)) fail(`totals.${key}.winRate is a fraction from 0 to 1, or null when nothing closed`);
   }
+  // The first catch-up has nothing to compare with: a stage, amount or close date that moved
+  // needs the last catch-up's known (the persona says so), so such a row written anyway is
+  // dropped, and `first` lets the page say there is no comparison yet.
+  if (!fs.existsSync(latestFile)) {
+    l.moved = l.moved.filter((m) => !COMPARED.includes(m.change));
+    l.first = true;
+  } else delete l.first;
   const n = new Date();
   l.schema = LATEST_SCHEMA;
   l.generatedAt = iso(n);

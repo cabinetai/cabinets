@@ -22,7 +22,9 @@ and the page shows them. The full rules for each field are in the agent's person
 `latest.json` in short: `generatedAt`, `since`, `org` `{ name, address, currency }`,
 `settings` `{ staleDays }`, `totals`, `daily`, one list for each box, and `known` (yesterday's
 stage, amount and close date of each open deal, so the next catch-up can tell what moved; the
-page never shows it):
+page never shows it). `first: true` marks the first catch-up, which has nothing to compare
+with: Moved holds only won, lost and new deals, and the headline says changes in stage, amount
+and close date show from the next one (`first-read.mjs` drops such a row written anyway):
 
 | Field | Box | What it holds |
 |---|---|---|

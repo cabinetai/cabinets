@@ -1430,6 +1430,11 @@
   }
   function orgInfo() { return state.data && state.data.org && typeof state.data.org === "object" ? state.data.org : {}; }
   function openInfo() { return state.data && state.data.open && typeof state.data.open === "object" ? state.data.open : {}; }
+  /**
+   * The first check has nothing to compare with: a close date slips against yesterday's board,
+   * and only a board that was there can have items sorted out. The page says so.
+   */
+  function firstCheck() { return !!(state.data && !state.example && state.data.first === true); }
   function lateInfo() { return state.data && state.data.late && typeof state.data.late === "object" ? state.data.late : {}; }
   /** The Salesforce address from setup.md, as the routine wrote it, or "". */
   function orgAddress() {
@@ -1763,6 +1768,7 @@
     var first = all[0];
     var lead = first
       ? 'First: <b dir="auto">' + esc(text(first.title, 100)) + ".</b> " + '<span dir="auto">' + esc(text(first.why, 220)) + "</span>"
+      : firstCheck() ? "Every open deal has a next step, none is past its close date and every new lead was called."
       : "Every open deal has a next step, nothing slipped and every new lead was called. The board checks again every morning.";
     var counts = ["High", "Medium", "Low"].map(function (l) {
       var k = all.filter(function (x) { return levelOfItem(x) === l; }).length;
@@ -1773,7 +1779,9 @@
     if (deals) counts.push("<span>" + esc(money(open.amount) ? money(open.amount) + " open in " : "") + deals + " " + plural(deals, "deal", "deals") + "</span>");
     return '<div class="hl">' + top + '<div class="hl-text"><p class="hello">' + helloHtml(new Date()) + "</p>" +
       "<h2>" + esc(title) + "</h2>" + '<p class="lead">' + lead + "</p>" +
-      (counts.length ? '<p class="meta num">' + counts.join("") + "</p>" : "") + band.notes + "</div></div>";
+      (counts.length ? '<p class="meta num">' + counts.join("") + "</p>" : "") +
+      (firstCheck() ? '<p class="fine">Your first check, so nothing to compare with yet. A close date that slips shows from the next one.</p>' : "") +
+      band.notes + "</div></div>";
   }
 
   // Needs a person: one row per deal or lead, the most urgent first. A row opens to its
@@ -1878,7 +1886,7 @@
         return '<li><span class="top"><b dir="auto">' + esc(text(x.title, 120)) + "</b></span>" +
           '<span class="side">' + esc(d ? (daysBetween(d, ref) <= 0 ? "Today" : daysBetween(d, ref) === 1 ? "Yesterday" : shortDate(d)) : "") + "</span>" +
           (text(x.gist) ? '<span class="t" dir="auto">' + esc(text(x.gist, 160)) + "</span>" : "") + "</li>";
-      }).join("") + "</ul>", "Nothing left the board lately.");
+      }).join("") + "</ul>", firstCheck() ? "What gets sorted out shows here from the next check." : "Nothing left the board lately.");
   }
 
   /** The numbers someone looks for first, each a small box. */

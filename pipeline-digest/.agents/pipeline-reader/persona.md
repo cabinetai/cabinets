@@ -149,7 +149,8 @@ boxes they keep. So write every list below, every run, even on a quiet day (an e
 The window starts at the last catch-up's `generatedAt`, or 24 hours ago when that is
 earlier, but never more than 7 days back. `known` is for the next catch-up and the page never
 shows it: every open deal from query 3 with its stage, amount and close date today, at most
-200.
+200. `first` is `true` only on the first catch-up (no `latest.json` before this run) and left
+out on every later one: the page then says there is nothing to compare with yet.
 
 Every list item that is a record carries `recordId` (its `Id`, copied) and `url`, built as
 `<Your Salesforce address>/lightning/r/<Opportunity|Task|Lead>/<Id>/view`, left out without an
@@ -191,7 +192,8 @@ address. Names, accounts, stages and owners are copied as Salesforce wrote them.
 - `changes`: what moved most against the week before, at most 5, the biggest first, `[]`
   in a week when nothing moved much: `{ "id": "g1", "dir": "up", "title": "New deals grew 49%", "gist": "$41,700 in 4 new deals, against $28,000 in 3 the week before." }`.
   `dir` is exactly `up`, `down` or `new`. Look at new deals, won, lost, new leads, the open
-  pipeline against the day file of 7 days ago, and close dates that moved later; a change
+  pipeline against the day file of 7 days ago (only when that file is there), and close dates
+  that moved later (only against `known`); a change
   counts when it is at least 20% and at least 2 deals or leads. `title` is a few plain words,
   `gist` one short sentence with the numbers. Never a cause you did not see in the answers.
 

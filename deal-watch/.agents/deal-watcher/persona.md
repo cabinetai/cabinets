@@ -121,8 +121,10 @@ zone, to today. Count calendar days, today included as day 0.
 
 **Memory.** Yesterday's `latest.json` keeps `known`: each open deal's record Id with its
 `stage`, `amount` and `closeDate` at that check. A deal whose `CloseDate` is later now than
-in `known` has slipped. On the first check there is no `known`: then a deal only slips by
-passing its close date while still open (that is `Late`).
+in `known` has slipped. On the first check there is no `known`: then no deal is `Slipping`
+(one past its close date while still open is `Late`), nothing goes to `settled`, and
+`latest.json` carries `"first": true`, so the board says there is nothing to compare with
+yet. Leave `first` out on every later check.
 
 ## What goes on the board
 

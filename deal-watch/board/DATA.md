@@ -33,6 +33,7 @@ deal.
 | `weeks` | Six weeks from this week's Monday: `{ from, count, amount }` of the open deals closing in each. |
 | `late` | `{ count, amount }` of the open deals whose close date passed. |
 | `known` | `{ id, stage, amount, closeDate }` for every open deal, so tomorrow's check can tell a close date moved. |
+| `first` | `true` on the first check only. Nothing can have slipped or been sorted out yet, so the board has no Slipping item and no Back on track rows, and the headline says a close date that slips shows from the next check. `first-read.mjs` refuses a Slipping item and empties `settled` on the first check. |
 
 Each item has:
 

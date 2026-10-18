@@ -1483,6 +1483,11 @@
   function totals() { return state.data && state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {}; }
   function orgInfo() { return state.data && state.data.org && typeof state.data.org === "object" ? state.data.org : {}; }
   function openTotals() { var o = totals().open; return o && typeof o === "object" ? o : {}; }
+  /**
+   * The first catch-up has nothing to compare with: a stage, amount or close date that moved
+   * needs the last one's deals, so only won, lost and new deals are in Moved, and the page says so.
+   */
+  function firstCatchUp() { return !!(state.data && !state.example && state.data.first === true); }
   function span(key) { var s = totals()[key]; return s && typeof s === "object" ? s : null; }
   function staleDays() { var s = state.data && state.data.settings; return s && count(s.staleDays) ? count(s.staleDays) : 14; }
   function byDate(key, newest) {
@@ -1838,8 +1843,10 @@
     var c = closing().filter(function (x) { return x.late !== true; }).length;
     var late = overdue().length;
     var ex = state.example ? "Example: " : "";
+    var isFirst = firstCatchUp();
+    var moves = isFirst ? (m ? m + " won, lost or new" : "Nothing won, lost or new") : m ? m + " " + plural(m, "deal", "deals") + " moved" : "Nothing moved";
     var news = "<b>" + esc(ex) + esc(money(open.amount) || money(0)) + " in " + n + " open " + plural(n, "deal", "deals") + ".</b> " +
-      (m ? m + " " + plural(m, "deal", "deals") + " moved " + esc(sinceWords(d)) : "Nothing moved " + esc(sinceWords(d))) +
+      moves + " " + esc(sinceWords(d)) +
       (c ? ", " + c + " " + plural(c, "closes", "close") + " this week." : ".") +
       (late ? " " + late + " " + plural(late, "task is", "tasks are") + " overdue." : "");
     var first = moved().map(moveWords).filter(Boolean)[0];
@@ -1853,6 +1860,7 @@
     var fine = "";
     var g = writtenAt(d.generatedAt);
     if (state.day && g) fine = "This is the catch-up from " + esc(whenWords(g, new Date())) + ".";
+    else if (isFirst) fine = "Your first catch-up, so nothing to compare with yet. Changes in stage, amount and close date show from the next one.";
     return '<div class="hl">' + top + '<div class="hl-text"><p class="hello">' + helloHtml(new Date()) + "</p>" +
       '<h2 dir="auto">' + esc(name) + "</h2>" + '<p class="lead">' + news + "</p>" +
       (meta.length ? '<p class="meta num">' + meta.map(function (x) { return "<span>" + x + "</span>"; }).join("") + "</p>" : "") +
@@ -1930,7 +1938,8 @@
         var label = item.change === "won" ? "Draft a thank-you" : "Draft a follow-up";
         return dealRow(item, i, MOVE_MARK[item.change] || "", moveStats(item), "", dealActions(item, "follow", label, "i-mail"));
       }).join("") + "</ul>",
-      "No deal moved stage, amount or close date since the last catch-up.") + nudgeHtml(boxIdea("moved"));
+      firstCatchUp() ? "No deal was won, lost or added. Changes in stage, amount and close date show from the next catch-up."
+        : "No deal moved stage, amount or close date since the last catch-up.") + nudgeHtml(boxIdea("moved"));
   }
 
   // Closing this week: the ones whose close date passed first, then by day.

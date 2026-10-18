@@ -177,11 +177,15 @@ function latestOf(l) {
     if (l[key] !== undefined && !Array.isArray(l[key])) fail(`latest.json: ${key} is a list (leave it out, or [] when there is none)`);
   }
   if (l.items.length > 8) fail("at most 8 items: keep the most urgent");
+  // The first check has nothing to compare with: no close date can have moved since yesterday,
+  // and nothing was on a board to leave it. `first` lets the page say there is no comparison yet.
+  const first = !fs.existsSync(latestFile);
   const ids = new Set();
   l.items.forEach((x, i) => {
     const what = `items[${i}]`;
     if (!x || typeof x !== "object" || typeof x.title !== "string" || !x.title.trim()) fail(`${what} needs a title`);
     if (!KINDS.includes(x.kind)) fail(`${what}.kind is ${KINDS.join(", ")}, not "${x.kind}"`);
+    if (first && x.kind === "Slipping") fail(`${what}: nothing slips on the first check (there is no yesterday to compare with): give it its other reason, or leave it off`);
     if (!LEVELS.includes(x.level)) fail(`${what}.level is High, Medium or Low, not "${x.level}"`);
     if (typeof x.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(x.id)) fail(`${what}.id is short kebab-case words, the same every day`);
     if (ids.has(x.id)) fail(`${what}.id "${x.id}" is there twice: one item per record`);
@@ -203,6 +207,10 @@ function latestOf(l) {
     if (!k || typeof k.id !== "string" || !k.id) fail(`known[${i}] needs id: the deal's record Id`);
   });
   if ((l.known || []).length > 200) fail("known holds at most 200 deals");
+  if (first) {
+    l.settled = [];
+    l.first = true;
+  } else delete l.first;
   const n = new Date();
   l.schema = LATEST_SCHEMA;
   l.generatedAt = iso(n);
