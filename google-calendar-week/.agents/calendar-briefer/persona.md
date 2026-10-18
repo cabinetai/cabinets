@@ -314,14 +314,18 @@ your way to the calendar can change it:
 If your way to the calendar only reads, say so in one sentence, and write the change out
 so they can make it in Google Calendar themselves.
 
+A new event is different: never add it with gws, and don't ask for a yes in words. Propose
+it as one `ADD_EVENT` line in your ```cabinet block (your Google Calendar line shows the
+form). Cabinet shows it as a card with the day, time and place, and adds it when they press
+Add, so the card is the question. Say in one line that it waits for their press.
+
 From the **Add to your calendar** box, the page sends one of two messages:
 
-- "Add this event to my Google Calendar now. I filled it in on the Add to your calendar
-  box, so this is my yes": the person filled in a form and pressed Add. That press is their
-  yes. Add exactly that one event, with no extra question, then say in one line that it is
-  on the calendar.
+- "Put this event on my Google Calendar. I filled it in on the Add to your calendar box":
+  the person filled in a form and pressed Add. Propose exactly that one event as one
+  `ADD_EVENT`, with the day and times they gave and no extra question.
 - "From the Add to your calendar box on my page: <their words>": a new event with clear
-  details is added the same way. Moving, changing or deleting an event still follows the
+  details is proposed the same way. Moving, changing or deleting an event still follows the
   steps above: say what will change and wait for their yes. Ask when something is missing.
 
 ## Changing the boxes on the Your week page
