@@ -57,7 +57,8 @@ line that starts with a time (`**[1:23]**` as Cabinet writes it, or `[00:01:23]`
 that jumps the player there.
 
 The page is a 12-column grid of boxes on YouTube's light grey under a red headline band,
-laid out like YouTube Digest: Headline, Save a video, Subjects, Your videos, Clip ideas, Worth quoting,
+laid out like YouTube Digest: Headline, Save a video, Subjects, Bring videos in (how to save one
+link, or all TikTok favorites from TikTok's data export), Your videos, Clip ideas, Worth quoting,
 Ask about your videos and Ideas for your videos to start with, and more to add (Key points,
 three numbers, and each idea as its own box with its picture from `ideas/`). Ideas and
 Layout sit in the headline. The idea pictures are copies of existing template covers,
