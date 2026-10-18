@@ -6,8 +6,12 @@
   reports, spam and scams, questions waiting too long, business and collab requests,
   videos doing much worse than usual, false claims about the creator, and anything else
   that needs a human. Each item once, with the comments behind it, a link, and one
-  suggested next step. Plus an Ask box and Ideas they can ask for once or switch on as a
-  routine.
+  suggested next step. Plus an Ask box and Ideas they can ask for once, switch on as a
+  routine, or add as a box.
+
+  The page is a grid of boxes, the same way Your YouTube works: 12 columns, each box moved,
+  resized, added and removed by mouse, finger or keyboard, with Undo. Each person's layout
+  is kept in cabinet.mine, so it follows them.
 
   Where the words come from: the Daily Channel Watch routine reads the channel and writes
   board/data.json (DATA.md next to this page describes it; the exact shape is in
@@ -20,7 +24,7 @@
   waits under the board afterwards.
 
   How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
-  routine, read files). In an older Cabinet it reads the same files over the page's own
+  routine, read files, the person's own layout). In an older Cabinet it reads the same files over the page's own
   address. The page never changes anything on YouTube, and no press here asks the agent to:
   every button asks for a summary or a draft to copy. A reply is posted only when the
   person asks for it in the chat. Nothing here depends on the computer it runs on.
@@ -189,31 +193,35 @@
   .btn.primary:hover { background: var(--yt-deep); border-color: var(--yt-deep); }
   .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
   .btn.dark:hover { background: var(--deep-2); }
+  .btn.quiet { border-color: transparent; background: transparent; color: var(--ink-2); padding-inline: 10px; }
+  .btn.quiet:hover { background: var(--chip); }
   .btn.big { min-height: 52px; padding: 13px 26px; font-size: 17px; }
   .btn.small { min-height: 38px; padding: 7px 14px; font-size: 14px; }
+  .btn.small .icon { width: 17px; height: 17px; }
 
-  /* ── The board: one sheet of ranked items, with the Ask box beside it ── */
-  .board {
-    display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
-    grid-template-areas: "main ask"; gap: 22px; align-items: start;
-  }
-  .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
-  .b-main { grid-area: main; min-width: 0; }
-  .board > .ask { grid-area: ask; }
-
+  /* ── Boxes with a list ───────────────────────────────────────────────── */
   .lane { border-radius: var(--radius); background: var(--page); overflow: hidden; box-shadow: var(--shadow-1); }
   /* A sheet title: a plain outline icon, a serif word, and the count. */
-  .lane-head { display: flex; align-items: center; gap: 11px; margin: 0 20px; padding: 18px 0 12px; }
+  .lane-head { flex: none; display: flex; align-items: center; gap: 11px; margin: 0 20px; padding: 18px 0 12px; }
   .lane-head .lane-icon { display: inline-grid; place-items: center; color: var(--yt-ink); }
   .lane-head .lane-icon .icon { width: 22px; height: 22px; stroke-width: 1.8; }
-  .lane-head h3 { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 600; letter-spacing: -.015em; flex: 1; }
+  .lane-head h3 { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 600; letter-spacing: -.015em; flex: 1; min-width: 0; }
   .lane-head .count { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--ink-3); }
   .lane-head .count.hot { color: var(--yt-ink); }
+  .lane-head .count.zero { display: none; }
   .lane-empty { padding: 18px 20px; color: var(--ink-3); margin: 0; }
+
+  /* Small: one number and one line under it. */
+  .sum { display: flex; flex-direction: column; gap: 2px; padding: 4px 20px 14px; }
+  .sum .value { font-family: var(--serif); font-size: 34px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+  .sum .value.none { color: var(--ink-3); }
+  .sum .sub { color: var(--ink-3); font-size: 14px; }
+  .sum .line { margin-top: 6px; color: var(--ink-2); font-size: 15px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .box-pad { padding: 0 20px 16px; display: flex; flex-wrap: wrap; gap: 8px; }
 
   /* Filter by kind, the way YouTube's own chip bar looks: grey chips, the chosen one black.
      They wrap on a wide screen; on a phone one row scrolls sideways, never the page. */
-  .filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 4px; }
+  .filters { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 4px; }
   .filters::-webkit-scrollbar { display: none; }
   .f { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 5px 12px; border-radius: 8px; border: 0; background: var(--chip); font-size: 14px; font-weight: 600; color: var(--ink); }
   .f:hover { background: var(--chip-2); }
@@ -230,6 +238,8 @@
 
   .rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
   .row { border-bottom: 1px solid var(--line); }
+  /* Not what the person is looking for: kept out of the box's own row count too. */
+  .row.miss { display: none; }
   .row:last-child { border-bottom: 0; }
   /* A row is a line in a note: the problem in bold, then plain words. Labels are words, not
      pills: grey for the kind, red only when it is urgent. */
@@ -278,22 +288,111 @@
   .q { min-height: 38px; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .05); color: #f1f1f1; font-size: 14px; font-weight: 500; text-align: start; }
   .q:hover { background: rgba(255, 255, 255, .13); }
   .ask .note { margin: 12px 0 0; font-size: 14px; color: rgba(255, 255, 255, .72); min-height: 1.5em; }
+  .box.ask { overflow: hidden; }
+  .box.ask[data-level="S"] form { flex-direction: column; }
 
   /* ── Ideas ───────────────────────────────────────────────────────────── */
-  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin: 6px 0 14px; }
-  .section-head h2 { margin: 0; font-family: var(--serif); font-size: 28px; font-weight: 600; letter-spacing: -.015em; }
-  .section-head p { margin: 0; color: var(--ink-3); font-size: 15px; }
-  .idea-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-  .idea { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); transition: box-shadow .15s ease; }
-  .idea:hover { box-shadow: var(--shadow-2); }
+  .idea { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
   .idea h3 { margin: 4px 0 0; font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
-  .idea p { margin: 0; color: var(--ink-2); font-size: 15px; flex: 1; }
-  .idea .go { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 4px; }
+  .idea p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
   .idea .go .btn { min-height: 42px; padding: 8px 14px; font-size: 14px; }
+  .idea .on-page { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--green-ink); }
+  .idea .on-page .icon { width: 16px; height: 16px; }
   /* The same carved-wood pictures as the template covers. The object sits on the right of
      each cover, so the crop keeps the right side. */
-  .idea .art-img { aspect-ratio: 16 / 8; border-radius: 14px; overflow: hidden; background: var(--chip); }
-  .idea .art-img img { width: 100%; height: 100%; object-fit: cover; object-position: 75% center; display: block; }
+  .art-img { flex: none; aspect-ratio: 16 / 8; border-radius: 14px; overflow: hidden; background: var(--chip); }
+  .art-img img { width: 100%; height: 100%; object-fit: cover; object-position: 75% center; display: block; }
+  .idea-rows > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--line); }
+  .idea-rows > li:last-child { border-bottom: 0; }
+  .idea-rows b { display: block; font-size: 15px; }
+  .idea-rows span[dir] { display: block; color: var(--ink-3); font-size: 14px; }
+  /* One idea as its own box: its picture, and the presses. */
+  .one-idea { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 10px; padding: 16px 20px; }
+  .one-idea h3 { margin: 0; font-size: 16.5px; font-weight: 800; line-height: 1.3; }
+  .one-idea p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+  .one-idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+  .one-idea .art-img { aspect-ratio: auto; height: 96px; }
+  .box[data-level="L"] .one-idea .art-img { height: 130px; }
+
+  /* ── The grid of boxes ───────────────────────────────────────────────── */
+  /* Each box sits on a 12 column grid at the place its layout gives it, and draws itself
+     small, medium or large by its own width (data-level). A list shows the rows that fit,
+     then "+N more". */
+  .grid { --row: 64px; --gap: 16px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: var(--row); gap: var(--gap); }
+  .box { display: flex; flex-direction: column; min-width: 0; min-height: 0; transition: box-shadow .2s ease; }
+  .box > .box-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .box-more { flex: none; display: flex; justify-content: center; width: 100%; padding: 10px 14px; border: 0; border-top: 1px solid var(--line); background: var(--page); color: var(--ink); font-weight: 600; font-size: 14px; }
+  .box-more:hover { background: var(--panel); }
+  .box.nbox > .sum { flex: 1; justify-content: center; }
+  /* On a phone the boxes stack in their order and grow to fit. */
+  .grid.stack { display: flex; flex-direction: column; gap: 16px; }
+  .grid.stack .box { flex: none; }
+  /* A list box is as tall as its rows, up to the size its layout gives it: no empty white
+     under a short list, and its foot sits right under the rows. */
+  .grid:not(.editing):not(.stack) > .box.lane:not(.nbox):not([data-box^="idea-"]) { align-self: start; max-height: 100%; }
+
+  /* Editing the page: a small bar of buttons, handles on every box. */
+  .editbar { position: sticky; top: 8px; z-index: 20; align-self: flex-end; display: flex; padding: 5px; border-radius: 999px; background: var(--yt-tint); border: 1px solid var(--yt-line); box-shadow: var(--shadow-2); }
+  .editbar-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .editbar .btn { min-height: 36px; padding: 6px 14px; font-size: 13.5px; gap: 6px; }
+  .editbar .btn .icon { width: 17px; height: 17px; }
+  .grid.editing .box { position: relative; overflow: visible; outline: 2px dashed var(--line-2); outline-offset: 5px; }
+  .grid.editing .box > :not(.box-x):not(.box-resize):not(.box-size) { pointer-events: none; user-select: none; }
+  .grid .box { -webkit-touch-callout: none; }
+  .grid.editing .box { cursor: grab; user-select: none; }
+  .grid.editing .box:focus-visible { outline: 3px solid var(--ink-2); outline-offset: 5px; }
+  .grid.editing .box:not(.lifted) { box-shadow: 0 14px 30px -18px rgba(15, 15, 15, .24); }
+  body.is-moving, body.is-moving * { cursor: grabbing !important; user-select: none; }
+  body.is-sizing, body.is-sizing * { cursor: nwse-resize !important; user-select: none; }
+  .box.lifted { z-index: 30; box-shadow: 0 26px 50px -18px rgba(15, 15, 15, .32); will-change: transform; }
+  .box.sizing { z-index: 30; }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } }
+  .grid.fresh .box-x, .grid.fresh .box-resize, .grid.fresh .box-size { animation: pop .45s var(--spring, ease-out) backwards; }
+  .grid.stack.editing { gap: 36px; padding-top: 8px; }
+  /* On a phone the size switch sits on the box's top edge: the title moves down out of its way. */
+  .grid.stack.editing .lane-head { padding-top: 28px; }
+  .grid.stack.editing .box.ask { padding-top: 34px; }
+  .grid.stack.arranging .box:not(.lifted) { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+  .drop-spot { z-index: 1; border: 2px dashed var(--ink-3); border-radius: var(--radius); background: color-mix(in srgb, var(--ink) 5%, transparent); pointer-events: none; }
+  .size-tag { z-index: 31; place-self: center; padding: 8px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-2); }
+  .size-tag:empty { display: none; }
+  .box-resize { position: absolute; inset-inline-end: -11px; bottom: -11px; z-index: 3; width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid var(--ink-2); border-radius: 50%; background: var(--page); box-shadow: var(--shadow-1); cursor: nwse-resize; touch-action: none; transition: transform .15s ease; }
+  .box-resize::after { content: ""; width: 8px; height: 8px; margin: 0 2px 2px 0; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); }
+  .box-resize:hover { transform: scale(1.12); }
+  .box-size { position: absolute; top: -16px; inset-inline-start: 12px; z-index: 3; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--ink); box-shadow: var(--shadow-2); }
+  .box-size button { min-height: 30px; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: #c8c8c8; font-size: 13px; font-weight: 700; }
+  .box-size button[aria-pressed="true"] { background: #fff; color: var(--ink); }
+  .box-x { position: absolute; top: -14px; inset-inline-end: -14px; z-index: 3; width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid var(--page); border-radius: 50%; background: var(--ink); color: #fff; box-shadow: var(--shadow-2); transition: transform .15s ease, background .15s ease; }
+  .box-x:hover { background: var(--yt-ink); transform: scale(1.1); }
+  .box-x .icon { width: 16px; height: 16px; stroke-width: 2.6; }
+  .box.leaving { opacity: 0; transform: scale(.94); transition: opacity .2s ease, transform .2s ease; }
+  .box.flash { animation: flash 1.4s ease; }
+  @keyframes flash { 25% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--ink) 25%, transparent); } }
+  .grid-empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 24px; border: 2px dashed var(--line-2); border-radius: var(--radius); color: var(--ink-2); }
+  .grid-empty p { margin: 0; }
+
+  /* The Add a box and Ideas panels. */
+  .pick-group h3 { margin: 6px 4px 8px; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); }
+  .pick.on { background: var(--panel); }
+  .pick-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--yt-tint); color: var(--yt-ink); }
+  .pick b { display: block; font-size: 15px; font-weight: 700; }
+  .pick span { display: block; color: var(--ink-3); font-size: 14px; }
+  .pick em { display: block; margin-top: 2px; font-style: normal; font-size: 13px; font-weight: 600; color: var(--green-ink); }
+  .pick-on { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--green-tint); color: var(--green-ink); }
+  .drawer { position: fixed; inset: 0; z-index: 40; }
+  .drawer-scrim { position: absolute; inset: 0; background: rgba(15, 15, 15, .38); opacity: 0; transition: opacity .25s ease; }
+  .drawer-panel { position: absolute; top: 0; bottom: 0; inset-inline-end: 0; width: min(460px, 100%); display: flex; flex-direction: column; background: var(--page); box-shadow: -24px 0 60px -24px rgba(15, 15, 15, .4); transform: translateX(100%); transition: transform .34s cubic-bezier(.2, .8, .2, 1); outline: none; }
+  .drawer.open .drawer-scrim { opacity: 1; }
+  .drawer.open .drawer-panel { transform: none; }
+  .drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 16px; border-bottom: 1px solid var(--line); }
+  .drawer-head .lane-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--yt-tint); color: var(--yt-ink); flex: none; }
+  .drawer-head h2 { margin: 0; font-family: var(--serif); font-size: 25px; font-weight: 600; letter-spacing: -.015em; }
+  .drawer-head p { margin: 2px 0 0; color: var(--ink-3); font-size: 14.5px; }
+  .drawer-close { margin-inline-start: auto; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2); }
+  .drawer-close:hover { background: var(--panel); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--canvas); }
 
   .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line-2); color: var(--ink-3); font-size: 14px; }
   .foot .icon { color: var(--green); }
@@ -304,7 +403,8 @@
 
   .spin { animation: spin 1.2s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; animation-delay: var(--d, 0ms); }
+  /* "backwards": hidden until its turn, then it lets go, so it never holds a box still when dragged. */
+  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: var(--d, 0ms); }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .pulse { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .45; } }
@@ -327,7 +427,7 @@
   .read-strip { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 10px 16px; border-radius: 12px; background: var(--page); color: var(--ink-2); font-size: 14.5px; overflow-wrap: anywhere; }
   .read-strip b { color: var(--ink); }
   /* While the first check reads, the reading is the page under the band: no made-up example. */
-  .first-read #ribbon, .first-read #board, .first-read #gift-keep, .first-read #ideas { display: none !important; }
+  .first-read #ribbon, .first-read #grid, .first-read #grid-empty, .first-read #gift-keep, .first-read #editbar { display: none !important; }
   .read-page { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 20px; }
   @media (min-width: 980px) {
     .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 22px; }
@@ -368,12 +468,6 @@
   .gift-keep { display: grid; gap: 12px; }
 
   /* ── Narrow screens ──────────────────────────────────────────────────── */
-  @media (max-width: 1100px) {
-    .idea-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
-  @media (max-width: 920px) {
-    .board, .board:has(> .ask[hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "ask"; }
-  }
   @media (max-width: 560px) {
     .wrap { padding: 12px 16px 32px; }
     .main { gap: 16px; }
@@ -397,7 +491,6 @@
     .row-body { padding: 2px 16px 16px; }
     .msg { grid-template-columns: minmax(0, 1fr); }
     .msg .open { grid-column: 1; grid-row: auto; margin-top: 4px; }
-    .idea-grid { grid-template-columns: minmax(0, 1fr); }
     .ask { padding: 20px 18px; }
     .ask form { flex-direction: column; }
     .reading, .gift { padding: 22px 18px; }
@@ -405,6 +498,10 @@
     .offers { padding: 0 16px; }
     .offer { grid-template-columns: auto minmax(0, 1fr); }
     .offer > .btn, .offer > .asked { grid-column: 2; justify-self: start; }
+    .sum, .box-pad { padding-inline: 16px; }
+    .idea-rows > li { padding-inline: 16px; }
+    .editbar { align-self: stretch; border-radius: 18px; }
+    .editbar-actions { justify-content: center; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -430,6 +527,10 @@
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
   <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 6 8.5 7 8.5-7" /></symbol>
   <symbol id="i-reply" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z" /></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2" /><rect x="13" y="3" width="8" height="6" rx="2" /><rect x="13" y="11" width="8" height="10" rx="2" /><rect x="3" y="15" width="8" height="6" rx="2" /></symbol>
 </svg>
 
 <div class="wrap">
@@ -444,30 +545,42 @@
       </div>
       <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your channel...</p></section>
     </header>
+    <div class="editbar" id="editbar" role="region" aria-label="Editing your board" hidden>
+      <div class="editbar-actions">
+        <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>Add a box</button>
+        <button type="button" class="btn" data-act="undo" id="undo-btn" disabled><svg class="icon" aria-hidden="true"><use href="#i-reply" /></svg>Undo</button>
+        <button type="button" class="btn quiet" data-act="reset-layout">Reset to default</button>
+        <button type="button" class="btn dark" data-act="edit-done"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Done</button>
+      </div>
+    </div>
     <div id="ribbon"></div>
     <section id="reading" aria-live="polite" hidden></section>
-    <section class="board" id="board" aria-label="What needs a look, most urgent first">
-      <div class="b-main" id="board-main"></div>
-      <section class="ask" id="ask" aria-labelledby="ask-title">
-        <h2 id="ask-title">Ask about your channel</h2>
-        <p>Anything from "is anyone angry?" to "who asked about a sponsorship?"</p>
-        <form id="ask-form" autocomplete="off">
-          <label for="ask-input" class="sr">Your question</label>
-          <input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="A comment or a video..." />
-          <button type="submit" class="btn light"><svg class="icon" aria-hidden="true"><use href="#i-send" /></svg>Ask</button>
-        </form>
-        <p class="qs-label">Try</p>
-        <div class="qs" id="questions"></div>
-        <p class="note" id="ask-note">The answer comes up in the chat next to this page.</p>
-      </section>
-    </section>
+    <section class="grid" id="grid" aria-label="What needs a look, most urgent first" hidden></section>
     <div class="gift-keep" id="gift-keep" role="region" aria-label="Things you can do now" hidden></div>
-    <section id="ideas" aria-labelledby="ideas-title"></section>
+    <div class="grid-empty" id="grid-empty" hidden>
+      <p><b>Your board has no boxes.</b> Add the ones you want to see.</p>
+      <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>Add a box</button>
+    </div>
     <footer class="foot">
       <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
       <p>The board only reads, and nothing on this page writes on YouTube. A reply to a comment is posted only when you ask for it in the chat, and only if you chose Allow comments when you connected YouTube. You see the words first. Business asks are never answered for you. Cabinet never deletes, hides or reports a comment: the board tells you where to do that in YouTube Studio.</p>
     </footer>
   </main>
+</div>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-scrim" data-act="drawer-close"></div>
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+    <div class="drawer-head">
+      <span class="lane-icon" id="drawer-icon" aria-hidden="true"></span>
+      <div>
+        <h2 id="drawer-title"></h2>
+        <p id="drawer-sub"></p>
+      </div>
+      <button type="button" class="drawer-close" data-act="drawer-close" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -505,29 +618,29 @@
     "Is anyone angry in the comments?"
   ];
 
-  /** Watch plays: one tap to ask now, or to switch on as a routine. Each reads or drafts to copy. */
+  /** Watch plays: one tap to ask now, to switch on as a routine, or to add as a box. Each reads or drafts to copy. */
   var IDEAS = [
-    { art: "ideas/spam.jpg", title: "Clean up spam",
+    { id: "spam", art: "ideas/spam.jpg", title: "Clean up spam",
       text: "Every spam and scam comment this week in one list, with a link to each so you can remove it.",
       ask: "List every spam or scam comment under my videos this week: who wrote it, under which video, and why it looks like spam, with a link to each so I can remove them in YouTube Studio. Do not change anything on YouTube.",
       when: "Every Monday", at: "every Monday at 9 am" },
-    { art: "ideas/angry.jpg", title: "Calm answers to angry comments",
+    { id: "angry", art: "ideas/angry.jpg", title: "Calm answers to angry comments",
       text: "A short, calm reply to each angry comment worth answering, ready to copy.",
       ask: "Find the angry comments under my videos from the last few days that are worth answering, and draft a short, calm reply to each in my voice, as drafts I can copy. Tell me which ones are better left alone. Do not post anything on YouTube.",
       when: "Every day", at: "every day at 10 am" },
-    { art: "ideas/drop.jpg", title: "Why did a video drop?",
+    { id: "drop", art: "ideas/drop.jpg", title: "Why did a video drop?",
       text: "For a video doing under your usual: its numbers, its title, what people said, and what to try.",
       ask: "Look at my videos doing under my usual right now. For each, compare its daily views with my usual and with my best recent video, look at its title and what people said, and give me three things to try. Drafts only: do not change anything on YouTube.",
       when: "Every Monday", at: "every Monday at 9:30 am" },
-    { art: "ideas/waiting.jpg", title: "Questions waiting too long",
+    { id: "waiting", art: "ideas/waiting.jpg", title: "Questions waiting too long",
       text: "Questions under your videos nobody answered in three days, each with a reply to copy.",
       ask: "List the questions under my videos that nobody from the channel answered for more than three days, the most liked first, and draft a short reply to each in my voice, as drafts I can copy. Do not post anything on YouTube.",
       when: "Every Wednesday", at: "every Wednesday at 9 am" },
-    { art: "ideas/weekly.jpg", title: "Weekly channel check",
+    { id: "weekly", art: "ideas/weekly.jpg", title: "Weekly channel check",
       text: "What needed a look this week, what is still open, the business asks, and what got better.",
       ask: "Write a five line check of my channel this week from the Watch Board: what needed a look, what is still open, any business or collab asks, what got better, and the one thing to do first.",
       when: "Every Friday", at: "every Friday at 4 pm" },
-    { art: "ideas/claims.jpg", title: "What people say about you",
+    { id: "claims", art: "ideas/claims.jpg", title: "What people say about you",
       text: "Claims about you in the comments, how far they spread, and a calm way to answer, if at all.",
       ask: "Look for comments under my videos from the last two weeks that say something about me as a person or about how I make my videos, true or not. Tell me what is said, how many people said or liked it, and whether it is worth answering. If it is, draft one calm answer I can copy. Do not post anything on YouTube.",
       when: "Every Monday", at: "every Monday at 10 am" }
@@ -554,7 +667,18 @@
     runNote: "",
     connecting: false,
     connectNote: "",
+    askNote: "",
     animate: true,
+    /** The boxes on this person's board, from cabinet.mine; null is the default board. */
+    layout: null,
+    drawerOpen: false,
+    drawerKind: "ideas",
+    editing: false,
+    undo: [],
+    expanded: {},
+    need: {},
+    /** Rows a short list gives back: it stands as tall as its rows and the boxes under it move up. */
+    fit: {},
     /** The first check's lines as data/reading.json has them, and how many are on screen. */
     reading: null,
     readShown: 0,
@@ -852,16 +976,20 @@
       else toast("Ask the person who owns this cabinet to connect YouTube.");
       return;
     }
-    var note = $("ask-note");
-    note.textContent = "Asking...";
+    setAskNote("Asking...");
     cab.ask(q, { agent: AGENT, send: true }).then(function () {
-      note.textContent = "Asked. The answer is coming in the chat next to this page.";
+      setAskNote("Asked. The answer is coming in the chat next to this page.");
       toast("Asked. The answer is coming in the chat.");
-      $("ask-input").value = "";
+      if ($("ask-input")) $("ask-input").value = "";
     }).catch(function (e) {
-      note.textContent = e && e.message ? e.message : "That did not go through. Try again.";
-      toast(note.textContent);
+      setAskNote(e && e.message ? e.message : "That did not go through. Try again.");
+      toast(state.askNote);
     });
+  }
+  /** The line under the Ask box; it lives in state because the box can be drawn again. */
+  function setAskNote(words) {
+    state.askNote = words;
+    if ($("ask-note")) $("ask-note").textContent = words;
   }
 
   function ytLink(url) {
@@ -872,7 +1000,7 @@
   // ── The items ──────────────────────────────────────────────────────────
 
   function kindOf(item) { return KIND_WORDS[item.kind] ? item.kind : "Other"; }
-  function levelOf(item) {
+  function urgencyOf(item) {
     if (LEVEL_RANK[item.level] == null) return "Low";
     // A business ask is never urgent: at most "worth a look", ranked after the trouble.
     return item.kind === "Business" && item.level === "High" ? "Medium" : item.level;
@@ -881,7 +1009,7 @@
   function askOf(item) { return ASKS[item.ask] ? item.ask : "Business"; }
   /** How urgent, in words. Red only for urgent; a business ask is at most "worth a look". */
   function levelWord(item) {
-    var level = levelOf(item);
+    var level = urgencyOf(item);
     if (level === "High") return '<span class="chip hot">Urgent</span>';
     if (level === "Low") return '<span class="chip">Can wait</span>';
     return kindOf(item) === "Business" ? '<span class="chip look">Worth a look</span>' : "";
@@ -892,7 +1020,7 @@
     var all = state.data ? list(state.data.items) : [];
     var biz = function (x) { return kindOf(x) === "Business" ? 1 : 0; };
     return all.slice().sort(function (a, b) {
-      return LEVEL_RANK[levelOf(a)] - LEVEL_RANK[levelOf(b)] || biz(a) - biz(b) ||
+      return LEVEL_RANK[urgencyOf(a)] - LEVEL_RANK[urgencyOf(b)] || biz(a) - biz(b) ||
         (b.count || 0) - (a.count || 0) ||
         ((parseTime(b.lastSeen) || 0) - (parseTime(a.lastSeen) || 0));
     });
@@ -1106,11 +1234,11 @@
     paintHero();
     paintReading();
     paintRibbon();
-    paintBoard();
+    paintGrid();
     paintGiftKeep();
-    paintIdeas();
-    paintAsk();
-    state.animate = false;
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+    if (state.loaded && state.data) state.animate = false;
   }
 
   function paintStatus() {
@@ -1136,7 +1264,11 @@
           (state.catchingUp ? '<span class="next">Catching up on the ' + clockOf(state.catchingUp) + " check you missed</span>" : "")
         : '<button class="btn" data-act="run"' + (s === "connected" ? "" : " disabled") + ">" + icon("i-refresh") + "Check now</button>";
     }
-    $("status").innerHTML = pill + updated + button;
+    // Ideas, and the board's layout.
+    var page = state.loaded && state.data && !showReading();
+    var ideas = page ? '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-bulb") + "Ideas</button>" : "";
+    var edit = !page || state.editing ? "" : '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Layout</button>";
+    $("status").innerHTML = pill + updated + button + ideas + edit;
     var chan = d && d.channel ? text(d.channel.title, 60) : "";
     $("chan").textContent = chan;
   }
@@ -1218,7 +1350,7 @@
     }
     var top = all[0];
     var count = function (fn) { return all.filter(fn).length; };
-    var high = count(function (x) { return levelOf(x) === "High"; });
+    var high = count(function (x) { return urgencyOf(x) === "High"; });
     var head = all.length + " " + plural(all.length, "thing needs", "things need") + " a look";
     var sum = text(top.summary, 220);
     var meta = [];
@@ -1292,11 +1424,14 @@
       "</li>";
   }
 
-  function paintBoard() {
-    var main = $("board-main");
-    $("board").hidden = !state.loaded || !state.data;
-    if (!state.loaded || !state.data) { main.innerHTML = ""; return; }
+  // Needs a look: every item once, most urgent first, a filter by kind and a find box above the rows.
+  function drawItems(level) {
     var all = items();
+    var high = all.filter(function (x) { return urgencyOf(x) === "High"; }).length;
+    if (level === "S") {
+      return sumBox("items", "Needs a look", "i-watch", String(all.length), plural(all.length, "thing needs a look", "things need a look"),
+        all[0] ? "<b>" + esc(text(all[0].title, 60)) + "</b>" : "");
+    }
     var counts = {};
     all.forEach(function (r) { var k = kindOf(r); counts[k] = (counts[k] || 0) + 1; });
     if (state.filter !== "All" && !counts[state.filter]) state.filter = "All";
@@ -1309,38 +1444,23 @@
     var now = nowRef();
     var ranked = all.map(function (r, i) { return { r: r, rank: i + 1 }; });
     var shown = state.filter === "All" ? ranked : ranked.filter(function (x) { return kindOf(x.r) === state.filter; });
-    var high = all.filter(function (x) { return levelOf(x) === "High"; }).length;
     var inner = all.length
-      ? filters +
-        '<input class="find" id="find" type="search" dir="auto" placeholder="Find on the board" aria-label="Find on the board" value="' + esc(state.query) + '" />' +
+      ? '<input class="find" id="find" type="search" dir="auto" placeholder="Find on the board" aria-label="Find on the board" value="' + esc(state.query) + '" />' +
         '<ul class="rows">' + shown.map(function (x) { return itemRow(x.r, x.rank, now); }).join("") + "</ul>"
       : '<p class="lane-empty">Nothing needs a look right now. The board fills in when something does.</p>';
-    // Opening a row repaints the board; the chip row keeps where it was scrolled to.
-    var bar = main.querySelector(".filters");
-    var keep = bar ? bar.scrollLeft : 0;
-    // So does the Find box: a repaint (every 8 seconds while a check runs) keeps its focus and caret.
-    var find = $("find");
-    var caret = find && document.activeElement === find ? [find.selectionStart, find.selectionEnd] : null;
-    main.innerHTML = '<section class="lane" aria-labelledby="lane-h"><div class="lane-head"><span class="lane-icon">' + icon("i-watch") + '</span><h3 id="lane-h">Needs a look</h3>' +
-      (all.length ? '<span class="count num' + (high ? " hot" : "") + '">' + all.length + "</span>" : "") + "</div>" + inner + "</section>";
-    bar = main.querySelector(".filters");
-    if (bar) bar.scrollLeft = keep;
-    find = $("find");
-    if (caret && find) {
-      find.focus({ preventScroll: true });
-      try { find.setSelectionRange(caret[0], caret[1]); } catch (e) { /* not a text box any more */ }
-    }
-    filterRows();
+    return boxHead("items", "Needs a look", "i-watch", all.length, high) + filters +
+      '<div class="box-body">' + inner + "</div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
   }
 
   /** Finding one item runs over each row's words and hides the rest. No re-render. */
   function filterRows() {
     var needle = state.query.trim().toLowerCase();
-    var rows = document.querySelectorAll("#board-main .row");
+    var rows = document.querySelectorAll("#box-items .row");
     var hits = 0;
     Array.prototype.forEach.call(rows, function (row) {
       var hit = !needle || row.textContent.toLowerCase().indexOf(needle) > -1;
-      row.hidden = !hit;
+      row.classList.toggle("miss", !hit);
       if (hit) hits++;
     });
     var none = $("nohits");
@@ -1352,40 +1472,1050 @@
     p.className = "lane-empty nohits";
     p.innerHTML = "<span>Nothing on the board for that.</span>" +
       (canAsk() ? '<button class="btn small" type="button" data-act="find-ask">' + icon("i-chat") + "Ask in chat</button>" : "");
-    $("board-main").querySelector(".lane").appendChild(p);
+    $("box-items").querySelector(".box-body").appendChild(p);
   }
 
+  // ── The grid of boxes ──────────────────────────────────────────────────
+  // Each box is drawn by its own function at one of three levels, picked by its width on
+  // screen: S (one number), M (the rows that fit), L (everything, with more detail). The
+  // layout is a list of { id, x, y, w, h } on a 12 column grid of fixed rows; each person's
+  // own layout is kept in cabinet.mine, so it follows them to any computer.
+
+  var COLS = 12;
+  var ROW = 64;
+  var GAP = 16;
+  var PHONE_ROWS = 3;
+  var LAYOUT_KEY = "youtube-watch-layout@1";
+  // On a phone the board's list starts Large, so it shows every item as it always did.
+  var DEFAULT_LAYOUT = [
+    { id: "items", x: 0, y: 0, w: 7, h: 12, p: "L" },
+    { id: "ask", x: 7, y: 0, w: 5, h: 7 },
+    { id: "ideas", x: 7, y: 7, w: 5, h: 6 }
+  ];
+  /**
+   * Every box a board can hold: how it draws, and for the Add a box panel its name, what it
+   * shows, its group and the size it starts at. `show` keeps a box off the board while it
+   * has nothing to be (`when` says why).
+   */
+  var BOXES = {
+    items: { cls: "lane", list: true, draw: drawItems, group: "board", icon: "i-watch", w: 7, h: 12, min: [3, 3],
+      title: "Needs a look", desc: "Everything on the channel that needs you, most urgent first, with the comments behind it." },
+    "n-items": { cls: "lane nbox", draw: drawNumber("items"), group: "numbers", icon: "i-watch", w: 3, h: 2, min: [2, 2],
+      title: "Things to look at", desc: "How many things on the board need a look." },
+    "n-urgent": { cls: "lane nbox", draw: drawNumber("urgent"), group: "numbers", icon: "i-alert", w: 3, h: 2, min: [2, 2],
+      title: "Urgent", desc: "How many of them are urgent." },
+    "n-business": { cls: "lane nbox", draw: drawNumber("business"), group: "numbers", icon: "i-mail", w: 3, h: 2, min: [2, 2],
+      title: "Business asks", desc: "How many sponsorship, collab and other business asks came in, and the first one." },
+    ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-chat", w: 5, h: 7, min: [3, 3],
+      title: "Ask about your channel", desc: "Ask anything about your comments and videos.",
+      show: function () { return !V2 || role() !== "viewer"; }, when: "Only people who can ask in this cabinet see it." },
+    ideas: { cls: "lane", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 5, h: 6, min: [3, 3],
+      title: "All ideas", desc: "Every idea in one box, one tap each." }
+  };
+  IDEAS.forEach(function (idea) {
+    BOXES["idea-" + idea.id] = { cls: "lane", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
+      icon: "i-bulb", w: 4, h: 4, min: [3, 3], title: idea.title, desc: idea.text };
+  });
+  var GROUPS = [
+    { id: "board", title: "Your board" },
+    { id: "numbers", title: "Numbers" },
+    { id: "ask", title: "Ask and ideas" },
+    { id: "single", title: "One idea" }
+  ];
+  var PHONE = window.matchMedia ? window.matchMedia("(max-width: 720px)") : null;
+
+  function phone() { return !!(PHONE && PHONE.matches); }
+  function levelFor(width) { return width < 320 ? "S" : width < 640 ? "M" : "L"; }
+  var LEVEL_WORDS = { S: "Small", M: "Medium", L: "Large" };
+  /** The smallest a box may be made: wide and tall enough that what it shows still fits. */
+  function minSize(id) { var m = BOXES[id].min || [3, 3]; return { w: m[0], h: m[1] }; }
+  function whole(n) { return typeof n === "number" && n === Math.floor(n) && n >= 0; }
+
+  /** A saved layout, keeping only entries that name a box we have and fit the grid. */
+  function cleanLayout(value) {
+    if (!Array.isArray(value)) return null;
+    var seen = {};
+    var out = value.filter(function (b) {
+      var ok = !!(b && BOXES[b.id] && !seen[b.id] && whole(b.x) && whole(b.y) && whole(b.w) && whole(b.h) &&
+        b.w >= 1 && b.h >= 1 && b.x + b.w <= COLS && b.h <= 40);
+      if (ok) seen[b.id] = true;
+      return ok;
+    }).map(copyEntry);
+    return out.length ? out : null;
+  }
+  /** One layout entry: its place on the grid, and on a phone its order (o) and size (p). */
+  function copyEntry(b) {
+    var out = { id: b.id, x: b.x, y: b.y, w: b.w, h: b.h };
+    if (whole(b.o)) out.o = b.o;
+    if (b.p === "S" || b.p === "M" || b.p === "L") out.p = b.p;
+    return out;
+  }
+  function copyLayout(value) { return value.map(copyEntry); }
+
+  /**
+   * Where the boxes land: each keeps its columns, is pushed down past any box above it that
+   * it would overlap (an opened list grows), then rises into the space left above it, so a
+   * hidden or shorter box never leaves a hole. A pinned box (the one being moved or resized)
+   * is placed first, exactly where it was put, and the others make room around it.
+   */
+  function placed(source, pinId) {
+    var out = [];
+    function hits(b, y, h) {
+      return out.some(function (o) { return b.x < o.x + o.w && o.x < b.x + b.w && y < o.y + o.h && o.y < y + h; });
+    }
+    var boxes = (source || state.layout || DEFAULT_LAYOUT)
+      .filter(function (b) { return !BOXES[b.id].show || BOXES[b.id].show(); })
+      .slice().sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) out.push({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h });
+    });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) return;
+      var h = Math.max(state.fit[b.id] || b.h, state.need[b.id] || 0);
+      var y = b.y;
+      while (hits(b, y, h)) y++;
+      while (y > 0 && !hits(b, y - 1, h)) y--;
+      out.push({ id: b.id, x: b.x, y: y, w: b.w, h: h });
+    });
+    return out.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+  }
+  /** On a phone the boxes stand in the order the person gave them there, else top to bottom. */
+  function phoneOrder(spots) {
+    var at = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { at[b.id] = b; });
+    return spots.slice().sort(function (a, b) {
+      var oa = at[a.id] && whole(at[a.id].o) ? at[a.id].o : 1e6;
+      var ob = at[b.id] && whole(at[b.id].o) ? at[b.id].o : 1e6;
+      return oa - ob || a.y - b.y || a.x - b.x;
+    });
+  }
+  function entryOf(id) {
+    var l = state.layout || DEFAULT_LAYOUT;
+    for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+    return null;
+  }
+  /** The level a box draws at: by its width on a wide screen, by the person's choice on a phone. */
+  function levelOf(el) {
+    if (phone()) {
+      var e = entryOf(el.getAttribute("data-box"));
+      return e && e.p ? e.p : "M";
+    }
+    return levelFor(el.offsetWidth);
+  }
+
+  // ── Motion ─────────────────────────────────────────────────────────────
+  // Boxes glide to new places on a spring with a small, quick bounce. Before a change the
+  // page notes where every box is (and stops what is still moving); after it, each box
+  // starts where it was and glides to where it is now. A box that changes size grows or
+  // shrinks for real, so its words never stretch. People who asked their system for less
+  // motion get the change at once.
+
+  var MOVE_MS = 460;
+  var ENTER_MS = 380;
+  var lessMotion = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function motionOK() { return !(lessMotion && lessMotion.matches) && typeof document.body.animate === "function"; }
+
+  /** A damped spring as a CSS easing: about 4% past the mark, settled by the end. */
+  function springEasing(zeta, omega, steps) {
+    var wd = omega * Math.sqrt(1 - zeta * zeta);
+    var pts = [];
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      var v = 1 - Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + (zeta * omega / wd) * Math.sin(wd * t));
+      pts.push(i === steps ? 1 : Math.round(v * 1000) / 1000);
+    }
+    return "linear(" + pts.join(", ") + ")";
+  }
+  var SPRING = window.CSS && CSS.supports && CSS.supports("transition-timing-function", "linear(0, 1)")
+    ? springEasing(0.72, 10, 32)
+    : "cubic-bezier(.34, 1.3, .64, 1)";
+  document.documentElement.style.setProperty("--spring", SPRING);
+  /** No bounce: what the hand moves glides smoothly, so nothing seems to jump under it. */
+  var SMOOTH = "cubic-bezier(.22, 1, .36, 1)";
+
+  /** Where every box is now, then stops what is still gliding so the change starts clean. */
+  function snapshot(skip) {
+    var at = {};
+    if (!motionOK()) return at;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip) return;
+      at[id] = el.getBoundingClientRect();
+      el.getAnimations().forEach(function (a) { if (a.id === "glide" || a.id === "enter") a.cancel(); });
+    });
+    return at;
+  }
+  /** Each box glides from where the snapshot saw it to where it is now; a new box grows in. */
+  function glide(before, skip, easing) {
+    if (!motionOK() || !before) return;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip || el.hidden) return;
+      if (before[id]) glideFrom(el, before[id], true, MOVE_MS, easing);
+      else enter(el);
+    });
+  }
+  /** One element glides from the rectangle `a` to where it is now, growing for real if its size changed. */
+  function glideFrom(el, a, isBox, ms, easing) {
+    var b = el.getBoundingClientRect();
+    var dx = a.left - b.left;
+    var dy = a.top - b.top;
+    var resized = Math.abs(a.width - b.width) >= 1 || Math.abs(a.height - b.height) >= 1;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && !resized) return;
+    var from = { transform: "translate(" + dx + "px, " + dy + "px)" };
+    var to = { transform: "none" };
+    if (resized) {
+      from.width = a.width + "px";
+      from.height = a.height + "px";
+      to.width = b.width + "px";
+      to.height = b.height + "px";
+      // While it grows, the box is not drawn again at every in-between size.
+      if (isBox) el.setAttribute("data-gliding", "");
+    }
+    var anim = el.animate([from, to], { duration: ms, easing: easing || SPRING });
+    anim.id = "glide";
+    if (!isBox) return;
+    anim.onfinish = anim.oncancel = function () {
+      if (!el.hasAttribute("data-gliding")) return;
+      el.removeAttribute("data-gliding");
+      if (el.isConnected && el.offsetWidth) {
+        if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+        else fitBox(el);
+      }
+    };
+  }
+  function enter(el) {
+    if (!motionOK()) return;
+    var anim = el.animate([{ opacity: 0, transform: "scale(.94)" }, { opacity: 1, transform: "none" }], { duration: ENTER_MS, easing: SPRING });
+    anim.id = "enter";
+  }
+  /** A box held by the hand lets go of its offset and its free size, so the glide can carry it home. */
+  function letGo() {
+    Object.keys(boxEls).forEach(function (id) {
+      var s = boxEls[id].style;
+      s.transform = "";
+      s.width = "";
+      s.height = "";
+    });
+  }
+
+  var sizeWatch = window.ResizeObserver ? new ResizeObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var el = entry.target;
+      if (!el.isConnected || !el.offsetWidth || el.hasAttribute("data-gliding")) return;
+      if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+      else fitBox(el);
+      sizeTag(el);
+    });
+  }) : null;
+
+  var boxEls = {};
+  /** What each box last drew, so a repaint that changes nothing leaves it (and its input) alone. */
+  var drawn = {};
+  function boxEl(id) {
+    if (!boxEls[id]) {
+      var el = document.createElement("section");
+      el.className = "box " + BOXES[id].cls;
+      el.id = "box-" + id;
+      el.setAttribute("data-box", id);
+      if (BOXES[id].list) el.setAttribute("aria-labelledby", "h-" + id);
+      boxEls[id] = el;
+      el.addEventListener("animationend", function (e) { if (e.animationName === "rise") el.classList.remove("rise"); });
+      if (sizeWatch) sizeWatch.observe(el);
+    }
+    return boxEls[id];
+  }
+
+  /** Puts every box in its place and order, without drawing what is inside. */
+  function placeBoxes() {
+    var grid = $("grid");
+    var stack = phone();
+    grid.classList.toggle("stack", stack);
+    grid.classList.toggle("editing", state.editing);
+    grid.style.setProperty("--row", ROW + "px");
+    grid.style.setProperty("--gap", GAP + "px");
+    var spots = stack ? phoneOrder(placed()) : placed();
+    var keep = {};
+    spots.forEach(function (spot, i) {
+      keep[spot.id] = true;
+      var el = boxEl(spot.id);
+      if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null);
+      el.style.gridColumn = stack ? "" : spot.x + 1 + " / span " + spot.w;
+      el.style.gridRow = stack ? "" : spot.y + 1 + " / span " + spot.h;
+      // In edit mode a box is one stop for the keyboard: arrows move it, Shift and arrows resize it.
+      if (state.editing) {
+        el.tabIndex = 0;
+        el.setAttribute("aria-label", BOXES[spot.id].title + (stack
+          ? ". Up and down arrows move it."
+          : ". Arrow keys move it. Shift and arrow keys change its size."));
+      } else {
+        el.removeAttribute("tabindex");
+        el.removeAttribute("aria-label");
+      }
+      if (state.animate) {
+        el.classList.add("rise");
+        el.style.setProperty("--d", i * 70 + "ms");
+      }
+    });
+    Array.prototype.slice.call(grid.children).forEach(function (el) {
+      if (el.hasAttribute("data-box") && !keep[el.getAttribute("data-box")]) grid.removeChild(el);
+    });
+    return spots;
+  }
+
+  function paintGrid() {
+    var grid = $("grid");
+    var show = state.loaded && !!state.data;
+    grid.hidden = !show;
+    if (!show) { $("grid-empty").hidden = true; return; }
+    var spots = placeBoxes();
+    $("grid-empty").hidden = spots.length > 0;
+    spots.forEach(function (spot) { drawBox(boxEl(spot.id)); });
+  }
+
+  /** Draws one box at the level its width gives it; what someone was typing survives. */
+  function drawBox(el) {
+    var id = el.getAttribute("data-box");
+    var level = levelOf(el);
+    var html = BOXES[id].draw(level);
+    if (state.editing) {
+      html += '<button type="button" class="box-x" data-act="remove-box" aria-label="Remove ' + esc(BOXES[id].title) + '">' + icon("i-x") + "</button>";
+      html += phone()
+        ? '<div class="box-size" role="group" aria-label="Size of ' + esc(BOXES[id].title) + '">' + ["S", "M", "L"].map(function (size) {
+            return '<button type="button" data-act="phone-size" data-size="' + size + '" aria-pressed="' + (level === size) + '">' + LEVEL_WORDS[size] + "</button>";
+          }).join("") + "</div>"
+        : '<span class="box-resize" title="Drag to resize" aria-hidden="true"></span>';
+    }
+    el.setAttribute("data-level", level);
+    if (drawn[id] !== html) {
+      var input = el.querySelector("input");
+      var typed = input ? input.value : "";
+      var caret = input && document.activeElement === input ? [input.selectionStart, input.selectionEnd] : null;
+      // Opening a row draws the box again; the chip row keeps where it was scrolled to.
+      var bar = el.querySelector(".filters");
+      var keep = bar ? bar.scrollLeft : 0;
+      el.innerHTML = html;
+      drawn[id] = html;
+      var again = el.querySelector("input");
+      if (again && typed) again.value = typed;
+      if (again && caret) {
+        again.focus({ preventScroll: true });
+        try { again.setSelectionRange(caret[0], caret[1]); } catch (e) { /* not a text box any more */ }
+      }
+      bar = el.querySelector(".filters");
+      if (bar) bar.scrollLeft = keep;
+      // A new draw of the list keeps what the person is looking for.
+      if (id === "items") filterRows();
+    }
+    fitBox(el);
+  }
+
+  /**
+   * A list shows the rows that fit its box, then "+N more". Opened (by that button, or by
+   * opening one of its rows) it shows them all and the box grows to hold them.
+   */
+  function fitBox(el) {
+    var id = el.getAttribute("data-box");
+    var body = el.querySelector(".box-body");
+    var more = el.querySelector(".box-more");
+    if (!body || !more) return;
+    var rows = Array.prototype.slice.call(body.querySelectorAll(".rows > li:not(.miss)"));
+    var open = !!state.expanded[id] || !!body.querySelector(".row.open");
+    var stack = phone();
+    var cut = 0;
+    rows.forEach(function (r) { r.hidden = false; });
+    more.hidden = true;
+    // A list that gave rows back and now needs more takes back its own size before it measures.
+    var shrinks = !state.editing && !stack && el.matches(".lane:not(.nbox):not([data-box^='idea-'])");
+    if (state.fit[id] && (!shrinks || body.scrollHeight > body.clientHeight + 1)) {
+      delete state.fit[id];
+      placeBoxes();
+    }
+    if (!open && stack) {
+      var keepRows = el.getAttribute("data-level") === "L" ? rows.length : PHONE_ROWS;
+      rows.forEach(function (r, i) { if (i >= keepRows) { r.hidden = true; cut++; } });
+    } else if (!open && body.scrollHeight > body.clientHeight + 1) {
+      more.hidden = false;
+      for (var i = rows.length - 1; i > 0 && body.scrollHeight > body.clientHeight + 1; i--) { rows[i].hidden = true; cut++; }
+    }
+    more.hidden = !cut && !state.expanded[id];
+    more.textContent = cut ? "+" + cut + " more" : "Show less";
+    more.setAttribute("aria-expanded", String(!cut));
+
+    var need = 0;
+    if (open && !stack) {
+      var total = 2;
+      Array.prototype.forEach.call(el.children, function (child) {
+        if (child.matches(".box-x, .box-resize, .box-size")) return;
+        total += child === body ? body.scrollHeight : child.hidden ? 0 : child.offsetHeight;
+      });
+      need = Math.ceil((total + GAP) / (ROW + GAP));
+    }
+    // A list with rows to spare stands as tall as its rows, opened or not, and gives the
+    // rest back so the boxes under it move up: no empty white under a short list.
+    var own = entryOf(id);
+    var fit = !shrinks || cut ? 0 : open ? need : Math.ceil((el.offsetHeight + GAP) / (ROW + GAP));
+    if (!own || fit >= own.h) fit = 0;
+    if ((state.need[id] || 0) !== need || (state.fit[id] || 0) !== fit) {
+      state.need[id] = need;
+      state.fit[id] = fit;
+      placeBoxes();
+    }
+  }
+
+
+  function boxHead(key, title, iconId, n, hot) {
+    return '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="h-' + key + '">' + esc(title) + "</h3>" +
+      (n === null ? "" : '<span class="count num' + (n ? (hot ? " hot" : "") : " zero") + '">' + n + "</span>") + "</div>";
+  }
+  function listBox(key, title, iconId, n, rowsHtml, emptyText) {
+    return boxHead(key, title, iconId, n) +
+      '<div class="box-body">' + (n ? rowsHtml : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
+  }
+  /** The small level: one number, a line under it, and the one that matters most. */
+  function sumBox(key, title, iconId, value, subHtml, lineHtml) {
+    return boxHead(key, title, iconId, null) +
+      '<div class="sum"><span class="value num' + (value ? "" : " none") + '" dir="auto">' + esc(value || "None") + "</span>" +
+      '<span class="sub">' + subHtml + "</span>" + (lineHtml ? '<span class="line" dir="auto">' + lineHtml + "</span>" : "") + "</div>";
+  }
+
+  /** The number boxes: one number each, from the board. */
+  function drawNumber(which) {
+    return function () {
+      var all = items();
+      if (which === "items") {
+        return sumBox("n-items", "Things to look at", "i-watch", String(all.length), plural(all.length, "thing needs a look", "things need a look"), "");
+      }
+      if (which === "urgent") {
+        var high = all.filter(function (x) { return urgencyOf(x) === "High"; });
+        return sumBox("n-urgent", "Urgent", "i-alert", String(high.length), high.length ? plural(high.length, "thing is urgent", "things are urgent") : "Nothing urgent",
+          high[0] ? "<b>" + esc(text(high[0].title, 60)) + "</b>" : "");
+      }
+      var biz = all.filter(function (x) { return kindOf(x) === "Business"; });
+      var first = biz[0];
+      var from = first ? text(first.from, 40) : "";
+      return sumBox("n-business", "Business asks", "i-mail", String(biz.length), plural(biz.length, "business or collab ask", "business or collab asks"),
+        first ? "<b>" + esc(askOf(first)) + "</b>" + (from ? " from " + nameHtml(from) : "") : "");
+    };
+  }
+
+  /** Every idea, one tap each. */
+  function drawIdeasBox(level) {
+    var can = canAsk() || !V2;
+    if (level === "S") {
+      return sumBox("ideas", "Ideas", "i-bulb", String(IDEAS.length), "ideas, one tap each", "") +
+        '<div class="box-pad"><button class="btn small" data-act="ideas">' + icon("i-bulb") + "See them all</button></div>";
+    }
+    return listBox("ideas", "Ideas for your channel", "i-bulb", IDEAS.length,
+      '<ul class="rows idea-rows">' + IDEAS.map(function (idea) {
+        return "<li><div><b>" + esc(idea.title) + "</b>" + (level === "L" ? '<span dir="auto">' + esc(idea.text) + "</span>" : "") + "</div>" +
+          '<button class="btn small" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask</button></li>";
+      }).join("") + "</ul>",
+      "No ideas yet.");
+  }
+
+  /** One idea as its own box, put there by the person. */
+  function drawOneIdea(idea, level) {
+    var can = canAsk() || !V2;
+    return '<div class="one-idea">' + (level === "L" ? preview(idea) : "") +
+      "<h3>" + esc(idea.title) + "</h3>" +
+      (level === "S" ? "" : "<p>" + esc(idea.text) + "</p>") +
+      '<div class="go"><button class="btn small dark" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
+      (level === "S" ? "" : '<button class="btn small" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + esc(idea.when) + "</button>") +
+      "</div></div>";
+  }
   /** A picture of what the idea is about, in the template covers' style. */
   function preview(idea) {
     return '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>';
   }
-
-  function paintIdeas() {
-    var el = $("ideas");
-    if (!state.loaded) { el.innerHTML = ""; return; }
-    var can = canAsk() || !V2;
-    el.innerHTML = '<div class="section-head"><h2 id="ideas-title">Ideas for your channel</h2>' +
-      "<p>" + (!V2 ? "Ask for any of these in the cabinet’s chat." : !askReady() ? "Connect YouTube and each of these is one tap away." : "One tap to ask now, or to have it done for you on a schedule.") + "</p></div>" +
-      '<div class="idea-grid">' + IDEAS.map(function (idea, i) {
-        return '<article class="idea' + (state.animate ? " rise" : "") + '"' + (state.animate ? ' style="--d:' + (i * 40) + 'ms"' : "") + ">" +
-          preview(idea) +
-          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
-          '<div class="go"><button class="btn dark" data-act="idea-now" data-i="' + i + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
-          '<button class="btn" data-act="idea-routine" data-i="' + i + '"' + (can ? "" : " disabled") + ' aria-label="' + esc(idea.when + ": " + idea.title) + '">' + icon("i-repeat") + esc(idea.when) + "</button></div>" +
-          "</article>";
-      }).join("") + "</div>";
+  function ideaById(id) {
+    for (var i = 0; i < IDEAS.length; i++) if (IDEAS[i].id === id) return IDEAS[i];
+    return null;
   }
 
-  function paintAsk() {
-    $("ask").hidden = V2 && role() === "viewer";
-    $("ask-note").textContent = !V2
-      ? "Open this cabinet in Cabinet to ask. The answer comes up in the chat next to this page."
-      : askReady() ? "The answer comes up in the chat next to this page." : "Connect YouTube first, then ask anything.";
+  // Ask about your channel: the ready-made questions under the box.
+  function drawAsk(level) {
+    var note = state.askNote || askHint();
+    return (level === "S" ? "" : '<h2 id="ask-title">Ask about your channel</h2><p>Anything from "is anyone angry?" to "who asked about a sponsorship?"</p>') +
+      '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="A comment or a video..." />' +
+      '<button type="submit" class="btn light">' + icon("i-send") + "Ask</button></form>" +
+      (level === "S" ? "" : '<p class="qs-label">Try</p><div class="qs">' + QUESTIONS.map(function (q) {
+        return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+      }).join("") + "</div>") +
+      (level !== "S" ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "");
   }
-  function paintQuestions() {
-    $("questions").innerHTML = QUESTIONS.map(function (q) {
-      return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+  function askHint() {
+    if (!V2) return "Open this cabinet in Cabinet to ask. The answer comes up in the chat next to this page.";
+    return askReady() ? "The answer comes up in the chat next to this page." : "Connect YouTube first, then ask anything.";
+  }
+
+  var DRAWERS = {
+    ideas: { title: "Ideas for your channel", sub: "One tap to ask now, to have it done for you on a schedule, or to keep it on your board as a box.", icon: "i-bulb", paint: paintIdeasPanel },
+    add: { title: "Add a box", sub: "Pick what you want on your board. You can remove it again any time.", icon: "i-plus", paint: paintPicker }
+  };
+  function paintDrawer() {
+    var kind = DRAWERS[state.drawerKind] || DRAWERS.ideas;
+    $("drawer-title").textContent = kind.title;
+    $("drawer-sub").textContent = kind.sub;
+    $("drawer-icon").innerHTML = icon(kind.icon);
+    kind.paint();
+  }
+
+  // The Add a box panel: every box by group, the ones on the board ticked.
+  function paintPicker() {
+    var on = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { on[b.id] = true; });
+    $("drawer-body").innerHTML = GROUPS.map(function (group) {
+      var ids = Object.keys(BOXES).filter(function (id) { return BOXES[id].group === group.id; });
+      return '<section class="pick-group"><h3>' + esc(group.title) + "</h3>" + ids.map(function (id) {
+        var box = BOXES[id];
+        var ready = !box.show || box.show();
+        var note = on[id] ? (ready ? "On your board" : "On your board. " + box.when) : ready ? "" : box.when;
+        return '<div class="pick' + (on[id] ? " on" : "") + '"><span class="pick-ic" aria-hidden="true">' + icon(box.icon) + "</span>" +
+          "<div><b>" + esc(box.title) + "</b><span>" + esc(box.desc) + "</span>" +
+          (note ? "<em>" + esc(note) + "</em>" : "") + "</div>" +
+          (on[id]
+            ? '<span class="pick-on" aria-hidden="true">' + icon("i-check") + "</span>"
+            : '<button type="button" class="btn small" data-act="add-this" data-add="' + id + '"' + (ready ? "" : " disabled") +
+              ' aria-label="Add ' + esc(box.title) + '">' + icon("i-plus") + "Add</button>") +
+          "</div>";
+      }).join("") + "</section>";
     }).join("");
+  }
+
+  // The Ideas panel: every idea with its picture, and a way to keep it on the board as a box.
+  function paintIdeasPanel() {
+    var can = canAsk() || !V2;
+    var on = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { on[b.id] = true; });
+    $("drawer-body").innerHTML =
+      (!V2 ? '<p class="fine" style="margin:0">Ask for any of these in the cabinet’s chat.</p>'
+        : !askReady() ? '<p class="fine" style="margin:0">Connect YouTube and each of these is one tap away.</p>' : "") +
+      IDEAS.map(function (idea) {
+        var boxed = !!on["idea-" + idea.id];
+        return '<article class="idea">' + preview(idea) +
+          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
+          '<div class="go"><button class="btn dark" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now" + "</button>" +
+          '<button class="btn" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + esc(idea.when) + "</button>" +
+          (boxed ? '<span class="on-page">' + icon("i-check") + "On your board</span>"
+            : '<button class="btn" data-act="add-this" data-add="idea-' + idea.id + '">' + icon("i-plus") + "Add as a box</button>") +
+          "</div></article>";
+      }).join("");
+  }
+
+  // ── Editing the board ──────────────────────────────────────────────────
+  // Layout turns on a bar above the grid; each box gets a remove button and stops reacting
+  // to presses. Every change is kept at once in cabinet.mine, and Undo steps back.
+
+  function startEdit() {
+    // Boxes show the size they were given while being arranged, not grown by an open list.
+    state.open = {};
+    state.expanded = {};
+    state.need = {};
+    state.fit = {};
+    state.editing = true;
+    state.undo = [];
+    // The page's opening fade ends here, so no box is caught half way into it while moving.
+    Object.keys(boxEls).forEach(function (id) { boxEls[id].classList.remove("rise"); });
+    paint();
+    // The remove and resize handles pop in once, as edit mode starts.
+    var grid = $("grid");
+    grid.classList.add("fresh");
+    setTimeout(function () { grid.classList.remove("fresh"); }, 700);
+    toast(phone() ? "Hold a box to move it. Pick its size on top." : "Drag a box to move it. Pull its corner to resize it.");
+  }
+  function doneEdit() {
+    state.editing = false;
+    state.undo = [];
+    closeDrawer();
+    paint();
+  }
+  function paintEditbar() {
+    $("editbar").hidden = !state.editing;
+    $("undo-btn").disabled = !state.undo.length;
+  }
+
+  function saveLayout() {
+    if (!V2 || !cab.mine || typeof cab.mine.set !== "function") return;
+    cab.mine.set(LAYOUT_KEY, state.layout).catch(function () {
+      toast("Your board could not be saved. It goes back to how it was next time.");
+    });
+  }
+  function changeLayout(next, easing) {
+    var before = snapshot();
+    letGo();
+    state.undo.push(copyLayout(state.layout || DEFAULT_LAYOUT));
+    if (state.undo.length > 30) state.undo.shift();
+    state.layout = next;
+    saveLayout();
+    paintGrid();
+    glide(before, null, easing);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  function removeBox(id) {
+    var el = boxEls[id];
+    var next = copyLayout(state.layout || DEFAULT_LAYOUT).filter(function (b) { return b.id !== id; });
+    if (el) el.classList.add("leaving");
+    setTimeout(function () {
+      if (el) el.classList.remove("leaving");
+      changeLayout(next);
+      toast(BOXES[id].title + " removed. Undo brings it back.");
+    }, 200);
+  }
+  /** The first place, reading left to right and top down, where a w by h box touches nothing. */
+  function freeSpot(w, h, source) {
+    var spots = placed(source);
+    for (var y = 0; ; y++) {
+      for (var x = 0; x + w <= COLS; x++) {
+        var hit = spots.some(function (o) { return x < o.x + o.w && o.x < x + w && y < o.y + o.h && o.y < y + h; });
+        if (!hit) return { x: x, y: y };
+      }
+    }
+  }
+  function addBox(id) {
+    var box = BOXES[id];
+    var w = Math.min(box.w, COLS);
+    var at = freeSpot(w, box.h);
+    changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).concat({ id: id, x: at.x, y: at.y, w: w, h: box.h }));
+    closeDrawer();
+    var el = boxEls[id];
+    if (el && el.isConnected) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+    }
+    toast(box.title + " added." + (state.editing ? "" : " Press Layout to move it."));
+  }
+  function resetLayout() {
+    changeLayout(copyLayout(DEFAULT_LAYOUT));
+    toast("Back to the first board. Undo brings yours back.");
+  }
+  function undoLayout() {
+    if (!state.undo.length) return;
+    var before = snapshot();
+    state.layout = state.undo.pop();
+    saveLayout();
+    paintGrid();
+    glide(before);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  // ── Moving and resizing ────────────────────────────────────────────────
+  // A mouse or pen drags a box from anywhere on it in edit mode. A finger holds a box for a
+  // moment first, so the page still scrolls under a passing finger; outside edit mode the
+  // hold also starts editing. While a box moves, the others make room live and an outline
+  // shows where it lands. The corner handle resizes it on the grid, naming the size it
+  // reaches. On a phone a box moves up and down its column; its size is a switch.
+
+  var HOLD_MS = 600;
+  var SLOP = 8;
+  /** How far a mouse moves, pressed, before the box comes along: a slip of the hand is not a move. */
+  var DRAG_START = 10;
+  /** How far past a border (in cells) the moving box must be before the others make room. */
+  var STICK = 0.8;
+  var drag = null;
+  var press = null;
+  var hold = null;
+
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function spotIn(spots, id) {
+    for (var i = 0; i < spots.length; i++) if (spots[i].id === id) return spots[i];
+    return null;
+  }
+  function gridMetrics() {
+    var r = $("grid").getBoundingClientRect();
+    return { left: r.left, top: r.top, col: (r.width + GAP) / COLS, row: ROW + GAP };
+  }
+  /** The page with one box put at x, y and sized w by h, every other box making room. */
+  function previewWith(id, x, y, w, h) {
+    return placed(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+      if (b.id === id) { b.x = x; b.y = y; b.w = w; b.h = h; }
+      return b;
+    }), id);
+  }
+  function showSpots(spots) {
+    spots.forEach(function (s) {
+      var el = boxEls[s.id];
+      if (!el) return;
+      el.style.gridColumn = s.x + 1 + " / span " + s.w;
+      el.style.gridRow = s.y + 1 + " / span " + s.h;
+    });
+  }
+  /** Keeps the places a move or resize ended on; nothing is kept when nothing moved. */
+  function keepSpots(spots, easing) {
+    var at = {};
+    spots.forEach(function (s) { at[s.id] = s; });
+    var before = copyLayout(state.layout || DEFAULT_LAYOUT);
+    var next = copyLayout(before).map(function (b) {
+      var s = at[b.id];
+      if (s) { b.x = s.x; b.y = s.y; b.w = s.w; b.h = s.h; }
+      return b;
+    });
+    // Compared as the page shows them, so a drop back in the same place is no change.
+    var shown = function (l) { return JSON.stringify(placed(l).map(function (s) { return [s.id, s.x, s.y, s.w, s.h]; })); };
+    if (shown(next) === shown(before)) { settleBack(easing); return false; }
+    changeLayout(next, easing);
+    return true;
+  }
+  /** Nothing changed: every box glides back to the place it already had. */
+  function settleBack(easing) {
+    var before = snapshot();
+    letGo();
+    paintGrid();
+    glide(before, null, easing);
+  }
+
+  // The outline where a moving box lands, and the size a resized box has reached.
+  function overlay(cls) {
+    var grid = $("grid");
+    var el = grid.querySelector("." + cls);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = cls;
+      el.setAttribute("aria-hidden", "true");
+      grid.appendChild(el);
+    }
+    return el;
+  }
+  /** Puts the outline (or the size label) on a spot; once shown, it glides from spot to spot. */
+  function placeOverlay(el, s) {
+    var was = el.style.gridColumn && motionOK() ? el.getBoundingClientRect() : null;
+    if (was) el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.style.gridColumn = s.x + 1 + " / span " + s.w;
+    el.style.gridRow = s.y + 1 + " / span " + s.h;
+    if (was) glideFrom(el, was, false, 300, SMOOTH);
+  }
+  function clearOverlays() {
+    Array.prototype.slice.call($("grid").querySelectorAll(".drop-spot, .size-tag")).forEach(function (el) { el.parentNode.removeChild(el); });
+  }
+  /** "Medium: 3 rows": what a box shows at the size it has now. */
+  function sizeWords(el) {
+    var id = el.getAttribute("data-box");
+    var level = el.getAttribute("data-level") || "M";
+    var name = LEVEL_WORDS[level];
+    if (!BOXES[id].list) return name;
+    if (level === "S") return name + ": the total only";
+    var n = el.querySelectorAll(".rows > li.row:not([hidden]):not(.miss), .idea-rows > li:not([hidden])").length;
+    return n ? name + ": " + n + " " + plural(n, "row", "rows") : name;
+  }
+
+  function beginDrag(kind, el, x, y, touch) {
+    var id = el.getAttribute("data-box");
+    var r = el.getBoundingClientRect();
+    var spot = spotIn(placed(), id);
+    if (!spot) return;
+    drag = { kind: kind, id: id, el: el, touch: !!touch, x: x, y: y, x0: x, y0: y, scroll0: window.scrollY, spots: null };
+    if (kind === "stack") {
+      var boxes = Array.prototype.filter.call($("grid").children, function (c) { return c.hasAttribute("data-box"); });
+      drag.boxes = boxes;
+      drag.from = boxes.indexOf(el);
+      drag.to = drag.from;
+      drag.gap = parseFloat(getComputedStyle($("grid")).rowGap) || GAP;
+      drag.step = r.height + drag.gap;
+      drag.mids = boxes.map(function (b) { var br = b.getBoundingClientRect(); return br.top + window.scrollY + br.height / 2; });
+    } else if (kind === "move") {
+      drag.w = spot.w;
+      drag.h = spot.h;
+      drag.grabX = x - r.left;
+      drag.grabY = y - r.top;
+    } else {
+      drag.sx = spot.x;
+      drag.sy = spot.y;
+      drag.pw0 = r.width;
+      drag.ph0 = r.height;
+    }
+    // Whatever was still animating this box lets go of it, or it would hold the box still
+    // while the hand moves.
+    el.classList.remove("rise");
+    el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.classList.add(kind === "size" ? "sizing" : "lifted");
+    $("grid").classList.add("arranging");
+    document.body.classList.add(kind === "size" ? "is-sizing" : "is-moving");
+    if (touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not allowed here */ } }
+    moveDrag(x, y);
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function moveDrag(x, y) {
+    drag.x = x;
+    drag.y = y;
+    if (drag.kind === "stack") moveInColumn();
+    else if (drag.kind === "move") moveOnGrid();
+    else resizeOnGrid();
+  }
+
+  function moveOnGrid() {
+    var m = gridMetrics();
+    var left = drag.x - drag.grabX;
+    var top = drag.y - drag.grabY;
+    // The spot only changes once the box is well past a border (four fifths of a cell),
+    // so a hand resting near the line does not flip it back and forth.
+    var fx = (left - m.left) / m.col;
+    var fy = (top - m.top) / m.row;
+    var tx = drag.spots && Math.abs(fx - drag.tx) < STICK ? drag.tx : clamp(Math.round(fx), 0, COLS - drag.w);
+    var ty = drag.spots && Math.abs(fy - drag.ty) < STICK ? drag.ty : Math.max(0, Math.round(fy));
+    if (!drag.spots || drag.tx !== tx || drag.ty !== ty) {
+      drag.tx = tx;
+      drag.ty = ty;
+      var before = snapshot(drag.el);
+      drag.spots = previewWith(drag.id, tx, ty, drag.w, drag.h);
+      showSpots(drag.spots);
+      glide(before, drag.el, SMOOTH);
+      placeOverlay(overlay("drop-spot"), spotIn(drag.spots, drag.id));
+    }
+    drag.el.style.transform = "translate(" + (left - (m.left + tx * m.col)) + "px," + (top - (m.top + ty * m.row)) + "px)";
+  }
+
+  // The box follows the hand pixel by pixel; the outline shows the grid size it will take,
+  // the neighbours make room for that size, and letting go glides the box into it.
+  function resizeOnGrid() {
+    var m = gridMetrics();
+    var min = minSize(drag.id);
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    var pw = clamp(drag.pw0 + drag.x - drag.x0, min.w * m.col - GAP, (COLS - drag.sx) * m.col - GAP);
+    var ph = clamp(drag.ph0 + dy, min.h * m.row - GAP, 40 * m.row - GAP);
+    drag.el.style.width = pw + "px";
+    drag.el.style.height = ph + "px";
+    var fw = (pw + GAP) / m.col;
+    var fh = (ph + GAP) / m.row;
+    var w = drag.spots && Math.abs(fw - drag.w) < STICK ? drag.w : clamp(Math.round(fw), min.w, COLS - drag.sx);
+    var h = drag.spots && Math.abs(fh - drag.h) < STICK ? drag.h : clamp(Math.round(fh), min.h, 40);
+    if (drag.spots && drag.w === w && drag.h === h) return;
+    drag.w = w;
+    drag.h = h;
+    var before = snapshot(drag.el);
+    drag.spots = previewWith(drag.id, drag.sx, drag.sy, w, h);
+    showSpots(drag.spots);
+    glide(before, drag.el, SMOOTH);
+    var spot = spotIn(drag.spots, drag.id);
+    placeOverlay(overlay("drop-spot"), spot);
+    placeOverlay(overlay("size-tag"), spot);
+  }
+  /** The label names what the box shows at the size it has under the hand. */
+  function sizeTag(el) {
+    var tag = drag && drag.kind === "size" && drag.el === el ? $("grid").querySelector(".size-tag") : null;
+    if (tag) tag.textContent = sizeWords(el);
+  }
+
+  function moveInColumn() {
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    drag.el.style.transform = "translateY(" + dy + "px) scale(1.02)";
+    // The edge leading the move passes a box once it crosses that box's middle, so a tall
+    // box does not have to travel its own height before the others make room.
+    var top = drag.mids[drag.from] - (drag.step - drag.gap) / 2 + dy;
+    var bottom = top + drag.step - drag.gap;
+    var to = drag.from;
+    drag.mids.forEach(function (mid, i) {
+      if (i > drag.from && bottom > mid + 24) to++;
+      if (i < drag.from && top < mid - 24) to--;
+    });
+    drag.to = to;
+    drag.boxes.forEach(function (b, i) {
+      if (b === drag.el) return;
+      var shift = drag.from < to && i > drag.from && i <= to ? -drag.step : drag.from > to && i >= to && i < drag.from ? drag.step : 0;
+      b.style.transform = shift ? "translateY(" + shift + "px)" : "";
+    });
+  }
+
+  /**
+   * Near the top or bottom of the window, the page scrolls while something is held: only
+   * after it has rested there for a moment, slowly at first and never fast, so a box carried
+   * past the edge does not send the page racing.
+   */
+  var EDGE = 56;
+  var EDGE_WAIT_MS = 300;
+  var EDGE_MAX = 7;
+  function edgeScroll(now) {
+    if (!drag) return;
+    var into = drag.y < EDGE ? -(EDGE - drag.y) : drag.y > window.innerHeight - EDGE ? drag.y - window.innerHeight + EDGE : 0;
+    if (!into) drag.edgeSince = 0;
+    else if (!drag.edgeSince) drag.edgeSince = now || performance.now();
+    var waited = drag.edgeSince ? (now || performance.now()) - drag.edgeSince : 0;
+    if (into && waited > EDGE_WAIT_MS) {
+      // Speed grows with how deep into the edge the hand is and how long it has stayed.
+      var ramp = Math.min(1, (waited - EDGE_WAIT_MS) / 600);
+      var v = Math.max(1, Math.round(Math.min(EDGE_MAX, Math.abs(into) / 6) * ramp));
+      window.scrollBy(0, into < 0 ? -v : v);
+      moveDrag(drag.x, drag.y);
+    }
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function endDrag(cancelled) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    cancelAnimationFrame(d.raf);
+    clearOverlays();
+    $("grid").classList.remove("arranging");
+    document.body.classList.remove("is-moving", "is-sizing");
+    d.el.classList.remove("lifted", "sizing");
+    // The held box and the ones that made room keep their offsets until the glide takes over.
+    if (d.kind === "stack") {
+      if (cancelled || d.to === d.from) { settleBack(SMOOTH); return; }
+      var ids = d.boxes.map(function (b) { return b.getAttribute("data-box"); });
+      ids.splice(d.to, 0, ids.splice(d.from, 1)[0]);
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+        var at = ids.indexOf(b.id);
+        if (at >= 0) b.o = at;
+        return b;
+      }), SMOOTH);
+      return;
+    }
+    if (cancelled || !d.spots) { settleBack(SMOOTH); return; }
+    if (keepSpots(d.spots, SMOOTH) && d.kind === "size") {
+      requestAnimationFrame(function () { toast(BOXES[d.id].title + ": " + sizeWords(d.el)); });
+    }
+  }
+
+  // Mouse and pen: press on a box and move a little; the corner handle resizes at once
+  // (for a finger too: it never scrolls the page).
+  document.addEventListener("pointerdown", function (e) {
+    if (!state.editing || drag || e.button !== 0) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el) return;
+    if (e.target.closest(".box-resize")) {
+      e.preventDefault();
+      beginDrag("size", el, e.clientX, e.clientY, false);
+      return;
+    }
+    if (e.pointerType === "touch" || e.target.closest(".box-x, .box-size")) return;
+    press = { el: el, x: e.clientX, y: e.clientY };
+  });
+  document.addEventListener("pointermove", function (e) {
+    if (drag && !drag.touch) { moveDrag(e.clientX, e.clientY); return; }
+    if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > DRAG_START) {
+      var p = press;
+      press = null;
+      beginDrag(phone() ? "stack" : "move", p.el, e.clientX, e.clientY, false);
+      // The grab point is where the press began, not where the move was noticed.
+      if (drag && drag.kind === "move") { drag.grabX -= e.clientX - p.x; drag.grabY -= e.clientY - p.y; moveDrag(e.clientX, e.clientY); }
+      if (drag && drag.kind === "stack") { drag.y0 = p.y; moveDrag(e.clientX, e.clientY); }
+    }
+  });
+  document.addEventListener("pointerup", function () { press = null; if (drag && !drag.touch) endDrag(false); });
+  document.addEventListener("pointercancel", function () { press = null; if (drag && !drag.touch) endDrag(true); });
+
+  // A finger: hold still on a box for a moment, then drag.
+  document.addEventListener("touchstart", function (e) {
+    if (drag || e.touches.length !== 1 || !state.data) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el || e.target.closest(".box-x, .box-size, .box-resize")) return;
+    var t = e.touches[0];
+    hold = { el: el, x: t.clientX, y: t.clientY, timer: setTimeout(function () {
+      var h = hold;
+      hold = null;
+      if (!h || !h.el.isConnected) return;
+      if (!state.editing) startEdit();
+      beginDrag(phone() ? "stack" : "move", h.el, h.x, h.y, true);
+    }, HOLD_MS) };
+  }, { passive: true });
+  document.addEventListener("touchmove", function (e) {
+    var t = e.touches[0];
+    if (hold && t && Math.abs(t.clientX - hold.x) + Math.abs(t.clientY - hold.y) > SLOP) {
+      clearTimeout(hold.timer);
+      hold = null;
+    }
+    if (drag && drag.touch && t) {
+      e.preventDefault();
+      moveDrag(t.clientX, t.clientY);
+    }
+  }, { passive: false });
+  function touchOver(e, cancelled) {
+    if (hold) { clearTimeout(hold.timer); hold = null; }
+    if (drag && drag.touch) {
+      // No tap reaches what was under the finger when it lets go of a box.
+      if (e.cancelable) e.preventDefault();
+      endDrag(cancelled);
+    }
+  }
+  document.addEventListener("touchend", function (e) { touchOver(e, false); }, { passive: false });
+  document.addEventListener("touchcancel", function (e) { touchOver(e, true); }, { passive: false });
+  document.addEventListener("contextmenu", function (e) { if (drag || hold) e.preventDefault(); });
+
+  // The keyboard: arrows move the box in focus, Shift and arrows resize it.
+  var ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  function keyMove(el, d, resize) {
+    var id = el.getAttribute("data-box");
+    if (phone()) {
+      if (!d[1]) return;
+      var ids = phoneOrder(placed()).map(function (s) { return s.id; });
+      var from = ids.indexOf(id);
+      var to = clamp(from + d[1], 0, ids.length - 1);
+      if (to === from) return;
+      ids.splice(to, 0, ids.splice(from, 1)[0]);
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+        var at = ids.indexOf(b.id);
+        if (at >= 0) b.o = at;
+        return b;
+      }));
+      el.focus();
+      toast(BOXES[id].title + " moved " + (d[1] < 0 ? "up" : "down") + ".");
+      return;
+    }
+    var s = spotIn(placed(), id);
+    if (!s) return;
+    var min = minSize(id);
+    if (resize) {
+      var w = clamp(s.w + d[0], min.w, COLS - s.x);
+      var h = clamp(s.h + d[1], min.h, 40);
+      if (keepSpots(previewWith(id, s.x, s.y, w, h))) {
+        el.focus();
+        requestAnimationFrame(function () { toast(BOXES[id].title + ": " + sizeWords(el)); });
+      }
+      return;
+    }
+    // Down past empty space would only float back up, so it goes as far as it takes to move.
+    for (var step = 1; step <= 40; step++) {
+      var x = clamp(s.x + d[0] * step, 0, COLS - s.w);
+      var y = Math.max(0, s.y + d[1] * step);
+      if (x === s.x && y === s.y) return;
+      if (keepSpots(previewWith(id, x, y, s.w, s.h))) {
+        el.focus();
+        toast(BOXES[id].title + " moved.");
+        return;
+      }
+      if (d[0]) return;
+    }
+  }
+  document.addEventListener("keydown", function (e) {
+    if (!state.editing || drag || !ARROWS[e.key]) return;
+    var el = document.activeElement;
+    if (!el || !el.matches || !el.matches("#grid > .box")) return;
+    e.preventDefault();
+    keyMove(el, ARROWS[e.key], e.shiftKey);
+  });
+
+  var drawerTimer = 0;
+  var drawerFrom = null;
+  function openDrawer(kind) {
+    var el = $("drawer");
+    clearTimeout(drawerTimer);
+    drawerFrom = document.activeElement;
+    state.drawerOpen = true;
+    state.drawerKind = kind;
+    el.querySelector(".drawer-body").scrollTop = 0;
+    paintDrawer();
+    el.hidden = false;
+    document.body.style.overflow = "hidden";
+    // One frame on screen closed first, so the panel slides in rather than appearing.
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("open"); }); });
+    el.querySelector(".drawer-panel").focus();
+  }
+  function closeDrawer() {
+    var el = $("drawer");
+    if (!state.drawerOpen) return;
+    state.drawerOpen = false;
+    el.classList.remove("open");
+    document.body.style.overflow = "";
+    drawerTimer = setTimeout(function () { el.hidden = true; }, 360);
+    if (drawerFrom && drawerFrom.focus) drawerFrom.focus();
   }
 
   // ── Presses ────────────────────────────────────────────────────────────
@@ -1418,14 +2548,18 @@
     var act = el.getAttribute("data-act");
     var id = el.getAttribute("data-id");
     if (act === "toggle") {
+      var was = snapshot();
       state.open[id] = !state.open[id];
-      paintBoard();
+      paintGrid();
+      glide(was);
       var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
       if (again) again.focus();
     } else if (act === "filter") {
       var fromHero = !el.closest(".filters");
+      var then = snapshot();
       state.filter = el.getAttribute("data-kind") || "All";
-      paintBoard();
+      paintGrid();
+      glide(then);
       var f = document.querySelector('[data-act="filter"][aria-pressed="true"]');
       if (f) {
         // On a phone the chips scroll sideways: bring the chosen one into the row's view.
@@ -1434,9 +2568,15 @@
         if (fromHero && f.scrollIntoView) f.closest(".lane").scrollIntoView({ block: "start", behavior: "smooth" });
       } else if (fromHero) {
         // One kind on the board has no chips to pick: the count takes the person to the list.
-        var lane = document.querySelector("#board-main .lane");
+        var lane = boxEls.items;
         if (lane && lane.scrollIntoView) lane.scrollIntoView({ block: "start", behavior: "smooth" });
       }
+    } else if (act === "more-rows") {
+      var boxId = el.closest(".box").getAttribute("data-box");
+      var shown = snapshot();
+      state.expanded[boxId] = !state.expanded[boxId];
+      fitBox(boxEl(boxId));
+      glide(shown);
     } else if (act === "connect") connect();
     else if (act === "run") runNow();
     else if (act === "ask") ask(el.getAttribute("data-q"));
@@ -1470,11 +2610,35 @@
         if (showReading()) paintReading(); else paintGiftKeep();
       }
     } else if (act === "idea-now") {
-      var idea = IDEAS[+el.getAttribute("data-i")];
-      if (idea) ask(idea.ask);
+      var idea = ideaById(el.getAttribute("data-idea"));
+      if (idea) { closeDrawer(); ask(idea.ask); }
     } else if (act === "idea-routine") {
-      var it = IDEAS[+el.getAttribute("data-i")];
-      if (it) ask("Set this up as a routine that runs " + it.at + ": " + it.ask + " Show me the routine so I can approve it before it starts.");
+      var it = ideaById(el.getAttribute("data-idea"));
+      if (it) { closeDrawer(); ask("Set this up as a routine that runs " + it.at + ": " + it.ask + " Show me the routine so I can approve it before it starts."); }
+    } else if (act === "ideas") {
+      openDrawer("ideas");
+    } else if (act === "add-box") {
+      openDrawer("add");
+    } else if (act === "add-this") {
+      var add = el.getAttribute("data-add");
+      if (BOXES[add]) addBox(add);
+    } else if (act === "phone-size") {
+      var sized = el.closest(".box").getAttribute("data-box");
+      var size = el.getAttribute("data-size");
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (x) { if (x.id === sized) x.p = size; return x; }));
+      if (boxEls[sized]) { var btn = boxEls[sized].querySelector('[data-size="' + size + '"]'); if (btn) btn.focus(); }
+    } else if (act === "remove-box") {
+      removeBox(el.closest(".box").getAttribute("data-box"));
+    } else if (act === "edit-start") {
+      startEdit();
+    } else if (act === "edit-done") {
+      doneEdit();
+    } else if (act === "undo") {
+      undoLayout();
+    } else if (act === "reset-layout") {
+      resetLayout();
+    } else if (act === "drawer-close") {
+      closeDrawer();
     }
   });
 
@@ -1482,17 +2646,26 @@
     if (event.target && event.target.id === "find") {
       state.query = event.target.value;
       filterRows();
+      if (boxEls.items) fitBox(boxEls.items);
     }
   });
 
-  $("ask-form").addEventListener("submit", function (event) {
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    if (drag) endDrag(true);
+    else if (state.drawerOpen) closeDrawer();
+    else if (state.editing) doneEdit();
+  });
+
+  // The Ask box is drawn again as it changes size, so its form is listened to from here.
+  document.addEventListener("submit", function (event) {
+    if (!event.target || event.target.id !== "ask-form") return;
     event.preventDefault();
     ask($("ask-input").value);
   });
 
   // ── Start ──────────────────────────────────────────────────────────────
 
-  paintQuestions();
   try {
     var put = JSON.parse(localStorage.getItem(GIFT_KEY) || "null");
     if (typeof put === "string") state.giftDone = put;
@@ -1501,7 +2674,25 @@
   } catch (e) { /* nothing kept in this browser */ }
   paint();
 
+  if (PHONE) {
+    var onPhoneChange = function () { if (state.loaded && state.data) paintGrid(); };
+    if (PHONE.addEventListener) PHONE.addEventListener("change", onPhoneChange);
+    else if (PHONE.addListener) PHONE.addListener(onPhoneChange);
+  }
+  // Rows are measured to fit their boxes; the web font changes their height once it arrives.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      Object.keys(boxEls).forEach(function (id) { if (boxEls[id].isConnected) fitBox(boxEls[id]); });
+    });
+  }
+
   if (V2) {
+    // This person's own layout, if they changed it; the default otherwise.
+    Promise.resolve(cab.ready).then(function () {
+      var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
+      var clean = cleanLayout(mine ? mine.get(LAYOUT_KEY) : null);
+      if (clean) state.layout = clean;
+    }).catch(function () {}).then(function () { paint(); });
     Promise.resolve(cab.here()).then(function (here) {
       state.here = here || null;
       if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;

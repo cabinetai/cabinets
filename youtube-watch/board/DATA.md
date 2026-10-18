@@ -14,6 +14,31 @@ file here, and the page shows it. The full rules for each field are in the agent
 | `data/reading.json` | The first check only, through `first-read.mjs` | `{ schema, startedAt, done, lines, gift, offers }`: what the agent found, one line at a time, and the things to do now, while the person watches. Schema `youtube-watch/reading@1`. |
 | `data/.work/` | The first check, through `first-read.mjs` | The agent's own files for the helper (`gift.json`, `offer.json`, `line.txt`). Deleted when the reading is done. |
 
+## The page is a grid of boxes
+
+The board works like Your YouTube: a grid of 12 columns, and each box is moved, resized,
+added and removed by mouse, finger or keyboard, with Undo. Each person's layout is kept for
+them in Cabinet (`cabinet.mine`, key `youtube-watch-layout@1`), so it follows them.
+**Layout** turns on editing (Add a box, Undo, Reset to default, Done). **Ideas** shows every
+idea with its picture: ask now, switch it on as a routine (shown in the chat to approve
+first), or add it as a box. No idea writes on YouTube: the ones that would answer a comment
+ask the chat for a draft, and a reply goes up only after a yes there.
+
+The boxes, by id:
+
+| Id | Box | From `data.json` |
+|---|---|---|
+| `items` | Needs a look: every item with the kind filter and Find (on the page at first) | `items` |
+| `ask` | Ask about your channel (on the page at first) | nothing |
+| `ideas` | All ideas (on the page at first) | nothing |
+| `n-items`, `n-urgent`, `n-business` | The numbers: things that need a look, how many are urgent, and the business asks with the first one | `items` |
+| `idea-spam`, `idea-angry`, `idea-drop`, `idea-waiting`, `idea-weekly`, `idea-claims` | One idea each | nothing |
+
+The ideas: Clean up spam, Calm answers to angry comments, Why did a video drop?, Questions
+waiting too long, Weekly channel check, What people say about you. Their pictures are in
+`ideas/`. While the first check reads, the reading takes the place of the grid, as before,
+and the gift and offers kept after it stay under the grid.
+
 ## data.json
 
 | Field | What it is |
