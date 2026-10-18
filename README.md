@@ -182,7 +182,6 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [teams-digest](./teams-digest) | Operations | 1 | 1 | 0 | Every morning, what moved in your Teams channels in the last 24 hours, and which of it wants you |
 | [telegram-digest](./telegram-digest) | Operations | 1 | 1 | 0 | Every morning, what came in on Telegram overnight and which of it wants you |
 | [text-your-mom](./text-your-mom) | Software | 2 | 3 | 1 | A relatable B2C app company fully staffed with product, marketing, design, and app development teams working as one |
-| [tiktok-queue](./tiktok-queue) | Media | 1 | 1 | 0 | Finished videos go up on TikTok as private posts, ready for you to release |
 | [universal-request](./universal-request) | Operations | 2 | 2 | 0 | One intake flow for every team — marketing, IT, finance, design, legal, data, and ops |
 | [usa-travel-planner](./usa-travel-planner) | Lifestyle | 2 | 3 | 0 | An inspiration board for exploring the United States — interactive map of all 63 national parks with been-there checklist, every state fa… |
 | [vendor-asset](./vendor-asset) | Operations | 1 | 2 | 0 | The single source of truth for every piece of equipment, software licence, and vendor relationship the company owns — with assigned owner… |
