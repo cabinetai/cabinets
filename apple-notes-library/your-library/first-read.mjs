@@ -45,8 +45,9 @@ function iso(d) { return ymd(d) + "T" + hhmm(d) + ":" + pad(d.getSeconds()) + of
 
 function fail(msg) { console.error("first-read: " + msg); process.exit(1); }
 function readJson(file) { return JSON.parse(fs.readFileSync(file, "utf8")); }
+/** Written whole or not at all. The part file starts with a dot, so Cabinet's look at the folder skips it. */
 function writeJson(file, value) {
-  const tmp = file + ".part";
+  const tmp = path.join(path.dirname(file), "." + path.basename(file) + ".part");
   fs.writeFileSync(tmp, JSON.stringify(value, null, 2));
   fs.renameSync(tmp, file);
 }
@@ -62,15 +63,31 @@ function workJson(arg, what) {
   try { return readJson(workFile(arg.slice(1).replace(/^.*data[\\/]\.work[\\/]/, ""))); } catch { return fail(`${arg.slice(1)} is not JSON in data/.work/`); }
 }
 
+/** data/reading.json as start wrote it, or a plain stop when it is missing or broken. */
+function readReading() {
+  if (!fs.existsSync(readingFile)) fail("run start first");
+  try { return readJson(readingFile); } catch { return fail("data/reading.json is broken (not JSON): carry on without the helper"); }
+}
+/** One change to a reading still going (`doneMsg` when it is done): `change` makes it and says what it did. */
+function editReading(doneMsg, change) {
+  lockReading();
+  const r = readReading();
+  if (r.done) fail(doneMsg);
+  const said = change(r);
+  writeJson(readingFile, r);
+  console.log(said);
+}
+
 /** One write to reading.json at a time: two at once would each write their own copy and lose one. */
 function lockReading() {
   const lock = path.join(dataDir, ".reading.lock");
   const until = Date.now() + 8000;
+  const nap = new Int32Array(new SharedArrayBuffer(4));
   for (;;) {
     try { fs.mkdirSync(lock); break; } catch {
       try { if (Date.now() - fs.statSync(lock).mtimeMs > 15000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
       if (Date.now() > until) fail("another push is still running: push one line at a time");
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+      Atomics.wait(nap, 0, 0, 100);
     }
   }
   process.on("exit", () => { try { fs.rmSync(lock, { recursive: true, force: true }); } catch { /* gone */ } });
@@ -135,7 +152,7 @@ function kindOf(g, what) {
     const cut = Date.now() - OLD_DAYS * 86400000;
     const old = notes.filter((n) => n.edited && n.edited.getTime() < cut).length;
     if (old < OLD_MIN) fail(`refused, only ${old} notes are older than a year: give another kind`);
-    return { kind, count: old, of: notes.length };
+    return { kind, count: old };
   }
   if (kind === "folders") {
     const by = new Map();
@@ -162,45 +179,39 @@ if (cmd === "start") {
   writeJson(readingFile, { schema: `${SCHEMA}/reading@1`, startedAt: iso(new Date()), done: false, lines: [] });
   console.log("reading started; save files in " + path.relative(process.cwd(), workDir));
 } else if (cmd === "push") {
-  lockReading();
-  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
-  if (r.done) fail("the reading is done: no more lines");
-  const line = String(args.join(" ") || "").replace(/\s+/g, " ").trim();
-  // An empty line, or one that is only marks ("**  **"), says nothing.
-  if (!line || !/[\p{L}\p{N}]/u.test(line)) fail("refused, the line is empty");
-  if (/\bundefined\b|\bNaN\b|\bnull\b|\[object|\{|\}|\$\{/.test(line)) fail(`refused, the line is broken: ${line}`);
-  if (line.length > 200) fail("refused, the line is longer than 200 characters");
-  // "**0 notes**" is not a finding: a line whose numbers are all 0 says nothing.
-  const bold = (line.match(/\*\*[^*]+\*\*/g) || []).join(" ");
-  const nums = ((bold || line).replace(/\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2}/g, "").match(/\d[\d,.]*/g) || []);
-  if (nums.length && nums.every((x) => Number(x.replace(/,/g, "")) === 0)) fail("refused, a 0 is not a finding: say what is there, or leave the line out");
-  if (r.lines.includes(line)) fail("that line is already there");
-  r.lines.push(line);
-  writeJson(readingFile, r);
-  console.log(`line ${r.lines.length}: ${line}`);
+  editReading("the reading is done: no more lines", (r) => {
+    const line = String(args.join(" ") || "").replace(/\s+/g, " ").trim();
+    // An empty line, or one that is only marks ("**  **"), says nothing.
+    if (!line || !/[\p{L}\p{N}]/u.test(line)) fail("refused, the line is empty");
+    if (/\bundefined\b|\bNaN\b|\bnull\b|\[object|\{|\}|\$\{/.test(line)) fail(`refused, the line is broken: ${line}`);
+    if (line.length > 200) fail("refused, the line is longer than 200 characters");
+    // "**0 notes**" is not a finding: a line whose numbers are all 0 says nothing.
+    const bold = (line.match(/\*\*[^*]+\*\*/g) || []).join(" ");
+    const nums = ((bold || line).replace(/\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2}/g, "").match(/\d[\d,.]*/g) || []);
+    if (nums.length && nums.every((x) => Number(x.replace(/,/g, "")) === 0)) fail("refused, a 0 is not a finding: say what is there, or leave the line out");
+    if (r.lines.includes(line)) fail("that line is already there");
+    r.lines.push(line);
+    return `line ${r.lines.length}: ${line}`;
+  });
 } else if (cmd === "gift") {
   const gift = kindOf(workJson(args.join(" ").trim(), "the gift"), "the gift");
-  lockReading();
-  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
-  if (r.done) fail("the reading is done: the gift comes while you read");
-  if (r.gift) fail("there is a gift already: one is enough");
-  r.gift = { ...gift, at: iso(new Date()) };
-  writeJson(readingFile, r);
-  console.log("gift: " + JSON.stringify(r.gift));
+  editReading("the reading is done: the gift comes while you read", (r) => {
+    if (r.gift) fail("there is a gift already: one is enough");
+    r.gift = { ...gift, at: iso(new Date()) };
+    return "gift: " + JSON.stringify(r.gift);
+  });
 } else if (cmd === "offer") {
   const offer = kindOf(workJson(args.join(" ").trim(), "the offer"), "the offer");
   if (offer.kind === "calm") fail("calm is only a gift: an offer is old, folders or meetings");
-  lockReading();
-  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
-  if (r.done) fail("the reading is done: offers come while you read");
-  if (!r.gift) fail("give the gift first: offers come under it");
-  const offers = Array.isArray(r.offers) ? r.offers : [];
-  if (offers.length >= MAX_OFFERS) fail(`there are ${MAX_OFFERS} offers already: that is enough`);
-  if (r.gift.kind === offer.kind || offers.some((x) => x.kind === offer.kind)) fail("that one is there already");
-  offers.push({ ...offer, at: iso(new Date()) });
-  r.offers = offers;
-  writeJson(readingFile, r);
-  console.log("offer: " + JSON.stringify(offer));
+  editReading("the reading is done: offers come while you read", (r) => {
+    if (!r.gift) fail("give the gift first: offers come under it");
+    const offers = Array.isArray(r.offers) ? r.offers : [];
+    if (offers.length >= MAX_OFFERS) fail(`there are ${MAX_OFFERS} offers already: that is enough`);
+    if (r.gift.kind === offer.kind || offers.some((x) => x.kind === offer.kind)) fail("that one is there already");
+    offers.push({ ...offer, at: iso(new Date()) });
+    r.offers = offers;
+    return "offer: " + JSON.stringify(offer);
+  });
 } else if (cmd === "latest") {
   // latest.json in the page's own shape: the helper sets what it knows for sure.
   const l = workJson(args.join(" ").trim(), "latest.json");
@@ -225,7 +236,7 @@ if (cmd === "start") {
   console.log("latest.json written, and status.json");
 } else if (cmd === "done") {
   lockReading();
-  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  const r = readReading();
   r.done = true;
   writeJson(readingFile, r);
   try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("data/.work/ is busy: delete it in your next call"); }

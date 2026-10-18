@@ -504,7 +504,8 @@
   // also gives one thing the person can do now (first-read.mjs gift) and up to two more
   // (first-read.mjs offer): notes nobody touched in a year, the biggest folders, or meeting
   // notes to turn into to-dos. A press asks the agent in the chat beside the page; no note
-  // changes. Without reading.json (an older helper, or any later build) the page is as it was.
+  // changes. Any later build is told the way it always was, and so is a first build whose
+  // reading.json never comes (an older helper): it says "Opening your notes" until it ends.
 
   var READ_FRESH_MIN = 20;
   var REVEAL_MS = 1200;
@@ -637,17 +638,21 @@
     var skip = g && state.giftAsked !== g.at ? "" : '<p class="fine"><button type="button" class="btn small" data-act="gift-skip">Not now</button></p>';
     return '<div class="keep">' + (g ? giftHtml(g, "keep") : '<p class="label" style="margin:0">Found while reading your notes</p>') + offersHtml(offers, "keep") + skip + "</div>";
   }
+  /** Kept for this person on any computer, when Cabinet can. */
+  function remember(key, value) {
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(key, value).catch(function () {});
+  }
   /** The gift was used (`all` false), or the person put the gift and the offers away. */
   function giftDone(all) {
     var r = state.reading;
     if (!r) return;
     state.giftDone = all || !r.gift ? "all:" + r.startedAt : r.gift.at;
-    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(GIFT_KEY, state.giftDone).catch(function () {});
+    remember(GIFT_KEY, state.giftDone);
   }
   function offerDone(key) {
     state.offersAsked[key] = true;
     state.offersDone[key] = true;
-    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(OFFERS_KEY, Object.keys(state.offersDone)).catch(function () {});
+    remember(OFFERS_KEY, Object.keys(state.offersDone));
   }
   /** A line may mark its finding in **bold**; everything else is plain text. */
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
@@ -680,8 +685,10 @@
     state.readShown++;
     paint();
   }, REVEAL_MS);
+  // While the first build reads, its lines are looked at every few seconds: a file change
+  // says so too, but a missed one never leaves the reading stuck. A later build has none.
   setInterval(function () {
-    if (!V2 || (!state.running && !readingNow())) return;
+    if (!V2 || (!showReading() && !readingNow())) return;
     quiet(maybe(readJson("data/reading.json"))).then(function (d) {
       var r = cleanReading(d);
       if (!r || (state.reading && readingSig(r) === readingSig(state.reading))) return;
