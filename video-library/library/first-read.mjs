@@ -3,8 +3,8 @@
 // come. Only on the first save (no saved video in data.json yet). Run it from anywhere:
 //   node <app>/first-read.mjs start                 new reading.json and .work/ next to the page
 //   node <app>/first-read.mjs push '<line>'         add one line (single quotes: "$" stays "$", in bash
-//                                                   and PowerShell alike), right after the step it tells.
-//                                                   A line with an apostrophe: write it to
+//                                                   and PowerShell alike), as the step it tells starts,
+//                                                   at most 14. A line with an apostrophe: write it to
 //                                                   .work/line.txt and push @line.txt
 //   node <app>/first-read.mjs gift @<file>          the one thing for the person, shown while you save:
 //                                                   {"kind":"summary","video":"<title>"}, the title as
@@ -36,8 +36,9 @@ function iso(d) { return ymd(d) + "T" + hhmm(d) + ":" + pad(d.getSeconds()) + of
 
 function fail(msg) { console.error("first-read: " + msg); process.exit(1); }
 function readJson(file) { return JSON.parse(fs.readFileSync(file, "utf8")); }
+/** Written whole or not at all. The part file starts with a dot, so Cabinet's look at the folder skips it. */
 function writeJson(file, value) {
-  const tmp = file + ".part";
+  const tmp = path.join(path.dirname(file), "." + path.basename(file) + ".part");
   fs.writeFileSync(tmp, JSON.stringify(value, null, 2));
   fs.renameSync(tmp, file);
 }
@@ -78,14 +79,18 @@ function editReading(doneMsg, change) {
   console.log(said);
 }
 
-/** One write to reading.json at a time: two at once would each write their own copy and lose one. */
+/**
+ * One write to reading.json at a time: two at once would each write their own copy and lose one.
+ * A lock older than 5 seconds was left by a call that died (a write takes a moment), so it goes
+ * well before the 8 seconds a call waits.
+ */
 function lockReading() {
   const lock = path.join(here, ".reading.lock");
   const until = Date.now() + 8000;
   const nap = new Int32Array(new SharedArrayBuffer(4));
   for (;;) {
     try { fs.mkdirSync(lock); break; } catch {
-      try { if (Date.now() - fs.statSync(lock).mtimeMs > 15000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+      try { if (Date.now() - fs.statSync(lock).mtimeMs > 5000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
       if (Date.now() > until) fail("another push is still running: push one line at a time");
       Atomics.wait(nap, 0, 0, 100);
     }
@@ -150,6 +155,9 @@ function offerOf(o, r) {
   return kind === "more" ? { kind, video: titleOf(o.video, "the more offer", r) } : { kind };
 }
 
+/** The page's cleanReading keeps the last 14: a 15th would push out the line that found the video. */
+const MAX_LINES = 14;
+
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "start") {
   // Later saves are told the usual way, on the video's card: the reading is only for the first one.
@@ -164,6 +172,7 @@ if (cmd === "start") {
     const line = workText(args.join(" ")).replace(/\s+/g, " ").trim();
     checkLine(line);
     if (r.lines.includes(line)) fail("that line is already there");
+    if (r.lines.length >= MAX_LINES) fail(`refused, there are ${MAX_LINES} lines already: the page shows no more`);
     r.lines.push(line);
     return `line ${r.lines.length}: ${line}`;
   });

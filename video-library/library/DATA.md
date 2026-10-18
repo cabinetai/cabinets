@@ -56,8 +56,8 @@ runs `node library/first-read.mjs start` before it looks the video up, then `pus
 at each step ("Found the video: **How Tiny Houses Are Built**, from Small Space Studio, 18
 min", "Downloading **the video, 412 MB**", "Writing **the transcript**"), `gift @gift.json`
 once and `offer @offer.json` twice before the download, and `done` last. The helper writes
-`reading.json` atomically under a lock, refuses an empty, broken or repeated line, a line with
-a link, a file or a tool's name, and a gift or offer whose title is not the one in **bold** in
+`reading.json` atomically under a lock, refuses an empty, broken or repeated line, a 15th line
+(the page shows 14), a line with a link, a file or a tool's name, and a gift or offer whose title is not the one in **bold** in
 a line already pushed. From the moment Save is pressed on the example (or a library with no
 saved video), the page shows "Saving your first video": the lines one by one, the newest
 step pulsing, and beside them "While I save it, you can...": the gift `{ kind: "summary",
