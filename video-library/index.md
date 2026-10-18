@@ -27,6 +27,9 @@ The cabinet opens on it: **Your Video Library**.
   that would make a good short clip.
 - **Subjects**: each video gets a few subjects ("sourdough", "baking"). Press one to see
   only the videos about it, or ask "Show me all my videos about baking".
+- **Your TikTok favorites**: TikTok does not share them with apps, so ask TikTok for your data
+  (Settings and privacy, Account, Download your data, JSON), put the file in `imports/` and
+  ask "Bring in my TikTok favorites". The agent asks once, then saves them one by one.
 - **The transcript**: open it under the video, every line with its time.
 - **Ask about your videos**: one video or all of them. "Which of my videos talks about
   pricing?" The answer comes up in the chat, with the video and the minute.

@@ -21,6 +21,7 @@ Nothing runs on a schedule. The full rules are in the agent's persona
 | `videos/<slug>/` | `save_video` | The media file (`video` or `audio` only), `transcript.md` (a time every 5 to 10 seconds, when the video has captions) and `index.md` (site, title, channel or who posted it, link, length, upload day, size, and the description or the post's text). |
 | `videos/<slug>/summary.md` | The agent | Five lines, key points with times, lines worth quoting, clip ideas. |
 | `videos/EXAMPLE-*/` | Nobody | The made-up videos' transcripts and summaries. No media. |
+| `imports/` | The person (TikTok's data export), the agent (`<YYYY-MM-DD>.md`) | "Bring in my TikTok favorites": the agent reads only the video links in the export's lists whose names have Favorite or Like, saves them one at a time after one yes, and notes what was saved and what failed. The export's exact JSON shape is not fixed, so it looks for objects with a `Link` or `link` under any such list. Nothing is uploaded or posted. |
 
 `data.json` in short: `updatedAt`, `disk` `{ freeBytes, at }` (the free space the agent last
 read; the page shows it small under the headline), and `videos`, newest first, each:
