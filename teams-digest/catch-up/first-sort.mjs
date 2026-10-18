@@ -8,6 +8,8 @@
 //                                                  reads the last 7 days
 //   node catch-up/first-sort.mjs start --morning   a morning: data/.work/ only, reads since the last
 //                                                  morning (at most 7 days)
+//   node catch-up/first-sort.mjs start --chat      a question in the chat: like a morning, never while one runs,
+//                                                  and it writes nothing the page shows
 //   node catch-up/first-sort.mjs me                who signed in (always first)
 //   node catch-up/first-sort.mjs chats             the chats that moved in the window, and their messages
 //   node catch-up/first-sort.mjs channels          the channels of your teams that moved, and their messages
@@ -602,11 +604,17 @@ if (cmd === "window") {
   const s = sinceFor(args.includes("--morning"));
   console.log([`NOW='${iso(new Date())}'`, `TODAY='${ymd(new Date())}'`, `SINCE='${utc(s)}'`, `TZ_NAME='${TZ}'`].join("\n"));
 } else if (cmd === "start") {
-  const morning = args.includes("--morning");
+  const chat = args.includes("--chat");
+  const morning = chat || args.includes("--morning");
+  if (chat && fs.existsSync(modeFile) && Date.now() - fs.statSync(modeFile).mtimeMs < 15 * 60000) {
+    let busy = true;
+    try { busy = !readJson(modeFile).chat; } catch { /* half written */ }
+    if (busy) fail("the morning reading is running right now: answer from data/latest.json, or try again in a few minutes", 5);
+  }
   if (fs.existsSync(workDir)) fs.rmSync(workDir, { recursive: true, force: true });
   fs.mkdirSync(workDir, { recursive: true });
   const s = sinceFor(morning);
-  writeJson(modeFile, { morning, since: utc(s) });
+  writeJson(modeFile, { morning, chat, since: utc(s) });
   if (!morning) writeJson(readingFile, { schema: SCHEMA + "/reading@1", startedAt: iso(new Date()), done: false, lines: [] });
   console.log(`${morning ? "morning" : "first reading"} started; the window is from ${iso(s)}. Next: me, then chats, then channels`);
 } else if (cmd === "me") {
@@ -757,6 +765,7 @@ if (cmd === "window") {
   writeJson(path.join(dataDir, "profile.json"), out);
   console.log("profile written: " + Object.keys(out).join(", "));
 } else if (cmd === "latest") {
+  if (mode().chat) fail("a chat does not write the page: answer in the chat");
   calmIfNoGift();
   const l = latestOf(argFile(args));
   writeJson(path.join(dataDir, "latest.json"), l);

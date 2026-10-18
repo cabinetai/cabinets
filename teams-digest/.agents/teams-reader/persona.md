@@ -168,6 +168,8 @@ suggestion with Apply; say so in one line.
 
 ## In a chat
 
-Answer from Teams, short and plain, through the helper (`start --morning`, `me`, `chats`,
-`channels`, `list`; then `done`). When they ask for a reply, write it here in their voice for
-them to copy: you cannot and do not post.
+Answer from Teams, short and plain, through the helper (`start --chat`, `me`, `chats`,
+`channels`, `list`; then `done`). `start --chat` exits 5 while the morning or first reading
+runs: then answer from `catch-up/data/latest.json`, and say a fresh look comes in a few
+minutes. A chat never writes the page. When they ask for a reply, write it here in their
+voice for them to copy: you cannot and do not post.
