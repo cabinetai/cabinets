@@ -19,6 +19,32 @@ page can say how fresh the copy is), `totals` `{ notes, withTodos, items }`, and
 (`title`, `folder`, `edited`, and `items` with `text`, `due` and `promise`). The page
 builds "Coming up" from every item with a `due` date.
 
+## The page is a grid of boxes
+
+The to-dos page works like the digests: a grid of 12 columns, and each box is moved,
+resized, added and removed by mouse, finger or keyboard, with Undo. Each person's layout is
+kept for them in Cabinet (`cabinet.mine`, key `apple-notes-todos-layout@1`), so it follows
+them. **Layout** turns on editing (Add a box, Undo, Reset to default, Done). **Ideas** shows
+every idea with its picture: ask now, switch it on as a routine (shown in the chat to approve
+first), or add it as a box. Every idea only reads: the answer comes in the chat, and no note
+changes.
+
+The boxes, by id:
+
+| Id | Box | From `latest.json` |
+|---|---|---|
+| `coming` | Coming up: every dated to-do, soonest first (on the page at first; it shows only when a to-do has a date) | `notes[].items[].due` |
+| `notes` | By note: cards side by side on a large box, one under another on a medium one (on the page at first) | `notes`, `totals.withTodos` |
+| `ask` | Ask about your notes (on the page at first) | nothing |
+| `ideas` | All ideas (on the page at first) | nothing |
+| `n-items`, `n-notes`, `n-due` | The numbers: things to do, notes with to-dos, due in the next 7 days or late | `totals`, `notes` |
+| `idea-today`, `idea-week`, `idea-promises`, `idea-old`, `idea-someday` | One idea each | nothing |
+
+The ideas: A plan every morning, Your week ahead, Promises to keep, To-dos that waited too
+long, Ideas you never acted on. Their pictures are small SVGs drawn in `index.html` itself,
+so they show on Cloud too. While the first look reads, the reading takes the place of the
+grid, and the gift kept afterwards sits above it.
+
 ## The first look
 
 The first time the routine runs (there is no `latest.json` yet), the person is usually
