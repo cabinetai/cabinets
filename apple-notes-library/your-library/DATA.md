@@ -28,8 +28,8 @@ never writes these files by hand. It runs `node your-library/first-read.mjs`:
 - `start` writes `reading.json` (`done: false`, no lines) and makes `data/.work/`.
 - `push '<line>'` adds one line: "**Flat move**: 31 notes, from the boxes to the deposit".
   `**bold**` marks the finding. It refuses an empty line, a broken one ("undefined"), a
-  line that only says 0, and a line already there. `push @line.txt` reads the line from
-  `data/.work/line.txt`, for a line with an apostrophe.
+  line that only says 0, a long dash, and a line already there. `push @line.txt` reads
+  the line from `data/.work/line.txt`, for a line with an apostrophe.
 - `gift @gift.json` adds the one thing the person can do now: `old` (notes nobody touched
   in a year, at least 10), `meetings` (two to five meeting notes), `folders` (the three
   biggest) or `calm`. The helper counts the notes and folders in the copy itself and adds

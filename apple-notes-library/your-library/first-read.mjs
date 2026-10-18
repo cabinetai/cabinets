@@ -196,6 +196,7 @@ if (cmd === "start") {
     if (!line || !/[\p{L}\p{N}]/u.test(line)) fail("refused, the line is empty");
     if (/\bundefined\b|\bNaN\b|\bnull\b|\[object|\{|\}|\$\{/.test(line)) fail(`refused, the line is broken: ${line}`);
     if (line.length > 200) fail("refused, the line is longer than 200 characters");
+    if (/[—–]/.test(line)) fail("refused, a long dash: use a comma or a period");
     // "**0 notes**" is not a finding: a line whose numbers are all 0 says nothing.
     const bold = (line.match(/\*\*[^*]+\*\*/g) || []).join(" ");
     const nums = ((bold || line).replace(/\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2}/g, "").match(/\d[\d,.]*/g) || []);
