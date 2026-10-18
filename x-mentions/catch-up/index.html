@@ -1,0 +1,1214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X Digest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Onest:wght@400;500;600;700&display=swap">
+<!--
+  X Digest: the Catch up page.
+
+  X shows every notification: likes, follows, bots and the few people who actually wrote to
+  you. This page shows only those people, with a reply in your voice that opens on X ready
+  to post. It is laid out like X itself: a black "Lights out" banner where Cabinet's morning
+  note is drawn as a post, the people waiting as a feed in the middle, and a right rail with
+  the numbers and the Ask box. Cabinet's brown marks what Cabinet does; X's blue marks what
+  happens on X.
+
+  Data: data/latest.json (see DATA.md), written only through first-sort.mjs. Until it exists
+  the page shows data/EXAMPLE-latest.json, marked as an example.
+-->
+<style>
+:root {
+  --page: #f7f9f9;
+  --sheet: #ffffff;
+  --ink: #0f1419;
+  --ink-2: #536471;
+  --ink-3: #8b98a5;
+  --line: #eff3f4;
+  --line-2: #cfd9de;
+  --blue: #1d9bf0;
+  --blue-deep: #1a8cd8;
+  --blue-soft: #e8f5fd;
+  --red: #f4212e;
+  --night: #000000;
+  --night-ink: #e7e9ea;
+  --night-2: #71767b;
+  --night-line: #2f3336;
+  --brown: #6e4127;
+  --brown-deep: #4a2a18;
+  --brown-soft: #f6eee8;
+  --amber: #ffd400;
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --sans: "Onest", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r-sheet: 16px;
+  --r-pill: 9999px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page);
+  color: var(--ink);
+  font: 15px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 6px; }
+.icon { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon.fill { fill: currentColor; stroke: none; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.app { max-width: 1040px; margin: 0 auto; padding: 20px 16px 40px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 36px; padding: 0 16px; border-radius: var(--r-pill);
+  border: 1px solid var(--line-2); background: var(--sheet); color: var(--ink);
+  font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap; text-decoration: none;
+}
+.btn:hover { background: #f2f4f5; text-decoration: none; }
+.btn .icon { width: 16px; height: 16px; }
+.btn.x { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn.x:hover { background: var(--blue-deep); }
+.btn.cab { background: var(--brown); border-color: var(--brown); color: #fff; }
+.btn.cab:hover { background: var(--brown-deep); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--ink-2); }
+.btn.quiet:hover { background: var(--line); }
+.btn.big { min-height: 44px; padding: 0 22px; font-size: 15px; }
+.btn[disabled] { opacity: .55; cursor: default; }
+
+/* ── Setup, reading and notices (above the page) ──────────────────────── */
+.card-hero {
+  background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sheet);
+  padding: 24px; display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 20px; align-items: start;
+}
+.card-hero h2 { margin: 2px 0 6px; font: 400 30px/1.1 var(--serif); letter-spacing: -.01em; }
+.card-hero .lead { margin: 0; color: var(--ink-2); max-width: 60ch; }
+.card-hero .fine, .fine { color: var(--ink-3); font-size: 13px; margin: 8px 0 0; }
+.card-hero .actions, .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.art { width: 88px; height: 88px; border-radius: 22px; background: var(--night); display: grid; place-items: center; position: relative; }
+.art .xmark { width: 40px; height: 40px; color: #fff; }
+.art .badge { position: absolute; right: -6px; top: -6px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; border: 3px solid var(--sheet); }
+.art .badge.ok { background: #00ba7c; }
+.art .badge.bad { background: var(--red); }
+.art .badge .icon { width: 14px; height: 14px; stroke-width: 3; }
+.costs { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-size: 13px; color: var(--ink-2); }
+.costs b { color: var(--ink); font-weight: 600; }
+
+.notice {
+  display: flex; gap: 12px; align-items: flex-start; background: #fff8e1; border: 1px solid #f5dfa3;
+  border-radius: 12px; padding: 12px 14px; color: #5c4400;
+}
+.notice .icon { color: #b07d00; margin-top: 2px; }
+.notice p { margin: 0; }
+.notice .actions { margin-top: 10px; }
+
+.ribbon {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--blue-soft); border-radius: 12px; padding: 10px 14px; font-size: 14px; color: #0b4a75;
+}
+.ribbon .tag { background: var(--blue); color: #fff; font-weight: 700; font-size: 12px; padding: 2px 9px; border-radius: var(--r-pill); }
+.ribbon p { margin: 0; flex: 1 1 260px; }
+
+/* The first reading: lines arrive one by one beside the gift. */
+.read-page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.read-page.solo { grid-template-columns: minmax(0, 1fr); }
+.reading { background: var(--night); color: var(--night-ink); border-radius: var(--r-sheet); padding: 24px; }
+.reading h2 { margin: 0 0 6px; font: 400 32px/1.1 var(--serif); color: #fff; }
+.reading > p { margin: 0; color: var(--night-2); }
+.read-lines { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.read-lines li { display: flex; gap: 10px; align-items: flex-start; }
+.read-lines li .icon { color: var(--blue); margin-top: 2px; }
+.read-lines li.old { color: var(--night-2); }
+.read-lines li.old b { color: var(--night-ink); }
+.read-lines b { color: #fff; font-weight: 600; }
+.read-lines li.now { color: var(--night-2); }
+.reading .fine { color: var(--night-2); margin-top: 18px; }
+.pulse-dot { width: 10px; height: 10px; margin: 5px 4px 0; border-radius: 50%; background: var(--blue); flex-shrink: 0; animation: beat 1.4s ease-in-out infinite; }
+@keyframes beat { 50% { opacity: .35; transform: scale(.8); } }
+.read-strip { display: flex; gap: 8px; align-items: center; background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; color: var(--ink-2); }
+
+.gift { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sheet); padding: 22px; display: flex; flex-direction: column; gap: 10px; }
+.gift.looking { flex-direction: row; align-items: flex-start; color: var(--ink-2); }
+.gift.looking h3 { margin: 0; font: 400 22px/1.2 var(--serif); color: var(--ink); }
+.gift .found { margin: 0; color: var(--brown); font-weight: 600; font-size: 14px; display: flex; gap: 6px; align-items: center; }
+.gift h3 { margin: 0; font: 400 26px/1.15 var(--serif); }
+.gift .post { border: 1px solid var(--line-2); border-radius: 14px; padding: 12px 14px; }
+.gift .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.gift .asked { margin: 0; color: #00805a; display: flex; gap: 6px; align-items: center; font-weight: 600; }
+.gift .fine { margin: 0; }
+.gift.arrive { animation: arrive .5s ease-out both; }
+@keyframes arrive { from { opacity: 0; transform: translateY(8px); } }
+
+.welcome { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sheet); padding: 22px; }
+.welcome .found { margin: 0 0 6px; color: var(--brown); font-weight: 600; font-size: 14px; }
+.welcome h3 { margin: 0; font: 400 28px/1.15 var(--serif); max-width: 46ch; text-wrap: balance; }
+.welcome ul { list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.welcome li { display: flex; gap: 10px; align-items: flex-start; }
+.welcome li .icon { color: var(--ink-2); margin-top: 2px; }
+.welcome .acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; }
+.welcome .fine { margin: 0; }
+
+/* ── Lights out: Cabinet's morning note, drawn as a post ──────────────── */
+.night { background: var(--night); color: var(--night-ink); border-radius: var(--r-sheet); padding: 16px 20px 18px; overflow: hidden; }
+.night-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.since { font-size: 13px; color: var(--night-2); margin-right: auto; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--night-line); font-size: 13px; color: var(--night-ink);
+}
+.pill .xmark { width: 13px; height: 13px; }
+.pill .when { color: var(--night-2); }
+.pill.off { color: var(--night-2); }
+.pill.warn { border-color: #6b2a2f; color: #ffb4b9; }
+.night .btn { background: transparent; color: var(--night-ink); border-color: var(--night-line); min-height: 30px; padding: 0 12px; font-size: 13px; }
+.night .btn:hover { background: #16181c; }
+.cab-post { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; margin-top: 16px; }
+.cab-face { width: 48px; height: 48px; border-radius: 50%; background: var(--brown); display: grid; place-items: center; color: #fff; }
+.cab-face .icon { width: 24px; height: 24px; stroke-width: 1.7; }
+.post-head { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; font-size: 15px; }
+.post-head .name { font-weight: 700; color: inherit; }
+.post-head .handle, .post-head .dotsep, .post-head .ago { color: var(--ink-2); }
+.night .post-head .handle, .night .post-head .dotsep, .night .post-head .ago { color: var(--night-2); }
+.cab-post h1 { margin: 4px 0 0; font: 400 clamp(32px, 4.6vw, 50px)/1.02 var(--serif); letter-spacing: -.015em; color: #fff; text-wrap: balance; }
+.cab-post .hello { margin: 2px 0 0; color: var(--night-2); font-size: 14px; }
+.cab-post .say { margin: 10px 0 0; font-size: 17px; line-height: 1.45; max-width: 62ch; color: var(--night-ink); }
+.cab-post .tally { margin: 10px 0 0; font-size: 14px; color: var(--night-2); }
+.cab-post .tally b { color: var(--night-ink); font-weight: 600; }
+
+/* The night as dots: one column per hour, a dot per mention, blue for the ones that want you. */
+.pulse { margin: 18px 0 0 60px; }
+.pulse-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: 3px; height: 66px; }
+.pulse-col { display: flex; flex-direction: column-reverse; align-items: center; gap: 3px; }
+.pulse-col i { width: 8px; height: 8px; border-radius: 50%; background: #3e4144; }
+.pulse-col i.you { background: var(--blue); box-shadow: 0 0 0 3px rgba(29, 155, 240, .25); }
+.pulse-col i.more { background: #5b6065; }
+.pulse-col.empty i { background: #1d1f22; width: 4px; height: 4px; }
+.pulse-legend { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; font-size: 12px; color: var(--night-2); }
+.pulse-legend .key { display: inline-flex; align-items: center; gap: 6px; }
+.pulse-legend .key i { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); display: inline-block; }
+@media (prefers-reduced-motion: no-preference) {
+  .night.enter .pulse-col i { animation: pop .4s ease-out both; animation-delay: calc(var(--i) * 18ms); }
+  @keyframes pop { from { opacity: 0; transform: scale(.2); } }
+}
+
+/* ── The feed and the rail ────────────────────────────────────────────── */
+.columns { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.feed { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sheet); overflow: hidden; }
+.feed-head { display: flex; align-items: baseline; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+.feed-head h2 { margin: 0; font: 400 28px/1.1 var(--serif); }
+.feed-head .n { font: 400 28px/1.1 var(--serif); color: var(--blue); font-variant-numeric: tabular-nums; }
+.feed-head .sub { margin-left: auto; color: var(--ink-2); font-size: 13px; }
+.empty-feed { padding: 28px 18px; color: var(--ink-2); }
+.empty-feed h3 { margin: 0 0 4px; font: 400 24px/1.2 var(--serif); color: var(--ink); }
+.empty-feed p { margin: 0; }
+
+.post { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; padding: 14px 18px 16px; border-bottom: 1px solid var(--line); }
+.post:last-child { border-bottom: 0; }
+.face { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px; background: #8b98a5; }
+.face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.verified { width: 17px; height: 17px; color: var(--blue); align-self: center; }
+.post .ctx { margin: 1px 0 0; font-size: 14px; color: var(--ink-2); }
+.post .ctx a { color: var(--blue); }
+.post .said { margin: 4px 0 0; font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.post .said .tag { color: var(--blue); }
+.today { margin-left: auto; align-self: center; font-size: 12px; font-weight: 700; color: var(--red); border: 1px solid #fbc5c9; padding: 1px 8px; border-radius: var(--r-pill); }
+.quoted { margin-top: 10px; border: 1px solid var(--line-2); border-radius: 14px; padding: 10px 12px; font-size: 14px; }
+.quoted .post-head { font-size: 14px; }
+.quoted .mini { width: 20px; height: 20px; border-radius: 50%; background: var(--brown-soft); color: var(--brown); display: inline-grid; place-items: center; font-size: 10px; font-weight: 700; align-self: center; margin-right: 2px; }
+.quoted p { margin: 2px 0 0; color: var(--ink); overflow-wrap: anywhere; }
+.metrics { display: flex; gap: 22px; margin-top: 10px; color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.metrics span { display: inline-flex; align-items: center; gap: 5px; }
+.metrics .icon { width: 17px; height: 17px; }
+
+/* Cabinet's part of a row: what they want, and a reply that is not posted yet. */
+.wants { margin: 12px 0 0; display: flex; gap: 8px; align-items: flex-start; font-size: 14px; color: var(--brown-deep); }
+.wants .icon { color: var(--brown); margin-top: 1px; width: 16px; height: 16px; }
+.composer { margin-top: 10px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--sheet); }
+.composer:focus-within { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+.composer label { display: block; padding: 9px 12px 0; font-size: 12px; color: var(--ink-2); }
+.composer textarea {
+  display: block; width: 100%; border: 0; outline: 0; resize: vertical; min-height: 48px;
+  padding: 4px 12px 8px; font: 15px/1.4 var(--sans); color: var(--ink); background: transparent;
+}
+.composer-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px 10px 12px; border-top: 1px solid var(--line); }
+.composer-foot .hint { margin-right: auto; font-size: 12px; color: var(--ink-3); }
+.ring { width: 22px; height: 22px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 2.2; }
+.ring .track { stroke: var(--line-2); }
+.ring .fill { stroke: var(--blue); }
+.ring.near .fill { stroke: var(--amber); }
+.ring.over .fill { stroke: var(--red); }
+.left { font-size: 12px; color: var(--ink-2); min-width: 22px; font-variant-numeric: tabular-nums; }
+.left.over { color: var(--red); }
+.composer-foot .btn { min-height: 32px; padding: 0 14px; font-size: 13px; }
+.more-row { padding: 12px 18px; border-top: 1px solid var(--line); }
+
+.rail { display: flex; flex-direction: column; gap: 16px; }
+.side { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sheet); padding: 14px 16px; }
+.side h2 { margin: 0 0 6px; font: 400 24px/1.15 var(--serif); }
+.stats { list-style: none; margin: 0; padding: 0; }
+.stats li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--ink-2); }
+.stats li:last-child { border-bottom: 0; }
+.stats b { color: var(--ink); font: 400 21px/1 var(--serif); font-variant-numeric: tabular-nums; }
+.cost-line { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
+.cost-line b { color: var(--ink); font-weight: 600; }
+
+.ask { background: var(--brown-deep); color: #f6eee8; border-radius: var(--r-sheet); padding: 16px; }
+.ask h2 { margin: 0 0 10px; font: 400 26px/1.1 var(--serif); color: #fff; }
+.ask form { display: flex; flex-direction: column; gap: 8px; }
+.ask textarea {
+  width: 100%; min-height: 70px; resize: vertical; border-radius: 14px; border: 1px solid #7a5640;
+  background: #5a3721; color: #fff; padding: 10px 12px; font: 15px/1.4 var(--sans);
+}
+.ask textarea::placeholder { color: #c9ad9b; }
+.ask textarea:focus { outline: 2px solid #f3d3bd; outline-offset: 1px; }
+.ask .btn.send { align-self: flex-end; background: #fff; border-color: #fff; color: var(--brown-deep); }
+.ask .note { margin: 0; font-size: 13px; color: #d9c0b0; min-height: 1em; }
+.ideas { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.ideas p { margin: 0; font-size: 13px; color: #d9c0b0; }
+.idea { text-align: left; border: 1px solid #7a5640; background: transparent; color: #fff; border-radius: 12px; padding: 8px 12px; cursor: pointer; font-size: 14px; }
+.idea:hover { background: #5a3721; }
+
+.foot { display: flex; gap: 8px; align-items: flex-start; color: var(--ink-2); font-size: 13px; max-width: 80ch; }
+.foot .icon { width: 16px; height: 16px; margin-top: 1px; }
+.foot p { margin: 0; }
+
+.skel { display: flex; flex-direction: column; gap: 16px; }
+.skel-night { background: var(--night); border-radius: var(--r-sheet); height: 240px; }
+.skel-feed { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sheet); height: 360px; }
+
+#toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  background: var(--blue); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 500;
+  transition: opacity .2s, transform .2s; max-width: calc(100vw - 32px); z-index: 10;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 860px) {
+  .columns { grid-template-columns: minmax(0, 1fr); }
+  .read-page { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .app { padding: 12px 10px 28px; }
+  .card-hero { grid-template-columns: minmax(0, 1fr); }
+  .pulse { margin-left: 0; }
+  .post { padding: 12px 14px 14px; }
+  .metrics { gap: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot, .spin, .gift.arrive { animation: none; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-x" viewBox="0 0 24 24"><path class="fill" d="M17.75 3h3.07l-6.7 7.66L22 21h-6.17l-4.83-6.32L5.47 21H2.4l7.17-8.2L2 3h6.33l4.36 5.77zm-1.08 16.17h1.7L7.4 4.73H5.58z"/></symbol>
+  <symbol id="i-verified" viewBox="0 0 22 22"><path d="M20.4 11c0-1.3-.8-2.5-2-3 .4-1.2.1-2.6-.8-3.5-.9-.9-2.3-1.2-3.5-.8-.5-1.2-1.7-2-3-2s-2.6.8-3.1 2c-1.2-.4-2.6-.1-3.5.8-.9.9-1.2 2.3-.8 3.5-1.2.5-2 1.7-2 3s.8 2.5 2 3c-.4 1.2-.1 2.6.8 3.5.9.9 2.3 1.2 3.5.8.5 1.2 1.7 2 3 2s2.5-.8 3-2c1.2.4 2.6.1 3.5-.8.9-.9 1.2-2.3.8-3.5 1.3-.5 2.1-1.7 2.1-3zm-11 4.4l-3.7-3.7 1.4-1.4 2.3 2.3 4.9-5.3 1.5 1.3z" fill="currentColor"/></symbol>
+  <symbol id="i-reply" viewBox="0 0 24 24"><path d="M12 20.5c4.7 0 8.5-3.4 8.5-7.6S16.7 5.3 12 5.3 3.5 8.7 3.5 12.9c0 1.9.8 3.6 2.1 5l-.8 2.9 3.3-1.2c1.2.6 2.5.9 3.9.9z"/></symbol>
+  <symbol id="i-repost" viewBox="0 0 24 24"><path d="M4.5 9.5l3-3 3 3"/><path d="M7.5 6.5v8a3 3 0 0 0 3 3h3"/><path d="M19.5 14.5l-3 3-3-3"/><path d="M16.5 17.5v-8a3 3 0 0 0-3-3h-3"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.4-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.6-7.5 10-7.5 10z"/></symbol>
+  <symbol id="i-views" viewBox="0 0 24 24"><path d="M5 20V12M10 20V5M15 20v-9M20 20v-5"/></symbol>
+  <symbol id="i-cabinet" viewBox="0 0 24 24"><rect x="4.5" y="3" width="15" height="18" rx="2.5"/><path d="M4.5 12h15M10 7.5h4M10 16.5h4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.2v.3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9"/><path d="M3 4v5h5"/><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15"/><path d="M21 20v-5h-5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-at" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.8"/><path d="M15.8 12v1.6a2.6 2.6 0 0 0 5.2 0V12a9 9 0 1 0-3.6 7.2"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9a4.8 4.8 0 0 1-.6 9.5z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9-4.3-4.1 5.9-.8z"/></symbol>
+</svg>
+
+<div class="app">
+  <div id="hero"></div>
+  <div id="gift-keep" hidden></div>
+  <section id="welcome" class="welcome" hidden aria-live="polite"></section>
+  <div id="ribbon" hidden></div>
+  <div id="page"></div>
+  <div class="foot">
+    <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
+    <p id="foot-words">Your digest only reads X. It never posts, replies, likes, reposts or follows. Replies open on X for you to post with your own click.</p>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var MORNING = "morning-x-digest";
+  var CONNECTOR = "x";
+  var POLL_MS = 60000;
+  var ASK_GRACE_MS = 45000;
+  var READ_FRESH_MIN = 20;
+  var DAY_MS = 86400000;
+  var REPLY_MAX = 280;
+  var SHOW_ROWS = 6;
+  var X_LINK = /^https:\/\/x\.com\//;
+  var PIC = /^https:\/\/pbs\.twimg\.com\//;
+  var DONE_KEY = "x-digest-done@1";
+  var GIFT_KEY = "x-digest-gift-done@1";
+  var PROFILE_SEEN_KEY = "x-digest-profile-seen@1";
+  var GIFT_KEEP_DAYS = 3;
+
+  /** Next steps on X: one tap asks Cabinet in the chat beside the page. */
+  var IDEAS = [
+    { title: "Who talks to me most on X?",
+      ask: "Look at my X mentions and replies of the last 7 days. Who talks to me most, what do they usually want, and is anyone I never answered? Keep it short." },
+    { title: "Questions I never answered this week",
+      ask: "Find every question someone asked me on X in the last 7 days that I never answered. List them oldest first with a link, and write a short reply in my voice for each, with [brackets] for what I need to decide. Never post anything." },
+    { title: "What did people say about my last post?",
+      ask: "Read the replies and quotes to my newest post on X. In five short lines: what people liked, what they asked, and anything I should answer. Show each post's words as X shows them." }
+  ];
+  var FACE_COLORS = ["#1d9bf0", "#7856ff", "#f91880", "#00ba7c", "#ff7a00", "#536471"];
+
+  var state = {
+    appPath: appPathFromUrl(), here: null, x: null, jobs: [], loaded: false,
+    data: null, example: true, lastTry: null, connecting: false, connectNote: "",
+    running: false, askedAt: 0, sawRun: false, runNote: "", askNote: "",
+    reading: null, sawReading: false, readShown: 0, readStartedAt: null,
+    profile: null, profileSeen: "", giftDone: "", giftAsked: "", giftShownAt: "",
+    mineReady: false, done: {}, drafts: {}, showAll: false, entered: false
+  };
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── Small helpers ──────────────────────────────────────────────────────
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function icon(id, cls) { return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>'; }
+  function xMark(cls) { return '<svg class="icon fill ' + (cls || "xmark") + '" aria-hidden="true" viewBox="0 0 24 24"><use href="#i-x"/></svg>'; }
+  function text(value, max) {
+    var s = typeof value === "string" ? value.trim() : "";
+    return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function num(v) { return typeof v === "number" && isFinite(v) && v >= 0 ? Math.round(v) : 0; }
+  function appPathFromUrl() {
+    var m = /\/apps\/([^?#]+?)\/?(?:index\.html)?(?:[?#]|$)/.exec(location.pathname);
+    return m ? decodeURIComponent(m[1]) : "catch-up";
+  }
+  var toastTimer = 0;
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
+  }
+  function parseTime(value) {
+    if (typeof value !== "string" && typeof value !== "number") return null;
+    var d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function writtenAt(value) { return parseTime(value); }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function clock(d) { return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+  function whenWords(d, now) {
+    var days = Math.round((startOfDay(now) - startOfDay(d)) / DAY_MS);
+    if (days === 0) return "today at " + clock(d);
+    if (days === 1) return "yesterday at " + clock(d);
+    return d.toLocaleDateString([], { weekday: "long" }) + " at " + clock(d);
+  }
+  /** X's own way of saying when: 4m, 3h, Oct 14. */
+  function xAgo(value, ref) {
+    var d = parseTime(value);
+    if (!d) return "";
+    var mins = Math.max(0, Math.round(((ref || new Date()) - d) / 60000));
+    if (mins < 60) return Math.max(1, mins) + "m";
+    if (mins < 24 * 60) return Math.round(mins / 60) + "h";
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+  /** How long someone has waited, in words: 40 minutes, 20 hours, 3 days. */
+  function waitWords(value) {
+    var d = parseTime(value);
+    if (!d) return "";
+    var mins = Math.max(1, Math.round((Date.now() - d) / 60000));
+    if (mins < 60) return mins + " " + plural(mins, "minute", "minutes");
+    var hours = Math.round(mins / 60);
+    if (hours < 48) return hours + " " + plural(hours, "hour", "hours");
+    return Math.round(hours / 24) + " days";
+  }
+  function compact(n) {
+    if (n < 1000) return String(n);
+    if (n < 1e6) return (Math.round(n / 100) / 10).toString().replace(/\.0$/, "") + "K";
+    return (Math.round(n / 1e5) / 10).toString().replace(/\.0$/, "") + "M";
+  }
+  function initials(name) {
+    var parts = String(name || "?").trim().split(/\s+/);
+    return ((parts[0] || "?").charAt(0) + (parts.length > 1 ? parts[parts.length - 1].charAt(0) : "")).toUpperCase();
+  }
+  function colorFor(name) {
+    var h = 0;
+    for (var i = 0; i < String(name).length; i++) h = (h * 31 + String(name).charCodeAt(i)) >>> 0;
+    return FACE_COLORS[h % FACE_COLORS.length];
+  }
+  /** A post's words as X sent them, with @names, #tags and links in X's blue. */
+  function postText(value) {
+    return esc(value).replace(/(https?:\/\/[^\s<]+)|(^|[\s(])([@#][A-Za-z0-9_]{1,30})/g, function (all, url, pre, tag) {
+      if (url) return '<a href="' + url + '" target="_blank" rel="noopener">' + url.replace(/^https?:\/\//, "") + "</a>";
+      return pre + '<span class="tag">' + tag + "</span>";
+    });
+  }
+  function xLink(value) { return typeof value === "string" && X_LINK.test(value) ? value : ""; }
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  function readText(rel) {
+    if (V2 && cab.files && typeof cab.files.read === "function")
+      return Promise.resolve(cab.files.read(state.appPath + "/" + rel)).then(function (t) { if (t == null) throw notFound(); return String(t); });
+    return fetch(rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+      if (r.status === 404) throw notFound();
+      if (!r.ok) throw new Error("read failed");
+      return r.text();
+    });
+  }
+  function readJson(rel) { return readText(rel).then(function (t) { return JSON.parse(t); }); }
+  function maybe(promise) { return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; }); }
+  function quiet(promise) { return promise.catch(function () { return null; }); }
+  function usable(d) { return d && typeof d === "object" && Array.isArray(d.waiting) && d.totals && typeof d.totals === "object"; }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = Promise.all([
+      maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
+      quiet(maybe(readJson("data/status.json"))),
+      quiet(maybe(readJson("data/reading.json"))),
+      quiet(maybe(readJson("data/profile.json")))
+    ]).then(function (got) {
+      var latest = got[0];
+      setReading(cleanReading(got[2]));
+      state.profile = cleanProfile(got[3]);
+      state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
+      if (usable(latest) && latest.example !== true) { state.data = latest; state.example = false; return null; }
+      if (latest === "broken" && state.data && !state.example) return null;
+      return maybe(readJson("data/EXAMPLE-latest.json")).then(function (ex) {
+        state.data = usable(ex) ? ex : null;
+        state.example = true;
+      });
+    }).catch(function () {
+      if (!state.data) state.data = null;
+    }).then(function () {
+      state.loaded = true;
+      loading = null;
+      paint();
+    });
+    return loading;
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAsk() { return V2 && role() !== "viewer"; }
+  function canRun() { return V2 && role() !== "viewer"; }
+  function morningJob() {
+    for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === MORNING) return state.jobs[i];
+    return null;
+  }
+  function pickX(items) {
+    if (!Array.isArray(items)) return null;
+    for (var i = 0; i < items.length; i++) if (items[i] && items[i].id === CONNECTOR) return items[i];
+    return null;
+  }
+  function xState() { return state.x ? state.x.state : null; }
+  function scheduleWords() {
+    var job = morningJob();
+    var when = job && typeof job.when === "string" ? job.when.trim() : "";
+    return /^every\b/i.test(when) ? when.charAt(0).toLowerCase() + when.slice(1) : "";
+  }
+  function askReady() {
+    var s = xState();
+    return !state.x || s === "connected" || s === "needs-you" || s === "needs-sign-in";
+  }
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var wasRunning = state.running;
+    state.jobs = items;
+    var job = morningJob();
+    var reported = !!(job && job.running);
+    if (reported) state.sawRun = true;
+    state.running = reported || (!state.sawRun && Date.now() - state.askedAt < ASK_GRACE_MS);
+    if (wasRunning && !state.running) load();
+    paint();
+  }
+  function connect() {
+    if (!V2 || state.connecting) return;
+    state.connecting = true;
+    state.connectNote = "";
+    paint();
+    cab.connectors.connect(CONNECTOR).then(function (result) {
+      state.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        state.x = pickX(items) || state.x;
+        paint();
+        if (result === "connected" && state.example && canRun()) runNow();
+      });
+    }).catch(function (e) {
+      state.connecting = false;
+      state.connectNote = e && e.message ? e.message : "That did not work. Try again.";
+      paint();
+    });
+  }
+  setInterval(function () {
+    if (!state.running && !readingNow()) return;
+    quiet(maybe(readJson("data/reading.json"))).then(function (d) {
+      var r = cleanReading(d);
+      if (!r || (state.reading && r.lines.join("\n") === state.reading.lines.join("\n") && r.done === state.reading.done &&
+        (r.gift && r.gift.at) === (state.reading.gift && state.reading.gift.at))) return;
+      setReading(r);
+      paintHero();
+      paintWelcome();
+      if (r.done) load();
+    });
+  }, 2500);
+  function runNow() {
+    if (!V2 || state.running) return;
+    state.running = true;
+    state.askedAt = Date.now();
+    state.sawRun = false;
+    state.runNote = "";
+    paint();
+    setTimeout(function () { if (!state.sawRun && state.running) { state.running = false; load(); } }, ASK_GRACE_MS + 500);
+    cab.jobs.run(MORNING).then(function () { watchRun(); }).catch(function (e) {
+      if (e && e.code === "busy") { watchRun(); return; }
+      state.running = false;
+      state.runNote = e && e.message ? e.message : "Reading your X did not start. Try again.";
+      paint();
+    });
+  }
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!state.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+  function ask(question) {
+    var q = text(question, 3900);
+    if (!q) return;
+    if (!V2) { toast("Open this cabinet in Cabinet to ask about your X."); return; }
+    if (!askReady()) {
+      if (state.x && state.x.canConnect) { toast("Connect X first."); connect(); }
+      else toast(xState() === "not-available-here" ? "X can’t be connected here yet." : "Ask the person who owns this cabinet to connect X.");
+      return;
+    }
+    setAskNote("Asking...");
+    cab.ask(q, { send: true }).then(function () {
+      setAskNote("Asked. The answer is coming in the chat next to this page.");
+      toast("Asked. The answer is coming in the chat.");
+      if ($("ask-input")) $("ask-input").value = "";
+    }).catch(function (e) {
+      setAskNote(e && e.message ? e.message : "That did not go through. Try again.");
+      toast(state.askNote);
+    });
+  }
+  function setAskNote(words) {
+    state.askNote = words;
+    if ($("ask-note")) $("ask-note").textContent = words;
+  }
+  function remember(key, value) {
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(key, value).catch(function () {});
+  }
+
+  function copyText(value, done) {
+    var ok = function () { toast(done); };
+    var bad = function () { toast("Copying did not work here. Select the words and copy them."); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(ok, function () { fallbackCopy(value) ? ok() : bad(); });
+    else if (fallbackCopy(value)) ok();
+    else bad();
+  }
+  function fallbackCopy(value) {
+    try {
+      var area = document.createElement("textarea");
+      area.value = value;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(area);
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  // ── The first reading ──────────────────────────────────────────────────
+
+  function cleanReading(d) {
+    if (!d || typeof d !== "object" || !Array.isArray(d.lines)) return null;
+    var lines = d.lines.map(function (l) { return text(typeof l === "string" ? l : "", 200); }).filter(Boolean).slice(-8);
+    return { startedAt: d.startedAt, done: d.done === true, failed: text(d.failed, 240), lines: lines, gift: cleanGift(d.gift) };
+  }
+  function cleanGift(g) {
+    if (!g || typeof g !== "object" || !writtenAt(g.at)) return null;
+    if (g.kind === "calm") return { kind: "calm", at: g.at };
+    if (g.kind !== "waiting" || !text(g.name, 80)) return null;
+    return { kind: "waiting", at: g.at, name: text(g.name, 80), username: text(g.username, 30).replace(/^@/, ""),
+      said: text(g.said, 400), gist: text(g.gist, 160), postAt: g.postAt, link: xLink(g.link) };
+  }
+  function freshReading() {
+    var at = state.reading ? writtenAt(state.reading.startedAt) : null;
+    return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
+  }
+  function readingNow() { return !!(state.reading && !state.reading.done && state.running && freshReading()); }
+  function freshLines() { return freshReading() ? state.reading.lines : []; }
+  function giftNow() { return freshReading() ? state.reading.gift : null; }
+  var REVEAL_MS = 1200;
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done ? 1 : 0)); }
+  setInterval(function () {
+    if (!revealing()) return;
+    state.readShown++;
+    if (revealing()) paintHero(); else paint();
+  }, REVEAL_MS);
+  function setReading(r) {
+    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; }
+    state.reading = r;
+  }
+  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+
+  function giftHtml(g, where) {
+    var asked = state.giftAsked === g.at;
+    var arrive = where === "reading" && state.giftShownAt !== g.at;
+    if (where === "reading") state.giftShownAt = g.at;
+    var head, button, askWords;
+    if (g.kind === "waiting") {
+      head = "<b>" + esc(g.name) + "</b> " + (waitWords(g.postAt) ? "has waited " + waitWords(g.postAt) + " for your answer." : "is waiting for your answer.");
+      button = "Write my reply";
+      askWords = "Write a reply to @" + g.username + " on X. They wrote: \"" + g.said + "\". Read the thread first. Write it the way I write on X, under 280 characters, with [brackets] for anything I need to decide. Show it to me here. Never post anything.";
+    } else {
+      head = "Nobody is waiting for you on X. A good place to be.";
+      button = "Find questions I missed";
+      askWords = IDEAS[1].ask;
+    }
+    return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
+      '<p class="found">' + icon("i-star") + (where === "reading" ? "While I read, I found this for you" : "Found while reading your X") + "</p>" +
+      "<h3>" + head + "</h3>" +
+      (g.said ? '<div class="post-mini post-like">' + miniPost(g) + "</div>" : "") +
+      (asked
+        ? '<p class="asked">' + icon("i-check") + "Asked. Your digest is on it in the chat.</p>"
+        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn cab" data-act="gift-do">' + icon("i-pen") + esc(button) + "</button>" : "") +
+          (g.link ? '<a class="btn" href="' + esc(g.link) + '" target="_blank" rel="noopener">' + xMark("icon") + "Open on X</a>" : "") +
+          (where === "keep" ? '<button type="button" class="btn quiet" data-act="gift-skip">Not now</button>' : "") + "</div>") +
+      '<p class="fine">Nothing is posted. You post your reply on X yourself.</p></section>';
+  }
+  function miniPost(g) {
+    return '<div class="quoted"><div class="post-head"><span class="name">' + esc(g.name) + '</span><span class="handle">@' + esc(g.username) + "</span></div>" +
+      '<p dir="auto">' + postText(g.said) + "</p>" + (g.gist ? '<p style="color:var(--brown-deep);margin-top:6px">' + esc(g.gist) + "</p>" : "") + "</div>";
+  }
+  function paintGiftKeep() {
+    var el = $("gift-keep");
+    var g = state.reading && state.reading.gift;
+    var at = g ? writtenAt(g.at) : null;
+    var show = !!(g && at && state.mineReady && state.giftDone !== g.at && (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY_MS &&
+      !state.example && !readingNow() && !revealing());
+    el.hidden = !show;
+    el.innerHTML = show ? giftHtml(g, "keep") : "";
+  }
+  function giftDone(g) { state.giftDone = g.at; remember(GIFT_KEY, g.at); }
+
+  function readingHtml() {
+    var all = freshLines();
+    state.sawReading = true;
+    var lines = all.slice(0, Math.min(state.readShown, all.length));
+    var done = !!(state.reading && state.reading.done) && lines.length === all.length;
+    var gift = giftNow();
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your X</h2>' +
+      "<p>Looking at the last week of your mentions and your own posts. About a minute. You don't need to do anything.</p>" +
+      '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
+      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your X") + "...</span></li></ul>" +
+      '<p class="fine">Only reads. Nothing is posted, liked or followed.</p></div>' +
+      (gift ? giftHtml(gift, "reading")
+        : done ? ""
+        : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for the one person who most needs your answer.</h3></section>') +
+      "</div>";
+  }
+
+  function cleanProfile(d) {
+    if (!d || typeof d !== "object" || !writtenAt(d.at)) return null;
+    var regulars = list(d.regulars).map(function (r) { return { name: text(r.name, 60), username: text(r.username, 30) }; }).filter(function (r) { return r.name; }).slice(0, 3);
+    var b = d.busiest && typeof d.busiest === "object" && text(d.busiest.text, 200) ? { text: text(d.busiest.text, 140), replies: num(d.busiest.replies), link: xLink(d.busiest.link) } : null;
+    var a = d.active && typeof d.active === "object" ? d.active : null;
+    return { at: d.at, name: text(d.name, 40), days: num(d.days) || 7, mentions: num(d.mentions), people: num(d.people),
+      answered: num(d.answered), regulars: regulars, busiest: b,
+      from: a && typeof a.from === "number" ? a.from : null, to: a && typeof a.to === "number" ? a.to : null };
+  }
+  function hourWords(h) { var d = new Date(); d.setHours(h, 0, 0, 0); return clock(d); }
+  function paintWelcome() {
+    var el = $("welcome");
+    var pr = state.profile;
+    var known = pr && (pr.regulars.length || pr.busiest || pr.from != null);
+    var show = !!(state.mineReady && known && state.loaded && !state.example && canAsk() && pr.at !== state.profileSeen && !readingNow() && !revealing());
+    el.hidden = !show;
+    if (!show) { el.innerHTML = ""; return; }
+    var facts = [];
+    if (pr.regulars.length) facts.push(["i-users", "Who talks to you most: <b>" + esc(pr.regulars.map(function (r) { return r.name; }).join(", ")) + "</b>"]);
+    if (pr.busiest) facts.push(["i-reply", "Your post with the most replies: <b>“" + esc(pr.busiest.text) + "”</b>, " + pr.busiest.replies + " " + plural(pr.busiest.replies, "reply", "replies")]);
+    if (pr.from != null && pr.to != null && pr.to > pr.from) facts.push(["i-clock", "You post on X between about <b>" + esc(hourWords(pr.from)) + " and " + esc(hourWords(pr.to)) + "</b>"]);
+    var head = pr.mentions
+      ? "In " + pr.days + " " + plural(pr.days, "day", "days") + ", <b>" + pr.mentions + " " + plural(pr.mentions, "post", "posts") + "</b> mentioned you, from " + pr.people + " " + plural(pr.people, "person", "people") + "."
+      : "Here is what your X says about you" + (pr.name ? ", " + esc(pr.name) : "") + ".";
+    el.innerHTML = '<p class="found">Your digest read your X. This is what it learned.</p><h3>' + head + "</h3>" +
+      (facts.length ? "<ul>" + facts.map(function (f) { return "<li>" + icon(f[0]) + "<span>" + f[1] + "</span></li>"; }).join("") + "</ul>" : "") +
+      '<div class="acts"><button type="button" class="btn cab" data-act="profile-ok">' + icon("i-check") + "That’s me</button>" +
+      '<button type="button" class="btn" data-act="profile-fix">Fix something</button>' +
+      '<span class="fine">You see this once.</span></div>';
+  }
+
+  // ── Above the page: setup, reading, problems ───────────────────────────
+
+  function artX(badge) {
+    return '<div class="art" aria-hidden="true">' + xMark() +
+      (badge === "ok" ? '<span class="badge ok">' + icon("i-check") + "</span>" : badge === "bad" ? '<span class="badge bad">' + icon("i-alert") + "</span>" : "") + "</div>";
+  }
+  function cardHero(badge, title, body) {
+    return '<div class="card-hero">' + artX(badge) + "<div><h2>" + esc(title) + "</h2>" + body + "</div></div>";
+  }
+  function runNoteHtml() { return state.runNote ? '<div class="notice">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
+  function failureInfo() {
+    if (state.running) return null;
+    var tryAt = state.lastTry && state.lastTry.ok === false ? writtenAt(state.lastTry.at) : null;
+    var shownAt = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
+    var job = morningJob();
+    var jobFail = job && job.lastRun && job.lastRun.ok === false ? parseTime(job.lastRun.at) : null;
+    var why = "";
+    if (tryAt && (!shownAt || tryAt > shownAt)) why = text(state.lastTry.why, 240) || "The last reading could not get into your X.";
+    else if (jobFail && (!shownAt || jobFail > shownAt)) why = "The last reading did not finish.";
+    if (!why || (V2 && xState() !== "connected")) return null;
+    var at = tryAt || jobFail;
+    return { why: why, head: at ? "The reading " + whenWords(at, new Date()) + " didn’t work." : "The last reading didn’t work." };
+  }
+  function failureButtons(primary) {
+    return (canRun() ? '<button class="btn' + (primary ? " cab big" : "") + '" data-act="run">' + icon("i-refresh") + "Try again</button>" : "") +
+      (state.x && state.x.canConnect ? '<button class="btn' + (primary ? " big" : "") + '" data-act="connect">' + xMark("icon") + "Open the X connection</button>" : "");
+  }
+  function failureHtml() {
+    var f = failureInfo();
+    if (!f) return "";
+    var buttons = failureButtons(false);
+    return '<div class="notice">' + icon("i-alert") + "<div><p><b>" + esc(f.head) + "</b> " + esc(f.why) + "</p>" +
+      (buttons ? '<div class="actions">' + buttons + "</div>" : "") + "</div></div>";
+  }
+  var COSTS = '<div class="costs"><span>Your X app pays X: <b>about half a cent a post</b></span><span>A usual morning: <b>a few cents</b></span><span>It stops at your X spending limit</span></div>';
+
+  function paintHero() {
+    var hero = $("hero");
+    if (!state.loaded) { hero.innerHTML = '<div class="skel" role="status" aria-label="Loading your page"><div class="skel-night"></div><div class="skel-feed"></div></div>'; hero.hidden = false; return; }
+    var s = xState();
+    var g = state.x;
+    var html;
+    var told = false;
+    if (V2 && s === "not-available-here") {
+      html = cardHero(null, "X can’t be connected here yet",
+        (g && g.problem && g.problem.text ? '<p class="lead">' + esc(g.problem.text) + "</p>" : "") + '<p class="fine">Below is an example from a made-up account.</p>');
+    } else if (V2 && (s === "needs-sign-in" || s === "needs-you")) {
+      html = cardHero("bad", "X needs you",
+        '<p class="lead">' + esc(g && g.problem && g.problem.text ? g.problem.text : "X stopped accepting your app’s key.") + "</p>" +
+        (g && g.canConnect
+          ? '<div class="actions"><button class="btn cab big" data-act="connect">' + (state.connecting ? icon("i-refresh", "spin") + "Opening..." : xMark("icon") + "Fix the X connection") + "</button></div>"
+          : '<p class="fine">Ask the person who owns this cabinet to fix the X connection.</p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : ""));
+    } else if (V2 && s === "not-added") {
+      html = cardHero(null, "See who on X is waiting for you",
+        '<p class="lead">X tells you about every like, follow and bot. Your digest shows only the people who wrote to you and want an answer, with a reply ready to post. Cabinet uses your own X app, and the connect window walks you through it in about five minutes.</p>' +
+        COSTS +
+        (g && g.canConnect
+          ? '<div class="actions"><button class="btn cab big" data-act="connect">' + (state.connecting ? icon("i-refresh", "spin") + "Opening..." : xMark("icon") + "Connect X") + "</button></div>"
+          : '<p class="fine">Ask the person who owns this cabinet to connect X.</p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : ""));
+    } else if ((state.running && (state.example || !state.data)) || revealing()) {
+      html = readingHtml();
+    } else if (readingNow() && !state.example) {
+      var last = state.reading.lines[state.reading.lines.length - 1];
+      html = '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still reading your X' + (last ? ": " + lineHtml(last) : "...") + "</span></div>";
+    } else if (V2 && s === "connected" && state.example && failureInfo()) {
+      var first = failureInfo();
+      html = cardHero("bad", "Your first reading didn’t work", '<p class="lead">' + esc(first.why) + "</p>" + '<div class="actions">' + failureButtons(true) + "</div>");
+      told = true;
+    } else if (V2 && s === "connected" && state.example) {
+      var sched = scheduleWords();
+      html = cardHero("ok", "X is connected. Let’s read it.",
+        '<p class="lead">Your first reading looks at the last week of your mentions and takes about a minute.' +
+        (sched ? " After that it happens by itself, " + esc(sched) + "." : " After that, press Read again whenever you want.") + "</p>" + COSTS +
+        (canRun() ? '<div class="actions"><button class="btn cab big" data-act="run">' + xMark("icon") + "Read my X now</button></div>" : "") + runNoteHtml());
+    } else if (!state.data) {
+      html = cardHero(null, "Your X shows up here", '<p class="lead">Nothing could be read yet. Try again in a moment.</p>');
+    } else {
+      html = runNoteHtml();
+    }
+    html += told ? "" : failureHtml();
+    hero.innerHTML = html;
+    hero.hidden = !html;
+  }
+
+  function paintRibbon() {
+    var el = $("ribbon");
+    var show = !!(state.loaded && state.data && state.example && !((state.running && state.example) || revealing()));
+    el.hidden = !show;
+    if (!show) { el.innerHTML = ""; return; }
+    var name = state.data.person && text(state.data.person.name, 40);
+    el.innerHTML = '<div class="ribbon"><span class="tag">Example</span><p><b>' + esc(name ? name + "’s X" : "An X account") +
+      "</b>, made up. None of these people are real. Connect X and your own digest takes their place.</p></div>";
+  }
+
+  // ── The page ───────────────────────────────────────────────────────────
+
+  function totals() { return state.data && state.data.totals && typeof state.data.totals === "object" ? state.data.totals : {}; }
+  function rowKey(item) { return item.postId || item.id; }
+  function waiting() {
+    return state.data ? list(state.data.waiting).filter(function (w) { return !state.done[rowKey(w)]; }) : [];
+  }
+  function refDate() {
+    var g = state.data && writtenAt(state.data.generatedAt);
+    return state.example && g ? g : new Date();
+  }
+
+  function statusHtml() {
+    var s = xState();
+    var pill;
+    if (!V2) pill = '<span class="pill off">Open in Cabinet to connect X</span>';
+    else if (!state.x) pill = '<span class="pill">' + xMark() + "Checking X</span>";
+    else if (s === "connected") {
+      var g = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
+      var who = state.x.account && state.x.account.label ? state.x.account.label : "X connected";
+      pill = '<span class="pill">' + xMark() + esc(who) + (g ? ' <span class="when">· read ' + esc(clock(g)) + "</span>" : "") + "</span>";
+    } else if (s === "needs-sign-in" || s === "needs-you") pill = '<span class="pill warn">' + xMark() + "X needs you</span>";
+    else if (s === "not-available-here") pill = '<span class="pill off">' + xMark() + "X not available here</span>";
+    else pill = '<span class="pill off">' + xMark() + "X not connected</span>";
+    var button = "";
+    if (s === "connected" && canRun() && state.data && !state.example)
+      button = state.running ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Reading...</button>"
+        : '<button class="btn" data-act="run">' + icon("i-refresh") + "Read again</button>";
+    return pill + button;
+  }
+
+  function sinceWords() {
+    var since = state.data && writtenAt(state.data.since);
+    if (!since) return "Since your last morning";
+    var ref = refDate();
+    var days = Math.round((startOfDay(ref) - startOfDay(since)) / DAY_MS);
+    if (days <= 0) return "Since " + clock(since) + " today";
+    if (days === 1) return "Since yesterday at " + clock(since);
+    return "Since " + since.toLocaleDateString([], { weekday: "long" }) + " at " + clock(since);
+  }
+
+  function nightHtml() {
+    var d = state.data;
+    var t = totals();
+    var rows = list(d.waiting).length;
+    var name = d.person && text(d.person.name, 40);
+    var gen = writtenAt(d.generatedAt) || new Date();
+    var big = rows ? rows + " " + plural(rows, "person wants", "people want") + " an answer from you."
+      : "Nobody is waiting for you on X.";
+    if (state.example) big = "Example: " + big.charAt(0).toLowerCase() + big.slice(1);
+    var tally = [];
+    if (num(t.mentions)) tally.push("<b>" + num(t.mentions) + "</b> " + plural(num(t.mentions), "post", "posts") + " mentioned you");
+    if (num(t.answered)) tally.push("you answered <b>" + num(t.answered) + "</b>");
+    if (num(t.skipped)) tally.push("<b>" + num(t.skipped) + "</b> can wait or be skipped");
+    return '<section class="night' + (state.entered ? "" : " enter") + '" aria-label="This morning on X">' +
+      '<div class="night-top"><span class="since">' + esc(sinceWords()) + "</span>" + statusHtml() + "</div>" +
+      '<article class="cab-post"><div class="cab-face" aria-hidden="true">' + icon("i-cabinet") + "</div><div>" +
+      '<div class="post-head"><span class="name">Cabinet</span><span class="handle">@cabinet</span><span class="dotsep">·</span><span class="ago">' + esc(clock(gen)) + "</span></div>" +
+      (name ? '<p class="hello">Good morning, ' + esc(name) + ".</p>" : "") +
+      "<h1>" + esc(big) + "</h1>" +
+      (text(d.headline, 300) ? '<p class="say">' + esc(text(d.headline, 300)) + "</p>" : "") +
+      (tally.length ? '<p class="tally">' + tally.join(", ").replace(/^./, function (c) { return c.toUpperCase(); }) + ".</p>" : "") +
+      "</div></article>" + pulseHtml() + "</section>";
+  }
+
+  function pulseHtml() {
+    var p = state.data.pulse;
+    if (!p || !Array.isArray(p.counts) || !p.counts.length) return "";
+    var start = writtenAt(p.start);
+    var step = num(p.stepHours) || 1;
+    var you = Array.isArray(p.you) ? p.you : [];
+    var MAXDOTS = 6;
+    var k = 0;
+    var cols = p.counts.map(function (c, i) {
+      c = num(c);
+      var y = Math.min(num(you[i]), c);
+      if (!c) return '<div class="pulse-col empty"><i style="--i:' + i + '"></i></div>';
+      var dots = "";
+      var shown = Math.min(c, MAXDOTS);
+      for (var j = 0; j < shown; j++) {
+        var cls = j < y ? "you" : j === MAXDOTS - 1 && c > MAXDOTS ? "more" : "";
+        dots += "<i" + (cls ? ' class="' + cls + '"' : "") + ' style="--i:' + (k++) + '"></i>';
+      }
+      return '<div class="pulse-col" title="' + c + " " + plural(c, "mention", "mentions") + (y ? ", " + y + " for you" : "") + '">' + dots + "</div>";
+    }).join("");
+    var startWords = start ? (step >= 24 ? start.toLocaleDateString([], { weekday: "short" }) : start.toLocaleDateString([], { weekday: "short" }) + " " + clock(start)) : "";
+    return '<div class="pulse" aria-hidden="true"><div class="pulse-row">' + cols + "</div>" +
+      '<div class="pulse-legend"><span>' + esc(startWords) + '</span><span class="key"><i></i>wants you</span><span>' + esc(clock(writtenAt(state.data.generatedAt) || new Date())) + "</span></div></div>";
+  }
+
+  function faceHtml(who) {
+    var name = who.name || who.username || "?";
+    var pic = who.pic && PIC.test(who.pic) ? '<img src="' + esc(who.pic) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : "";
+    return '<div class="face" style="background:' + colorFor(name) + '" aria-hidden="true">' + esc(initials(name)) + pic + "</div>";
+  }
+
+  function ctxHtml(item, me) {
+    if (item.kind === "reply") return '<p class="ctx">Replying to <a href="https://x.com/' + esc(me) + '" target="_blank" rel="noopener">@' + esc(me) + "</a></p>";
+    if (item.kind === "quote") return '<p class="ctx">Quoted your post</p>';
+    return "";
+  }
+
+  function aboutHtml(item, me) {
+    var a = item.about && typeof item.about === "object" && text(item.about.text, 400) ? item.about : null;
+    if (!a) return "";
+    var name = state.data.person && text(state.data.person.name, 40);
+    var link = xLink(a.link);
+    var inner = '<div class="post-head"><span class="mini" aria-hidden="true">' + esc(initials(name || me)) + '</span><span class="name">' + esc(name || "You") +
+      '</span><span class="handle">@' + esc(me) + "</span>" + (a.at ? '<span class="dotsep">·</span><span class="ago">' + esc(xAgo(a.at, refDate())) + "</span>" : "") + "</div>" +
+      '<p dir="auto">' + postText(text(a.text, 400)) + "</p>";
+    return link ? '<a class="quoted" style="display:block;color:inherit;text-decoration:none" href="' + esc(link) + '" target="_blank" rel="noopener">' + inner + "</a>"
+      : '<div class="quoted">' + inner + "</div>";
+  }
+
+  function ringHtml(len) {
+    var r = 9, c = 2 * Math.PI * r;
+    var part = Math.min(1, len / REPLY_MAX);
+    var cls = len > REPLY_MAX ? "over" : len > REPLY_MAX - 20 ? "near" : "";
+    return '<svg class="ring ' + cls + '" viewBox="0 0 22 22" aria-hidden="true"><circle class="track" cx="11" cy="11" r="' + r + '"/>' +
+      '<circle class="fill" cx="11" cy="11" r="' + r + '" stroke-dasharray="' + (c * part).toFixed(1) + " " + c.toFixed(1) + '"/></svg>';
+  }
+  function leftHtml(len) {
+    var left = REPLY_MAX - len;
+    return left <= 20 ? '<span class="left' + (left < 0 ? " over" : "") + '">' + left + "</span>" : '<span class="left"></span>';
+  }
+  function draftOf(item) { return Object.prototype.hasOwnProperty.call(state.drafts, rowKey(item)) ? state.drafts[rowKey(item)] : text(item.reply, 600); }
+
+  function postHtml(item, me) {
+    var who = item.who && typeof item.who === "object" ? item.who : {};
+    var key = rowKey(item);
+    var link = xLink(item.link);
+    var m = item.metrics && typeof item.metrics === "object" ? item.metrics : {};
+    var draft = draftOf(item);
+    var len = draft.length;
+    var id = "draft-" + String(key).replace(/[^A-Za-z0-9_-]/g, "");
+    return '<article class="post" data-key="' + esc(key) + '">' + faceHtml(who) + "<div>" +
+      '<div class="post-head"><span class="name">' + esc(text(who.name, 60) || "Someone on X") + "</span>" +
+      (who.verified ? '<svg class="verified" viewBox="0 0 22 22" aria-label="Verified"><use href="#i-verified"/></svg>' : "") +
+      '<span class="handle">@' + esc(text(who.username, 30)) + '</span><span class="dotsep">·</span>' +
+      (link ? '<a class="ago" href="' + esc(link) + '" target="_blank" rel="noopener" style="color:var(--ink-2)">' + esc(xAgo(item.at, refDate())) + "</a>" : '<span class="ago">' + esc(xAgo(item.at, refDate())) + "</span>") +
+      (item.urgent ? '<span class="today">Today</span>' : "") + "</div>" +
+      ctxHtml(item, me) +
+      '<p class="said" dir="auto">' + postText(text(item.said, 600)) + "</p>" +
+      aboutHtml(item, me) +
+      '<div class="metrics" aria-label="On X">' +
+      "<span>" + icon("i-reply") + compact(num(m.replies)) + "</span><span>" + icon("i-repost") + compact(num(m.reposts)) + "</span>" +
+      "<span>" + icon("i-heart") + compact(num(m.likes)) + "</span>" + (num(m.views) ? "<span>" + icon("i-views") + compact(num(m.views)) + "</span>" : "") + "</div>" +
+      (text(item.gist, 200) ? '<p class="wants">' + icon("i-cabinet") + "<span>" + esc(text(item.gist, 200)) + "</span></p>" : "") +
+      '<div class="composer"><label for="' + id + '">Your reply, not posted yet</label>' +
+      '<textarea id="' + id + '" data-draft="' + esc(key) + '" rows="2" dir="auto">' + esc(draft) + "</textarea>" +
+      '<div class="composer-foot"><span class="hint">' + (/\[[^\]]+\]/.test(draft) ? "Fill in the [brackets] first" : "Edit it here, or on X") + "</span>" +
+      '<span class="count" data-count="' + esc(key) + '">' + ringHtml(len) + leftHtml(len) + "</span>" +
+      '<button type="button" class="btn quiet" data-act="done" data-key="' + esc(key) + '">Done</button>' +
+      '<button type="button" class="btn" data-act="copy" data-key="' + esc(key) + '">' + icon("i-copy") + "Copy</button>" +
+      '<button type="button" class="btn x" data-act="reply" data-key="' + esc(key) + '"' + (len > REPLY_MAX || !len ? " disabled" : "") + ">Reply on X</button>" +
+      "</div></div></div></article>";
+  }
+
+  function feedHtml() {
+    var me = (state.data.person && text(state.data.person.username, 30).replace(/^@/, "")) || (state.x && state.x.account && String(state.x.account.label || "").replace(/^@/, "")) || "you";
+    var rows = waiting();
+    var all = list(state.data.waiting).length;
+    var t = totals();
+    var shown = state.showAll ? rows : rows.slice(0, SHOW_ROWS);
+    var body = rows.length
+      ? shown.map(function (w) { return postHtml(w, me); }).join("") +
+        (rows.length > shown.length ? '<div class="more-row"><button class="btn" data-act="show-all">Show ' + (rows.length - shown.length) + " more</button></div>" : "")
+      : '<div class="empty-feed"><h3>' + (all ? "You answered everyone. Nice." : "Nobody is waiting for you.") + "</h3><p>" +
+        (num(t.mentions) ? num(t.mentions) + " " + plural(num(t.mentions), "post", "posts") + " mentioned you, and none of them asks you anything." : "No one mentioned you since the last morning.") + "</p></div>";
+    return '<section class="feed" aria-labelledby="feed-title"><header class="feed-head"><h2 id="feed-title">Waiting on you</h2>' +
+      (rows.length ? '<span class="n">' + rows.length + "</span>" : "") +
+      '<span class="sub">Oldest wait first' + (state.example ? ", made up" : "") + "</span></header>" + body + "</section>";
+  }
+
+  function railHtml() {
+    var t = totals();
+    var c = state.data.cost && typeof state.data.cost === "object" ? state.data.cost : null;
+    var usd = c && typeof c.usd === "number" && isFinite(c.usd) && c.usd >= 0 ? c.usd : null;
+    var stats = [
+      ["Posts that mentioned you", num(t.mentions)],
+      ["People", num(t.people)],
+      ["You already answered", num(t.answered)],
+      ["Replies to your posts", num(t.replies)],
+      ["Quotes of your posts", num(t.quotes)]
+    ];
+    var ideas = canAsk() || !V2 ? '<div class="ideas"><p>Try an idea</p>' + IDEAS.map(function (idea, i) {
+      return '<button type="button" class="idea" data-act="idea" data-i="' + i + '">' + esc(idea.title) + "</button>";
+    }).join("") + "</div>" : "";
+    return '<aside class="rail"><section class="side" aria-labelledby="since-title"><h2 id="since-title">Your mentions</h2>' +
+      '<ul class="stats">' + stats.map(function (s) { return "<li><span>" + esc(s[0]) + "</span><b>" + s[1] + "</b></li>"; }).join("") + "</ul>" +
+      (usd != null ? '<p class="cost-line">This reading cost about <b>$' + usd.toFixed(2) + "</b> of your X credits.</p>" : "") +
+      (t.more ? '<p class="cost-line">There were more mentions than one reading takes. Only the newest were read, to save your credits.</p>' : "") + "</section>" +
+      '<section class="ask" aria-labelledby="ask-title"><h2 id="ask-title">Ask about your X</h2>' +
+      '<form id="ask-form"><textarea id="ask-input" placeholder="Who asked me something this week?" aria-label="Ask about your X"></textarea>' +
+      '<button type="submit" class="btn send">Ask</button><p class="note" id="ask-note">' + esc(state.askNote) + "</p></form>" + ideas + "</section></aside>";
+  }
+
+  function paintPage() {
+    var el = $("page");
+    var reading = (state.running && state.example) || revealing();
+    if (!state.loaded || !state.data || reading) { el.innerHTML = ""; return; }
+    var focus = document.activeElement && document.activeElement.id;
+    var caret = focus && document.activeElement.selectionStart;
+    el.innerHTML = nightHtml() + '<div class="columns" style="margin-top:16px">' + feedHtml() + railHtml() + "</div>";
+    state.entered = true;
+    if (focus && $(focus)) { $(focus).focus(); try { $(focus).setSelectionRange(caret, caret); } catch (e) { /* not a text field */ } }
+  }
+
+  function paint() {
+    paintHero();
+    paintGiftKeep();
+    paintWelcome();
+    paintRibbon();
+    paintPage();
+  }
+
+  // ── Presses ────────────────────────────────────────────────────────────
+
+  function findRow(key) {
+    var all = state.data ? list(state.data.waiting) : [];
+    for (var i = 0; i < all.length; i++) if (String(rowKey(all[i])) === String(key)) return all[i];
+    return null;
+  }
+  function plainReply(value) { return String(value).replace(/\[([^\]]{1,160})\]/g, "$1").trim(); }
+
+  document.addEventListener("input", function (event) {
+    var area = event.target;
+    if (!area || !area.dataset || !area.dataset.draft) return;
+    var key = area.dataset.draft;
+    state.drafts[key] = area.value;
+    var len = area.value.length;
+    var count = document.querySelector('[data-count="' + CSS.escape(key) + '"]');
+    if (count) count.innerHTML = ringHtml(len) + leftHtml(len);
+    var post = area.closest(".post");
+    var btn = post && post.querySelector('[data-act="reply"]');
+    if (btn) btn.disabled = len > REPLY_MAX || !len;
+    var hint = post && post.querySelector(".hint");
+    if (hint) hint.textContent = /\[[^\]]+\]/.test(area.value) ? "Fill in the [brackets] first" : "Edit it here, or on X";
+  });
+
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest("[data-act]");
+    if (!el) return;
+    var act = el.dataset.act;
+    if (act === "connect") connect();
+    else if (act === "run") runNow();
+    else if (act === "show-all") { state.showAll = true; paintPage(); }
+    else if (act === "idea") { var idea = IDEAS[Number(el.dataset.i)]; if (idea) ask(idea.ask); }
+    else if (act === "copy" || act === "reply" || act === "done") {
+      var row = findRow(el.dataset.key);
+      if (!row) return;
+      var draft = draftOf(row);
+      if (act === "copy") copyText(plainReply(draft), "Reply copied. Paste it under the post on X.");
+      else if (act === "done") {
+        state.done[rowKey(row)] = new Date().toISOString();
+        remember(DONE_KEY, state.done);
+        toast("Marked done. It stays off this page.");
+        paintPage();
+      } else {
+        if (/\[[^\]]+\]/.test(draft)) {
+          toast("Fill in the [brackets] first, then press Reply on X.");
+          var area = document.querySelector('[data-draft="' + CSS.escape(String(rowKey(row))) + '"]');
+          if (area) { area.focus(); var at = draft.indexOf("["); area.setSelectionRange(at, draft.indexOf("]", at) + 1); }
+          return;
+        }
+        if (state.example) { toast("This is a made-up post. Connect X to reply to your own."); return; }
+        var url = "https://x.com/intent/post?in_reply_to=" + encodeURIComponent(row.postId) + "&text=" + encodeURIComponent(draft.trim());
+        window.open(url, "_blank", "noopener");
+        toast("X opens with your reply. Press Post there when it looks right.");
+      }
+    } else if (act === "gift-do") {
+      var g = state.reading && state.reading.gift;
+      if (!g) return;
+      var askWords = g.kind === "waiting"
+        ? "Write a reply to @" + g.username + " on X. They wrote: \"" + g.said + "\". Read the thread first. Write it the way I write on X, under 280 characters, with [brackets] for anything I need to decide. Show it to me here. Never post anything."
+        : IDEAS[1].ask;
+      state.giftAsked = g.at;
+      giftDone(g);
+      ask(askWords);
+      paint();
+    } else if (act === "gift-skip") {
+      var gs = state.reading && state.reading.gift;
+      if (gs) giftDone(gs);
+      paintGiftKeep();
+    } else if (act === "profile-ok" || act === "profile-fix") {
+      if (state.profile) { state.profileSeen = state.profile.at; remember(PROFILE_SEEN_KEY, state.profile.at); }
+      if (act === "profile-fix") ask("You read my X and learned some things about me. Some of it is not right. Ask me what to fix, then remember it.");
+      paintWelcome();
+    }
+  });
+
+  document.addEventListener("submit", function (event) {
+    if (!event.target || event.target.id !== "ask-form") return;
+    event.preventDefault();
+    ask($("ask-input").value);
+  });
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  paint();
+  if (V2) {
+    Promise.resolve(cab.ready).then(function () {
+      var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
+      var seen = mine ? mine.get(PROFILE_SEEN_KEY) : null;
+      if (typeof seen === "string") state.profileSeen = seen;
+      var giftSeen = mine ? mine.get(GIFT_KEY) : null;
+      if (typeof giftSeen === "string") state.giftDone = giftSeen;
+      var done = mine ? mine.get(DONE_KEY) : null;
+      var fresh = new Date(Date.now() - 14 * DAY_MS);
+      if (done && typeof done === "object") Object.keys(done).forEach(function (k) {
+        var at = parseTime(done[k]);
+        if (at && at >= fresh) state.done[k] = done[k];
+      });
+      state.mineReady = true;
+      paint();
+    }).catch(function () {});
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+    cab.connectors.list().then(function (items) {
+      state.x = pickX(items) || { id: CONNECTOR, state: "not-available-here", problem: null, canConnect: false };
+      paint();
+    }).catch(function () {
+      state.x = { id: CONNECTOR, state: "not-available-here", problem: null, canConnect: false };
+      paint();
+    });
+    cab.connectors.onChange(function (items) { var x = pickX(items); if (x) { state.x = x; paint(); } });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    state.mineReady = true;
+    load();
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
+  }
+})();
+</script>
+</body>
+</html>
