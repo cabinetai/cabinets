@@ -43,7 +43,7 @@ The page shows the reading from the moment the first build starts ("Opening your
 reads `reading.json` every few seconds while the routine runs, and shows its lines one by
 one under "Reading your notes", with the gift and the offers beside them under "While I
 read, you can...". Each is a button that asks the agent in the chat; none changes a note.
-A reading older than 20 minutes is ignored. After the first build the gift and the offers
-stay on top of the page for three days, until used or put away with "Not now". A later
-build is shown the way it always was, and so is a first build whose `reading.json` never
-comes: it says "Opening your notes" until the build ends.
+A reading older than 35 minutes is ignored (the routine stops a build at 30). After the
+first build the gift and the offers stay on top of the page for three days, until used or
+put away with "Not now". A later build is shown the way it always was, and so is a first
+build whose `reading.json` never comes: it says "Opening your notes" until the build ends.
