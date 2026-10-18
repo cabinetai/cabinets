@@ -66,8 +66,9 @@ name, account, amount, closeDate }` (the biggest deal closing this week; "Make a
 `{ kind: "calm" }` ("Plan my week"), then the `offers`: `{ kind: "calls" }` (today's call list)
 or `{ kind: "leads", people }` (first emails to new leads), each a button that asks the agent.
 After the reading the gift and the offers not yet used stay under the page's boxes for 3 days,
-or until put away. A reading older than 20 minutes is ignored, and without `reading.json` the
-page shows its plain "Catching up on your pipeline" card, as every later catch-up does.
+or until put away. A reading older than 20 minutes is ignored. The reading shows the moment the first
+catch-up starts, with "Opening your Salesforce..." until the first line, and stays until it
+says done. Every later catch-up shows "Catching up..." on its button.
 
 The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
 about 10KB each, until unique ones are made.

@@ -74,8 +74,9 @@ agent in the chat for a short email to copy) or `{ kind: "calm" }` ("Plan my wee
 the `offers`: `{ kind: "nudges" }` (a nudge for each slipping deal) or `{ kind: "leads" }`
 (a call list for untouched leads), each a button that asks the agent. After the reading the
 gift and the offers not yet used stay under the board's boxes for 3 days, or until put away.
-A reading older than 20 minutes is ignored, and without `reading.json` the board shows its
-plain "Checking your deals" card, as every later check does.
+A reading older than 20 minutes is ignored. The reading shows the moment the first check
+starts, with "Opening Salesforce..." until the first line, and stays until it says done.
+Every later check shows "Checking..." on its button.
 
 The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
 about 10KB each, until unique ones are made.

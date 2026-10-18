@@ -288,8 +288,8 @@ Every later check stays as it is: no helper, no lines.
 `cd`), does all the writing; never write `reading.json` yourself.
 - `start` first, in the command right after you read your files. It writes `reading.json`
   and makes `board/data/.work/`. If it says `latest.json` is there, or the helper is missing
-  or keeps failing, carry on the usual way: the board then shows its plain card, and nothing
-  is lost.
+  or keeps failing, carry on the usual way: the board then stays on "Opening Salesforce..."
+  until the check is done, and nothing is lost.
 - `push '<line>'` (single quotes, the same in bash and PowerShell) once per finding, in the
   command right after the query that found it. One `push` per command, never two at once.
   A line with an apostrophe: write it to `board/data/.work/line.txt` and `push @line.txt`.

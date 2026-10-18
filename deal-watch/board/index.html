@@ -21,8 +21,8 @@
 
   The first check is told as it happens: the agent adds a line to data/reading.json (through
   first-read.mjs) after each query, and the things the person can do right now (the gift,
-  then a few offers). The board shows them as they come. Without that file the page shows the
-  plain "Checking your deals" card, as every later check does.
+  then a few offers). The board shows them as they come. Until the first line comes, the
+  reading says it is opening Salesforce. Every later check shows "Checking..." on its button.
 
   How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
   routine, read files, this person's own layout). In an older Cabinet it reads the same
@@ -1283,8 +1283,11 @@
   }
   // Once done, one more beat on "Putting your board together" before the board.
   function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done ? 1 : 0)); }
-  /** The reading fills the page: the first check is on and has started telling. */
-  function showReading() { return (state.running && state.example && readingNow()) || revealing(); }
+  /**
+   * The reading fills the page from the moment the first check starts until it says done: no
+   * made-up example under it, and no flash of the board when latest.json lands just before done.
+   */
+  function showReading() { return (state.running && (state.example || !state.data)) || (state.sawReading && readingNow()) || revealing(); }
   setInterval(function () {
     if (!revealing()) return;
     state.readShown++;
@@ -1608,9 +1611,6 @@
       var last = state.reading.lines[state.reading.lines.length - 1];
       html = '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still reading your deals' + (last ? ": " + lineHtml(last) : "...") + "</span></div>";
       card = false;
-    } else if (state.running && (state.example || !state.data)) {
-      html = cardHero(null, "Checking your deals...",
-        '<p class="lead">This takes a few minutes. Stay here or come back later: the page fills in by itself.</p>', true);
     } else if (V2 && s === "connected" && state.example && failureInfo()) {
       // The very first check did not work: that is the news, told once, with its fixes.
       var first = failureInfo();

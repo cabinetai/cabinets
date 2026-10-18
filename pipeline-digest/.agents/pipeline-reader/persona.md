@@ -269,8 +269,8 @@ Every later catch-up stays as it is: no helper, no lines.
 (never `cd`), does all the writing; never write `reading.json` yourself.
 - `start` first, in the command right after you read your files. It writes `reading.json` and
   makes `your-pipeline/data/.work/`. If it says `latest.json` is there, or the helper is
-  missing or keeps failing, carry on the usual way: the page then shows its plain "Catching
-  up" card, and nothing is lost.
+  missing or keeps failing, carry on the usual way: the page then stays on "Opening your
+  Salesforce..." until the catch-up is done, and nothing is lost.
 - `push '<line>'` (single quotes, the same in bash and PowerShell) once per finding, in the
   command right after the query that found it. One `push` per command, never two at once. A
   line with an apostrophe: write it to `your-pipeline/data/.work/line.txt` and
