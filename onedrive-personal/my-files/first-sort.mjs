@@ -227,7 +227,7 @@ function datesCount(name) {
 // files ({"files":[...]}, the shape every check below reads), so a card can only name a file
 // OneDrive answered with. `read` saves one file's words for the agent to read.
 const GRAPH = /^http:\/\/127\.0\.0\.1:\d+\/v1\.0$/.test(process.env.FIRST_SORT_TEST_GRAPH || "") ? process.env.FIRST_SORT_TEST_GRAPH : "https://graph.microsoft.com/v1.0";
-const MAX_DELTA_PAGES = 40, MAX_PERMISSIONS = 60, MAX_COMMENT_FILES = 12, MAX_READ = 25 * 1024 * 1024;
+const MAX_DELTA_PAGES = 40, MAX_PERMISSIONS = 60, MAX_COMMENT_FILES = 30, MAX_READ = 25 * 1024 * 1024;
 const FOLDER = "folder";
 /** Stops a Graph read with a code the agent reads (2 not connected, 3 sign in again, 4 no
  *  permission). Never process.exit while a connection is open: Node on Windows loses the code. */
