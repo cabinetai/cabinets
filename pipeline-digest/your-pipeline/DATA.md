@@ -3,9 +3,9 @@ title: How Your pipeline gets its words
 ---
 # How Your pipeline gets its words
 
-The page never talks to Salesforce. The morning routine reads Salesforce through the REST API
-(SOQL queries on Opportunity, Task and Lead) with the sign-in Cabinet holds, writes files here,
-and the page shows them. The full rules for each field are in the agent's persona
+The page never talks to Salesforce. The morning routine reads Salesforce's REST API (seven
+SOQL queries on Opportunity, Task and Lead) through the address Cabinet gives each run, never
+a token, writes files here, and the page shows them. The full rules for each field are in the agent's persona
 (`.agents/pipeline-reader/persona.md`). Nothing on the page changes Salesforce.
 
 | File | Written by | What it holds |
