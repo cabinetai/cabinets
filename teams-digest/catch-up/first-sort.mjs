@@ -59,7 +59,10 @@ function iso(d) { return ymd(d) + "T" + hhmm(d) + ":" + pad(d.getSeconds()) + of
 const utc = (d) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-function fail(msg, code) { console.error("first-sort: " + msg); process.exit(code || 1); }
+/** Stops the run with a code the agent reads. Never process.exit here: with a Graph connection
+ *  still open, Node on Windows crashes and the code is lost. The command chain catches this. */
+class Exit extends Error {}
+function fail(msg, code) { console.error("first-sort: " + msg); process.exitCode = code || 1; throw new Exit(msg); }
 function readJson(file) { return JSON.parse(fs.readFileSync(file, "utf8")); }
 function writeJson(file, value) {
   const tmp = file + ".part";
@@ -594,6 +597,7 @@ function convLine(c) {
 }
 
 const [cmd, ...args] = process.argv.slice(2);
+try {
 if (cmd === "window") {
   const s = sinceFor(args.includes("--morning"));
   console.log([`NOW='${iso(new Date())}'`, `TODAY='${ymd(new Date())}'`, `SINCE='${utc(s)}'`, `TZ_NAME='${TZ}'`].join("\n"));
@@ -609,6 +613,7 @@ if (cmd === "window") {
   mode();
   try { const it = await save("me", "/me?$select=id,displayName,givenName,mail,userPrincipalName"); console.log(`you are ${it[0].displayName || "?"}`); }
   catch (e) {
+    if (e instanceof Exit) throw e;
     // /me needs User.Read, which a Teams-only sign-in may not hold. The token Microsoft
     // signed says who it was given to: its object id is the same id Teams uses.
     const who = tokenClaims();
@@ -628,6 +633,7 @@ if (cmd === "window") {
   let chats;
   try { chats = await save("chats", "/me/chats?$expand=lastMessagePreview&$orderby=lastMessagePreview/createdDateTime%20desc&$top=50", 2); }
   catch (e) {
+    if (e instanceof Exit) throw e;
     if (e.status === 403 || e.status === 400 || e.status === 404) fail(`${e.message}: Teams chats can't be read for this account. Microsoft allows it only for work and school accounts, with Chat.Read`, 4);
     fail(e.message, 4);
   }
@@ -636,20 +642,20 @@ if (cmd === "window") {
   let n = 0, refused = 0;
   await inTurns(moved.map((c, i) => async () => {
     try { await save("chat-" + (i + 1), `/chats/${encodeURIComponent(c.id)}/messages?$top=50&$orderby=lastModifiedDateTime%20desc&$filter=lastModifiedDateTime%20gt%20${filter}`, mode().morning ? 2 : 3); n++; }
-    catch (e) { if (e.status === 401) fail("Teams needs a new sign-in (401)", 3); refused++; }
+    catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("Teams needs a new sign-in (401)", 3); refused++; }
   }), 3);
   console.log(`saved ${chats.length} chats; ${moved.length} moved in the window, ${n} read${refused ? `, ${refused} refused` : ""}${moved.length === MAX_CHATS ? " (only the most recent " + MAX_CHATS + ")" : ""}. Next: channels, then list`);
 } else if (cmd === "channels") {
   const s = since();
   let teams;
   try { teams = await save("teams", "/me/joinedTeams"); }
-  catch (e) { if (e.status === 401) fail("Teams needs a new sign-in (401)", 3); const m = mode(); writeJson(modeFile, { ...m, channelsRefused: true }); fail(`${e.message}: your teams can't be read here, go on without channels`, 4); }
+  catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("Teams needs a new sign-in (401)", 3); const m = mode(); writeJson(modeFile, { ...m, channelsRefused: true }); fail(`${e.message}: your teams can't be read here, go on without channels`, 4); }
   const chans = [];
   await inTurns(teams.slice(0, MAX_TEAMS).map((t, i) => async () => {
     try {
       const list2 = await save("channels-" + (i + 1), `/teams/${encodeURIComponent(t.id)}/channels?$select=id,displayName,webUrl,membershipType`);
       for (const c of list2) chans.push({ team: t, c });
-    } catch (e) { if (e.status === 401) fail("Teams needs a new sign-in (401)", 3); }
+    } catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("Teams needs a new sign-in (401)", 3); }
   }), 3);
   let read = 0, refused = 0, moved = 0;
   await inTurns(chans.slice(0, MAX_CHANNELS).map(({ team, c }, i) => async () => {
@@ -657,13 +663,13 @@ if (cmd === "window") {
       const msgsIn = await save("chan-" + (i + 1), `/teams/${encodeURIComponent(team.id)}/channels/${encodeURIComponent(c.id)}/messages?$top=50&$expand=replies`);
       read++;
       if (msgsIn.some((m) => new Date(m.lastModifiedDateTime || m.createdDateTime) >= s || (m.replies || []).some((r) => new Date(r.createdDateTime) >= s))) moved++;
-    } catch (e) { if (e.status === 401) fail("Teams needs a new sign-in (401)", 3); refused++; }
+    } catch (e) { if (e instanceof Exit) throw e; if (e.status === 401) fail("Teams needs a new sign-in (401)", 3); refused++; }
   }), 3);
   if (chans.length && !read && refused) { const m = mode(); writeJson(modeFile, { ...m, channelsRefused: true }); }
   console.log(`saved ${teams.length} teams, ${chans.length} channels; ${read} read, ${moved} moved in the window${refused ? `, ${refused} refused (channel messages need your IT admin's OK: go on with chats)` : ""}. Next: list`);
 } else if (cmd === "get") {
   try { const it = await save(args[0], args[1], args[2]); console.log(`saved ${cleanName(args[0])}: ${it.length} items`); }
-  catch (e) { fail(e.message + ": nothing saved, leave this out", 4); }
+  catch (e) { if (e instanceof Exit) throw e; fail(e.message + ": nothing saved, leave this out", 4); }
 } else if (cmd === "list") {
   const md = model();
   const only = args[0] ? convFor(args[0]) : null;
@@ -759,7 +765,7 @@ if (cmd === "window") {
 } else if (cmd === "done") {
   calmIfNoGift();
   let morning = true;
-  try { morning = mode().morning; } catch { /* already gone */ }
+  try { morning = readJson(modeFile).morning; } catch { /* already gone */ }
   if (!morning && fs.existsSync(readingFile)) {
     const r = readJson(readingFile);
     r.done = true;
@@ -770,3 +776,4 @@ if (cmd === "window") {
 } else {
   fail("use window, start, me, chats, channels, get, list, needs, mine, loud, push, gift, profile, latest or done");
 }
+} catch (e) { if (!(e instanceof Exit)) throw e; }
