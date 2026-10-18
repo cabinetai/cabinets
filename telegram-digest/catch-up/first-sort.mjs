@@ -101,8 +101,13 @@ function logDir() {
   // Without the variable, the log sits in the data folder this cabinet lives in.
   let dir = APP;
   for (let i = 0; i < 8; i++) {
-    const candidate = path.join(dir, ".agents", ".runtime", "telegram", "messages");
-    if (fs.existsSync(candidate)) return candidate;
+    // .agents/.telegram is where Cabinet keeps it now; .runtime/telegram is where it was.
+    for (const candidate of [
+      path.join(dir, ".agents", ".telegram", "messages"),
+      path.join(dir, ".agents", ".runtime", "telegram", "messages"),
+    ]) {
+      if (fs.existsSync(candidate)) return candidate;
+    }
     const up = path.dirname(dir);
     if (up === dir) break;
     dir = up;
