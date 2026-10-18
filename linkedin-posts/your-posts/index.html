@@ -332,7 +332,7 @@
   .box.headline .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 10px 0 0; font-size: 14px; color: rgba(255, 255, 255, .88); }
   /* The dot ends a part rather than starting the next, so a wrapped line never starts with one. */
   .box.headline .meta > span:not(:last-child)::after { content: "·"; margin: 0 8px; color: rgba(255, 255, 255, .5); }
-  /* Before LinkedIn is connected, or when it needs a new sign-in, the band says so in place of its headline. */
+  /* Before LinkedIn is connected, when it needs a new sign-in, or the first time it is connected, the band says so in place of its headline. */
   .box.headline .card-hero { grid-template-columns: minmax(0, 1fr) auto; gap: 28px; margin-top: 18px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
   .box.headline .card-hero > .art { order: 2; }
   .box.headline .card-hero h2 { font-size: clamp(30px, 3.4vw, 44px); line-height: 1.08; }
@@ -684,6 +684,8 @@
     need: {},
     /** Rows a short list gives back: it stands as tall as its rows and the boxes under it move up. */
     fit: {},
+    /** This person has seen the first screen after connecting LinkedIn (cabinet.mine). */
+    firstDone: false,
     mineReady: false,
     animate: true
   };
@@ -1245,6 +1247,8 @@
         '<ul class="steps"><li>' + icon("i-check") + "Publishes only after your yes</li><li>" + icon("i-check") + "Ideas every Monday at 9</li>" + (state.example ? "<li>" + icon("i-check") + "Below: made-up drafts</li>" : "") + "</ul>");
     } else if (!state.data) {
       card = cardHero(null, "Your drafts show up here", '<p class="lead">Nothing could be read yet. Try again in a moment.</p>');
+    } else if (showFirst()) {
+      card = firstHtml();
     } else {
       // The headline is a box on the grid now; up here only what went wrong.
       notes = runNoteHtml();
@@ -1264,6 +1268,31 @@
   function cardHero(art, title, body) {
     var picture = art && art.indexOf("<svg") === 0 ? '<div class="art art-icon" aria-hidden="true">' + art + "</div>" : artPost(art);
     return '<div class="card-hero">' + picture + "<div><h2>" + esc(title) + "</h2>" + body + "</div></div>";
+  }
+
+  // ── The first screen after connecting ──────────────────────────────────
+  // The other templates show what the agent found in its first read. LinkedIn gives Cabinet
+  // nothing to read, so this one says so once, with the way to a first post. It shows until
+  // the person presses Got it or starts a draft, and never again for them (cabinet.mine), not
+  // even after LinkedIn is connected again.
+
+  var FIRST_KEY = "linkedin-posts-first-done@1";
+
+  function showFirst() { return state.mineReady && !state.firstDone && canAsk() && liState() === "connected"; }
+  /** "Signed in to LinkedIn as Maya Cohen", or without the name when Cabinet does not tell the page. */
+  function firstHtml() {
+    var who = signedInAs();
+    return cardHero("check", "Signed in to LinkedIn" + (who ? " as " + who : ""),
+      '<p class="lead">LinkedIn lets Cabinet post as you but not read your feed, so there is nothing to catch up on. Start with a draft, here or in the Ask box.</p>' +
+      '<div class="actions"><button type="button" class="btn primary big" data-act="new-draft">' + icon("i-pen") + "Write your first post</button>" +
+      '<button type="button" class="btn big" data-act="first-done">Got it</button></div>' +
+      '<p class="fine">Nothing goes on LinkedIn until you say yes to its exact words in the chat.</p>');
+  }
+  function endFirst() {
+    if (state.firstDone) return;
+    state.firstDone = true;
+    mineSet(FIRST_KEY, true);
+    paint();
   }
 
   function runNoteHtml() { return state.runNote ? '<div class="notice">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
@@ -2895,6 +2924,7 @@
     else if (DRAFT_ASKS[act] && item) askAbout(item, DRAFT_ASKS[act]);
     else if (act === "copy" && item) copyWords(item);
     else if (act === "new-draft") {
+      endFirst();
       startInChat("Draft a LinkedIn post about ", "Finish the sentence in the chat. The agent shows the draft before it saves anything.");
     } else if (act === "draft-idea") {
       var nx = nextIdeas()[+el.getAttribute("data-i")];
@@ -2958,6 +2988,8 @@
       resetLayout();
     } else if (act === "drawer-close") {
       closeDrawer();
+    } else if (act === "first-done") {
+      endFirst();
     }
   });
 
@@ -3002,6 +3034,7 @@
       if (typeof seen === "string") state.changeSeen = seen;
       var hidden = mineGet(HIDDEN_IDEAS_KEY);
       if (Array.isArray(hidden)) hidden.forEach(function (id) { if (ideaById(id)) state.hiddenIdeas[id] = true; });
+      state.firstDone = mineGet(FIRST_KEY) === true;
       state.mineReady = true;
       paint();
     }).catch(function () {});

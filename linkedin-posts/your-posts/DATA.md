@@ -42,3 +42,10 @@ through Layout, which answers with `layout-change.json`.
 The headline says what is approved and ready, the newest draft, and the last post that went
 out, with the drafts by status on the right. "LinkedIn connected" names the account only when
 Cabinet tells the page who signed in; the cabinet never saves that name.
+
+The first time someone who can ask the agent opens the page with LinkedIn connected, the band
+says "Signed in to LinkedIn" (with the name when Cabinet gives it), that LinkedIn lets Cabinet
+post but not read the feed so there is nothing to catch up on, and offers Write your first post
+and Got it. Got it, or starting any new draft, puts it away for that person for good
+(`linkedin-posts-first-done@1` in `cabinet.mine`), even if LinkedIn is later disconnected and
+connected again. No agent runs for it.
