@@ -29,7 +29,7 @@ read; the page shows it small under the headline), and `videos`, newest first, e
 (the post's text, other sites only), `own`, `durationSec`, `uploaded`, `option`
 (`video`, `audio` or `transcript`), `sizeBytes`, `savedAt`, `paths` `{ folder, media,
 audio, transcript, info, summary }` (cabinet-relative, always under `videos/`), `oneLine`,
-`summary` (five lines), `keyPoints` `[{ sec, text }]`, `quotes` `[{ sec, text }]`, `clips`
+`subjects` (two to four, small letters, "sourdough", "baking"), `summary` (five lines), `keyPoints` `[{ sec, text }]`, `quotes` `[{ sec, text }]`, `clips`
 `[{ fromSec, toSec, why }]`, and `status` (`saving`, `saved`, or `failed` with `why`).
 
 A video saved both ways keeps one entry: `option` is `video`, `paths.media` the video file,
@@ -45,12 +45,18 @@ YouTube player. A video from another site plays only from the cabinet's copy. Ea
 names its site, links to the post there, and shows the first two lines of `postText`, all
 of it when the card is open. A time anywhere on the page jumps the card's player there.
 
+The Subjects box lists every subject of the saved videos with how many videos have it, and
+"All videos" first. A press shows only that subject's videos in Your videos; the choice is
+each person's own (`cabinet.mine`, `video-library-subject@1`). Videos with no `subjects` get
+a "Give them subjects" button, which asks the agent in the chat. The Ask box offers "Show me
+all my videos about ..." with the chosen subject, or the most common one.
+
 The transcript under a card is read from `paths.transcript` when the person opens it. Any
 line that starts with a time (`**[1:23]**` as Cabinet writes it, or `[00:01:23]`, `1:23`, `**1:23**`, `(1:23)`) gets a button
 that jumps the player there.
 
 The page is a 12-column grid of boxes on YouTube's light grey under a red headline band,
-laid out like YouTube Digest: Headline, Save a video, Your videos, Clip ideas, Worth quoting,
+laid out like YouTube Digest: Headline, Save a video, Subjects, Your videos, Clip ideas, Worth quoting,
 Ask about your videos and Ideas for your videos to start with, and more to add (Key points,
 three numbers, and each idea as its own box with its picture from `ideas/`). Ideas and
 Layout sit in the headline. The idea pictures are copies of existing template covers,

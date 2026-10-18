@@ -6,7 +6,8 @@
   (a talk, a lesson, an interview, a post, or one of their own uploads) and know what is in them: paste a link, pick the video, the sound only or the
   transcript only, and the cabinet's agent saves it and writes it up. Each saved video is a
   card: play it here, five lines on what it says, the key points with their times (a press
-  jumps the player there), the lines worth quoting, clip ideas, and the transcript.
+  jumps the player there), the lines worth quoting, clip ideas, and the transcript. The
+  Subjects box lists what the videos are about; a press narrows Your videos to one subject.
 
   The page is a grid of boxes, like YouTube Digest: each person moves, resizes, adds and
   removes them (mouse, finger or keyboard, with Undo), or asks the agent to suggest the boxes
@@ -742,6 +743,8 @@
     askNote: "",
     /** Which video the Ask box is about: a slug, or "" for all of them. */
     askAbout: "",
+    /** The subject Your videos shows, or "" for all of them. Kept in cabinet.mine. */
+    subject: "",
     saveOption: "video",
     saveNote: "",
     saveBad: false,
@@ -1458,6 +1461,22 @@
       }).slice().sort(byNewest("savedAt"));
   }
   function saved() { return videos().filter(function (v) { return v.status !== "saving" && v.status !== "failed"; }); }
+  /** A video's subjects as the agent wrote them, in small letters, each once. */
+  function subjectsOf(v) {
+    return (Array.isArray(v.subjects) ? v.subjects : []).map(function (s) { return text(s, 40).toLowerCase(); })
+      .filter(function (s, i, all) { return s && all.indexOf(s) === i; });
+  }
+  /** Every subject of the saved videos with how many have it, the most common first. */
+  function subjectCounts() {
+    var n = {};
+    saved().forEach(function (v) { subjectsOf(v).forEach(function (s) { n[s] = (n[s] || 0) + 1; }); });
+    return Object.keys(n).map(function (s) { return { name: s, n: n[s] }; }).sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+  }
+  /** The subject Your videos is narrowed to, while a saved video still has it. */
+  function subjectNow() {
+    var s = state.subject;
+    return s && saved().some(function (v) { return subjectsOf(v).indexOf(s) >= 0; }) ? s : "";
+  }
   function videoBySlug(slug) {
     var all = videos();
     for (var i = 0; i < all.length; i++) if (all[i].slug === slug) return all[i];
@@ -1693,15 +1712,33 @@
     fitBox(el);
   }
   function drawLibrary(level) {
-    var all = videos();
-    var n = saved().length;
+    var subject = subjectNow();
+    var about = function (v) { return !subject || subjectsOf(v).indexOf(subject) >= 0; };
+    var all = videos().filter(about);
+    var n = saved().filter(about).length;
     if (level === "S") {
       var top = all[0];
       return sumBox("library", "Your videos", "i-library", String(n), plural(n, "video", "videos") + " saved", top ? "<b>Newest:</b> " + bidi(text(top.title, 100)) : "");
     }
-    return listBox("library", "Your videos", "i-library", n ? lengthWords(secondsSaved()) + " in all" : "", all.length,
+    return listBox("library", "Your videos", "i-library", subject ? "About " + subject : n ? lengthWords(secondsSaved()) + " in all" : "", all.length,
       '<ul class="rows vcards">' + all.map(function (v) { return cardHtml(v, level); }).join("") + "</ul>",
       "No videos yet. Paste a video link above to save your first one.") + nudgeHtml(boxIdea("library"));
+  }
+
+  // Subjects: what the videos are about, each with how many. A press shows only those in Your videos.
+  var SUBJECTS_ASK = "Give subjects to the videos in my library that have none yet.";
+  function drawSubjects() {
+    var all = subjectCounts();
+    var now = subjectNow();
+    var bare = saved().filter(function (v) { return !subjectsOf(v).length; }).length;
+    var chip = function (name, n, label) {
+      return '<button type="button" class="btn small' + (now === name ? " dark" : "") + '" data-act="subject" data-subject="' + esc(name) + '" aria-pressed="' + (now === name) + '">' +
+        bidi(label) + ' <span class="num">' + n + "</span></button>";
+    };
+    return '<div class="save-in"><div class="save-head"><span class="lane-icon" aria-hidden="true">' + icon("i-list") + '</span><h2 id="h-subjects">Subjects</h2></div>' +
+      (all.length ? '<div class="qs">' + chip("", saved().length, "All videos") + all.map(function (s) { return chip(s.name, s.n, s.name); }).join("") + "</div>" : "") +
+      (bare ? '<p class="save-fine">' + bare + " " + plural(bare, "video has", "videos have") + " no subjects yet." +
+        (canAsk() ? ' <button type="button" class="btn small quiet" data-act="ask" data-all data-q="' + esc(SUBJECTS_ASK) + '">Give them subjects</button>' : "") + "</p>" : "") + "</div>";
   }
 
   /** Key points, clip ideas or quotes from every video, newest video first. */
@@ -1768,7 +1805,8 @@
     if (state.layoutAsk) return drawLayoutAsk(level);
     var featured = level === "S" ? null : askIdea();
     var note = state.askNote || askHint();
-    var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? 6 : 3);
+    var subject = subjectNow() || (subjectCounts()[0] || {}).name;
+    var qs = level === "S" ? [] : (subject ? ["Show me all my videos about " + subject] : []).concat(QUESTIONS.slice(0, level === "L" ? 6 : 3));
     var all = saved();
     var about = all.length > 1 || (all.length && level !== "S")
       ? '<label class="ask-about"><span>About</span><select id="ask-about"><option value="">All my videos</option>' + all.map(function (v) {
@@ -1781,7 +1819,7 @@
       '<button type="submit" class="btn light">' + icon("i-send") + "Ask</button></form>" +
       (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
       (qs.length ? '<div class="qs">' + qs.map(function (q) {
-        return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+        return '<button type="button" class="q" data-act="ask"' + (QUESTIONS.indexOf(q) < 0 ? " data-all" : "") + ' data-q="' + esc(q) + '">' + esc(q) + "</button>";
       }).join("") + "</div>" : "") +
       (level !== "S" && note ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "") + "</div>";
   }
@@ -2038,14 +2076,16 @@
   var GAP = 16;
   var PHONE_ROWS = 3;
   var LAYOUT_KEY = "video-library-layout@1";
+  var SUBJECT_KEY = "video-library-subject@1";
   var DEFAULT_LAYOUT = [
     { id: "headline", x: 0, y: 0, w: 12, h: 3 },
     { id: "save", x: 0, y: 3, w: 12, h: 2 },
-    { id: "library", x: 0, y: 5, w: 8, h: 14 },
-    { id: "clips", x: 8, y: 5, w: 4, h: 7 },
-    { id: "quotes", x: 8, y: 12, w: 4, h: 7 },
-    { id: "ask", x: 0, y: 19, w: 7, h: 5 },
-    { id: "ideas", x: 7, y: 19, w: 5, h: 5 }
+    { id: "subjects", x: 0, y: 5, w: 12, h: 2 },
+    { id: "library", x: 0, y: 7, w: 8, h: 14 },
+    { id: "clips", x: 8, y: 7, w: 4, h: 7 },
+    { id: "quotes", x: 8, y: 14, w: 4, h: 7 },
+    { id: "ask", x: 0, y: 21, w: 7, h: 5 },
+    { id: "ideas", x: 7, y: 21, w: 5, h: 5 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -2057,6 +2097,9 @@
       title: "Headline", desc: "How many videos you saved, how long they run, and the space they take." },
     save: { cls: "save", draw: drawSave, group: "library", icon: "i-save", w: 12, h: 2, min: [4, 2], grow: true,
       title: "Save a video", desc: "Paste a link from YouTube, Instagram, TikTok and more, and keep the video, the sound only, or the transcript." },
+    subjects: { cls: "save subjects", draw: drawSubjects, group: "library", icon: "i-list", w: 12, h: 2, min: [3, 2], grow: true,
+      title: "Subjects", desc: "What your videos are about, with how many each. Press one to see only those videos.",
+      show: function () { return saved().length > 0; }, when: "It shows once a video is saved." },
     library: { cls: "lane library", list: true, draw: drawLibrary, after: mountPlayers, group: "library", icon: "i-library", w: 8, h: 14, min: [4, 5],
       title: "Your videos", desc: "Each video you saved: play it, what it says, the key points with their times, the transcript." },
     points: { cls: "lane points", list: true, draw: drawPoints, group: "library", icon: "i-list", w: 4, h: 7, min: [3, 3],
@@ -3211,7 +3254,13 @@
       fitBox(boxEl(boxId));
       glide(shown);
     }
-    else if (act === "ask") ask(el.getAttribute("data-q"), state.askAbout);
+    // A question about the whole library (data-all) is never sent as about the one video picked.
+    else if (act === "ask") ask(el.getAttribute("data-q"), el.hasAttribute("data-all") ? "" : state.askAbout);
+    else if (act === "subject") {
+      state.subject = el.getAttribute("data-subject") || "";
+      if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(SUBJECT_KEY, state.subject).catch(function () {});
+      paint();
+    }
     else if (act === "save-option") {
       state.saveOption = optionOf(el.getAttribute("data-option")) ? el.getAttribute("data-option") : "video";
       Array.prototype.forEach.call(document.querySelectorAll('[data-act="save-option"]'), function (b) {
@@ -3391,6 +3440,8 @@
       if (clean) state.layout = clean;
       var seen = mine ? mine.get(CHANGE_SEEN_KEY) : null;
       if (typeof seen === "string") state.changeSeen = seen;
+      var subject = mine ? mine.get(SUBJECT_KEY) : null;
+      if (typeof subject === "string") state.subject = subject;
       var hidden = mine ? mine.get(HIDDEN_IDEAS_KEY) : null;
       if (Array.isArray(hidden)) hidden.forEach(function (id) { if (ideaById(id)) state.hiddenIdeas[id] = true; });
       var giftSeen = mine ? mine.get(GIFT_KEY) : null;

@@ -25,6 +25,8 @@ The cabinet opens on it: **Your Video Library**.
 - **What is in it**: five lines on what the video says, the key points with the minute they
   come up (press one and the player jumps there), the lines worth quoting, and the parts
   that would make a good short clip.
+- **Subjects**: each video gets a few subjects ("sourdough", "baking"). Press one to see
+  only the videos about it, or ask "Show me all my videos about baking".
 - **The transcript**: open it under the video, every line with its time.
 - **Ask about your videos**: one video or all of them. "Which of my videos talks about
   pricing?" The answer comes up in the chat, with the video and the minute.

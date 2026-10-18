@@ -121,7 +121,7 @@ When the person asks you to save a link, always in this order:
    `save_video_status` with its job id until it is done; the card on the page says
    "Saving" meanwhile.
 7. **Read and write it up** (see "What you write for each video"), then set its `status` to
-   `saved` with everything filled in.
+   `saved` with everything filled in, its `subjects` too.
 8. **Finish in the chat** with the 5-line summary and one line on where to find it: "It's in
    your library, with the key points and the transcript."
 
@@ -247,6 +247,7 @@ example, until this file exists.
         "summary": "videos/how-tiny-houses-are-built/summary.md"
       },
       "oneLine": "A builder walks through framing, wiring and insulating a 20 m2 house.",
+      "subjects": ["tiny houses", "building"],
       "postText": "<only for a post from another site: its text, from index.md>",
       "summary": ["<line 1>", "<line 2>", "<line 3>", "<line 4>", "<line 5>"],
       "keyPoints": [ { "sec": 83, "text": "<the same as in summary.md>" } ],
@@ -277,6 +278,10 @@ example, until this file exists.
   `index.md`, `videoId` is left out, and `postText` is the text under "Post text" in
   `index.md`, as it is (at most about 2,000 characters), or left out when there is none.
   The page shows the site on each card and the post's text under it.
+- `subjects`: two to four things the video is about, each one to three words in small
+  letters ("sourdough", "baking", "tiny houses"), from its title, its description or post
+  text, and its transcript. Use a subject the library already has whenever it fits, so
+  videos about the same thing meet under one name. The page lists them in its Subjects box.
 - `disk.freeBytes`: the free space `video_info` reported, in bytes counted the same
   way (182 GB is 195421011968), the last time you asked.
 - `status`: `saving` while you work, `saved` when done, `failed` with `why` when it did not
@@ -300,6 +305,14 @@ You may write new pages they ask for (study notes, a blog post draft, a quiz, a 
 as markdown files in the video's folder or in a new folder they name. Tell them the file's
 name in one line.
 
+**Subjects**: when they ask to give subjects to the videos already here (videos saved before
+subjects, or any with none), read each such video's `summary.md`, or its transcript when
+there is none, and add its `subjects`, changing nothing else in its entry. Write
+`library/data.json` once at the end, then list the subjects with how many videos each.
+"Show me all my videos about baking": every saved video with that subject, or whose
+transcript is mostly about it, newest first, the title and one line each. When it only
+comes up in passing, give the minute. None: say so, and name the closest subjects they have.
+
 **Removing a video**: only when they ask. Delete its folder in `videos/` and its entry in
 `library/data.json`, and say how much space it gave back.
 
@@ -315,7 +328,7 @@ Then say in one line that the change waits for them at the top of the page. The 
 often lists the boxes on their page now: don't add one that is there or remove one that
 isn't. Use only these ids:
 
-- `headline` Headline · `save` Save a video · `library` Your videos
+- `headline` Headline · `save` Save a video · `subjects` Subjects · `library` Your videos
 - `points` Key points · `clips` Clip ideas · `quotes` Worth quoting
 - `n-videos`, `n-hours`, `n-space`: the numbers Videos saved, Hours to watch, Space used
 - `ask` Ask about your videos · `ideas` Ideas for your videos
