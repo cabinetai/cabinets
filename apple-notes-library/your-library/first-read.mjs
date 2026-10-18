@@ -3,7 +3,9 @@
 // line that is half written, empty or broken, and every number it shows is counted from the
 // notes themselves. Run it from the cabinet root:
 //   node your-library/first-read.mjs start            new data/reading.json and data/.work/
-//   node your-library/first-read.mjs push '<line>'    add one line (single quotes: "$" stays "$")
+//   node your-library/first-read.mjs push '<line>'    add one line (single quotes: "$" stays "$"). A line
+//                                                     with an apostrophe: write it to data/.work/line.txt
+//                                                     and push @line.txt
 //   node your-library/first-read.mjs gift @<file>     the one thing the person can do now, shown while
 //                                                     you read: {"kind":"old","from"}, {"kind":"folders",
 //                                                     "from"}, {"kind":"meetings","files":[...]} or
@@ -56,6 +58,11 @@ function workFile(name) {
   if (!file.startsWith(workDir + path.sep)) fail(`${name} is not inside data/.work/`);
   if (!fs.existsSync(file)) fail(`${name} is not in data/.work/ (save it there first)`);
   return file;
+}
+/** "@line.txt" is the text of that file in data/.work/, for words no shell can quote; anything else is the words themselves. */
+function workText(arg) {
+  const said = String(arg || "").trim();
+  return /^@[\w.-]+$/.test(said) ? fs.readFileSync(workFile(said.slice(1)), "utf8") : said;
 }
 /** "@gift.json", or "@your-library/data/.work/gift.json", read as JSON from data/.work/. */
 function workJson(arg, what) {
@@ -184,7 +191,7 @@ if (cmd === "start") {
   console.log("reading started; save files in " + path.relative(process.cwd(), workDir));
 } else if (cmd === "push") {
   editReading("the reading is done: no more lines", (r) => {
-    const line = String(args.join(" ") || "").replace(/\s+/g, " ").trim();
+    const line = workText(args.join(" ")).replace(/\s+/g, " ").trim();
     // An empty line, or one that is only marks ("**  **"), says nothing.
     if (!line || !/[\p{L}\p{N}]/u.test(line)) fail("refused, the line is empty");
     if (/\bundefined\b|\bNaN\b|\bnull\b|\[object|\{|\}|\$\{/.test(line)) fail(`refused, the line is broken: ${line}`);

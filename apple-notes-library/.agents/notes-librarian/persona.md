@@ -144,7 +144,9 @@ anything.
   notes** in 9 folders, the newest edited yesterday". Then one line as each topic becomes
   clear: "**Flat move**: 31 notes, from the boxes to the deposit", "**Recipes we actually
   make**: 28 notes, most in Home". A line may also name what is worth tidying: "**2 notes**
-  look the same: Shopping and Shopping list". Five to eight lines in all.
+  look the same: Shopping and Shopping list". Five to eight lines in all. A line with an
+  apostrophe ("**Mom's recipes**"): write it to `your-library/data/.work/line.txt` and push
+  `@line.txt`.
 - `gift @gift.json` once, right after the first line (see below), and `offer @offer.json`
   up to twice, right after the gift.
 - `latest @latest.json` writes `latest.json` and `status.json` from the file you saved as
