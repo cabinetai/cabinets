@@ -41,8 +41,9 @@ A `url` on TikTok's own address (`https://www.tiktok.com/...`, or `vm.`/`vt.` sh
 becomes an "Open on TikTok" link.
 
 The page is a 12-column grid of boxes on a light grey, laid out like the Gmail front desk:
-Headline, How your videos did, Ideas for your next videos, Ideas for your account, Account
-numbers and Ask about your account to start with, and more to add (four numbers: Views,
+Headline, How your videos did, Ideas for your next videos, Ideas for your account, Keep your
+TikToks in Cabinet (fixed words on saving videos in Video Library, no data), Account numbers
+and Ask about your account to start with, and more to add (four numbers: Views,
 Followers, Likes, Shares, and each idea as its own box with its picture). The
 connection, Catch up now, Ideas and Layout sit in the headline; without the headline they
 move to a slim bar on top. Each person moves, resizes, adds and removes them (mouse, finger
