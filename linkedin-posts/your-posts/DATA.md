@@ -35,12 +35,21 @@ yes; the post goes out only after that yes, from the chat. Routines never publis
 Cabinet refuses a post from anything but a chat the person started.
 
 The page is a 12-column grid of boxes on LinkedIn's warm grey, laid out like the digests:
-Headline, Your drafts, Ideas for your next posts, Ideas for your posts and Ask about your posts
-to start with, and more to add (the numbers Drafts, Approved, Posted, and each idea as its
-own box). The connection, New ideas (runs the weekly routine now), Ideas and Layout sit in
+Headline, Your drafts, Ideas for your next posts, Ideas for your posts, Keep your LinkedIn posts
+in Cabinet (the setup guide's four steps for bringing in past posts from LinkedIn's copy of the
+person's data, by their heads, no data, with a Show me how button that opens them in full in a
+side panel) and Ask about your posts to start with, and more to add (the numbers Drafts,
+Approved, Posted, and each idea as its own box). The connection, New ideas (runs the weekly routine now), Ideas and Layout sit in
 the headline; without the headline they move to a slim bar on top. Each person moves,
 resizes, adds and removes boxes (mouse, finger or keyboard, with Undo), or asks the agent
-through Layout, which answers with `layout-change.json`.
+through Layout, which answers with `layout-change.json`. Keep your LinkedIn posts in Cabinet is
+on the first page for someone new; a layout saved before it came gets it from Add a box.
+
+The setup guide's four steps (Me then Settings and Privacy, Data privacy then Get a copy of your
+data, the files to pick and Request archive, the email and the imports folder) each carry a
+picture of the real screen (LinkedIn's, the email's, Cabinet's) redrawn as a small SVG with a
+made-up account, Maya Levi. The pictures are drawn by the page's own script in `index.html`, so
+they show on Cloud too. The Ask box has "Bring in my LinkedIn posts" among its questions.
 
 The headline says what is approved and ready, the newest draft, and the last post that went
 out, with the drafts by status on the right. "LinkedIn connected" names the account only when

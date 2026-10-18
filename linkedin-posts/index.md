@@ -18,6 +18,8 @@ The cabinet opens on it: **Your posts**.
   Open one to polish it, make three variants, copy it, or publish it.
 - **Ideas for your next posts**: every Monday at 9, three ideas from your notes and drafts
   in this cabinet, each one tap from a draft.
+- **Keep your LinkedIn posts in Cabinet**: four steps to bring in your past posts from
+  LinkedIn's copy of your data, and Show me how, with a picture of each screen.
 - **Ask about your posts**: "Draft a post about what I shipped this week", "Which of my
   drafts is ready?". The answer comes up in the chat.
 - **Ideas**: a post about your week, three takes on a draft, a month in review. Ask once,

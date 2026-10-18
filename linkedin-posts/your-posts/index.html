@@ -5,7 +5,8 @@
   For someone who posts on LinkedIn: every draft they are working on, each marked Draft,
   Approved or Posted, the three ideas the weekly routine wrote from their notes, and an Ask
   box and Ideas that send requests to the cabinet's chat, plus Ideas they can ask for once or
-  switch on as a routine.
+  switch on as a routine. A Keep your LinkedIn posts in Cabinet box says how to bring in past
+  posts from LinkedIn's copy of the person's data, with a guide drawn from LinkedIn's screens.
 
   LinkedIn lets apps like Cabinet read only the person's name and picture, and post as them.
   It shares no posts, comments or numbers, so the page shows only what was written in the
@@ -273,6 +274,8 @@
   .one-idea h3 { margin: 0; font-size: 16.5px; font-weight: 700; line-height: 1.3; }
   .one-idea p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
   .one-idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+  /* Its own height, never the box's: the Keep box grows to fit it (grow), and a stretched child would grow it forever. */
+  .one-idea.hug { flex: none; gap: 8px; }
   .idea-rows > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; margin: 0 20px; padding: 10px 0; border-top: 1px solid var(--line); }
   .idea-rows .ic { width: 34px; height: 34px; }
   .idea-rows b { display: block; font-size: 15px; font-weight: 500; }
@@ -465,12 +468,28 @@
   .drawer-close:hover { background: var(--panel); }
   .drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--canvas); }
 
+  /* ── The setup guide: numbered steps, each with a picture of the real screen ── */
+  .guide { display: grid; gap: 4px; padding: 0 16px 14px; border-radius: var(--radius); background: var(--page); color: var(--ink); }
+  .g-part { padding-top: 16px; }
+  .g-part h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .g-note { margin: 4px 0; color: var(--ink-3); font-size: 15px; }
+  .g-steps { list-style: none; margin: 0; padding: 0; }
+  .g-step { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .g-step:last-child { border-bottom: 0; padding-bottom: 6px; }
+  .g-txt { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .g-num { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--brand); color: var(--brand-2); font-weight: 700; font-size: 15px; }
+  .g-txt b { display: block; margin-top: 3px; font-size: 16.5px; font-weight: 700; line-height: 1.3; }
+  .g-txt p { margin: 6px 0 0; color: var(--ink-2); font-size: 14.5px; line-height: 1.6; }
+  .g-shot { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); box-shadow: var(--shadow-2); }
+
   /* On a phone the boxes stack in their order and grow to fit. */
   .grid.stack { display: flex; flex-direction: column; gap: 14px; }
   .grid.stack .box { flex: none; }
   /* A list box is as tall as its rows, up to the size its layout gives it: no empty white
      under a short list, and its foot sits right under the rows. */
   .grid:not(.editing):not(.stack) > .box.lane:not(.nbox):not(.idea1) { align-self: start; max-height: 100%; }
+  /* The Keep box too: its sheet ends under its button, not at the bottom of its last row. */
+  .grid:not(.editing):not(.stack) > .box.keep { align-self: start; }
 
 
   /* ── Narrow screens ──────────────────────────────────────────────────── */
@@ -615,7 +634,8 @@
     "Turn my newest note into a LinkedIn post",
     "Make three variants of my newest draft",
     "Make my newest draft shorter and sharper",
-    "Write a post thanking my team for the launch"
+    "Write a post thanking my team for the launch",
+    "Bring in my LinkedIn posts"
   ];
 
   /**
@@ -1473,7 +1493,7 @@
     if (state.layoutAsk) return drawLayoutAsk(level);
     var featured = level === "S" ? null : askIdea();
     var note = state.askNote || askHint();
-    var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? 6 : 3);
+    var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? QUESTIONS.length : 3);
     return (level === "S" ? "" : '<h2 id="ask-title">Ask about your posts</h2>') +
       askForm("Your question", "A post about...", "Ask") +
       (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
@@ -1533,6 +1553,13 @@
       '<div class="go">' + ideaButton(idea, fit, "btn small dark", icon("i-send") + esc(fit && level !== "S" ? fit.act : "Ask now")) +
       (level === "S" ? "" : routineButton(idea, "btn small")) +
       "</div></div>";
+  }
+
+  /** How to keep past posts in this cabinet: the setup guide's steps by their heads, in the idea card look. */
+  function drawKeep() {
+    return '<div class="one-idea hug"><h3>' + esc(BOXES.keep.title) + "</h3>" +
+      GUIDE.steps.map(function (st) { return "<p>" + esc(st.head) + "</p>"; }).join("") +
+      '<div class="go"><button type="button" class="btn small" data-act="guide" aria-haspopup="dialog">Show me how</button></div></div>';
   }
 
   // ── Ideas, where and when they help ────────────────────────────────────
@@ -1667,7 +1694,8 @@
 
   var DRAWERS = {
     ideas: { title: "Ideas for your posts", sub: "One tap to ask now, or to have a draft written on a schedule. Nothing is published.", icon: "i-pen", paint: paintIdeasPanel },
-    add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker }
+    add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker },
+    guide: { title: "Setup guide", sub: "Every step, with a picture of each screen.", icon: "i-copy", paint: paintGuidePanel }
   };
   function paintDrawer() {
     var kind = DRAWERS[state.drawerKind];
@@ -1722,6 +1750,161 @@
       }).join("");
   }
 
+  // ── The setup guide ────────────────────────────────────────────────────
+  // Every step a person takes to bring their past posts into this cabinet from LinkedIn's copy
+  // of their data, each with a picture of what they will see (drawn from LinkedIn's and
+  // Cabinet's real screens, with a made-up account). The Keep box says the same steps by their heads.
+
+  /**
+   * The guide's pictures: LinkedIn's, the email's and Cabinet's screens, redrawn with a made-up
+   * account, each built once.
+   */
+  var SHOTS = (function () {
+    /** A picture, 600 by 380 on LinkedIn's warm grey, the way the guide shows it, as an image address. */
+    function svg(body) {
+      return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif">' +
+        '<rect width="600" height="380" fill="#f4f2ee"/>' + body + "</svg>");
+    }
+    /** Words at x, y. more: other attributes, such as bold or centred. */
+    function t(x, y, words, size, fill, more) {
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 13) + '" fill="' + (fill || "#191919") + '"' + (more ? " " + more : "") + ">" + words + "</text>";
+    }
+    var B = 'font-weight="700"';
+    var MID = 'text-anchor="middle"';
+    var BMID = B + " " + MID;
+    var SOFT = "#666666";
+    var BLUE = "#0a66c2";
+    var GREEN = "#01754f";
+    /** A white sheet with LinkedIn's soft edge. */
+    function card(x, y, w, h) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="10" fill="#fff" stroke="#e0dfdc"/>';
+    }
+    function line(x, y, w) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="1" fill="#e8e6e2"/>'; }
+    /** A button at x, y: its words centred and bold, stroke an outline when it has one. */
+    function pill(x, y, w, h, r, fill, words, size, ink, stroke) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + r + '" fill="' + fill + '"' + (stroke ? ' stroke="' + stroke + '"' : "") + "/>" +
+        t(x + w / 2, y + h / 2 + Math.round(size * .35), words, size, ink, BMID);
+    }
+    /** The red ring around what to press. */
+    function mark(x, y, w, h, r) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + r + '" fill="none" stroke="#cc1016" stroke-width="3"/>';
+    }
+    /** LinkedIn's mark: "in" on a blue tile, s wide. */
+    function logo(x, y, s) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + s + '" height="' + s + '" rx="' + Math.round(s / 6) + '" fill="' + BLUE + '"/>' +
+        t(x + s / 2, y + s * .76, "in", Math.round(s * .62), "#fff", BMID);
+    }
+    /** The made-up account's picture. */
+    function face(cx, cy, r) { return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#f5c26b"/>'; }
+    /** LinkedIn's top bar: the mark, the search, and Me (ringed when it is the step). */
+    function nav(markMe) {
+      return '<rect width="600" height="56" fill="#fff"/>' + line(0, 56, 600) + logo(16, 12, 32) +
+        '<rect x="58" y="14" width="150" height="28" rx="4" fill="#edf3f8"/>' + t(78, 33, "Search", 13, SOFT) +
+        ["Home", "My Network", "Jobs", "Messaging"].map(function (label, i) {
+          var cx = 262 + i * 58;
+          return '<rect x="' + (cx - 9) + '" y="12" width="18" height="15" rx="3" fill="' + SOFT + '"/>' + t(cx, 46, label, 10, SOFT, MID);
+        }).join("") +
+        face(510, 21, 10) + t(510, 46, "Me ▾", 10, "#191919", MID) + (markMe ? mark(486, 4, 48, 48, 8) : "");
+    }
+
+    return {
+      settings: svg(nav(true) +
+        // The feed, faded behind the menu.
+        card(16, 72, 290, 128) + face(44, 100, 14) + '<rect x="66" y="92" width="110" height="9" rx="4" fill="#e0dfdc"/><rect x="32" y="128" width="256" height="8" rx="4" fill="#ebe9e4"/><rect x="32" y="146" width="220" height="8" rx="4" fill="#ebe9e4"/><rect x="32" y="164" width="240" height="8" rx="4" fill="#ebe9e4"/>' +
+        card(16, 214, 290, 150) + '<rect x="32" y="234" width="256" height="110" rx="6" fill="#ebe9e4"/>' +
+        // The Me menu.
+        card(330, 64, 254, 304) + face(366, 104, 22) +
+        t(398, 100, "Maya Levi", 15, "#191919", B) + t(398, 120, "Product lead at Northwind", 12, SOFT) +
+        pill(346, 140, 222, 30, 15, "#fff", "View profile", 13, BLUE, BLUE) + line(346, 186, 222) +
+        t(346, 210, "Account", 14, "#191919", B) +
+        t(346, 238, "Settings &amp; Privacy", 13, SOFT) + mark(338, 220, 184, 28, 6) +
+        t(346, 264, "Help", 13, SOFT) + t(346, 290, "Language", 13, SOFT) + line(346, 306, 222) +
+        t(346, 330, "Manage", 14, "#191919", B) + t(346, 354, "Posts &amp; Activity", 13, SOFT)),
+
+      privacy: svg(nav(false) +
+        card(16, 72, 200, 292) + face(40, 100, 12) + t(60, 106, "Settings", 17, "#191919", B) +
+        ["Account preferences", "Sign in &amp; security", "Visibility", "Data privacy", "Advertising data", "Notifications"].map(function (row, i) {
+          var y = 150 + i * 36;
+          var on = i === 3;
+          return (on ? '<rect x="16" y="' + (y - 20) + '" width="4" height="30" fill="' + GREEN + '"/>' : "") +
+            '<rect x="34" y="' + (y - 12) + '" width="14" height="14" rx="3" fill="' + (on ? GREEN : "#b0aea9") + '"/>' +
+            t(58, y, row, 13, on ? "#191919" : SOFT, on ? B : "") + (on ? mark(24, y - 22, 186, 34, 8) : "");
+        }).join("") +
+        card(232, 72, 352, 292) + t(256, 110, "How LinkedIn uses your data", 17, "#191919", B) +
+        ["Manage your data and activity", "Get a copy of your data", "Search history", "Personal demographic information"].map(function (row, i) {
+          var y = 156 + i * 46;
+          return t(256, y, row, 13) + t(556, y, "→", 15, SOFT) + line(256, y + 18, 312) + (i === 1 ? mark(244, y - 24, 334, 36, 8) : "");
+        }).join("")),
+
+      request: svg(nav(false) +
+        card(16, 72, 568, 296) + t(36, 98, "‹ Back", 12, SOFT) +
+        t(36, 128, "Get a copy of your data", 19, "#191919", B) +
+        t(36, 150, "Your LinkedIn data is yours. Pick what to download.", 12, SOFT) +
+        '<circle cx="44" cy="180" r="8" fill="#fff" stroke="#8c8c8c" stroke-width="2"/>' + t(60, 184, "Download larger data archive (everything)", 13) +
+        '<circle cx="44" cy="212" r="8" fill="#fff" stroke="' + GREEN + '" stroke-width="2"/><circle cx="44" cy="212" r="4" fill="' + GREEN + '"/>' +
+        t(60, 216, "Want something in particular? Pick the files.", 13, "#191919", B) + mark(30, 196, 380, 32, 8) +
+        [["Articles", 1], ["Comments", 1], ["Reactions", 1], ["Shares", 1], ["Connections", 0], ["Messages", 0], ["Profile", 0], ["Invitations", 0]].map(function (f, i) {
+          var x = 60 + (i % 4) * 124;
+          var y = 244 + Math.floor(i / 4) * 32;
+          return '<rect x="' + x + '" y="' + y + '" width="15" height="15" rx="3" fill="' + (f[1] ? GREEN : "#fff") + '" stroke="' + (f[1] ? GREEN : "#8c8c8c") + '" stroke-width="1.6"/>' +
+            (f[1] ? '<path d="M' + (x + 3.5) + " " + (y + 8) + "l3 3 5-6" + '" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' : "") +
+            t(x + 23, y + 12, f[0], 12);
+        }).join("") +
+        pill(418, 318, 150, 36, 18, BLUE, "Request archive", 14, "#fff") + mark(411, 311, 164, 50, 25)),
+
+      email: svg(
+        // LinkedIn's mail, with its download link.
+        card(16, 16, 300, 348) + t(36, 46, "Inbox", 13, SOFT) + line(36, 60, 260) +
+        logo(36, 74, 30) + t(76, 86, "LinkedIn", 13, "#191919", B) + t(76, 102, "to me", 11, SOFT) +
+        t(36, 140, "Your LinkedIn data is ready", 16, "#191919", B) +
+        t(36, 168, "Hi Maya, the copy of your data you", 12, "#3d3d3d") + t(36, 186, "asked for is ready to download.", 12, "#3d3d3d") +
+        pill(36, 206, 170, 36, 18, BLUE, "Download archive", 13, "#fff") + mark(29, 199, 184, 50, 25) +
+        '<rect x="36" y="270" width="260" height="48" rx="8" fill="#f4f2ee"/>' +
+        '<path d="M50 282h14l6 6v20h-20z" fill="#fff" stroke="' + SOFT + '" stroke-width="1.4"/>' +
+        t(80, 292, "LinkedInDataExport.zip", 12, "#191919", B) + t(80, 308, "Downloaded", 11, SOFT) +
+        '<path d="M322 190h18m-6-6l6 6-6 6" fill="none" stroke="' + SOFT + '" stroke-width="2" stroke-linecap="round"/>' +
+        // Cabinet's files, the zip in imports, and the question to ask.
+        card(346, 16, 238, 348) + t(366, 46, "Files", 14, "#191919", B) +
+        [["linkedin-posts", 366, 0], ["drafts", 382, 0], ["ideas", 382, 0], ["imports", 382, 0], ["LinkedInDataExport.zip", 398, 1]].map(function (f, i) {
+          var y = 80 + i * 28;
+          var ic = f[2] ? '<path d="M' + f[1] + " " + (y - 12) + 'h8l4 4v10h-12z" fill="#fff" stroke="' + SOFT + '" stroke-width="1.4"/>'
+            : '<path d="M' + f[1] + " " + (y - 11) + 'h6l2 2h7v10h-15z" fill="' + SOFT + '"/>';
+          return (i === 3 ? '<rect x="356" y="' + (y - 18) + '" width="218" height="26" rx="6" fill="#ebe9e4"/>' : "") + ic + t(f[1] + 20, y, f[0], 12, "#191919", i === 3 ? B : "");
+        }).join("") +
+        mark(390, 175, 188, 26, 6) +
+        pill(366, 248, 200, 34, 17, "#fff", "Bring in my LinkedIn posts", 12, "#191919", "#d6d3cc") + mark(359, 241, 214, 48, 24) +
+        '<rect x="366" y="306" width="200" height="38" rx="19" fill="#fff" stroke="#d6d3cc"/>' + t(384, 330, "Ask about your posts...", 12, "#8c8c8c") +
+        '<circle cx="548" cy="325" r="13" fill="#0f1c2e"/><path d="M543 325h10m-4-4l4 4-4 4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>')
+    };
+  })();
+
+  var GUIDE = {
+    note: "LinkedIn lets Cabinet read none of your posts, so you ask LinkedIn for a copy and keep it here.",
+    steps: [
+      { shot: SHOTS.settings, head: "On linkedin.com, open Me, then Settings and Privacy.",
+        text: "Me is your picture at the top of LinkedIn. In the phone app, tap your picture, then Settings.",
+        alt: "LinkedIn's top bar with Me marked, and its menu open with Settings and Privacy marked." },
+      { shot: SHOTS.privacy, head: "Open Data privacy, then Get a copy of your data.",
+        text: "Data privacy is in the list on the left. Get a copy of your data is under How LinkedIn uses your data.",
+        alt: "LinkedIn's settings with Data privacy marked on the left, and Get a copy of your data marked on the right." },
+      { shot: SHOTS.request, head: "Pick your posts and articles, then Request archive.",
+        text: "Choose Want something in particular? and tick your posts (they may say Shares) and Articles, with Comments and Reactions if you want those too. Or take the whole archive. LinkedIn may ask for your password.",
+        alt: "LinkedIn's Get a copy of your data page with Want something in particular? chosen, Articles, Comments, Reactions and Shares ticked, and Request archive marked." },
+      { shot: SHOTS.email, head: "When LinkedIn emails you, put the file in imports and ask.",
+        text: "It usually takes up to a day, and a quick mail with part of it may come before the full one. Download the zip, put it in this cabinet’s imports folder (on Cabinet Cloud, upload it in Files), then ask Bring in my LinkedIn posts. Nothing leaves this cabinet.",
+        alt: "LinkedIn's email with Download archive marked, and Cabinet's files with the zip in imports and the Bring in my LinkedIn posts question marked." }
+    ]
+  };
+
+  /** The guide, its steps numbered from 1, under the Keep box's title. */
+  function paintGuidePanel() {
+    $("drawer-body").innerHTML = '<div class="guide"><section class="g-part"><h3>' + esc(BOXES.keep.title) + "</h3>" +
+      '<p class="g-note">' + esc(GUIDE.note) + '</p><ol class="g-steps">' + GUIDE.steps.map(function (st, i) {
+        return '<li class="g-step"><div class="g-txt"><span class="g-num" aria-hidden="true">' + (i + 1) + "</span><div><b>" + esc(st.head) + "</b><p>" + esc(st.text) + "</p></div></div>" +
+          '<img class="g-shot" src="' + st.shot + '" alt="' + esc(st.alt) + '" width="600" height="380" decoding="async" /></li>';
+      }).join("") + "</ol></section></div>";
+  }
+
   // ── The grid of boxes ──────────────────────────────────────────────────
   // Each box is drawn by its own function at one of three levels, picked by its width on
   // screen: S (one number), M (the rows that fit), L (everything, with more detail). The
@@ -1735,10 +1918,11 @@
   var LAYOUT_KEY = "linkedin-posts-layout@1";
   var DEFAULT_LAYOUT = [
     { id: "headline", x: 0, y: 0, w: 12, h: 3 },
-    { id: "drafts", x: 0, y: 3, w: 7, h: 10 },
+    { id: "drafts", x: 0, y: 3, w: 7, h: 14 },
     { id: "next", x: 7, y: 3, w: 5, h: 5 },
     { id: "ideas", x: 7, y: 8, w: 5, h: 5 },
-    { id: "ask", x: 0, y: 13, w: 12, h: 5 }
+    { id: "keep", x: 7, y: 13, w: 5, h: 4 },
+    { id: "ask", x: 0, y: 17, w: 12, h: 5 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -1762,7 +1946,9 @@
       title: "Ask about your posts", desc: "Ask for a draft or about your drafts, with an idea for today.",
       show: canAsk, when: "Only people who can ask in this cabinet see it." },
     ideas: { cls: "lane ideas", list: true, draw: drawIdeasBox, group: "ask", icon: "i-pen", w: 5, h: 5,
-      title: "Ideas for your posts", desc: "Every idea in one box, one tap each." }
+      title: "Ideas for your posts", desc: "Every idea in one box, one tap each." },
+    keep: { cls: "lane idea1 keep", draw: drawKeep, group: "posts", icon: "i-copy", w: 5, h: 4, grow: true,
+      title: "Keep your LinkedIn posts in Cabinet", desc: "How to bring in your past posts from LinkedIn’s copy of your data." }
   };
   IDEAS.forEach(function (idea) {
     BOXES["idea-" + idea.id] = { cls: "lane idea1", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
@@ -2944,6 +3130,8 @@
       setIdeaHidden(el.getAttribute("data-idea"), false);
     } else if (act === "ideas") {
       openDrawer("ideas");
+    } else if (act === "guide") {
+      openDrawer("guide");
     } else if (act === "add-box") {
       openDrawer("add");
     } else if (act === "add-this") {

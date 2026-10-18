@@ -269,6 +269,7 @@ that is there or remove one that isn't. The ids:
 - `headline` Headline, `drafts` Your drafts, `next` Ideas for your next posts
 - `n-drafts`, `n-approved`, `n-posted`: the numbers Drafts, Approved, Posted
 - `ask` Ask about your posts, `ideas` Ideas for your posts
+- `keep` Keep your LinkedIn posts in Cabinet: how to bring in their LinkedIn export
 - one idea each: `idea-shipped`, `idea-variants`, `idea-ready`, `idea-note`, `idea-monthly`
 
 A box not on the list can't be made (there is no box for how a post did: LinkedIn does not
