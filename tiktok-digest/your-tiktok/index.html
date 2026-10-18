@@ -514,8 +514,7 @@
   .guide { display: grid; gap: 4px; padding: 4px clamp(18px, 3vw, 38px) 24px; margin-top: 22px; border-radius: 22px; background: var(--page); box-shadow: var(--shadow-2); color: var(--ink); }
   .g-part { padding-top: 22px; }
   .g-part h3 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
-  .g-pn { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: #fff; font: 700 16px/1 var(--font); }
-  .g-note { margin: 4px 0 4px 46px; color: var(--ink-3); font-size: 15px; }
+  .g-note { margin: 4px 0; color: var(--ink-3); font-size: 15px; }
   .g-steps { list-style: none; margin: 0; padding: 0; }
   .g-step { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px 34px; align-items: center; padding: 20px 0; border-bottom: 1px solid var(--line); }
   .g-step:last-child { border-bottom: 0; padding-bottom: 6px; }
@@ -528,7 +527,6 @@
   .guide.panel .g-part { padding-top: 16px; }
   .guide.panel .g-part h3 { font-size: 22px; }
   .guide.panel .g-step { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px 0; }
-  .guide.panel .g-note { margin-left: 0; }
   .guide.panel .g-txt b { font-size: 16.5px; }
   .guide.panel .g-txt p { font-size: 14.5px; }
 
@@ -1876,12 +1874,12 @@
     ] }
   };
 
-  /** The guide for some of its parts, numbered from 1 across the parts shown. A part with no title of its own has its box's. */
+  /** The guide for some of its parts, its steps numbered from 1 across the parts shown. A part with no title of its own has its box's. */
   function guideHtml(parts, panel) {
     var n = 0;
-    var body = parts.map(function (id, pi) {
+    var body = parts.map(function (id) {
       var part = GUIDE[id];
-      return '<section class="g-part"><h3><span class="g-pn" aria-hidden="true">' + (pi + 1) + "</span>" + esc(part.title || BOXES[id].title) + "</h3>" +
+      return '<section class="g-part"><h3>' + esc(part.title || BOXES[id].title) + "</h3>" +
         '<p class="g-note">' + esc(part.note) + '</p><ol class="g-steps">' + part.steps.map(function (st) {
           n++;
           return '<li class="g-step" value="' + n + '"><div class="g-txt"><span class="g-num" aria-hidden="true">' + n + "</span><div><b>" + esc(st.head) + "</b><p>" + esc(st.text) + "</p></div></div>" +
@@ -2729,6 +2727,8 @@
   function countUp() {
     var els = $("grid").querySelectorAll(".kpi .value.num, .sum .value.num");
     Array.prototype.forEach.call(els, function (el) {
+      // A number still counting shows a passing value, not its own: it is left to land on it.
+      if (el.hasAttribute("data-counting")) return;
       var box = el.closest(".box");
       var key = box.getAttribute("data-box");
       var m = /^(\D*?)(\d[\d,]*(?:\.\d+)?)(\D*)$/.exec(el.textContent);
@@ -2748,6 +2748,8 @@
       };
       from = from == null ? 0 : from;
       var done = false;
+      var land = function () { done = true; el.removeAttribute("data-counting"); };
+      el.setAttribute("data-counting", "");
       show(from);
       requestAnimationFrame(function tick(now) {
         if (done) return;
@@ -2755,10 +2757,10 @@
         var p = Math.min(1, (now - start) / 900);
         show(from + (target - from) * (1 - Math.pow(1 - p, 3)));
         if (p < 1 && el.isConnected) requestAnimationFrame(tick);
-        else done = true;
+        else land();
       });
       // A page that draws no frames (a hidden tab) still shows the real number, never a stale one.
-      setTimeout(function () { if (!done) { done = true; show(target); } }, 1000);
+      setTimeout(function () { if (!done) { land(); show(target); } }, 1000);
     });
   }
 
