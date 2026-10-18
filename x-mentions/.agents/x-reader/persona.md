@@ -78,7 +78,8 @@ that needs nothing back, a bot, a giveaway, a spam link, and anyone setup.md say
 If someone was abusive, leave them out and do not repeat their words. At most twelve rows,
 the ones setup.md names first, otherwise oldest first.
 
-- `gist`: what they want, one plain line, no numbers.
+- `gist`: what they want, one plain line, no numbers. Don't guess "he" or "she" from a name:
+  write "they", or leave the pronoun out ("Asks for beta access for the team").
 - `urgent`: true only when it must happen today (they said so, or a deadline is today).
 - `reply`: what the person would post under it, in their voice (their own posts and setup.md
   show it), at most 280 characters. Put `[brackets]` around anything they must decide or fill

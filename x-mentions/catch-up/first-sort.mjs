@@ -167,7 +167,12 @@ async function start(morning) {
     .map((t) => {
       const refs = (t.referenced_tweets || []).map((r) => ({ type: r.type, id: r.id, mine: (others[r.id] || {}).authorId === ME_ID }));
       const post = { ...t, referenced_tweets: refs };
-      const answered = own.some((o) => o.replyTo === t.id || (o.conv === t.conversation_id && Date.parse(o.at) > Date.parse(t.created_at)));
+      // Answered: a reply to this post, or a later reply in its thread that names its writer.
+      // A reply to someone else in the same thread does not count.
+      const at = "@" + String((users[t.author_id] || {}).username || "").toLowerCase();
+      const answered = own.some((o) => o.replyTo === t.id ||
+        (!!o.replyTo && o.conv === t.conversation_id && Date.parse(o.at) > Date.parse(t.created_at) &&
+          at.length > 1 && new RegExp(at + "\\b").test(String(o.text).toLowerCase())));
       const about = refs.find((r) => r.mine) || null;
       return {
         postId: t.id, text: t.text, at: t.created_at, authorId: t.author_id, conv: t.conversation_id,
@@ -246,7 +251,7 @@ function counts(c) {
   return {
     mentions: c.mentions.length,
     people: new Set(c.mentions.map((m) => m.authorId)).size,
-    waiting: new Set(open.map((m) => m.authorId)).size,
+    waiting: new Set(open.filter((m) => !noise(c, m)).map((m) => m.authorId)).size,
     answered: c.mentions.length - open.length,
     replies: c.mentions.filter((m) => m.kind === "reply").length,
     quotes: c.mentions.filter((m) => m.kind === "quote").length,
@@ -314,8 +319,9 @@ function profile(arg) {
   const p = given(arg);
   if (!p.name || typedNumber(p.name)) stop("Give the person's first name.");
   const byAuthor = {};
-  for (const m of c.mentions) byAuthor[m.authorId] = (byAuthor[m.authorId] || 0) + 1;
+  for (const m of c.mentions) if (!noise(c, m)) byAuthor[m.authorId] = (byAuthor[m.authorId] || 0) + 1;
   const regulars = Object.entries(byAuthor)
+    .filter(([, n]) => n > 1)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([id, n]) => ({ name: (c.users[id] || {}).name || "", username: (c.users[id] || {}).username || "", count: n }));
@@ -453,14 +459,14 @@ function postsOf(c) {
 function regularsOf(c) {
   const by = {};
   for (const m of c.mentions) {
-    if (BOT_NAME.test((c.users[m.authorId] || {}).username || "") || shortPost(m.text)) continue;
+    if (noise(c, m)) continue;
     const r = (by[m.authorId] ||= { count: 0, open: 0, last: m.at });
     r.count += 1;
     if (!m.answered) r.open += 1;
     if (Date.parse(m.at) > Date.parse(r.last)) r.last = m.at;
   }
   return Object.entries(by)
-    .filter(([, r]) => r.count > 1 || r.open > 0)
+    .filter(([, r]) => r.count > 1)
     .sort((a, b) => b[1].count - a[1].count || Date.parse(b[1].last) - Date.parse(a[1].last))
     .slice(0, 5)
     .map(([id, r]) => ({ ...whoOut(c.users[id] || { name: "Someone on X", username: "unknown" }), count: r.count, open: r.open, last: r.last }));
@@ -468,6 +474,15 @@ function regularsOf(c) {
 
 /** An account that calls itself a bot. */
 const BOT_NAME = /bot\b|_bot|bot_/i;
+
+/** A giveaway or airdrop: "claim your 5 ETH", "free crypto". */
+const GIVEAWAY = /\b(giveaway|airdrop|claim (your|now)|free (eth|btc|crypto|nft|money)|\d+ ?(eth|btc|usdt))\b/i;
+
+/** A mention that wants nothing from the person: a bot, a giveaway, a "gm". */
+function noise(c, m) {
+  const u = c.users[m.authorId] || {};
+  return BOT_NAME.test(u.username || "") || GIVEAWAY.test(m.text) || GIVEAWAY.test(u.name || "") || shortPost(m.text);
+}
 
 /** A mention with almost no words of its own: "gm", a thank-you, a lone emoji. */
 function shortPost(text) {
@@ -482,7 +497,7 @@ function skipOf(c, listed) {
   for (const m of c.mentions) perAuthor[m.authorId] = (perAuthor[m.authorId] || 0) + 1;
   const reason = (m) => {
     const u = c.users[m.authorId] || {};
-    if (BOT_NAME.test(u.username || "") || (perAuthor[m.authorId] > 3 && /https?:\/\//.test(m.text))) return "bots";
+    if (BOT_NAME.test(u.username || "") || GIVEAWAY.test(m.text) || GIVEAWAY.test(u.name || "") || (perAuthor[m.authorId] > 3 && /https?:\/\//.test(m.text))) return "bots";
     if (shortPost(m.text)) return "short";
     return "other";
   };

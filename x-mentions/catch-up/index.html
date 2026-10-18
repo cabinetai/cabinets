@@ -91,7 +91,7 @@
     --shadow-1: 0 1px 2px rgba(15, 20, 25, .05), 0 6px 18px -12px rgba(15, 20, 25, .2);
     --shadow-2: 0 2px 4px rgba(15, 20, 25, .05), 0 16px 34px -18px rgba(15, 20, 25, .3);
     --radius: 16px;
-    --font: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
   }
   ::selection { background: color-mix(in srgb, var(--brass) 26%, transparent); }
   html { scrollbar-color: var(--line-2) transparent; }
@@ -753,6 +753,7 @@
   .quoted .post-head { font-size: 14px; }
   .quoted .mini { width: 20px; height: 20px; border-radius: 50%; background: var(--cab-tint); color: var(--cab); display: inline-grid; place-items: center; font-size: 10px; font-weight: 700; align-self: center; margin-right: 2px; }
   .quoted p { margin: 2px 0 0; overflow-wrap: anywhere; }
+  .quoted .tag { color: var(--tg); }
   .metrics { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 10px; color: var(--ink-3); font-size: 13px; }
   .metrics span { display: inline-flex; align-items: center; gap: 5px; }
   .metrics .icon { width: 17px; height: 17px; stroke-width: 1.8; }
@@ -1143,11 +1144,24 @@
     if (n < 1e6) return (Math.round(n / 100) / 10).toString().replace(/\.0$/, "") + "K";
     return (Math.round(n / 1e5) / 10).toString().replace(/\.0$/, "") + "M";
   }
-  /** A post's words as X sent them, with @names, #tags and links in X's blue. */
-  function postText(value) {
-    return esc(value).replace(/(https?:\/\/[^\s<]+)|(^|[\s(])([@#][A-Za-z0-9_]{1,30})/g, function (all, url, pre, tag) {
-      if (url) return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url.replace(/^https?:\/\//, "") + "</a>";
-      return pre + '<span class="tag">' + tag + "</span>";
+  /** True when a post's own words are Hebrew or Arabic. A post starts with @names and links,
+      which would make dir="auto" read it left to right. */
+  function rtlText(value) {
+    var own = String(value || "").replace(/https?:\/\/\S+/g, "").replace(/[@#][A-Za-z0-9_]+/g, "");
+    for (var i = 0; i < own.length; i++) {
+      var code = own.charCodeAt(i);
+      if (code >= 0x590 && code <= 0x8ff) return true;
+      if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122) || (code >= 0xc0 && code <= 0x24f)) return false;
+    }
+    return false;
+  }
+  /** A post's words as X sent them, with @names, #tags and links in X's blue. inLink: the post
+      sits inside a link already (a quoted post), so its links are only coloured. */
+  function postText(value, inLink) {
+    return (rtlText(value) ? "&rlm;" : "") + esc(value).replace(/(https?:\/\/[^\s<]+)|(^|[\s(])([@#][A-Za-z0-9_]{1,30})/g, function (all, url, pre, tag) {
+      if (url && inLink) return '<span class="tag" dir="ltr">' + url.replace(/^https?:\/\//, "") + "</span>";
+      if (url) return '<a dir="ltr" href="' + url + '" target="_blank" rel="noopener noreferrer">' + url.replace(/^https?:\/\//, "") + "</a>";
+      return pre + '<span class="tag" dir="ltr">' + tag + "</span>";
     });
   }
   function xMark(cls) { return '<svg class="xmark' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-xlogo"/></svg>'; }
@@ -1865,7 +1879,7 @@
     var link = xLink(a.link);
     var inner = '<div class="post-head"><span class="mini" aria-hidden="true">' + esc(initials(name || me())) + '</span><span class="name">' + esc(name || "You") +
       '</span><span class="handle">@' + esc(me()) + "</span>" + (a.at ? '<span class="dot">·</span><span class="ago">' + esc(xAgo(a.at, ref)) + "</span>" : "") + "</div>" +
-      '<p dir="auto">' + postText(text(a.text, 400)) + "</p>";
+      '<p dir="auto">' + postText(text(a.text, 400), !!link) + "</p>";
     return link ? '<a class="quoted" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + inner + "</a>" : '<div class="quoted">' + inner + "</div>";
   }
 
@@ -1891,7 +1905,7 @@
     return '<div class="composer"><label for="' + fid + '">Your reply, not posted yet</label>' +
       '<textarea id="' + fid + '" data-draft="' + esc(item.id) + '" rows="2" dir="auto">' + esc(draft) + "</textarea>" +
       '<div class="composer-foot"><span class="hint">' + (bracketed(draft) ? "Fill in the [brackets] first" : "Edit it here, or on X") + "</span>" +
-      '<span class="count" data-count="' + esc(item.id) + '">' + ringHtml(len) + leftHtml(len) + "</span>" +
+      '<span class="xcount" data-count="' + esc(item.id) + '">' + ringHtml(len) + leftHtml(len) + "</span>" +
       '<button type="button" class="btn quiet row-done" data-act="item-done" data-kind="reply" data-id="' + esc(item.id) + '">Done</button>' +
       (canAsk() ? '<button type="button" class="btn" data-act="reply" data-id="' + esc(item.id) + '">' + icon("i-pen") + "Rewrite</button>" : "") +
       '<button type="button" class="btn" data-act="copy" data-id="' + esc(item.id) + '">' + icon("i-copy") + "Copy</button>" +
@@ -3860,7 +3874,7 @@
     state.drafts[key] = area.value;
     var len = area.value.length;
     var row = area.closest(".row-body");
-    var count = row && row.querySelector(".count");
+    var count = row && row.querySelector(".xcount");
     if (count) count.innerHTML = ringHtml(len) + leftHtml(len);
     var btn = row && row.querySelector('[data-act="x-reply"]');
     if (btn) btn.disabled = len > REPLY_MAX || !len;
