@@ -2352,6 +2352,8 @@
   function countUp() {
     var els = $("grid").querySelectorAll(".kpi .value.num, .sum .value.num");
     Array.prototype.forEach.call(els, function (el) {
+      // A number still counting shows a passing value, not its own: it is left to land on it.
+      if (el.hasAttribute("data-counting")) return;
       var box = el.closest(".box");
       var key = box.getAttribute("data-box");
       var m = /^(\D*?)(\d[\d,]*(?:\.\d+)?)(\D*)$/.exec(el.textContent);
@@ -2371,6 +2373,8 @@
       };
       from = from == null ? 0 : from;
       var done = false;
+      var land = function () { done = true; el.removeAttribute("data-counting"); };
+      el.setAttribute("data-counting", "");
       show(from);
       requestAnimationFrame(function tick(now) {
         if (done) return;
@@ -2378,10 +2382,10 @@
         var p = Math.min(1, (now - start) / 900);
         show(from + (target - from) * (1 - Math.pow(1 - p, 3)));
         if (p < 1 && el.isConnected) requestAnimationFrame(tick);
-        else done = true;
+        else land();
       });
       // A page that draws no frames (a hidden tab) still shows the real number, never a stale one.
-      setTimeout(function () { if (!done) { done = true; show(target); } }, 1000);
+      setTimeout(function () { if (!done) { land(); show(target); } }, 1000);
     });
   }
 
