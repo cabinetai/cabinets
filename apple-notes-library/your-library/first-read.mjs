@@ -78,14 +78,18 @@ function editReading(doneMsg, change) {
   console.log(said);
 }
 
-/** One write to reading.json at a time: two at once would each write their own copy and lose one. */
+/**
+ * One write to reading.json at a time: two at once would each write their own copy and lose one.
+ * A lock older than 5 seconds was left by a call that died (a write takes a moment), so it goes
+ * well before the 8 seconds a call waits.
+ */
 function lockReading() {
   const lock = path.join(dataDir, ".reading.lock");
   const until = Date.now() + 8000;
   const nap = new Int32Array(new SharedArrayBuffer(4));
   for (;;) {
     try { fs.mkdirSync(lock); break; } catch {
-      try { if (Date.now() - fs.statSync(lock).mtimeMs > 15000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+      try { if (Date.now() - fs.statSync(lock).mtimeMs > 5000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
       if (Date.now() > until) fail("another push is still running: push one line at a time");
       Atomics.wait(nap, 0, 0, 100);
     }
