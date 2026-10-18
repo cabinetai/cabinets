@@ -21,7 +21,7 @@ Nothing runs on a schedule. The full rules are in the agent's persona
 | `videos/<slug>/` | `save_video` | The media file (`video` or `audio` only), `transcript.md` (a time every 5 to 10 seconds, when the video has captions) and `index.md` (site, title, channel or who posted it, link, length, upload day, size, and the description or the post's text). |
 | `videos/<slug>/summary.md` | The agent | Five lines, key points with times, lines worth quoting, clip ideas. |
 | `videos/EXAMPLE-*/` | Nobody | The made-up videos' transcripts and summaries. No media. |
-| `imports/` | The person (TikTok's data export), the agent (`<YYYY-MM-DD>.md`) | "Bring in my TikTok favorites": the agent reads only the video links in the export's lists whose names have Favorite or Like, saves them one at a time after one yes, and notes what was saved and what failed. The export's exact JSON shape is not fixed, so it looks for objects with a `Link` or `link` under any such list. Nothing is uploaded or posted. |
+| `imports/` | The person (TikTok's data export), the agent (`<YYYY-MM-DD>.md`) | "Bring in my TikTok favorites": the agent reads only the video links in the export's lists whose names have Favorite or Like, saves them one at a time after one yes, and notes what was saved and what failed. The export's exact JSON shape is not fixed, so it looks for objects with a `Link` or `link` under any such list. "Bring in my YouTube likes": with YouTube connected, the agent lists the Liked videos playlist (or one of the person's own playlists) through YouTube's read access, counts them, saves them the same way and writes the same note. Watch later and History are not open to any app. Nothing is uploaded or posted, and nothing on YouTube is liked or changed. |
 
 `data.json` in short: `updatedAt`, `disk` `{ freeBytes, at }` (the free space the agent last
 read; the page shows it small under the headline), and `videos`, newest first, each:
@@ -58,7 +58,7 @@ that jumps the player there.
 
 The page is a 12-column grid of boxes on YouTube's light grey under a red headline band,
 laid out like YouTube Digest: Headline, Save a video, Subjects, Bring videos in (how to save one
-link, or all TikTok favorites from TikTok's data export), Your videos, Clip ideas, Worth quoting,
+link, all TikTok favorites from TikTok's data export, or all YouTube likes), Your videos, Clip ideas, Worth quoting,
 Ask about your videos and Ideas for your videos to start with, and more to add (Key points,
 three numbers, and each idea as its own box with its picture from `ideas/`). Ideas and
 Layout sit in the headline. The idea pictures are copies of existing template covers,

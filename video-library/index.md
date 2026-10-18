@@ -30,6 +30,8 @@ The cabinet opens on it: **Your Video Library**.
 - **Your TikTok favorites**: TikTok does not share them with apps, so ask TikTok for your data
   (Settings and privacy, Account, Download your data, JSON), put the file in `imports/` and
   ask "Bring in my TikTok favorites". The agent asks once, then saves them one by one.
+- **Your YouTube likes**: with YouTube connected, ask "Bring in my YouTube likes". The agent
+  counts them, asks once, then saves them one by one. Watch later and History stay closed to apps.
 - **The transcript**: open it under the video, every line with its time.
 - **Ask about your videos**: one video or all of them. "Which of my videos talks about
   pricing?" The answer comes up in the chat, with the video and the minute.
