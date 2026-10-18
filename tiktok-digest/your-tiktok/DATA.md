@@ -42,7 +42,8 @@ becomes an "Open on TikTok" link.
 
 The page is a 12-column grid of boxes on a light grey, laid out like the Gmail front desk:
 Headline, How your videos did, Ideas for your next videos, Ideas for your account, Keep your
-TikToks in Cabinet (fixed words on saving videos in Video Library, no data), Account numbers
+TikToks in Cabinet (fixed words on saving videos in Video Library, no data, with a Show me how
+button that opens its steps in a side panel), Account numbers
 and Ask about your account to start with, and more to add (four numbers: Views,
 Followers, Likes, Shares, and each idea as its own box with its picture). The
 connection, Catch up now, Ideas and Layout sit in the headline; without the headline they
@@ -50,6 +51,12 @@ move to a slim bar on top. Each person moves, resizes, adds and removes them (mo
 or keyboard, with Undo), or asks the agent through Layout, which answers with
 `layout-change.json`. An idea offers itself at the foot of its box when the day's account
 says it would help.
+
+Before TikTok is connected, the band holds a setup guide under its Connect button: Connect
+TikTok (four steps) and Keep your TikToks in Cabinet (four steps), each step with a picture of
+the real screen (Cabinet's, TikTok's, the browser's) redrawn as a small SVG with a made-up
+account, sunny.bakery. The pictures sit in the `guide-shots` script inside `index.html`, so
+they show on Cloud too. After connecting, the Keep box's Show me how opens the second part.
 
 The page writes its own headline from `account`, `totals` and `videos`: the account's name,
 then "191,900 views and 16,452 likes since yesterday. Moved most: Sourdough starter in 5
