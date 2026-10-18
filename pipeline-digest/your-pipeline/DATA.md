@@ -46,7 +46,7 @@ The page is a 12-column grid of boxes on Salesforce's light grey, laid out like 
 desk: Headline (a band in Salesforce blue), Moved since yesterday, Closing this week, Tasks due
 today, Gone quiet, Pipeline numbers, New leads, What changed since last week, Ask about your
 pipeline and Ideas for your pipeline, and more to add (four numbers, and each idea as its own
-box with its picture from `ideas/`). The band is the first thing on the page in every state:
+box with its picture). The band is the first thing on the page in every state:
 the connect card, a failed catch-up and the example note all sit in it or right under it. Each
 person moves, resizes, adds and removes the boxes (mouse, finger or keyboard, with Undo), or
 asks the agent through Layout, which answers with `layout-change.json`. An idea offers itself
@@ -72,8 +72,10 @@ or until put away. A reading older than 20 minutes is ignored. The reading shows
 catch-up starts, with "Opening your Salesforce..." until the first line, and stays until it
 says done. Every later catch-up shows "Catching up..." on its button.
 
-The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
-about 10KB each, until unique ones are made.
+The page's ideas show pictures of existing template covers, shrunk to about 7KB each and
+written into `index.html` itself, until unique ones are made. A page shown to anyone but its
+owner on Cloud cannot load a file beside it, so a picture in its own file would stay blank for
+them.
 
 If the morning run was missed (the computer was asleep at 9), the page runs it once when it
 opens, from the schedule in `../.jobs/morning-pipeline-digest.yaml`.

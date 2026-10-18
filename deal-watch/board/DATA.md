@@ -52,8 +52,7 @@ The page is a 12-column grid of boxes on a light grey: Headline ("3 deals need y
 the first one in a sentence, and how many of each level), Needs a person, Close dates ahead
 (the open amount closing each of the next six weeks, the late amount first in red), Back on
 track, Ask about your deals and Ideas for your deals, and more to add (three numbers:
-Urgent, Amount at risk, Overdue tasks; and each idea as its own box with its picture from
-`ideas/`). Each person moves, resizes, adds and removes them, or asks the agent through
+Urgent, Amount at risk, Overdue tasks; and each idea as its own box with its picture). Each person moves, resizes, adds and removes them, or asks the agent through
 Layout, which answers with `layout-change.json`. An idea offers itself at the foot of its box
 when the board says it would help. When `org.address` is empty, a quiet line under the band
 offers to add the Salesforce address.
@@ -81,8 +80,10 @@ A reading older than 20 minutes is ignored. The reading shows the moment the fir
 starts, with "Opening Salesforce..." until the first line, and stays until it says done.
 Every later check shows "Checking..." on its button.
 
-The page's ideas show pictures from `ideas/`, copies of existing template covers shrunk to
-about 10KB each, until unique ones are made.
+The page's ideas show pictures of existing template covers, shrunk to about 7KB each and
+written into `index.html` itself, until unique ones are made. A page shown to anyone but its
+owner on Cloud cannot load a file beside it, so a picture in its own file would stay blank for
+them.
 
 If the morning check was missed (the computer was asleep at 8:30), the page runs it once
 when it opens, from the schedule in `../.jobs/daily-deal-watch.yaml`.
