@@ -343,7 +343,8 @@ function giftOf(g) {
     const s = eventTime(e.start), en = eventTime(e.end);
     if (!s || !en || en.getTime() <= Date.now() || s.getTime() > dayStart(2).getTime()) fail("refused, a prep gift is for a meeting still to come today or tomorrow");
     const people = guests(e).filter((n) => n && !/^(you|me)$/i.test(n));
-    if (!people.length) fail("refused, that meeting has no other guests: give noise or calm");
+    // A plan alone (the dentist, a pickup) counts when a saved email is about it: messageId, checked above.
+    if (!people.length && !g.messageId) fail("refused, that plan has no other guests and no messageId of a saved email about it: give noise or calm");
     out.title = String(e.subject || "Meeting").slice(0, 120);
     out.start = iso(s);
     out.end = iso(en);
