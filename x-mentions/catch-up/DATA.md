@@ -15,6 +15,7 @@ the agent's persona (`.agents/x-reader/persona.md`).
 | `data/status.json` | Every routine | `{ at, ok, why }`. `ok: false` means the last run could not read X; the page shows `why` with Try again. |
 | `data/reading.json` | The first reading only | `{ startedAt, done, lines[], gift }`: the lines the page tells while the agent reads, and one gift (`waiting` or `calm`). |
 | `data/profile.json` | The first reading | What it learned: `at`, `name`, `username`, `days`, `mentions`, `people`, `answered`, `posts`, `regulars[] {name, username, count}`, `busiest {text, replies, likes, link}`, `active {from, to}` (hours). Shown once as "This is you". |
+| `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `x/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet, not in a file. |
 | `data/.work/` | The routine | Its own scratch files and `x.json`, what X sent this run. Never shown. |
 | `setup.md` | The person, or the agent in a chat | Who matters, what to skip, how replies sound. |
 
@@ -43,8 +44,9 @@ skipped, more }`, `pulse { start, stepHours, counts[], you[] }` (the banner's do
 - `skip { count, bots, short, other, examples[] {name, username, said, link} }`: the
   unanswered mentions left off Waiting on you, by why they can wait.
 
-Which boxes show, and in what order, is each person's own choice (Edit layout), saved with
-`cabinet.mine` under `x-digest-layout@1`. Waiting on you and Ask always stay.
+Which boxes show, where and how big, is each person's own choice (Layout: add or remove
+boxes by hand, or ask the agent), saved with `cabinet.mine` under `x-digest-layout@1` on a
+12 column grid.
 
 Links are kept only when they open X (`https://x.com/...`), and pictures only from X's own
 image host. **Reply on X** opens `https://x.com/intent/post?in_reply_to=<postId>&text=<reply>`,

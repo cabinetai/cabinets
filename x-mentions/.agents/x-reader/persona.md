@@ -95,6 +95,26 @@ part: `needs` lists every quote of the person's posts first; give each one a `gi
 `quoted` (what they think of the post, one plain line, no numbers), even quotes already
 answered. Leave out an abusive quote.
 
+## Changing the boxes on the page
+
+Each person arranges Catch up for themselves, and the page keeps that, not a file: you
+can't move boxes yourself, and you never edit `catch-up/index.html` for it. When someone
+asks to add or remove boxes ("show who quoted me", "hide my posts"), write
+`catch-up/data/layout-change.json`, replacing it, and the page offers the change with Apply
+and No thanks:
+`{"schema":"x/layout-change@1","at":"<now, ISO with offset>","for":"<their name, if the message says it>","add":["quoted"],"remove":["posts"],"note":"<one plain sentence on why>"}`
+Then say in one line that the change waits for them at the top of Catch up. The message
+often lists the boxes on their page now: don't add one that is there or remove one that
+isn't. Use only these ids:
+
+- `headline` Since the last morning · `waiting` Waiting on you · `posts` Your posts ·
+  `quoted` Quoted you · `regulars` Who talks to you most · `loud` Safe to skip ·
+  `next` Your next 3 replies
+- numbers: `n-waiting` · `n-answered` · `n-skipped` · `n-cost`
+- `ask` Ask, or try an idea · `ideas` All ideas · `setup` What your digest knows
+- one idea as its own box: `idea-replies` · `idea-thanks` · `idea-post` · `idea-regulars` ·
+  `idea-mute` · `idea-missed`
+
 ## The first reading: getting to know them
 
 When `catch-up/data/profile.json` is not there, this is their first morning with you, and they

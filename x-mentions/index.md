@@ -19,15 +19,17 @@ opens on one page:
   you have not answered yet, oldest wait first. Each one shows their post exactly as X shows
   it, what they want in one line, and a reply in your voice. Edit it, then press **Reply on X**:
   X opens with your reply filled in, and you press Post.
-- **Your mentions**: how many people wrote to you, how many you already answered, and what
-  this reading cost from your X credits.
+- **Your posts**: your newest posts with X's counts, and which one still has people waiting.
+- **The numbers**: how many mentions you already answered, and what this reading cost from
+  your X credits.
 
-More boxes are one press away in **Edit layout**, and cost nothing more because they use what
-the morning already read: **Your posts** (which one got people talking), **Quoted you** (what
-people said about your posts), **Who talks to you most**, and **Safe to skip** (bots,
-giveaways and "gm", counted). Move them up or down, or hide the ones you don't need.
+Press **Layout** to make the page yours: add or remove boxes by hand (drag a box to move
+it, pull its corner to resize it, **Add a box** for more), or ask the agent and press Apply.
+Every box uses what the morning already read, so adding one costs nothing more: **Your posts**
+(which one got people talking), **Quoted you**, **Who talks to you most**, **Safe to skip**
+(bots, giveaways and "gm", counted), **Your next 3 replies**, and the numbers.
 
-Ask anything about your X in the box on the right, or open **Ideas** ("Thank everyone who
+Ask anything about your X in the box at the bottom, or open **Ideas** ("Thank everyone who
 quoted me", "Questions I never answered this week") and ask once or set it up as a routine.
 
 ## To start
