@@ -8,12 +8,9 @@
 //   node <app>/first-sort.mjs count <file>...       the exact count in each saved answer
 //   node <app>/first-sort.mjs push '<line>'         add one line (single quotes: "$" stays "$")
 //   node <app>/first-sort.mjs gift @<file>          the one thing for the owner, shown while you read:
-//                                                   {"kind":<one of CONFIG.gift.kinds>,"who","subject",
-//                                                   "since","when","threadId","amount","was","gist",
-//                                                   "count","unread"}; who, subject, since, when, threadId
-//                                                   and amounts copied from a saved answer; on a calendar
-//                                                   "eventId" (and "eventId2" for a clash): the helper
-//                                                   takes title, time, guests and place from events.json
+//                                                   {"kind":<one of CONFIG.gift.kinds>,"who","file","fileId",
+//                                                   "since","gist","count"}; who, file and since copied
+//                                                   from a saved answer
 //   node <app>/first-sort.mjs profile @<file>       write data/profile.json from the JSON your script
 //                                                   wrote into data/.work/ (counts are added here)
 //   node <app>/first-sort.mjs latest @<file>        write data/latest.json from your script's file (times, today,
@@ -30,17 +27,10 @@
 //   node <app>/first-sort.mjs read <fileId>         save one file's words as data/.work/doc-<fileId>.txt (.pdf, a picture)
 //   node <app>/first-sort.mjs list <file>...        every file in a saved answer, one line each
 // In a line, and in a string of the profile file:
-//   {count:<file>|one|many}  the exact count and its word ("1 event", "4 events"); a +triage list
-//                      asked for --max 20 is {count:<file>@20|..} (40 when left out), and a full
-//                      list says "at least".
-//   {sum:<file>}       the sum of a JSON list of amounts your script saved, such as
-//                      ["₪289.00","₪200.00"]; each amount must be written in a saved answer.
-//   {free:<file>}      Calendar: the first free stretch of 3 hours or more from now.
-//   {evenings:<file>}  Calendar: free evenings (18:00 to 22:00) in the next 7 days.
-//   {dates:<file>|one|many}  Calendar: birthdays and anniversaries in the next 30 days.
+//   {count:<file>|one|many}  the exact count and its word ("1 file", "4 files"); a list OneDrive
+//                      says has more is "at least".
 // A money amount typed straight into a line must be written, as it is, in a saved answer.
-// A <file> is relative to data/.work/: a saved +triage or messages list answer, a --page-all
-// answer (one JSON page per line), a calendar events answer, or empty (= 0).
+// A <file> is relative to data/.work/: a saved answer, one JSON object or one JSON page per line.
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
@@ -54,7 +44,6 @@ const workDir = path.join(dataDir, ".work");
 const readingFile = path.join(dataDir, "reading.json");
 const MONEY = /(?:[$€£₪¥]\s?\d[\d,]*(?:\.\d+)?)|(?:\d[\d,]*(?:\.\d+)?\s?(?:USD|EUR|GBP|ILS|NIS|₪|€))/g;
 const DAY = 86400000;
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 // ── Time, in this machine's zone (the person's own) ──
 const pad = (n) => String(Math.floor(Math.abs(n))).padStart(2, "0");
@@ -64,7 +53,6 @@ function offsetOf(d) { const o = -d.getTimezoneOffset(); return (o >= 0 ? "+" : 
 function iso(d) { return ymd(d) + "T" + hhmm(d) + ":" + pad(d.getSeconds()) + offsetOf(d); }
 /** Midnight, `days` from today, in local time (safe across a clock change). */
 function dayStart(days) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + days); return d; }
-function at(day, hour) { const d = new Date(day); d.setHours(hour, 0, 0, 0); return d.getTime(); }
 
 function fail(msg) { console.error("first-sort: " + msg); process.exit(1); }
 function readJson(file) { return JSON.parse(fs.readFileSync(file, "utf8")); }
@@ -79,8 +67,8 @@ function workFile(name) {
   if (!fs.existsSync(file)) fail(`${name} is not in data/.work/ (save the answer there first)`);
   return file;
 }
-/** Every saved Gmail or Calendar answer as one text, to check that an amount was really written
- *  in the mail. The agent's own files (the profile, lists of amounts, scripts) are not proof. */
+/** Every saved OneDrive answer as one text, to check that an amount or a name was really written
+ *  in a file. The agent's own files (the profile, lists of amounts, scripts) are not proof. */
 function savedText() {
   if (!fs.existsSync(workDir)) return "";
   return fs.readdirSync(workDir).filter((f) => !/^profile|^latest|\.(m?js|py|sh)$/i.test(f)).map((f) => {
@@ -89,7 +77,7 @@ function savedText() {
       // A document read into text is what the document says.
       if (/\.txt$/i.test(f)) return t;
       // Only what the helper saved from OneDrive: its answers carry these keys.
-      return /"(messages|snippet|payload|items|body|files|comments|drives|storageQuota)"\s*:/.test(t) ? t : "";
+      return /"(files|comments|drives|storageQuota)"\s*:/.test(t) ? t : "";
     } catch { return ""; }
   }).join("\n");
 }
@@ -107,31 +95,18 @@ function pagesOf(name) {
     return raw.split(/\r?\n/).filter((l) => l.trim()).map((l) => { try { return JSON.parse(l); } catch { return fail(`${name} is not JSON: check the command that saved it`); } });
   }
 }
-const declined = (e) => Array.isArray(e.attendees) && e.attendees.some((a) => a && a.self && a.responseStatus === "declined");
-const allDay = (e) => !!(e.start && e.start.date && !e.start.dateTime);
-/** Calendar events that count: not cancelled, not declined. */
-function eventsOf(name) {
-  return pagesOf(name).flatMap((p) => p.items || p.events || []).filter((e) => e && e.status !== "cancelled" && !declined(e));
-}
-function timeZoneOf(name) { for (const p of pagesOf(name)) if (p && typeof p.timeZone === "string") return p.timeZone; return ""; }
 
 /** The exact count in one saved answer: { n, more } where more means there is more than counted. */
 function countFile(spec) {
-  const atSign = spec.lastIndexOf("@");
-  const name = atSign > 0 ? spec.slice(0, atSign) : spec;
-  const max = atSign > 0 ? Number(spec.slice(atSign + 1)) || 40 : 40;
-  let n = 0, more = false, capped = false;
+  const name = spec;
+  let n = 0, more = false;
   for (const p of pagesOf(name)) {
-    let list = Array.isArray(p) ? p : p.messages || p.items || p.threads || p.events || p.files || p.comments || p.drives || [];
+    const list = Array.isArray(p) ? p : p.files || p.comments || p.drives || [];
     if (!Array.isArray(list)) fail(`${name} has no list in it`);
-    // Calendar events: cancelled ones, the ones they declined and all-day ones do not count.
-    list = list.filter((e) => !(e && typeof e === "object" && (e.status === "cancelled" || allDay(e) || declined(e))));
     n += list.length;
     more = !!(p && p.nextPageToken);
-    // gws gmail +triage stops at --max and says nothing more: a full list is a cap.
-    if (p && !Array.isArray(p) && "query" in p && list.length >= max) capped = true;
   }
-  return { n, more: more || capped };
+  return { n, more };
 }
 function withWord(n, more, one, many) {
   const num = (more ? "at least " : "") + n.toLocaleString("en-US");
@@ -139,95 +114,14 @@ function withWord(n, more, one, many) {
 }
 function countWords(spec) { const [file, one, many] = spec.split("|").map((s) => s.trim()); const c = countFile(file); return withWord(c.n, c.more, one, many); }
 
-/** The sum of a saved list of amounts, each one written in a saved answer, all one currency. */
-function sumWords(name) {
-  let list;
-  try { list = readJson(workFile(name)); } catch { fail(`${name} is not a JSON list of amounts`); }
-  if (!Array.isArray(list) || !list.length) fail(`${name} must be a JSON list of amounts, like ["₪289.00","₪200.00"]`);
-  const text = savedText();
-  let total = 0, unit = null, decimals = 0;
-  const used = {};
-  for (const a of list) {
-    const s = String(a).trim();
-    used[s] = (used[s] || 0) + 1;
-    if (timesWritten(text, s) < used[s]) fail(`${s} is not written ${used[s] > 1 ? used[s] + " times " : ""}in the saved answers: copy amounts from the mail, each one once`);
-    const m = /^([^\d\s]*)\s?(\d[\d,]*(?:\.(\d+))?)\s?([^\d\s]*)$/.exec(s);
-    if (!m) fail(`${s} is not an amount`);
-    // ₪, ILS and NIS are one currency (and $/USD, €/EUR, £/GBP): "289.00 ILS" + "₪200.00" adds up.
-    const sign = { ILS: "₪", NIS: "₪", USD: "$", EUR: "€", GBP: "£" };
-    const cur = m[1] || sign[(m[4] || "").toUpperCase()] || m[4] || "";
-    const u = cur + "|";
-    if (unit !== null && u !== unit) fail("the amounts are in different currencies: leave the sum out");
-    unit = u;
-    decimals = Math.max(decimals, (m[3] || "").length);
-    total += Number(m[2].replace(/,/g, ""));
-  }
-  const [pre, post] = unit.split("|");
-  return pre + total.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + (post ? " " + post : "");
-}
-
-// ── Calendar findings the helper works out itself ──
-function busyOf(name) {
-  return eventsOf(name).filter((e) => !allDay(e)).map((e) => [new Date(e.start.dateTime).getTime(), new Date((e.end && e.end.dateTime) || e.start.dateTime).getTime()]);
-}
-/** Where a free stretch may sit on a day: weekdays 8 to 17 for work, evenings and weekends for Personal. */
-function windowsFor(day) {
-  const wd = day.getDay();
-  if (CONFIG.free === "personal") return wd === 0 || wd === 6 ? [[9, 22]] : [[18, 22]];
-  return wd === 0 || wd === 6 ? [] : [[8, 17]];
-}
-/** The first gap of 3 hours or more from now (rounded up to the quarter hour), in 14 days. */
-function freeWords(name) {
-  const span = freeSpan(name);
-  return span ? WEEKDAYS[new Date(span[0]).getDay()] + " " + hhmm(new Date(span[0])) + " to " + hhmm(new Date(span[1])) : "";
-}
-/** The first free stretch as [start, end] in ms, or null. */
-function freeSpan(name) {
-  const busy = busyOf(name);
-  const q = 15 * 60000;
-  const from = Math.ceil(Date.now() / q) * q;
-  for (let i = 0; i < 14; i++) {
-    const day = dayStart(i);
-    for (const [a, b] of windowsFor(day)) {
-      let start = Math.max(from, at(day, a));
-      const end = at(day, b);
-      if (start >= end) continue;
-      const inside = busy.filter(([s, e]) => e > start && s < end).sort((x, y) => x[0] - y[0]);
-      for (const [s, e] of [...inside, [end, end]]) {
-        if (s - start >= 3 * 3600000) return [start, s];
-        start = Math.max(start, e);
-      }
-    }
-  }
-  return null;
-}
-/** Evenings (18:00 to 22:00) with nothing booked, today and the six days after. */
-function eveningsCount(name) {
-  const busy = busyOf(name);
-  let n = 0;
-  for (let i = 0; i < 7; i++) { const d = dayStart(i), s = at(d, 18), e = at(d, 22); if (!busy.some(([a, b]) => b > s && a < e)) n++; }
-  return n;
-}
-/** Timed events from today to the end of today + 6, the page's "next 7 days". */
-function weekCount(name) {
-  const s = dayStart(0).getTime(), e = dayStart(7).getTime();
-  return eventsOf(name).filter((x) => !allDay(x) && (() => { const t = new Date(x.start.dateTime).getTime(); return t >= s && t < e; })()).length;
-}
-/** Birthdays and anniversaries in the next 30 days. */
-function datesCount(name) {
-  const end = dayStart(30).getTime();
-  return eventsOf(name).filter((e) => {
-    const t = new Date((e.start && (e.start.dateTime || e.start.date)) || 0).getTime();
-    return t >= dayStart(0).getTime() && t < end && (e.eventType === "birthday" || (allDay(e) && /birthday|anniversary|יום הולדת/i.test(e.summary || "")));
-  }).length;
-}
-
 // ── OneDrive through Microsoft Graph: the helper reads, and saves every answer in data/.work/ ──
 // The agent never types a Graph call. `get` reads OneDrive and saves each answer as a list of
 // files ({"files":[...]}, the shape every check below reads), so a card can only name a file
 // OneDrive answered with. `read` saves one file's words for the agent to read.
 const GRAPH = /^http:\/\/127\.0\.0\.1:\d+\/v1\.0$/.test(process.env.FIRST_SORT_TEST_GRAPH || "") ? process.env.FIRST_SORT_TEST_GRAPH : "https://graph.microsoft.com/v1.0";
 const MAX_DELTA_PAGES = 40, MAX_PERMISSIONS = 60, MAX_COMMENT_FILES = 30, MAX_READ = 25 * 1024 * 1024;
+// Comments are read from inside each Office file: only small ones, so 30 of them stay a small download.
+const MAX_COMMENT_READ = 5 * 1024 * 1024;
 const FOLDER = "folder";
 /** Stops a Graph read with a code the agent reads (2 not connected, 3 sign in again, 4 no
  *  permission). Never process.exit while a connection is open: Node on Windows loses the code. */
@@ -593,7 +487,7 @@ async function getOne(name, opts) {
   } else if (name === "comments") {
     // The Word, Excel and PowerPoint files changed in 14 days: their open comments, one answer each.
     const office = /\.(docx|docm|xlsx|xlsm|pptx|pptm)$/i;
-    const pick = w.files.filter((x) => office.test(x.f.name) && t(x.f) >= from(14) && (x.f.size || 0) < MAX_READ).map((x) => x.f).sort(byNewest).slice(0, MAX_COMMENT_FILES);
+    const pick = w.files.filter((x) => office.test(x.f.name) && t(x.f) >= from(14) && (x.f.size || 0) < MAX_COMMENT_READ).map((x) => x.f).sort(byNewest).slice(0, MAX_COMMENT_FILES);
     const map = {};
     let n = 0;
     await inTurns(pick.map((f) => async () => {
@@ -849,18 +743,11 @@ function checkSharing(d, files) {
   d.open.sort((a, b) => (b.sensitive === true) - (a.sensitive === true));
 }
 
-/** Fill the placeholders; then every amount left must be in the mail, and no claim word typed. */
+/** Fill the {count:} placeholders; then every amount left must be in a saved answer. */
 function fill(text, where) {
   const made = [];
-  const out = String(text).replace(/\{(count|sum|free|evenings|dates|week):([^}]+)\}/g, (_, kind, spec) => {
-    const [file, one, many] = spec.split("|").map((s) => s.trim());
-    // Like {count:}, a word is added only when it is asked for: {evenings:events.json|free evening|free evenings}.
-    const v = kind === "count" ? countWords(spec.trim())
-      : kind === "sum" ? sumWords(file)
-      : kind === "free" ? freeWords(file)
-      : kind === "evenings" ? withWord(eveningsCount(file), false, one, many)
-      : kind === "week" ? withWord(weekCount(file), false, one, many)
-      : withWord(datesCount(file), false, one, many);
+  const out = String(text).replace(/\{count:([^}]+)\}/g, (_, spec) => {
+    const v = countWords(spec.trim());
     made.push(v);
     return v;
   });
@@ -870,21 +757,19 @@ function fill(text, where) {
   // "**Two payments**": a count written as a word is a count nobody made.
   if (/\*\*[^*]*\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b[^*]*\*\*/i.test(rest)) fail("refused, a count written as a word: use {count:<file>|one|many}");
   if (/\b(\w+ \w+) \1\b/i.test(out)) fail("refused, words are doubled: the helper adds the word you give after |, don't type it again");
-  // "0 birthdays" is not a finding: a line whose numbers are all 0 says nothing.
-  // The finding is the bold part: "**0 birthdays** in the next 30 days" is a 0.
+  // "0 files" is not a finding: a line whose numbers are all 0 says nothing.
+  // The finding is the bold part: "**0 files** open to anyone" is a 0.
   const bold = (out.match(/\*\*[^*]+\*\*/g) || []).join(" ");
   const nums = ((bold || out).replace(/\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2}/g, "").match(/\d[\d,.]*/g) || []);
   if (where === "the line" && nums.length && nums.every((x) => Number(x.replace(/,/g, "")) === 0)) fail("refused, a 0 is not a finding: say what is there, or leave the line out");
-  // On a calendar, "all", "only", "none" and the like are facts the helper cannot check.
-  if (CONFIG.noClaimWords && /\b(all|every|everyone|none|nothing|only|nearly|always|never|nobody)\b/i.test(rest)) fail(`refused, a word like "all" or "only" in ${where} states a fact nobody counted: leave it out`);
   const saved = (rest.match(MONEY) || []).length ? savedText() : "";
   for (const amount of rest.match(MONEY) || []) {
-    if (!timesWritten(saved, amount.trim())) fail(`refused, ${amount.trim()} in ${where} is not written in any saved answer: use {sum:<file>} for a total`);
+    if (!timesWritten(saved, amount.trim())) fail(`refused, ${amount.trim()} in ${where} is not written in any saved answer: copy it as the file writes it`);
   }
   return out;
 }
 
-/** Strings get their placeholders; money must be in the mail; zero money, a typed 0 and
+/** Strings get their placeholders; money must be in a saved answer; zero money, a typed 0 and
  *  empty fields are left out, at any depth: "₪0 came in" is not a finding. */
 function tidy(o, where) {
   for (const [key, v] of Object.entries(o)) {
@@ -915,17 +800,10 @@ function lockReading() {
 // ── The gift: one thing the owner can act on now, shown while the reading goes on ──
 // Each template names its kinds and what each one needs (CONFIG.gift).
 const GIFT_KINDS = (CONFIG.gift && CONFIG.gift.kinds) || {};
-/** A date as Gmail wrote it ("Tue, 23 Sep 2026 16:40:00 -0400", or internalDate in ms). A
- *  date with no year ("October 15") is the next one from today. */
-function gmailDate(v) {
-  const s = String(v).trim();
-  let d = /^\d{12,14}$/.test(s) ? new Date(Number(s)) : new Date(s);
-  if (isNaN(d.getTime())) return null;
-  if (!/\b\d{4}\b/.test(s) && !/^\d{12,14}$/.test(s)) {
-    d.setFullYear(new Date().getFullYear());
-    if (d.getTime() < dayStart(-1).getTime()) d.setFullYear(d.getFullYear() + 1);
-  }
-  return d;
+/** A time as OneDrive wrote it ("2026-10-17T08:40:00Z"). */
+function timeOf(v) {
+  const d = new Date(String(v).trim());
+  return isNaN(d.getTime()) ? null : d;
 }
 function giftOf(g) {
   if (!g || typeof g !== "object" || Array.isArray(g)) fail("the gift must be an object");
@@ -935,7 +813,7 @@ function giftOf(g) {
   const out = { kind };
   const saved = savedText();
   // Who, what, when and where are copied from a saved answer, never typed.
-  for (const key of ["who", "subject", "since", "when", "threadId", "file", "fileId"]) {
+  for (const key of ["who", "since", "file", "fileId"]) {
     if (g[key] === undefined || g[key] === null || g[key] === "") continue;
     const v = String(g[key]).trim();
     if (v.length > 160) fail(`${key} is longer than 160 characters`);
@@ -961,28 +839,11 @@ function giftOf(g) {
     out.limit = st.limit;
   }
   if (out.since) {
-    const d = gmailDate(out.since);
-    if (!d) fail(`since "${out.since}" is not a date: copy the Date header or internalDate`);
+    const d = timeOf(out.since);
+    if (!d) fail(`since "${out.since}" is not a time: copy it as OneDrive wrote it`);
     if (d.getTime() > Date.now() + 5 * 60000 || d.getTime() < Date.now() - 60 * DAY) fail("since must be a day in the last 60 days");
     out.since = iso(d);
   }
-  // When it is coming: a day from today to 60 days on, copied as the mail writes it.
-  if (out.when) {
-    const d = gmailDate(out.when);
-    if (!d) fail(`when "${out.when}" is not a date: copy the day as the mail writes it, like "October 15, 2026"`);
-    if (d.getTime() < dayStart(0).getTime() || d.getTime() > Date.now() + 60 * DAY) fail("when must be a day from today to 60 days from now");
-    out.when = ymd(d);
-  }
-  // Money as the mail writes it, each amount in a saved answer.
-  for (const key of ["amount", "was"]) {
-    if (g[key] === undefined || g[key] === "") continue;
-    const v = String(g[key]).trim();
-    const m = v.match(MONEY);
-    if (!m || m.length !== 1 || m[0].trim() !== v) fail(`${key} is one amount with its currency, like "₪289.00"`);
-    if (!timesWritten(saved, v)) fail(`refused, ${v} is not written in any saved answer: copy the amount as the mail writes it`);
-    out[key] = v;
-  }
-  if (out.threadId && !/^[0-9a-f]{8,24}$/i.test(out.threadId)) fail("threadId is Gmail's thread id, like 18c2f4a9b0e1d2c3");
   // The gist is one line in your words: what they want. No numbers: those are the helper's.
   if (g.gist !== undefined && g.gist !== "") {
     const gist = fill(String(g.gist).trim(), "the gist");
@@ -991,56 +852,14 @@ function giftOf(g) {
     out.gist = gist;
   }
   // Counts only through {count:<file>}: the helper counts.
-  for (const key of ["count", "unread"]) {
+  for (const key of ["count"]) {
     if (g[key] === undefined || g[key] === "") continue;
     const typed = String(g[key]).trim();
     if (!/^\{count:[^}]+\}$/.test(typed)) fail(`${key} must be {count:<file>|one|many}, so the helper counts it`);
     out[key] = fill(typed, "the gift's " + key);
   }
-  // Calendar: name the event by its id; its title, time, place and guests come from the
-  // calendar's own answer, never typed.
-  for (const [key, n] of [["eventId", ""], ["eventId2", "2"]]) {
-    if (g[key] === undefined || g[key] === "") continue;
-    const e = eventsOf("events.json").find((x) => x && x.id === String(g[key]));
-    if (!e) fail(`refused, no event with id ${g[key]} in events.json (cancelled and declined ones do not count)`);
-    const start = new Date((e.start && (e.start.dateTime || e.start.date + "T00:00:00")) || 0);
-    const end = new Date((e.end && (e.end.dateTime || e.end.date + "T00:00:00")) || start);
-    if (end.getTime() <= Date.now() || start.getTime() > Date.now() + 31 * DAY) fail(`refused, ${e.summary || "that event"} is not coming up in the next 30 days`);
-    out["title" + n] = String(e.summary || "Busy").slice(0, 120);
-    out["start" + n] = allDay(e) ? e.start.date : iso(start);
-    if (!allDay(e)) out["end" + n] = iso(end);
-    if (!n) {
-      const guests = (e.attendees || []).filter((a) => a && !a.self && !a.resource);
-      const names = guests.map((a) => a.displayName).filter(Boolean).slice(0, 3);
-      if (names.length) out.people = names;
-      if (guests.length - names.length > 0) out.morePeople = guests.length - names.length;
-      if (e.location) out.place = String(e.location).split(",")[0].trim().slice(0, 80);
-      if (typeof e.htmlLink === "string" && e.htmlLink.startsWith("https://www.google.com/calendar/")) out.link = e.htmlLink;
-    }
-  }
-  if (kindNeeds(kind, "eventId2")) {
-    // A clash: two timed events that really overlap.
-    if (!out.end || !out.end2 || !(new Date(out.start) < new Date(out.end2) && new Date(out.start2) < new Date(out.end))) fail("refused, those two events do not overlap");
-    if (g.eventId === g.eventId2) fail("refused, a clash needs two different events");
-  }
-  if (kindNeeds(kind, "people") && !out.people && !out.morePeople) fail("refused, that event has no other guests");
-  if (kindNeeds(kind, "birthday")) {
-    const e = eventsOf("events.json").find((x) => x && x.id === String(g.eventId));
-    if (!(e.eventType === "birthday" || /birthday|anniversary|יום הולדת/i.test(e.summary || ""))) fail("refused, that event is not a birthday or an anniversary");
-  }
-  // The next free stretch, worked out by the helper from the calendar (3 hours or more).
-  if (kindNeeds(kind, "free")) {
-    const free = freeWords("events.json");
-    if (!free) fail("refused, there is no free stretch of 3 hours in the next 14 days: give calm");
-    out.free = free;
-    const span = freeSpan("events.json");
-    out.freeStart = iso(new Date(span[0]));
-    out.freeEnd = iso(new Date(span[1]));
-  }
   return out;
 }
-/** What a kind needs beyond its fields: "people" (guests), "birthday", "free", "eventId2". */
-function kindNeeds(kind, what) { return ((CONFIG.gift && CONFIG.gift.needs && CONFIG.gift.needs[kind]) || []).includes(what) || (what === "eventId2" && (GIFT_KINDS[kind] || []).includes("eventId2")); }
 
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "window") {
@@ -1119,23 +938,13 @@ if (cmd === "window") {
   try { p = readJson(workFile(arg.slice(1).replace(/^.*data[\\/]\.work[\\/]/, ""))); } catch { fail(`${arg.slice(1)} is not JSON in data/.work/`); }
   if (!p || typeof p !== "object" || Array.isArray(p)) fail("the profile must be an object");
   // What the helper works out itself is never taken from the file.
-  // mattered30 needs every email of the 30 days sorted by the helper, which it cannot do: left out.
-  const own = ["schema", "at", "mattered30", ...Object.keys(CONFIG.counts), ...(CONFIG.free ? ["timeZone", "nextFree", "freeEvenings", "dates30"] : [])];
+  const own = ["schema", "at", ...Object.keys(CONFIG.counts)];
   for (const key of own) delete p[key];
   tidy(p, "profile");
   for (const [key, name] of Object.entries(CONFIG.counts)) {
     if (!fs.existsSync(path.join(workDir, name))) fail(`${name} is missing: save that answer under that name first`);
     const c = countFile(name);
-    // A 0 here can mean Gmail did not sort at all (its tabs are off): not a finding.
-    if (!c.more && !(c.n === 0 && (CONFIG.zeroUnknown || []).includes(key))) p[key] = c.n;
-  }
-  if (CONFIG.free) {
-    const ev = fs.existsSync(path.join(workDir, "events.json")) ? "events.json" : fail("events.json is missing: save the coming days' answer under that name first");
-    const tz = timeZoneOf(ev);
-    if (tz) p.timeZone = tz;
-    const free = freeWords(ev);
-    if (free) p.nextFree = free;
-    if (CONFIG.free === "personal") { p.freeEvenings = eveningsCount(ev); const d = datesCount(ev); if (d) p.dates30 = d; }
+    if (!c.more) p[key] = c.n;
   }
   if (CONFIG.drive) {
     delete p.storage;
@@ -1146,7 +955,7 @@ if (cmd === "window") {
   console.log("profile written: " + Object.keys(p).join(", "));
 } else if (cmd === "latest") {
   // latest.json from the JSON your script wrote into data/.work/: the helper sets what it can
-  // know for sure (the times, today, the count of what arrived, the time zone).
+  // know for sure (the time, storage, the account, what changed this week).
   const arg = args.join(" ").trim();
   if (!arg.startsWith("@")) fail("give it as @<file>: the latest.json your script wrote into data/.work/");
   let l;
@@ -1154,78 +963,44 @@ if (cmd === "window") {
   if (!l || typeof l !== "object" || Array.isArray(l)) fail("latest.json must be an object");
   const n = new Date();
   l.generatedAt = iso(n);
-  if (CONFIG.free) {
-    l.checkedAt = iso(n);
-    l.today = ymd(dayStart(0));
-    l.readThrough = ymd(dayStart(-1));
-    const hasEvents = fs.existsSync(path.join(workDir, "events.json"));
-    const tz = hasEvents ? timeZoneOf("events.json") : "";
-    if (tz) l.timeZone = tz;
-    // Each event as the calendar has it: cancelled and declined ones out, the guests counted,
-    // the place filled in, and the names only the ones the calendar gives.
-    if (hasEvents && Array.isArray(l.events)) {
-      const byId = new Map(eventsOf("events.json").map((e) => [e.id, e]));
-      const raw = new Map(pagesOf("events.json").flatMap((p) => p.items || p.events || []).map((e) => [e && e.id, e]));
-      l.events = l.events.filter((ev) => !ev || !ev.id || !raw.has(ev.id) || byId.has(ev.id)).map((ev) => {
-        const e = ev && ev.id ? byId.get(ev.id) : null;
-        if (!e) return ev;
-        const guests = (e.attendees || []).filter((a) => a && !a.self && !a.resource);
-        const names = new Set(guests.map((a) => a.displayName).filter(Boolean));
-        const people = Array.isArray(ev.people) ? ev.people.filter((p) => names.has(p)).slice(0, 3) : [];
-        const out = { ...ev, people, morePeople: Math.max(0, guests.length - people.length) };
-        if (!out.place && e.location) out.place = String(e.location).split(",")[0].trim() || null;
-        return out;
-      });
+  // The page shows a file only in its own shape: schema, not an example, every lane a list.
+  if (typeof l.headline !== "string" || !l.headline.trim()) fail("latest.json needs a headline (\"Nobody is waiting on you\" is one)");
+  // Every string, in every card: placeholders filled, and each amount written in a saved answer.
+  const walk = (o, where) => {
+    for (const [k, v] of Object.entries(o)) {
+      if (typeof v === "string") o[k] = fill(v, where + "." + k);
+      else if (v && typeof v === "object") walk(v, where + "." + k);
     }
-    // The headline and the note say only what was counted.
-    for (const key of ["headline", "note"]) if (typeof l[key] === "string") l[key] = fill(l[key], key);
-    l.status = "ok";
-  } else {
-    // The page shows a file only in its own shape: schema, not an example, every lane a list.
-    if (typeof l.headline !== "string" || !l.headline.trim()) fail("latest.json needs a headline (\"Nobody is waiting on you\" is one)");
-    // Every string, in every card: placeholders filled, and each amount written in the mail.
-    const walk = (o, where) => {
-      for (const [k, v] of Object.entries(o)) {
-        if (typeof v === "string") o[k] = fill(v, where + "." + k);
-        else if (v && typeof v === "object") walk(v, where + "." + k);
-      }
-    };
-    walk(l, "latest");
-    if (CONFIG.latest) {
-      l.schema = CONFIG.latest.schema;
-      for (const lane of CONFIG.latest.lanes) if (!Array.isArray(l[lane])) l[lane] = [];
+  };
+  walk(l, "latest");
+  if (CONFIG.latest) {
+    l.schema = CONFIG.latest.schema;
+    for (const lane of CONFIG.latest.lanes) if (!Array.isArray(l[lane])) l[lane] = [];
+  }
+  l.example = false;
+  if (CONFIG.drive) {
+    // Every card names a file OneDrive answered with; storage, the account and what changed
+    // this week come from OneDrive's own answers.
+    checkLanes(l);
+    checkFiles(l, "latest", driveFiles());
+    dropEchoGists(l);
+    // "What fills your OneDrive" is for files that take room: a file under 1 MB is not one.
+    if (Array.isArray(l.big)) l.big = l.big.filter((b) => b && Number(b.size) >= 1024 * 1024);
+    delete l.storage; delete l.changed7; delete l.changed7More; delete l.account;
+    const storage = storageOf();
+    if (storage) l.storage = storage;
+    const account = accountOf();
+    if (account) l.account = account;
+    if (CONFIG.changed && fs.existsSync(path.join(workDir, CONFIG.changed))) {
+      const c = countFile(CONFIG.changed);
+      l.changed7 = c.n;
+      if (c.more) l.changed7More = true;
     }
-    l.example = false;
-    // What arrived is the helper's count of the 30-day inbox, and the window says so.
-    delete l.arrived;
-    if (CONFIG.counts.mail30 && fs.existsSync(path.join(workDir, CONFIG.counts.mail30))) {
-      const c = countFile(CONFIG.counts.mail30);
-      if (!c.more) { l.arrived = c.n; l.since = ymd(dayStart(-30)); }
-    }
-    if (CONFIG.drive) {
-      // Every card names a file OneDrive answered with; storage, the account and what changed
-      // this week come from OneDrive's own answers.
-      checkLanes(l);
-      checkFiles(l, "latest", driveFiles());
-      dropEchoGists(l);
-      // "What fills your OneDrive" is for files that take room: a file under 1 MB is not one.
-      if (Array.isArray(l.big)) l.big = l.big.filter((b) => b && Number(b.size) >= 1024 * 1024);
-      delete l.storage; delete l.changed7; delete l.changed7More; delete l.account;
-      const storage = storageOf();
-      if (storage) l.storage = storage;
-      const account = accountOf();
-      if (account) l.account = account;
-      if (CONFIG.changed && fs.existsSync(path.join(workDir, CONFIG.changed))) {
-        const c = countFile(CONFIG.changed);
-        l.changed7 = c.n;
-        if (c.more) l.changed7More = true;
-      }
-      l.since = ymd(dayStart(-7));
-    }
+    l.since = ymd(dayStart(-7));
   }
   writeJson(path.join(dataDir, "latest.json"), l);
-  if (!CONFIG.free) writeJson(path.join(dataDir, "status.json"), { at: iso(n), ok: true });
-  console.log("latest.json written" + (CONFIG.free ? "" : ", and status.json"));
+  writeJson(path.join(dataDir, "status.json"), { at: iso(n), ok: true });
+  console.log("latest.json written, and status.json");
 } else if (cmd === "done") {
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
   // done deletes the saved answers: after a refusal that throws away the read. "done failed" when it really failed.
