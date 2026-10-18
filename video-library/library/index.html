@@ -767,7 +767,6 @@
     readStartedAt: "",
     /** When this page asked for the first save, so the screen shows before the first line. */
     saveAskedAt: 0,
-    giftAsked: null,
     giftShownAt: null,
     giftDone: null,
     offersShown: {},
@@ -1037,7 +1036,7 @@
 
   function cleanReading(d) {
     if (!d || typeof d !== "object" || !Array.isArray(d.lines)) return null;
-    var lines = d.lines.map(function (l) { return text(typeof l === "string" ? l : l && l.text, 200); }).filter(Boolean).slice(-14);
+    var lines = d.lines.map(function (l) { return text(l, 200); }).filter(Boolean).slice(-14);
     return { startedAt: d.startedAt, updatedAt: d.updatedAt, done: d.done === true, lines: lines, gift: cleanGift(d.gift), offers: cleanOffers(d.offers) };
   }
   /** What changed in a reading, in one string: a new line, the gift, an offer, done. */
@@ -1063,8 +1062,6 @@
     if ((Date.now() - last.getTime()) / 60000 < READ_FRESH_MIN) return true;
     return !r.done && savingNow() && (Date.now() - at.getTime()) / 3600000 < READ_LONGEST_H;
   }
-  /** Lines from a save that went quiet over 20 minutes ago are not this one's. */
-  function freshLines() { return freshReading() ? state.reading.lines : []; }
   /** The agent is still saving: the file says so, and it is fresh. */
   function readingNow() { return !!(state.reading && !state.reading.done && freshReading()); }
   /** Save was pressed here and the agent has not written its first line yet. */
@@ -1072,7 +1069,8 @@
   /** No video of the person's own is in the library yet: the example, or only failed tries. */
   function firstSave() { return state.example || !state.data || !saved().length; }
   // Once done, one more beat on "Putting it on your page" before the page, unless the video is there already.
-  function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done && firstSave() ? 1 : 0)); }
+  // A reading from an earlier try, or one that went quiet, has nothing left to tell.
+  function revealing() { return !!(state.sawReading && freshReading() && state.readShown < state.reading.lines.length + (state.reading.done && firstSave() ? 1 : 0)); }
   /** The reading fills the page from the moment the first save starts. Later saves never show it. */
   function showReading() { return ((askedNow() || readingNow()) && firstSave()) || revealing(); }
   setInterval(function () {
@@ -1089,8 +1087,9 @@
     var all = fresh ? r.lines : [];
     state.sawReading = true;
     var lines = all.slice(0, state.readShown);
-    // The last lines come with done: keep them on screen until the page itself is ready.
-    var done = !!(r && r.done) && lines.length === all.length;
+    // The last lines come with done: keep them on screen until the page itself is ready. An
+    // earlier try's done (a no, or a save that failed) is not this one's: it is still opening the link.
+    var done = fresh && r.done && lines.length === all.length;
     var gift = fresh ? r.gift : null;
     var offers = fresh ? r.offers : [];
     var side = gift || offers.length
@@ -1142,7 +1141,7 @@
       '<p class="eyebrow">' + icon("i-bulb") + (reading ? "First, the gist" : "From your first save") + "</p>" +
       '<h3 dir="auto"><b>' + bidi(g.video) + "</b> " + (reading ? "is on its way in." : "is in your library.") + "</h3>" +
       '<p class="why">' + (reading ? "Want a 5-line summary the moment it’s in?" : "Want its 5-line summary and the minute most worth watching?") + "</p>" +
-      (state.giftAsked === g.at
+      (state.giftDone === g.at
         ? '<p class="asked">' + icon("i-check") + "Asked. The answer is coming in the chat.</p>"
         : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do">' + icon("i-list") + "Yes, sum it up</button>" : "") +
           (reading ? "" : '<button type="button" class="btn quiet" data-act="gift-skip">Not now</button>') + "</div>") +
@@ -1194,14 +1193,16 @@
     if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(OFFERS_KEY, Object.keys(state.offersAsked)).catch(function () {});
   }
 
-  // While the first save goes on, its lines are looked at every few seconds: a file change says
-  // so too, but a missed one never leaves the reading stuck.
+  // While the first save's screen is up, its lines are looked at every few seconds: a file change
+  // says so too, but a missed one never leaves the reading stuck. Once the screen is gone (or on a
+  // later save, which never shows it) a file change is enough.
   setInterval(function () {
-    if (!askedNow() && !readingNow()) {
-      // The wait for the first line ran out, or the save went quiet: back to the page.
-      if (document.documentElement.classList.contains("first-read") && !showReading()) paint();
+    if (!showReading()) {
+      // The wait for the first line ran out, the save went quiet, or the video is on the page.
+      if (document.documentElement.classList.contains("first-read")) paint();
       return;
     }
+    if (document.visibilityState === "hidden") return;
     quiet(maybe(readJson("reading.json"))).then(function (d) {
       var r = cleanReading(d);
       if (!r || (state.reading && readingSig(r) === readingSig(state.reading))) return;
@@ -3191,9 +3192,8 @@
       var gift = state.reading && state.reading.gift;
       if (gift) {
         ask(summaryAsk(gift.video));
-        state.giftAsked = gift.at;
-        if (showReading()) paintHero();
-        else { giftDone(); paint(); }
+        giftDone();
+        if (showReading()) paintHero(); else paint();
       }
     } else if (act === "gift-skip") {
       giftDone(true);
