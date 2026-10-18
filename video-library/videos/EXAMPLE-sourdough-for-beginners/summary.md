@@ -1,7 +1,7 @@
 ---
 title: "Sourdough for Beginners: Your First Loaf"
-channel: "Crumb and Co"
-link: https://www.youtube.com/watch?v=EXAMPLE
+channel: "@crumbandco"
+link: https://www.tiktok.com/@crumbandco/video/EXAMPLE
 madeBy: video-librarian
 example: true
 ---

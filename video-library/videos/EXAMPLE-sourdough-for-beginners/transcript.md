@@ -1,6 +1,7 @@
 ---
 title: "Transcript: Sourdough for Beginners: Your First Loaf"
-youtube_id: EXAMPLE
+source: tiktok
+video_id: EXAMPLE
 language: "en"
 example: true
 ---
