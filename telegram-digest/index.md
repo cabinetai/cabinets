@@ -1,36 +1,45 @@
 ---
 title: Telegram Digest
 created: '2026-08-13T00:00:00Z'
-modified: '2026-09-15T00:00:00Z'
-tags: [telegram, chats, messages, digest, showcase]
+modified: '2026-10-15T00:00:00Z'
+tags: [telegram, chats, groups, channels, messages, digest, catch-up]
 order: 1
 ---
 # Telegram Digest
 
-Every morning, what came in on Telegram overnight and which of it wants you.
+Telegram shows every chat. This shows the few that need you, and what you can safely skip.
 
-## What you get
+Every morning at 9, your digest reads the chats and groups your Cabinet bot is in and opens
+on one page:
 
-One page, waiting for you at 9. Every chat that moved overnight gets one line, who
-it was, how many messages piled up, what it actually wants from you, and how urgent
-that is. The loudest chat does not win: the ones waiting on an answer sit at the top,
-and the forty-message group about lunch sits at the bottom where it belongs.
+- **Since the last morning**: a message from cabinet with the one thing that matters, and every
+  message as a small dot, the ones that need you in blue.
+- **Waiting on you**: people who asked you, mentioned you or replied to you, longest wait
+  first, each with a reply in your voice to copy.
+- **You said you would**: what you told people you would do, found in your own messages.
+  Telegram never reminds you; this does.
+- **Decided in your groups**: plans and choices, one line each, with who agreed.
+- **Links and files**: what people sent you, so you can find it again.
+- **Channels**: each channel that posted, and whether it is worth reading.
+- **Safe to skip**: the loud chats that never needed you, counted, so you can trust the rest.
 
-Nothing is sent, replied to, or marked read. It only reads.
+Ask anything about your chats in the box at the bottom, try an idea ("Catch me up on a busy
+group", "Every plan in one list"), and arrange the page your way with **Layout**.
 
-## How to look at it
+## To start
 
-Open the **Daily Digest** app in this cabinet. It comes pre-filled with a made-up
-example so you can see the shape of it straight away. The page says clearly that
-those chats are fake. Your first real digest takes its place.
+Open **Catch up**: it starts with a setup guide, ten short steps with a picture of each screen. Press **Connect Telegram**. BotFather makes you a bot in about two
+minutes, and you paste its key into Cabinet. Add the bot to the groups you want read: it sees
+a group from the moment it joins. To let it see every message in a group, not only the ones
+that mention it, send BotFather `/setprivacy`, pick your bot and choose Disable. The first reading takes about a minute and shows you what it
+finds as it reads. Until then the page shows a made-up Telegram, clearly marked.
 
-## Before it can read your real Telegram
+## It only reads
 
-Connect Telegram from Integrations in Cabinet, or when Cabinet asks. You do it
-once. After that it stays connected. Until then the page keeps showing the example.
+It never sends, replies, reacts or marks anything as read. Replies are yours to copy and send.
 
-## What's inside
+## Inside
 
-- **Chat Reader**: the one agent. Reads the night's chats, writes the digest.
-- **Morning Telegram Digest**: the one routine. Runs at 09:00 every day.
-- **Daily Digest**: the one page. Opens on today, with a picker for earlier days.
+- **Catch up**: the app this cabinet opens on, and what you told it about your chats.
+- **Chat Reader**: the agent. Reads your Telegram, writes the page, answers in the chat.
+- **Morning Telegram Digest**: the routine, every day at 9.
