@@ -303,12 +303,60 @@ function checkDates(d, files) {
     if (!day || isNaN(day.getTime())) fail(`${where}.date is a day as YYYY-MM-DD`);
     if (day.getTime() < dayStart(-1).getTime() || day.getTime() > dayStart(400).getTime()) fail(`${where}.date must be from today to about a year ahead`);
     if (typeof x.quote !== "string" || !x.quote.trim()) fail(`${where}.quote is the words in the document that give the date`);
+    // "rent goes to 2,350" when the paper says "$2,350": the amount keeps its currency.
+    for (const m of String(x.gist || "").matchAll(/(^|[^$€£₪¥\d.,])(\d{1,3}(?:,\d{3})+(?:\.\d\d)?)(?![\d])/g)) {
+      if (/[$€£₪¥]\s?$/.test(String(x.gist).slice(0, m.index + m[1].length))) continue;
+      const cur = new RegExp("[$€£₪¥]\\s?" + m[2].replace(/[.,]/g, (c) => "\\" + c) + "(?!\\d)").exec(text);
+      if (cur) fail(`refused, ${where}.gist writes ${m[2]} where the document says ${cur[0]}: copy the amount with its currency (use single quotes in the shell)`);
+    }
     const f = files.get(String(x.fileId));
     if (f && /^application\/vnd\.google-apps\.(document|spreadsheet)$/.test(f.mimeType) && !text.includes(plainWords(x.quote))) {
       fail(`refused, ${where}.quote is not written in the exported document: copy the words as they are`);
     }
   });
   d.dates.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+/** The searches every morning needs, and the lanes they fill: a lane left empty while its
+ *  answer holds files is a read that skipped a step. */
+const MORNING = ["mine.json", "shared.json"];
+function checkLanes(l) {
+  for (const name of MORNING) if (!fs.existsSync(path.join(workDir, name))) fail(`refused, ${name} is missing: run that search (your persona has it) before latest`);
+  const from14 = dayStart(-14).getTime();
+  const mine = pagesSafe("mine.json").flatMap((p) => (p && p.files) || []).filter((x) => x && (x.modifiedByMeTime || x.modifiedTime) && new Date(x.modifiedByMeTime || x.modifiedTime).getTime() >= from14);
+  if (mine.length && !(Array.isArray(l.recent) && l.recent.length)) fail(`refused, recent is empty while mine.json has ${mine.length} files they changed in the last 14 days`);
+}
+/** A gist that is the file name again (give or take its extension) is left out. */
+function dropEchoGists(o) {
+  const bare = (v) => String(v || "").toLowerCase().replace(/\.[a-z0-9]{2,5}$/, "").replace(/[^a-z0-9]+/g, " ").trim();
+  if (Array.isArray(o)) { o.forEach(dropEchoGists); return; }
+  if (!o || typeof o !== "object") return;
+  if (typeof o.gist === "string" && (o.name || o.file) && bare(o.gist) === bare(o.name || o.file)) delete o.gist;
+  for (const v of Object.values(o)) if (v && typeof v === "object") dropEchoGists(v);
+}
+/** The dates searches as the persona gives them. */
+const SEARCH_PARAMS = { contracts: { q: "trashed = false and (name contains 'contract' or name contains 'agreement' or name contains 'lease' or name contains 'policy' or name contains 'insurance' or name contains 'license' or name contains 'renewal' or name contains 'SOW' or fullText contains 'renewal date' or fullText contains 'expires on' or fullText contains 'notice')", pageSize: 40, fields: "files(id,name,mimeType,modifiedTime)" } };
+/** What a dates search is saved as, and what it looks for, by the file it fills. */
+const DATE_SEARCHES = { papers: ["find-papers.json", "papers"], dates: ["contracts.json", "contracts"] };
+/**
+ * No dates without reading: the search must be saved, and when it found files, some of them
+ * read into data/.work/ as doc-<n>.txt or doc-<n>.pdf. A first read that skips this tells the
+ * person nothing needs them while a deadline sits in their Drive.
+ */
+function checkRead(which, d) {
+  const [search, what] = DATE_SEARCHES[which] || [];
+  if (!search) return;
+  if (!fs.existsSync(path.join(workDir, search))) fail(`refused, ${search} is missing: run that search first (your persona has it), then read the ${what} it finds`);
+  const found = pagesSafe(search).flatMap((p) => (p && p.files) || []).filter((x) => x && x.mimeType !== "application/vnd.google-apps.folder").length;
+  if (!found) return;
+  const docs = fs.readdirSync(workDir).filter((x) => /^doc-[A-Za-z0-9_-]+\.(txt|pdf)$/i.test(x));
+  const need = Math.min(found, 4);
+  if (docs.length < need) fail(`refused, ${search} found ${found} files and ${docs.length} ${docs.length === 1 ? "was" : "were"} read: read at least ${need} (up to six) as doc-<n>.txt or doc-<n>.pdf in data/.work/, the ones that matter most, and copy their dates`);
+  // A signed contract or a scanned paper is usually a PDF: reading only what exports as text misses it.
+  const pdfs = pagesSafe(search).flatMap((p) => (p && p.files) || []).filter((x) => x && x.mimeType === "application/pdf").length;
+  if (pdfs && !docs.some((x) => /\.pdf$/i.test(x))) fail(`refused, ${search} found ${pdfs} PDF${pdfs === 1 ? "" : "s"} and you read none: a signed contract or a scanned paper is usually a PDF, so download the ones that matter (alt media, doc-<n>.pdf) and read them too`);
+  if (which === "papers" && Array.isArray(d.papers) && !d.papers.length && !(typeof d.none === "string" && d.none.trim())) {
+    fail(`refused, ${search} found ${found} files and papers is empty: list the ones that are papers, or say in "none" why none of them is`);
+  }
 }
 /** data/sharing.json: "anyone" only for a file a visibility search answered with; "outside"
  *  only with domains written in a saved answer. */
@@ -531,6 +579,18 @@ if (cmd === "window") {
   fs.mkdirSync(workDir, { recursive: true });
   writeJson(readingFile, { schema: `${CONFIG.schema}/reading@1`, startedAt: iso(new Date()), done: false, lines: [] });
   console.log("reading started; save answers in " + path.relative(process.cwd(), workDir));
+} else if (cmd === "params") {
+  // The exact --params of a dates search: copy it, never write your own shorter one.
+  const p = SEARCH_PARAMS[String(args[0] || "").replace(/\.json$/, "")];
+  if (!p) fail("use params " + Object.keys(SEARCH_PARAMS).join(" or "));
+  console.log(JSON.stringify(p));
+} else if (cmd === "list") {
+  // Every file in a saved answer, one line each, so a long answer is never cut short to read it.
+  for (const name of args) {
+    const all = pagesSafe(name).flatMap((p) => [].concat((p && p.files) || [], (p && p.drives) || []));
+    console.log(`${name}: ${all.length} ${all.length === 1 ? "file" : "files"}`);
+    for (const x of all) console.log([x.id, kindOf(x.mimeType || ""), x.name, x.modifiedTime ? String(x.modifiedTime).slice(0, 10) : "", (x.parents || [])[0] || ""].join(" | "));
+  }
 } else if (cmd === "count") {
   for (const spec of args) { const c = countFile(spec); console.log(`${spec}: ${c.n}${c.more ? " (there is more than this)" : ""}`); }
 } else if (cmd === "push") {
@@ -657,7 +717,9 @@ if (cmd === "window") {
     if (CONFIG.drive) {
       // Every card names a file Drive answered with; storage, the account and what changed
       // this week come from Drive's own answers.
+      checkLanes(l);
       checkFiles(l, "latest", driveFiles());
+      dropEchoGists(l);
       delete l.storage; delete l.changed7; delete l.changed7More; delete l.account;
       const storage = storageOf();
       if (storage) l.storage = storage;
@@ -676,6 +738,10 @@ if (cmd === "window") {
   console.log("latest.json written" + (CONFIG.free ? "" : ", and status.json"));
 } else if (cmd === "done") {
   const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  // done deletes the saved answers: after a refusal that throws away the read. "done failed" when it really failed.
+  const latestFile = path.join(dataDir, "latest.json");
+  const wrote = fs.existsSync(latestFile) && fs.statSync(latestFile).mtimeMs >= new Date(r.startedAt).getTime();
+  if (!wrote && args[0] !== "failed") fail("refused, latest.json was not written in this read: fix what the helper refused and run latest first (or \"done failed\" when the read really failed)");
   r.done = true;
   writeJson(readingFile, r);
   try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("data/.work/ is busy: delete it in your next call"); }
@@ -691,6 +757,7 @@ if (cmd === "window") {
   if (!d || typeof d !== "object" || Array.isArray(d)) fail(`${which}.json must be an object`);
   if (typeof d.headline !== "string" || !d.headline.trim()) fail(`${which}.json needs a headline`);
   const files = driveFiles();
+  checkRead(which, d);
   if (which === "dates") checkDates(d, files); else checkSharing(d, files);
   checkFiles(d, which, files);
   d.headline = fill(d.headline, "headline");
