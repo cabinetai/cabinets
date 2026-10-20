@@ -4,7 +4,7 @@
 
   For a freelancer: the hours spent with each client this week and this month, ready for
   invoices, the client meetings of today with help before and after, free time for new
-  work, and the week. Personal events show only as "Busy". The page is a grid of boxes each person arranges for themselves
+  work, and the week. Personal events keep their titles here, which only the person sees. The page is a grid of boxes each person arranges for themselves
   (Edit layout): add, remove, move and resize, kept per person in cabinet.mine.
 
   Where the words come from: the morning routine reads Google Calendar and writes
@@ -2774,7 +2774,7 @@
         '<span class="d">' + esc(i === 0 ? "Today" : x.d.date.toLocaleDateString([], { weekday: "short" })) + "</span></li>";
     }).join("");
     return '<div class="sheet" aria-label="Client hours on each of the next seven days"><p class="sheet-total">' + (state.example ? "Example · " : "") +
-      "<b>" + esc(hoursWords(h.total.week)) + "</b> this week · " + esc(hoursWords(h.total.month)) + " this month</p>" +
+      "<b>" + esc(hoursWords(h.total.month)) + "</b> done this month · " + esc(hoursWords(h.total.booked)) + " booked this week</p>" +
       '<ol class="bars">' + bars + "</ol></div>";
   }
   /** The headline's first row: the page's mark, and on the right the connection and the buttons. */
@@ -2808,10 +2808,10 @@
   }
 
   /**
-   * A work calendar keeps private life private: a personal event shows only as "Busy" on
-   * the page (pressing it still shows its details to the person).
+   * The page is the person's own, so their events keep their titles. Only what goes to someone
+   * else (the free times message, a report) says "busy" for a personal event.
    */
-  function shownTitle(e) { return e.kind === "personal" ? "Busy" : e.title; }
+  function shownTitle(e) { return e.title || "Busy"; }
 
   /** One event as a row: its time, its name, who or what kind; a press opens it. */
   function dayRow(e, withDay) {
@@ -3034,31 +3034,45 @@
     return head + '<div class="strip">' + cols + "</div>" + nudgeHtml(boxIdea("week"));
   }
 
-  /** Hours with each client this week, from the week's meetings, and this month, from the routine. */
+  /**
+   * Hours with each client. This month is time already spent: the routine's count of meetings
+   * that ended since the 1st, plus what ended today after it ran. Booked is what is still to
+   * come in the next seven days. A meeting tomorrow is never billed today.
+   */
   function clientHours() {
     var f = state.facts;
-    var seen = {}, week = {};
-    f.days.forEach(function (d) {
+    var nowM = nowMinutes();
+    // generatedAt has the helper machine's offset (a cloud runner may be on UTC): read it on
+    // this browser's clock, the same one as the day keys and nowMinutes().
+    var gen = new Date((state.data && state.data.generatedAt) || "");
+    var runM = f.days.length && ymd(gen) === f.days[0].key ? gen.getHours() * 60 + gen.getMinutes() : 0;
+    var seen = {}, booked = {}, since = {};
+    f.days.forEach(function (d, i) {
       d.events.forEach(function (e) {
         if (seen[e.id] || e.allDay || e.kind !== "client") return;
         seen[e.id] = true;
         var key = e.client || e.title;
-        week[key] = (week[key] || 0) + (endOf(e) - e.start) / 60;
+        var end = endOf(e);
+        if (i === 0) {
+          since[key] = (since[key] || 0) + Math.max(0, Math.min(end, nowM) - Math.max(e.start, runM)) / 60;
+          booked[key] = (booked[key] || 0) + Math.max(0, end - Math.max(e.start, nowM)) / 60;
+        } else {
+          booked[key] = (booked[key] || 0) + (end - e.start) / 60;
+        }
       });
     });
-    // This month always holds this week's hours, even when the morning's count is older.
-    var rows = state.data.clients.map(function (c) { return { id: c.id, name: c.name, week: week[c.id] || 0, month: Math.max(c.hours, week[c.id] || 0) }; });
-    Object.keys(week).forEach(function (k) {
-      if (!rows.some(function (r) { return r.id === k; })) rows.push({ id: k, name: k, week: week[k], month: week[k] });
+    var rows = state.data.clients.map(function (c) { return { id: c.id, name: c.name, booked: booked[c.id] || 0, month: c.hours + (since[c.id] || 0) }; });
+    Object.keys(booked).forEach(function (k) {
+      if (!rows.some(function (r) { return r.id === k; })) rows.push({ id: k, name: k, booked: booked[k], month: since[k] || 0 });
     });
-    rows = rows.filter(function (r) { return r.week > 0 || r.month > 0; });
-    rows.sort(function (a, b) { return b.month - a.month || b.week - a.week; });
-    var total = { week: 0, month: 0 };
-    rows.forEach(function (r) { total.week += r.week; total.month += r.month; });
+    rows = rows.filter(function (r) { return r.booked > 0 || r.month > 0; });
+    rows.sort(function (a, b) { return b.month - a.month || b.booked - a.booked; });
+    var total = { booked: 0, month: 0 };
+    rows.forEach(function (r) { total.booked += r.booked; total.month += r.month; });
     return { rows: rows, total: total };
   }
 
-  /** Hours: what you spent with each client this week and this month, ready for invoices. */
+  /** Hours: what you spent with each client this month, ready for invoices, and what is booked. */
   function drawHours(level) {
     var h = clientHours();
     if (level === "S") {
@@ -3069,10 +3083,10 @@
     var max = Math.max.apply(null, h.rows.map(function (r) { return r.month; }).concat([1]));
     var rows = h.rows.map(function (r) {
       return '<li><span class="hname">' + bdi(r.name) + '<span class="hbar" aria-hidden="true"><span style="width:' + Math.round(r.month / max * 100) + '%"></span></span></span>' +
-        '<span class="hnum num">' + esc(r.week ? hoursWords(r.week) : "") + '</span><span class="hnum num"><b>' + esc(hoursWords(r.month)) + "</b></span></li>";
+        '<span class="hnum num">' + esc(r.booked ? hoursWords(r.booked) : "") + '</span><span class="hnum num"><b>' + esc(r.month ? hoursWords(r.month) : "") + "</b></span></li>";
     }).join("");
-    var head = '<li class="hhead"><span class="hname">Client</span><span class="hnum">Week</span><span class="hnum">Month</span></li>';
-    var foot = h.rows.length ? '<li class="htotal"><span class="hname">Total</span><span class="hnum num">' + esc(hoursWords(h.total.week)) + '</span><span class="hnum num"><b>' + esc(hoursWords(h.total.month)) + "</b></span></li>" : "";
+    var head = '<li class="hhead"><span class="hname">Client</span><span class="hnum">Booked</span><span class="hnum">This month</span></li>';
+    var foot = h.rows.length ? '<li class="htotal"><span class="hname">Total</span><span class="hnum num">' + esc(hoursWords(h.total.booked)) + '</span><span class="hnum num"><b>' + esc(hoursWords(h.total.month)) + "</b></span></li>" : "";
     return listBox("hours", "Hours", "i-receipt", hoursWords(h.total.month) + " this month", h.rows.length,
       '<ol class="rows hourlist">' + head + rows + foot + "</ol>", "No client hours this month yet.") + nudgeHtml(boxIdea("hours"));
   }
@@ -3195,6 +3209,7 @@
   // person in cabinet.mine) and the next one moves up.
 
   var DONE_KEY = "calendar-week-done@1";
+  var ROUTINE_DAYS = 3;       // a title on this many days of the week is a routine
   function todayKey() { return ymd(new Date()); }
   function readyThings() {
     var f = state.facts;
@@ -3206,7 +3221,7 @@
     f.days.forEach(function (d) { d.events.forEach(function (e) { var k = e.title.toLowerCase(); times[k] = (times[k] || 0) + 1; }); });
     f.days.slice(0, 2).forEach(function (d, di) {
       d.events.forEach(function (e) {
-        if (!withPeople(e) || e.day !== d.key || times[e.title.toLowerCase()] >= 3 || isNow(e)) return;
+        if (!withPeople(e) || e.day !== d.key || times[e.title.toLowerCase()] >= ROUTINE_DAYS || isNow(e)) return;
         var who = whoWords(e);
         if (!hasEnded(e)) {
           out.push({ key: pre + "prep:" + e.id + ":" + e.day, rank: 0, order: di * 1440 + e.start, title: "Prepare for " + e.title,
@@ -3355,15 +3370,21 @@
 
   var HIDDEN_IDEAS_KEY = "calendar-week-hidden-ideas@1";
   function ideaFacts() { return state.facts; }
+  /** A meeting worth preparing or following up: with people, and not a routine on three or more days. */
+  function worthHelp(f) {
+    var times = {};
+    f.days.forEach(function (d) { d.events.forEach(function (e) { var k = e.title.toLowerCase(); times[k] = (times[k] || 0) + 1; }); });
+    return function (e) { return withPeople(e) && (times[e.title.toLowerCase()] || 0) < ROUTINE_DAYS; };
+  }
   var IDEA_FITS = {
     prep: function (f) {
       // The next event already has its own Prep me on the Today box: offer the one after it.
-      var e = f.later.filter(withPeople)[0];
+      var e = f.later.filter(worthHelp(f))[0];
       if (!e) return null;
       return { line: "“" + e.title + "” is at " + clock(e.start) + ", " + inWords(e.start - nowMinutes()) + ".", act: "Prep me", q: state.example ? "" : prepAsk(e) };
     },
     follow: function (f) {
-      var e = f.earlier.filter(withPeople).pop();
+      var e = f.earlier.filter(worthHelp(f)).pop();
       if (!e) return null;
       return { line: "“" + e.title + "” ended at " + clock(endOf(e)) + ".", act: "Draft a follow-up", q: state.example ? "" : followAsk(e) };
     },
