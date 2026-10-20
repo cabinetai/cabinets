@@ -9,9 +9,9 @@ tags: [setup]
 Replace the answers below with your own. Plain sentences are perfect — the reporter
 reads this before every morning, so what you write here is what you get tomorrow.
 
-**Sections I want, in order:** Calendar first, then mail, then money. (List the
-sources you care about. Anything connected but not listed goes at the bottom;
-anything listed but not connected is skipped without fuss.)
+**Order of sections:** Calendar first, then mail, then money. (Which apps are read
+is picked on the Report page, out of everything you connected. This line only sets
+their order; a picked app you don't name here goes at the bottom.)
 
 **What counts as urgent for me:** A named person waiting on a reply, anything with
 today's date on it, any payment that failed. (The reporter leads with these.)
