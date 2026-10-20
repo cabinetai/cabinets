@@ -1904,7 +1904,8 @@
    * has nothing to be (`when` says what it waits for).
    */
   var BOXES = {
-    headline: { cls: "headline", draw: drawHeadline, group: "email", icon: "i-inbox", w: 12, h: 4, min: [4, 3],
+    // The headline keeps its size: made small, it hides Ideas and Edit layout.
+    headline: { cls: "headline", fixed: true, draw: drawHeadline, group: "email", icon: "i-inbox", w: 12, h: 4, min: [4, 3],
       title: "Headline", desc: "What is owed to you, and the money matter that needs you most." },
     next: { cls: "lane next", list: true, draw: drawNext, group: "email", icon: "i-check", w: 7, h: 4, min: [3, 3],
       title: "Your next 3 things", desc: "The three money matters to deal with first, each one tap away. Tick them off." },
@@ -2219,7 +2220,7 @@
         el.tabIndex = 0;
         el.setAttribute("aria-label", BOXES[spot.id].title + (stack
           ? ". Up and down arrows move it."
-          : ". Arrow keys move it. Shift and arrow keys change its size."));
+          : ". Arrow keys move it." + (BOXES[spot.id].fixed ? "" : " Shift and arrow keys change its size.")));
       } else {
         el.removeAttribute("tabindex");
         el.removeAttribute("aria-label");
@@ -2253,7 +2254,7 @@
     var html = BOXES[id].draw(level);
     if (state.editing) {
       html += '<button type="button" class="box-x" data-act="remove-box" aria-label="Remove ' + esc(BOXES[id].title) + '">' + icon("i-x") + "</button>";
-      html += phone()
+      if (!BOXES[id].fixed) html += phone()
         ? '<div class="box-size" role="group" aria-label="Size of ' + esc(BOXES[id].title) + '">' + ["S", "M", "L"].map(function (size) {
             return '<button type="button" data-act="phone-size" data-size="' + size + '" aria-pressed="' + (level === size) + '">' + LEVEL_WORDS[size] + "</button>";
           }).join("") + "</div>"
@@ -3580,6 +3581,7 @@
     var s = spotIn(placed(), id);
     if (!s) return;
     var min = minSize(id);
+    if (resize && BOXES[id].fixed) return;
     if (resize) {
       var w = clamp(s.w + d[0], min.w, COLS - s.x);
       var h = clamp(s.h + d[1], min.h, 40);
