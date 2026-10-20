@@ -298,11 +298,13 @@ Three files, all in one Bash call, then stop.
      (waiting), `date` (the day it was sent), `short`, `threadId`.
    - `fyi` items: `id` (f1...), `kind` (review, news, other), `from`, `gist`,
      `receivedAt`, `threadId`.
-   Leave out any key you have nothing true for. Dates are `YYYY-MM-DD`. `headline` says
+   Leave out any key you have nothing true for. Dates are `YYYY-MM-DD`, except
+   `receivedAt`: the email's own time from its `Date` header, ISO with offset
+   (`2026-10-14T15:42:00+03:00`), so the page can say when it came. `headline` says
    the waiting lane: "5 people are waiting on you", "1 person is waiting on you",
    "Nobody is waiting on you". `lead` is the one email that matters most today, with a
    judgment call ("A lead that waits a day usually calls someone else"); leave it out on
-   a quiet day. `totals.quotes` sums the quotes still waiting.
+   a quiet day. It is the first `waiting` item, by the order in The lanes. `totals.quotes` sums the quotes still waiting.
 2. **`reports/<YYYY-MM-DD>-morning.md`**: frontmatter `title: Morning, <Weekday D Month>`,
    then the headline in bold and one bullet per card under `## Waiting on you`,
    `## Quotes waiting`, `## Also worth a look`, and a last line
@@ -319,7 +321,11 @@ Never fall back to the example, an earlier day, or what an inbox usually holds.
 - **Waiting on you**: a real person wants something from the owner (a quote, an answer,
   a visit, a decision, a payment arrangement). At most 12: `urgent` first, then new
   leads, then the longest waiting. `urgent` only when someone is stuck, a deadline is
-  within 48 hours, or it is a new lead. `waitingSince` when they have waited 2 days or
+  within 48 hours, or it is a new lead. Among the urgent ones, the costliest wait comes
+  first: a customer who says they will stop, pause, cancel or leave, then a deadline
+  today or tomorrow, then a new lead. A deadline can be a meeting: an answer needed
+  "before the call" or "before Thursday's meeting" is due that day; set `due` to it.
+  `waitingSince` when they have waited 2 days or
   more. A thread the owner answered last is not waiting. `reply` for up to four: a short
   reply in setup.md's voice and the sender's language, `\n` for line breaks, the choice
   only the owner can make in square brackets (`[Tuesday at 9am]`), never an invented
@@ -328,7 +334,10 @@ Never fall back to the example, an earlier day, or what an inbox usually holds.
   yes or no to (`waiting`). Drop a quote once they answer, or once it is 60 days old. At
   most 10, oldest first.
 - **Also worth a look**: from a person or an organisation the business deals with, nothing
-  to do (a review, a permit, a renewal). At most 6.
+  to do (a review, a permit, a renewal). At most 6. An email that asks the owner to send,
+  decide or do something is Waiting on you, even with no question mark, even from a
+  teammate, and even when it reads like news ("Finance wants 10% off; send me your cuts
+  by Oct 23").
 - **Set aside**: newsletters, promotions, social media, sign-in alerts, calendar
   invitations and their replies, and what setup.md says. No card; count them in
   `leftOut`. Sort one email at a time: `leftOut.count` and its senders are only the

@@ -61,7 +61,7 @@ decides your way in. You only ever read.
    status and stop. Never read mail any other way.
 
 Good search words for money: `invoice OR receipt OR payment OR paid OR "amount due" OR
-statement OR bill OR overdue OR declined OR refund`. Sent invoices: `in:sent invoice`.
+statement OR bill OR overdue OR declined OR refund OR expense OR expenses OR reimburse OR reimbursement`. Sent invoices: `in:sent invoice`.
 
 ## Spend little
 
@@ -341,6 +341,20 @@ Never fall back to the example, an earlier day, or what an inbox usually holds.
 Cases that are easy to get wrong:
 - An invoice the owner sent is money in. An invoice a supplier sent the owner is a bill.
 - A receipt is something already paid: `receipts`, never `bills`.
+- A receipt's `amount` is in the email, often only in the body or a table: open it
+  (`+read`, one of the three of Spend little) when the subject and snippet have no
+  amount. Leave `amount` out only when
+  the email truly has none.
+- One payment, one receipt. A card or bank alert and the seller's own receipt for the same
+  charge (same seller, same day, or the same amount within two days) are one receipt: keep
+  the one with the amount and the clearer name.
+- A person asking the owner to approve or pay money (an expense report, a contractor
+  invoice, "OK to pay?") is a bill, `status` `due`, `due` the day they need it by, and
+  `short` says it waits on the owner's OK. Open it for the total when the snippet has none
+  (one of the three): an approval with no amount can't be weighed.
+  A money question with nothing to pay ("over
+  budget, will you tell finance?") goes to Also worth a look with the question in `gist`,
+  never only the numbers.
 - When a payment matches an open invoice (same customer, same amount), drop the invoice
   and keep the payment.
 - Sign-in, security, password and shipping alerts are set aside: never a card.
@@ -349,8 +363,10 @@ Cases that are easy to get wrong:
   guess.
 - `amount` is only money, copied as written with its currency ("$42.10", "€18", "₪450").
   No amount in the email, no `amount` key: never words like "declined".
-- Every total adds only when every item in it has an amount in the same currency.
-  Otherwise leave that total out. `owed` adds open and overdue invoices, `billsDue` the
+- Every total adds the items that have an amount, when they share one currency; a list
+  of one is a total too. Leave a total out only when currencies mix. `₪`, `ILS` and `NIS`
+  are one currency, as are `$` and `USD`. An `autopay` bill with no amount is not in
+  `billsDue`. `owed` adds open and overdue invoices, `billsDue` the
   unpaid bills, `billsDueBy` their latest due date, `cameIn` the payments, `receipts` the
   receipts.
 

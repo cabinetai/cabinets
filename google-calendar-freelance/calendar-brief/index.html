@@ -1297,6 +1297,16 @@
     if (e.lastDay > e.day) return " to " + DAYS[parseDay(e.lastDay).getDay()].slice(0, 3) + " " + clock(e.end);
     return " to " + clock(endOf(e));
   }
+  /** Time zones where the weekend is Friday and Saturday (Israel, much of the Arab world); elsewhere it is Saturday and Sunday. */
+  var FRI_SAT_ZONES = /^(Asia\/(Jerusalem|Tel_Aviv|Hebron|Gaza|Riyadh|Kuwait|Qatar|Bahrain|Muscat|Amman|Baghdad|Damascus|Aden|Dhaka)|Africa\/(Cairo|Algiers|Tripoli|Khartoum)|Indian\/Maldives)$/;
+  /** Is this day a weekend day? Follows the calendar's time zone, or the browser's when there is none. */
+  function isWeekend(d) {
+    var zone = (state.data && !state.data.example && state.data.timeZone) || Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    var w = d.getDay();
+    return FRI_SAT_ZONES.test(zone) ? w === 5 || w === 6 : w === 0 || w === 6;
+  }
+  /** A day this many days from d. */
+  function dayAfter(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
   /** A time zone name the browser knows, or null. */
   function knownZone(v) {
     if (typeof v !== "string" || !v || v.length > 64) return null;
@@ -1651,8 +1661,7 @@
   /** Free stretches between 8:00 and 17:00 on a weekday, from now on for today. */
   function openStretches(day, isToday, min) {
     var least = min || MIN_FREE;
-    var dow = day.date.getDay();
-    if (dow === 0 || dow === 6 || day.outside) return [];
+    if (isWeekend(day.date) || day.outside) return [];
     var busy = busyOf(day);
     var from = DAY_FROM;
     if (isToday) from = Math.max(from, Math.ceil(nowMinutes() / 15) * 15);
@@ -3368,12 +3377,12 @@
       return { line: count(n, "client", "clients") + " you used to meet " + plural(n, "has", "have") + " gone quiet.", act: "Draft check-ins", q: state.example ? "" : checkInAsk(f.quiet) };
     },
     weekly: function (f) {
-      var dow = f.today.getDay();
-      return dow === 4 || dow === 5 ? { line: "It's " + DAYS[dow] + ". Sum up your week?", act: "Write it" } : null;
+      var t = f.today, dow = t.getDay();
+      return !isWeekend(t) && (isWeekend(dayAfter(t, 1)) || isWeekend(dayAfter(t, 2))) ? { line: "It's " + DAYS[dow] + ". Sum up your week?", act: "Write it" } : null;
     },
     nextweek: function (f) {
-      var dow = f.today.getDay();
-      return dow === 5 || dow === 6 || dow === 0 ? { line: "Next week starts soon. Plan it now?", act: "Plan next week" } : null;
+      var t = f.today;
+      return isWeekend(t) || isWeekend(dayAfter(t, 1)) ? { line: "Next week starts soon. Plan it now?", act: "Plan next week" } : null;
     },
     people: function () { return { line: "Your calendar already knows who you meet.", act: "List who I meet" }; },
     hours: function (f) {

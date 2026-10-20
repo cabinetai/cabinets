@@ -171,11 +171,18 @@ function busyOf(name) {
     return [s.getTime(), end.getTime()];
   }).filter(([a, b]) => !isNaN(a) && !isNaN(b));
 }
-/** Where a free stretch may sit on a day: weekdays 8 to 17 for work, evenings and weekends for Personal. */
-function windowsFor(day) {
+/** Time zones where the weekend is Friday and Saturday (Israel, much of the Arab world); elsewhere it is Saturday and Sunday. */
+const FRI_SAT_ZONES = /^(Asia\/(Jerusalem|Tel_Aviv|Hebron|Gaza|Riyadh|Kuwait|Qatar|Bahrain|Muscat|Amman|Baghdad|Damascus|Aden|Dhaka)|Africa\/(Cairo|Algiers|Tripoli|Khartoum)|Indian\/Maldives)$/;
+/** Is this day a weekend day in the calendar's time zone (the machine's when the calendar has none)? */
+function isWeekend(day, zone) {
   const wd = day.getDay();
-  if (CONFIG.free === "personal") return wd === 0 || wd === 6 ? [[9, 22]] : [[18, 22]];
-  return wd === 0 || wd === 6 ? [] : [[8, 17]];
+  return FRI_SAT_ZONES.test(zone || Intl.DateTimeFormat().resolvedOptions().timeZone || "") ? wd === 5 || wd === 6 : wd === 0 || wd === 6;
+}
+/** Where a free stretch may sit on a day: weekdays 8 to 17 for work, evenings and weekends for Personal. */
+function windowsFor(day, zone) {
+  const weekend = isWeekend(day, zone);
+  if (CONFIG.free === "personal") return weekend ? [[9, 22]] : [[18, 22]];
+  return weekend ? [] : [[8, 17]];
 }
 /** The first gap of 3 hours or more from now (rounded up to the quarter hour), in 14 days. */
 function freeWords(name) {
@@ -189,7 +196,7 @@ function freeSpan(name) {
   const from = Math.ceil(Date.now() / q) * q;
   for (let i = 0; i < 14; i++) {
     const day = dayStart(i);
-    for (const [a, b] of windowsFor(day)) {
+    for (const [a, b] of windowsFor(day, timeZoneOf(name))) {
       let start = Math.max(from, at(day, a));
       const end = at(day, b);
       if (start >= end) continue;
