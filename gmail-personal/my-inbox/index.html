@@ -49,9 +49,9 @@
 
     /* Today's sky. These are the first-light values; the script moves them with the hour. */
     --sky-top: #dfeaee; --sky-mid: #edf0ea; --sky-low: #f8ead8;
-    --sky-orb: #f4a259; --sky-orb-core: #ffd29a; --sky-halo: rgba(255, 210, 154, .28);
+    --sky-orb: #f9ab00; --sky-orb-core: #fdd663; --sky-halo: rgba(255, 210, 154, .28);
     --sky-x: 78%; --sky-y: 70%;
-    --sky-ink: #1b2528; --sky-ink-2: #3f4b4f; --sky-greet: #224b3a;
+    --sky-ink: #1b2528; --sky-ink-2: #3f4b4f; --sky-greet: #965000;
 
     --terra: #d95d39;
     --terra-ink: #a73918;
@@ -732,6 +732,57 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
+  /* Gmail's M in the "Gmail connected" pill, in place of the dot. */
+  .gm { width: 18px; height: 14px; flex: none; }
+  .pill.ok .gm + .dot { display: none; }
+
+  /* ── Gmail Personal's Google colour ─────────────────────────────────────── */
+  /* Google's sunny yellow: the sun in the sky band, the icons in the box titles, the
+     main buttons (dark words on yellow), the reading lines, and a deep warm brown for
+     the Ask box. Red stays for what is overdue or failed, green for done. */
+  .btn.primary { background: #f9ab00; border-color: #f9ab00; color: #3c2a00; box-shadow: 0 8px 18px -10px rgba(176, 96, 0, .6); }
+  .btn.primary:hover { background: #f29900; border-color: #f29900; }
+  .lane-head .lane-icon { color: #e37400; }
+  .read-lines li .icon { color: #e37400; }
+  .read-lines li.now .pulse-dot, .read-strip .pulse-dot, .gift.looking .pulse-dot { background: #f9ab00; }
+  .gift .eyebrow, .welcome .eyebrow { color: #965000; }
+  .ask { background: #7a4f01; }
+  .ask .btn.primary { background: #f9ab00; border-color: #f9ab00; color: #3c2a00; }
+  .ask .btn.primary:hover { background: #fbbc04; border-color: #fbbc04; }
+  .box.ask .nudge > .icon { color: #fdd663; }
+  /* ── The reading scene ─────────────────────────────────────────────────── */
+  /* While the first sort reads, the foot of the reading sheet shows a small live piece of
+     the banner that grows with each line the agent finds, and is whole when the reading is
+     done. Gmail's M sits by the title. The gift sheet takes a soft wash of the banner. */
+  .reading { overflow: hidden; --rx: clamp(20px, 3vw, 36px); --ry: 26px; }
+  .reading h2 { display: flex; align-items: flex-start; gap: .32em; }
+  .reading h2 .gm { width: .78em; height: .6em; flex: none; margin-top: .26em; }
+  .read-scene { position: relative; isolation: isolate; overflow: hidden; min-height: 150px; margin: 20px calc(-1 * var(--rx)) calc(-1 * var(--ry)); }
+  @media (min-width: 980px) {
+    .read-page .reading { --rx: clamp(28px, 3.4vw, 52px); --ry: 40px; display: flex; flex-direction: column; gap: 6px; }
+    .read-page .read-scene { flex: 1 1 auto; min-height: 240px; margin-top: 28px; }
+  }
+  .read-page .gift:not(.looking) { background: linear-gradient(180deg, color-mix(in srgb, var(--sky-top) 50%, var(--page)) 0, var(--page) 46%); }
+  @media (prefers-reduced-motion: reduce) { .read-scene, .read-scene * { animation: none !important; transition: none !important; } }
+
+  /* Gmail Personal: today's sky over two soft hills; the sun climbs a step for every line
+     found, and stands high when the reading is done. */
+  .read-scene.sky { background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 58%, var(--sky-low) 100%); }
+  .read-scene .sun {
+    position: absolute; z-index: 0; width: 76px; height: 76px; border-radius: 50%; transform: translate(-50%, 50%);
+    left: calc(16% + var(--p) * 58%); bottom: calc(-6% + var(--p) * 62%);
+    background: radial-gradient(circle at 50% 42%, var(--sky-orb-core) 0, var(--sky-orb) 74%);
+    box-shadow: 0 0 34px 16px var(--sky-halo), 0 0 90px 44px color-mix(in srgb, var(--sky-halo) 55%, transparent);
+    animation: sun-step 1.4s cubic-bezier(.3, .7, .2, 1) both;
+  }
+  @keyframes sun-step { from { left: calc(16% + var(--p0) * 58%); bottom: calc(-6% + var(--p0) * 62%); } }
+  .sky-night .read-scene .sun { background: transparent; box-shadow: inset -18px 10px 0 0 var(--sky-orb); filter: drop-shadow(0 0 14px var(--sky-halo)); }
+  .read-scene .hills { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; width: 100%; height: 46%; max-height: 120px; }
+  .read-scene .hills .far { fill: color-mix(in srgb, var(--sky-low) 72%, #9fb79a); }
+  .read-scene .hills .near { fill: color-mix(in srgb, var(--sky-low) 50%, #8fae8a); }
+  .sky-night .read-scene .hills .far { fill: #22305a; }
+  .sky-night .read-scene .hills .near { fill: #1a2547; }
+  @media (max-width: 979px) { .read-scene .sun { width: 54px; height: 54px; } }
 </style>
 </head>
 <body>
@@ -1447,6 +1498,24 @@
     state.reading = r;
   }
   function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  /*
+   * The reading scene. How far it has grown: each line found takes it a fifth of the way
+   * that is left, so every line shows, and it is whole only when the reading is done. The
+   * scene remembers where it was, so only the new part moves in.
+   */
+  var sceneWas = 0;
+  function sceneProgress(n, done) { return done ? 1 : 1 - Math.pow(0.8, n); }
+  function sceneStep(p) { var from = Math.min(sceneWas, p); sceneWas = p; return from; }
+  var GMAIL_MARK = '<svg class="gm" viewBox="52 42 88 66" aria-hidden="true"><path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/><path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/><path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/><path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/><path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"/></svg>';
+  function readSceneHtml(n, done) {
+    var p = sceneProgress(n, done), from = sceneStep(p);
+    return '<div class="read-scene sky" aria-hidden="true">' +
+      '<i class="sun" style="--p:' + p.toFixed(3) + ";--p0:" + from.toFixed(3) + '"></i>' +
+      '<svg class="hills" viewBox="0 0 600 120" preserveAspectRatio="none">' +
+      '<path class="far" d="M0 70 C 90 30, 190 34, 290 62 S 480 40, 600 58 V120 H0 Z"/>' +
+      '<path class="near" d="M0 96 C 120 70, 230 78, 330 96 S 520 80, 600 92 V120 H0 Z"/></svg></div>';
+  }
+
   function readingHtml() {
     // The last lines come with done: keep them on screen until the page itself is ready.
     var done = !!(state.reading && state.reading.done);
@@ -1456,11 +1525,11 @@
     var lines = all.slice(0, Math.min(state.readShown, all.length));
     done = done && lines.length === all.length;
     var gift = giftNow();
-    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your email</h2>' +
+    return '<div class="read-page' + (!gift && done ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>' + GMAIL_MARK + '<span>Reading your email</span></h2>' +
       "<p>Getting to know you and your inbox. About a minute. You don\u2019t need to do anything.</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>"; }).join("") +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your page together" : lines.length ? "Reading on" : "Opening your Gmail") + "...</span></li></ul>" +
-      '<p class="fine">Only reads. Nothing is sent, and it all stays in your cabinet.</p></div>' +
+      '<p class="fine">Only reads. Nothing is sent, and it all stays in your cabinet.</p>' + readSceneHtml(lines.length, done) + "</div>" +
       (gift ? giftHtml(gift, "reading")
         : done ? ""
         : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing I can take off your plate right now.</h3></section>') +
@@ -1555,7 +1624,7 @@
     // An older Cabinet cannot say whether Gmail is connected: plain words, no state dot.
     if (!V2) pill = '<span class="updated">Connect Gmail from Integrations in Cabinet.</span>';
     else if (!state.gmail) pill = '<span class="pill"><span class="dot pulse"></span>Checking Gmail</span>';
-    else if (s === "connected") pill = '<span class="pill ok"><span class="dot"></span>Gmail connected</span>';
+    else if (s === "connected") pill = '<span class="pill ok"><svg class="gm" viewBox="52 42 88 66" aria-hidden="true"><path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/><path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/><path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/><path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/><path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"/></svg><span class="dot"></span>Gmail connected</span>';
     else if (s === "not-available-here") pill = '<span class="pill"><span class="dot"></span>Gmail not available here</span>';
     else if (s === "needs-sign-in" || s === "needs-you") pill = '<span class="pill warn"><span class="dot"></span>Gmail needs you</span>';
     else pill = '<span class="pill off"><span class="dot"></span>Gmail not connected</span>';
@@ -1591,9 +1660,9 @@
         ? '<circle cx="108" cy="24" r="14" fill="#d95d39"/><path d="M108 16.5v9M108 30.5v.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>'
         : "";
     return '<svg class="art" viewBox="0 0 132 104" aria-hidden="true">' +
-      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#ebf3ee"/>' +
-      '<rect x="20" y="26" width="92" height="60" rx="9" fill="#fff" stroke="#3a6351" stroke-width="3"/>' +
-      '<path d="M22 30l44 30 44-30" fill="none" stroke="#3a6351" stroke-width="3" stroke-linejoin="round"/>' +
+      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#fef7e0"/>' +
+      '<rect x="20" y="26" width="92" height="60" rx="9" fill="#fff" stroke="#b06000" stroke-width="3"/>' +
+      '<path d="M22 30l44 30 44-30" fill="none" stroke="#b06000" stroke-width="3" stroke-linejoin="round"/>' +
       mark + "</svg>";
   }
 
@@ -2380,9 +2449,9 @@
     [0, "#0e1a33", "#1b2b4d", "#34436a", "#e9e6da", "#fbfaf3", [233, 230, 218, .10]],
     [4.5, "#0e1a33", "#1b2b4d", "#34436a", "#e9e6da", "#fbfaf3", [233, 230, 218, .10]],
     [6, "#26365f", "#8a7aa6", "#f0b49a", "#f08a5d", "#ffc9a0", [255, 190, 150, .25]],
-    [7.5, "#dfeaee", "#edf0ea", "#f8ead8", "#f4a259", "#ffd29a", [255, 210, 154, .28]],
-    [11, "#cfe3f1", "#e4eef3", "#f3f0e6", "#f7b955", "#ffe3a6", [255, 226, 160, .30]],
-    [15, "#bfd8ec", "#dfeaf1", "#f5ead6", "#f5ad4f", "#ffdc96", [255, 214, 150, .28]],
+    [7.5, "#dfeaee", "#edf0ea", "#f8ead8", "#f9ab00", "#fdd663", [255, 210, 154, .28]],
+    [11, "#cfe3f1", "#e4eef3", "#f3f0e6", "#fbbc04", "#fee8a0", [255, 226, 160, .30]],
+    [15, "#bfd8ec", "#dfeaf1", "#f5ead6", "#f9ab00", "#fdd663", [255, 214, 150, .28]],
     [18, "#a9bfdc", "#f0cfb2", "#f4a77e", "#ee7a45", "#ffb27a", [255, 170, 120, .30]],
     [19.75, "#2c3d68", "#6c6497", "#d98f84", "#e8705a", "#ffa588", [240, 140, 120, .22]],
     [21.5, "#0e1a33", "#1b2b4d", "#34436a", "#e9e6da", "#fbfaf3", [233, 230, 218, .10]],
@@ -2420,7 +2489,7 @@
     root.setProperty("--canvas", "color-mix(in srgb, " + s.mid + " 24%, #eaf1f7)");
     root.setProperty("--sky-ink", s.dark ? "#f6f3ea" : "#1b2528");
     root.setProperty("--sky-ink-2", s.dark ? "rgba(246, 243, 234, .84)" : "#3f4b4f");
-    root.setProperty("--sky-greet", s.dark ? "#ffd9a8" : "#224b3a");
+    root.setProperty("--sky-greet", s.dark ? "#ffd9a8" : "#965000");
     document.documentElement.classList.toggle("sky-night", s.night);
     Array.prototype.forEach.call(document.querySelectorAll("[data-hello]"), function (el) { el.innerHTML = helloHtml(helloDate()); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-greet]"), function (el) { el.textContent = greetText(new Date()); });
