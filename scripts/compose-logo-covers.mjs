@@ -23,6 +23,8 @@ const icon = (k) => ({ type: 'si', k });
 const git = (rev, p) => ({ type: 'git', rev, p });
 
 const LOGOS = {
+  'apple-notes-library': app('logos/apple-notes.svg'),
+  'apple-notes-todos': app('logos/apple-notes.svg'),
   'asana-tasks': app('logos/asana.webp'),
   'backblaze-b2-contents': icon('siBackblaze'),
   'chrome-site-check': icon('siGooglechrome'),

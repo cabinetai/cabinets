@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<!--
+  Notes Library: Your Library. The cabinet opens on this page.
+
+  For someone with years of Apple Notes and no structure: the topics their notes keep
+  coming back to, each one tap from a question to the cabinet's agent, plus a short list
+  of notes worth tidying up, an Ask box and Ideas they can ask for once, switch on as a
+  routine, or add as a box.
+
+  The page is a grid of boxes, the same way the digests work: 12 columns, each box moved,
+  resized, added and removed by mouse, finger or keyboard, with Undo. Each person's layout
+  is kept in cabinet.mine, so it follows them.
+
+  Where the words come from: the Build The Library routine reads the notes Cabinet copied
+  in from Apple Notes, writes a page per topic into topics/, and writes data/latest.json
+  next to this page (the shape is data/EXAMPLE-latest.json: a made-up library, always
+  labelled as an example here), and data/status.json with ok:false and why when it could
+  not finish. On the very first build, first-read.mjs also writes data/reading.json: one
+  line for each thing the agent finds as it reads, one thing the person can do now (the
+  gift) and up to two more (the offers). The page tells those lines as they come.
+
+  How it talks to Cabinet: window.cabinet v2 (connection state, bring the notes in, ask,
+  run the routine, read files, the person's own layout). In an older Cabinet it reads the
+  same files over the page's own address. It never changes a note: Apple Notes is a one-way
+  copy.
+
+  One file on purpose: a sealed frame cannot load files next to it. System fonts; icons are
+  inline SVG.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Your Library</title>
+<style>
+  :root {
+    --page: #fffdf7;
+    --panel: #ffffff;
+    --line: #ece5d3;
+    --ink: #1f1d1a;
+    --muted: #6f6a60;
+    --faint: #a59f92;
+    --yellow: #f5c518;
+    --yellow-ink: #7a5d00;
+    --yellow-tint: #fff5cf;
+    --red-ink: #b42318;
+    --red-tint: #fdecea;
+    --blue-ink: #1d5fa8;
+    --blue-tint: #e9f1fb;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(31, 29, 26, .05), 0 10px 28px -16px rgba(31, 29, 26, .18);
+    --shadow-2: 0 2px 4px rgba(31, 29, 26, .08), 0 14px 32px -14px rgba(31, 29, 26, .26);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; background: var(--page); color: var(--ink); }
+  body { font: 15px/1.5 var(--font); padding: 36px 24px 72px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  .icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark { width: 40px; height: 40px; border-radius: 10px; flex: none; }
+  h1 { font-size: 28px; line-height: 1.15; margin: 0; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 4px 0 0; font-size: 14.5px; }
+  /* The made-up notes say so first, with the same Example tag the other templates use. */
+  .tag-example { display: inline-flex; align-items: center; margin-right: 2px; padding: 1px 8px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; vertical-align: 1px; }
+  .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 14px; font-weight: 600;
+    padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink); cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--faint); }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+  .btn.quiet:hover { background: var(--yellow-tint); }
+  .fine { color: var(--muted); font-size: 13px; margin: 0; }
+
+  .banner {
+    margin-top: 22px; padding: 12px 14px; border-radius: 12px; font-size: 14px;
+    background: var(--yellow-tint); color: var(--yellow-ink); display: flex; gap: 10px; align-items: flex-start;
+  }
+  .banner.err { background: var(--red-tint); color: var(--red-ink); }
+  .banner .icon { margin-top: 3px; }
+  .banner > div { flex: 1; min-width: 0; }
+  .banner b { font-weight: 650; }
+  .banner .btn { margin-left: auto; }
+
+  .hero { margin-top: 22px; background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 26px 24px; }
+  .hero h2 { margin: 0 0 6px; font-size: 19px; }
+  .hero p { margin: 0 0 14px; color: var(--muted); }
+
+  section { margin-top: 28px; }
+  .label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+
+  /* ── Boxes with a list ───────────────────────────────────────────────── */
+  .lane { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .lane-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 14px 18px 10px; }
+  .lane-head .lane-icon { display: inline-grid; place-items: center; color: var(--yellow-ink); }
+  .lane-head h3 { margin: 0; flex: 1; min-width: 0; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .lane-head .count { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: var(--yellow-tint); color: var(--yellow-ink); font-size: 12.5px; font-weight: 700; text-align: center; }
+  .lane-empty { padding: 4px 18px 18px; color: var(--muted); margin: 0; }
+
+  /* Small: one number and one line under it. */
+  .sum { display: flex; flex-direction: column; gap: 2px; padding: 0 18px 14px; }
+  .sum .value { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+  .sum .value.none { color: var(--faint); }
+  .sum .sub { margin: 0; color: var(--muted); font-size: 13px; }
+  .sum .line { margin-top: 4px; font-size: 14px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .box-pad { padding: 0 18px 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* Topics: cards on a large box, rows on a medium one. */
+  .topics { list-style: none; margin: 0; padding: 0 0 6px; }
+  .topics.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 2px 16px 16px; }
+  .topic {
+    display: flex; flex-direction: column; width: 100%; height: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+    background: var(--page); border: 0; border-radius: 12px; padding: 14px 16px; border-top: 4px solid var(--yellow);
+  }
+  .topic:hover { box-shadow: var(--shadow-2); }
+  .topics:not(.cards) .topic { border-radius: 0; border-top: 1px solid var(--line); background: none; padding: 10px 18px; }
+  .topics:not(.cards) .topic:hover { box-shadow: none; background: var(--yellow-tint); }
+  .topic h3 { margin: 0; font-size: 16px; line-height: 1.3; }
+  .gist { margin: 6px 0 10px; font-size: 14.5px; }
+  .meta { color: var(--muted); font-size: 12.5px; margin-top: auto; display: flex; justify-content: space-between; gap: 8px; }
+  .meta .go { color: var(--yellow-ink); font-weight: 650; white-space: nowrap; }
+
+  .tidy { list-style: none; margin: 0; padding: 0; }
+  .tidy-row { display: flex; align-items: baseline; gap: 12px; padding: 10px 18px; border-top: 1px solid var(--line); }
+  .kind { flex: none; width: 96px; font-size: 12.5px; font-weight: 650; color: var(--muted); }
+  .tidy-text { flex: 1; min-width: 0; }
+  .folder { color: var(--faint); font-size: 13px; white-space: nowrap; }
+  .more { color: var(--faint); font-size: 13px; margin: 0; padding: 8px 18px 12px; }
+
+  .ask { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px; }
+  .ask form { display: flex; gap: 8px; }
+  .ask input {
+    flex: 1; min-width: 0; font: inherit; padding: 9px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--page); color: var(--ink);
+  }
+  .ask input:focus { outline: none; border-color: var(--yellow); box-shadow: 0 0 0 3px var(--yellow-tint); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--page); color: var(--ink); cursor: pointer; }
+  .chip:hover { border-color: var(--yellow); background: var(--yellow-tint); }
+  #ask-note { margin-top: 10px; min-height: 1em; }
+  .box.ask { overflow: hidden; }
+  .box.ask[data-level="S"] form { flex-direction: column; }
+
+  /* ── Ideas ───────────────────────────────────────────────────────────── */
+  .idea { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  .idea h3 { margin: 0; font-size: 16px; line-height: 1.3; }
+  .idea p { margin: 0; color: var(--muted); }
+  .idea .go, .one-idea .go { display: flex; flex-wrap: wrap; gap: 8px; }
+  .idea .on-page { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--yellow-ink); }
+  /* Each idea's picture: a note on the page's yellow, drawn inline so it shows anywhere. */
+  .art-img { aspect-ratio: 16 / 8; border-radius: 10px; overflow: hidden; background: var(--yellow-tint); }
+  .art-img svg { width: 100%; height: 100%; display: block; }
+  .idea-rows { list-style: none; margin: 0; padding: 0; }
+  .idea-rows > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 18px; border-top: 1px solid var(--line); }
+  .idea-rows b { display: block; font-size: 14.5px; font-weight: 650; }
+  .idea-rows span { display: block; color: var(--muted); font-size: 13px; }
+  .one-idea { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; }
+  .one-idea .art-img { flex: none; aspect-ratio: 16 / 6; }
+  .one-idea h3 { margin: 0; font-size: 16px; line-height: 1.3; }
+  .one-idea p { margin: 0; color: var(--muted); font-size: 14px; }
+  .one-idea .go { margin-top: auto; }
+
+  /* ── The grid of boxes ───────────────────────────────────────────────── */
+  /* Each box sits on a 12 column grid at the place its layout gives it, and draws itself
+     small, medium or large by its own width (data-level). A list shows the rows that fit,
+     then "+N more". */
+  .grid { --row: 64px; --gap: 16px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: var(--row); gap: var(--gap); margin-top: 22px; }
+  .box { display: flex; flex-direction: column; min-width: 0; min-height: 0; margin: 0; transition: box-shadow .2s ease; }
+  .box > .box-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .box-more { flex: none; display: flex; justify-content: center; width: 100%; padding: 9px 14px; border: 0; border-top: 1px solid var(--line); background: var(--panel); color: var(--yellow-ink); font: inherit; font-weight: 650; font-size: 13.5px; cursor: pointer; }
+  .box-more:hover { background: var(--yellow-tint); }
+  .box.nbox > .sum { flex: 1; justify-content: center; }
+  /* On a phone the boxes stack in their order and grow to fit. */
+  .grid.stack { display: flex; flex-direction: column; gap: 16px; }
+  .grid.stack .box { flex: none; }
+  /* A list box is as tall as its rows, up to the size its layout gives it: no empty white
+     under a short list, and its foot sits right under the rows. */
+  .grid:not(.editing):not(.stack) > .box.lane:not(.nbox):not([data-box^="idea-"]) { align-self: start; max-height: 100%; }
+
+  /* Editing the page: a small bar of buttons, handles on every box. */
+  .editbar { position: sticky; top: 8px; z-index: 20; width: fit-content; margin: 22px 0 0 auto; display: flex; padding: 5px; border-radius: 999px; background: var(--yellow-tint); border: 1px solid var(--yellow); box-shadow: var(--shadow-2); }
+  .editbar-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .editbar .btn { padding: 6px 14px; font-size: 13.5px; gap: 6px; }
+  .grid.editing .box { position: relative; overflow: visible; outline: 2px dashed var(--yellow); outline-offset: 5px; }
+  .grid.editing .box > :not(.box-x):not(.box-resize):not(.box-size) { pointer-events: none; user-select: none; }
+  .grid .box { -webkit-touch-callout: none; }
+  .grid.editing .box { cursor: grab; user-select: none; }
+  .grid.editing .box:focus-visible { outline: 3px solid var(--yellow-ink); outline-offset: 5px; }
+  .grid.editing .box:not(.lifted) { box-shadow: 0 14px 30px -18px rgba(31, 29, 26, .32); }
+  body.is-moving, body.is-moving * { cursor: grabbing !important; user-select: none; }
+  body.is-sizing, body.is-sizing * { cursor: nwse-resize !important; user-select: none; }
+  .box.lifted { z-index: 30; box-shadow: 0 26px 50px -18px rgba(31, 29, 26, .42); will-change: transform; }
+  .box.sizing { z-index: 30; }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } }
+  .grid.fresh .box-x, .grid.fresh .box-resize, .grid.fresh .box-size { animation: pop .45s var(--spring, ease-out) backwards; }
+  .grid.stack.editing { gap: 36px; padding-top: 8px; }
+  /* On a phone the size switch sits on the box's top edge: the title moves down out of its way. */
+  .grid.stack.editing .lane-head { padding-top: 28px; }
+  .grid.stack.editing .box.ask { padding-top: 34px; }
+  .grid.stack.arranging .box:not(.lifted) { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+  .drop-spot { z-index: 1; border: 2px dashed var(--yellow-ink); border-radius: var(--radius); background: color-mix(in srgb, var(--yellow) 12%, transparent); pointer-events: none; }
+  .size-tag { z-index: 31; place-self: center; padding: 8px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 650; font-size: 14px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-2); }
+  .size-tag:empty { display: none; }
+  .box-resize { position: absolute; right: -11px; bottom: -11px; z-index: 3; width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid var(--yellow-ink); border-radius: 50%; background: var(--panel); box-shadow: var(--shadow); cursor: nwse-resize; touch-action: none; transition: transform .15s ease; }
+  .box-resize::after { content: ""; width: 8px; height: 8px; margin: 0 2px 2px 0; border-right: 2px solid var(--yellow-ink); border-bottom: 2px solid var(--yellow-ink); }
+  .box-resize:hover { transform: scale(1.12); }
+  .box-size { position: absolute; top: -16px; left: 12px; z-index: 3; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--ink); box-shadow: var(--shadow-2); }
+  .box-size button { padding: 5px 10px; border: 0; border-radius: 999px; background: transparent; color: #d8d3c8; font: inherit; font-size: 13px; font-weight: 650; }
+  .box-size button[aria-pressed="true"] { background: #fff; color: var(--ink); }
+  .box-x { position: absolute; top: -14px; right: -14px; z-index: 3; width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid var(--page); border-radius: 50%; background: var(--ink); color: #fff; box-shadow: var(--shadow-2); cursor: pointer; transition: transform .15s ease, background .15s ease; }
+  .box-x:hover { background: var(--red-ink); transform: scale(1.1); }
+  .box-x .icon { stroke-width: 2.6; }
+  .box.leaving { opacity: 0; transform: scale(.94); transition: opacity .2s ease, transform .2s ease; }
+  .box.flash { animation: flash 1.4s ease; }
+  @keyframes flash { 25% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--yellow) 60%, transparent); } }
+  .grid-empty { margin-top: 22px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 22px; border: 1.5px dashed var(--line); border-radius: var(--radius); color: var(--muted); }
+  .grid-empty p { margin: 0; }
+
+  /* The Add a box and Ideas panels. */
+  .pick-group h3 { margin: 6px 4px 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  .pick.on { background: var(--page); }
+  .pick-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--yellow-tint); color: var(--yellow-ink); }
+  .pick b { display: block; font-size: 14.5px; font-weight: 650; }
+  .pick span { display: block; color: var(--muted); font-size: 13px; }
+  .pick em { display: block; margin-top: 2px; font-style: normal; font-size: 12.5px; font-weight: 650; color: var(--yellow-ink); }
+  .pick-on { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--yellow-tint); color: var(--yellow-ink); }
+  .drawer { position: fixed; inset: 0; z-index: 40; }
+  .drawer-scrim { position: absolute; inset: 0; background: rgba(31, 29, 26, .38); opacity: 0; transition: opacity .25s ease; }
+  .drawer-panel { position: absolute; top: 0; bottom: 0; right: 0; width: min(440px, 100%); display: flex; flex-direction: column; background: var(--page); box-shadow: -24px 0 60px -24px rgba(31, 29, 26, .4); transform: translateX(100%); transition: transform .34s cubic-bezier(.2, .8, .2, 1); outline: none; }
+  .drawer.open .drawer-scrim { opacity: 1; }
+  .drawer.open .drawer-panel { transform: none; }
+  .drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 16px; border-bottom: 1px solid var(--line); }
+  .drawer-head .lane-icon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--yellow-tint); color: var(--yellow-ink); flex: none; }
+  .drawer-head h2 { margin: 0; font-size: 19px; }
+  .drawer-head p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  .drawer-close { margin-left: auto; width: 40px; height: 40px; flex: none; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+  .drawer-close:hover { background: var(--yellow-tint); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+    background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px;
+    transition: opacity .2s, transform .2s; max-width: calc(100vw - 32px); z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* The first build, told as it happens: one line for each thing the agent finds. */
+  .read-page { margin-top: 22px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+  .reading { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px 24px; }
+  .reading h2 { margin: 0 0 4px; font-size: 19px; }
+  .reading > p { margin: 0 0 14px; color: var(--muted); }
+  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+  .read-lines li { display: flex; gap: 10px; align-items: flex-start; overflow-wrap: anywhere; animation: line-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+  .read-lines li .icon { margin-top: 3px; color: var(--yellow-ink); }
+  .read-lines li b { font-weight: 650; }
+  .read-lines li.old { animation: none; }
+  .read-lines li.now { color: var(--muted); }
+  .pulse-dot { flex: none; width: 8px; height: 8px; margin: 7px 4px 0; border-radius: 50%; background: var(--yellow); animation: read-pulse 1.2s ease-in-out infinite; }
+  .reading .fine { margin-top: 14px; }
+  @keyframes line-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+
+  /* While I read, you can...: the gift first, then up to two more things to do now. */
+  .side-list { display: grid; align-content: start; gap: 12px; }
+  .side-list > .label { margin: 0; }
+  .offers { list-style: none; margin: 0; padding: 0 18px; background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .offer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+  .offer:first-child { border-top: 0; }
+  .offer.arrive { animation: line-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+  .offer > .icon { color: var(--yellow-ink); }
+  .offer b { display: block; font-size: 14.5px; font-weight: 650; overflow-wrap: anywhere; }
+  .offer span.sub { display: block; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .offer .asked { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--yellow-ink); white-space: nowrap; }
+  .btn.small { padding: 6px 11px; font-size: 13px; }
+
+  /* The gift: one thing the person can do now, found while the agent reads. */
+  .gift { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px 16px; border-top: 4px solid var(--yellow); }
+  .gift.arrive { animation: line-in .7s cubic-bezier(.2, .8, .2, 1) both; }
+  .gift .label { margin-bottom: 6px; }
+  .gift h3 { margin: 0; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+  .gift h3 b { font-weight: 700; }
+  .gift .why { margin: 8px 0 0; color: var(--muted); }
+  .gift .actions { margin-top: 14px; }
+  .gift .asked { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0 0; font-weight: 600; color: var(--yellow-ink); }
+  .gift .asked .icon { margin-top: 3px; }
+  .gift .fine { margin-top: 10px; }
+  .gift.looking { background: none; box-shadow: none; border: 1.5px dashed var(--line); padding: 22px 20px; display: flex; gap: 10px; align-items: flex-start; }
+  .gift.looking h3 { color: var(--muted); font-weight: 600; }
+  .keep { margin-top: 22px; display: grid; gap: 12px; }
+  @media (min-width: 760px) {
+    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 22px 16px 64px; }
+    h1 { font-size: 24px; }
+    .topics.cards { grid-template-columns: 1fr; }
+    .kind { width: 72px; }
+    .folder { display: none; }
+    .ask form { flex-direction: column; }
+    .banner { flex-wrap: wrap; }
+    .banner .btn { margin-left: 26px; }
+    .reading { padding: 20px 18px; }
+    .gift.looking { display: none; }
+    .offers { padding: 0 16px; }
+    .offer { grid-template-columns: auto minmax(0, 1fr); }
+    .offer > .btn, .offer > .asked { grid-column: 2; justify-self: start; }
+    .editbar { width: auto; margin-left: 0; border-radius: 16px; }
+    .editbar-actions { justify-content: center; }
+  }
+  @media (prefers-reduced-motion: reduce) { .spin, .read-lines li, .pulse-dot, .gift.arrive, .offer.arrive { animation: none; } .toast { transition: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4 20-7z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="m3 6 1 1 2-2"/><path d="m3 12 1 1 2-2"/><path d="m3 18 1 1 2-2"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3 3-3 3"/><path d="M4 11V9.5a4 4 0 0 1 4-4h12"/><path d="M7 21.5l-3-3 3-3"/><path d="M20 13v1.5a4 4 0 0 1-4 4H4"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2"/><rect x="13" y="3" width="8" height="6" rx="2"/><rect x="13" y="11" width="8" height="10" rx="2"/><rect x="3" y="15" width="8" height="6" rx="2"/></symbol>
+</svg>
+<div class="wrap">
+  <header>
+    <div class="title">
+      <img class="mark" id="mark" alt="" hidden />
+      <div>
+        <h1>Your library</h1>
+        <p class="sub" id="sub">Years of Apple Notes, sorted into the topics they keep coming back to.</p>
+      </div>
+    </div>
+    <div class="actions" id="actions"></div>
+  </header>
+
+  <div id="body"></div>
+  <div class="editbar" id="editbar" role="region" aria-label="Editing your library" hidden>
+    <div class="editbar-actions">
+      <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Add a box</button>
+      <button type="button" class="btn" data-act="undo" id="undo-btn" disabled><svg class="icon" aria-hidden="true"><use href="#i-undo"/></svg>Undo</button>
+      <button type="button" class="btn quiet" data-act="reset-layout">Reset to default</button>
+      <button type="button" class="btn primary" data-act="edit-done"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Done</button>
+    </div>
+  </div>
+  <section class="grid" id="grid" aria-label="Your library" hidden></section>
+  <div class="grid-empty" id="grid-empty" hidden>
+    <p><b>Your library has no boxes.</b> Add the ones you want to see.</p>
+    <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Add a box</button>
+  </div>
+</div>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-scrim" data-act="drawer-close"></div>
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+    <div class="drawer-head">
+      <span class="lane-icon" id="drawer-icon" aria-hidden="true"></span>
+      <div>
+        <h2 id="drawer-title"></h2>
+        <p id="drawer-sub"></p>
+      </div>
+      <button type="button" class="drawer-close" data-act="drawer-close" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var JOB = "build-the-library";
+  var AGENT = "notes-librarian";
+  var POLL_MS = 60000;
+  var DAY_MS = 86400000;
+
+  var QUESTIONS = [
+    "What have I written about most this year?",
+    "Which notes look like duplicates?",
+    "What questions do my notes never answer?",
+    "Find my notes about recipes"
+  ];
+
+  /**
+   * Library plays: one tap to ask now, to switch on as a routine, or to add as a box. Each one
+   * only reads: the answer comes in the chat, and no note changes.
+   */
+  var MARK = 'stroke="#7a5d00" stroke-width="6"';
+  var IDEAS = [
+    { id: "again", title: "Notes worth reading again",
+      text: "Old notes you have not opened in a long time that still matter: plans, ideas, things to remember.",
+      ask: "Find five of my Apple Notes nobody touched in over a year that still look worth reading again: plans, ideas or things to remember. For each, the title, the folder and one line on why. Only list them.",
+      when: "Every month", at: "on the first day of every month at 10 am",
+      art: art('<circle cx="222" cy="116" r="28" fill="#fff" ' + MARK + '/><path d="M222 100v16l11 8" ' + MARK + '/>') },
+    { id: "week", title: "Your week in notes",
+      text: "What you wrote down this week in five lines, and the topic each one belongs to.",
+      ask: "Sum up what I wrote in my Apple Notes this week in five lines: what each note was about and which topic in Your Library it belongs to. Keep it plain.",
+      when: "Every Sunday", at: "every Sunday at 6 pm",
+      art: art('<rect x="190" y="92" width="58" height="50" rx="8" fill="#fff" ' + MARK + '/><path d="M190 108h58M205 84v14M233 84v14" ' + MARK + '/><circle cx="219" cy="124" r="6" fill="#7a5d00" stroke="none"/>') },
+    { id: "people", title: "Who you write about",
+      text: "The people who come up most in your notes lately, and what you wrote about each.",
+      ask: "Who comes up most in my Apple Notes in the last three months? The five people I write about most, with one line on what about each and the note it is in.",
+      when: "Every month", at: "on the 15th of every month at 10 am",
+      art: art('<circle cx="204" cy="100" r="13" fill="#fff" ' + MARK + '/><path d="M180 144a24 24 0 0 1 48 0" fill="#fff" ' + MARK + '/><circle cx="242" cy="108" r="10" fill="#fff" ' + MARK + '/><path d="M232 144a20 20 0 0 1 30-17" ' + MARK + '/>') },
+    { id: "lists", title: "Every list you keep",
+      text: "Packing lists, gift ideas, books to read: every list in your notes, in one place.",
+      ask: "Find every list I keep in my Apple Notes, like packing lists, gift ideas or books to read. For each, the note's title, what the list is for and how many items it has. Only list them.",
+      when: "Every month", at: "on the first day of every month at 10:30 am",
+      art: art('<rect x="186" y="76" width="70" height="70" rx="8" fill="#fff" ' + MARK + '/><path d="m200 98 4 4 7-7M200 120l4 4 7-7M221 99h22M221 121h22" stroke="#7a5d00" stroke-width="4"/>') },
+    { id: "decisions", title: "What you decided",
+      text: "The decisions written in your notes, with when and the note each one is in.",
+      ask: "Find the decisions I wrote down in my Apple Notes in the last three months: what I decided, when, and the note it is in. Newest first, and say the notes suggest it when it is not written outright.",
+      when: "Every Friday", at: "every Friday at 4 pm",
+      art: art('<circle cx="222" cy="116" r="28" fill="#f5c518" ' + MARK + '/><path d="m209 116 9 9 17-18" ' + MARK + '/>') }
+  ];
+
+  var state = {
+    appPath: appPathFromUrl(),
+    here: null,
+    data: null,
+    example: true,
+    lastTry: null,
+    loaded: false,
+    notes: null,
+    jobs: [],
+    running: false,
+    runNote: "",
+    connecting: false,
+    connectNote: "",
+    jobsKnown: false,
+    looked: false,
+    reading: null,
+    readStartedAt: null,
+    readShown: 0,
+    sawReading: false,
+    giftShownAt: null,
+    giftAsked: null,
+    giftDone: null,
+    offersShown: {},
+    offersAsked: {},
+    offersDone: {},
+    mineReady: false,
+    askNote: "",
+    /** The boxes on this person's page, from cabinet.mine; null is the default page. */
+    layout: null,
+    drawerOpen: false,
+    drawerKind: "ideas",
+    editing: false,
+    undo: [],
+    expanded: {},
+    need: {},
+    /** Rows a short list gives back: it stands as tall as its rows and the boxes under it move up. */
+    fit: {}
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function icon(id, cls) {
+    return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+  }
+  function text(value, max) {
+    var s = typeof value === "string" ? value.trim() : "";
+    return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function count(value) { return typeof value === "number" && isFinite(value) && value >= 0 ? Math.round(value) : null; }
+
+  function appPathFromUrl() {
+    // /api/assets/<cabinet path>/<app folder>/index.html: the folder before the file.
+    var parts = location.pathname.split("/").filter(Boolean);
+    var at = parts.length - 2;
+    return at >= 0 ? decodeURIComponent(parts[at]) : "your-library";
+  }
+
+  var toastTimer = 0;
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
+  }
+
+  // ── Dates, in the person's own clock ───────────────────────────────────
+
+  function parseTime(value) {
+    if (typeof value !== "string" || !value) return null;
+    // A bare date is a calendar day, not midnight in another zone.
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    // "+0300" as `date +%z` prints it is read like "+03:00".
+    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / DAY_MS); }
+  function shortDate(d) { return d.toLocaleDateString([], { month: "short", day: "numeric" }); }
+  function ago(d, now) {
+    var gap = daysBetween(d, now);
+    if (gap <= 0) return "today";
+    if (gap === 1) return "yesterday";
+    if (gap < 7) return d.toLocaleDateString([], { weekday: "long" });
+    return shortDate(d);
+  }
+  /** The example keeps its shape over time: its dates move with today, so it never looks stale. */
+  var shift = 0;
+  function day(value) {
+    var d = parseTime(value);
+    return d && shift ? new Date(d.getTime() + shift * DAY_MS) : d;
+  }
+
+  // ── Reading the files the routine writes ───────────────────────────────
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  function readText(rel) {
+    if (V2) return cab.files.read(state.appPath + "/" + rel);
+    // An older Cabinet: the files sit next to this page on the same address.
+    return fetch(rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+      if (r.status === 404) throw notFound();
+      if (!r.ok) throw new Error("Could not read " + rel + ".");
+      return r.text();
+    });
+  }
+  function readJson(rel) { return readText(rel).then(function (t) { return JSON.parse(t); }); }
+  function maybe(promise) {
+    return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; });
+  }
+  function quiet(promise) { return promise.catch(function () { return null; }); }
+  function usable(d) { return d && typeof d === "object" && Array.isArray(d.topics); }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = Promise.all([
+      maybe(readJson("data/latest.json")).catch(function () { return "broken"; }),
+      quiet(maybe(readJson("data/status.json"))),
+      quiet(maybe(readJson("data/reading.json")))
+    ]).then(function (got) {
+      var latest = got[0];
+      setReading(cleanReading(got[2]));
+      state.lastTry = got[1] && typeof got[1] === "object" ? got[1] : null;
+      if (usable(latest) && latest.example !== true) {
+        state.data = latest;
+        state.example = false;
+        return null;
+      }
+      // A file half written a moment ago keeps what is on screen; the next change reloads it.
+      if (latest === "broken" && state.data && !state.example) return null;
+      return maybe(readJson("data/EXAMPLE-latest.json")).then(function (ex) {
+        state.data = usable(ex) ? ex : null;
+        state.example = true;
+      });
+    }).catch(function () {
+      if (!state.data) state.data = null;
+    }).then(function () {
+      var made = state.example && state.data ? parseTime(state.data.generatedAt) : null;
+      shift = made ? Math.max(0, daysBetween(made, new Date())) : 0;
+      state.loaded = true;
+      loading = null;
+      paint();
+      firstLook();
+    });
+    return loading;
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAct() { return V2 && role() !== "viewer"; }
+  function pickNotes(items) {
+    if (!Array.isArray(items)) return null;
+    for (var i = 0; i < items.length; i++) if (items[i] && items[i].id === "apple-notes") return items[i];
+    return null;
+  }
+  function notesState() { return state.notes ? state.notes.state : null; }
+  function job() {
+    for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === JOB) return state.jobs[i];
+    return null;
+  }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var wasRunning = state.running;
+    state.jobs = items;
+    var j = job();
+    state.running = !!(j && j.running);
+    state.jobsKnown = true;
+    if (wasRunning && !state.running) load();
+    paint();
+    firstLook();
+  }
+
+  /**
+   * The owner opens the page with Apple Notes already brought in, and only the example on it:
+   * the first build starts by itself, once, as it does right after bringing the notes in. Not
+   * after a build that went wrong (that shows its own Try again), and not for anyone else.
+   */
+  function firstLook() {
+    if (state.looked || !V2 || role() !== "owner" || !state.loaded || !state.jobsKnown) return;
+    if (notesState() !== "connected" || !state.example || state.lastTry || state.running || !job()) return;
+    state.looked = true;
+    runNow();
+  }
+
+  /** Bring the notes in, or fresh ones: Cabinet's own Apple Notes step, then a look straight away. */
+  function bringIn() {
+    if (!V2 || state.connecting) return;
+    state.connecting = true;
+    state.connectNote = "";
+    paint();
+    cab.connectors.connect("apple-notes").then(function (result) {
+      state.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        state.notes = pickNotes(items) || state.notes;
+        paint();
+        if (result === "connected") { state.looked = true; runNow(); }
+      });
+    }).catch(function (e) {
+      state.connecting = false;
+      state.connectNote = e && e.message ? e.message : "That did not work. Try again.";
+      paint();
+    });
+  }
+
+  function runNow() {
+    if (!V2 || state.running) return;
+    state.running = true;
+    state.runNote = "";
+    paint();
+    cab.jobs.run(JOB).then(function () {
+      watchRun();
+    }).catch(function (e) {
+      if (e && e.code === "busy") { watchRun(); return; }
+      state.running = false;
+      state.runNote = e && e.message ? e.message : "That did not start. Try again.";
+      paint();
+    });
+  }
+
+  // jobs.onChange says when the run ends; this is the fallback if a change is ever missed.
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!state.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+
+  function ask(question) {
+    var q = text(question, 3900);
+    if (!q) return;
+    if (!V2) { toast("Open this cabinet in Cabinet to ask about your notes."); return; }
+    setAskNote("Asking...");
+    cab.ask(q, { agent: AGENT, send: true }).then(function () {
+      setAskNote("Asked. The answer is coming in the chat next to this page.");
+      if ($("ask-input")) $("ask-input").value = "";
+    }).catch(function (e) {
+      setAskNote(e && e.message ? e.message : "That did not go through. Try again.");
+      toast(state.askNote);
+    });
+  }
+  /** The line under the Ask box; it lives in state because the box can be drawn again. */
+  function setAskNote(words) {
+    state.askNote = words;
+    if ($("ask-note")) $("ask-note").textContent = words;
+  }
+
+  // ── The first build, told as it happens ────────────────────────────────
+  // On the very first build the agent adds a line to data/reading.json for each thing it finds
+  // as it reads (first-read.mjs push), and the page shows them one by one. While it reads, it
+  // also gives one thing the person can do now (first-read.mjs gift) and up to two more
+  // (first-read.mjs offer): notes nobody touched in a year, the biggest folders, or meeting
+  // notes to turn into to-dos. A press asks the agent in the chat beside the page; no note
+  // changes. Any later build is told the way it always was, and so is a first build whose
+  // reading.json never comes (an older helper): it says "Opening your notes" until it ends.
+
+  // The routine stops a build at 30 minutes (its timeout), so a reading this young can still be this build's.
+  var READ_FRESH_MIN = 35;
+  var REVEAL_MS = 1200;
+  var GIFT_KEY = "your-library-gift-done@1";
+  var OFFERS_KEY = "your-library-offers-done@1";
+  var GIFT_KEEP_DAYS = 3;
+
+  function cleanReading(d) {
+    if (!d || typeof d !== "object" || !Array.isArray(d.lines) || !parseTime(d.startedAt)) return null;
+    var lines = d.lines.map(function (l) { return text(l, 200); }).filter(Boolean).slice(-14);
+    var offers = list(d.offers).map(function (o) { return cleanKind(o, false); }).filter(Boolean).slice(0, 2);
+    return { startedAt: d.startedAt, done: d.done === true, lines: lines, gift: cleanKind(d.gift, true), offers: offers };
+  }
+  /** A gift or an offer as the helper wrote it: old, folders, meetings, or (a gift only) calm. */
+  function cleanKind(g, isGift) {
+    if (!g || typeof g !== "object" || !parseTime(g.at)) return null;
+    if (g.kind === "old") {
+      var n = count(g.count);
+      return n ? { kind: "old", at: g.at, count: n } : null;
+    }
+    if (g.kind === "folders") {
+      var folders = list(g.folders).map(function (f) { return { name: text(f.name, 40), notes: count(f.notes) }; })
+        .filter(function (f) { return f.name && f.notes; }).slice(0, 3);
+      return folders.length > 1 ? { kind: "folders", at: g.at, folders: folders } : null;
+    }
+    if (g.kind === "meetings") {
+      var notes = (Array.isArray(g.notes) ? g.notes : []).map(function (t) { return text(t, 60); }).filter(Boolean).slice(0, 5);
+      return notes.length > 1 ? { kind: "meetings", at: g.at, notes: notes } : null;
+    }
+    return isGift && g.kind === "calm" ? { kind: "calm", at: g.at } : null;
+  }
+  /** What changed in a reading, in one string: a new line, the gift, an offer, done. */
+  function readingSig(r) {
+    return [r.startedAt, r.done, r.lines.join("\n"), r.gift && r.gift.at, r.offers.map(function (o) { return o.at; }).join(",")].join("|");
+  }
+  /** A reading that started in the last 35 minutes: an older one is not this build's. */
+  function fresh(r) {
+    var at = r ? parseTime(r.startedAt) : null;
+    return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
+  }
+  /** The agent is still reading: the file says so, it is fresh, and the routine runs. */
+  function readingNow() { var r = state.reading; return !!(r && !r.done && state.running && fresh(r)); }
+  function freshLines() { return fresh(state.reading) ? state.reading.lines : []; }
+  // Lines that arrive together are still told one by one, and once done, one more beat on
+  // "Putting your library together" before the page. Only once this page has shown the reading.
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done ? 1 : 0)); }
+  /** A new read (another startedAt) starts its lines from the first one. */
+  function setReading(r) {
+    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; }
+    state.reading = r;
+  }
+  function giftNow() { return fresh(state.reading) ? state.reading.gift : null; }
+
+  /** "Home, Work and Recipes". */
+  function andList(words) { return words.length > 1 ? words.slice(0, -1).join(", ") + " and " + words[words.length - 1] : words.join(""); }
+  function quoted(words) { return words.map(function (w) { return '"' + w + '"'; }); }
+  /** The question a gift or an offer asks in the chat. Every one only reads. */
+  function askOf(g) {
+    if (g.kind === "old") {
+      return "List my Apple Notes that nobody touched in over a year (I have about " + g.count + "). Group them by folder, and mark the ones that look safe to tidy: empty, the same as another note, or done with. Keep it short, and only list them.";
+    }
+    if (g.kind === "folders") {
+      return "Tell me what my biggest Apple Notes folders hold: " + andList(g.folders.map(function (f) { return '"' + f.name + '" (' + f.notes + " " + plural(f.notes, "note", "notes") + ")"; })) +
+        ". For each, a few lines on what the notes in it are about, and the one note worth reading again.";
+    }
+    if (g.kind === "meetings") {
+      return "Go through my meeting notes in Apple Notes, like " + andList(quoted(g.notes)) + ", and others like them. Put every to-do in them on one list, with the note each came from and any date. Leave out what looks done, and only list them.";
+    }
+    return "What do I write about most in my Apple Notes? Tell me the three things I keep coming back to, with a note for each.";
+  }
+  function giftParts(g) {
+    if (g.kind === "old") {
+      return { head: "You have <b>" + g.count + " " + plural(g.count, "note", "notes") + "</b> nobody touched in a year.",
+        why: "Want a list of the ones worth tidying?", button: "List them to tidy" };
+    }
+    if (g.kind === "folders") {
+      return { head: "Your " + g.folders.length + " biggest folders: " + andList(g.folders.map(function (f) { return "<b>" + esc(f.name) + "</b>"; })) + ".",
+        why: "Want to know what each one holds?", button: "Tell me what's in them" };
+    }
+    if (g.kind === "meetings") {
+      return { head: "You keep notes from meetings, like " + andList(g.notes.slice(0, 2).map(function (t) { return "<b>" + esc(t) + "</b>"; })) + ".",
+        why: "Want the to-dos in them on one list?", button: "Turn them into to-dos" };
+    }
+    return { head: "Nothing to tidy in your notes right now.", why: "Want to know what you write about most?", button: "What do I write about most" };
+  }
+  function offerParts(o) {
+    if (o.kind === "old") return { icon: "i-clock", title: "Tidy " + o.count + " old " + plural(o.count, "note", "notes"), sub: "Nobody touched them in a year.", button: "List them" };
+    if (o.kind === "folders") return { icon: "i-folder", title: "Your " + o.folders.length + " biggest folders", sub: andList(o.folders.map(function (f) { return f.name; })) + ".", button: "What's in them" };
+    return { icon: "i-list", title: "Meeting notes into to-dos", sub: "Like " + andList(quoted(o.notes.slice(0, 2))) + ".", button: "Make the list" };
+  }
+  function giftHtml(g, where) {
+    var p = giftParts(g);
+    var asked = state.giftAsked === g.at;
+    var arrive = where === "reading" && state.giftShownAt !== g.at;
+    if (where === "reading") state.giftShownAt = g.at;
+    return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
+      '<p class="label">' + (where === "reading" ? "Start here" : "Found while reading your notes") + "</p>" +
+      "<h3>" + p.head + "</h3>" +
+      '<p class="why">' + esc(p.why) + "</p>" +
+      (asked
+        ? '<p class="asked">' + icon("i-check") + "Asked. The answer is coming in the chat next to this page.</p>"
+        : '<div class="actions">' + (canAct() ? '<button type="button" class="btn primary" data-act="gift-do">' + icon("i-send") + esc(p.button) + "</button>" : "") +
+          (where === "keep" ? '<button type="button" class="btn" data-act="gift-skip">Not now</button>' : "") + "</div>") +
+      '<p class="fine">Nothing in Apple Notes changes.</p></section>';
+  }
+  function offerKey(o) { return o.at + "|" + o.kind; }
+  function offersHtml(offers, where) {
+    if (!offers.length) return "";
+    return '<ul class="offers">' + offers.map(function (o) {
+      var key = offerKey(o);
+      var p = offerParts(o);
+      var arrive = where === "reading" && !state.offersShown[key];
+      if (where === "reading") state.offersShown[key] = true;
+      return '<li class="offer' + (arrive ? " arrive" : "") + '">' + icon(p.icon) +
+        "<div><b>" + esc(p.title) + '</b><span class="sub">' + esc(p.sub) + "</span></div>" +
+        (state.offersAsked[key] ? '<span class="asked">' + icon("i-check") + "Asked</span>"
+          : canAct() ? '<button type="button" class="btn small" data-act="offer-do" data-key="' + esc(key) + '">' + esc(p.button) + "</button>" : "") +
+        "</li>";
+    }).join("") + "</ul>";
+  }
+  /** After the reading: the gift and the offers stay on top for a few days, until used or put away (once used, they say so until the page reloads). */
+  function giftKeepHtml() {
+    var r = state.reading;
+    var at = r ? parseTime(r.startedAt) : null;
+    if (!r || !at || !state.mineReady || state.giftDone === "all:" + r.startedAt || state.example || readingNow() || revealing() ||
+      Date.now() - at.getTime() >= GIFT_KEEP_DAYS * DAY_MS) return "";
+    var g = r.gift && (state.giftDone !== r.gift.at || state.giftAsked === r.gift.at) ? r.gift : null;
+    var offers = r.offers.filter(function (o) { var k = offerKey(o); return !state.offersDone[k] || state.offersAsked[k]; });
+    if (!g && !offers.length) return "";
+    var skip = g && state.giftAsked !== g.at ? "" : '<p class="fine"><button type="button" class="btn small" data-act="gift-skip">Not now</button></p>';
+    return '<div class="keep">' + (g ? giftHtml(g, "keep") : '<p class="label" style="margin:0">Found while reading your notes</p>') + offersHtml(offers, "keep") + skip + "</div>";
+  }
+  /** Kept for this person on any computer, when Cabinet can. */
+  function remember(key, value) {
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(key, value).catch(function () {});
+  }
+  /** The gift was used (`all` false), or the person put the gift and the offers away. */
+  function giftDone(all) {
+    var r = state.reading;
+    if (!r) return;
+    state.giftDone = all || !r.gift ? "all:" + r.startedAt : r.gift.at;
+    remember(GIFT_KEY, state.giftDone);
+  }
+  function offerDone(key) {
+    state.offersAsked[key] = true;
+    state.offersDone[key] = true;
+    remember(OFFERS_KEY, Object.keys(state.offersDone));
+  }
+  /** A line may mark its finding in **bold**; everything else is plain text. */
+  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  function readingHtml() {
+    var all = freshLines();
+    state.sawReading = true;
+    var lines = all.slice(0, Math.min(state.readShown, all.length));
+    // The last lines come with done: keep them on screen until the page itself is ready.
+    var done = !!(state.reading && state.reading.done) && lines.length === all.length;
+    var gift = giftNow();
+    var offers = fresh(state.reading) ? state.reading.offers : [];
+    var side = gift || offers.length
+      ? '<div class="side-list"><p class="label">While I read, you can...</p>' + (gift ? giftHtml(gift, "reading") : "") + offersHtml(offers, "reading") + "</div>"
+      : done ? ""
+      : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for one thing you can do with your notes right now.</h3></section>';
+    return '<div class="read-page' + (!side ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Reading your notes</h2>' +
+      "<p>Sorting years of notes into topics. A few minutes. You don't need to do anything.</p>" +
+      '<ul class="read-lines">' + lines.map(function (l, i) {
+        return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + "<span>" + lineHtml(l) + "</span></li>";
+      }).join("") +
+      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your library together" : lines.length ? "Reading on" : "Opening your notes") + "...</span></li></ul>" +
+      '<p class="fine">Only reads. Nothing in Apple Notes changes, and it all stays in your cabinet.</p></div>' +
+      side + "</div>";
+  }
+  /**
+   * The reading fills the page from the moment the first build starts until it says done: no
+   * made-up example under it, and no flash of the library when latest.json lands just before done.
+   */
+  function showReading() { return (state.running && (state.example || !state.data)) || (state.sawReading && readingNow()) || revealing(); }
+
+  setInterval(function () {
+    if (!revealing()) return;
+    state.readShown++;
+    paint();
+  }, REVEAL_MS);
+  // While the first build reads, its lines are looked at every few seconds: a file change
+  // says so too, but a missed one never leaves the reading stuck. A later build has none.
+  setInterval(function () {
+    if (!V2 || (!showReading() && !readingNow())) return;
+    quiet(maybe(readJson("data/reading.json"))).then(function (d) {
+      var r = cleanReading(d);
+      if (!r || (state.reading && readingSig(r) === readingSig(state.reading))) return;
+      setReading(r);
+      paint();
+      if (r.done) load();
+    });
+  }, 2500);
+
+  // ── Painting ───────────────────────────────────────────────────────────
+
+  function paint() {
+    paintHeader();
+    paintBody();
+    paintGrid();
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  function paintHeader() {
+    var mark = $("mark");
+    if (state.notes && state.notes.logo) { mark.src = state.notes.logo; mark.hidden = false; }
+
+    var d = state.data;
+    var sub = "Years of Apple Notes, sorted into the topics they keep coming back to.";
+    if (d && state.loaded && !showReading()) {
+      var newest = day(d.newestNote);
+      if (state.example) sub = "A made-up library, to show you the page.";
+      else if (newest) sub = "Built from your notes as of " + shortDate(newest) + ".";
+    }
+    $("sub").textContent = sub;
+    if (state.example && d && state.loaded && !showReading()) $("sub").insertAdjacentHTML("afterbegin", '<span class="tag-example">Example</span> ');
+
+    var html = "";
+    var s = notesState();
+    if (canAct() && s === "connected" && !(state.example && !state.lastTry)) {
+      html += '<button class="btn" data-act="run"' + (state.running ? " disabled" : "") + ">" +
+        icon("i-refresh", state.running ? "spin" : "") + (state.running ? "Building..." : "Rebuild") + "</button>";
+      if (state.notes && state.notes.canConnect) {
+        html += '<button class="btn" data-act="bring"' + (state.connecting ? " disabled" : "") + ">" +
+          icon("i-download") + "Bring in fresh notes</button>";
+      }
+    }
+    // Ideas, and the page's layout.
+    if (d && state.loaded && !showReading()) {
+      html += '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-bulb") + "Ideas</button>";
+      if (!state.editing) html += '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Layout</button>";
+    }
+    $("actions").innerHTML = html;
+  }
+
+  /** The first thing under the header: what is missing, what went wrong, or that this is an example. */
+  function topHtml() {
+    var s = notesState();
+    if (!V2) {
+      return state.example
+        ? banner("i-info", "", "<b>This is a made-up library.</b> Open this cabinet in the Cabinet app on your Mac to bring in your own notes.")
+        : "";
+    }
+    // The first build said it is done: its page is here while the routine wraps up.
+    if (state.running && !(fresh(state.reading) && state.reading.done && !state.example)) {
+      return banner("i-refresh", "", "<b>Building your library.</b> With many notes this can take a while.");
+    }
+    if (state.example && s && s !== "connected") {
+      if (s === "not-available-here" || !state.notes.canConnect) {
+        return hero("Apple Notes needs your Mac",
+          "Notes can only be brought in on a Mac, in the Cabinet app. Until then, below is a made-up library to show you the page.", "");
+      }
+      if (!canAct()) {
+        return hero("Your notes aren't here yet", "Ask the person who owns this cabinet to bring in their Apple Notes.", "");
+      }
+      return hero("Bring in your Apple Notes",
+        "Your Mac asks once whether Cabinet may read Notes. Every note is copied in, nothing in Apple Notes changes, and the library is built from your own notes.",
+        '<div class="actions"><button class="btn primary" data-act="bring"' + (state.connecting ? " disabled" : "") + ">" +
+          icon(state.connecting ? "i-refresh" : "i-download", state.connecting ? "spin" : "") +
+          (state.connecting ? "Bringing them in..." : "Bring in your notes") + "</button>" +
+          '<span class="fine">Below is a made-up library until then.</span></div>' +
+          (state.connectNote ? '<p class="fine" style="margin-top:10px">' + esc(state.connectNote) + "</p>" : ""));
+    }
+    var failed = state.lastTry && state.lastTry.ok === false;
+    var shown = state.data && !state.example ? parseTime(state.data.generatedAt) : null;
+    var tried = state.lastTry ? parseTime(state.lastTry.at) : null;
+    if (failed && (!shown || !tried || tried >= shown)) {
+      return banner("i-alert", "err", "<b>" + esc(text(state.lastTry.why, 200) || "The last build didn't finish.") + "</b>",
+        canAct() ? '<button class="btn" data-act="run">Try again</button>' : "");
+    }
+    if (state.runNote) return banner("i-alert", "err", esc(state.runNote));
+    if (state.connectNote) return banner("i-alert", "err", esc(state.connectNote));
+    if (state.example && s === "connected") {
+      return banner("i-info", "", "<b>This is a made-up library.</b> Yours appears after the first build.",
+        canAct() ? '<button class="btn" data-act="run">Build now</button>' : "");
+    }
+    return "";
+  }
+  function banner(iconId, cls, inner, action) {
+    return '<div class="banner' + (cls ? " " + cls : "") + '">' + icon(iconId, iconId === "i-refresh" ? "spin" : "") +
+      "<div>" + inner + "</div>" + (action || "") + "</div>";
+  }
+  function hero(title, body, actions) {
+    return '<div class="hero"><h2>' + esc(title) + "</h2><p>" + esc(body) + "</p>" + actions + "</div>";
+  }
+
+  function paintBody() {
+    if (!state.loaded) { $("body").innerHTML = '<p class="fine" style="margin-top:22px">Loading...</p>'; return; }
+    if (showReading()) { $("body").innerHTML = readingHtml(); return; }
+    var html = topHtml() + giftKeepHtml();
+    $("body").innerHTML = html || (state.data ? "" : '<p class="fine" style="margin-top:22px">Nothing to show yet.</p>');
+  }
+
+  function topics() { return state.data ? list(state.data.topics).slice(0, 20) : []; }
+  function tidyRows() {
+    var tidy = (state.data && state.data.tidy) || {};
+    return list(tidy.same).slice(0, 10).map(function (p) {
+      return { kind: "Look the same", what: "“" + text(p.a, 60) + "” and “" + text(p.b, 60) + "”", folder: p.folder };
+    }).concat(list(tidy.empty).slice(0, 10).map(function (e) {
+      return { kind: "Empty", what: "“" + (text(e.title, 60) || "Untitled") + "”", folder: e.folder };
+    }));
+  }
+
+  // Topics: each one tap from a question to the agent. Cards on a large box, rows on a medium one.
+  function drawTopics(level) {
+    var all = topics();
+    if (level === "S") {
+      var top = all[0];
+      return sumBox("topics", "Topics", "i-folder", String(all.length), plural(all.length, "topic in your notes", "topics in your notes"),
+        top ? "<b>" + esc(text(top.title, 60)) + "</b>" : "");
+    }
+    var now = new Date();
+    return listBox("topics", "Topics", "i-folder", all.length,
+      '<ul class="rows topics' + (level === "L" ? " cards" : "") + '">' + all.map(function (x) {
+        var title = text(x.title, 80) || "Untitled topic";
+        var n = count(x.notes), last = day(x.lastEdited);
+        var meta = [n != null ? n + " " + plural(n, "note", "notes") : "", last ? "last written " + ago(last, now) : ""].filter(Boolean).join(" · ");
+        return '<li><button class="topic" type="button" data-topic="' + esc(title) + '"><h3>' + esc(title) + "</h3>" +
+          (level === "L" ? '<p class="gist">' + esc(text(x.gist, 140)) + "</p>" : "") +
+          '<div class="meta"><span>' + esc(meta) + '</span><span class="go">Ask about it</span></div></button></li>';
+      }).join("") + "</ul>" +
+      (state.example ? "" : '<p class="more">Each topic is also a page in this cabinet’s Topics folder.</p>'),
+      "Your notes didn’t add up to topics this time. With more notes, the next build tries again.");
+  }
+
+  // Worth tidying in Apple Notes: notes that look the same, and empty ones. Only listed.
+  function drawTidy(level) {
+    var rows = tidyRows();
+    if (level === "S") {
+      return sumBox("tidy", "Worth tidying", "i-list", String(rows.length), "to tidy in Apple Notes", rows[0] ? esc(rows[0].what) : "");
+    }
+    return listBox("tidy", "Worth tidying in Apple Notes", "i-list", rows.length,
+      '<ul class="rows tidy">' + rows.map(function (r) { return tidyRow(r.kind, r.what, r.folder); }).join("") + "</ul>" +
+      '<p class="more">Cabinet never deletes or changes a note. Tidy these in Apple Notes if you like.</p>',
+      "Nothing to tidy right now.");
+  }
+  function tidyRow(kind, what, folder) {
+    return '<li class="tidy-row"><span class="kind">' + esc(kind) + '</span><span class="tidy-text">' + esc(what) +
+      '</span><span class="folder">' + esc(text(folder, 40)) + "</span></li>";
+  }
+
+  // ── The grid of boxes ──────────────────────────────────────────────────
+  // Each box is drawn by its own function at one of three levels, picked by its width on
+  // screen: S (one number), M (the rows that fit), L (everything, with more detail). The
+  // layout is a list of { id, x, y, w, h } on a 12 column grid of fixed rows; each person's
+  // own layout is kept in cabinet.mine, so it follows them to any computer.
+
+  var COLS = 12;
+  var ROW = 64;
+  var GAP = 16;
+  var PHONE_ROWS = 3;
+  var LAYOUT_KEY = "apple-notes-library-layout@1";
+  // The page as it always was: the totals, the topics, the tidy-up list and Ask, plus All
+  // ideas. On a phone the topics and the tidy-up list start Large, so they show every row.
+  var DEFAULT_LAYOUT = [
+    { id: "n-notes", x: 0, y: 0, w: 4, h: 2 },
+    { id: "n-topics", x: 4, y: 0, w: 4, h: 2 },
+    { id: "n-sorted", x: 8, y: 0, w: 4, h: 2 },
+    { id: "topics", x: 0, y: 2, w: 12, h: 9, p: "L" },
+    { id: "tidy", x: 0, y: 11, w: 12, h: 5, p: "L" },
+    { id: "ask", x: 0, y: 16, w: 7, h: 4 },
+    { id: "ideas", x: 7, y: 16, w: 5, h: 5 }
+  ];
+  /**
+   * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
+   * shows, its group and the size it starts at. `show` keeps a box off the page while it
+   * has nothing to be (`when` says why).
+   */
+  var BOXES = {
+    topics: { cls: "lane", list: true, draw: drawTopics, group: "library", icon: "i-folder", w: 12, h: 9, min: [3, 3],
+      title: "Topics", desc: "The topics your notes keep coming back to, one tap from a question." },
+    tidy: { cls: "lane", list: true, draw: drawTidy, group: "library", icon: "i-list", w: 12, h: 5, min: [3, 3],
+      title: "Worth tidying in Apple Notes", desc: "Notes that look the same, and empty ones. Only listed.",
+      show: function () { return tidyRows().length > 0; }, when: "It shows when a note looks worth tidying." },
+    "n-notes": { cls: "lane nbox", draw: drawNumber("notes"), group: "numbers", icon: "i-note", w: 4, h: 2, min: [2, 2],
+      title: "Notes", desc: "How many notes the library was built from." },
+    "n-topics": { cls: "lane nbox", draw: drawNumber("topics"), group: "numbers", icon: "i-folder", w: 4, h: 2, min: [2, 2],
+      title: "Topics", desc: "How many topics your notes add up to." },
+    "n-sorted": { cls: "lane nbox", draw: drawNumber("sorted"), group: "numbers", icon: "i-check", w: 4, h: 2, min: [2, 2],
+      title: "Notes sorted", desc: "How many notes went into a topic." },
+    ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-send", w: 7, h: 4, min: [3, 3],
+      title: "Ask about your notes", desc: "Ask anything about what you wrote down." },
+    ideas: { cls: "lane", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 5, h: 5, min: [3, 3],
+      title: "All ideas", desc: "Every idea in one box, one tap each." }
+  };
+  IDEAS.forEach(function (idea) {
+    BOXES["idea-" + idea.id] = { cls: "lane", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
+      icon: "i-bulb", w: 6, h: 4, min: [3, 3], title: idea.title, desc: idea.text };
+  });
+  var GROUPS = [
+    { id: "library", title: "Your library" },
+    { id: "numbers", title: "Numbers" },
+    { id: "ask", title: "Ask and ideas" },
+    { id: "single", title: "One idea" }
+  ];
+  var PHONE = window.matchMedia ? window.matchMedia("(max-width: 720px)") : null;
+
+  function phone() { return !!(PHONE && PHONE.matches); }
+  function levelFor(width) { return width < 320 ? "S" : width < 640 ? "M" : "L"; }
+  var LEVEL_WORDS = { S: "Small", M: "Medium", L: "Large" };
+  /** The smallest a box may be made: wide and tall enough that what it shows still fits. */
+  function minSize(id) { var m = BOXES[id].min || [3, 3]; return { w: m[0], h: m[1] }; }
+  function whole(n) { return typeof n === "number" && n === Math.floor(n) && n >= 0; }
+
+  /** A saved layout, keeping only entries that name a box we have and fit the grid. */
+  function cleanLayout(value) {
+    if (!Array.isArray(value)) return null;
+    var seen = {};
+    var out = value.filter(function (b) {
+      var ok = !!(b && BOXES[b.id] && !seen[b.id] && whole(b.x) && whole(b.y) && whole(b.w) && whole(b.h) &&
+        b.w >= 1 && b.h >= 1 && b.x + b.w <= COLS && b.h <= 40);
+      if (ok) seen[b.id] = true;
+      return ok;
+    }).map(copyEntry);
+    return out.length ? out : null;
+  }
+  /** One layout entry: its place on the grid, and on a phone its order (o) and size (p). */
+  function copyEntry(b) {
+    var out = { id: b.id, x: b.x, y: b.y, w: b.w, h: b.h };
+    if (whole(b.o)) out.o = b.o;
+    if (b.p === "S" || b.p === "M" || b.p === "L") out.p = b.p;
+    return out;
+  }
+  function copyLayout(value) { return value.map(copyEntry); }
+
+  /**
+   * Where the boxes land: each keeps its columns, is pushed down past any box above it that
+   * it would overlap (an opened list grows), then rises into the space left above it, so a
+   * hidden or shorter box never leaves a hole. A pinned box (the one being moved or resized)
+   * is placed first, exactly where it was put, and the others make room around it.
+   */
+  function placed(source, pinId) {
+    var out = [];
+    function hits(b, y, h) {
+      return out.some(function (o) { return b.x < o.x + o.w && o.x < b.x + b.w && y < o.y + o.h && o.y < y + h; });
+    }
+    var boxes = (source || state.layout || DEFAULT_LAYOUT)
+      .filter(function (b) { return !BOXES[b.id].show || BOXES[b.id].show(); })
+      .slice().sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) out.push({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h });
+    });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) return;
+      var h = Math.max(state.fit[b.id] || b.h, state.need[b.id] || 0);
+      var y = b.y;
+      while (hits(b, y, h)) y++;
+      while (y > 0 && !hits(b, y - 1, h)) y--;
+      out.push({ id: b.id, x: b.x, y: y, w: b.w, h: h });
+    });
+    return out.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+  }
+  /** On a phone the boxes stand in the order the person gave them there, else top to bottom. */
+  function phoneOrder(spots) {
+    var at = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { at[b.id] = b; });
+    return spots.slice().sort(function (a, b) {
+      var oa = at[a.id] && whole(at[a.id].o) ? at[a.id].o : 1e6;
+      var ob = at[b.id] && whole(at[b.id].o) ? at[b.id].o : 1e6;
+      return oa - ob || a.y - b.y || a.x - b.x;
+    });
+  }
+  function entryOf(id) {
+    var l = state.layout || DEFAULT_LAYOUT;
+    for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+    return null;
+  }
+  /** The level a box draws at: by its width on a wide screen, by the person's choice on a phone. */
+  function levelOf(el) {
+    if (phone()) {
+      var e = entryOf(el.getAttribute("data-box"));
+      return e && e.p ? e.p : "M";
+    }
+    return levelFor(el.offsetWidth);
+  }
+
+  // ── Motion ─────────────────────────────────────────────────────────────
+  // Boxes glide to new places on a spring with a small, quick bounce. Before a change the
+  // page notes where every box is (and stops what is still moving); after it, each box
+  // starts where it was and glides to where it is now. A box that changes size grows or
+  // shrinks for real, so its words never stretch. People who asked their system for less
+  // motion get the change at once.
+
+  var MOVE_MS = 460;
+  var ENTER_MS = 380;
+  var lessMotion = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function motionOK() { return !(lessMotion && lessMotion.matches) && typeof document.body.animate === "function"; }
+
+  /** A damped spring as a CSS easing: about 4% past the mark, settled by the end. */
+  function springEasing(zeta, omega, steps) {
+    var wd = omega * Math.sqrt(1 - zeta * zeta);
+    var pts = [];
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      var v = 1 - Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + (zeta * omega / wd) * Math.sin(wd * t));
+      pts.push(i === steps ? 1 : Math.round(v * 1000) / 1000);
+    }
+    return "linear(" + pts.join(", ") + ")";
+  }
+  var SPRING = window.CSS && CSS.supports && CSS.supports("transition-timing-function", "linear(0, 1)")
+    ? springEasing(0.72, 10, 32)
+    : "cubic-bezier(.34, 1.3, .64, 1)";
+  document.documentElement.style.setProperty("--spring", SPRING);
+  /** No bounce: what the hand moves glides smoothly, so nothing seems to jump under it. */
+  var SMOOTH = "cubic-bezier(.22, 1, .36, 1)";
+
+  /** Where every box is now, then stops what is still gliding so the change starts clean. */
+  function snapshot(skip) {
+    var at = {};
+    if (!motionOK()) return at;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip) return;
+      at[id] = el.getBoundingClientRect();
+      el.getAnimations().forEach(function (a) { if (a.id === "glide" || a.id === "enter") a.cancel(); });
+    });
+    return at;
+  }
+  /** Each box glides from where the snapshot saw it to where it is now; a new box grows in. */
+  function glide(before, skip, easing) {
+    if (!motionOK() || !before) return;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip || el.hidden) return;
+      if (before[id]) glideFrom(el, before[id], true, MOVE_MS, easing);
+      else enter(el);
+    });
+  }
+  /** One element glides from the rectangle `a` to where it is now, growing for real if its size changed. */
+  function glideFrom(el, a, isBox, ms, easing) {
+    var b = el.getBoundingClientRect();
+    var dx = a.left - b.left;
+    var dy = a.top - b.top;
+    var resized = Math.abs(a.width - b.width) >= 1 || Math.abs(a.height - b.height) >= 1;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && !resized) return;
+    var from = { transform: "translate(" + dx + "px, " + dy + "px)" };
+    var to = { transform: "none" };
+    if (resized) {
+      from.width = a.width + "px";
+      from.height = a.height + "px";
+      to.width = b.width + "px";
+      to.height = b.height + "px";
+      // While it grows, the box is not drawn again at every in-between size.
+      if (isBox) el.setAttribute("data-gliding", "");
+    }
+    var anim = el.animate([from, to], { duration: ms, easing: easing || SPRING });
+    anim.id = "glide";
+    if (!isBox) return;
+    anim.onfinish = anim.oncancel = function () {
+      if (!el.hasAttribute("data-gliding")) return;
+      el.removeAttribute("data-gliding");
+      if (el.isConnected && el.offsetWidth) {
+        if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+        else fitBox(el);
+      }
+    };
+  }
+  function enter(el) {
+    if (!motionOK()) return;
+    var anim = el.animate([{ opacity: 0, transform: "scale(.94)" }, { opacity: 1, transform: "none" }], { duration: ENTER_MS, easing: SPRING });
+    anim.id = "enter";
+  }
+  /** A box held by the hand lets go of its offset and its free size, so the glide can carry it home. */
+  function letGo() {
+    Object.keys(boxEls).forEach(function (id) {
+      var s = boxEls[id].style;
+      s.transform = "";
+      s.width = "";
+      s.height = "";
+    });
+  }
+
+  var sizeWatch = window.ResizeObserver ? new ResizeObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var el = entry.target;
+      if (!el.isConnected || !el.offsetWidth || el.hasAttribute("data-gliding")) return;
+      if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+      else fitBox(el);
+      sizeTag(el);
+    });
+  }) : null;
+
+  var boxEls = {};
+  /** What each box last drew, so a repaint that changes nothing leaves it (and its input) alone. */
+  var drawn = {};
+  function boxEl(id) {
+    if (!boxEls[id]) {
+      var el = document.createElement("section");
+      el.className = "box " + BOXES[id].cls;
+      el.id = "box-" + id;
+      el.setAttribute("data-box", id);
+      if (BOXES[id].list) el.setAttribute("aria-labelledby", "h-" + id);
+      boxEls[id] = el;
+      if (sizeWatch) sizeWatch.observe(el);
+    }
+    return boxEls[id];
+  }
+
+  /** Puts every box in its place and order, without drawing what is inside. */
+  function placeBoxes() {
+    var grid = $("grid");
+    var stack = phone();
+    grid.classList.toggle("stack", stack);
+    grid.classList.toggle("editing", state.editing);
+    grid.style.setProperty("--row", ROW + "px");
+    grid.style.setProperty("--gap", GAP + "px");
+    var spots = stack ? phoneOrder(placed()) : placed();
+    var keep = {};
+    spots.forEach(function (spot, i) {
+      keep[spot.id] = true;
+      var el = boxEl(spot.id);
+      if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null);
+      el.style.gridColumn = stack ? "" : spot.x + 1 + " / span " + spot.w;
+      el.style.gridRow = stack ? "" : spot.y + 1 + " / span " + spot.h;
+      // In edit mode a box is one stop for the keyboard: arrows move it, Shift and arrows resize it.
+      if (state.editing) {
+        el.tabIndex = 0;
+        el.setAttribute("aria-label", BOXES[spot.id].title + (stack
+          ? ". Up and down arrows move it."
+          : ". Arrow keys move it. Shift and arrow keys change its size."));
+      } else {
+        el.removeAttribute("tabindex");
+        el.removeAttribute("aria-label");
+      }
+    });
+    Array.prototype.slice.call(grid.children).forEach(function (el) {
+      if (el.hasAttribute("data-box") && !keep[el.getAttribute("data-box")]) grid.removeChild(el);
+    });
+    return spots;
+  }
+
+  function paintGrid() {
+    var grid = $("grid");
+    var show = state.loaded && !!state.data && !showReading();
+    grid.hidden = !show;
+    if (!show) { $("grid-empty").hidden = true; return; }
+    var spots = placeBoxes();
+    $("grid-empty").hidden = spots.length > 0;
+    spots.forEach(function (spot) { drawBox(boxEl(spot.id)); });
+  }
+
+  /** Draws one box at the level its width gives it; what someone was typing survives. */
+  function drawBox(el) {
+    var id = el.getAttribute("data-box");
+    var level = levelOf(el);
+    var html = BOXES[id].draw(level);
+    if (state.editing) {
+      html += '<button type="button" class="box-x" data-act="remove-box" aria-label="Remove ' + esc(BOXES[id].title) + '">' + icon("i-x") + "</button>";
+      html += phone()
+        ? '<div class="box-size" role="group" aria-label="Size of ' + esc(BOXES[id].title) + '">' + ["S", "M", "L"].map(function (size) {
+            return '<button type="button" data-act="phone-size" data-size="' + size + '" aria-pressed="' + (level === size) + '">' + LEVEL_WORDS[size] + "</button>";
+          }).join("") + "</div>"
+        : '<span class="box-resize" title="Drag to resize" aria-hidden="true"></span>';
+    }
+    el.setAttribute("data-level", level);
+    if (drawn[id] !== html) {
+      var input = el.querySelector("input");
+      var typed = input ? input.value : "";
+      var focused = !!input && document.activeElement === input;
+      el.innerHTML = html;
+      drawn[id] = html;
+      var again = el.querySelector("input");
+      if (again && typed) again.value = typed;
+      if (again && focused) again.focus();
+    }
+    fitBox(el);
+  }
+
+  /**
+   * A list shows the rows that fit its box, then "+N more". Opened by that button it shows
+   * them all and the box grows to hold them.
+   */
+  function fitBox(el) {
+    var id = el.getAttribute("data-box");
+    var body = el.querySelector(".box-body");
+    var more = el.querySelector(".box-more");
+    if (!body || !more) return;
+    var rows = Array.prototype.slice.call(body.querySelectorAll(".rows > li"));
+    var open = !!state.expanded[id];
+    var stack = phone();
+    var cut = 0;
+    rows.forEach(function (r) { r.hidden = false; });
+    more.hidden = true;
+    // A list that gave rows back and now needs more takes back its own size before it measures.
+    var shrinks = !state.editing && !stack && el.matches(".lane:not(.nbox):not([data-box^='idea-'])");
+    if (state.fit[id] && (!shrinks || body.scrollHeight > body.clientHeight + 1)) {
+      delete state.fit[id];
+      placeBoxes();
+    }
+    if (!open && stack) {
+      var keepRows = el.getAttribute("data-level") === "L" ? rows.length : PHONE_ROWS;
+      rows.forEach(function (r, i) { if (i >= keepRows) { r.hidden = true; cut++; } });
+    } else if (!open && body.scrollHeight > body.clientHeight + 1) {
+      more.hidden = false;
+      for (var i = rows.length - 1; i > 0 && body.scrollHeight > body.clientHeight + 1; i--) { rows[i].hidden = true; cut++; }
+    }
+    more.hidden = !cut && !state.expanded[id];
+    more.textContent = cut ? "+" + cut + " more" : "Show less";
+    more.setAttribute("aria-expanded", String(!cut));
+
+    var need = 0;
+    if (open && !stack) {
+      var total = 2;
+      Array.prototype.forEach.call(el.children, function (child) {
+        if (child.matches(".box-x, .box-resize, .box-size")) return;
+        total += child === body ? body.scrollHeight : child.hidden ? 0 : child.offsetHeight;
+      });
+      need = Math.ceil((total + GAP) / (ROW + GAP));
+    }
+    // A list with rows to spare stands as tall as its rows, opened or not, and gives the
+    // rest back so the boxes under it move up: no empty white under a short list.
+    var own = entryOf(id);
+    var fit = !shrinks || cut ? 0 : open ? need : Math.ceil((el.offsetHeight + GAP) / (ROW + GAP));
+    if (!own || fit >= own.h) fit = 0;
+    if ((state.need[id] || 0) !== need || (state.fit[id] || 0) !== fit) {
+      state.need[id] = need;
+      state.fit[id] = fit;
+      placeBoxes();
+    }
+  }
+
+  function boxHead(key, title, iconId, n) {
+    return '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="h-' + key + '">' + esc(title) + "</h3>" +
+      (n === null ? "" : '<span class="count">' + n + "</span>") + "</div>";
+  }
+  function listBox(key, title, iconId, n, rowsHtml, emptyText) {
+    return boxHead(key, title, iconId, n) +
+      '<div class="box-body">' + (n ? rowsHtml : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
+  }
+  /** The small level: one number, a line under it, and the one that matters most. */
+  function sumBox(key, title, iconId, value, subHtml, lineHtml) {
+    return boxHead(key, title, iconId, null) +
+      '<div class="sum"><span class="value' + (value ? "" : " none") + '">' + esc(value || "None") + "</span>" +
+      '<span class="sub">' + subHtml + "</span>" + (lineHtml ? '<span class="line">' + lineHtml + "</span>" : "") + "</div>";
+  }
+
+  /** The number boxes: one number each, from the library's totals. */
+  function drawNumber(which) {
+    return function () {
+      var t = (state.data && state.data.totals) || {};
+      if (which === "notes") {
+        var n = count(t.notes);
+        return sumBox("n-notes", "Notes", "i-note", n == null ? "" : String(n), "notes looked through", "");
+      }
+      if (which === "topics") {
+        var k = topics().length;
+        return sumBox("n-topics", "Topics", "i-folder", String(k), plural(k, "topic found", "topics found"), "");
+      }
+      var s = count(t.sorted);
+      return sumBox("n-sorted", "Notes sorted", "i-check", s == null ? "" : String(s), "notes sorted into topics", "");
+    };
+  }
+
+  /** Every idea, one tap each. */
+  function drawIdeasBox(level) {
+    if (level === "S") {
+      return sumBox("ideas", "Ideas", "i-bulb", String(IDEAS.length), "ideas, one tap each", "") +
+        '<div class="box-pad"><button class="btn small" data-act="ideas">' + icon("i-bulb") + "See them all</button></div>";
+    }
+    return listBox("ideas", "Ideas", "i-bulb", IDEAS.length,
+      '<ul class="rows idea-rows">' + IDEAS.map(function (idea) {
+        return "<li><div><b>" + esc(idea.title) + "</b>" + (level === "L" ? "<span>" + esc(idea.text) + "</span>" : "") + "</div>" +
+          '<button class="btn small" data-act="idea-now" data-idea="' + idea.id + '">' + icon("i-send") + "Ask</button></li>";
+      }).join("") + "</ul>",
+      "No ideas yet.");
+  }
+
+  /** One idea as its own box, put there by the person. */
+  function drawOneIdea(idea, level) {
+    return '<div class="one-idea">' + (level === "L" ? artImg(idea) : "") +
+      "<h3>" + esc(idea.title) + "</h3>" +
+      (level === "S" ? "" : "<p>" + esc(idea.text) + "</p>") +
+      '<div class="go"><button class="btn small primary" data-act="idea-now" data-idea="' + idea.id + '">' + icon("i-send") + "Ask now</button>" +
+      (level === "S" ? "" : '<button class="btn small" data-act="idea-routine" data-idea="' + idea.id + '">' + icon("i-repeat") + esc(idea.when) + "</button>") +
+      "</div></div>";
+  }
+  /** An idea's picture: a note on the page's yellow, with the idea's own mark on it. */
+  function art(mark) {
+    return '<svg viewBox="0 0 320 160" preserveAspectRatio="xMidYMid slice" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect width="320" height="160" fill="#fff5cf"/>' +
+      '<rect x="92" y="20" width="136" height="124" rx="10" fill="#fff" stroke="#ece5d3" stroke-width="2"/>' +
+      '<path d="M102 20h116a10 10 0 0 1 10 10v4H92v-4a10 10 0 0 1 10-10z" fill="#f5c518"/>' +
+      '<path d="M110 58h100M110 78h76M110 98h60" stroke="#ece5d3" stroke-width="7"/>' + mark + "</svg>";
+  }
+  function artImg(idea) { return '<div class="art-img" aria-hidden="true">' + idea.art + "</div>"; }
+  function ideaById(id) {
+    for (var i = 0; i < IDEAS.length; i++) if (IDEAS[i].id === id) return IDEAS[i];
+    return null;
+  }
+
+  // Ask about your notes: the ready-made questions under the box.
+  function drawAsk(level) {
+    return '<p class="label">Ask about your notes</p>' +
+      '<form id="ask-form"><input id="ask-input" maxlength="3900" placeholder="What did I decide about the car?" autocomplete="off" aria-label="Your question" />' +
+      '<button class="btn primary" type="submit">' + icon("i-send") + "Ask</button></form>" +
+      (level === "S" ? "" : '<div class="chips">' + QUESTIONS.map(function (q) {
+        return '<button class="chip" type="button" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+      }).join("") + "</div>" + '<p class="fine" id="ask-note">' + esc(state.askNote) + "</p>");
+  }
+
+  var DRAWERS = {
+    ideas: { title: "Ideas", sub: "One tap to ask now, to have it done for you on a schedule, or to keep it on your page as a box.", icon: "i-bulb", paint: paintIdeasPanel },
+    add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker }
+  };
+  function paintDrawer() {
+    var kind = DRAWERS[state.drawerKind] || DRAWERS.ideas;
+    $("drawer-title").textContent = kind.title;
+    $("drawer-sub").textContent = kind.sub;
+    $("drawer-icon").innerHTML = icon(kind.icon);
+    kind.paint();
+  }
+
+  // The Add a box panel: every box by group, the ones on the page ticked.
+  function paintPicker() {
+    var on = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { on[b.id] = true; });
+    $("drawer-body").innerHTML = GROUPS.map(function (group) {
+      var ids = Object.keys(BOXES).filter(function (id) { return BOXES[id].group === group.id; });
+      return '<section class="pick-group"><h3>' + esc(group.title) + "</h3>" + ids.map(function (id) {
+        var box = BOXES[id];
+        var ready = !box.show || box.show();
+        var note = on[id] ? (ready ? "On your page" : "On your page. " + box.when) : ready ? "" : box.when;
+        return '<div class="pick' + (on[id] ? " on" : "") + '"><span class="pick-ic" aria-hidden="true">' + icon(box.icon) + "</span>" +
+          "<div><b>" + esc(box.title) + "</b><span>" + esc(box.desc) + "</span>" +
+          (note ? "<em>" + esc(note) + "</em>" : "") + "</div>" +
+          (on[id]
+            ? '<span class="pick-on" aria-hidden="true">' + icon("i-check") + "</span>"
+            : '<button type="button" class="btn small" data-act="add-this" data-add="' + id + '"' + (ready ? "" : " disabled") +
+              ' aria-label="Add ' + esc(box.title) + '">' + icon("i-plus") + "Add</button>") +
+          "</div>";
+      }).join("") + "</section>";
+    }).join("");
+  }
+
+  // The Ideas panel: every idea with its picture, and a way to keep it on the page as a box.
+  function paintIdeasPanel() {
+    var on = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { on[b.id] = true; });
+    $("drawer-body").innerHTML =
+      (!V2 ? '<p class="fine">Ask for any of these in the cabinet’s chat.</p>' : "") +
+      IDEAS.map(function (idea) {
+        var boxed = !!on["idea-" + idea.id];
+        return '<article class="idea">' + artImg(idea) +
+          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
+          '<div class="go"><button class="btn primary" data-act="idea-now" data-idea="' + idea.id + '">' + icon("i-send") + "Ask now</button>" +
+          '<button class="btn" data-act="idea-routine" data-idea="' + idea.id + '">' + icon("i-repeat") + esc(idea.when) + "</button>" +
+          (boxed ? '<span class="on-page">' + icon("i-check") + "On your page</span>"
+            : '<button class="btn" data-act="add-this" data-add="idea-' + idea.id + '">' + icon("i-plus") + "Add as a box</button>") +
+          "</div></article>";
+      }).join("");
+  }
+
+  // ── Editing the page ───────────────────────────────────────────────────
+  // Layout turns on a bar above the grid; each box gets a remove button and stops reacting
+  // to presses. Every change is kept at once in cabinet.mine, and Undo steps back.
+
+  function startEdit() {
+    // Boxes show the size they were given while being arranged, not grown by an open list.
+    state.expanded = {};
+    state.need = {};
+    state.fit = {};
+    state.editing = true;
+    state.undo = [];
+    paint();
+    // The remove and resize handles pop in once, as edit mode starts.
+    var grid = $("grid");
+    grid.classList.add("fresh");
+    setTimeout(function () { grid.classList.remove("fresh"); }, 700);
+    toast(phone() ? "Hold a box to move it. Pick its size on top." : "Drag a box to move it. Pull its corner to resize it.");
+  }
+  function doneEdit() {
+    state.editing = false;
+    state.undo = [];
+    closeDrawer();
+    paint();
+  }
+  function paintEditbar() {
+    $("editbar").hidden = !state.editing;
+    $("undo-btn").disabled = !state.undo.length;
+  }
+
+  function saveLayout() {
+    if (!V2 || !cab.mine || typeof cab.mine.set !== "function") return;
+    cab.mine.set(LAYOUT_KEY, state.layout).catch(function () {
+      toast("Your page could not be saved. It goes back to how it was next time.");
+    });
+  }
+  function changeLayout(next, easing) {
+    var before = snapshot();
+    letGo();
+    state.undo.push(copyLayout(state.layout || DEFAULT_LAYOUT));
+    if (state.undo.length > 30) state.undo.shift();
+    state.layout = next;
+    saveLayout();
+    paintGrid();
+    glide(before, null, easing);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  function removeBox(id) {
+    var el = boxEls[id];
+    var next = copyLayout(state.layout || DEFAULT_LAYOUT).filter(function (b) { return b.id !== id; });
+    if (el) el.classList.add("leaving");
+    setTimeout(function () {
+      if (el) el.classList.remove("leaving");
+      changeLayout(next);
+      toast(BOXES[id].title + " removed. Undo brings it back.");
+    }, 200);
+  }
+  /** The first place, reading left to right and top down, where a w by h box touches nothing. */
+  function freeSpot(w, h, source) {
+    var spots = placed(source);
+    for (var y = 0; ; y++) {
+      for (var x = 0; x + w <= COLS; x++) {
+        var hit = spots.some(function (o) { return x < o.x + o.w && o.x < x + w && y < o.y + o.h && o.y < y + h; });
+        if (!hit) return { x: x, y: y };
+      }
+    }
+  }
+  function addBox(id) {
+    var box = BOXES[id];
+    var w = Math.min(box.w, COLS);
+    var at = freeSpot(w, box.h);
+    changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).concat({ id: id, x: at.x, y: at.y, w: w, h: box.h }));
+    closeDrawer();
+    var el = boxEls[id];
+    if (el && el.isConnected) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+    }
+    toast(box.title + " added." + (state.editing ? "" : " Press Layout to move it."));
+  }
+  function resetLayout() {
+    changeLayout(copyLayout(DEFAULT_LAYOUT));
+    toast("Back to the first page. Undo brings yours back.");
+  }
+  function undoLayout() {
+    if (!state.undo.length) return;
+    var before = snapshot();
+    state.layout = state.undo.pop();
+    saveLayout();
+    paintGrid();
+    glide(before);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  // ── Moving and resizing ────────────────────────────────────────────────
+  // A mouse or pen drags a box from anywhere on it in edit mode. A finger holds a box for a
+  // moment first, so the page still scrolls under a passing finger; outside edit mode the
+  // hold also starts editing. While a box moves, the others make room live and an outline
+  // shows where it lands. The corner handle resizes it on the grid, naming the size it
+  // reaches. On a phone a box moves up and down its column; its size is a switch.
+
+  var HOLD_MS = 600;
+  var SLOP = 8;
+  /** How far a mouse moves, pressed, before the box comes along: a slip of the hand is not a move. */
+  var DRAG_START = 10;
+  /** How far past a border (in cells) the moving box must be before the others make room. */
+  var STICK = 0.8;
+  var drag = null;
+  var press = null;
+  var hold = null;
+
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function spotIn(spots, id) {
+    for (var i = 0; i < spots.length; i++) if (spots[i].id === id) return spots[i];
+    return null;
+  }
+  function gridMetrics() {
+    var r = $("grid").getBoundingClientRect();
+    return { left: r.left, top: r.top, col: (r.width + GAP) / COLS, row: ROW + GAP };
+  }
+  /** The page with one box put at x, y and sized w by h, every other box making room. */
+  function previewWith(id, x, y, w, h) {
+    return placed(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+      if (b.id === id) { b.x = x; b.y = y; b.w = w; b.h = h; }
+      return b;
+    }), id);
+  }
+  function showSpots(spots) {
+    spots.forEach(function (s) {
+      var el = boxEls[s.id];
+      if (!el) return;
+      el.style.gridColumn = s.x + 1 + " / span " + s.w;
+      el.style.gridRow = s.y + 1 + " / span " + s.h;
+    });
+  }
+  /** Keeps the places a move or resize ended on; nothing is kept when nothing moved. */
+  function keepSpots(spots, easing) {
+    var at = {};
+    spots.forEach(function (s) { at[s.id] = s; });
+    var before = copyLayout(state.layout || DEFAULT_LAYOUT);
+    var next = copyLayout(before).map(function (b) {
+      var s = at[b.id];
+      if (s) { b.x = s.x; b.y = s.y; b.w = s.w; b.h = s.h; }
+      return b;
+    });
+    // Compared as the page shows them, so a drop back in the same place is no change.
+    var shown = function (l) { return JSON.stringify(placed(l).map(function (s) { return [s.id, s.x, s.y, s.w, s.h]; })); };
+    if (shown(next) === shown(before)) { settleBack(easing); return false; }
+    changeLayout(next, easing);
+    return true;
+  }
+  /** Nothing changed: every box glides back to the place it already had. */
+  function settleBack(easing) {
+    var before = snapshot();
+    letGo();
+    paintGrid();
+    glide(before, null, easing);
+  }
+
+  // The outline where a moving box lands, and the size a resized box has reached.
+  function overlay(cls) {
+    var grid = $("grid");
+    var el = grid.querySelector("." + cls);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = cls;
+      el.setAttribute("aria-hidden", "true");
+      grid.appendChild(el);
+    }
+    return el;
+  }
+  /** Puts the outline (or the size label) on a spot; once shown, it glides from spot to spot. */
+  function placeOverlay(el, s) {
+    var was = el.style.gridColumn && motionOK() ? el.getBoundingClientRect() : null;
+    if (was) el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.style.gridColumn = s.x + 1 + " / span " + s.w;
+    el.style.gridRow = s.y + 1 + " / span " + s.h;
+    if (was) glideFrom(el, was, false, 300, SMOOTH);
+  }
+  function clearOverlays() {
+    Array.prototype.slice.call($("grid").querySelectorAll(".drop-spot, .size-tag")).forEach(function (el) { el.parentNode.removeChild(el); });
+  }
+  /** "Medium: 3 rows": what a box shows at the size it has now. */
+  function sizeWords(el) {
+    var id = el.getAttribute("data-box");
+    var level = el.getAttribute("data-level") || "M";
+    var name = LEVEL_WORDS[level];
+    if (!BOXES[id].list) return name;
+    if (level === "S") return name + ": the total only";
+    var n = el.querySelectorAll(".rows > li:not([hidden])").length;
+    return n ? name + ": " + n + " " + plural(n, "row", "rows") : name;
+  }
+
+  function beginDrag(kind, el, x, y, touch) {
+    var id = el.getAttribute("data-box");
+    var r = el.getBoundingClientRect();
+    var spot = spotIn(placed(), id);
+    if (!spot) return;
+    drag = { kind: kind, id: id, el: el, touch: !!touch, x: x, y: y, x0: x, y0: y, scroll0: window.scrollY, spots: null };
+    if (kind === "stack") {
+      var boxes = Array.prototype.filter.call($("grid").children, function (c) { return c.hasAttribute("data-box"); });
+      drag.boxes = boxes;
+      drag.from = boxes.indexOf(el);
+      drag.to = drag.from;
+      drag.gap = parseFloat(getComputedStyle($("grid")).rowGap) || GAP;
+      drag.step = r.height + drag.gap;
+      drag.mids = boxes.map(function (b) { var br = b.getBoundingClientRect(); return br.top + window.scrollY + br.height / 2; });
+    } else if (kind === "move") {
+      drag.w = spot.w;
+      drag.h = spot.h;
+      drag.grabX = x - r.left;
+      drag.grabY = y - r.top;
+    } else {
+      drag.sx = spot.x;
+      drag.sy = spot.y;
+      drag.pw0 = r.width;
+      drag.ph0 = r.height;
+    }
+    // Whatever was still animating this box lets go of it, or it would hold the box still
+    // while the hand moves.
+    el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.classList.add(kind === "size" ? "sizing" : "lifted");
+    $("grid").classList.add("arranging");
+    document.body.classList.add(kind === "size" ? "is-sizing" : "is-moving");
+    if (touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not allowed here */ } }
+    moveDrag(x, y);
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function moveDrag(x, y) {
+    drag.x = x;
+    drag.y = y;
+    if (drag.kind === "stack") moveInColumn();
+    else if (drag.kind === "move") moveOnGrid();
+    else resizeOnGrid();
+  }
+
+  function moveOnGrid() {
+    var m = gridMetrics();
+    var left = drag.x - drag.grabX;
+    var top = drag.y - drag.grabY;
+    // The spot only changes once the box is well past a border (four fifths of a cell),
+    // so a hand resting near the line does not flip it back and forth.
+    var fx = (left - m.left) / m.col;
+    var fy = (top - m.top) / m.row;
+    var tx = drag.spots && Math.abs(fx - drag.tx) < STICK ? drag.tx : clamp(Math.round(fx), 0, COLS - drag.w);
+    var ty = drag.spots && Math.abs(fy - drag.ty) < STICK ? drag.ty : Math.max(0, Math.round(fy));
+    if (!drag.spots || drag.tx !== tx || drag.ty !== ty) {
+      drag.tx = tx;
+      drag.ty = ty;
+      var before = snapshot(drag.el);
+      drag.spots = previewWith(drag.id, tx, ty, drag.w, drag.h);
+      showSpots(drag.spots);
+      glide(before, drag.el, SMOOTH);
+      placeOverlay(overlay("drop-spot"), spotIn(drag.spots, drag.id));
+    }
+    drag.el.style.transform = "translate(" + (left - (m.left + tx * m.col)) + "px," + (top - (m.top + ty * m.row)) + "px)";
+  }
+
+  // The box follows the hand pixel by pixel; the outline shows the grid size it will take,
+  // the neighbours make room for that size, and letting go glides the box into it.
+  function resizeOnGrid() {
+    var m = gridMetrics();
+    var min = minSize(drag.id);
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    var pw = clamp(drag.pw0 + drag.x - drag.x0, min.w * m.col - GAP, (COLS - drag.sx) * m.col - GAP);
+    var ph = clamp(drag.ph0 + dy, min.h * m.row - GAP, 40 * m.row - GAP);
+    drag.el.style.width = pw + "px";
+    drag.el.style.height = ph + "px";
+    var fw = (pw + GAP) / m.col;
+    var fh = (ph + GAP) / m.row;
+    var w = drag.spots && Math.abs(fw - drag.w) < STICK ? drag.w : clamp(Math.round(fw), min.w, COLS - drag.sx);
+    var h = drag.spots && Math.abs(fh - drag.h) < STICK ? drag.h : clamp(Math.round(fh), min.h, 40);
+    if (drag.spots && drag.w === w && drag.h === h) return;
+    drag.w = w;
+    drag.h = h;
+    var before = snapshot(drag.el);
+    drag.spots = previewWith(drag.id, drag.sx, drag.sy, w, h);
+    showSpots(drag.spots);
+    glide(before, drag.el, SMOOTH);
+    var spot = spotIn(drag.spots, drag.id);
+    placeOverlay(overlay("drop-spot"), spot);
+    placeOverlay(overlay("size-tag"), spot);
+  }
+  /** The label names what the box shows at the size it has under the hand. */
+  function sizeTag(el) {
+    var tag = drag && drag.kind === "size" && drag.el === el ? $("grid").querySelector(".size-tag") : null;
+    if (tag) tag.textContent = sizeWords(el);
+  }
+
+  function moveInColumn() {
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    drag.el.style.transform = "translateY(" + dy + "px) scale(1.02)";
+    // The edge leading the move passes a box once it crosses that box's middle, so a tall
+    // box does not have to travel its own height before the others make room.
+    var top = drag.mids[drag.from] - (drag.step - drag.gap) / 2 + dy;
+    var bottom = top + drag.step - drag.gap;
+    var to = drag.from;
+    drag.mids.forEach(function (mid, i) {
+      if (i > drag.from && bottom > mid + 24) to++;
+      if (i < drag.from && top < mid - 24) to--;
+    });
+    drag.to = to;
+    drag.boxes.forEach(function (b, i) {
+      if (b === drag.el) return;
+      var shift = drag.from < to && i > drag.from && i <= to ? -drag.step : drag.from > to && i >= to && i < drag.from ? drag.step : 0;
+      b.style.transform = shift ? "translateY(" + shift + "px)" : "";
+    });
+  }
+
+  /**
+   * Near the top or bottom of the window, the page scrolls while something is held: only
+   * after it has rested there for a moment, slowly at first and never fast, so a box carried
+   * past the edge does not send the page racing.
+   */
+  var EDGE = 56;
+  var EDGE_WAIT_MS = 300;
+  var EDGE_MAX = 7;
+  function edgeScroll(now) {
+    if (!drag) return;
+    var into = drag.y < EDGE ? -(EDGE - drag.y) : drag.y > window.innerHeight - EDGE ? drag.y - window.innerHeight + EDGE : 0;
+    if (!into) drag.edgeSince = 0;
+    else if (!drag.edgeSince) drag.edgeSince = now || performance.now();
+    var waited = drag.edgeSince ? (now || performance.now()) - drag.edgeSince : 0;
+    if (into && waited > EDGE_WAIT_MS) {
+      // Speed grows with how deep into the edge the hand is and how long it has stayed.
+      var ramp = Math.min(1, (waited - EDGE_WAIT_MS) / 600);
+      var v = Math.max(1, Math.round(Math.min(EDGE_MAX, Math.abs(into) / 6) * ramp));
+      window.scrollBy(0, into < 0 ? -v : v);
+      moveDrag(drag.x, drag.y);
+    }
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function endDrag(cancelled) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    cancelAnimationFrame(d.raf);
+    clearOverlays();
+    $("grid").classList.remove("arranging");
+    document.body.classList.remove("is-moving", "is-sizing");
+    d.el.classList.remove("lifted", "sizing");
+    // The held box and the ones that made room keep their offsets until the glide takes over.
+    if (d.kind === "stack") {
+      if (cancelled || d.to === d.from) { settleBack(SMOOTH); return; }
+      var ids = d.boxes.map(function (b) { return b.getAttribute("data-box"); });
+      ids.splice(d.to, 0, ids.splice(d.from, 1)[0]);
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+        var at = ids.indexOf(b.id);
+        if (at >= 0) b.o = at;
+        return b;
+      }), SMOOTH);
+      return;
+    }
+    if (cancelled || !d.spots) { settleBack(SMOOTH); return; }
+    if (keepSpots(d.spots, SMOOTH) && d.kind === "size") {
+      requestAnimationFrame(function () { toast(BOXES[d.id].title + ": " + sizeWords(d.el)); });
+    }
+  }
+
+  // Mouse and pen: press on a box and move a little; the corner handle resizes at once
+  // (for a finger too: it never scrolls the page).
+  document.addEventListener("pointerdown", function (e) {
+    if (!state.editing || drag || e.button !== 0) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el) return;
+    if (e.target.closest(".box-resize")) {
+      e.preventDefault();
+      beginDrag("size", el, e.clientX, e.clientY, false);
+      return;
+    }
+    if (e.pointerType === "touch" || e.target.closest(".box-x, .box-size")) return;
+    press = { el: el, x: e.clientX, y: e.clientY };
+  });
+  document.addEventListener("pointermove", function (e) {
+    if (drag && !drag.touch) { moveDrag(e.clientX, e.clientY); return; }
+    if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > DRAG_START) {
+      var p = press;
+      press = null;
+      beginDrag(phone() ? "stack" : "move", p.el, e.clientX, e.clientY, false);
+      // The grab point is where the press began, not where the move was noticed.
+      if (drag && drag.kind === "move") { drag.grabX -= e.clientX - p.x; drag.grabY -= e.clientY - p.y; moveDrag(e.clientX, e.clientY); }
+      if (drag && drag.kind === "stack") { drag.y0 = p.y; moveDrag(e.clientX, e.clientY); }
+    }
+  });
+  document.addEventListener("pointerup", function () { press = null; if (drag && !drag.touch) endDrag(false); });
+  document.addEventListener("pointercancel", function () { press = null; if (drag && !drag.touch) endDrag(true); });
+
+  // A finger: hold still on a box for a moment, then drag.
+  document.addEventListener("touchstart", function (e) {
+    if (drag || e.touches.length !== 1 || !state.data) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el || e.target.closest(".box-x, .box-size, .box-resize")) return;
+    var t = e.touches[0];
+    hold = { el: el, x: t.clientX, y: t.clientY, timer: setTimeout(function () {
+      var h = hold;
+      hold = null;
+      if (!h || !h.el.isConnected) return;
+      if (!state.editing) startEdit();
+      beginDrag(phone() ? "stack" : "move", h.el, h.x, h.y, true);
+    }, HOLD_MS) };
+  }, { passive: true });
+  document.addEventListener("touchmove", function (e) {
+    var t = e.touches[0];
+    if (hold && t && Math.abs(t.clientX - hold.x) + Math.abs(t.clientY - hold.y) > SLOP) {
+      clearTimeout(hold.timer);
+      hold = null;
+    }
+    if (drag && drag.touch && t) {
+      e.preventDefault();
+      moveDrag(t.clientX, t.clientY);
+    }
+  }, { passive: false });
+  function touchOver(e, cancelled) {
+    if (hold) { clearTimeout(hold.timer); hold = null; }
+    if (drag && drag.touch) {
+      // No tap reaches what was under the finger when it lets go of a box.
+      if (e.cancelable) e.preventDefault();
+      endDrag(cancelled);
+    }
+  }
+  document.addEventListener("touchend", function (e) { touchOver(e, false); }, { passive: false });
+  document.addEventListener("touchcancel", function (e) { touchOver(e, true); }, { passive: false });
+  document.addEventListener("contextmenu", function (e) { if (drag || hold) e.preventDefault(); });
+
+  // The keyboard: arrows move the box in focus, Shift and arrows resize it.
+  var ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  function keyMove(el, d, resize) {
+    var id = el.getAttribute("data-box");
+    if (phone()) {
+      if (!d[1]) return;
+      var ids = phoneOrder(placed()).map(function (s) { return s.id; });
+      var from = ids.indexOf(id);
+      var to = clamp(from + d[1], 0, ids.length - 1);
+      if (to === from) return;
+      ids.splice(to, 0, ids.splice(from, 1)[0]);
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+        var at = ids.indexOf(b.id);
+        if (at >= 0) b.o = at;
+        return b;
+      }));
+      el.focus();
+      toast(BOXES[id].title + " moved " + (d[1] < 0 ? "up" : "down") + ".");
+      return;
+    }
+    var s = spotIn(placed(), id);
+    if (!s) return;
+    var min = minSize(id);
+    if (resize) {
+      var w = clamp(s.w + d[0], min.w, COLS - s.x);
+      var h = clamp(s.h + d[1], min.h, 40);
+      if (keepSpots(previewWith(id, s.x, s.y, w, h))) {
+        el.focus();
+        requestAnimationFrame(function () { toast(BOXES[id].title + ": " + sizeWords(el)); });
+      }
+      return;
+    }
+    // Down past empty space would only float back up, so it goes as far as it takes to move.
+    for (var step = 1; step <= 40; step++) {
+      var x = clamp(s.x + d[0] * step, 0, COLS - s.w);
+      var y = Math.max(0, s.y + d[1] * step);
+      if (x === s.x && y === s.y) return;
+      if (keepSpots(previewWith(id, x, y, s.w, s.h))) {
+        el.focus();
+        toast(BOXES[id].title + " moved.");
+        return;
+      }
+      if (d[0]) return;
+    }
+  }
+  document.addEventListener("keydown", function (e) {
+    if (!state.editing || drag || !ARROWS[e.key]) return;
+    var el = document.activeElement;
+    if (!el || !el.matches || !el.matches("#grid > .box")) return;
+    e.preventDefault();
+    keyMove(el, ARROWS[e.key], e.shiftKey);
+  });
+
+  var drawerTimer = 0;
+  var drawerFrom = null;
+  function openDrawer(kind) {
+    var el = $("drawer");
+    clearTimeout(drawerTimer);
+    drawerFrom = document.activeElement;
+    state.drawerOpen = true;
+    state.drawerKind = kind;
+    el.querySelector(".drawer-body").scrollTop = 0;
+    paintDrawer();
+    el.hidden = false;
+    document.body.style.overflow = "hidden";
+    // One frame on screen closed first, so the panel slides in rather than appearing.
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("open"); }); });
+    el.querySelector(".drawer-panel").focus();
+  }
+  function closeDrawer() {
+    var el = $("drawer");
+    if (!state.drawerOpen) return;
+    state.drawerOpen = false;
+    el.classList.remove("open");
+    document.body.style.overflow = "";
+    drawerTimer = setTimeout(function () { el.hidden = true; }, 360);
+    if (drawerFrom && drawerFrom.focus) drawerFrom.focus();
+  }
+
+  // ── Events ─────────────────────────────────────────────────────────────
+
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest ? event.target.closest("[data-act],[data-q],[data-topic]") : null;
+    if (!el) return;
+    if (el.getAttribute("data-topic")) {
+      if (state.example) { toast("This topic is made up. Bring in your notes to ask about your own."); return; }
+      ask("What do my notes say about " + el.getAttribute("data-topic") + "?");
+      return;
+    }
+    if (el.getAttribute("data-q")) { ask(el.getAttribute("data-q")); return; }
+    var act = el.getAttribute("data-act");
+    if (act === "run") runNow();
+    else if (act === "bring") bringIn();
+    else if (act === "more-rows") {
+      var boxId = el.closest(".box").getAttribute("data-box");
+      var shown = snapshot();
+      state.expanded[boxId] = !state.expanded[boxId];
+      fitBox(boxEl(boxId));
+      glide(shown);
+    } else if (act === "gift-do") {
+      var gift = state.reading && state.reading.gift;
+      if (gift) {
+        ask(askOf(gift));
+        state.giftAsked = gift.at;
+        giftDone(false);
+        paint();
+      }
+    } else if (act === "gift-skip") {
+      giftDone(true);
+      paint();
+    } else if (act === "offer-do") {
+      var key = el.getAttribute("data-key");
+      var offer = state.reading ? state.reading.offers.filter(function (o) { return offerKey(o) === key; })[0] : null;
+      if (offer) {
+        ask(askOf(offer));
+        offerDone(key);
+        paint();
+      }
+    } else if (act === "idea-now") {
+      var idea = ideaById(el.getAttribute("data-idea"));
+      if (idea) { closeDrawer(); ask(idea.ask); }
+    } else if (act === "idea-routine") {
+      var it = ideaById(el.getAttribute("data-idea"));
+      if (it) { closeDrawer(); ask("Set this up as a routine that runs " + it.at + ": " + it.ask + " Show me the routine so I can approve it before it starts."); }
+    } else if (act === "ideas") {
+      openDrawer("ideas");
+    } else if (act === "add-box") {
+      openDrawer("add");
+    } else if (act === "add-this") {
+      var add = el.getAttribute("data-add");
+      if (BOXES[add]) addBox(add);
+    } else if (act === "phone-size") {
+      var sized = el.closest(".box").getAttribute("data-box");
+      var size = el.getAttribute("data-size");
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (x) { if (x.id === sized) x.p = size; return x; }));
+      if (boxEls[sized]) { var btn = boxEls[sized].querySelector('[data-size="' + size + '"]'); if (btn) btn.focus(); }
+    } else if (act === "remove-box") {
+      removeBox(el.closest(".box").getAttribute("data-box"));
+    } else if (act === "edit-start") {
+      startEdit();
+    } else if (act === "edit-done") {
+      doneEdit();
+    } else if (act === "undo") {
+      undoLayout();
+    } else if (act === "reset-layout") {
+      resetLayout();
+    } else if (act === "drawer-close") {
+      closeDrawer();
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    if (drag) endDrag(true);
+    else if (state.drawerOpen) closeDrawer();
+    else if (state.editing) doneEdit();
+  });
+
+  // The Ask box is drawn again as it changes size, so its form is listened to from here.
+  document.addEventListener("submit", function (event) {
+    if (!event.target || event.target.id !== "ask-form") return;
+    event.preventDefault();
+    ask($("ask-input").value);
+  });
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  paint();
+
+  if (PHONE) {
+    var onPhoneChange = function () { if (state.loaded && state.data) paintGrid(); };
+    if (PHONE.addEventListener) PHONE.addEventListener("change", onPhoneChange);
+    else if (PHONE.addListener) PHONE.addListener(onPhoneChange);
+  }
+  // Rows are measured to fit their boxes; the web font changes their height once it arrives.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      Object.keys(boxEls).forEach(function (id) { if (boxEls[id].isConnected) fitBox(boxEls[id]); });
+    });
+  }
+
+  if (V2) {
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+    var unavailable = { id: "apple-notes", state: "not-available-here", problem: null, canConnect: false };
+    cab.connectors.list().then(function (items) {
+      state.notes = pickNotes(items) || unavailable;
+      paint();
+      firstLook();
+    }).catch(function () { state.notes = unavailable; paint(); });
+    cab.connectors.onChange(function (items) { var n = pickNotes(items); if (n) { state.notes = n; paint(); } });
+    // Whether this person already used or put away the gift and the offers, on any computer,
+    // and their own layout, if they changed it.
+    Promise.resolve(cab.ready).then(function () {
+      var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
+      var clean = cleanLayout(mine ? mine.get(LAYOUT_KEY) : null);
+      if (clean) state.layout = clean;
+      var seen = mine ? mine.get(GIFT_KEY) : null;
+      if (typeof seen === "string") state.giftDone = seen;
+      var offersSeen = mine ? mine.get(OFFERS_KEY) : null;
+      if (Array.isArray(offersSeen)) offersSeen.forEach(function (k) { if (typeof k === "string") state.offersDone[k] = true; });
+    }).catch(function () {}).then(function () {
+      state.mineReady = true;
+      paint();
+    });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    load();
+    // No live changes in an older Cabinet: look again now and then while the page is in view.
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
+  }
+})();
+</script>
+</body>
+</html>
