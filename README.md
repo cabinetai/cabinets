@@ -121,6 +121,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [leadership-meeting](./leadership-meeting) | Operations | 2 | 2 | 0 | Prepare leadership meeting agendas, summarize decisions, and track action items across every weekly meeting |
 | [legal-request](./legal-request) | Professional Services | 2 | 2 | 0 | Structured intake for legal requests from any team — classify type, gather required information, route to the right counsel, and track SLA |
 | [linear-cycle](./linear-cycle) | Operations | 1 | 1 | 0 | Every morning, the Linear issues that are on you this cycle |
+| [linkedin-posts](./linkedin-posts) | Media | 1 | 1 | 0 | Write your LinkedIn posts with an agent in the chat, keep every draft in one place, and publish one only when you say yes |
 | [mailchimp-delivery](./mailchimp-delivery) | Operations | 1 | 1 | 0 | Every morning, whether yesterday's email actually reached people |
 | [manager-one-on-one](./manager-one-on-one) | Operations | 2 | 2 | 0 | Per-report 1:1 workspace for managers — recurring agenda, running notes timeline, open action items, goals tracker, and feedback log — so… |
 | [meal-planner](./meal-planner) | Lifestyle | 1 | 1 | 0 | Every Saturday, a week of dinners you'll actually eat — and the shopping list to match |
