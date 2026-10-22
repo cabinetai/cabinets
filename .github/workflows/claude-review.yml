@@ -1,0 +1,95 @@
+name: Claude review
+
+# Code review by Claude, billed to a Claude subscription through
+# CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`), not per API token.
+#
+# Two ways in, sized to keep the subscription's usage windows free for people:
+#   - automatic: Sonnet reviews a PR once, when it opens or leaves draft.
+#     Later pushes are not re-reviewed on their own.
+#   - on demand: a comment starting with "@claude review" runs Opus on the
+#     PR's current head.
+#
+# This repo is public: fork PRs get no secrets and are skipped, and only
+# owners, members and collaborators can ask for a review by comment.
+# Comments are posted as claude[bot] through the Claude GitHub app.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    if: |
+      (github.event_name == 'pull_request' &&
+        !github.event.pull_request.draft &&
+        github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        startsWith(github.event.comment.body, '@claude review') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Job-level, so an unrelated PR comment (which starts the workflow but
+    # skips this job) cannot cancel a review that is running.
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --model ${{ github.event_name == 'issue_comment' && 'opus' || 'sonnet' }}
+            --max-turns 40
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
+            Review this pull request to the public Cabinet template registry.
+            The checkout is the default branch; read the PR with `gh pr view`
+            and `gh pr diff`, and read surrounding files from the checkout
+            when you need context.
+
+            Before reviewing, read CLAUDE.md. Its conventions, the .cabinet
+            schema and the connectors rules are the standard; a violation is
+            a finding. The build-manifest workflow already runs
+            `build-manifest.mjs --check` on PRs, so do not repeat what it
+            validates mechanically.
+
+            Report only:
+            - a cabinet that would not work for the person installing it:
+              a missing required file, a job or persona that refers to an
+              agent, job, connector or tool the cabinet does not have, a job
+              prompt whose steps contradict its schedule or its declared
+              connector access
+            - real secrets, credentials or personal data where a placeholder
+              belongs (this repo is public)
+            - em-dashes or en-dashes in text a user reads (index.md, prompts,
+              connector `why`, persona and job copy shown in the app)
+            - a connectors or prompts change without a patch version bump
+            - manifest.json or details/ edited by hand
+            - correctness bugs in .github/scripts
+
+            Do not report style, tone, wording preferences or formatting.
+            Ignore cover images and the generated manifest.json and details/.
+
+            Each finding is one inline comment on the line it concerns: what
+            is wrong, what goes wrong for the user because of it, and the fix
+            in a sentence. Only comment when you are confident the problem is
+            real; one solid finding beats five maybes.
+
+            Finish with one short top-level comment via `gh pr comment`:
+            the number of findings, or "No issues found." when there are none.
+            Do not summarize the PR or praise it.
