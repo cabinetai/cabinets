@@ -42,25 +42,35 @@ jobs:
       issues: write
       id-token: write
     steps:
+      # Check out the PR's own head, not the default branch, so Claude can
+      # read the changed cabinet in full. Nothing from the PR is executed:
+      # the allowed tools only read files and post comments.
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          ref: refs/pull/${{ github.event.pull_request.number || github.event.issue.number }}/head
+          fetch-depth: 0
+          filter: blob:none
 
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --model ${{ github.event_name == 'issue_comment' && 'opus' || 'sonnet' }}
-            --max-turns 40
-            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --max-turns 80
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*)"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
 
+            BASE: origin/${{ github.event.pull_request.base.ref || 'main' }}
+
             Review this pull request to the public Cabinet template registry.
-            The checkout is the default branch; read the PR with `gh pr view`
-            and `gh pr diff`, and read surrounding files from the checkout
-            when you need context.
+            The working tree is the PR's head commit. Use
+            `git diff $(git merge-base BASE HEAD)` for the change and
+            `git log BASE..HEAD` for its commits; `gh pr view` has the
+            description. Read every changed file in full, and for a changed
+            cabinet read its .cabinet, index.md, personas and jobs together,
+            since most problems are one file disagreeing with another.
 
             Before reviewing, read CLAUDE.md. Its conventions, the .cabinet
             schema and the connectors rules are the standard; a violation is
@@ -87,8 +97,9 @@ jobs:
 
             Each finding is one inline comment on the line it concerns: what
             is wrong, what goes wrong for the user because of it, and the fix
-            in a sentence. Only comment when you are confident the problem is
-            real; one solid finding beats five maybes.
+            in a sentence. Report every finding you can back with a concrete
+            scenario; leave out only speculation you could not trace in the
+            files.
 
             Finish with one short top-level comment via `gh pr comment`:
             the number of findings, or "No issues found." when there are none.
