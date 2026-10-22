@@ -6,8 +6,9 @@ name: Claude review
 # Two ways in, sized to keep the subscription's usage windows free for people:
 #   - automatic: Sonnet reviews a PR once, when it opens or leaves draft.
 #     Later pushes are not re-reviewed on their own.
-#   - on demand: a comment starting with "@claude review" runs Opus on the
-#     PR's current head.
+#   - on demand: a comment starting with "@claude review" runs Claude Code's
+#     built-in /code-review at high effort on Opus, the same review as
+#     `/code-review high <n>` run locally. Deeper and several times the usage.
 #
 # This repo is public: fork PRs get no secrets and are skipped, and only
 # owners, members and collaborators can ask for a review by comment.
@@ -51,24 +52,40 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      - uses: anthropics/claude-code-action@v1
+      - name: Deep review (on demand)
+        if: github.event_name == 'issue_comment'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Read-only tools plus posting; the job token can only read code
+          # and write PR comments. gh api and gh pr review are how --comment
+          # posts its inline findings.
+          claude_args: |
+            --model opus
+            --max-turns 120
+            --allowedTools "Read,Grep,Glob,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(grep:*),Bash(sed:*)"
+          prompt: /code-review high ${{ github.event.issue.number }} --comment
+
+      - name: Quick review (automatic)
+        if: github.event_name == 'pull_request'
+        uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
-            --model ${{ github.event_name == 'issue_comment' && 'opus' || 'sonnet' }}
+            --model sonnet
             --max-turns 80
-            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*)"
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(grep:*),Bash(sed:*)"
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
-            BASE: origin/${{ github.event.pull_request.base.ref || 'main' }}
+            BASE: origin/${{ github.event.pull_request.base.ref }}
 
             Review this pull request to the public Cabinet template registry.
             The working tree is the PR's head commit. Use
-            `git diff $(git merge-base BASE HEAD)` for the change and
-            `git log BASE..HEAD` for its commits; `gh pr view` has the
-            description. Read every changed file in full, and for a changed
+            `git diff BASE...HEAD` for the change and `git log BASE..HEAD`
+            for its commits; `gh pr view` has the description. Run each
+            command on its own: command substitution and pipes are refused. Read every changed file in full, and for a changed
             cabinet read its .cabinet, index.md, personas and jobs together,
             since most problems are one file disagreeing with another.
 
