@@ -51,19 +51,35 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number || github.event.issue.number }}/head
           fetch-depth: 0
           filter: blob:none
+          persist-credentials: false
+
+      # A comment can come from a maintainer on a fork's PR. Fork content is
+      # not trusted, and this run holds the subscription token and a token
+      # that can write PR comments, so a fork PR is not reviewed here.
+      - name: Skip fork PRs
+        id: pr
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          fork=$(gh pr view ${{ github.event.issue.number }} -R ${{ github.repository }} --json isCrossRepository -q .isCrossRepository)
+          echo "fork=$fork" >> "$GITHUB_OUTPUT"
+          if [ "$fork" = "true" ]; then echo "::notice::PR is from a fork; review it locally with /code-review."; fi
 
       - name: Deep review (on demand)
-        if: github.event_name == 'issue_comment'
+        if: github.event_name == 'issue_comment' && steps.pr.outputs.fork == 'false'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # Read-only tools plus posting; the job token can only read code
-          # and write PR comments. gh api and gh pr review are how --comment
-          # posts its inline findings.
+          # Read-only tools plus inline comments through the action's own
+          # MCP tool, which is what --comment posts with. No gh api: the job
+          # token can write issues and PRs, so raw API access could close,
+          # label or edit them. No Bash sed or grep: GNU sed can run shell
+          # commands, and the Read and Grep tools cover both.
           claude_args: |
             --model opus
             --max-turns 120
-            --allowedTools "Read,Grep,Glob,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(grep:*),Bash(sed:*)"
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*)"
           prompt: /code-review high ${{ github.event.issue.number }} --comment
 
       - name: Quick review (automatic)
@@ -74,7 +90,7 @@ jobs:
           claude_args: |
             --model sonnet
             --max-turns 80
-            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(grep:*),Bash(sed:*)"
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*)"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
