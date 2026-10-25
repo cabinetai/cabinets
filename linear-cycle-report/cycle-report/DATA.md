@@ -27,4 +27,4 @@ null), `progress` 0 to 1, `lead`, `targetDate`, `openIssues`, and its latest `up
 the next, because the copy holds a cycle's total today and not its history.
 
 The readable pages go to `reports/` beside this folder: `reports/<YYYY-MM-DD> cycle.md` every
-Friday, and `reports/<last day> retro draft.md` once for each cycle that ended.
+Friday, and `reports/<last day> <TEAM> cycle <number> retro draft.md` once for each cycle that ended.

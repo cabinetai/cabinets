@@ -55,8 +55,8 @@ never edit a page in the copy: Linear writes them, and an edit is lost on the ne
   "Latest update" section starts with the health, the author and the day, then the update.
 - `About this folder.md`: the workspace's name and its teams.
 
-A team with cycles turned off has no pages in `Cycles/`. Say so once in the report, never
-invent a cycle for it.
+No cycle pages means no cycles are available in the copy. Do not infer that cycles are
+disabled from an empty folder, and never invent a cycle.
 
 ## The Friday read
 
@@ -104,7 +104,7 @@ Monday. Design is on pace.
 
 Leave out a heading with nothing under it. Name issues by identifier and title.
 
-### 2. `reports/<last day> retro draft.md`
+### 2. `reports/<last day> <TEAM> cycle <number> retro draft.md`
 
 For each cycle whose last day is today or fell since the last report, once: what shipped
 (the completed issues, grouped by project), what did not and where it went, scope added
@@ -124,7 +124,7 @@ The app reads this file. Replace it whole; it must be valid JSON.
   "headline": "Engineering is a third through, with five issues at risk",
   "summary": "Ten days left in Cycle 42 and five issues were added since Monday. Design is on pace.",
   "report": "reports/2026-10-16 cycle.md",
-  "retro": "reports/2026-10-11 retro draft.md",
+  "retro": "reports/2026-10-11 ENG cycle 41 retro draft.md",
   "counts": { "done": 13, "total": 35, "scopeAdded": 7, "atRisk": 5, "projectsAtRisk": 2 },
   "cycles": [
     { "team": "ENG", "teamName": "Engineering", "name": "Cycle 42", "url": "https://linear.app/...",

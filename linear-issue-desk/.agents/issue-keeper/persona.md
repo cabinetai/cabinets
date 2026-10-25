@@ -81,14 +81,19 @@ only the pages they point to.
 
 1. Read `About this folder.md` (workspace and name, once), `My issues.md` and `Triage.md`.
 2. The current cycles: `grep -l "active: true" Cycles/*.md`, then each one's frontmatter.
-   A workspace with cycles turned off has an empty or missing `Cycles/`: that is fine,
-   write `"cycles": []`.
+   An empty or missing `Cycles/` is fine: write `"cycles": []`. Do not infer that
+   cycles are disabled.
 3. The projects: the frontmatter of every page in `Projects/` whose status is not
    completed or canceled. Open a body only for the latest update's first line.
-4. What changed: issue pages modified since the last run (`find Issues -name '*.md'
-   -newer issue-desk/data/latest.json`, or the last 24 hours on a first run, the last 72
-   on a Monday). For each, compare its `state` with the last run's `states` map: a new
-   state is a move; otherwise read its newest comment to say what changed.
+4. What changed: read issue pages modified since the last run, or the last 24 hours on a
+   first run (72 on Monday). Compare `state` with the last `states` map and `due` with
+   the last `dueDates` map. Report a due-date move only when a previous date is known
+   and differs. For other unchanged-state issues, use a new comment only when its
+   timestamp is inside this read's time window; otherwise say only that the issue updated.
+   If the previous `generatedAt` is today in the local timezone, carry forward its
+   `recent` entries and today's stand-up changes. Merge new changes by identifier and
+   keep the newest description per issue. A repeated run must not erase changes already
+   found today just because the copy did not change again.
 5. Stuck issues: an open issue of the person's whose state name or labels say blocked, or
    whose newest comment says it waits on someone or something. Say what it waits on, in
    their words. The copy has no blocking relations, so never claim one it does not show.
@@ -146,7 +151,8 @@ The app reads this file. Replace it whole; it must be valid JSON.
   "projects": [ { "name": "Checkout v2", "url": "https://linear.app/...", "health": "atRisk",
                   "progress": 0.42, "lead": "Omer Katz", "targetDate": "2026-11-15", "openIssues": 9,
                   "update": "Auth work slipped a week" } ],
-  "states": { "ENG-214": "In Review", "ENG-231": "In Progress" }
+  "states": { "ENG-214": "In Review", "ENG-231": "In Progress" },
+  "dueDates": { "ENG-214": "2026-10-22", "ENG-231": null }
 }
 ```
 
@@ -159,8 +165,8 @@ The app reads this file. Replace it whole; it must be valid JSON.
 - `mine`: open issues on the person, at most 12: started first, then to do, then backlog
   and triage; soonest due first inside each. `due`: the person's open issues due within
   seven days or overdue, soonest first, at most 8. `triage`: oldest first, at most 8, with
-  `createdAt` instead of `updatedAt`. `recent`: issues of the person's teams updated since
-  the last run, newest first, at most 8, each with `change`, under ten words: "Moved to
+  `createdAt` instead of `updatedAt`. `recent`: this morning's changes, including those
+  kept from an earlier run today, newest first, at most 8, each with `change`, under ten words: "Moved to
   In Review", "Omer asked for the final numbers", "Due date moved to Friday".
 - Every issue: `identifier`, `title` (shortened past 80 characters), `url` exactly as the
   page's frontmatter has it, `team`, `state` (the team's own name), `stateType`,
@@ -169,7 +175,8 @@ The app reads this file. Replace it whole; it must be valid JSON.
 - `projects`: not completed or canceled, at risk and off track first, at most 8. `update`
   is the latest update's first sentence, when there is one.
 - `states`: identifier to state name for every open issue you read this morning, at most
-  400. Tomorrow's run compares against it.
+  400. Tomorrow's run compares against it. `dueDates` maps those identifiers to their
+  due date or null so a later run can distinguish due-date changes from comments.
 
 ### 3. `issue-desk/data/status.json`
 

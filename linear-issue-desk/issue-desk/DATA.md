@@ -18,14 +18,15 @@ in the agent's persona (`.agents/issue-keeper/persona.md`).
 `latest.json` in short: `generatedAt`, `workspace`, `workspaceUrl`, `you`, `headline`,
 `standup` (the path of this morning's stand-up), `counts` `{ mine, due, triage, cycleDone,
 cycleTotal }`, `cycles` (`team`, `teamName`, `name`, `url`, `startsAt`, `endsAt`, `done`,
-`total`; empty when cycles are off), the lists `mine`, `due`, `triage` and `recent`, and
+`total`; empty when no current cycles are available), the lists `mine`, `due`, `triage` and `recent`, and
 `projects` (`name`, `url`, `health` onTrack, atRisk, offTrack or null, `progress` 0 to 1,
 `lead`, `targetDate`, `openIssues`, `update`). Every issue has `identifier`, `title`, `url`,
 `team`, `state` (the team's own name), `stateType` (triage, backlog, unstarted, started,
 completed, canceled), `priority` (0 No priority, 1 Urgent, 2 High, 3 Medium, 4 Low), and
 when known `assignee`, `due`, `updatedAt` or `createdAt`, `stuck` (what it waits on) and,
 in `recent`, `change`. `states` maps each identifier to its state, so the next run can tell
-what moved.
+what moved. `dueDates` maps each identifier to its due date or null, so date changes do
+not get confused with older comments. Repeated runs keep changes already found today.
 
 The readable stand-ups go to `standup/` beside this folder, one per weekday:
 `standup/<YYYY-MM-DD>.md`, with Yesterday, Due and Stuck.
