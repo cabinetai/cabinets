@@ -33,10 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Job-level, so an unrelated PR comment (which starts the workflow but
-    # skips this job) cannot cancel a review that is running.
+    # skips this job) does not count. A second review waits for the running
+    # one; cancelling it could leave findings posted without the summary.
     concurrency:
       group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     permissions:
       contents: read
       pull-requests: write
@@ -55,16 +56,38 @@ jobs:
 
       # A comment can come from a maintainer on a fork's PR. Fork content is
       # not trusted, and this run holds the subscription token and a token
-      # that can write PR comments, so a fork PR is not reviewed here.
-      - name: Skip fork PRs
+      # that can write PR comments, so a fork PR is not reviewed here. The
+      # comment event carries neither the head repo nor the base branch, so
+      # both are looked up.
+      - name: Look up the PR
         id: pr
-        if: github.event_name == 'issue_comment'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          fork=$(gh pr view ${{ github.event.issue.number }} -R ${{ github.repository }} --json isCrossRepository -q .isCrossRepository)
-          echo "fork=$fork" >> "$GITHUB_OUTPUT"
-          if [ "$fork" = "true" ]; then echo "::notice::PR is from a fork; review it locally with /code-review."; fi
+          gh pr view ${{ github.event.pull_request.number || github.event.issue.number }} -R ${{ github.repository }} \
+            --json isCrossRepository,baseRefName \
+            -q '"fork=\(.isCrossRepository)\nbase=\(.baseRefName)"' >> "$GITHUB_OUTPUT"
+          if grep -q '^fork=true$' "$GITHUB_OUTPUT"; then echo "::notice::PR is from a fork; review it locally with /code-review."; fi
+
+      # The working tree is the PR, so its AGENTS.md and CLAUDE.md files are
+      # whatever the PR says they are, and Claude follows them. Put every one
+      # the PR changed, added or removed back to the base branch's version,
+      # so a PR cannot rewrite the rules it is reviewed against. The action
+      # does this itself for the root CLAUDE.md and .claude/, not for
+      # AGENTS.md or nested files.
+      - name: Use the base branch's rule files
+        env:
+          BASE: origin/${{ steps.pr.outputs.base }}
+        run: |
+          git diff -z --name-only --no-renames "$BASE" HEAD -- ':(glob)**/AGENTS.md' ':(glob)**/CLAUDE.md' |
+            while IFS= read -r -d '' f; do
+              if git cat-file -e "$BASE:$f" 2>/dev/null; then
+                git checkout -q "$BASE" -- "$f"
+              else
+                rm -f -- "$f"
+              fi
+              echo "rule file from $BASE: $f"
+            done
 
       - name: Deep review (on demand)
         if: github.event_name == 'issue_comment' && steps.pr.outputs.fork == 'false'
@@ -95,11 +118,9 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            BASE: origin/${{ github.event.pull_request.base.ref }}
-
             Review this pull request to the public Cabinet template registry.
             The working tree is the PR's head commit. Use
-            `git diff BASE...HEAD` for the change and `git log BASE..HEAD`
+            `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD` for the change and `git log origin/${{ github.event.pull_request.base.ref }}..HEAD`
             for its commits; `gh pr view` has the description. Run each
             command on its own: command substitution and pipes are refused. Read every changed file in full, and for a changed
             cabinet read its .cabinet, index.md, personas and jobs together,
@@ -126,7 +147,8 @@ jobs:
             - correctness bugs in .github/scripts
 
             Do not report style, tone, wording preferences or formatting.
-            Ignore cover images and the generated manifest.json and details/.
+            Ignore cover images. Do not review what manifest.json or details/
+            contain; only report that the PR edits them by hand.
 
             Each finding is one inline comment on the line it concerns: what
             is wrong, what goes wrong for the user because of it, and the fix
