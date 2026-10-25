@@ -1020,6 +1020,7 @@
     setup: null,
     connecting: false,
     connectNote: "",
+    savingChats: false,
     running: false,
     runNote: "",
     askNote: "",
@@ -1279,7 +1280,7 @@
         state.wa = pickWa(items) || state.wa;
         paint();
         // The first sort starts straight away, so the next thing they see is their own chats.
-        if (result === "connected" && state.example && canRun()) runNow();
+        if (result === "connected" && state.example && canRun()) sortWhenSaved();
       });
     }).catch(function (e) {
       state.connecting = false;
@@ -1314,6 +1315,43 @@
       state.runNote = e && e.message ? e.message : "The sort did not start. Try again.";
       paint();
     });
+  }
+
+  // WhatsApp hands the chats over a few seconds after connecting: Cabinet saves them under
+  // whatsapp/ in this cabinet. The first sort waits until a chat has a month page, or it
+  // would find nothing to read.
+  var CHATS_WAIT_MS = 3 * 60000;
+  var CHATS_POLL_MS = 4000;
+  function chatsSaved() {
+    return cab.files.list("whatsapp").then(function (entries) {
+      var chats = (entries || []).filter(function (e) { return e.isDir && e.name !== "all-conversations"; });
+      return chats.reduce(function (found, chat) {
+        return found.then(function (yes) {
+          return yes || cab.files.list(chat.path).then(function (inside) {
+            return (inside || []).some(function (f) { return /^\d{4}-\d{2}\.md$/.test(f.name); });
+          }).catch(function () { return false; });
+        });
+      }, Promise.resolve(false));
+    }).catch(function () { return false; });
+  }
+  function sortWhenSaved() {
+    if (!V2 || state.running || state.savingChats) return;
+    state.savingChats = true;
+    state.runNote = "";
+    paint();
+    var until = Date.now() + CHATS_WAIT_MS;
+    (function check() {
+      chatsSaved().then(function (yes) {
+        if (yes) { state.savingChats = false; runNow(); return; }
+        if (Date.now() > until) {
+          state.savingChats = false;
+          state.runNote = "No chat is saved in this cabinet yet. Pick your chats on the WhatsApp page in Integrations, then press Sort my chats now.";
+          paint();
+          return;
+        }
+        setTimeout(check, CHATS_POLL_MS);
+      });
+    })();
   }
 
   // jobs.onChange says when the run ends; this is the fallback if a change is ever missed.
@@ -1763,6 +1801,9 @@
       // The page is there; the agent still reads further back. Its latest line, quietly.
       var last = state.reading.lines[state.reading.lines.length - 1];
       html = '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still getting to know you' + (last ? ": " + lineHtml(last) : "...") + "</span></div>";
+    } else if (state.savingChats) {
+      html = cardHero(null, "Saving your chats",
+        '<p class="lead">WhatsApp is handing your chats to this cabinet. Your first sort starts as soon as the first one is here.</p>', true);
     } else if (V2 && s === "connected" && state.example && failureInfo()) {
       // The very first sort did not work: that is the news, told once, with its fixes.
       var first = failureInfo();
@@ -3821,7 +3862,8 @@
       var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
       if (again) again.focus();
     } else if (act === "connect") connect();
-    else if (act === "run") runNow();
+    // The first sort needs a saved chat; later ones read what is there.
+    else if (act === "run") { if (state.example) sortWhenSaved(); else runNow(); }
     else if (act === "more-rows") {
       var boxId = el.closest(".box").getAttribute("data-box");
       var shown = snapshot();
