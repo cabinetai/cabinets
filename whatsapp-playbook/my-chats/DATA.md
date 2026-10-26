@@ -3,9 +3,11 @@ title: How My chats gets its chats
 ---
 # How My chats gets its chats
 
-The page never reads the chats. Cabinet saves the chats you picked under `whatsapp/` in this
-cabinet; its routines read them through `first-sort.mjs` and write files here, and the page
-shows them. The full rules for each field are in the agent's persona
+The page never reads the chats. Cabinet saves the chats you picked into one other cabinet
+(today WhatsApp Catch-Up, under `whatsapp/`). This cabinet's routines read them from there
+through `first-sort.mjs`, read only, and write files here, and the page shows them. This
+cabinet declares no WhatsApp connection on purpose, so Cabinet never offers to save the
+chats here. The full rules for each field are in the agent's persona
 (`.agents/chat-helper/persona.md`).
 
 | File | Written by | What it holds |
@@ -18,8 +20,8 @@ shows them. The full rules for each field are in the agent's persona
 | `data/profile.json` | The first sort | What the agent learned: `name`, `tone`, `people[]`, `peopleMore`, `chats`, `groups`, `messages30`, `mine30`, `busiest { name, count }`, `replyMinutes`. Every number is counted from the chats by the helper. Schema `whatsapp-playbook/profile@1`. Shown once as "This is you". |
 | `setup.md` | The person, or the agent in a chat | Who is in their life, whose chats matter, what to set aside, how replies sound. |
 
-`latest.json` in short: `generatedAt`, `since`, `chatsRead`, `arrived` (new lines from
-others), `headline`, an optional `lead` `{ id, why }`, and six lists. Every card has `chat`
+`latest.json` in short: `generatedAt`, `since`, `source` (`{ name, path }` of the cabinet the
+chats were read from), `chatsRead`, `arrived` (new lines from others), `headline`, an optional `lead` `{ id, why }`, and six lists. Every card has `chat`
 (the chat's key; a folder named by a number shows only its last four digits), `who` and
 `chatKind` (person, group or number), all set by the helper. `waiting` (`kind` family,
 friend, school, work, service or other, `gist`, `short`, `quote`, `urgent`, `since`,

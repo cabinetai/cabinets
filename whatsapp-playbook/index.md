@@ -25,25 +25,25 @@ For chats with customers, use **WhatsApp Catch-Up**.
 
 ## To start
 
-Open **My chats** and press **Connect WhatsApp**. Scan the code with your phone, the way you
-would for WhatsApp Web, and pick the chats this cabinet may read. Until then the page shows
-a made-up person, clearly marked.
+Your chats stay in **WhatsApp Catch-Up**: that is where Cabinet saves them. Set it up there
+first (connect WhatsApp and pick your chats). Then open **My chats** here and press **Sort my
+chats now**. This cabinet only reads the chats from there and keeps its own pages. Until the
+first sort the page shows a made-up person, clearly marked.
 
 WhatsApp links to Cabinet on your computer. It can't be linked from Cabinet in the cloud yet.
 
 ## It only reads
 
-It never sends anything on its own. When you want to answer, the reply is ready on the page:
-copy it, or ask for it to be sent, and nothing goes out without your OK.
+It never sends anything and never changes your chats. When you want to answer, the reply is
+ready on the page: copy it into WhatsApp.
 
 ## Good to know
 
-- WhatsApp doesn't officially support linking Cabinet this way, so keep it to your own
-  chats. Cabinet never sends on its own here: only your OK does.
+- It reads the chats you picked in WhatsApp Catch-Up. To read more or fewer chats, change
+  them there.
 - The people in the chats you pick are not told that Cabinet reads them.
 
 ## Inside
 
 - **My chats**: the app this cabinet opens on, and what you told it about yourself.
-- **whatsapp**: the chats you picked, one page per month.
 - **Reports**: one page per morning, the week ahead every Sunday, and the lists you ask for.

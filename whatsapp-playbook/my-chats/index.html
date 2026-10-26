@@ -7,17 +7,17 @@
   between them and the people they know. Quiet groups and skipped chats are counted and
   set aside, never deleted. Customers and quotes are WhatsApp Catch-Up's.
 
-  Where the words come from: Cabinet saves the chats the person picked under whatsapp/ in
-  this cabinet; the morning routine reads them through first-sort.mjs and writes
-  data/latest.json next to this page (the shape is data/EXAMPLE-latest.json: a made-up
-  parent, always labelled as an example here). A routine that could not read the chats
-  writes data/status.json with ok:false and why. setup.md holds what the person told the
-  cabinet about themselves.
+  Where the words come from: Cabinet saves the chats the person picked into another
+  cabinet (WhatsApp Catch-Up). The morning routine reads them from there through
+  first-sort.mjs, read only, and writes data/latest.json next to this page (the shape is
+  data/EXAMPLE-latest.json: a made-up parent, always labelled as an example here). A
+  routine that could not read the chats writes data/status.json with ok:false and why.
+  setup.md holds what the person told the cabinet about themselves.
 
-  How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
-  routine, read files). In an older Cabinet it reads the same files over the page's own
-  address and says to connect WhatsApp from Integrations. It never sends anything:
-  replies go through the chat, where the agent asks first.
+  How it talks to Cabinet: window.cabinet v2 (ask, run the routine, read files). It never
+  asks to connect WhatsApp, so Cabinet never offers to save the chats in this cabinet. In
+  an older Cabinet it reads the same files over the page's own address. It never sends
+  anything: replies are copied, or written in the chat.
 
   One file on purpose: a sealed frame cannot load files next to it. Bricolage Grotesque
   from Google Fonts for headings, the system font for text (WhatsApp's own habit), Instrument
@@ -881,7 +881,6 @@
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
   <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9-4.3-4.1 5.9-.8z" /></symbol>
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></symbol>
-  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9a4.8 4.8 0 0 1-.6 9.5z" /></symbol>
   <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z" /></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></symbol>
   <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></symbol>
@@ -1011,16 +1010,12 @@
   var state = {
     appPath: appPathFromUrl(),
     here: null,
-    wa: null,
     jobs: [],
     loaded: false,
     data: null,
     example: true,
     lastTry: null,
     setup: null,
-    connecting: false,
-    connectNote: "",
-    savingChats: false,
     running: false,
     runNote: "",
     askNote: "",
@@ -1242,21 +1237,11 @@
     for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === MORNING) return state.jobs[i];
     return null;
   }
-  function pickWa(items) {
-    if (!Array.isArray(items)) return null;
-    for (var i = 0; i < items.length; i++) if (items[i] && items[i].id === "whatsapp") return items[i];
-    return null;
-  }
-  function waState() { return state.wa ? state.wa.state : null; }
   /** The morning routine's schedule in words, lower case, or "" when it is paused or unknown. */
   function scheduleWords() {
     var job = morningJob();
     var when = job && typeof job.when === "string" ? job.when.trim() : "";
     return /^every\b/i.test(when) ? when.charAt(0).toLowerCase() + when.slice(1) : "";
-  }
-  function askReady() {
-    var s = waState();
-    return !state.wa || s === "connected" || s === "needs-you" || s === "needs-sign-in";
   }
 
   function setJobs(items) {
@@ -1267,26 +1252,6 @@
     state.running = !!(job && job.running);
     if (wasRunning && !state.running) load();
     paint();
-  }
-
-  function connect() {
-    if (!V2 || state.connecting) return;
-    state.connecting = true;
-    state.connectNote = "";
-    paint();
-    cab.connectors.connect("whatsapp").then(function (result) {
-      state.connecting = false;
-      return cab.connectors.list().then(function (items) {
-        state.wa = pickWa(items) || state.wa;
-        paint();
-        // The first sort starts straight away, so the next thing they see is their own chats.
-        if (result === "connected" && state.example && canRun()) sortWhenSaved();
-      });
-    }).catch(function (e) {
-      state.connecting = false;
-      state.connectNote = e && e.message ? e.message : "That did not work. Try again.";
-      paint();
-    });
   }
 
   setInterval(function () {
@@ -1317,43 +1282,6 @@
     });
   }
 
-  // WhatsApp hands the chats over a few seconds after connecting: Cabinet saves them under
-  // whatsapp/ in this cabinet. The first sort waits until a chat has a month page, or it
-  // would find nothing to read.
-  var CHATS_WAIT_MS = 3 * 60000;
-  var CHATS_POLL_MS = 4000;
-  function chatsSaved() {
-    return cab.files.list("whatsapp").then(function (entries) {
-      var chats = (entries || []).filter(function (e) { return e.isDir && e.name !== "all-conversations"; });
-      return chats.reduce(function (found, chat) {
-        return found.then(function (yes) {
-          return yes || cab.files.list(chat.path).then(function (inside) {
-            return (inside || []).some(function (f) { return /^\d{4}-\d{2}\.md$/.test(f.name); });
-          }).catch(function () { return false; });
-        });
-      }, Promise.resolve(false));
-    }).catch(function () { return false; });
-  }
-  function sortWhenSaved() {
-    if (!V2 || state.running || state.savingChats) return;
-    state.savingChats = true;
-    state.runNote = "";
-    paint();
-    var until = Date.now() + CHATS_WAIT_MS;
-    (function check() {
-      chatsSaved().then(function (yes) {
-        if (yes) { state.savingChats = false; runNow(); return; }
-        if (Date.now() > until) {
-          state.savingChats = false;
-          state.runNote = "No chat is saved in this cabinet yet. Pick your chats on the WhatsApp page in Integrations, then press Sort my chats now.";
-          paint();
-          return;
-        }
-        setTimeout(check, CHATS_POLL_MS);
-      });
-    })();
-  }
-
   // jobs.onChange says when the run ends; this is the fallback if a change is ever missed.
   var runTimer = 0;
   function watchRun() {
@@ -1368,12 +1296,6 @@
     var q = text(question, 3900);
     if (!q) return;
     if (!V2) { toast("Open this cabinet in Cabinet to ask about your chats."); return; }
-    // Before WhatsApp is connected there is nothing to read yet: the press leads to connecting.
-    if (!askReady()) {
-      if (state.wa && state.wa.canConnect) { toast("Connect WhatsApp first. It takes a minute or two."); connect(); }
-      else toast(waState() === "not-available-here" ? "WhatsApp can’t be linked here yet." : "Ask the person who owns this cabinet to connect WhatsApp.");
-      return;
-    }
     setAskNote("Asking...");
     cab.ask(q, { send: true }).then(function () {
       setAskNote("Asked. The answer is coming in the chat next to this page.");
@@ -1717,26 +1639,17 @@
     $("gbar-me").textContent = me ? Array.from(me)[0].toUpperCase() : "";
   }
   function statusHtml() {
-    var s = waState();
-    var pill;
-    // An older Cabinet cannot say whether WhatsApp is connected: plain words, no state dot.
-    if (!V2) pill = '<span class="updated">Connect WhatsApp from Integrations in Cabinet.</span>';
-    else if (!state.wa) pill = '<span class="pill"><span class="dot pulse"></span>Checking WhatsApp</span>';
-    else if (s === "connected") pill = '<span class="pill ok">' + WA_MARK + '<span class="dot"></span>WhatsApp connected</span>';
-    else if (s === "not-available-here") pill = '<span class="pill"><span class="dot"></span>WhatsApp not available here</span>';
-    else if (s === "needs-sign-in" || s === "needs-you") pill = '<span class="pill warn"><span class="dot"></span>WhatsApp needs you</span>';
-    else pill = '<span class="pill off"><span class="dot"></span>WhatsApp not connected</span>';
-
-    // When the chats were last sorted rides in the status pill: "WhatsApp connected · 7:02 AM".
-    var updated = "";
+    // The chats live in another cabinet: the pill names it, and when they were last read.
     var g = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
-    if (g) {
-      var sorted = daysBetween(g, new Date()) === 0 ? clock(g) : whenWords(g, new Date());
-      if (s === "connected") pill = pill.replace("WhatsApp connected</span>", 'WhatsApp connected<span class="when" title="Last sorted ' + esc(whenWords(g, new Date())) + '">· ' + esc(sorted) + "</span></span>");
-      else updated = '<span class="updated">Sorted ' + esc(whenWords(g, new Date())) + "</span>";
-    }
+    var from = g && state.data.source && typeof state.data.source === "object" ? text(state.data.source.name, 60) : "";
+    var pill;
+    if (!V2) pill = '<span class="updated">Open this cabinet in Cabinet to sort your chats.</span>';
+    else if (failureInfo()) pill = '<span class="pill warn"><span class="dot"></span>Chats not read</span>';
+    else if (g) pill = '<span class="pill ok">' + WA_MARK + '<span class="dot"></span>' + (from ? "Chats from " + esc(from) : "Chats read") +
+      '<span class="when" title="Last sorted ' + esc(whenWords(g, new Date())) + '">· ' + esc(daysBetween(g, new Date()) === 0 ? clock(g) : whenWords(g, new Date())) + "</span></span>";
+    else pill = '<span class="pill"><span class="dot"></span>Not sorted yet</span>';
     var button = "";
-    if (s === "connected" && canRun() && state.data && !state.example) {
+    if (canRun() && state.data && !state.example) {
       button = state.running
         ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Checking...</button>"
         : '<button class="btn" data-act="run">' + icon("i-refresh") + "Check again</button>";
@@ -1747,10 +1660,10 @@
       : canAsk()
         ? '<button class="btn" data-act="layout-menu" aria-haspopup="menu" aria-expanded="' + state.menuOpen + '">' + icon("i-layout") + "Layout</button>"
         : '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Edit layout</button>";
-    return pill + updated + button + ideas + edit;
+    return pill + button + ideas + edit;
   }
 
-  /** WhatsApp's mark, with a badge that matches the state: a tick once connected, an alert when it needs fixing. */
+  /** WhatsApp's mark, with a badge that matches the state: a tick when all is ready, an alert when something failed. */
   function artMark(badge) {
     var mark = badge === "check"
       ? '<circle cx="108" cy="24" r="14" fill="#008069" stroke="#fff" stroke-width="3"/><path d="M101 24l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
@@ -1765,57 +1678,28 @@
   function paintHero() {
     var hero = $("hero");
     if (!state.loaded) { hero.innerHTML = SKELETON; return; }
-    var s = waState();
-    var g = state.wa;
     var html;
     var told = false;
 
-    if (V2 && s === "not-available-here") {
-      var why = g && g.problem && g.problem.text ? g.problem.text : "";
-      var cloud = state.here && state.here.place === "cloud";
-      html = cardHero(icon("i-cloud"), "WhatsApp can’t be linked here yet",
-        (why ? '<p class="lead">' + esc(why) + "</p>" : "") +
-        "<p class=\"fine\">" + (cloud ? "For now, WhatsApp links to the Cabinet app on a computer." : "For now, WhatsApp works when this cabinet runs on this computer.") +
-        " Below is an example from a made-up person.</p>");
-    } else if (V2 && (s === "needs-sign-in" || s === "needs-you")) {
-      html = cardHero("alert", "WhatsApp needs you",
-        '<p class="lead">' + esc(g && g.problem && g.problem.text ? g.problem.text : "WhatsApp stopped letting Cabinet in. Link it again with your phone.") + "</p>" +
-        (g && g.canConnect
-          ? '<div class="actions"><button class="btn primary big" data-act="connect">' + icon(state.connecting ? "i-refresh" : "i-chat", state.connecting ? "spin" : "") + (state.connecting ? "Fixing..." : "Fix the connection") + "</button></div>"
-          : '<p class="fine">Ask the person who owns this cabinet to fix the WhatsApp connection.</p>') +
-        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") + mailAgeHtml());
-    } else if (V2 && s === "not-added") {
-      var canConnect = g && g.canConnect;
-      html = cardHero(null, "See who’s waiting for you, what you planned and what the groups said",
-        '<p class="lead">Connect WhatsApp and every morning your chats are sorted for you: people to answer first, then plans, busy groups in short, and what you promised. Quiet groups stay out of sight.</p>' +
-        (canConnect
-          ? '<div class="actions"><button class="btn primary big" data-act="connect"' + (state.connecting ? " disabled" : "") + ">" +
-            icon(state.connecting ? "i-refresh" : "i-chat", state.connecting ? "spin" : "") + (state.connecting ? "Connecting..." : "Connect WhatsApp") + "</button>" +
-            '<span class="fine">' + (state.connecting ? "Finish in the window Cabinet opened." : "Scan a code with your phone, then pick the chats it may read.") + "</span></div>"
-          : '<p class="fine"><b>Ask the person who owns this cabinet to connect WhatsApp.</b></p>') +
-        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
-        '<ul class="steps"><li>' + icon("i-check") + "Only the chats you pick</li><li>" + icon("i-check") + "Never sends on its own</li><li>" + icon("i-check") + "Below: an example from a made-up person</li></ul>");
-    } else if ((state.running && (state.example || !state.data)) || revealing()) {
+    if ((state.running && (state.example || !state.data)) || revealing()) {
       html = readingHtml();
     } else if (readingNow() && !state.example) {
       // The page is there; the agent still reads further back. Its latest line, quietly.
       var last = state.reading.lines[state.reading.lines.length - 1];
       html = '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still getting to know you' + (last ? ": " + lineHtml(last) : "...") + "</span></div>";
-    } else if (state.savingChats) {
-      html = cardHero(null, "Saving your chats",
-        '<p class="lead">WhatsApp is handing your chats to this cabinet. Your first sort starts as soon as the first one is here.</p>', true);
-    } else if (V2 && s === "connected" && state.example && failureInfo()) {
+    } else if (V2 && state.example && failureInfo()) {
       // The very first sort did not work: that is the news, told once, with its fixes.
       var first = failureInfo();
       html = cardHero("alert", "Your first sort didn’t work",
         '<p class="lead">' + esc(first.why) + "</p>" + '<div class="actions">' + failureButtons(true) + "</div>");
       told = true;
-    } else if (V2 && s === "connected" && state.example) {
+    } else if (V2 && state.example) {
       var sched = scheduleWords();
-      html = cardHero("check", "WhatsApp is connected. Let’s sort your chats.",
-        '<p class="lead">Your first sort takes a minute or two.' +
+      html = cardHero("check", "Let’s sort your chats",
+        '<p class="lead">Your chats stay in WhatsApp Catch-Up. This cabinet reads them from there and keeps its own pages here. The first sort takes a minute or two.' +
         (sched ? " After that it happens by itself, " + esc(sched) + "." : " After that, press Check again whenever you want a fresh one.") + "</p>" +
-        (canRun() ? '<div class="actions"><button class="btn primary big" data-act="run">' + icon("i-chat") + "Sort my chats now</button></div>" : "") + runNoteHtml());
+        (canRun() ? '<div class="actions"><button class="btn primary big" data-act="run">' + icon("i-chat") + "Sort my chats now</button>" +
+          '<span class="fine">No chats yet? Connect WhatsApp and pick your chats in WhatsApp Catch-Up first.</span></div>' : "") + runNoteHtml());
     } else if (!state.data) {
       html = cardHero(null, "Your chats show up here", '<p class="lead">Nothing could be read yet. Try again in a moment.</p>');
     } else {
@@ -1837,10 +1721,6 @@
   }
 
   function runNoteHtml() { return state.runNote ? '<div class="notice" style="margin-top:14px">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
-  function mailAgeHtml() {
-    var g = state.data && !state.example ? writtenAt(state.data.generatedAt) : null;
-    return g ? '<p class="fine">The chats below were sorted ' + esc(whenWords(g, new Date())) + ".</p>" : "";
-  }
 
   function dataHero() {
     var d = state.data;
@@ -1910,15 +1790,13 @@
     var why = "";
     if (tryAt && (!shownAt || tryAt > shownAt)) why = text(state.lastTry.why, 240) || "The last sort could not read your chats.";
     else if (jobFail && (!shownAt || jobFail > shownAt)) why = "The last sort did not finish.";
-    // With a connection problem the hero already says what to do; an older Cabinet cannot tell, so it shows.
-    if (!why || (V2 && waState() !== "connected")) return null;
+    if (!why) return null;
     var at = tryAt || jobFail;
     var words = at ? whenWords(at, new Date()) : "";
     return { why: why, head: !words ? "The last sort didn’t work." : "The sort " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work." };
   }
   function failureButtons(primary) {
-    return (canRun() ? '<button class="btn' + (primary ? " primary big" : "") + '" data-act="run">' + icon("i-refresh") + "Try again</button>" : "") +
-      (state.wa && state.wa.canConnect ? '<button class="btn' + (primary ? " big" : "") + '" data-act="connect">' + icon("i-chat") + "Connect WhatsApp again</button>" : "");
+    return canRun() ? '<button class="btn' + (primary ? " primary big" : "") + '" data-act="run">' + icon("i-refresh") + "Try again</button>" : "";
   }
   /** A sort that could not read the mail says so, with the presses that fix it. */
   function failureHtml() {
@@ -1935,7 +1813,7 @@
     var biz = text(state.data.business, 80);
     el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
       (biz ? "<b>" + esc(biz) + "</b>, a made-up person. " : "A made-up person. ") +
-      "None of these are your chats. Connect WhatsApp and your own replace them.</p></div>";
+      "None of these are your chats. Sort your chats and your own replace them.</p></div>";
   }
 
   // The priority lane: people waiting on an answer.
@@ -1954,7 +1832,6 @@
     var unread = num(item.unread);
     var actions = [];
     if (hasReply) actions.push('<button class="btn dark" data-act="copy" data-id="' + esc(id) + '">' + icon("i-copy") + "Copy</button>");
-    if (hasReply && canAsk()) actions.push('<button class="btn primary" data-act="send" data-id="' + esc(id) + '">' + icon("i-send") + "Send it</button>");
     if (canAsk()) actions.push('<button class="btn" data-act="reply" data-id="' + esc(id) + '">' + icon("i-pen") + (hasReply ? "Change it" : "Draft a reply") + "</button>");
     var style = state.animate ? ' style="--d:' + Math.min(index, 6) * 50 + 'ms"' : "";
     // A face as WhatsApp draws it with no photo: a group's people, a number's outline, else the first letter.
@@ -2900,7 +2777,7 @@
   function drawSetup(level) {
     var items = state.setup || [];
     var set = items.filter(function (a) { return !a.unset; }).length;
-    var btn = canAsk() && askReady()
+    var btn = canAsk()
       ? '<button class="btn small" data-act="ask" data-q="' + esc(set ? "I want to change what you know about me." : "I want to tell you about myself so you can sort my chats better.") + '">' +
         icon("i-pen") + (set ? "Change this" : "Tell it now") + "</button>"
       : "";
@@ -2955,7 +2832,7 @@
     var shown = shownIdeas();
     if (featured) shown[featured.idea.id] = true;
     var more = level === "S" ? [] : IDEAS.filter(function (idea) { return !shown[idea.id] && !state.hiddenIdeas[idea.id]; }).slice(0, level === "L" ? 4 : 2);
-    var note = state.askNote || (askReady() ? "" : askHint());
+    var note = state.askNote;
     return (level === "S" ? "" : '<h2 id="ask-title">Ask, or try an idea</h2><p class="compose-to">To <b>Chat Helper</b>, your agent in this cabinet</p>') +
       '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
       '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about people, plans, groups..." />' +
@@ -2975,12 +2852,6 @@
       '<button type="submit" class="btn primary">' + icon("i-send") + "Send</button></form>" +
       '<p class="note" id="ask-note">' + esc(note) + "</p>" +
       '<p class="note"><button type="button" class="cancel" data-act="layout-ask-cancel">Back to asking about your chats</button></p>';
-  }
-  function askHint() {
-    if (askReady()) return "The answer comes up in the chat next to this page.";
-    return waState() === "not-available-here"
-      ? "Once WhatsApp works here, you can ask things like these."
-      : "Connect WhatsApp first, then ask anything. A question here takes you to connecting.";
   }
 
   // ── Ideas, where and when they help ────────────────────────────────────
@@ -3787,8 +3658,7 @@
     var can = canAsk();
     var facts = state.data ? ideaFacts() : null;
     $("drawer-body").innerHTML =
-      (!V2 ? '<p class="fine" style="margin:0">Ask for any of these in the cabinet’s chat.</p>'
-        : !askReady() ? '<p class="fine" style="margin:0">Connect WhatsApp and each of these is one tap away.</p>' : "") +
+      (!V2 ? '<p class="fine" style="margin:0">Ask for any of these in the cabinet’s chat.</p>' : "") +
       IDEAS.map(function (idea) {
         var off = !!state.hiddenIdeas[idea.id];
         var fit = !off && facts && IDEA_FITS[idea.id] ? IDEA_FITS[idea.id](facts) : null;
@@ -3861,9 +3731,9 @@
       glide(was);
       var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
       if (again) again.focus();
-    } else if (act === "connect") connect();
+    }
     // The first sort needs a saved chat; later ones read what is there.
-    else if (act === "run") { if (state.example) sortWhenSaved(); else runNow(); }
+    else if (act === "run") runNow();
     else if (act === "more-rows") {
       var boxId = el.closest(".box").getAttribute("data-box");
       var shown = snapshot();
@@ -3875,8 +3745,6 @@
     else if (act === "copy" && item) copyText(text(item.reply));
     else if (act === "reply" && item) {
       ask((text(item.reply) ? "Change the WhatsApp reply you drafted to " : "Draft a short WhatsApp reply to ") + about(item) + ". Read the chat first. Show it to me before anything is sent.");
-    } else if (act === "send" && item) {
-      ask("Send this WhatsApp reply to " + about(item) + ", after I say yes: " + text(item.reply, 1500).replace(/\[([^\]]{1,120})\]/g, "$1") + " Show it to me first, ready for my OK.");
     } else if (act === "nudge-money" && item) {
       ask("Draft a short, friendly WhatsApp reminder to " + about(item) + " for " + amountText(item.amount, 24) + ". Show it to me, and send nothing until I say yes.");
     } else if (act === "more" && item) {
@@ -4030,14 +3898,6 @@
       // The routine's data and the owner's setup.md both live in this app's folder.
       try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
     });
-    cab.connectors.list().then(function (items) {
-      state.wa = pickWa(items) || { id: "whatsapp", state: "not-available-here", problem: null, canConnect: false };
-      paint();
-    }).catch(function () {
-      state.wa = { id: "whatsapp", state: "not-available-here", problem: null, canConnect: false };
-      paint();
-    });
-    cab.connectors.onChange(function (items) { var g = pickWa(items); if (g) { state.wa = g; paint(); } });
     cab.jobs.list().then(setJobs).catch(function () {});
     cab.jobs.onChange(setJobs);
   } else {
