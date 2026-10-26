@@ -2,13 +2,16 @@
 // Reads the WhatsApp chats where Cabinet saves them (whatsapp/<chat>/YYYY-MM.md in another
 // cabinet, today WhatsApp Catch-Up) and writes the page's files here, so every name, time and
 // number on the page is worked out from the chats, never typed. It only reads that folder:
-// it never writes, moves or deletes anything there. Run it from the cabinet root:
+// it never writes, copies, moves or deletes anything there. Run it from the cabinet root:
 //   node my-chats/first-sort.mjs where             the folder the chats are read from
-//   node my-chats/first-sort.mjs read [days]       the chats to read: the time, setup.md, the last
-//                                                  sort, then for each chat with new lines a header
-//                                                  and its last 40 lines. With no last sort (or one
-//                                                  older than 3 days): the last `days` (14). Exit 2
-//                                                  when WhatsApp saves no chat anywhere yet.
+//   node my-chats/first-sort.mjs read [days] --chats <folder>
+//                                                  <folder> is the one your WhatsApp line names;
+//                                                  the next commands of the run reuse it. Prints
+//                                                  the time, setup.md, the last sort, then for each
+//                                                  chat with new lines a header and its last 40
+//                                                  lines. With no last sort (or one older than 3
+//                                                  days): the last `days` (14). Exit 2 when there
+//                                                  is no chat to read.
 //   node my-chats/first-sort.mjs start             new data/reading.json and data/.work/ (first sort)
 //   node my-chats/first-sort.mjs push '<line>'     add one reading line (single quotes)
 //   node my-chats/first-sort.mjs gift @<file>      the one thing for the owner, while you read
@@ -59,56 +62,29 @@ function workJson(arg) {
   try { return readJson(file); } catch { return fail(`${arg.slice(1)} is not JSON`); }
 }
 
-// ── Where Cabinet saves the chats ──
-// Cabinet saves WhatsApp into one cabinet's whatsapp/ folder and marks it with .origin.yaml
-// (provider: whatsapp). It is looked for under Cabinet's data folder (the one that holds
-// .cabinet.db), never in this cabinet. If an old marked folder was left behind after a move,
-// the one with the newest month page wins.
-const SKIP = new Set(["node_modules", ".git"]);
-function dataRoot() {
-  let dir = root;
-  for (;;) {
-    if (fs.existsSync(path.join(dir, ".cabinet.db"))) return dir;
-    const up = path.dirname(dir);
-    if (up === dir) return path.dirname(root);
-    dir = up;
-  }
-}
-function newestPage(dir) {
-  let newest = 0;
-  for (const chat of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (!chat.isDirectory() || chat.name === "all-conversations") continue;
-    for (const f of fs.readdirSync(path.join(dir, chat.name))) {
-      if (/^\d{4}-\d{2}\.md$/.test(f)) newest = Math.max(newest, fs.statSync(path.join(dir, chat.name, f)).mtimeMs);
-    }
-  }
-  return newest;
-}
-function findChats() {
-  const top = dataRoot();
-  const found = [];
-  (function walk(dir, depth) {
-    let entries;
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-    for (const e of entries) {
-      if (!e.isDirectory() || SKIP.has(e.name) || e.name.startsWith(".")) continue;
-      const full = path.join(dir, e.name);
-      if (full === root) continue;
-      const marker = path.join(full, "whatsapp", ".origin.yaml");
-      if (fs.existsSync(marker) && /^provider:\s*whatsapp\s*$/m.test(fs.readFileSync(marker, "utf8"))) found.push(path.join(full, "whatsapp"));
-      if (depth < 6) walk(full, depth + 1);
-    }
-  })(top, 0);
-  found.sort((a, b) => newestPage(b) - newestPage(a));
-  if (!found.length) return null;
-  const cabinet = path.dirname(found[0]);
+// ── Where the chats are ──
+// Cabinet names the folder in the run's WhatsApp line (like ../whatsapp-catch-up/whatsapp/,
+// relative to this cabinet). `read --chats <folder>` takes it and keeps it in
+// data/.chats-path, so the next commands of the run read the same folder. A folder inside
+// this cabinet is refused: the chats are never kept here.
+const PATH_FILE = path.join(dataDir, ".chats-path");
+function chatsSource(given) {
+  let rel = given;
+  if (rel) {
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(PATH_FILE, rel);
+  } else if (fs.existsSync(PATH_FILE)) rel = fs.readFileSync(PATH_FILE, "utf8").trim();
+  if (!rel) return null;
+  const dir = path.resolve(root, rel);
+  if (dir === root || dir.startsWith(root + path.sep)) fail("refused, that folder is inside this cabinet: the chats are read where Cabinet saves them, never kept here");
+  if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return null;
+  const cabinet = path.dirname(dir);
   const meta = fs.existsSync(path.join(cabinet, ".cabinet")) ? fs.readFileSync(path.join(cabinet, ".cabinet"), "utf8") : "";
-  return {
-    dir: found[0],
-    cabinet: { name: yamlText(((/^name:\s*(.+)$/m.exec(meta) || [])[1] || path.basename(cabinet)).trim()), path: path.relative(top, cabinet).split(path.sep).join("/") }
-  };
+  const name = yamlText(((/^name:\s*(.+)$/m.exec(meta) || [])[1] || path.basename(cabinet)).trim());
+  return { dir, cabinet: { name, path: rel.replace(/\\/g, "/").replace(/\/?whatsapp\/?$/, "") } };
 }
-const source = findChats();
+const given = process.argv.indexOf("--chats");
+const source = chatsSource(given > 0 ? process.argv.splice(given, 2)[1] : null);
 const chatsDir = source ? source.dir : null;
 
 // ── The saved chats ──
@@ -352,7 +328,7 @@ function lockReading() {
 }
 function reading() { return fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first"); }
 
-const NO_CHATS = "No WhatsApp chats are saved in Cabinet yet. Connect WhatsApp and pick your chats in WhatsApp Catch-Up, then sort again.";
+const NO_CHATS = "No WhatsApp chats to read yet. Connect WhatsApp and pick your chats in WhatsApp Catch-Up, then sort again.";
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "where") {
   if (!source) fail(NO_CHATS, 2);

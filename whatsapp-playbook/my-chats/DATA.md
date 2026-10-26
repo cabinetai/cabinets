@@ -5,9 +5,10 @@ title: How My chats gets its chats
 
 The page never reads the chats. Cabinet saves the chats you picked into one other cabinet
 (today WhatsApp Catch-Up, under `whatsapp/`). This cabinet's routines read them from there
-through `first-sort.mjs`, read only, and write files here, and the page shows them. This
-cabinet declares no WhatsApp connection on purpose, so Cabinet never offers to save the
-chats here. The full rules for each field are in the agent's persona
+through `first-sort.mjs`, read only, and write files here, and the page shows them. Cabinet
+gives each run the path to that folder in its WhatsApp line. No chat is ever saved or copied
+here, and the page never opens WhatsApp's connect flow (picking chats from here would make
+this cabinet the place they are saved). The full rules for each field are in the agent's persona
 (`.agents/chat-helper/persona.md`).
 
 | File | Written by | What it holds |
@@ -21,7 +22,7 @@ chats here. The full rules for each field are in the agent's persona
 | `setup.md` | The person, or the agent in a chat | Who is in their life, whose chats matter, what to set aside, how replies sound. |
 
 `latest.json` in short: `generatedAt`, `since`, `source` (`{ name, path }` of the cabinet the
-chats were read from), `chatsRead`, `arrived` (new lines from others), `headline`, an optional `lead` `{ id, why }`, and six lists. Every card has `chat`
+chats were read from, the path relative to this cabinet), `chatsRead`, `arrived` (new lines from others), `headline`, an optional `lead` `{ id, why }`, and six lists. Every card has `chat`
 (the chat's key; a folder named by a number shows only its last four digits), `who` and
 `chatKind` (person, group or number), all set by the helper. `waiting` (`kind` family,
 friend, school, work, service or other, `gist`, `short`, `quote`, `urgent`, `since`,
