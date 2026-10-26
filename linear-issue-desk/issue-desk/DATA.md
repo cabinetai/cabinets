@@ -23,10 +23,12 @@ cycleTotal }`, `cycles` (`team`, `teamName`, `name`, `url`, `startsAt`, `endsAt`
 `lead`, `targetDate`, `openIssues`, `update`). Every issue has `identifier`, `title`, `url`,
 `team`, `state` (the team's own name), `stateType` (triage, backlog, unstarted, started,
 completed, canceled), `priority` (0 No priority, 1 Urgent, 2 High, 3 Medium, 4 Low), and
-when known `assignee`, `due`, `updatedAt` or `createdAt`, `stuck` (what it waits on) and,
+when known `assignee`, `due`, `stuck` (what it waits on) and,
 in `recent`, `change`. `states` maps each identifier to its state, so the next run can tell
 what moved. `dueDates` maps each identifier to its due date or null, so date changes do
-not get confused with older comments. Repeated runs keep changes already found today.
+not get confused with older comments. Triage entries use `createdAt` for their waiting
+age. Other issue lists use `updatedAt` when known. Repeated runs keep changes already
+found today.
 
 The readable stand-ups go to `standup/` beside this folder, one per weekday:
 `standup/<YYYY-MM-DD>.md`, with Yesterday, Due and Stuck.

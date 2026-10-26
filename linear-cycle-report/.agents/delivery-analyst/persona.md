@@ -55,8 +55,10 @@ never edit a page in the copy: Linear writes them, and an edit is lost on the ne
   "Latest update" section starts with the health, the author and the day, then the update.
 - `About this folder.md`: the workspace's name and its teams.
 
-No cycle pages means no cycles are available in the copy. Do not infer that cycles are
-disabled from an empty folder, and never invent a cycle.
+A missing or empty `Cycles/` folder can mean the copy has no cycle records. Do not infer
+that cycles are disabled, and never invent a cycle. If the folder exists but cannot be
+listed or a cycle page cannot be read, write only failed `status.json` and keep the
+previous report and `latest.json`. A read failure does not mean there are no cycles.
 
 ## The Friday read
 

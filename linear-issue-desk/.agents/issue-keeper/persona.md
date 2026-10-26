@@ -170,7 +170,8 @@ The app reads this file. Replace it whole; it must be valid JSON.
   In Review", "Omer asked for the final numbers", "Due date moved to Friday".
 - Every issue: `identifier`, `title` (shortened past 80 characters), `url` exactly as the
   page's frontmatter has it, `team`, `state` (the team's own name), `stateType`,
-  `priority` (the number), and `assignee`, `due`, `updatedAt` when known. Add
+  `priority` (the number), and `assignee` and `due` when known. Triage entries use
+  `createdAt` for their waiting age; the other issue lists use `updatedAt` when known. Add
   `"stuck": "<what it waits on>"` to an issue that is stuck.
 - `projects`: not completed or canceled, at risk and off track first, at most 8. `update`
   is the latest update's first sentence, when there is one.
