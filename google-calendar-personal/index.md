@@ -21,7 +21,7 @@ The cabinet opens on it: **My week**.
 - **Send my free times**: your free evenings and weekend times as a message for friends or family, ready to copy.
 - **This week**: your seven days, as a list by day or as a real week view.
 - **Add to your calendar**: fill in a new event, or tell the agent in your own words what to
-  add or move. A new event goes straight on; a move or a delete waits for your yes.
+  add or move. A new event waits for your press on its card in the chat; a move or a delete waits for your yes.
 
 Every Sunday evening it writes **the week ahead**: each day's plans, and what to prepare.
 
