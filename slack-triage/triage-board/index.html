@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  slack-triage showcase page.
+  slack-triage showcase page: the support queue.
 
-  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
+  Reads ../triage/, one file per pass, written by this cabinet's single routine.
   The file names carry the timestamp, so the picker is built without opening any of them.
-  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  Relative URLs on purpose: they resolve under /api/assets/<cabinet>/<app>/ at any depth
   and survive the user renaming the cabinet at install time. The folder listing comes from
   /api/tree because the assets route serves single files and cannot list a directory.
 
@@ -18,70 +18,121 @@
 <title>Slack Triage Board</title>
 <style>
   :root {
-    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
+    --parchment: #FAF6F1; --card: #FFFFFF; --line: #EFE7DC; --tint: #F4EEE6;
     --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
     --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
-    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
+    --green: #6FA45A; --grey: #A8998A;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 48px 24px 64px; background: var(--parchment); color: var(--ink);
     font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
   }
-  .wrap { max-width: 780px; margin: 0 auto; }
+  .wrap { max-width: 820px; margin: 0 auto; }
   h1 {
     font-family: Georgia, "Times New Roman", serif;
     font-size: 30px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
     display: flex; align-items: center; gap: 12px;
   }
-  /* An inline <svg> with a viewBox and no width fills its container — size it here or
-     the mark renders enormous. flex:none stops the flex row shrinking it. */
+  /* An inline <svg> with a viewBox and no width fills its container, so size it here.
+     flex:none stops the flex row shrinking it. */
   .mark { width: 26px; height: 26px; flex: none; }
   .sub { color: var(--muted); margin: 6px 0 0; font-size: 14px; }
+  .headline { margin: 22px 0 0; font-size: 19px; font-weight: 600; line-height: 1.4; }
+
+  /* The counts read as a sentence, each status word wearing its own dot. */
+  .counts { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+  .counts span { white-space: nowrap; }
+  .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 6px; vertical-align: 1px; background: var(--grey);
+  }
+  .s-new .dot, .dot.s-new { background: var(--terracotta); }
+  .s-owned .dot, .dot.s-owned { background: var(--blue); }
+  .s-waiting .dot, .dot.s-waiting { background: var(--orange); }
+  .s-done .dot, .dot.s-done { background: var(--green); }
+
+  .filters {
+    display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+    margin-top: 20px; font-size: 14px; color: var(--muted);
+  }
+  .filters label { display: flex; align-items: center; gap: 8px; }
+  select {
+    font: inherit; color: var(--ink); background: var(--tint); max-width: 100%;
+    border: 0; border-radius: 8px; padding: 6px 10px; cursor: pointer;
+  }
+  select:hover { background: #EEE5D9; }
+  select:focus-visible, a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--blue); outline-offset: 2px;
+  }
+  .next { margin: 8px 0 0; font-size: 13px; color: var(--faint); }
+
   .card {
-    background: var(--card); border: none; border-radius: 12px;
-    padding: 18px 22px; margin-top: 18px;
+    background: var(--card); border-radius: 14px; padding: 18px 22px; margin-top: 18px;
     box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
   }
   .banner {
-    padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border-radius: 8px; font-size: 14px; color: var(--muted);
-    box-shadow: 0 1px 2px rgba(59,47,47,0.04);
+    padding: 10px 14px; margin-top: 18px; background: var(--tint); border-radius: 10px;
+    font-size: 14px; color: var(--muted);
   }
+  /* The one item that most needs a person. Absent most passes on purpose. */
+  .lead { background: #FFF8F3; }
   .lead-tag {
     display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.12em; color: var(--terracotta); margin-bottom: 6px;
   }
   .lead-who { font-weight: 600; }
   .lead-verdict { margin: 4px 0 0; color: var(--muted); }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th {
-    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--muted); font-weight: 700; padding: 0 10px 10px 0; border-bottom: 1px solid var(--line);
+
+  .group + .group { margin-top: 22px; }
+  .group h2 {
+    margin: 0 0 4px; font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted);
   }
-  td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  .pill {
-    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
-    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+  .group h2 .n { color: var(--faint); font-weight: 600; margin-left: 4px; }
+  ul.queue { list-style: none; margin: 0; padding: 0; }
+  .row {
+    display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;
+    padding: 12px 0; border-top: 1px solid var(--line);
   }
-  .u-new { color: var(--terracotta); } .u-owned { color: var(--blue); } .u-waiting { color: var(--orange); } .u-done { color: var(--green); } .u-low { color: var(--muted); }
-  /* The item is what the eye runs down the board for, so it gets the accent. */
-  .key { color: var(--blue); font-weight: 600; }
-  /* An owner is a name, and a name never wraps mid-word. */
-  .num { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  /* The item links back to the message that raised it, so it reads as clickable. */
-  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
-  .deep-link:hover { border-bottom-color: var(--blue); }
+  .row:first-child { border-top: 0; }
+  .what { min-width: 0; }
+  .item { font-weight: 600; color: var(--ink); text-decoration: none; }
+  a.item:hover { color: var(--blue); text-decoration: underline; text-underline-offset: 3px; }
+  .needs { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  .who { flex: none; text-align: right; font-size: 14px; white-space: nowrap; }
+  .owner { display: block; color: var(--ink); }
+  .nobody { display: block; color: var(--faint); font-style: italic; }
+  .state { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
+
+  details.done { margin-top: 18px; }
+  .card > details.done:first-child { margin-top: 0; }
+  details.done summary {
+    cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 600;
+    list-style: none; padding: 4px 0;
+  }
+  details.done summary::-webkit-details-marker { display: none; }
+  details.done summary::before { content: "\25B8"; display: inline-block; width: 16px; }
+  details.done[open] summary::before { content: "\25BE"; }
+  details.done .row:first-child { border-top: 1px solid var(--line); }
+  details.done .item { font-weight: 500; color: var(--muted); }
+
   .empty { color: var(--muted); font-size: 14px; }
   .empty code { font-size: 13px; }
-  .scroll { overflow-x: auto; }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--muted); }
-  .picker select {
-    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+
+  @media (max-width: 520px) {
+    body { padding: 28px 16px 48px; }
+    h1 { font-size: 25px; }
+    .headline { font-size: 17px; }
+    .filters { flex-direction: column; align-items: stretch; }
+    .filters label { justify-content: space-between; }
+    .filters select { flex: 1; max-width: 70%; }
+    .card { padding: 14px 16px; }
+    /* Owner and state drop under the item, so a long name never squeezes the text. */
+    .row { flex-direction: column; gap: 4px; }
+    .who { text-align: left; display: flex; gap: 10px; align-items: baseline; }
+    .owner, .nobody, .state { display: inline; margin: 0; }
   }
-  .picker .next { display: block; margin-top: 7px; color: var(--faint); }
 </style>
 </head>
 <body>
@@ -111,6 +162,11 @@
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
+  /* The queue's order. Done is not a group: it folds away at the bottom. */
+  var OPEN = ['new', 'owned', 'waiting'];
+  var WORD = { 'new': 'New', owned: 'Owned', waiting: 'Waiting', done: 'Done' };
+  /* Filters survive a change of pass, so picking yesterday keeps "Nobody yet" on. */
+  var view = { show: 'open', owner: '' };
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -141,75 +197,138 @@
     return out;
   }
 
-  /* Urgency is a closed set of three. Anything else the agent writes still has to render,
-     so it falls back to the quiet grey rather than to a class that does not exist. */
-  function urgencyClass(cell) {
-    var k = cell.toLowerCase();
-    return k === 'new' || k === 'owned' || k === 'waiting' || k === 'done' ? 'u-' + k : 'u-low';
+  /* Rows as objects, read by column name so a reordered table still renders. */
+  function items(data) {
+    var at = {};
+    data.cols.forEach(function (c, i) { at[c.toLowerCase()] = i; });
+    function get(r, k) { return at[k] !== undefined ? (r[at[k]] || '') : ''; }
+    return data.rows.map(function (r) {
+      var word = get(r, 'status');
+      return { item: get(r, 'item'), needs: get(r, 'needs'), owner: get(r, 'owner'),
+               url: get(r, 'url'), word: word, key: statusKey(word) };
+    });
+  }
+
+  /* Status is a closed set of four. Anything else the agent writes still has to show,
+     so it counts as open and wears the quiet grey under its own word. */
+  function statusKey(word) {
+    var k = word.toLowerCase();
+    return WORD[k] ? k : 'other';
+  }
+
+  function matches(it) {
+    if (view.owner === '-' && it.owner) return false;
+    if (view.owner && view.owner !== '-' && it.owner !== view.owner) return false;
+    if (view.show === 'all') return true;
+    if (view.show === 'open') return it.key !== 'done';
+    return it.key === view.show;
+  }
+
+  function countsLine(list) {
+    var n = { 'new': 0, owned: 0, waiting: 0, done: 0 };
+    list.forEach(function (it) { if (n[it.key] !== undefined) n[it.key]++; });
+    return '<p class="counts">' + ['new', 'owned', 'waiting', 'done'].map(function (k) {
+      return '<span class="s-' + k + '"><span class="dot"></span>' + n[k] + ' ' + k + '</span>';
+    }).join(', ') + '</p>';
+  }
+
+  function filters(name, files, list) {
+    var shows = [['open', 'Open items'], ['new', 'New'], ['owned', 'Owned'],
+                 ['waiting', 'Waiting'], ['done', 'Done'], ['all', 'Everything']];
+    var owners = [];
+    list.forEach(function (it) { if (it.owner && owners.indexOf(it.owner) < 0) owners.push(it.owner); });
+    owners.sort();
+    if (view.owner && view.owner !== '-' && owners.indexOf(view.owner) < 0) view.owner = '';
+    function opt(v, text, on) {
+      return '<option value="' + esc(v) + '"' + (on ? ' selected' : '') + '>' + esc(text) + '</option>';
+    }
+    var html = '<div class="filters">';
+    if (list.length) {
+      html += '<label for="show">Show<select id="show">' + shows.map(function (s) {
+        return opt(s[0], s[1], view.show === s[0]);
+      }).join('') + '</select></label>';
+      html += '<label for="owner">Owner<select id="owner">' + opt('', 'Anyone', !view.owner) +
+              opt('-', 'Nobody yet', view.owner === '-') + owners.map(function (o) {
+                return opt(o, o, view.owner === o);
+              }).join('') + '</select></label>';
+    }
+    if (files.length) {
+      html += '<label for="pick">Pass<select id="pick">' + files.map(function (f) {
+        return opt(f, label(f), f === name);
+      }).join('') + '</select></label>';
+    }
+    html += '</div>';
+    var next = nextRunText();
+    if (next) html += '<p class="next">' + esc(next) + '</p>';
+    return html;
+  }
+
+  function row(it) {
+    var title = it.url
+      ? '<a class="item" href="' + esc(it.url) + '" target="_blank" rel="noopener noreferrer">' +
+        esc(it.item) + '</a>'
+      : '<span class="item">' + esc(it.item) + '</span>';
+    var cls = it.key === 'other' ? '' : ' s-' + it.key;
+    return '<li class="row"><div class="what">' + title +
+      (it.needs ? '<p class="needs">' + esc(it.needs) + '</p>' : '') + '</div>' +
+      '<div class="who">' + (it.owner ? '<span class="owner">' + esc(it.owner) + '</span>'
+                                      : '<span class="nobody">Nobody yet</span>') +
+      '<span class="state' + cls + '"><span class="dot"></span>' + esc(it.word || 'No state') +
+      '</span></div></li>';
+  }
+
+  function queue(list) {
+    var shown = list.filter(matches);
+    if (!shown.length) return '<div class="card empty">Nothing matches these filters.</div>';
+    var html = '', groups = OPEN.concat(['other']);
+    groups.forEach(function (k) {
+      var rows = shown.filter(function (it) { return it.key === k; });
+      if (!rows.length) return;
+      var title = k === 'other' ? 'Other' : WORD[k];
+      html += '<section class="group"><h2>' + title + '<span class="n">' + rows.length +
+              '</span></h2><ul class="queue">' + rows.map(row).join('') + '</ul></section>';
+    });
+    var done = shown.filter(function (it) { return it.key === 'done'; });
+    /* Asked for on its own, Done is the whole view, so it opens; otherwise it stays folded. */
+    if (done.length) {
+      html += '<details class="done"' + (view.show === 'done' ? ' open' : '') + '><summary>Done (' +
+              done.length + ')</summary><ul class="queue">' + done.map(row).join('') +
+              '</ul></details>';
+    }
+    return '<div class="card">' + html + '</div>';
   }
 
   function render(data, name, files) {
-    var meta = data.meta, html = picker(name, files);
+    var meta = data.meta, list = items(data);
 
-    /* The routine could not reach Slack. It said so rather than writing nothing. */
-    if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">Last run could not reach ' +
-              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
-              '. Showing the previous result.</div>';
-    }
+    function draw() {
+      var html = '';
+      if (meta.headline) html += '<p class="headline">' + esc(meta.headline) + '</p>';
+      if (list.length) html += countsLine(list);
+      html += filters(name, files, list);
 
-    /* The single most consequential channel, in one sentence — absent most days on purpose. */
-    if (meta.lead && meta.verdict) {
-      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
-              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
-              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
-    }
-
-    if (!data.rows.length) {
-      html += '<div class="card empty">Nothing to show for this day.</div>';
+      /* The routine could not reach Slack. It said so rather than writing nothing. */
+      if (meta.status && meta.status !== 'ok') {
+        html += '<div class="banner">Last pass could not reach ' +
+                esc(meta.source || 'the source') + ': ' + esc(meta.status) +
+                '. Showing the previous result.</div>';
+      }
+      if (meta.lead && meta.verdict) {
+        html += '<div class="card lead"><span class="lead-tag">Needs a person first</span>' +
+                '<div class="lead-who">' + esc(meta.lead) + '</div>' +
+                '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
+      }
+      html += list.length ? queue(list)
+                          : '<div class="card empty">Nothing on the board in this pass.</div>';
       root.innerHTML = html;
-      bind(files);
-      return;
+      bind(files, draw);
     }
-
-    var urlCol = data.cols.findIndex(function (c) { return c.toLowerCase() === 'url'; });
-
-    var t = '<div class="card scroll"><table><thead><tr>';
-    data.cols.forEach(function (c) {
-      if (c.toLowerCase() === 'url') return;
-      t += '<th>' + esc(c) + '</th>';
-    });
-    t += '</tr></thead><tbody>';
-    data.rows.forEach(function (r) {
-      var url = urlCol > -1 ? r[urlCol] : '';
-      t += '<tr>';
-      r.forEach(function (cell, i) {
-        var head = (data.cols[i] || '').toLowerCase();
-        if (head === 'url') {
-          return;
-        } else if (head === 'status') {
-          t += '<td><span class="pill ' + urgencyClass(cell) + '">' + esc(cell) + '</span></td>';
-        } else if (head === 'item') {
-          var text = url ? '<a class="deep-link" href="' + esc(url) +
-              '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a>' : esc(cell);
-          t += '<td class="key">' + text + '</td>';
-        } else if (head === 'owner') {
-          t += '<td class="num">' + esc(cell) + '</td>';
-        } else {
-          t += '<td>' + esc(cell) + '</td>';
-        }
-      });
-      t += '</tr>';
-    });
-    t += '</tbody></table></div>';
-
-    root.innerHTML = html + t;
-    bind(files);
+    draw();
   }
 
-  /* ---- the folder of summaries ------------------------------------------------------ */
+  /* ---- the folder of passes --------------------------------------------------------- */
 
-  /* 2026-08-10T07-00-00-slack-summary.md — the name carries the date, so the picker
+  /* 2026-08-10T07-00-00-triage.md: the name carries the date, so the picker
      is built from names alone. EXAMPLE-triage.md is the one file without one. */
   function stamp(name) {
     var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
@@ -226,33 +345,33 @@
            d.getFullYear();
   }
 
+  function clock(d) {
+    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+
+  /* The routine runs three times a day, so a pass is named by its day and its hour. */
   function label(name) {
     var d = stamp(name);
     if (!d) return 'Triage Board Example';
     var now = new Date(), yday = new Date(now.getTime() - 86400000);
-    if (sameDay(d, now)) return 'Today';
-    if (sameDay(d, yday)) return 'Yesterday';
-    return human(d);
+    var day = sameDay(d, now) ? 'Today' : sameDay(d, yday) ? 'Yesterday' : human(d);
+    return day + ' at ' + clock(d);
   }
 
-  function picker(current, files) {
-    var html = '';
-    if (files.length) {
-      var opts = files.map(function (f) {
-        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
-               esc(label(f)) + '</option>';
-      }).join('');
-      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
-    }
-    var next = nextRunText();
-    if (next) html += '<span class="next">' + esc(next) + '</span>';
-    return html ? '<div class="picker">' + html + '</div>' : '';
+  /* root.innerHTML is rewritten on every draw, so the listeners are re-attached each time. */
+  function bind(files, draw) {
+    var pick = document.getElementById('pick');
+    if (pick) pick.addEventListener('change', function () { show(pick.value, files); });
+    var s = document.getElementById('show');
+    if (s) s.addEventListener('change', function () { view.show = s.value; draw(); refocus('show'); });
+    var o = document.getElementById('owner');
+    if (o) o.addEventListener('change', function () { view.owner = o.value; draw(); refocus('owner'); });
   }
 
-  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
-  function bind(files) {
-    var sel = document.getElementById('pick');
-    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
+  /* A redraw replaces the select, so keyboard users get their place back. */
+  function refocus(id) {
+    var el = document.getElementById(id);
+    if (el) el.focus();
   }
 
   function show(name, files) {
@@ -263,10 +382,11 @@
       })
       .then(function (text) { render(parse(text), name, files); })
       .catch(function (err) {
-        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
+        root.innerHTML = filters(name, files, []) + '<div class="card empty">Could not read <code>' +
+          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write, so reload ' +
           'in a moment.</div>';
-        bind(files);
+        var pick = document.getElementById('pick');
+        if (pick) pick.addEventListener('change', function () { show(pick.value, files); });
       });
   }
 
@@ -314,18 +434,17 @@
     if (!job.schedule) return '';
     var d = nextRun(job.schedule, new Date());
     if (!d) return '';
-    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    return 'Next run: ' + human(d) + ' at ' + clock;
+    return 'Next pass: ' + human(d) + ' at ' + clock(d);
   }
 
-  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+  /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments
      tells the page which cabinet it is installed in, whatever the user named it. */
   function cabinetDir() {
     var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
     return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
   }
 
-  /* Direct .md children of the folder only — never a nested one.
+  /* Direct .md children of the folder only, never a nested one.
      The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
      separately: `path` decides what lives in the folder, `name` is what we fetch. */
   function listFiles(nodes, dir, out) {
@@ -339,14 +458,14 @@
     return out;
   }
 
-  /* An empty folder is the normal state before the first run — not an error to shout about.
-     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+  /* An empty folder is the normal state before the first pass, not an error to shout about.
+     `fresh=1` busts the tree cache so a pass written minutes ago is already listed. */
   Promise.all([
     fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }),
-    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    /* The schedule is a nicety, so a missing or renamed job file never breaks the page. */
     fetch('../' + JOB, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.text() : ''; })
       .catch(function () { return ''; })
@@ -360,8 +479,10 @@
       });
       var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
       if (!files.length) {
-        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
+        var next = nextRunText();
+        root.innerHTML = (next ? '<p class="next">' + esc(next) + '</p>' : '') +
+          '<div class="card empty">Nothing yet. The queue fills in after the routine ' +
+          'reads Slack for the first time.</div>';
         return;
       }
       /* Newest first; the example, having no date, sits at the bottom of the list. */
@@ -370,12 +491,7 @@
         if (da && db) return db - da;
         return da ? -1 : db ? 1 : 0;
       });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
+      show(files[0], files);
     })
     .catch(function (err) {
       root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +

@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <!--
-  slack-answers showcase page.
+  slack-answers showcase page: the answer book.
 
-  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
-  The file names carry the timestamp, so the picker is built without opening any of them.
-  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  Reads ../answers/, one file per sweep, written by this cabinet's single routine. The
+  newest file is the whole book, so the page opens it and makes it searchable; older
+  sweeps stay reachable from the picker at the bottom as history.
+  Relative URLs on purpose: they resolve under /api/assets/<cabinet>/<app>/ at any depth
   and survive the user renaming the cabinet at install time. The folder listing comes from
   /api/tree because the assets route serves single files and cannot list a directory.
 
@@ -18,73 +19,124 @@
 <title>Slack Answer Book</title>
 <style>
   :root {
-    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
+    --parchment: #FAF6F1; --card: #FFFFFF; --tint: #F3EDE4; --line: #EEE6DA;
     --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
-    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
-    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
+    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C; --green: #6FA45A;
+    --shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.16);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 48px 24px 64px; background: var(--parchment); color: var(--ink);
     font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
   }
-  .wrap { max-width: 780px; margin: 0 auto; }
+  .wrap { max-width: 760px; margin: 0 auto; }
   h1 {
     font-family: Georgia, "Times New Roman", serif;
     font-size: 30px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
     display: flex; align-items: center; gap: 12px;
   }
-  /* An inline <svg> with a viewBox and no width fills its container — size it here or
-     the mark renders enormous. flex:none stops the flex row shrinking it. */
+  /* An inline <svg> with a viewBox and no width fills its container, so it is sized here. */
   .mark { width: 26px; height: 26px; flex: none; }
   .sub { color: var(--muted); margin: 6px 0 0; font-size: 14px; }
+  .headline { margin: 18px 0 0; font-size: 17px; }
+
+  /* Native controls, lightly dressed: a tinted well instead of a drawn box. */
+  input, select { font: inherit; color: var(--ink); }
+  input[type="search"], select {
+    background: var(--tint); border: 0; border-radius: 8px; outline: none;
+  }
+  input[type="search"]:focus-visible, select:focus-visible, summary:focus-visible,
+  a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .find { margin-top: 22px; }
+  .find input {
+    width: 100%; padding: 13px 16px; font-size: 16px; background: var(--card);
+    box-shadow: var(--shadow); border-radius: 12px;
+  }
+  .find input::placeholder { color: var(--faint); }
+  .tools {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    margin-top: 12px; font-size: 14px; color: var(--muted);
+  }
+  .tools label { display: inline-flex; align-items: center; gap: 8px; }
+  .tools select { padding: 5px 8px; }
+  .count { margin-left: auto; color: var(--faint); font-variant-numeric: tabular-nums; }
+
   .card {
-    background: var(--card); border: none; border-radius: 12px;
-    padding: 18px 22px; margin-top: 18px;
-    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+    background: var(--card); border-radius: 12px; margin-top: 18px; box-shadow: var(--shadow);
   }
   .banner {
-    padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border-radius: 8px; font-size: 14px; color: var(--muted);
-    box-shadow: 0 1px 2px rgba(59,47,47,0.04);
+    padding: 10px 14px; margin-top: 18px; background: var(--tint); border-radius: 8px;
+    font-size: 14px; color: var(--muted);
   }
-  .lead-tag {
+  /* The one answer the sweep says to pin, set apart by a warm wash, not a frame. */
+  .pin {
+    margin-top: 18px; padding: 16px 20px; border-radius: 12px;
+    background: #FBEDE7; color: var(--ink);
+  }
+  .pin-tag {
     display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--terracotta); margin-bottom: 6px;
+    letter-spacing: 0.12em; color: var(--terracotta); margin-bottom: 4px;
   }
-  .lead-who { font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--muted); }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th {
-    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--muted); font-weight: 700; padding: 0 10px 10px 0; border-bottom: 1px solid var(--line);
+  .pin-q { font-family: Georgia, "Times New Roman", serif; font-size: 17px; font-weight: 700; }
+  .pin p { margin: 4px 0 0; color: var(--muted); }
+
+  .book { padding: 6px 0; }
+  details + details { border-top: 1px solid var(--line); }
+  summary {
+    list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 14px;
+    padding: 15px 22px;
   }
-  td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  .pill {
-    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
-    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+  summary::-webkit-details-marker { display: none; }
+  /* A small turning caret says "this opens" without an icon library. */
+  summary::before {
+    content: ""; flex: none; width: 7px; height: 7px; margin-right: 2px;
+    border-right: 2px solid var(--faint); border-bottom: 2px solid var(--faint);
+    transform: rotate(-45deg) translateY(-2px); transition: transform .15s ease;
   }
-  .u-settled { color: var(--green); } .u-shifting { color: var(--orange); } .u-open { color: var(--terracotta); } .u-low { color: var(--muted); }
-  /* The question is what the eye runs down the page for, so it gets the accent. */
-  .key { color: var(--blue); font-weight: 600; }
-  /* How often it has come up reads as a quantity, not as prose. */
-  .num { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  /* The question links back to where it was answered, so it reads as clickable. */
-  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
-  .deep-link:hover { border-bottom-color: var(--blue); }
-  .empty { color: var(--muted); font-size: 14px; }
+  details[open] > summary::before { transform: rotate(45deg) translateY(-3px); }
+  summary:hover .q { color: var(--blue); }
+  .q {
+    flex: 1; min-width: 0; font-family: Georgia, "Times New Roman", serif;
+    font-size: 16.5px; font-weight: 700; line-height: 1.4;
+  }
+  .meta {
+    flex: none; display: flex; gap: 14px; font-size: 13px; color: var(--muted);
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .state::before {
+    content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor; margin-right: 6px; vertical-align: 1px;
+  }
+  .s-settled { color: var(--green); } .s-shifting { color: var(--orange); }
+  .s-open { color: var(--terracotta); } .s-other { color: var(--faint); }
+  .a { padding: 0 22px 18px 43px; }
+  .a p { margin: 0; max-width: 62ch; }
+  .unsettled { color: var(--terracotta); font-size: 13px; margin-top: 8px !important; }
+  .thread {
+    display: inline-block; margin-top: 10px; font-size: 14px; color: var(--blue);
+    text-decoration: none;
+  }
+  .thread:hover { text-decoration: underline; }
+  mark { background: #F9E3A8; color: inherit; border-radius: 2px; padding: 0 1px; }
+
+  .empty { padding: 18px 22px; color: var(--muted); font-size: 14px; }
   .empty code { font-size: 13px; }
-  .scroll { overflow-x: auto; }
-  .find { width: 100%; font: inherit; color: var(--ink); background: var(--card);
-    border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-top: 18px; }
-  .find::placeholder { color: var(--faint); }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--muted); }
-  .picker select {
-    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  .history {
+    margin-top: 26px; font-size: 13px; color: var(--faint);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
   }
-  .picker .next { display: block; margin-top: 7px; color: var(--faint); }
+  .history label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+  .history select { padding: 4px 8px; font-size: 13px; }
+
+  @media (max-width: 560px) {
+    body { padding: 28px 14px 48px; }
+    h1 { font-size: 25px; }
+    .count { margin-left: 0; width: 100%; }
+    summary { flex-wrap: wrap; padding: 14px 16px; gap: 6px 12px; }
+    .q { flex-basis: calc(100% - 24px); }
+    .meta { padding-left: 21px; }
+    .a { padding: 0 16px 16px 37px; }
+  }
 </style>
 </head>
 <body>
@@ -111,6 +163,7 @@
   var DIR = 'answers';
   var JOB = '.jobs/nightly-answer-sweep.yaml';
   var job = null;
+  var book = [];
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
@@ -144,79 +197,123 @@
     return out;
   }
 
-  /* Urgency is a closed set of three. Anything else the agent writes still has to render,
-     so it falls back to the quiet grey rather than to a class that does not exist. */
-  function urgencyClass(cell) {
-    var k = cell.toLowerCase();
-    return k === 'settled' || k === 'shifting' || k === 'open' ? 'u-' + k : 'u-low';
+  /* Rows become entries by column name, so a reordered table still reads right. */
+  function entries(data) {
+    var at = {};
+    data.cols.forEach(function (c, i) { at[c.toLowerCase()] = i; });
+    function cell(r, name) { return at[name] !== undefined ? (r[at[name]] || '') : ''; }
+    return data.rows.map(function (r, i) {
+      return {
+        q: cell(r, 'question'), a: cell(r, 'answer'), url: cell(r, 'url'),
+        asked: parseInt(cell(r, 'asked'), 10) || 0, state: cell(r, 'settled'), order: i
+      };
+    });
+  }
+
+  /* The state is a closed set of three. Anything else the agent writes still has to
+     render, so it falls back to a quiet grey rather than to a class that does not exist. */
+  function stateKey(word) {
+    var k = word.toLowerCase();
+    return k === 'settled' || k === 'shifting' || k === 'open' ? k : 'other';
+  }
+
+  function askedText(n) {
+    if (n <= 0) return '';
+    return n === 1 ? 'asked once' : 'asked ' + n + ' times';
+  }
+
+  /* Matches are wrapped after escaping, so the needle can never inject markup. */
+  function lit(text, needle) {
+    var safe = esc(text);
+    if (!needle) return safe;
+    var n = esc(needle).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return safe.replace(new RegExp('(' + n + ')', 'gi'), '<mark>$1</mark>');
   }
 
   function render(data, name, files) {
-    var meta = data.meta, html = picker(name, files);
+    var meta = data.meta, html = '';
+    book = entries(data);
+
+    if (meta.headline) html += '<p class="headline">' + esc(meta.headline) + '</p>';
 
     /* The routine could not reach Slack. It said so rather than writing nothing. */
     if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">Last run could not reach ' +
+      html += '<div class="banner">Last sweep could not reach ' +
               esc(meta.source || 'the source') + ': ' + esc(meta.status) +
               '. Showing the previous result.</div>';
     }
 
-    /* The single most consequential channel, in one sentence — absent most days on purpose. */
+    if (book.length) {
+      html += '<div class="find"><input type="search" id="find" ' +
+              'placeholder="Search the answers" aria-label="Search the answers" ' +
+              'autocomplete="off" /></div>' +
+              '<div class="tools">' +
+              '<label for="state">State <select id="state">' +
+              '<option value="">All</option><option value="settled">Settled</option>' +
+              '<option value="shifting">Shifting</option><option value="open">Open</option>' +
+              '</select></label>' +
+              '<label for="sort">Sort <select id="sort">' +
+              '<option value="asked">Most asked</option><option value="az">A to Z</option>' +
+              '</select></label>' +
+              '<span class="count" id="count" aria-live="polite"></span></div>';
+    }
+
+    /* The one answer worth pinning in Slack, in one sentence. Absent most nights on purpose. */
     if (meta.lead && meta.verdict) {
-      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
-              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
-              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
+      html += '<div class="pin"><span class="pin-tag">Worth pinning</span>' +
+              '<div class="pin-q">' + esc(meta.lead) + '</div>' +
+              '<p>' + esc(meta.verdict) + '</p></div>';
     }
 
-    if (!data.rows.length) {
-      html += '<div class="card empty">Nothing to show for this day.</div>';
-      root.innerHTML = html;
-      bind(files);
-      return;
-    }
-
-    var urlCol = data.cols.findIndex(function (c) { return c.toLowerCase() === 'url'; });
-
-    var t = '<div class="card scroll"><table><thead><tr>';
-    data.cols.forEach(function (c) {
-      if (c.toLowerCase() === 'url') return;
-      t += '<th>' + esc(c) + '</th>';
-    });
-    t += '</tr></thead><tbody>';
-    data.rows.forEach(function (r) {
-      var url = urlCol > -1 ? r[urlCol] : '';
-      t += '<tr>';
-      r.forEach(function (cell, i) {
-        var head = (data.cols[i] || '').toLowerCase();
-        if (head === 'url') {
-          return;
-        } else if (head === 'settled') {
-          t += '<td><span class="pill ' + urgencyClass(cell) + '">' + esc(cell) + '</span></td>';
-        } else if (head === 'question') {
-          var text = url ? '<a class="deep-link" href="' + esc(url) +
-              '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a>' : esc(cell);
-          t += '<td class="key">' + text + '</td>';
-        } else if (head === 'asked') {
-          t += '<td class="num">' + esc(cell) + '</td>';
-        } else {
-          t += '<td>' + esc(cell) + '</td>';
-        }
-      });
-      t += '</tr>';
-    });
-    t += '</tbody></table></div>';
-
-    root.innerHTML = html +
-      '<input class="find" id="find" type="search" placeholder="Find a question" ' +
-      'aria-label="Find a question" />' + t;
+    html += book.length ? '<div class="card book" id="book"></div>'
+                        : '<div class="card empty">This sweep kept no answers.</div>';
+    html += history(name, files);
+    root.innerHTML = html;
     bind(files);
-    filterRows();
+    if (book.length) list();
   }
 
-  /* ---- the folder of summaries ------------------------------------------------------ */
+  /* Search, state and sort all redraw only the book; the controls keep focus and text. */
+  function list() {
+    var find = document.getElementById('find'), state = document.getElementById('state');
+    var sort = document.getElementById('sort'), out = document.getElementById('book');
+    var needle = find.value.trim(), low = needle.toLowerCase();
+    var shown = book.filter(function (e) {
+      if (state.value && stateKey(e.state) !== state.value) return false;
+      return !low || (e.q + ' ' + e.a).toLowerCase().indexOf(low) > -1;
+    });
+    shown.sort(sort.value === 'az'
+      ? function (x, y) { return x.q.localeCompare(y.q); }
+      : function (x, y) { return y.asked - x.asked || x.order - y.order; });
 
-  /* 2026-08-10T07-00-00-slack-summary.md — the name carries the date, so the picker
-     is built from names alone. EXAMPLE-answers.md is the one file without one. */
+    var filtered = needle || state.value;
+    document.getElementById('count').textContent = filtered
+      ? shown.length + ' of ' + book.length + ' answers match'
+      : book.length + (book.length === 1 ? ' answer' : ' answers');
+
+    if (!shown.length) {
+      out.innerHTML = '<div class="empty">Nothing written down for that yet.</div>';
+      return;
+    }
+    var only = needle && shown.length === 1;
+    out.innerHTML = shown.map(function (e) {
+      var key = stateKey(e.state);
+      return '<details' + (only ? ' open' : '') + '><summary>' +
+        '<span class="q">' + lit(e.q, needle) + '</span><span class="meta">' +
+        (askedText(e.asked) ? '<span>' + askedText(e.asked) + '</span>' : '') +
+        (e.state ? '<span class="state s-' + key + '">' + esc(e.state) + '</span>' : '') +
+        '</span></summary><div class="a"><p>' + lit(e.a, needle) + '</p>' +
+        (key === 'open' ? '<p class="unsettled">No one has settled this yet.</p>' : '') +
+        (/^https?:\/\//i.test(e.url) ? '<a class="thread" href="' + esc(e.url) +
+          '" target="_blank" rel="noopener noreferrer">Open the thread in Slack</a>' : '') +
+        '</div></details>';
+    }).join('');
+  }
+
+  /* ---- the folder of sweeps --------------------------------------------------------- */
+
+  /* 2026-08-10T02-00-00-answers.md: the name carries the date, so the picker is built
+     from names alone. EXAMPLE-answers.md is the one file without one. */
   function stamp(name) {
     var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
     return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
@@ -241,50 +338,35 @@
     return human(d);
   }
 
-  function picker(current, files) {
+  /* Older sweeps are history, so the picker sits quietly under the book. */
+  function history(current, files) {
     var html = '';
-    if (files.length) {
+    if (files.length > 1) {
       var opts = files.map(function (f) {
         return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
                esc(label(f)) + '</option>';
       }).join('');
-      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
+      html = '<label for="pick">Book as of <select id="pick">' + opts + '</select></label>';
+    } else if (files.length === 1) {
+      html = '<span>Book as of ' + esc(label(files[0])) + '</span>';
     }
     var next = nextRunText();
-    if (next) html += '<span class="next">' + esc(next) + '</span>';
-    return html ? '<div class="picker">' + html + '</div>' : '';
+    if (next) html += '<span>' + esc(next) + '</span>';
+    return html ? '<div class="history">' + html + '</div>' : '';
   }
 
-  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
+  /* root.innerHTML is rewritten on every render, so the listeners are re-attached each time. */
   function bind(files) {
     var sel = document.getElementById('pick');
     if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
     var find = document.getElementById('find');
-    if (find) find.addEventListener('input', filterRows);
-  }
-
-  /* The whole point of this page is finding one answer, so the filter runs over
-     every cell of a row and hides the rest. No network, no re-render. */
-  function filterRows() {
-    var find = document.getElementById('find');
     if (!find) return;
-    var needle = find.value.trim().toLowerCase();
-    var rows = root.querySelectorAll('tbody tr');
-    var shown = 0;
-    Array.prototype.forEach.call(rows, function (row) {
-      var hit = !needle || row.textContent.toLowerCase().indexOf(needle) > -1;
-      row.style.display = hit ? '' : 'none';
-      if (hit) shown++;
+    find.addEventListener('input', list);
+    find.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && find.value) { find.value = ''; list(); }
     });
-    var none = document.getElementById('nohits');
-    if (none) none.remove();
-    if (!shown) {
-      var p = document.createElement('div');
-      p.id = 'nohits';
-      p.className = 'card empty';
-      p.textContent = 'Nothing written down for that yet.';
-      root.appendChild(p);
-    }
+    document.getElementById('state').addEventListener('change', list);
+    document.getElementById('sort').addEventListener('change', list);
   }
 
   function show(name, files) {
@@ -295,9 +377,9 @@
       })
       .then(function (text) { render(parse(text), name, files); })
       .catch(function (err) {
-        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
-          'in a moment.</div>';
+        root.innerHTML = '<div class="card empty">Could not read <code>' + esc(name) +
+          '</code> (' + esc(err.message) + '). It may be mid-write, so reload in a moment.' +
+          '</div>' + history(name, files);
         bind(files);
       });
   }
@@ -357,7 +439,7 @@
     return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
   }
 
-  /* Direct .md children of the folder only — never a nested one.
+  /* Direct .md children of the folder only, never a nested one.
      The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
      separately: `path` decides what lives in the folder, `name` is what we fetch. */
   function listFiles(nodes, dir, out) {
@@ -371,14 +453,14 @@
     return out;
   }
 
-  /* An empty folder is the normal state before the first run — not an error to shout about.
-     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+  /* An empty folder is the normal state before the first run, not an error to shout about.
+     `fresh=1` busts the tree cache so a sweep written minutes ago is already listed. */
   Promise.all([
     fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }),
-    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    /* The schedule is a nicety, so a missing or renamed job file never breaks the page. */
     fetch('../' + JOB, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.text() : ''; })
       .catch(function () { return ''; })
@@ -392,8 +474,8 @@
       });
       var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
       if (!files.length) {
-        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
+        root.innerHTML = '<div class="card empty">Nothing yet. The book fills in after the ' +
+          'routine sweeps Slack for the first time.</div>' + history('', []);
         return;
       }
       /* Newest first; the example, having no date, sits at the bottom of the list. */
@@ -402,12 +484,7 @@
         if (da && db) return db - da;
         return da ? -1 : db ? 1 : 0;
       });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
+      show(files[0], files);
     })
     .catch(function (err) {
       root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
