@@ -22,6 +22,9 @@
     --sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     --parchment: #FAF6F1; --card: #FFFFFF; --tint: #F3EDE4; --line: #EEE6DA;
     --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
+    /* Small words on the white sheet, darkened from the hues above to reach 4.5:1. */
+    --muted-ink: #7A6248; --green-ink: #4A7A39; --orange-ink: #A55A16;
+    --terracotta-ink: #B44A30; --blue-ink: #2F68B0;
     --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C; --green: #6FA45A;
     --shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.16);
   }
@@ -59,7 +62,7 @@
     margin-top: 12px; font-size: 14px; color: var(--muted);
   }
   .tools label { display: inline-flex; align-items: center; gap: 8px; }
-  .count { margin-left: auto; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .count { margin-left: auto; color: var(--muted-ink); font-variant-numeric: tabular-nums; }
 
   .card {
     background: var(--card); border-radius: 12px; margin-top: 18px; box-shadow: var(--shadow);
@@ -107,13 +110,13 @@
     content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
     background: currentColor; margin-right: 6px; vertical-align: 1px;
   }
-  .s-settled { color: var(--green); } .s-shifting { color: var(--orange); }
-  .s-open { color: var(--terracotta); } .s-other { color: var(--faint); }
+  .s-settled { color: var(--green-ink); } .s-shifting { color: var(--orange-ink); }
+  .s-open { color: var(--terracotta-ink); } .s-other { color: var(--muted-ink); }
   .a { padding: 0 22px 18px 43px; }
   .a p { margin: 0; max-width: 62ch; }
-  .unsettled { color: var(--terracotta); font-size: 13px; margin-top: 8px !important; }
+  .unsettled { color: var(--terracotta-ink); font-size: 13px; margin-top: 8px !important; }
   .thread {
-    display: inline-block; margin-top: 10px; font-size: 14px; color: var(--blue);
+    display: inline-block; margin-top: 10px; font-size: 14px; color: var(--blue-ink);
     text-decoration: none;
   }
   .thread:hover { text-decoration: underline; }
@@ -248,11 +251,17 @@
   }
 
   /* Matches are wrapped after escaping, so the needle can never inject markup. */
+  /* Matches are found in the raw text and each piece is escaped on its own, so a mark
+     never lands inside an entity such as &amp;. indexOf, not a RegExp built from input. */
   function lit(text, needle) {
-    var safe = esc(text);
-    if (!needle) return safe;
-    var n = esc(needle).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return safe.replace(new RegExp('(' + n + ')', 'gi'), '<mark>$1</mark>');
+    text = String(text);
+    if (!needle) return esc(text);
+    var hay = text.toLowerCase(), n = needle.toLowerCase(), out = '', at = 0, i;
+    while ((i = hay.indexOf(n, at)) !== -1) {
+      out += esc(text.slice(at, i)) + '<mark>' + esc(text.slice(i, i + n.length)) + '</mark>';
+      at = i + n.length;
+    }
+    return out + esc(text.slice(at));
   }
 
   function render(data, name, files) {
