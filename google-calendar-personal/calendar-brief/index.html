@@ -447,6 +447,29 @@
   .grid.editing .box.headline::before, .grid.editing .box.headline::after { transition: none; }
   .box.headline .h2-free { color: var(--sky-greet); }
 
+  /* Add to your calendar: a short form, or the person's own words for the agent. */
+  .box.addevent .box-body { display: grid; gap: 12px; align-content: start; padding: 0 20px 18px; overflow: auto; }
+  .ae-tabs { display: inline-flex; gap: 4px; justify-self: start; padding: 3px; border: 1px solid var(--line-2); border-radius: 999px; }
+  .ae-tabs button { min-height: 36px; padding: 6px 14px; border: 0; border-radius: 999px; background: none; color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .ae-tabs button:hover { color: var(--ink); }
+  .ae-tabs button[aria-selected="true"] { background: var(--ink); color: #fff; }
+  .ae-form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; align-items: end; }
+  .box.addevent[data-level="M"] .ae-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .box.addevent[data-level="M"] .ae-what, .box.addevent[data-level="M"] .ae-day, .box.addevent[data-level="M"] .ae-where { grid-column: 1 / -1; }
+  .box.addevent[data-level="S"] .ae-form { grid-template-columns: minmax(0, 1fr); }
+  .ae-form label { display: grid; gap: 4px; min-width: 0; font-size: 13px; font-weight: 600; color: var(--ink-3); }
+  .ae-form input, .ae-form textarea { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; border: 1px solid var(--line-2); border-radius: 12px; background: var(--page); color: var(--ink); padding: 9px 12px; font: inherit; font-size: 15px; font-weight: 400; }
+  .ae-form textarea { grid-column: 1 / -1; min-height: 84px; resize: vertical; line-height: 1.45; }
+  .ae-form input:focus, .ae-form textarea:focus { outline: none; border-color: var(--ink-2); box-shadow: 0 0 0 3px rgba(24, 33, 47, .12); }
+  .ae-form .ae-where { grid-column: span 2; }
+  .ae-form label small { font-weight: 400; }
+  .box.addevent[data-level="S"] .ae-where { grid-column: auto; }
+  .ae-form .ae-allday { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+  .ae-form .ae-allday input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--ink); }
+  .ae-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  .ae-foot .note { margin: 0; font-size: 14px; color: var(--ink-3); }
+  .ae-lock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; font-size: 14px; color: var(--ink-2); }
+  .ae-lock .icon { width: 16px; height: 16px; color: var(--ink-3); }
   /* Ask: the dark box. Small keeps only the field. */
   .box.ask { padding: 20px 22px; overflow: hidden; justify-content: center; }
   .box.ask h2 { font-size: 23px; }
@@ -2293,7 +2316,8 @@
     { id: "coming", x: 0, y: 11, w: 7, h: 5 },
     { id: "dates", x: 7, y: 11, w: 5, h: 5 },
     { id: "week", x: 0, y: 16, w: 12, h: 7 },
-    { id: "ask", x: 0, y: 23, w: 12, h: 5 }
+    { id: "addevent", x: 0, y: 23, w: 12, h: 5 },
+    { id: "ask", x: 0, y: 28, w: 12, h: 5 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -2328,7 +2352,10 @@
       title: "Ask, or try an idea", desc: "Ask anything about your calendar, with an idea for today.",
       show: canAsk, when: "Only people who can ask in this cabinet see it." },
     ideas: { cls: "lane ideas", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 6, h: 5,
-      title: "All ideas", desc: "Every idea in one box, one tap each." }
+      title: "All ideas", desc: "Every idea in one box, one tap each." },
+    addevent: { cls: "lane addevent", draw: drawAddEvent, group: "ask", icon: "i-plus", w: 12, h: 5, min: [3, 4],
+      title: "Add to your calendar", desc: "Fill in a new event, or tell the agent in your own words what to add or change.",
+      show: canAsk, when: "Only people who can ask in this cabinet see it." }
   };
   IDEAS.forEach(function (idea) {
     BOXES["idea-" + idea.id] = { cls: "lane idea1", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
@@ -2655,11 +2682,13 @@
       var input = el.querySelector("input");
       var typed = input ? input.value : "";
       var focused = !!input && document.activeElement === input;
+      var activeId = el.contains(document.activeElement) ? document.activeElement.id : "";
       el.innerHTML = html;
       drawn[id] = html;
       var again = el.querySelector("input");
       if (again && typed) again.value = typed;
       if (again && focused) again.focus();
+      else if (activeId && $(activeId)) $(activeId).focus();
     }
     fitBox(el);
   }
@@ -3341,6 +3370,132 @@
     if (V2 && cab.mine && typeof cab.mine.set === "function") {
       cab.mine.set(DONE_KEY, state.done).catch(function () { toast("That could not be saved. It comes back next time."); });
     }
+  }
+
+  // ── Add to your calendar ───────────────────────────────────────────────
+
+  // Fill in a new event, or write to the agent in your own words. Both go to the agent in
+  // the chat beside this page, which changes the calendar through Cabinet's Google sign-in.
+  var AE_EXAMPLE = { title: "Dentist for Maya", where: "Smile Dental, Main Street", words: "For example: soccer practice on Tuesday at 5, or move the dentist to next week" };
+  function aeDraft() {
+    if (!state.ae) state.ae = { mode: "form", title: "", day: ymd(new Date()), from: "", to: "", allDay: false, where: "", words: "", note: "" };
+    return state.ae;
+  }
+  function drawAddEvent(level) {
+    var d = aeDraft();
+    var tab = function (id, words) {
+      return '<button type="button" role="tab" data-act="ae-mode" data-mode="' + id + '" aria-selected="' + (d.mode === id) + '">' + words + "</button>";
+    };
+    var lock = state.conn && state.conn.canChange === false && mode() === "connected"
+      ? '<p class="ae-lock">' + icon("i-lock") + "<span>Right now Cabinet only reads your calendar.</span>" +
+        '<button type="button" class="btn small" data-act="ae-allow">Let Cabinet add events</button></p>'
+      : "";
+    var note = d.note || (askReady() ? (d.mode === "agent" ? "A new event waits for your press on its card in the chat. Moving or deleting waits for your yes." : "The event opens as a card in the chat beside this page. Press Add to calendar there.") : askHint());
+    var foot = function (button) {
+      return '<div class="ae-foot"><button type="submit" class="btn primary">' + icon(d.mode === "agent" ? "i-send" : "i-plus") + button + "</button>" +
+        '<p class="note" id="ae-note" role="status">' + esc(note) + "</p></div>";
+    };
+    var field = function (cls, label, input) { return '<label class="' + cls + '">' + label + input + "</label>"; };
+    var form = d.mode === "agent"
+      ? '<form class="ae-form" id="ae-form" autocomplete="off"><label for="ae-words" class="sr">What to do on your calendar</label>' +
+        '<textarea id="ae-words" data-ae="words" dir="auto" maxlength="800" placeholder="' + esc(AE_EXAMPLE.words) + '">' + esc(d.words) + "</textarea>" +
+        foot("Send to the agent") + "</form>"
+      : '<form class="ae-form" id="ae-form" autocomplete="off" novalidate>' +
+        field("ae-what", "What", '<input id="ae-title" data-ae="title" dir="auto" maxlength="200" placeholder="' + esc(AE_EXAMPLE.title) + '" value="' + esc(d.title) + '" />') +
+        field("ae-day", "Day", '<input id="ae-day" data-ae="day" type="date" value="' + esc(d.day) + '" />') +
+        (d.allDay ? "" :
+          field("ae-from", "From", '<input id="ae-from" data-ae="from" type="time" step="300" value="' + esc(d.from) + '" />') +
+          field("ae-to", "To", '<input id="ae-to" data-ae="to" type="time" step="300" value="' + esc(d.to) + '" />')) +
+        field("ae-where", "<span>Where <small>(if anywhere)</small></span>", '<input id="ae-where" data-ae="where" dir="auto" maxlength="200" placeholder="' + esc(AE_EXAMPLE.where) + '" value="' + esc(d.where) + '" />') +
+        '<label class="ae-allday"><input type="checkbox" data-ae="allDay"' + (d.allDay ? " checked" : "") + " />All day</label>" +
+        foot("Prepare the event") + "</form>";
+    return boxHead("addevent", "Add to your calendar", "i-plus", "", null) +
+      '<div class="box-body"><div class="ae-tabs" role="tablist" aria-label="How to add">' + tab("form", "Fill it in") + tab("agent", "Tell the agent") + "</div>" +
+      lock + form + "</div>";
+  }
+  function redrawAddEvent(focusId) {
+    var el = boxEls.addevent;
+    if (!el || !el.isConnected) return;
+    // drawBox puts back what the first field held; here the draft decides, so a sent form clears.
+    var first = el.querySelector("input[data-ae]");
+    if (first && first.type !== "checkbox") first.value = aeDraft()[first.getAttribute("data-ae")] || "";
+    drawBox(el);
+    if (focusId && $(focusId)) $(focusId).focus();
+  }
+  function setAeNote(words) {
+    aeDraft().note = words;
+    if ($("ae-note")) $("ae-note").textContent = words;
+  }
+  /** One hour after a start time, never past midnight. */
+  function aeHourLater(from) {
+    var min = clockToMin(from);
+    if (min === null) return "";
+    min = Math.min(min + 60, 23 * 60 + 59);
+    return pad(Math.floor(min / 60)) + ":" + pad(min % 60);
+  }
+  /** The words the agent gets, or null after saying what is missing. */
+  function aeWords() {
+    var d = aeDraft();
+    if (d.mode === "agent") {
+      var said = text(d.words, 800);
+      if (!said) { setAeNote("Write what you want first."); return null; }
+      return "From the Add to your calendar box on my page: " + said;
+    }
+    var title = text(d.title, 200);
+    if (!title) { setAeNote("Give the event a name."); return null; }
+    var day = parseDay(d.day);
+    if (!day) { setAeNote("Pick a day."); return null; }
+    var lines = ["Title: " + title, "Day: " + longDate(day) + " " + day.getFullYear() + " (" + d.day + ")" + (d.allDay ? ", all day" : "")];
+    if (!d.allDay) {
+      if (clockToMin(d.from) === null) { setAeNote("Pick a start time, or tick All day."); return null; }
+      var to = clockToMin(d.to) === null ? aeHourLater(d.from) : d.to;
+      if (clockToMin(to) <= clockToMin(d.from)) { setAeNote("The end must come after the start."); return null; }
+      lines.push("Time: " + d.from + " to " + to + ", in my calendar's time zone");
+    }
+    var where = text(d.where, 200);
+    if (where) lines.push("Where: " + where);
+    return "Put this event on my Google Calendar. I filled it in on the Add to your calendar box.\n\n" +
+      lines.join("\n");
+  }
+  function sendAddEvent() {
+    if (!V2) { toast("Open this cabinet in Cabinet to add to your calendar."); return; }
+    if (!canAsk()) { toast("Only people who can edit this cabinet can add to it."); return; }
+    if (!askReady()) {
+      if (state.conn && state.conn.canConnect) { toast("Connect Google Calendar first. It takes a minute."); connect(); }
+      else toast(mode() === "not-here" ? "Google Calendar can't connect here yet." : "Ask the owner of this cabinet to connect Google Calendar.");
+      return;
+    }
+    var words = aeWords();
+    if (!words) return;
+    var d = aeDraft();
+    setAeNote("Sending...");
+    cab.ask(words, { send: true }).then(function () {
+      if (d.mode === "agent") d.words = "";
+      else { d.title = ""; d.from = ""; d.to = ""; d.where = ""; }
+      d.note = d.mode === "agent" ? "Sent. The agent answers in the chat beside this page." : "Sent. Check the card in the chat beside this page and press Add to calendar.";
+      redrawAddEvent();
+      toast("Sent to the agent. The answer is in the chat.");
+    }, function (e) {
+      setAeNote(e && e.message ? e.message : "That didn't go through. Try again.");
+    });
+  }
+  document.addEventListener("input", aeField);
+  document.addEventListener("change", aeField);
+  function aeField(event) {
+    var el = event.target;
+    var key = el && el.getAttribute && el.getAttribute("data-ae");
+    if (!key) return;
+    var d = aeDraft();
+    if (key === "allDay") {
+      if (event.type !== "change") return;
+      d.allDay = !!el.checked;
+      redrawAddEvent();
+      return;
+    }
+    d[key] = el.value;
+    // A start with no end yet gets an hour; the end stays theirs once they set it.
+    if (key === "from" && event.type === "change" && !d.to && $("ae-to")) { d.to = aeHourLater(d.from); $("ae-to").value = d.to; }
+    if (d.note) { d.note = ""; if ($("ae-note")) $("ae-note").textContent = ""; }
   }
 
   // ── Ask, and the ideas ─────────────────────────────────────────────────
@@ -4413,6 +4568,8 @@
     } else if (act === "connect") connect();
     else if (act === "run") runNow();
     else if (act === "ask") ask(el.getAttribute("data-q"));
+    else if (act === "ae-mode") { aeDraft().mode = el.getAttribute("data-mode") === "agent" ? "agent" : "form"; aeDraft().note = ""; redrawAddEvent(aeDraft().mode === "agent" ? "ae-words" : "ae-title"); }
+    else if (act === "ae-allow") connect();
     else if (act === "more-rows") {
       var boxId = el.closest(".box").getAttribute("data-box");
       var shownBefore = snapshot();
@@ -4519,6 +4676,7 @@
 
   // The Ask box is drawn again as it changes size, so its form is listened to from here.
   document.addEventListener("submit", function (event) {
+    if (event.target && event.target.id === "ae-form") { event.preventDefault(); sendAddEvent(); return; }
     if (!event.target || event.target.id !== "ask-form") return;
     event.preventDefault();
     if (state.layoutAsk) sendLayoutAsk($("ask-input").value);
