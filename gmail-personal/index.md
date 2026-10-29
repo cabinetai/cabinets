@@ -17,7 +17,7 @@ Your own inbox, calm. Every morning at 7 it pulls out:
 - **On the way**: packages and orders, and when they arrive.
 
 **Write an email** from the page: write it yourself, or tell the agent what to say. It goes
-out only when you press Approve.
+out only when you press Send on it in the chat.
 
 Newsletters, ads and promotions are set aside and counted, never deleted. The **Ideas** on
 the page go further: find a warranty or a booking, see what you pay for every month, or
