@@ -2,15 +2,22 @@
 <!--
   slack-digest showcase page: Slack Catch-up, the morning briefing about you.
 
-  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
+  Reads daily-summaries/, one file per run, written by this cabinet's single routine.
   The file names carry the timestamp, so the day picker is built without opening any of them.
-  Relative URLs on purpose: they resolve under /api/assets/<cabinet>/<app>/ at any depth
-  and survive the user renaming the cabinet at install time. The folder listing comes from
-  /api/tree because the assets route serves single files and cannot list a directory.
+  Inside a Cabinet with the app bridge (window.cabinet v2) every file is listed and read
+  through cabinet.files, with paths relative to the cabinet root, and the page repaints on
+  cabinet.files.onChange. A sealed frame (anyone but the owner on Cabinet Cloud) cannot fetch
+  relative URLs, so that is the only path that works for everyone. An older Cabinet without
+  v2 falls back to /api/tree for the listing and relative '../' fetches for the files.
 
   Each summary has two tables: "Waiting on you" (one row per thing someone wants from the
   person) and "Decided" (agreements made without them). The month's decision log, a page in
-  ../decisions/, is fetched only when the reader opens it.
+  decisions/, is read only when the reader opens it. setup.md beside this page is what the
+  person told their catch-up ("About your Slack"). DATA.md lists every file and its writer.
+
+  The bridge also gives the page the Slack connection (connectors), the routine (jobs: last
+  run, next run, Run now) and the chat beside it (ask). The page never talks to Slack: every
+  next step on an item is a request to the cabinet's agent, which asks before it posts.
 
   Laid out like a short newspaper, read top to bottom: what needs you today, what wants an
   answer, the for-your-information folded away, then what was decided. Zero external
@@ -67,7 +74,8 @@
   .status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px;
     margin-top: 12px; font-size: 13px; color: var(--muted); }
   .status span { display: inline-flex; align-items: center; gap: 7px; }
-  .status .off { color: var(--amber-ink); }
+  .status .off { color: var(--amber-ink); display: block; }
+  .status .off .dot { margin-right: 7px; vertical-align: 1px; }
   .status .set { color: var(--green-ink); }
   .status button { border: 0; padding: 0; background: none; cursor: pointer;
     font: 600 13px/1.4 var(--sans); color: var(--link); }
@@ -225,6 +233,118 @@
   input[type="search"]::placeholder { color: var(--faint); }
   select:focus-visible, input[type="search"]:focus-visible { outline: none;
     box-shadow: 0 0 0 1px rgba(91,143,214,.65), 0 0 0 4px rgba(91,143,214,.18); }
+
+  /* ---- What the bridge adds: the routine, the connection, the asks. Quiet by design:
+     the morning is the news, these are the controls around it. ---- */
+  [hidden] { display: none !important; }
+  /* Asks, runs and connects are for people who can edit. Until Cabinet says who this is,
+     and in an older Cabinet, they stay out of sight. */
+  html:not([data-role="owner"]):not([data-role="editor"]) [data-viewer-off] { display: none !important; }
+
+  .mast-top { position: relative; }
+  .pickers { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  .menus { display: flex; gap: 8px; }
+  .tool { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px;
+    border: 0; border-radius: 8px; cursor: pointer; font: 500 14px/34px var(--sans);
+    color: var(--ink); background: #FFFFFF;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 1px 2px rgba(59,47,47,.06); }
+  .tool:hover { box-shadow: 0 0 0 1px rgba(59,47,47,.18), 0 1px 3px rgba(59,47,47,.08); }
+  .tool[aria-expanded="true"] { background: var(--tint); }
+  .tool svg { width: 14px; height: 14px; flex: none; }
+
+  .pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; width: 380px;
+    max-width: calc(100vw - 32px); padding: 6px; background: #FFFFFF; border-radius: 12px;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 14px 36px rgba(59,47,47,.16); }
+  .pop-head { padding: 10px 10px 6px; font-size: 11px; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted); }
+  .pop .idea { display: block; width: 100%; text-align: left; border: 0; background: none;
+    padding: 9px 10px; border-radius: 8px; font: 500 14px/1.4 var(--sans); color: var(--ink);
+    cursor: pointer; }
+  .pop .idea:hover { background: var(--parchment); }
+  .pop .fine { margin: 0; padding: 6px 10px 8px; }
+  .pop label.check { display: flex; gap: 10px; padding: 8px 10px; border-radius: 8px;
+    font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer; }
+  .pop label.check:hover { background: var(--parchment); }
+  .pop input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+  .pop-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    margin-top: 4px; padding: 8px 10px 6px; border-top: 1px solid var(--line); }
+
+  /* The routine, on the edition line: when it last read Slack and when it reads it next. */
+  .routine { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+  .link { border: 0; padding: 0; background: none; cursor: pointer;
+    font: 600 13px/1.4 var(--sans); color: var(--link); }
+  .link:hover { text-decoration: underline; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green-ink); flex: none;
+    display: inline-block; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+  /* The connection, the first reading, a run that did not finish. */
+  .panel { margin-top: 24px; padding: 20px 22px; background: var(--card); border-radius: 12px;
+    box-shadow: inset 0 0 0 1px var(--line); }
+  .panel-head { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 19px;
+    font-weight: 650; letter-spacing: -0.012em; color: var(--ink); }
+  .panel p { margin: 6px 0 0; color: var(--ink-2); max-width: 40em; }
+  .fine { font-size: 13px; color: var(--muted); }
+  .panel p.fine { color: var(--muted); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 14px; }
+  .btn { height: 36px; padding: 0 16px; border: 0; border-radius: 8px; cursor: pointer;
+    font: 600 14px/36px var(--sans); color: var(--ink); background: #FFFFFF; white-space: nowrap;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.14), 0 1px 2px rgba(59,47,47,.06); }
+  .btn:hover { box-shadow: 0 0 0 1px rgba(59,47,47,.24), 0 1px 3px rgba(59,47,47,.08); }
+  .btn.primary { background: var(--ink); color: #FFFFFF; box-shadow: none; }
+  .btn.primary:hover { background: #463838; }
+  .btn[disabled] { opacity: .65; cursor: default; }
+  .notice { margin-top: 20px; padding: 12px 16px; display: flex; flex-wrap: wrap;
+    align-items: center; justify-content: space-between; gap: 10px 20px; font-size: 14px;
+    color: var(--amber-ink); background: #F6E8D2; border-radius: 10px; }
+  .notice .btn { height: 32px; line-height: 32px; padding: 0 14px; }
+  .strip { margin-top: 18px; display: flex; align-items: center; gap: 10px; font-size: 14px;
+    color: var(--ink-2); }
+  .conn-note { margin: 14px 0 0; font-size: 14px; color: var(--muted); }
+
+  /* Next steps on an item: small and quiet, under what it is about. */
+  .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .item .acts { margin: 8px 0 0 16px; }
+  .decision .acts { grid-column: 1; margin-top: 8px; }
+  .act { height: 28px; padding: 0 11px; border: 0; border-radius: 999px; cursor: pointer;
+    font: 600 12.5px/28px var(--sans); color: var(--ink-2); background: transparent;
+    box-shadow: inset 0 0 0 1px var(--line); white-space: nowrap; }
+  .act:hover { background: var(--tint); }
+
+  /* About your Slack: what the person told their catch-up, from setup.md. */
+  .facts { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 32px; }
+  .facts dt { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .facts dd { margin: 2px 0 0; color: var(--ink); }
+  .facts dd.unset { color: var(--muted); }
+
+  /* Ask: the box at the end of the page. */
+  .askbox { margin-top: 44px; padding-top: 22px; border-top: 2px solid var(--rule); }
+  .askbox form { display: flex; gap: 10px; }
+  .askbox input { flex: 1; min-width: 0; height: 44px; padding: 0 14px; border: 0;
+    font: 400 15px/1.4 var(--sans); color: var(--ink); background: #FFFFFF; border-radius: 10px;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.12), 0 1px 2px rgba(59,47,47,.06); }
+  .askbox input::placeholder { color: var(--muted); }
+  .askbox input:focus-visible { outline: none;
+    box-shadow: 0 0 0 1px rgba(91,143,214,.65), 0 0 0 4px rgba(91,143,214,.18); }
+  .askbox .btn { height: 44px; line-height: 44px; }
+  .askbox .fine { margin: 10px 0 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
+    white-space: nowrap; }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 30;
+    max-width: calc(100% - 32px); width: max-content; padding: 10px 16px; border-radius: 10px;
+    background: var(--ink); color: #FFFFFF; font-size: 14px;
+    box-shadow: 0 10px 30px rgba(47,38,38,.22); }
+
+  @media (max-width: 640px) {
+    .pickers { flex: 1 1 100%; }
+    .pickers label { flex: 1 1 150px; min-width: 0; }
+    .pickers select { flex: 1; min-width: 0; }
+    .pop { left: 0; right: 0; width: auto; }
+    .facts { grid-template-columns: 1fr; }
+    .panel { padding: 18px; }
+  }
 </style>
 </head>
 <body>
@@ -238,7 +358,18 @@
         <svg class="mark" viewBox="0 0 127 127" aria-hidden="true"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2C6.7 93.2.8 87.3.8 80c0-7.3 5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/> <path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2C33.8 6.5 39.7.6 47 .6c7.3 0 13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H13.9C6.6 60.1.7 54.2.7 46.9c0-7.3 5.9-13.2 13.2-13.2H47z" fill="#36C5F0"/> <path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V13.8C66.9 6.5 72.8.6 80.1.6c7.3 0 13.2 5.9 13.2 13.2v33.1z" fill="#2EB67D"/> <path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2 0-7.3 5.9-13.2 13.2-13.2h33.1c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H80.1z" fill="#ECB22E"/></svg>
         <span>Slack Catch-up</span>
       </div>
-      <div id="tools" class="tools"></div>
+      <div class="tools">
+        <span id="pickers" class="pickers"></span>
+        <span class="menus">
+          <button type="button" class="tool" id="ideas-btn" data-act="ideas" aria-haspopup="true"
+                  aria-expanded="false" aria-controls="pop" data-viewer-off hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2V17h6v-.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"/></svg>Ideas</button>
+          <button type="button" class="tool" id="layout-btn" data-act="layout" aria-haspopup="true"
+                  aria-expanded="false" aria-controls="pop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Layout</button>
+        </span>
+      </div>
+      <div id="pop" class="pop" hidden></div>
     </div>
     <div id="head">
       <h1 class="dateline">Your morning briefing</h1>
@@ -246,32 +377,95 @@
     <div class="edition">
       <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
       <span>Every morning, who is waiting on you in Slack, and what was decided without you.</span>
-      <span id="next"></span>
+      <span id="next" class="routine"></span>
     </div>
     <div id="status" class="status" role="status"></div>
   </header>
 
+  <div id="conn" aria-live="polite"></div>
   <div id="root"><div class="empty">Loading…</div></div>
+  <div id="about"></div>
+
+  <section id="ask-box" class="askbox" aria-label="Ask" hidden data-viewer-off>
+    <form id="ask-form">
+      <label for="ask-input" class="sr">Ask about your Slack</label>
+      <input id="ask-input" type="text" dir="auto" autocomplete="off" maxlength="3900"
+             placeholder="Ask about your Slack..." />
+      <button type="submit" class="btn primary">Ask</button>
+    </form>
+    <p class="fine">The answer comes in the chat beside this page. Nothing is posted to Slack without your yes.</p>
+  </section>
 
 </div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
 (function () {
-  var root = document.getElementById('root');
-  var head = document.getElementById('head');
-  var tools = document.getElementById('tools');
-  var nextLine = document.getElementById('next');
-  var statusLine = document.getElementById('status');
+  'use strict';
+
+  /* v2 of the bridge: the files, the Slack connection, the routine and the chat beside the
+     page. Without it (an older Cabinet, or the page opened in its own tab) the page still
+     reads the summaries over relative URLs and says where to connect Slack. */
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+
+  function $(id) { return document.getElementById(id); }
+  var root = $('root'), head = $('head'), pickers = $('pickers'), nextLine = $('next');
+  var statusLine = $('status'), connBox = $('conn'), aboutBox = $('about'), pop = $('pop');
+
   var DIR = 'daily-summaries';
   var LOG_DIR = 'decisions';
-  var JOB = '.jobs/morning-slack-digest.yaml';
-  var job = null;
-  var showing = 'all';
+  var JOB_FILE = '.jobs/morning-slack-digest.yaml';
+  var JOB_ID = 'morning-slack-digest';
+  var CONNECTOR = 'slack';
+  var LAYOUT_KEY = 'slack-catch-up.hidden';
+  /* Just after Run now, Cabinet may still say "not running" before the run has started. */
+  var GRACE_MS = 45000;
+
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
   var SHOW = [['all', 'Everything'], ['high', 'Needs you today'], ['medium', 'Worth an answer'],
               ['low', 'Just so you know'], ['decided', 'Decided']];
+
+  /* The same list as the `prompts` in this cabinet's .cabinet. Keep the two in step. */
+  var IDEAS = [
+    'Who is waiting on me in Slack right now?',
+    'Did anyone ask me something I never answered?',
+    'Draft replies to everyone waiting on me, in my voice',
+    'Which of my threads moved since yesterday?',
+    'What did my team decide in Slack this week?',
+    'When did we decide the release date, and who agreed?',
+    'Who mentioned me while I was away last week?',
+    'Remind me at 2pm to answer the most urgent one'
+  ];
+
+  /* The parts of the page a person may hide. Needs you today and Worth an answer are the
+     page itself, so they always show. */
+  var PARTS = [['top', 'Start here'], ['fyi', 'Just so you know'], ['decided', 'Decided'],
+               ['log', 'Decision log'], ['about', 'About your Slack']];
+
+  var BUSY = { linking: 'Connecting Slack...', reconnecting: 'Reconnecting Slack...',
+               checking: 'Checking Slack...', 'catching-up': 'Catching up on Slack...',
+               copying: 'Copying from Slack...' };
+
+  var st = {
+    app: 'channel-digest',  /* the app folder, from here(); the folder name it ships with */
+    role: null,
+    slack: null,            /* this cabinet's Slack entry from connectors.list() */
+    jobs: null,
+    running: false, runAt: 0, sawRun: false, runNote: '',
+    connecting: false, connectNote: '',
+    files: null,            /* summary names, newest first */
+    name: null, text: null, meta: null,
+    pinned: false,          /* the person picked an older day: a new run does not move them */
+    items: {},              /* what each per-item button is about, by id */
+    setup: null,
+    hidden: {},
+    pop: ''
+  };
+  var showing = 'all';
+  var cronJob = null;       /* an older Cabinet: the schedule read off the job file */
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -280,6 +474,66 @@
   }
 
   function pad(n) { return ('0' + n).slice(-2); }
+  function noop() {}
+  function msg(e) { return e && e.message ? e.message : 'That did not go through. Try again.'; }
+
+  /* ---- reading files: through the bridge, or over relative URLs in an older Cabinet ---- */
+
+  /* `path` is relative to the cabinet root. Resolves null for a file that is not there. */
+  function readFile(path) {
+    if (V2) {
+      return cab.files.read(path).catch(function (e) {
+        if (e && e.code === 'not-found') return null;
+        throw e;
+      });
+    }
+    /* The page sits one folder down, at <cabinet>/<app>/index.html. */
+    return fetch('../' + path.split('/').map(encodeURIComponent).join('/'), { cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 404) return null;
+        if (!r.ok) throw new Error('Cabinet answered ' + r.status + '.');
+        return r.text();
+      });
+  }
+
+  /* The names of the summaries, unsorted. An empty or missing folder is the normal state
+     before the first run. */
+  function listSummaries() {
+    if (V2) {
+      return cab.files.list(DIR).then(function (list) {
+        return (list || []).filter(function (e) { return e && !e.isDir && /\.md$/i.test(e.name || ''); })
+          .map(function (e) { return e.name; });
+      }, function (e) {
+        if (e && e.code === 'not-found') return [];
+        throw e;
+      });
+    }
+    /* `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+    return fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('Cabinet answered ' + r.status + '.');
+      return r.json();
+    }).then(function (tree) { return listFiles(tree, cabinetDir() + '/' + DIR, []); });
+  }
+
+  /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments
+     tells the page which cabinet it is installed in, whatever the user named it. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+
+  /* Direct .md children of the folder only, never a nested one. The tree strips `.md` from
+     `path` but keeps it on `name`, so `path` decides the folder and `name` is what we read. */
+  function listFiles(nodes, dir, out) {
+    (nodes || []).forEach(function (n) {
+      if (!n || !n.path) return;
+      if (n.path.indexOf(dir + '/') === 0 &&
+          n.path.indexOf('/', dir.length + 1) === -1 &&
+          /\.md$/i.test(n.name || '')) out.push(n.name);
+      if (n.children) listFiles(n.children, dir, out);
+    });
+    return out;
+  }
 
   /* ---- reading a summary ------------------------------------------------------------ */
 
@@ -351,7 +605,10 @@
     return t.rows.map(function (r) {
       return { what: pick(t, r, 'decision'), where: pick(t, r, 'where'),
                who: pick(t, r, 'who'), url: pick(t, r, 'url') };
-    }).filter(function (d) { return d.what; });
+    }).filter(function (d) { return d.what; }).map(function (d, i) {
+      d.id = 'd-' + i;
+      return d;
+    });
   }
 
   function isUrl(u) { return /^https?:\/\//i.test(u || ''); }
@@ -377,6 +634,17 @@
     }
     if (ref && ref - d < 6 * 86400000) return DAYS[d.getDay()];
     return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
+  }
+
+  /* "today at 09:02", "yesterday at 09:02", "Monday at 09:02", "8 August": relative to now. */
+  function whenWords(d) {
+    var now = new Date();
+    if (sameDay(d, now)) return 'today at ' + clock(d);
+    if (sameDay(d, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))) {
+      return 'yesterday at ' + clock(d);
+    }
+    if (now - d < 6 * 86400000 && now > d) return DAYS[d.getDay()] + ' at ' + clock(d);
+    return d.getDate() + ' ' + MONTHS[d.getMonth()];
   }
 
   /* How long it had waited by the time the summary was written, not by now: an older
@@ -415,6 +683,20 @@
       (where ? ' <span class="where">' + esc(where) + '</span>' : '');
   }
 
+  /* The small next steps under an item. Each one hands a self-contained request to the
+     cabinet's agent in the chat beside the page; nothing here talks to Slack. */
+  function act(name, id, words) {
+    return '<button type="button" class="act" data-act="' + name + '" data-id="' + id + '">' +
+      words + '</button>';
+  }
+
+  function waitingActs(it) {
+    if (!V2) return '';
+    st.items[it.id] = it;
+    return '<div class="acts" data-viewer-off>' + act('draft', it.id, 'Draft a reply') +
+      (it.reminded ? '' : act('remind', it.id, 'Remind me later')) + '</div>';
+  }
+
   function needsYou(list, ref) {
     return '<div class="stories">' + list.map(function (it) {
       var waited = age(it.since, ref), foot = [];
@@ -425,7 +707,8 @@
         '" tabindex="-1">' +
         '<div class="story-top"><span>' + whoWhere(it) + '</span>' + openLink(it.url) + '</div>' +
         '<p class="ask">' + esc(it.what || 'Wants an answer from you.') + '</p>' +
-        (foot.length ? '<div class="age">' + foot.join('') + '</div>' : '') + '</article>';
+        (foot.length ? '<div class="age">' + foot.join('') + '</div>' : '') + waitingActs(it) +
+        '</article>';
     }).join('') + '</div>';
   }
 
@@ -437,7 +720,7 @@
         (waited ? '<span class="since" title="' + esc(asked(it, ref)) + '">' + esc(waited) +
           '</span>' : '') + '</div>' +
         '<p class="what">' + esc(it.what || 'Wants an answer from you.') +
-        openLink(it.url, 'Open') + '</p></div>';
+        openLink(it.url, 'Open') + '</p>' + waitingActs(it) + '</div>';
     }).join('') + '</div>';
   }
 
@@ -494,9 +777,12 @@
       var meta = [];
       if (d.where) meta.push('<span class="chan">' + esc(d.where) + '</span>');
       if (d.who) meta.push(esc(d.who));
+      if (V2) st.items[d.id] = d;
       return '<li class="decision"><span class="decision-what">' + esc(d.what) + '</span>' +
         (meta.length ? '<span class="decision-meta">' + meta.join(', ') + '</span>' : '') +
-        openLink(d.url) + '</li>';
+        openLink(d.url) +
+        (V2 ? '<div class="acts" data-viewer-off>' + act('page', d.id, 'Add to a page') + '</div>' : '') +
+        '</li>';
     }).join('') + '</ul>';
   }
 
@@ -549,18 +835,12 @@
     return html || '<p>No decisions on it yet.</p>';
   }
 
-  root.addEventListener('toggle', function (e) {
-    var fold = e.target;
-    if (!fold.classList || !fold.classList.contains('log') || !fold.open || fold.dataset.done) return;
+  /* The month's log is read only when someone opens it, and read again when it changes. */
+  function loadLog(fold, force) {
+    if (!force && fold.dataset.done) return;
     fold.dataset.done = '1';
     var box = fold.querySelector('.log-body');
-    var file = fold.getAttribute('data-log');
-    fetch('../' + LOG_DIR + '/' + encodeURIComponent(file), { cache: 'no-store' })
-      .then(function (r) {
-        if (r.status === 404) return null;
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      })
+    readFile(LOG_DIR + '/' + fold.getAttribute('data-log'))
       .then(function (text) {
         box.innerHTML = text === null
           ? '<p>No log for ' + esc(fold.getAttribute('data-title')) + ' yet. The next run starts it.</p>'
@@ -568,25 +848,33 @@
       })
       .catch(function (err) {
         delete fold.dataset.done;
-        box.innerHTML = '<p>Could not read the log (' + esc(err.message) + '). Close and ' +
-          'open it again in a moment.</p>';
+        box.innerHTML = '<p>Could not read the log. ' + esc(msg(err)) + ' Close and open it ' +
+          'again in a moment.</p>';
       });
+  }
+
+  root.addEventListener('toggle', function (e) {
+    var fold = e.target;
+    if (fold.classList && fold.classList.contains('log') && fold.open) loadLog(fold, false);
   }, true);
 
   /* The facts about this run, in one quiet line under the masthead. */
   function status(meta) {
+    if (!meta) { statusLine.innerHTML = ''; return; }
     var bits = [], from = when(meta.since), to = when(meta.generated);
     if (from && to) {
       bits.push('<span>Covers ' + esc(DAYS[from.getDay()] + ' ' + clock(from)) + ' to ' +
         esc(DAYS[to.getDay()] + ' ' + clock(to)) + '</span>');
     }
     if (String(meta.dms).toLowerCase() === 'off') {
-      var cab = window.cabinet;
-      var can = !!(cab && cab.connectors && typeof cab.connectors.connect === 'function');
-      bits.push('<span class="off">' + dot('medium') + 'Direct messages are off. Turn them ' +
-        'on in Cabinet’s Slack settings to include them.' +
-        (can ? ' <button type="button" id="dm-settings">Open Slack settings</button>' : '') +
-        '</span>');
+      /* The Direct messages row is on Cabinet's channel screen. Only the owner may open it,
+         and only from a press. */
+      var tail = !V2 ? ' Turn them on from Integrations in Cabinet.'
+        : st.slack && st.slack.canConnect
+          ? ' <button type="button" class="link" data-act="choose" data-viewer-off>Turn them on</button>'
+          : ' The cabinet’s owner can turn them on.';
+      bits.push('<span class="off">' + dot('medium') + 'Direct messages were off for this ' +
+        'catch-up, so it read your channels only.' + tail + '</span>');
     }
     var n = parseInt(meta.reminders, 10);
     if (n > 0) {
@@ -594,13 +882,6 @@
         ' set in Slack</span>');
     }
     statusLine.innerHTML = bits.join('');
-    var btn = document.getElementById('dm-settings');
-    if (btn) btn.addEventListener('click', function () {
-      /* Opens the channel screen at the step that holds the Direct messages row. Only the
-         cabinet's owner may; anyone else simply gets nothing, so the error is dropped. */
-      Promise.resolve(window.cabinet.connectors.connect('slack', { step: 'choose-chats' }))
-        .catch(function () {});
-    });
   }
 
   function header(name, meta) {
@@ -611,8 +892,19 @@
       (meta && meta.headline ? '<p class="lede">' + esc(meta.headline) + '</p>' : '');
   }
 
-  function render(data, name, files) {
+  function shown(part) { return !st.hidden[part]; }
+
+  function render(data, name, files, keep) {
     var meta = data.meta, html = '';
+    /* A repaint of the same morning keeps the folds the reader opened. */
+    var open = {};
+    if (keep) {
+      Array.prototype.forEach.call(root.querySelectorAll('details[open]'), function (d) {
+        open[d.className] = true;
+      });
+    }
+    st.meta = meta;
+    st.items = {};
     controls(name, files);
     header(name, meta);
     status(meta);
@@ -635,7 +927,7 @@
     var all = waiting(data, reminded), done = decided(data);
 
     /* The single most consequential item, in one sentence. Absent most days on purpose. */
-    if (meta.lead && meta.verdict && (showing === 'all' || showing === 'high')) {
+    if (meta.lead && meta.verdict && shown('top') && (showing === 'all' || showing === 'high')) {
       html += topStory(meta, all, ref);
     }
 
@@ -644,6 +936,8 @@
         ? all.filter(function (it) { return it.level === level; }) : [];
     }
     var high = at('high'), medium = at('medium'), low = at('low'), body = '';
+    /* Hidden in Layout, unless it is the one thing asked for under Show. */
+    if (!shown('fyi') && showing !== 'low') low = [];
 
     if (showing !== 'decided') {
       if (!all.length) {
@@ -658,25 +952,31 @@
       if (medium.length) body += section('', 'Worth an answer', medium.length, worthAnAnswer(medium, ref));
       /* Folded unless it is the only thing asked for. */
       if (low.length) {
-        body += '<section class="section">' + forYourInfo(low, ref, showing === 'low') + '</section>';
+        body += '<section class="section">' +
+          forYourInfo(low, ref, showing === 'low' || open.quiet) + '</section>';
       }
-      if (all.length && !high.length && !medium.length && !low.length) {
+      if (all.length && !high.length && !medium.length && !low.length && showing !== 'all') {
         var word = SHOW.filter(function (s) { return s[0] === showing; })[0][1].toLowerCase();
         body += '<p class="note" style="margin-top:40px">Nothing under ' + esc(word) +
           ' this morning.</p>';
       }
     }
 
-    if (showing === 'all' || showing === 'decided') {
+    var showDecided = showing === 'decided' || (showing === 'all' && shown('decided'));
+    var showLog = (showing === 'all' || showing === 'decided') && shown('log');
+    var fold = showLog ? logFold(logPath(meta, name), ref) : '';
+    if (showDecided) {
       var title = decidedTitle(when(meta.since), ref);
       body += section('', title, done.length || null,
         (done.length ? decisionList(done)
-          : '<p class="note">No decisions in your channels that you were not part of.</p>') +
-        logFold(logPath(meta, name), ref));
+          : '<p class="note">No decisions in your channels that you were not part of.</p>') + fold);
+    } else if (fold) {
+      body += '<section class="section">' + fold + '</section>';
     }
 
     root.innerHTML = html + body;
-    bind(name, files);
+    var log = root.querySelector('details.log');
+    if (log && open.log) { log.open = true; loadLog(log, true); }
   }
 
   /* "See Dana's ask below" jumps to the card; scrolling in place keeps the page's own
@@ -717,10 +1017,30 @@
     return twins.length > 1 ? word + ', ' + clock(d) : word;
   }
 
-  /* The selects live in the masthead and the next run on the edition line. */
+  /* Newest first; the example, having no date, sits at the bottom of the list. */
+  function sortFiles(files) {
+    return files.sort(function (a, b) {
+      var da = stamp(a), db = stamp(b);
+      if (da && db) return db - da;
+      return da ? -1 : db ? 1 : 0;
+    });
+  }
+
+  /* Today's first run when there is one, otherwise the newest. */
+  function firstPick(files) {
+    var now = new Date();
+    return files.filter(function (f) { var d = stamp(f); return d && sameDay(d, now); })[0] ||
+      files[0];
+  }
+
+  function hasReal() {
+    return !!(st.files && st.files.some(function (f) { return !!stamp(f); }));
+  }
+
+  /* The day and filter selects, in the masthead. */
   function controls(current, files) {
     var html = '';
-    if (files.length) {
+    if (files && files.length) {
       var days = files.map(function (f) {
         return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
                esc(label(f, files)) + '</option>';
@@ -732,43 +1052,519 @@
       html = '<label>Day <select id="pick">' + days + '</select></label>' +
              '<label>Show <select id="show">' + shows + '</select></label>';
     }
-    tools.innerHTML = html;
-    nextLine.textContent = nextRunText();
+    pickers.innerHTML = html;
   }
 
-  /* The controls are rewritten on every render, so the listeners are re-attached each time. */
-  function bind(current, files) {
-    var pickEl = document.getElementById('pick'), filter = document.getElementById('show');
-    if (pickEl) pickEl.addEventListener('change', function () { show(pickEl.value, files); });
-    if (filter) filter.addEventListener('change', function () {
-      showing = filter.value;
-      /* The picked day, not the drawn one: that day's fetch may still be on its way. */
-      show(pickEl ? pickEl.value : current, files);
-    });
+  pickers.addEventListener('change', function (e) {
+    var files = st.files || [];
+    if (e.target.id === 'pick') {
+      st.pinned = e.target.value !== firstPick(files);
+      show(e.target.value);
+    } else if (e.target.id === 'show') {
+      showing = e.target.value;
+      var pickEl = $('pick');
+      /* The picked day, not the drawn one: that day's read may still be on its way. */
+      if (pickEl && pickEl.value !== st.name) show(pickEl.value);
+      else rerender();
+    }
+  });
+
+  function rerender() {
+    if (st.text !== null && st.name) render(parse(st.text), st.name, st.files || [], true);
+    paintAbout();
   }
 
-  function show(name, files) {
-    fetch('../' + DIR + '/' + encodeURIComponent(name), { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
+  function show(name) {
+    return readFile(DIR + '/' + name)
+      .then(function (text) {
+        if (text === null) throw new Error('It is not there any more.');
+        /* The same morning, unchanged: nothing to repaint. */
+        if (name === st.name && text === st.text) return;
+        var keep = name === st.name;
+        st.name = name;
+        st.text = text;
+        render(parse(text), name, st.files || [], keep);
       })
-      .then(function (text) { render(parse(text), name, files); })
       .catch(function (err) {
+        st.name = name;
+        st.text = null;
+        st.meta = null;
         header(name, null);
         statusLine.innerHTML = '';
-        controls(name, files);
-        root.innerHTML = '<div class="empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write, so reload ' +
-          'in a moment.</div>';
-        bind(name, files);
+        controls(name, st.files || []);
+        root.innerHTML = '<div class="empty">Could not read <code>' + esc(name) + '</code>. ' +
+          esc(msg(err)) + ' It may be mid-write, so look again in a moment.</div>';
       });
   }
 
-  /* ---- when the routine next runs ---------------------------------------------------
-     Read straight off this cabinet's own job file, so a user who edits the schedule or
-     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
-     which is the same host the routine runs on. */
+  /* One read at a time; a change that lands mid-read reads again once it is done. */
+  var loading = null, loadAgain = false;
+  function load() {
+    if (loading) { loadAgain = true; return loading; }
+    loading = listSummaries()
+      .then(function (files) {
+        st.files = sortFiles(files);
+        if (!files.length) {
+          st.name = null; st.text = null; st.meta = null;
+          controls('', []);
+          head.innerHTML = '<h1 class="dateline">Your morning briefing</h1>';
+          statusLine.innerHTML = '';
+          root.innerHTML = '<div class="empty">Nothing yet. Your first catch-up appears here ' +
+            'after the routine runs for the first time: who is waiting on you, and what was ' +
+            'decided without you.</div>';
+          return null;
+        }
+        var name = st.pinned && files.indexOf(st.name) > -1 ? st.name : firstPick(files);
+        if (name !== st.name || !st.pinned) st.pinned = false;
+        return show(name);
+      })
+      .catch(function (err) {
+        /* What is on screen stays; only a page with nothing yet says it could not list. */
+        if (st.text === null) {
+          root.innerHTML = '<div class="empty">Could not list <code>' + DIR + '/</code>. ' +
+            esc(msg(err)) + ' Look again in a moment.</div>';
+        }
+      })
+      .then(function () {
+        loading = null;
+        paintChrome();
+        if (loadAgain) { loadAgain = false; load(); }
+      });
+    return loading;
+  }
+
+  /* ---- About your Slack: setup.md, what the person told their catch-up --------------- */
+
+  /* Every "**Label:** answer" paragraph. An answer in brackets is a hint, not an answer. */
+  function parseSetup(md) {
+    var body = md.replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---[^\n]*\n/, '');
+    var out = [];
+    body.split(/\n\s*\n/).forEach(function (para) {
+      var m = /^\s*\*\*([^*]+?):\*\*\s*([\s\S]*)$/.exec(para);
+      if (!m) return;
+      var value = m[2].replace(/\s+/g, ' ').trim();
+      out.push({ label: m[1].trim(), value: value, unset: !value || /^\(/.test(value) });
+    });
+    return out.length ? out : null;
+  }
+
+  function loadSetup() {
+    readFile(st.app + '/setup.md')
+      .then(function (text) { st.setup = typeof text === 'string' ? parseSetup(text) : null; },
+            function () { st.setup = null; })
+      .then(paintAbout);
+  }
+
+  function paintAbout() {
+    if (!st.setup || !shown('about')) { aboutBox.innerHTML = ''; return; }
+    var set = st.setup.filter(function (a) { return !a.unset; }).length;
+    var btn = V2 ? '<div class="acts" data-viewer-off><button type="button" class="act" ' +
+      'data-act="tell">' + (set ? 'Change this' : 'Tell it who matters') + '</button></div>' : '';
+    var body = set
+      ? '<dl class="facts">' + st.setup.map(function (a) {
+          return '<div><dt>' + esc(a.label) + '</dt><dd' + (a.unset ? ' class="unset"' : '') +
+            ' dir="auto">' + esc(a.unset ? 'Not set yet' : a.value) + '</dd></div>';
+        }).join('') + '</dl>'
+      : '<p class="note">Whose messages always come first, which channels to skip, your ' +
+        'working hours and how your replies sound. Your catch-up reads this every morning. ' +
+        'Say it in the chat and it is written to <code>' + esc(st.app) + '/setup.md</code>.</p>';
+    aboutBox.innerHTML = section('', 'About your Slack', null, body + btn);
+  }
+
+  /* ---- the connection and the routine ---------------------------------------------- */
+
+  function role() { return st.role || 'viewer'; }
+  function canAsk() { return V2 && role() !== 'viewer'; }
+  function slackState() { return st.slack ? st.slack.state : null; }
+  function connected() { return slackState() === 'connected'; }
+
+  function theJob() {
+    var list = st.jobs || [];
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === JOB_ID) return list[i];
+    return null;
+  }
+
+  /* "every day at 9": the routine's own words, lower case to sit inside a sentence. */
+  function scheduleWords() {
+    var j = theJob(), w = j && typeof j.when === 'string' ? j.when.trim() : '';
+    return /^every\b/i.test(w) ? w.charAt(0).toLowerCase() + w.slice(1) : w;
+  }
+
+  function failedRun() {
+    var j = theJob();
+    return !st.running && j && j.lastRun && j.lastRun.ok === false ? j.lastRun : null;
+  }
+
+  function setSlack(items) {
+    var found = null;
+    (Array.isArray(items) ? items : []).forEach(function (c) { if (c && c.id === CONNECTOR) found = c; });
+    st.slack = found || st.slack ||
+      { id: CONNECTOR, state: 'not-available-here', problem: null, canConnect: false, busy: null };
+    paintChrome();
+  }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var was = st.running, j;
+    st.jobs = items;
+    j = theJob();
+    if (j && j.running) st.sawRun = true;
+    st.running = !!(j && j.running) || (!st.sawRun && Date.now() - st.runAt < GRACE_MS);
+    if (was && !st.running) load();
+    paintChrome();
+  }
+
+  function paintChrome() {
+    paintRoutine();
+    paintConn();
+    status(st.meta);
+  }
+
+  /* The edition line's right side: when it last read Slack, when it reads it next. */
+  function paintRoutine() {
+    if (!V2) { nextLine.textContent = nextRunText(); return; }
+    var bits = [], j = theJob(), s = st.slack;
+    if (s && s.busy) {
+      bits.push('<span><i class="pulse" aria-hidden="true"></i> ' +
+        esc(BUSY[s.busy] || 'Cabinet is busy with Slack...') + '</span>');
+    }
+    if (connected() && !st.running && j && j.lastRun && j.lastRun.ok && j.lastRun.at) {
+      var at = new Date(j.lastRun.at);
+      if (!isNaN(at)) bits.push('<span>Last read ' + esc(whenWords(at)) + '</span>');
+    }
+    var w = scheduleWords();
+    if (w && !st.running) bits.push('<span>Next: ' + esc(w) + '</span>');
+    if (connected() && hasReal() && !st.running && !failedRun() && j) {
+      bits.push('<button type="button" class="link" data-act="run" data-viewer-off>Read Slack now</button>');
+    }
+    if (connected() && s.canConnect) {
+      bits.push('<button type="button" class="link" data-act="choose" data-viewer-off>Choose channels</button>');
+    }
+    nextLine.innerHTML = bits.join('');
+  }
+
+  function panel(headHtml, body, buttons, fine) {
+    return '<div class="panel"><p class="panel-head">' + headHtml + '</p>' + body +
+      (buttons || fine ? '<div class="row">' + (buttons || '') +
+        (fine ? '<span class="fine">' + fine + '</span>' : '') + '</div>' : '') + '</div>';
+  }
+
+  function connectButton(words) {
+    return '<button type="button" class="btn primary" data-act="connect" data-viewer-off' +
+      (st.connecting ? ' disabled' : '') + '>' + (st.connecting ? 'Connecting...' : words) +
+      '</button>';
+  }
+
+  /* Above the morning: what stands between the person and their own catch-up, if anything.
+     The example stays below it, labelled, whatever this says. */
+  function paintConn() {
+    var html = '', s = st.slack, state = slackState();
+    var sched = scheduleWords() || 'every morning';
+    var owner = s && s.canConnect;
+    /* Only when the example is really there below. */
+    var below = st.files && st.files.length ? ' Below is a made-up example.' : '';
+    if (!V2) {
+      if (!hasReal()) html = '<p class="conn-note">Connect Slack from Integrations in Cabinet.</p>';
+    } else if (state === 'not-added') {
+      html = panel('Connect Slack to see your own mornings',
+        '<p>Then ' + esc(sched) + ' it finds who is waiting on you and what was decided ' +
+        'without you. It only reads, unless you allow more.</p>',
+        owner ? connectButton('Connect Slack') : '',
+        owner ? (st.connecting ? 'Finish in the window Cabinet opened.'
+                               : 'Cabinet shows you each step.' + below)
+              : 'The cabinet’s owner connects Slack.' + below);
+    } else if (state === 'needs-sign-in' || state === 'needs-you') {
+      html = panel('Slack needs you',
+        '<p>' + esc(s.problem && s.problem.text ? s.problem.text : 'Slack stopped letting Cabinet in.') + '</p>',
+        owner ? connectButton('Fix the connection') : '',
+        owner ? '' : 'The cabinet’s owner can fix it.');
+    } else if (state === 'not-available-here') {
+      html = panel('Slack can’t be connected here yet',
+        s.problem && s.problem.text ? '<p>' + esc(s.problem.text) + '</p>' : '', '',
+        below.trim());
+    } else if (st.running && !hasReal()) {
+      html = panel('<i class="pulse" aria-hidden="true"></i>Reading Slack...',
+        '<p>Your mentions, your threads and your direct messages, if Cabinet may read them. ' +
+        'It takes a few minutes, and this page fills in by itself.</p>');
+    } else if (st.running) {
+      html = '<div class="strip"><i class="pulse" aria-hidden="true"></i>Reading Slack... ' +
+        'This page updates by itself when it is done.</div>';
+    } else if (failedRun()) {
+      var f = failedRun(), at = f.at ? new Date(f.at) : null;
+      var what = at && !isNaN(at) ? 'The catch-up ' + whenWords(at) + ' did not finish.'
+                                  : 'The last catch-up did not finish.';
+      var still = st.name && stamp(st.name)
+        ? ' What you see is from ' + label(st.name, st.files || []).replace(/^(Today|Yesterday)/, function (w) { return w.toLowerCase(); }) + '.'
+        : ' The example stays until one finishes.';
+      html = '<div class="notice"><span>' + esc(what + still) + '</span>' +
+        '<button type="button" class="btn" data-act="run" data-viewer-off>Try again</button></div>';
+    } else if (state === 'connected' && !hasReal()) {
+      html = panel('Slack is connected. Read it now?',
+        '<p>Your first catch-up takes a few minutes. After that it comes by itself, ' +
+        esc(sched) + '.</p>',
+        theJob() ? '<button type="button" class="btn primary" data-act="run" data-viewer-off>Read my Slack now</button>' : '',
+        '');
+    }
+    if (V2 && st.connectNote) html += '<p class="conn-note">' + esc(st.connectNote) + '</p>';
+    if (V2 && st.runNote) html += '<p class="conn-note">' + esc(st.runNote) + '</p>';
+    connBox.innerHTML = html;
+  }
+
+  /* Cabinet's own connect flow, over the page. Only the owner, only from a press. `step`
+     "choose-chats" opens the channel screen, where the Direct messages row lives. */
+  function connect(step) {
+    if (!V2 || st.connecting) return;
+    st.connecting = true;
+    st.connectNote = '';
+    paintChrome();
+    var asked = step ? cab.connectors.connect(CONNECTOR, { step: step }) : cab.connectors.connect(CONNECTOR);
+    Promise.resolve(asked).then(function (result) {
+      st.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        setSlack(items);
+        /* The first catch-up starts straight away, so the next thing they see is their own. */
+        if (result === 'connected' && !step && !hasReal() && canAsk()) runNow();
+      });
+    }).catch(function (e) {
+      st.connecting = false;
+      st.connectNote = msg(e);
+      paintChrome();
+    });
+  }
+
+  function runNow() {
+    if (!V2 || st.running) return;
+    st.running = true;
+    st.runAt = Date.now();
+    st.sawRun = false;
+    st.runNote = '';
+    paintChrome();
+    /* If the run never shows up, the grace ends and the page comes back. */
+    setTimeout(function () {
+      if (!st.sawRun && st.running) { st.running = false; paintChrome(); }
+    }, GRACE_MS + 500);
+    cab.jobs.run(JOB_ID).then(watchRun, function (e) {
+      if (e && e.code === 'busy') { watchRun(); return; }
+      st.running = false;
+      st.runNote = msg(e);
+      paintChrome();
+    });
+  }
+
+  /* jobs.onChange says when the run ends; this is the fallback if a change is ever missed. */
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!st.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs, noop);
+    }, 8000);
+  }
+
+  /* ---- asking the cabinet's agent --------------------------------------------------- */
+
+  var toastTimer = 0;
+  function toast(text) {
+    var el = $('toast');
+    el.textContent = text;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.hidden = true; }, 4500);
+  }
+
+  /* Opens the chat beside the page with the request sent as the person's own message.
+     Resolves true once it is there. */
+  function ask(text) {
+    if (!V2) { toast('Open this cabinet in Cabinet to ask about your Slack.'); return Promise.resolve(false); }
+    if (!canAsk()) return Promise.resolve(false);
+    var s = slackState();
+    if (s === 'not-added') {
+      toast(st.slack.canConnect ? 'Connect Slack first, then ask.' : 'Slack is not connected yet. The cabinet’s owner connects it.');
+      return Promise.resolve(false);
+    }
+    if (s === 'not-available-here') {
+      toast(st.slack.problem && st.slack.problem.text ? st.slack.problem.text : 'Slack can’t be connected here yet.');
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(cab.ask(text)).then(function (r) {
+      toast(r && r.conversationId === null ? 'It is in the chat beside this page. Press Send there.'
+                                           : 'Asked. The answer comes in the chat beside this page.');
+      return true;
+    }, function (e) {
+      toast(msg(e));
+      return false;
+    });
+  }
+
+  function longWhen(d) {
+    return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' at ' + clock(d);
+  }
+
+  function bare(s) { return String(s || '').trim().replace(/[.!?]+$/, ''); }
+
+  /* Each request stands on its own: who, where, what, when and the link, so the agent
+     needs nothing from the page to act on it. */
+  function itemAsk(kind, it) {
+    var link = isUrl(it.url) ? ' Link: ' + it.url : '';
+    var setup = st.app + '/setup.md';
+    var who = it.who || 'the person';
+    var where = whereText(it.where) || 'in Slack';
+    var since = it.since ? ' They asked on ' + longWhen(it.since) + '.' : '';
+    if (kind === 'draft') {
+      return 'Draft a reply for me to ' + who + ' ' + where + '. What they want: ' + bare(it.what) +
+        '.' + since + link + ' Read the conversation first. Write the reply in my voice ' +
+        '(see "How my replies sound" in ' + setup + ') and put [brackets] around anything I ' +
+        'need to decide. Show it here for me to copy. Do not post anything in Slack unless I ' +
+        'say yes here.';
+    }
+    if (kind === 'remind') {
+      return 'Set one Slack reminder for me to answer ' + who + ' ' + where + ': ' +
+        bare(it.what) + '.' + link + ' Pick a time later today inside my working hours (see ' +
+        setup + '), or tomorrow morning if today is nearly over, and tell me the time you ' +
+        'chose. Reminders only work when the Direct messages row on Cabinet’s Slack channel ' +
+        'screen is set to Write. If it is not, set nothing and tell me so.';
+    }
+    return 'Add this Slack decision to the page in this cabinet where it belongs: "' +
+      bare(it.what) + '" (' + (it.where || 'Slack') + (it.who ? ', ' + it.who : '') + ').' +
+      link + ' Read the thread first to check it was really agreed. Add it as one dated line ' +
+      'with the link. If no page fits, tell me the page you would make and wait for my yes. ' +
+      'Leave the decision log in decisions/ as it is.';
+  }
+
+  function tellAsk() {
+    var set = (st.setup || []).some(function (a) { return !a.unset; });
+    return set
+      ? 'I want to change what you know about my Slack in ' + st.app + '/setup.md. Ask me what to change.'
+      : 'I want to tell you about my Slack so my morning catch-up gets it right: who matters ' +
+        'most, which channels to skip, my working hours and how my replies sound. Ask me one ' +
+        'question at a time and save each answer in ' + st.app + '/setup.md.';
+  }
+
+  $('ask-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = $('ask-input'), text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    ask(text).then(function (ok) { if (ok) input.value = ''; });
+  });
+
+  /* ---- Ideas and Layout -------------------------------------------------------------- */
+
+  function ideasHtml() {
+    var note = slackState() === 'not-added'
+      ? 'Connect Slack and each of these is one press away.'
+      : 'Each one opens the chat beside this page.';
+    return '<div class="pop-head">Ideas</div>' + IDEAS.map(function (text, i) {
+      return '<button type="button" class="idea" data-act="idea" data-id="' + i + '">' +
+        esc(text) + '</button>';
+    }).join('') + '<p class="fine">' + note + '</p>';
+  }
+
+  function layoutHtml() {
+    return '<div class="pop-head">Show on this page</div>' + PARTS.map(function (p) {
+      return '<label class="check"><input type="checkbox" data-part="' + p[0] + '"' +
+        (shown(p[0]) ? ' checked' : '') + ' />' + esc(p[1]) + '</label>';
+    }).join('') + '<div class="pop-foot"><span class="fine">Only for you.</span>' +
+      '<button type="button" class="link" data-act="reset">Reset</button></div>';
+  }
+
+  function openPop(kind) {
+    if (st.pop === kind) { closePop(); return; }
+    st.pop = kind;
+    pop.innerHTML = kind === 'ideas' ? ideasHtml() : layoutHtml();
+    pop.hidden = false;
+    $('ideas-btn').setAttribute('aria-expanded', String(kind === 'ideas'));
+    $('layout-btn').setAttribute('aria-expanded', String(kind === 'layout'));
+    var first = pop.querySelector('button, input');
+    if (first) first.focus();
+  }
+
+  function closePop(refocus) {
+    if (!st.pop) return;
+    var was = st.pop;
+    st.pop = '';
+    pop.hidden = true;
+    $('ideas-btn').setAttribute('aria-expanded', 'false');
+    $('layout-btn').setAttribute('aria-expanded', 'false');
+    if (refocus) $(was === 'ideas' ? 'ideas-btn' : 'layout-btn').focus();
+  }
+
+  /* Each person's own choice, kept in Cabinet (cabinet.mine), never in a file. */
+  function saveLayout() {
+    try {
+      var p = cab && cab.mine && typeof cab.mine.set === 'function'
+        ? cab.mine.set(LAYOUT_KEY, Object.keys(st.hidden)) : null;
+      if (p && typeof p.catch === 'function') {
+        p.catch(function () { toast('Shown for now. It could not be kept for next time.'); });
+      }
+    } catch (e) { /* no store here: the choice lasts while the page is open */ }
+  }
+
+  function loadLayout() {
+    if (!cab || !cab.mine || typeof cab.mine.get !== 'function') return;
+    Promise.resolve(cab.ready).then(function () {
+      var kept = cab.mine.get(LAYOUT_KEY);
+      if (!Array.isArray(kept) || !kept.length) return;
+      kept.forEach(function (id) {
+        if (PARTS.some(function (p) { return p[0] === id; })) st.hidden[id] = true;
+      });
+      rerender();
+    }).catch(noop);
+  }
+
+  pop.addEventListener('change', function (e) {
+    var part = e.target.getAttribute && e.target.getAttribute('data-part');
+    if (!part) return;
+    if (e.target.checked) delete st.hidden[part]; else st.hidden[part] = true;
+    saveLayout();
+    rerender();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && st.pop) closePop(true);
+  });
+
+  /* ---- presses ---------------------------------------------------------------------- */
+
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest ? e.target.closest('[data-act]') : null;
+    var inPop = e.target.closest && e.target.closest('#pop');
+    var name = t ? t.getAttribute('data-act') : '';
+    if (st.pop && !inPop && name !== 'ideas' && name !== 'layout') closePop(false);
+    if (!t || t.disabled) return;
+    var id = t.getAttribute('data-id');
+    if (name === 'ideas' || name === 'layout') {
+      openPop(name);
+    } else if (name === 'idea') {
+      closePop(false);
+      ask(IDEAS[+id]);
+    } else if (name === 'reset') {
+      st.hidden = {};
+      saveLayout();
+      rerender();
+      pop.innerHTML = layoutHtml();
+    } else if (name === 'draft' || name === 'remind' || name === 'page') {
+      var it = st.items[id];
+      if (!it) return;
+      /* The example's people are invented, so there is nothing real to act on. */
+      if (!stamp(st.name)) {
+        toast('This is the example, so there is nothing real to act on. On your own catch-up this asks your agent.');
+        return;
+      }
+      ask(itemAsk(name, it));
+    } else if (name === 'tell') {
+      ask(tellAsk());
+    } else if (name === 'connect') {
+      connect('');
+    } else if (name === 'choose') {
+      connect('choose-chats');
+    } else if (name === 'run') {
+      runNow();
+    }
+  });
+
+  /* ---- an older Cabinet: when the routine next runs ---------------------------------
+     Read straight off this cabinet's own job file. Cron is evaluated in the browser's
+     timezone, which is the same host the routine runs on. */
 
   /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
   function field(spec, min, max) {
@@ -804,79 +1600,57 @@
   }
 
   function nextRunText() {
-    if (!job) return '';
-    if (job.enabled === 'false') return 'Routine paused';
-    if (!job.schedule) return '';
-    var d = nextRun(job.schedule, new Date());
-    if (!d) return '';
-    return 'Next run: ' + human(d) + ' at ' + clock(d);
+    if (!cronJob) return '';
+    if (cronJob.enabled === 'false') return 'Routine paused';
+    if (!cronJob.schedule) return '';
+    var d = nextRun(cronJob.schedule, new Date());
+    return d ? 'Next run: ' + human(d) + ' at ' + clock(d) : '';
   }
 
-  /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments
-     tells the page which cabinet it is installed in, whatever the user named it. */
-  function cabinetDir() {
-    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
-    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
-  }
+  /* ---- start ------------------------------------------------------------------------ */
 
-  /* Direct .md children of the folder only, never a nested one.
-     The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
-     separately: `path` decides what lives in the folder, `name` is what we fetch. */
-  function listFiles(nodes, dir, out) {
-    (nodes || []).forEach(function (n) {
-      if (!n || !n.path) return;
-      if (n.path.indexOf(dir + '/') === 0 &&
-          n.path.indexOf('/', dir.length + 1) === -1 &&
-          /\.md$/i.test(n.name || '')) out.push(n.name);
-      if (n.children) listFiles(n.children, dir, out);
+  if (V2) {
+    $('ideas-btn').hidden = false;
+    $('ask-box').hidden = false;
+    Promise.resolve(cab.here()).then(function (here) {
+      if (here && /^(owner|editor|viewer)$/.test(here.role)) st.role = here.role;
+      if (here && typeof here.appPath === 'string' && here.appPath) st.app = here.appPath;
+    }).catch(noop).then(function () {
+      document.documentElement.setAttribute('data-role', role());
+      load();
+      loadSetup();
+      /* Repaint when the routine writes, when the log changes, and when setup.md does. */
+      try { cab.files.onChange(DIR, function () { load(); }); } catch (e) { /* older bridge */ }
+      try {
+        cab.files.onChange(LOG_DIR, function () {
+          var fold = root.querySelector('details.log');
+          if (fold && fold.open) loadLog(fold, true); else if (fold) delete fold.dataset.done;
+        });
+      } catch (e) { /* older bridge */ }
+      try { cab.files.onChange(st.app, function () { loadSetup(); }); } catch (e) { /* older bridge */ }
     });
-    return out;
-  }
-
-  /* An empty folder is the normal state before the first run, not an error to shout about.
-     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
-  Promise.all([
-    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }),
+    cab.connectors.list().then(setSlack, function () { setSlack([]); });
+    cab.connectors.onChange(setSlack);
+    cab.jobs.list().then(setJobs, noop);
+    cab.jobs.onChange(setJobs);
+  } else {
+    load();
+    loadSetup();
     /* The schedule is a nicety. Never let a missing or renamed job file break the page. */
-    fetch('../' + JOB, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .catch(function () { return ''; })
-  ])
-    .then(function (both) {
-      var tree = both[0];
-      job = {};
-      both[1].split('\n').forEach(function (line) {
+    readFile(JOB_FILE).then(function (text) {
+      cronJob = {};
+      String(text || '').split('\n').forEach(function (line) {
         var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+        if (kv) cronJob[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
       });
-      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
-      if (!files.length) {
-        controls('', []);
-        root.innerHTML = '<div class="empty">Nothing yet. Your first catch-up appears here ' +
-          'after the routine runs for the first time: who is waiting on you, and what was ' +
-          'decided without you.</div>';
-        return;
-      }
-      /* Newest first; the example, having no date, sits at the bottom of the list. */
-      files.sort(function (a, b) {
-        var da = stamp(a), db = stamp(b);
-        if (da && db) return db - da;
-        return da ? -1 : db ? 1 : 0;
-      });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
-    })
-    .catch(function (err) {
-      root.innerHTML = '<div class="empty">Could not list <code>' + DIR + '/</code> (' +
-        esc(err.message) + '). Reload in a moment.</div>';
+      paintRoutine();
+    }).catch(noop);
+    /* No live changes in an older Cabinet: look again when the page comes back into view. */
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') load();
     });
+  }
+  loadLayout();
 })();
 </script>
 </body>

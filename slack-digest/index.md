@@ -25,15 +25,31 @@ On a Monday it covers the weekend. On a quiet morning it says "Nothing is waitin
 
 ## To start
 
-Open **Channel Digest** and connect Slack on Cabinet's integrations screen: press
-**Connect Slack**, check the workspace on Slack's page and press **Allow**. There is no app
-to make and no key to paste. Cabinet then asks which channels it may use. Leave **Every
-public channel** on **Read**, and add a private channel by name if you want it included.
-Until the first reading the page shows a made-up workspace, clearly marked.
+Open the cabinet and press **Connect Slack** on its page, check the workspace on Slack's
+page and press **Allow**. There is no app to make and no key to paste. Cabinet then asks
+which channels it may use. Leave **Every public channel** on **Read**, and add a private
+channel by name if you want it included. Until the first reading the page shows a made-up
+workspace, clearly marked.
+
+Then tell it about your Slack: who matters most, channels to skip, your working hours and
+how your replies sound. Say it in the chat, or press **Tell it who matters** on the page. It
+is kept in **About your Slack** and read every morning.
+
+## From the page
+
+Each item has a next step that asks the agent in the chat beside the page:
+
+- **Draft a reply**: a reply in your voice, in the chat for you to copy.
+- **Remind me later**: one Slack reminder, at a time inside your working hours.
+- **Add to a page**: a decision written into the page in this cabinet where it belongs.
+
+The ask box and **Ideas** take any other question about your Slack.
 
 ## It only reads, unless you allow it
 
-It never posts, replies, reacts or marks anything as read.
+The morning routine never posts, replies, reacts or marks anything as read. A reply it
+drafts for you is posted only when you say yes in the chat, and only in a channel set to
+**Write**. It appears as you, because Cabinet signs in to Slack as you.
 
 Direct messages follow the **Direct messages** row on Cabinet's channel screen. On
 **Read** they are included. Turned off, the page says so and works from channels alone. Set
@@ -43,7 +59,8 @@ because Cabinet signs in to Slack as you.
 
 ## Inside
 
-- **Channel Digest**: the app this cabinet opens on.
+- **Slack Catch-up** (`channel-digest/`): the page this cabinet opens on.
+- **About your Slack** (`channel-digest/setup.md`): what you told it about your Slack.
 - **Catch-up Reader**: the agent. Finds what waits on you and keeps the decision log.
 - **Morning Slack Catch-up**: the routine, every day at 9.
 - **Decisions**: the decision log, one page per month.

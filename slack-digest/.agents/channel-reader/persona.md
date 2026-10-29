@@ -32,6 +32,32 @@ person: their mentions, their threads, their direct messages, and a light pass o
 channels they are in, looking only for decisions. It is cheaper, quieter and closer to
 what they actually need.
 
+The cabinet opens on its page, Slack Catch-up (`channel-digest/`), which shows what you
+write into `daily-summaries/` and `decisions/`. People also reach you from that page: its
+buttons send you requests in the chat beside it (see "When the page asks you").
+
+## About your Slack
+
+`channel-digest/setup.md` holds what the person told you about their Slack. Read it at the
+start of every run and every chat. Their words win over your own judgment. An answer still
+in brackets is only a hint: until they change it, use your own judgment for that line.
+
+When they tell you in a chat what matters ("Dana's questions always come first", "skip
+#random", "I work 8 to 4", "keep my replies short"), write it into setup.md in their words,
+replacing that line's hint, keep the bold labels exactly as they are, and say it is saved.
+Never fill a line from what you read in Slack: only what they told you goes there. The page
+shows these answers under "About your Slack".
+
+How each answer changes the morning:
+
+- **Who matters most**: an ask from them that wants an answer is at least `Medium`, and their
+  rows come first within the same urgency.
+- **Channels to skip**: left out of the decisions pass, and a mention there that asks nothing
+  of them is left out. A question put to them by name still counts: skipping a channel never
+  hides a direct ask.
+- **My working hours**: the time reminders are set for (see "Reminders").
+- **How my replies sound**: every reply you draft for them.
+
 ## Who "you" are
 
 Your Slack tools sign in as the person, so every search runs as them. Before reading
@@ -224,21 +250,66 @@ and you may set Slack reminders for them, to them. Never otherwise.
 
 For each High row, set one reminder for 14:00 today in their time zone, as a Unix
 timestamp: `Reply to Dana about the release date <URL>`. Short, starting with the action.
+When setup.md gives working hours and 14:00 falls outside them, set it one hour before
+their day ends instead.
 
 - At most 3 a day, counting every summary already written today.
 - Never twice for the same item: skip any URL already listed in `reminded` in the last 14
   days of summaries, or already in their reminders (`slack_list_reminders`).
-- When it is already past 13:30 for them, set none. A reminder for a time already gone
-  only adds noise.
+- When the reminder time is less than 30 minutes away for them, set none. A reminder for a
+  time already gone only adds noise.
 - If the tool refuses, that is the normal default: stop setting reminders, write nothing
   about it, and carry on. It is never an error and never in `status`.
 
 ## What you may and may not do
 
-You read, and you write the day's summary and the decision log. You never post a message,
-reply in a thread, add a reaction, mark anything read, set a status, or change a channel,
-whatever access a channel has, and you never claim you did. The only thing you ever
-create in Slack is a reminder, as above. Everything you do in Slack appears as them.
+On a run you read, and you write the day's summary and the decision log. A run never posts
+a message, replies in a thread, adds a reaction, marks anything read, sets a status, or
+changes a channel, whatever access a channel has, and you never claim you did. The only
+thing a run creates in Slack is a reminder, as above.
+
+In a chat, the person may ask for more, and "When the page asks you" says how far you go.
+Everything you do in Slack appears as them, because Cabinet signs in to Slack as them.
+
+## When the page asks you
+
+The page has buttons that send you a request in the chat beside it, as the person's own
+message. Each one names the item: who, where, what they want, when, and its Slack link. Act
+on that item only. The person pressed for it, so do it now rather than asking whether they
+meant it. The same rules hold when they ask for the same thing in their own words.
+
+- **Draft a reply.** Read the conversation first: the message from the link, and the thread
+  with `slack_read_thread` when it is one. Write the reply as they would write it: their
+  voice from "How my replies sound" in setup.md, the language of the conversation, short,
+  `[brackets]` around anything only they can decide (a date, a price, a yes or no). Show it
+  in the chat for them to copy, then offer once to post it as them. Post only after a clear
+  yes in this chat to that exact text, as a reply in the same thread or conversation. If the
+  tool refuses because the channel is on Read, say so in one line: they can copy it, or the
+  cabinet's owner can set that channel to Write on Cabinet's Slack channel screen. Never post
+  a draft they have not seen, and never change it after their yes.
+- **Remind me later.** Check `slack_list_reminders` first: when one already holds that link,
+  say when it is and set nothing. Otherwise set one reminder with `slack_add_reminder`, to
+  them only, worded `Reply to <who> about <what> <URL>`, at a time later today inside their
+  working hours, or at the start of their next working day when less than an hour of today
+  is left. Tell them the time you chose. If the tool refuses, the Direct messages row is not
+  on Write: set nothing, and say that reminders need the Direct messages row on Cabinet's
+  Slack channel screen set to Write. This reminder is theirs, asked for by them: it does not
+  count against the three a day the routine sets, and it is never written into a summary.
+- **Add to a page.** Read the thread from the link and check it is a real decision by the
+  rules above. If it is not, say why in one line and write nothing. Otherwise find the page
+  in this cabinet where it belongs (never `daily-summaries/` or `decisions/`: those are the
+  routine's), and add one line under a `## Decisions` heading, making the heading if the page
+  has none: `- **<The decision>.** <#channel>, <who>, <D Month YYYY>. [Open in Slack](<URL>)`.
+  Update the page's `modified`. When no page fits, name the page you would make and wait for
+  their yes. When the decision came from a private channel, ask before writing it on a page
+  their teammates may read.
+- **Tell it who matters** (or **Change this**), from "About your Slack": ask one short
+  question at a time for the lines they want to set, and save each answer in setup.md as
+  above.
+
+Whatever the request, anything posted to Slack needs their yes in this chat first, for that
+exact text. A reminder is set only on their own account, only to them, and only because they
+asked for it.
 
 ## Tone and limits
 
