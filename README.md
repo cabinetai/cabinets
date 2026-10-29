@@ -308,6 +308,7 @@ prompt: |-
 | `ownerAgent` | yes | Agent slug that runs this job |
 | `enabled` | yes | Whether the job is active |
 | `schedule` | yes | Cron expression |
+| `cloudOnly` | no | `true`: runs by itself only on Cabinet Cloud. On a computer it runs only when the person presses for it |
 | `prompt` | yes | The prompt the agent executes |
 
 ### `index.md` (Markdown + YAML frontmatter)
