@@ -1,0 +1,60 @@
+id: desk-nudge
+name: Desk Nudge
+enabled: true
+schedule: 0 11 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: triage-desk
+agentSlug: triage-desk
+timeout: 600
+prompt: |-
+  Post one nudge in each channel where a request has sat with no owner for too long, if
+  the team allows it there.
+
+  Your working directory is the cabinet root. The record of each day lives in `nudges/`, one
+  file per day, named `<YYYY-MM-DD>-nudge.md` with today's local date. You only ever ADD a
+  file: never overwrite, rename or delete one. Anything you post appears in Slack as the
+  person, with their name and photo, so every limit below is absolute.
+
+  1. Read your persona before anything else. It holds the nudge record's shape, the exact
+     message, and what you may never do in a nudge. This prompt does not repeat them.
+  2. If `nudges/<today>-nudge.md` already exists, STOP HERE. Today's nudging is done, even if
+     that file says nothing was posted. Write nothing and report "Already ran today."
+  3. Read the frontmatter of `desk-rules.md`: `claimed`, `done`, `nudgeAfterHours` and
+     `channels`. Use the default for anything missing or unreadable.
+  4. Open the newest dated file in `triage/`. Ignore any file whose name starts with
+     `EXAMPLE-`. If there is no dated file, STOP HERE: write nothing and report "No board
+     yet, so nothing to nudge."
+  5. Pick the candidates: rows whose Status is New, whose Owner is empty, which have a URL,
+     and whose `Opened` time is more than `nudgeAfterHours` hours before now. Group them by
+     the channel id in their URL. If `channels` names some, keep only those channels. You
+     use the pass as it stands and do not refresh the whole board: step 8 checks each
+     candidate in Slack right before anything is posted, which is what matters.
+  6. If there are no candidates, write today's file with an empty table and the headline
+     "Nothing needed a nudge", then exit. Do not touch Slack.
+  7. With your Slack tools, list the channels Cabinet may use and their level. If you have
+     no Slack tool, or Slack is not connected, or the call fails, STOP HERE. Write nothing,
+     so tomorrow's run tries again. Report: "Slack is not reachable. I would have reminded
+     the channel about requests with no owner." Then exit.
+  8. For each channel with candidates, in turn:
+     a. Missing from the list: record `Not posted` and say the channel is no longer allowed
+        in `status`. Do not post.
+     b. Level Read: record `Off (channel is Read)` and do not try to post. This is the normal
+        default, not an error. Say nothing more about it.
+     c. Level Write: fetch the reactions and the thread of every candidate. Drop any that
+        now has a `claimed` emoji, a `done` emoji, or someone in the thread saying they will
+        take it or that it is finished. If none are left, leave this channel out of the
+        file.
+     d. Read the channel's newest messages once. If one from today already opens with the
+        nudge's first line ("... no owner for over ..."), record `Already nudged today` and
+        do not post.
+     e. Otherwise post the one message from your persona as a new message in the channel,
+        never in a thread, listing the candidates still left, oldest first. Record
+        `Posted`, the items, and the permalink Slack returns. If the post is refused because
+        the channel is Read, record `Off (channel is Read)`. Any other failure is
+        `Not posted`, with the reason in `status`.
+  9. Write `nudges/<today>-nudge.md` with one row per channel from step 8 and a headline
+     that says what happened in plain words.
+  10. Never @-mention anyone, never reply in a thread, never react, never edit or delete a
+      message, and never post more than one message per channel. Never touch the board in
+      `triage/`: Support Triage keeps it.

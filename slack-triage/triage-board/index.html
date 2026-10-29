@@ -2,8 +2,11 @@
 <!--
   slack-triage showcase page: the support queue, as a board.
 
-  Reads ../triage/, one file per pass, written by this cabinet's single routine.
+  Reads ../triage/, one file per pass, written by the Support Triage routine.
   The file names carry the timestamp, so the picker is built without opening any of them.
+  Also reads ../desk-rules.md (the team's hour limit), the newest file in ../nudges/ (the
+  last nudge Desk Nudge posted) and the newest in ../patterns/ (the weekly look back).
+  Each of those is optional: missing, the page says so quietly or leaves the part out.
   Relative URLs on purpose: they resolve under /api/assets/<cabinet>/<app>/ at any depth
   and survive the user renaming the cabinet at install time. The folder listing comes from
   /api/tree because the assets route serves single files and cannot list a directory.
@@ -15,7 +18,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Slack Triage Board</title>
+<title>Triage Board</title>
 <style>
   :root {
     --sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -162,6 +165,45 @@
     text-align: center;
   }
 
+  /* Age on every open card, read from Opened against the pass time. */
+  .card .head { display: flex; align-items: flex-start; gap: 10px; }
+  .card .head .item { flex: 1; min-width: 0; }
+  .age {
+    flex: none; margin-top: 1px; font-size: 12px; font-weight: 600; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  /* A New item nobody took, older than the team's limit: calm, but impossible to miss. */
+  .overdue {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 9px;
+    padding: 3px 10px 3px 8px; border-radius: 999px; background: #FBEDE4;
+    font-size: 12px; font-weight: 600; color: #8A3F2E;
+  }
+  .overdue svg { width: 12px; height: 12px; flex: none; }
+  .next a { color: var(--ink); text-underline-offset: 2px; }
+  .next a:hover { color: #A8432E; }
+
+  /* The weekly look back, under the board. */
+  .patterns { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+  .patterns h2 {
+    margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.01em;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+  }
+  .patterns .when { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .patterns .line { margin: 6px 0 0; font-size: 15px; font-weight: 500; }
+  .kinds {
+    list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+  .kind {
+    background: var(--card); border-radius: 10px; padding: 12px 14px;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.05), 0 1px 2px rgba(59,47,47,.05);
+    display: flex; flex-direction: column;
+  }
+  .kind .name { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.35; }
+  .kind .stats { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }
+  .kind .tip { margin: 8px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--ink); flex: 1; }
+  .kind .foot { justify-content: flex-end; margin-top: 8px; }
+
   /* Narrow: the columns stack, each one full width; Done folds to a single bar. */
   @media (max-width: 640px) {
     body { padding: 22px 14px 40px; }
@@ -219,14 +261,16 @@
       </h1>
       <!-- The one sentence. Identical to .cabinet description and index.md's first line.
            Kept for screen readers; the summary line under the title says it for this pass. -->
-      <p class="sub">Everything the support channel asked for, as a list of items with an owner and a state, instead of a wall of messages.</p>
+      <p class="sub">A request queue for your team's Slack channel. Every request with its owner, its state and its age, and a nudge when one sits too long.</p>
       <p class="summary" id="summary" hidden></p>
       <p class="next" id="next" hidden></p>
+      <p class="next" id="nudge" hidden></p>
     </div>
     <div id="tools"></div>
   </header>
 
   <div id="root"><div class="notice empty">Loading…</div></div>
+  <section class="patterns" id="patterns" hidden></section>
 
 </div>
 
@@ -236,9 +280,20 @@
   var tools = document.getElementById('tools');
   var summary = document.getElementById('summary');
   var nextEl = document.getElementById('next');
+  var nudgeEl = document.getElementById('nudge');
+  var patternsEl = document.getElementById('patterns');
   var DIR = 'triage';
+  var NUDGES = 'nudges';
+  var PATTERNS = 'patterns';
   var JOB = '.jobs/support-triage.yaml';
-  var job = null;
+  var NUDGE_JOB = '.jobs/desk-nudge.yaml';
+  var RULES = 'desk-rules.md';
+  var job = null, nudgeJob = null;
+  /* The team's limit from desk-rules.md: a New item nobody took gets flagged past it.
+     4 is the default the rules page ships with, used when the page is missing or odd. */
+  var limitHours = 4;
+  /* The one line about nudges under "Next pass": { text, url } or null. */
+  var nudgeNote = null;
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
@@ -293,8 +348,28 @@
     return data.rows.map(function (r) {
       var word = get(r, 'status');
       return { item: get(r, 'item'), needs: get(r, 'needs'), owner: get(r, 'owner'),
-               url: get(r, 'url'), word: word, key: statusKey(word) };
+               url: get(r, 'url'), word: word, key: statusKey(word),
+               opened: when(get(r, 'opened')), age: null };
     });
+  }
+
+  /* "2026-09-15 09:40", the shape of `generated` and `Opened`, as a local Date or null. */
+  function when(s) {
+    var m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+  }
+
+  /* An age in the fewest characters that stay honest: 40m, 6h, 3d. */
+  function ago(ms) {
+    var mins = Math.floor(ms / 60000);
+    if (mins < 60) return Math.max(mins, 1) + 'm';
+    var hrs = Math.floor(mins / 60);
+    return hrs < 24 ? hrs + 'h' : Math.floor(hrs / 24) + 'd';
+  }
+
+  /* Overdue is the board's only alarm: New, nobody on it, older than the team's limit. */
+  function overdue(it) {
+    return it.key === 'new' && !it.owner && it.age !== null && it.age >= limitHours * 3600000;
   }
 
   /* Status is a closed set of four. Anything else the agent writes still has to show,
@@ -368,9 +443,18 @@
     }
     summary.textContent = text || '';
     summary.hidden = !text;
+    sideLines();
+  }
+
+  /* "Next pass" and the nudge line, the two quiet lines under the summary. */
+  function sideLines() {
     var next = nextRunText();
     nextEl.textContent = next;
     nextEl.hidden = !next;
+    var n = nudgeLine();
+    nudgeEl.innerHTML = n ? esc(n.text) + (n.url ? ' <a href="' + esc(n.url) +
+      '" target="_blank" rel="noopener noreferrer">See it in Slack</a>' : '') : '';
+    nudgeEl.hidden = !n;
   }
 
   function initials(name) {
@@ -398,6 +482,10 @@
            esc(it.owner) + '</span></span>';
   }
 
+  var CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+              'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+              '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+
   var ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
               'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
               '<path d="M7 17 17 7M8 7h9v9"/></svg>';
@@ -406,11 +494,18 @@
   function card(it, lead) {
     var html = '<li class="card' + (lead ? ' lead' : '') + '">';
     if (lead) html += '<span class="lead-tag">Pick this up first</span>';
-    html += '<p class="item">' + esc(it.item || 'Untitled item') + '</p>';
+    html += '<div class="head"><p class="item">' + esc(it.item || 'Untitled item') + '</p>';
+    /* Done cards keep quiet: how old a finished request was is history, not a signal. */
+    if (it.age !== null && it.key !== 'done') {
+      html += '<span class="age" title="Opened ' + esc(human(it.opened) + ' at ' + clock(it.opened)) +
+              '"><span class="sub">Opened </span>' + ago(it.age) + '<span class="sub"> before this pass</span></span>';
+    }
+    html += '</div>';
     if (it.needs) html += '<p class="needs">' + esc(it.needs) + '</p>';
     if (it.key === 'other' && it.word) {
       html += '<span class="word"><span class="dot"></span>' + esc(it.word) + '</span>';
     }
+    if (overdue(it)) html += '<span class="overdue">' + CLOCK + 'No owner for ' + ago(it.age) + '</span>';
     if (lead) html += '<p class="verdict">' + esc(lead) + '</p>';
     html += '<div class="foot">' + who(it);
     if (it.url) {
@@ -429,8 +524,8 @@
     for (var i = 0; i < list.length; i++) {
       if (list[i].item.toLowerCase() === want) return { it: list[i], found: true };
     }
-    return { it: { item: meta.lead, needs: '', owner: '', url: '', word: 'New', key: 'new' },
-             found: false };
+    return { it: { item: meta.lead, needs: '', owner: '', url: '', word: 'New', key: 'new',
+                   opened: null, age: null }, found: false };
   }
 
   function board(list, meta) {
@@ -449,6 +544,9 @@
     columnsFor(list).forEach(function (k) {
       var pool = k === 'done' && view.show === 'open' ? done : shown;
       var cards = pool.filter(function (it) { return it.key === k && !(lead && it === lead.it); });
+      /* New is worked oldest first, so it is ordered by age whatever the file says.
+         An item with no Opened time keeps its place after the dated ones. */
+      if (k === 'new') cards = byAge(cards);
       var top = leadShown && lead.it.key === k;
       var n = cards.length + (top ? 1 : 0);
       var name = k === 'other' ? 'Other' : WORD[k];
@@ -474,12 +572,32 @@
     return html + '</div>';
   }
 
+  function byAge(list) {
+    return list.map(function (it, i) { return { it: it, i: i }; }).sort(function (a, b) {
+      var x = a.it.opened, y = b.it.opened;
+      if (x && y && x - y) return x - y;
+      if (!x !== !y) return x ? -1 : 1;
+      return a.i - b.i;
+    }).map(function (w) { return w.it; });
+  }
+
   function render(data, name, files) {
     var meta = data.meta, list = items(data);
+    /* Ages are measured to the pass, not to now: an old pass shows the board as it stood. */
+    var at = when(meta.generated) || stamp(name);
+    list.forEach(function (it) {
+      if (at && it.opened) it.age = Math.max(0, at - it.opened);
+    });
 
     function draw() {
       var html = '';
       chrome(name, files, list, meta);
+
+      /* The bundled example has no date in its name. Say so, so nobody acts on it. */
+      if (!stamp(name)) {
+        html += '<div class="banner">These requests are invented, to show the shape of the ' +
+                'board. Your own board replaces them after the routine first reaches Slack.</div>';
+      }
 
       /* The routine could not reach Slack. It said so rather than writing nothing. */
       if (meta.status && meta.status !== 'ok') {
@@ -521,7 +639,7 @@
   /* The routine runs three times a day, so a pass is named by its day and its hour. */
   function label(name) {
     var d = stamp(name);
-    if (!d) return 'Triage Board Example';
+    if (!d) return 'Example board';
     var now = new Date(), yday = new Date(now.getTime() - 86400000);
     var day = sameDay(d, now) ? 'Today' : sameDay(d, yday) ? 'Yesterday' : human(d);
     return day + ' at ' + clock(d);
@@ -611,6 +729,120 @@
     return 'Next pass: ' + human(d) + ' at ' + clock(d);
   }
 
+  /* ---- nudges and the weekly look back ------------------------------------------ */
+
+  /* A day and a time, the way the picker says it: "Today at 11:00". */
+  function dayAt(d) {
+    var now = new Date(), yday = new Date(now.getTime() - 86400000);
+    var day = sameDay(d, now) ? 'Today' : sameDay(d, yday) ? 'Yesterday' : human(d);
+    return day + ' at ' + clock(d);
+  }
+
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+  /* What the newest nudge record says, in one line. Read is the default, so "off" is
+     said plainly and never as a warning. */
+  function nudgeLine() {
+    if (nudgeJob && nudgeJob.enabled === 'false') return { text: 'Nudges are paused.' };
+    if (!nudgeNote) return { text: 'Nudges are off. They go out only in channels set to Write.' };
+    return nudgeNote;
+  }
+
+  function readNudge(name, text) {
+    var data = parse(text), meta = data.meta, at = when(meta.generated) || stamp(name);
+    var cols = {};
+    data.cols.forEach(function (c, i) { cols[c.toLowerCase()] = i; });
+    function get(r, k) { return cols[k] !== undefined ? (r[cols[k]] || '') : ''; }
+    var rows = data.rows.map(function (r) {
+      var items = get(r, 'items').split(';').filter(function (x) { return x.trim(); });
+      return { channel: get(r, 'channel'), outcome: get(r, 'outcome').toLowerCase(),
+               count: items.length, url: get(r, 'message') };
+    });
+    var stampText = at ? dayAt(at) : 'Last run';
+    var posted = rows.filter(function (r) { return r.outcome === 'posted'; });
+    if (posted.length) {
+      var p = posted[0], total = 0;
+      posted.forEach(function (r) { total += r.count; });
+      var where = posted.length === 1 ? (p.channel ? ' in ' + p.channel : '')
+                                      : ' in ' + posted.length + ' channels';
+      return { text: 'Last nudge: ' + stampText + where + ', ' + plural(total, 'request', 'requests') + '.',
+               url: posted.length === 1 && /^https:\/\//.test(p.url) ? p.url : '' };
+    }
+    if (!rows.length) return { text: 'Last nudge check: ' + stampText + '. Nothing had waited too long.' };
+    if (rows.every(function (r) { return r.outcome.indexOf('off') === 0; })) {
+      return { text: 'Nudges are off. The channel is set to Read in Cabinet.' };
+    }
+    return { text: 'Last nudge check: ' + stampText + '. Nothing was posted.' };
+  }
+
+  var MONTH_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+  /* "2026-09-07 to 2026-09-11" as "7 to 11 September". Anything else is shown as written. */
+  function weekText(s) {
+    var parts = String(s || '').split(/\s+to\s+/);
+    var a = parts[0] && parts[0].match(MONTH_DAY), b = parts[1] && parts[1].match(MONTH_DAY);
+    if (!a || !b) return s || '';
+    var ma = MONTHS[+a[2] - 1], mb = MONTHS[+b[2] - 1];
+    return +a[3] + (ma === mb ? '' : ' ' + ma) + ' to ' + +b[3] + ' ' + mb;
+  }
+
+  function renderPatterns(name, text) {
+    var data = parse(text), meta = data.meta;
+    var cols = {};
+    data.cols.forEach(function (c, i) { cols[c.toLowerCase()] = i; });
+    function get(r, k) { return cols[k] !== undefined ? (r[cols[k]] || '') : ''; }
+    var sub = [];
+    if (!stamp(name)) sub.push('Example');
+    if (meta.week) sub.push((sub.length ? 'week of ' : 'Week of ') + weekText(meta.week));
+    var n = parseInt(meta.requests, 10);
+    if (n >= 0) sub.push(plural(n, 'request', 'requests'));
+    var html = '<h2>Weekly patterns' + (sub.length ? '<span class="when">' + esc(sub.join(', ')) +
+               '</span>' : '') + '</h2>';
+    if (meta.headline) html += '<p class="line">' + esc(meta.headline) + '</p>';
+    if (meta.status && meta.status !== 'ok') {
+      html += '<p class="next">This look back is incomplete: ' + esc(meta.status) + '.</p>';
+    }
+    if (!data.rows.length) {
+      html += '<p class="next">No kind of request came in twice that week.</p>';
+    } else {
+      html += '<ul class="kinds">' + data.rows.map(function (r) {
+        var kind = get(r, 'kind'), count = parseInt(get(r, 'count'), 10);
+        var wait = get(r, 'typical wait'), url = get(r, 'example'), tip = get(r, 'suggestion');
+        var stats = [];
+        if (count > 0) stats.push(plural(count, 'time', 'times'));
+        if (/^no owner$/i.test(wait)) stats.push('mostly no owner');
+        else if (wait) stats.push('typical wait for an owner ' + wait);
+        var li = '<li class="kind"><p class="name">' + esc(kind || 'Unnamed kind') + '</p>';
+        if (stats.length) li += '<p class="stats">' + esc(stats.join(', ')) + '</p>';
+        if (tip) li += '<p class="tip">' + esc(tip) + '</p>';
+        if (/^https:\/\//.test(url)) {
+          li += '<div class="foot"><a class="thread" href="' + esc(url) + '" target="_blank" ' +
+                'rel="noopener noreferrer" aria-label="Open an example of ' + esc(kind) +
+                ' in Slack">Example' + ARROW + '</a></div>';
+        }
+        return li + '</li>';
+      }).join('') + '</ul>';
+    }
+    patternsEl.innerHTML = html;
+    patternsEl.hidden = false;
+  }
+
+  /* Newest first; an undated example sorts after every dated file. */
+  function newestFirst(list) {
+    return list.sort(function (a, b) {
+      var da = stamp(a), db = stamp(b);
+      if (da && db) return db - da;
+      return da ? -1 : db ? 1 : 0;
+    });
+  }
+
+  /* The text of a cabinet file, or '' when it is missing. Never throws: these are extras. */
+  function readFile(path) {
+    return fetch('../' + path, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; });
+  }
+
   /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments
      tells the page which cabinet it is installed in, whatever the user named it. */
   function cabinetDir() {
@@ -632,42 +864,54 @@
     return out;
   }
 
+  function jobFields(text) {
+    var out = {};
+    text.split('\n').forEach(function (line) {
+      var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+      if (kv) out[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
+    });
+    return out;
+  }
+
   /* An empty folder is the normal state before the first pass, not an error to shout about.
-     `fresh=1` busts the tree cache so a pass written minutes ago is already listed. */
+     `fresh=1` busts the tree cache so a pass written minutes ago is already listed. The job
+     files and the rules page are niceties, so a missing or renamed one never breaks it. */
   Promise.all([
     fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }),
-    /* The schedule is a nicety, so a missing or renamed job file never breaks the page. */
-    fetch('../' + JOB, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .catch(function () { return ''; })
+    readFile(JOB), readFile(NUDGE_JOB), readFile(RULES)
   ])
-    .then(function (both) {
-      var tree = both[0];
-      job = {};
-      both[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
-      });
-      var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
+    .then(function (got) {
+      var tree = got[0], base = cabinetDir() + '/';
+      job = jobFields(got[1]);
+      nudgeJob = jobFields(got[2]);
+      var hours = parseFloat(parse(got[3]).meta.nudgeAfterHours);
+      if (hours > 0) limitHours = hours;
+
+      var files = newestFirst(listFiles(tree, base + DIR, []));
+      var nudges = newestFirst(listFiles(tree, base + NUDGES, []));
+      var patterns = newestFirst(listFiles(tree, base + PATTERNS, []));
+
+      /* The newest nudge record and look back load beside the board. Either one
+         failing just leaves its part out. */
+      var extras = Promise.all([
+        nudges.length ? readFile(NUDGES + '/' + encodeURIComponent(nudges[0])) : '',
+        patterns.length ? readFile(PATTERNS + '/' + encodeURIComponent(patterns[0])) : ''
+      ]).then(function (two) {
+        if (two[0]) nudgeNote = readNudge(nudges[0], two[0]);
+        if (two[1]) renderPatterns(patterns[0], two[1]);
+      }).catch(function () { /* a malformed extra leaves its part out, never the board */ });
+
       if (!files.length) {
-        var next = nextRunText();
-        nextEl.textContent = next;
-        nextEl.hidden = !next;
+        extras.then(sideLines);
         summary.hidden = true;
         root.innerHTML = '<div class="notice empty">Nothing yet. The board fills in after the routine ' +
           'reads Slack for the first time.</div>';
         return;
       }
-      /* Newest first; the example, having no date, sits at the bottom of the list. */
-      files.sort(function (a, b) {
-        var da = stamp(a), db = stamp(b);
-        if (da && db) return db - da;
-        return da ? -1 : db ? 1 : 0;
-      });
-      show(files[0], files);
+      extras.then(function () { show(files[0], files); });
     })
     .catch(function (err) {
       root.innerHTML = '<div class="notice empty">Could not list <code>' + DIR + '/</code> (' +
