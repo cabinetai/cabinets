@@ -16,6 +16,9 @@ Your own inbox, calm. Every morning at 7 it pulls out:
 - **Coming up**: appointments, bookings and dates from your email, by day.
 - **On the way**: packages and orders, and when they arrive.
 
+**Write an email** from the page: write it yourself, or tell the agent what to say. It goes
+out only when you press Approve.
+
 Newsletters, ads and promotions are set aside and counted, never deleted. The **Ideas** on
 the page go further: find a warranty or a booking, see what you pay for every month, or
 which newsletters you never read. Each one is a tap, now or on a schedule.
