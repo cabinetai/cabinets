@@ -36,6 +36,16 @@ Open **Desk Rules** to set your team's "I've got it" emoji (:eyes: by default), 
 "finished" emoji (:white_check_mark:), how many hours a request may wait (4), and which
 channels to watch.
 
+## Ask from the board
+
+Each open request has two quiet buttons. **Draft an answer** writes a reply in the chat
+beside the board, from the thread and what this cabinet already knows. **Who could take
+this?** names one or two people who handled requests like it, and assigns nobody. On the
+weekly patterns, **Write the saved reply** or **Write the doc** turns a request that keeps
+coming back into a page in this cabinet, which later drafts draw on. **Ideas** holds ready
+questions, and the box at the bottom takes your own. **Run now** reads Slack again, and
+**Layout** hides the parts of the page you do not need.
+
 ## It only reads, unless you allow it
 
 On **Read**, the default, the desk only reads. Set the support channel to **Write** on
@@ -45,6 +55,9 @@ no reactions, and nobody is mentioned. The message is posted with your Slack acc
 because Cabinet signs in as you. The board shows when the last nudge went out, and each one
 is kept on record in this cabinet. Pause **Desk Nudge** to stop nudges.
 
+A drafted answer stays in the chat. The desk posts it only when you say yes there, as a reply
+in that request's thread, in a channel set to **Write**, and with your name on it.
+
 ## Inside
 
 - **Triage Board**: the app this cabinet opens on.
@@ -53,3 +66,4 @@ is kept on record in this cabinet. Pause **Desk Nudge** to stop nudges.
 - **Desk Nudge**: the nudge, at 11 on weekdays, only where you set Write.
 - **Weekly Patterns**: the look back, Fridays at 16.
 - **Desk Rules**: your team's emoji, time limit and channels.
+- **Saved replies** and **docs**: the pages the desk writes when you ask from a weekly pattern.
