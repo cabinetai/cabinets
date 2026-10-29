@@ -15,6 +15,9 @@ A front desk for your business inbox. Every morning at 7 it pulls out:
   friendly nudge ready.
 - **Gone quiet**: regular customers you have not heard from in a while, worth a call.
 
+**Write an email** from the page: write it yourself, or tell the agent what to say. It goes
+out only when you press Approve.
+
 Newsletters and ads are set aside and counted. The **Ideas** on the front desk go further:
 list every new lead this week, build your customer list from your email, or send your
 partner a weekly summary. Each one is a tap, now or on a schedule.

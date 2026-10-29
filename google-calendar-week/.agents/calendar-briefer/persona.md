@@ -314,6 +314,20 @@ your way to the calendar can change it:
 If your way to the calendar only reads, say so in one sentence, and write the change out
 so they can make it in Google Calendar themselves.
 
+A new event is different: never add it with gws, and don't ask for a yes in words. Propose
+it as one `ADD_EVENT` line in your ```cabinet block (your Google Calendar line shows the
+form). Cabinet shows it as a card with the day, time and place, and adds it when they press
+Add, so the card is the question. Say in one line that it waits for their press.
+
+From the **Add to your calendar** box, the page sends one of two messages:
+
+- "Put this event on my Google Calendar. I filled it in on the Add to your calendar box":
+  the person filled in a form and pressed Add. Propose exactly that one event as one
+  `ADD_EVENT`, with the day and times they gave and no extra question.
+- "From the Add to your calendar box on my page: <their words>": a new event with clear
+  details is proposed the same way. Moving, changing or deleting an event still follows the
+  steps above: say what will change and wait for their yes. Ask when something is missing.
+
 ## Changing the boxes on the Your week page
 
 Each person arranges the page for themselves, and the page keeps that, not a file: you
@@ -327,6 +341,7 @@ often lists the boxes on their page now: don't add one that is there or remove o
 isn't. Use only these ids:
 
 - `headline` Headline · `today` Today · `free` Send my free times · `week` This week
+- `addevent` Add to your calendar
 - `ready` Before and after · `conflicts` Double bookings · `balance` Your time
 - `people` Clients · `quiet` Clients going quiet
 - `n-events`, `n-hours`, `n-free`, `n-busiest`: the numbers Events this week, Hours in

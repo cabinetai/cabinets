@@ -445,6 +445,23 @@
   .box.headline .updated, .box.headline .status > span:not(.pill) { color: var(--street-ink-2); }
   .street-dark .box.headline .workday .track { background: rgba(255, 255, 255, .22); }
 
+  /* Write an email: a short form, or the person's own words for the agent. */
+  .box.write .box-body { display: grid; gap: 12px; align-content: start; padding: 0 20px 18px; overflow: auto; }
+  .we-tabs { display: inline-flex; gap: 4px; justify-self: start; padding: 3px; border: 1px solid var(--line-2); border-radius: 999px; }
+  .we-tabs button { min-height: 36px; padding: 6px 14px; border: 0; border-radius: 999px; background: none; color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .we-tabs button:hover { color: var(--ink); }
+  .we-tabs button[aria-selected="true"] { background: var(--ink); color: #fff; }
+  .we-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; align-items: end; }
+  .box.write[data-level="S"] .we-form, .box.write[data-level="M"] .we-form { grid-template-columns: minmax(0, 1fr); }
+  .we-form label { display: grid; gap: 4px; min-width: 0; font-size: 13px; font-weight: 600; color: var(--ink-3); }
+  .we-form label small { font-weight: 400; }
+  .we-form input, .we-form textarea { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; border: 1px solid var(--line-2); border-radius: 12px; background: var(--page); color: var(--ink); padding: 9px 12px; font: inherit; font-size: 15px; font-weight: 400; }
+  .we-form textarea { min-height: 96px; resize: vertical; line-height: 1.45; }
+  .we-form .we-body, .we-form .we-words { grid-column: 1 / -1; }
+  .we-form input:focus, .we-form textarea:focus { outline: none; border-color: var(--ink-2); box-shadow: 0 0 0 3px rgba(24, 33, 47, .12); }
+  .we-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  .we-foot .note { margin: 0; font-size: 14px; color: var(--ink-3); }
+  .we-lock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; font-size: 14px; color: var(--ink-2); }
   /* Ask: the dark box. Small keeps only the field. */
   .box.ask { padding: 20px 22px; overflow: hidden; justify-content: flex-start; }
   .box.ask h2 { font-size: 23px; }
@@ -1751,7 +1768,7 @@
             '<span class="fine">' + (state.connecting ? "Finish in the window Cabinet opened." : "Takes a minute or two. Cabinet shows you each step.") + "</span></div>"
           : '<p class="fine"><b>Ask the person who owns this cabinet to connect Gmail.</b></p>') +
         (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
-        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never sends on its own</li><li>" + icon("i-check") + "Every morning at 7</li><li>" + icon("i-check") + "Below: an example from a made-up business</li></ul>");
+        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never sends on its own</li><li>" + icon("i-check") + "Below: an example from a made-up business</li></ul>");
     } else if ((state.running && (state.example || !state.data)) || revealing()) {
       html = readingHtml();
     } else if (readingNow() && !state.example) {
@@ -1984,7 +2001,8 @@
     { id: "waiting", x: 0, y: 8, w: 7, h: 6 },
     { id: "quotes", x: 7, y: 8, w: 5, h: 5 },
     { id: "quiet", x: 7, y: 13, w: 5, h: 6 },
-    { id: "ask", x: 0, y: 14, w: 7, h: 5 }
+    { id: "ask", x: 0, y: 14, w: 7, h: 5 },
+    { id: "write", x: 0, y: 19, w: 12, h: 6 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -2022,6 +2040,9 @@
       show: canAsk, when: "Only people who can ask in this cabinet see it." },
     ideas: { cls: "lane ideas", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 6, h: 5,
       title: "All ideas", desc: "Every idea in one box, one tap each." },
+    write: { cls: "lane write", draw: drawWrite, group: "ask", icon: "i-send", w: 12, h: 6, min: [3, 4],
+      title: "Write an email", desc: "Write an email yourself, or tell the agent what to say. It goes out when you approve it.",
+      show: canAsk, when: "Only people who can ask in this cabinet see it." },
     setup: { cls: "lane setup", draw: drawSetup, group: "business", icon: "i-sliders", w: 6, h: 4,
       title: "What your front desk knows", desc: "What you told it about the business, and a button to change it.",
       show: function () { return !!state.setup; }, when: "Shows up once the setup page is in this cabinet." }
@@ -2351,11 +2372,13 @@
       var input = el.querySelector("input");
       var typed = input ? input.value : "";
       var focused = !!input && document.activeElement === input;
+      var activeId = el.contains(document.activeElement) ? document.activeElement.id : "";
       el.innerHTML = html;
       drawn[id] = html;
       var again = el.querySelector("input");
       if (again && typed) again.value = typed;
       if (again && focused) again.focus();
+      else if (activeId && $(activeId)) $(activeId).focus();
     }
     fitBox(el);
   }
@@ -2945,6 +2968,103 @@
       (level === "S" ? "" : '<button class="btn small" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled data-viewer-off") + ">" + icon("i-repeat") + "Do this " + esc(routineWords(idea)) + "</button>") +
       "</div></div>";
   }
+
+  // ── Write an email ─────────────────────────────────────────────────────
+
+  // Write it yourself, or tell the agent what to say. Both go to the agent in the chat beside
+  // this page, which shows the email ready to send; it goes out only when the person approves it.
+  var WE_EXAMPLE = { to: "dana@brightline.com", subject: "Your quote for the kitchen", body: "Hi Dana, the quote is ready. I can start on Monday.", words: "For example: tell Dana the quote is ready and we can start Monday" };
+  function weDraft() {
+    if (!state.we) state.we = { mode: "form", to: "", subject: "", body: "", words: "", note: "" };
+    return state.we;
+  }
+  function drawWrite(level) {
+    var d = weDraft();
+    var tab = function (id, words) {
+      return '<button type="button" role="tab" data-act="we-mode" data-mode="' + id + '" aria-selected="' + (d.mode === id) + '">' + words + "</button>";
+    };
+    var lock = state.gmail && state.gmail.canChange === false && gmailState() === "connected"
+      ? '<p class="we-lock"><span>Right now Cabinet only reads your Gmail.</span>' +
+        '<button type="button" class="btn small" data-act="we-allow">Let Cabinet send</button></p>'
+      : "";
+    var note = d.note || (askReady() ? "The agent shows it in the chat. It goes out when you press Approve." : askHint());
+    var foot = function (button) {
+      return '<div class="we-foot"><button type="submit" class="btn primary">' + icon("i-send") + button + "</button>" +
+        '<p class="note" id="we-note" role="status">' + esc(note) + "</p></div>";
+    };
+    var field = function (cls, label, input) { return '<label class="' + cls + '">' + label + input + "</label>"; };
+    var form = d.mode === "agent"
+      ? '<form class="we-form" id="we-form" autocomplete="off"><label for="we-words" class="sr">What the email should say</label>' +
+        '<textarea id="we-words" class="we-words" data-we="words" dir="auto" maxlength="1500" placeholder="' + esc(WE_EXAMPLE.words) + '">' + esc(d.words) + "</textarea>" +
+        foot("Send to the agent") + "</form>"
+      : '<form class="we-form" id="we-form" autocomplete="off" novalidate>' +
+        field("we-to", "To", '<input id="we-to" data-we="to" type="email" inputmode="email" maxlength="400" placeholder="' + esc(WE_EXAMPLE.to) + '" value="' + esc(d.to) + '" />') +
+        field("we-subject", "Subject", '<input id="we-subject" data-we="subject" dir="auto" maxlength="200" placeholder="' + esc(WE_EXAMPLE.subject) + '" value="' + esc(d.subject) + '" />') +
+        field("we-body", "Message", '<textarea id="we-body" data-we="body" dir="auto" maxlength="4000" placeholder="' + esc(WE_EXAMPLE.body) + '">' + esc(d.body) + "</textarea>") +
+        foot("Send") + "</form>";
+    return boxHead("write", "Write an email", "i-send", "", null) +
+      '<div class="box-body"><div class="we-tabs" role="tablist" aria-label="How to write">' + tab("form", "Write it") + tab("agent", "Tell the agent") + "</div>" +
+      lock + form + "</div>";
+  }
+  function redrawWrite(focusId) {
+    var el = boxEls.write;
+    if (!el || !el.isConnected) return;
+    // drawBox puts back what the first field held; here the draft decides, so a sent form clears.
+    var first = el.querySelector("input[data-we]");
+    if (first) first.value = weDraft()[first.getAttribute("data-we")] || "";
+    drawBox(el);
+    if (focusId && $(focusId)) $(focusId).focus();
+  }
+  function setWeNote(words) {
+    weDraft().note = words;
+    if ($("we-note")) $("we-note").textContent = words;
+  }
+  /** The words the agent gets, or null after saying what is missing. */
+  function weWords() {
+    var d = weDraft();
+    if (d.mode === "agent") {
+      var said = text(d.words, 1500);
+      if (!said) { setWeNote("Write what the email should say first."); return null; }
+      return "From the Write an email box on my page: " + said;
+    }
+    var to = text(d.to, 400);
+    var list = to.split(/[,;]\s*/).filter(Boolean);
+    if (!list.length) { setWeNote("Who is it to? Write an email address."); return null; }
+    for (var i = 0; i < list.length; i++) {
+      if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(list[i])) { setWeNote("\u201c" + list[i] + "\u201d isn't an email address."); return null; }
+    }
+    var subject = text(d.subject, 200);
+    if (!subject) { setWeNote("Give it a subject."); return null; }
+    var body = String(d.body || "").trim().slice(0, 4000);
+    if (!body) { setWeNote("Write the message."); return null; }
+    return "Send this email for me. I wrote it on the Write an email box.\n\n" +
+      "To: " + list.join(", ") + "\nSubject: " + subject + "\nMessage:\n" + body;
+  }
+  function sendWrite() {
+    if (!V2) { toast("Open this cabinet in Cabinet to send email."); return; }
+    if (!canAsk()) { toast("Only people who can edit this cabinet can send from it."); return; }
+    if (!askReady()) { toast("Connect Gmail first. It takes a minute."); connect(); return; }
+    var words = weWords();
+    if (!words) return;
+    var d = weDraft();
+    setWeNote("Sending to the agent...");
+    cab.ask(words, { send: true }).then(function () {
+      if (d.mode === "agent") d.words = "";
+      else { d.to = ""; d.subject = ""; d.body = ""; }
+      d.note = "In the chat beside this page now. Press Approve there to send it.";
+      redrawWrite();
+      toast("The email is waiting for your Approve in the chat.");
+    }, function (e) {
+      setWeNote(e && e.message ? e.message : "That didn't go through. Try again.");
+    });
+  }
+  document.addEventListener("input", function (event) {
+    var el = event.target;
+    var key = el && el.getAttribute && el.getAttribute("data-we");
+    if (!key) return;
+    weDraft()[key] = el.value;
+    if (weDraft().note) { weDraft().note = ""; if ($("we-note")) $("we-note").textContent = ""; }
+  });
 
   // Ask, or try an idea: the idea for today on top, a few more under it as chips.
   function drawAsk(level) {
@@ -3870,6 +3990,8 @@
       glide(shown);
     }
     else if (act === "ask") ask(el.getAttribute("data-q"));
+    else if (act === "we-mode") { weDraft().mode = el.getAttribute("data-mode") === "agent" ? "agent" : "form"; weDraft().note = ""; redrawWrite(weDraft().mode === "agent" ? "we-words" : "we-to"); }
+    else if (act === "we-allow") connect();
     else if (act === "copy" && item) copyText(text(item.reply));
     else if (act === "reply" && item) {
       ask((text(item.reply) ? "Change the reply you drafted to " : "Draft a short reply to ") + about(item) + ". Show it to me before anything is sent.");
@@ -3986,6 +4108,7 @@
       if (words) ask("Find this in my email and tell me what you found: " + words);
       return;
     }
+    if (event.target && event.target.id === "we-form") { event.preventDefault(); sendWrite(); return; }
     if (!event.target || event.target.id !== "ask-form") return;
     event.preventDefault();
     if (state.layoutAsk) sendLayoutAsk($("ask-input").value);
