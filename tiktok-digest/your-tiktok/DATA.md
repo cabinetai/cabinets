@@ -40,7 +40,7 @@ out on the first one; `followers` can be below 0), and:
 A `url` on TikTok's own address (`https://www.tiktok.com/...`, or `vm.`/`vt.` short links)
 becomes an "Open on TikTok" link.
 
-The page is a 12-column grid of white boxes on Cabinet's parchment, in Cabinet's own sans:
+The page is a 12-column grid of white boxes on TikTok's pale grey, in TikTok Sans:
 Headline, Your account (the dashboard: followers, following, likes and videos against the read
 before, each up, down or unchanged with its percent; followers and likes as lines over 7 or 28
 days; and what the videos posted in those days gathered, against the last read), How your
