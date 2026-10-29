@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<!--
+  Cycle Report: the home of a cabinet that writes a team's weekly Linear cycle report. The
+  cabinet opens on it.
+
+  What it shows: every team's current cycle on a charcoal sheet, four numbers (cycle done,
+  scope added, issues at risk, projects at risk), then one section per team's cycle (done of
+  total as a thin bar, scope added since the start, the issues at risk and why) and the
+  projects with their health and latest update. Tools hand a question to the Delivery Analyst.
+
+  Where the words come from: the Cycle report routine reads the view-only copy Cabinet keeps of
+  the Linear workspace every Friday and writes data/latest.json beside this page (DATA.md has
+  the shape; data/EXAMPLE-latest.json and EXAMPLE-latest.he.json are a made-up company, always
+  labelled as an example here, deleted on the first real run). data/status.json says when a
+  run failed.
+
+  How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the routine,
+  read files). It never changes anything in Linear. One file on purpose: a sealed frame cannot
+  load files next to it. Inter and Source Serif 4 from Google Fonts; icons are Lucide, inline.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cycle report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500..700&display=swap" rel="stylesheet" />
+<style>
+  /* Linear's monochrome palette keeps the hero distinct from the neutral sheets.
+     Workflow states and warnings retain their semantic colours. */
+  :root {
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --desk: #f4f4f5;
+    --sheet: oklch(1 0 0);
+    --wash: #f7f7f8;
+    --ink: #222326;
+    --ink-2: #414247;
+    --muted: #6b6c72;
+    --line: #e3e3e5;
+    --primary: #222326;
+    --primary-fg: oklch(1 0 0);
+    --ring: #72737a;
+    --ln: #55565c;
+    --ln-ink: #414247;
+    --ln-wash: color-mix(in oklch, #222326 6%, var(--sheet));
+    --night-top: #171719;
+    --night-low: #333336;
+    --night-ink: #f5f5f5;
+    --night-ink-2: rgba(245, 245, 245, 0.78);
+    --night-line: rgba(245, 245, 245, 0.16);
+    --track: color-mix(in oklch, var(--ink) 10%, transparent);
+    --green: #6fa45a;
+    --amber: #e08a3c;
+    --terra: #e2725b;
+    --teal: #4fa39a;
+    --green-ink: color-mix(in oklch, var(--green) 62%, var(--ink));
+    --amber-ink: color-mix(in oklch, var(--amber) 58%, var(--ink));
+    --terra-ink: color-mix(in oklch, var(--terra) 62%, var(--ink));
+    --teal-ink: color-mix(in oklch, var(--teal) 62%, var(--ink));
+    --shadow: 0 4px 10px -6px rgb(0 0 0 / 0.16);
+    --radius: 0.625rem;
+    --sheet-radius: 14px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --desk: #171719; --sheet: #222326; --wash: #2b2c30;
+      --ink: #f5f5f5; --ink-2: #d6d6d8; --muted: #aaaab0;
+      --line: oklch(1 0 0 / 9%); --primary: #ededee; --primary-fg: #171719;
+      --ring: #ededee; --ln: #b6b6bc; --ln-ink: #d6d6d8; --ln-wash: color-mix(in oklch, #ffffff 8%, var(--sheet));
+      --track: rgba(255, 255, 255, 0.1);
+      --shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 5px 12px -7px rgb(0 0 0 / 0.5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --desk: #171719; --sheet: #222326; --wash: #2b2c30;
+    --ink: #f5f5f5; --ink-2: #d6d6d8; --muted: #aaaab0;
+    --line: oklch(1 0 0 / 9%); --primary: #ededee; --primary-fg: #171719;
+    --ring: #ededee; --ln: #b6b6bc; --ln-ink: #d6d6d8; --ln-wash: color-mix(in oklch, #ffffff 8%, var(--sheet));
+    --track: rgba(255, 255, 255, 0.1);
+    --shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 5px 12px -7px rgb(0 0 0 / 0.5);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--desk); color: var(--ink); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: default; }
+  a { color: inherit; text-decoration: none; }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 8px; }
+  ::selection { background: color-mix(in oklch, var(--ln) 26%, transparent); }
+  .icon { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .num { font-variant-numeric: tabular-nums; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  [dir="rtl"] .flip { transform: scaleX(-1); }
+
+  .page { container-type: inline-size; max-width: 1180px; margin: 0 auto; padding: 18px 24px 40px; }
+
+  /* ── Top bar, on the desk ─────────────────────────────────────────────── */
+  .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px; padding: 4px 0 18px; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .plate { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--ln-wash); flex: none; }
+  .plate img { width: 32px; height: 32px; border-radius: 7px; display: block; }
+  .brand h1 { margin: 0; font: 600 22px/1.15 var(--serif); letter-spacing: -0.01em; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand > div { min-width: 0; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border-radius: 999px; background: var(--sheet); box-shadow: var(--shadow); font-size: 13.5px; font-weight: 500; white-space: nowrap; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .pill.ok .dot { background: var(--green); }
+  .pill.warn .dot { background: var(--amber); }
+  .pill.bad .dot { background: var(--terra); }
+  .pill.busy .dot { background: var(--ln); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; padding: 6px 13px; border-radius: var(--radius); border: 0; background: var(--sheet); color: var(--ink); box-shadow: var(--shadow); font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+  .btn:hover:not(:disabled) { background: var(--wash); }
+  .btn.primary { background: var(--primary); color: var(--primary-fg); }
+  .btn.primary:hover:not(:disabled) { background: color-mix(in oklch, var(--primary) 88%, black); }
+  .btn:disabled { opacity: 0.55; }
+  .btn .icon { width: 16px; height: 16px; }
+  .quiet { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 4px; color: var(--ink-2); font-size: 13.5px; font-weight: 600; }
+  .quiet:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .quiet .icon { width: 15px; height: 15px; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── A line above the hero: example, problem, connect ─────────────────── */
+  .notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 14px; padding: 11px 14px; border-radius: var(--sheet-radius); background: var(--sheet); box-shadow: var(--shadow); font-size: 14px; }
+  .notice p { margin: 0; flex: 1 1 260px; color: var(--ink-2); }
+  .notice.bad { background: color-mix(in oklch, var(--terra) 12%, var(--sheet)); }
+  .tag { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; background: var(--ln-wash); color: var(--ln-ink); font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+
+  /* ── The hero: a charcoal sheet with a soft glow in one corner ─────────── */
+  .hero { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 22px 36px; padding: 28px 30px; border-radius: 18px; color: var(--night-ink);
+    background: radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 38%, transparent 62%), linear-gradient(180deg, var(--night-top) 0%, var(--night-low) 100%);
+    box-shadow: 0 18px 40px -26px rgba(0, 0, 0, 0.9); }
+  [dir="rtl"] .hero { background: radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 38%, transparent 62%), linear-gradient(180deg, var(--night-top) 0%, var(--night-low) 100%); }
+  .hero .eyebrow { margin: 0 0 6px; color: var(--night-ink-2); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+  .hero h2 { margin: 0; font: 600 32px/1.12 var(--serif); letter-spacing: -0.015em; }
+  .hero .lead { margin: 10px 0 0; color: var(--night-ink-2); font-size: 15.5px; max-width: 46ch; }
+  .room { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .room-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 7px 14px; border-radius: var(--radius); border: 0; background: rgba(245, 245, 245, 0.12); color: var(--night-ink); font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .room-btn:hover:not(:disabled) { background: rgba(245, 245, 245, 0.2); }
+  .room-btn.light { background: var(--night-ink); color: var(--night-top); }
+  .room-btn.light:hover:not(:disabled) { background: #ffffff; }
+  .room-btn:disabled { opacity: 0.55; }
+  .room-btn .icon { width: 16px; height: 16px; }
+  .hero :focus-visible { outline-color: var(--night-ink); }
+  .cycles { display: flex; flex-direction: column; gap: 14px; align-self: center; margin: 0; padding: 0; list-style: none; }
+  .cycle { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; align-items: baseline; }
+  .cycle a:hover .cname { text-decoration: underline; text-underline-offset: 3px; }
+  .cycle .cname { font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .cycle .cname .key { color: var(--night-ink-2); font-weight: 500; }
+  .cycle .cnum { color: var(--night-ink-2); font-size: 13.5px; white-space: nowrap; }
+  .cycle .cnum b { color: var(--night-ink); font-weight: 600; }
+  .bar-track { grid-column: 1 / -1; height: 6px; border-radius: 999px; background: rgba(245, 245, 245, 0.16); overflow: hidden; }
+  .bar-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #929298, #ededee); }
+  [dir="rtl"] .bar-track i { background: linear-gradient(270deg, #929298, #ededee); }
+  .cycles-off { margin: 0; align-self: center; color: var(--night-ink-2); font-size: 14.5px; max-width: 44ch; }
+
+  /* ── Tiles ────────────────────────────────────────────────────────────── */
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
+  .tile { padding: 14px 16px; border-radius: var(--sheet-radius); background: var(--sheet); box-shadow: var(--shadow); min-width: 0; }
+  .tile .tl { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .tile .tl .icon { width: 15px; height: 15px; color: var(--ln-ink); }
+  .tile .tv { margin-top: 4px; font: 600 30px/1.1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .tile .ts { margin-top: 2px; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Boxes and rows ───────────────────────────────────────────────────── */
+  .boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .box { min-width: 0; padding: 14px 8px 8px; border-radius: var(--sheet-radius); background: var(--sheet); box-shadow: var(--shadow); }
+  .box.wide { grid-column: 1 / -1; }
+  .box-h { display: flex; align-items: center; gap: 8px; padding: 0 8px 8px; }
+  .box-h h3 { margin: 0; font: 600 17px/1.2 var(--serif); }
+  .box-h .icon { color: var(--ln-ink); }
+  .box-h .count { color: var(--muted); font-size: 13px; font-weight: 600; }
+  .box-h .more { margin-inline-start: auto; color: var(--muted); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+  .box-h .more:hover { color: var(--ink); }
+  .box-h .more .icon { width: 14px; height: 14px; color: inherit; }
+  .rows { margin: 0; padding: 0; list-style: none; }
+  .row { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 7px 8px; border-radius: 9px; min-width: 0; }
+  a.row:hover { background: var(--wash); }
+  .row .st { width: 16px; height: 16px; }
+  .st.triage { color: var(--teal-ink); }
+  .st.backlog, .st.unstarted, .st.canceled, .st.duplicate { color: var(--muted); }
+  .st.started { color: var(--amber-ink); }
+  .st.completed { color: var(--ln-ink); }
+  .ident { flex: none; min-width: 74px; text-align: center; padding: 1px 7px; border-radius: 6px; background: var(--wash); color: var(--ink-2); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; unicode-bidi: isolate; }
+  .row .main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .row .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .row .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 13px; }
+  .row .sub.stuck { color: var(--terra-ink); }
+  .row .side { flex: none; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .pri { width: 16px; height: 16px; color: var(--muted); }
+  .pri.urgent { color: var(--terra-ink); }
+  .due { padding: 1px 8px; border-radius: 999px; background: var(--wash); font-weight: 600; font-size: 12.5px; }
+  .due.soon { background: color-mix(in oklch, var(--amber) 16%, var(--sheet)); color: var(--amber-ink); }
+  .due.late { background: color-mix(in oklch, var(--terra) 16%, var(--sheet)); color: var(--terra-ink); }
+  .empty { margin: 0; padding: 10px 8px 12px; color: var(--muted); font-size: 14px; }
+  .health { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; }
+  .health i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .health.onTrack { color: var(--green-ink); } .health.onTrack i { background: var(--green); }
+  .health.atRisk { color: var(--amber-ink); } .health.atRisk i { background: var(--amber); }
+  .health.offTrack { color: var(--terra-ink); } .health.offTrack i { background: var(--terra); }
+  .health.none { color: var(--muted); font-weight: 500; }
+  .mini { width: 64px; height: 5px; border-radius: 999px; background: var(--track); overflow: hidden; flex: none; }
+  .mini i { display: block; height: 100%; background: var(--ln); border-radius: inherit; }
+  [dir="rtl"] .mini i, [dir="rtl"] .bar-track i { margin-inline-start: 0; }
+
+  /* A project as a row: health, name and latest update, target, progress. */
+  .proj { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 7px 8px; border-radius: 9px; min-width: 0; }
+  a.proj:hover { background: var(--wash); }
+  .proj .health { flex: none; width: 112px; }
+  .proj .main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .proj .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .proj .sub { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .proj .side { flex: none; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  @container (max-width: 520px) { .proj .health { width: auto; } .proj .side .lead { display: none; } }
+
+  /* ── Tools, Ask and footer ────────────────────────────────────────────── */
+  .section-h { margin: 26px 2px 10px; font: 600 19px/1.2 var(--serif); }
+  .tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .tool { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: var(--sheet-radius); background: var(--sheet); box-shadow: var(--shadow); min-width: 0; }
+  .tool h4 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+  .tool h4 .icon { color: var(--ln-ink); }
+  .tool p { margin: 0; color: var(--muted); font-size: 14px; flex: 1 1 auto; }
+  .tool .go { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .tool .why { color: var(--muted); font-size: 13px; }
+  .tool textarea, .tool select { width: 100%; min-height: 64px; resize: vertical; padding: 9px 11px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--sheet); font-size: 14px; }
+  .tool select { min-height: 38px; }
+  .ask { margin-top: 12px; padding: 18px; border-radius: var(--sheet-radius); background: var(--sheet); box-shadow: var(--shadow); }
+  .ask h3 { margin: 0 0 10px; font: 600 18px/1.2 var(--serif); }
+  .ask form { display: flex; gap: 8px; }
+  .ask input { flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--sheet); }
+  .ask input:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { min-height: 32px; padding: 5px 12px; border-radius: 999px; border: 0; background: var(--wash); color: var(--ink-2); font-size: 13.5px; font-weight: 500; text-align: start; }
+  .chip:hover:not(:disabled) { background: color-mix(in oklch, var(--ln) 14%, var(--wash)); color: var(--ink); }
+  .chip:disabled { opacity: 0.55; }
+  .ask .why { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+  .foot { margin: 22px 2px 0; color: var(--muted); font-size: 13px; max-width: 80ch; }
+  .foot p { margin: 0 0 4px; }
+  .toast { position: fixed; inset-inline: 0; bottom: 18px; margin: 0 auto; width: max-content; max-width: calc(100% - 32px); padding: 9px 14px; border-radius: 10px; background: var(--ink); color: var(--sheet); font-size: 14px; box-shadow: var(--shadow); }
+
+  @container (max-width: 860px) {
+    .tools { grid-template-columns: minmax(0, 1fr); }
+  }
+  @container (max-width: 760px) {
+    .hero { grid-template-columns: minmax(0, 1fr); padding: 22px 20px; }
+    .hero h2 { font-size: 27px; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .boxes { grid-template-columns: minmax(0, 1fr); }
+  }
+  @container (max-width: 520px) {
+    .bar { align-items: flex-start; }
+    .actions { width: 100%; }
+    .row .side .when, .proj .side .when { display: none; }
+    .ident { min-width: 0; }
+    .tile .tv { font-size: 26px; }
+  }
+  @media (max-width: 520px) { .page { padding: 12px 16px 32px; } }
+
+  .team-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 0 8px 4px; }
+  .team-h h3 { margin: 0; font: 600 18px/1.25 var(--serif); min-width: 0; }
+  .team-h h3 .key { color: var(--muted); font: 600 13px/1 var(--font); margin-inline-end: 6px; }
+  .team-h h3 a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .team-h .dates { color: var(--muted); font-size: 13.5px; }
+  .team-h .left { margin-inline-start: auto; color: var(--ln-ink); font-size: 13.5px; font-weight: 600; }
+  .pace { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px 24px; padding: 10px 8px 6px; }
+  .pace .done { font-size: 15px; color: var(--ink-2); }
+  .pace .done b { font: 600 26px/1.1 var(--font); color: var(--ink); font-variant-numeric: tabular-nums; margin-inline-end: 4px; }
+  .pace .stat { text-align: end; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .pace .stat b { display: block; color: var(--ink); font: 600 20px/1.1 var(--font); font-variant-numeric: tabular-nums; }
+  .pace .stat.hot b { color: var(--amber-ink); }
+  .pace .wide-bar { grid-column: 1 / -1; height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; }
+  .pace .wide-bar i { display: block; height: 100%; border-radius: inherit; background: var(--ln); }
+  .note { margin: 2px 8px 6px; color: var(--ink-2); font-size: 14px; }
+  .risk-h { margin: 8px 8px 0; color: var(--muted); font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .teams { display: grid; gap: 12px; }
+  .papers { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 0; color: var(--night-ink-2); font-size: 13px; }
+  .papers span { display: inline-flex; align-items: center; gap: 6px; }
+  .papers .icon { width: 14px; height: 14px; }
+  @container (max-width: 520px) {
+    .pace { grid-template-columns: minmax(0, 1fr) auto; }
+    .pace .done { grid-column: 1 / -1; }
+    .pace .stat { text-align: start; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-circle-dashed" viewBox="0 0 24 24"><path d="M10.1 2.182a10 10 0 0 1 3.8 0"/><path d="M13.9 21.818a10 10 0 0 1-3.8 0"/><path d="M17.609 3.721a10 10 0 0 1 2.69 2.7"/><path d="M2.182 13.9a10 10 0 0 1 0-3.8"/><path d="M20.279 17.609a10 10 0 0 1-2.7 2.69"/><path d="M21.818 10.1a10 10 0 0 1 0 3.8"/><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69"/><path d="M6.391 20.279a10 10 0 0 1-2.69-2.7"/></symbol>
+<symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-circle-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></symbol>
+<symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-circle-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="i-octagon-alert" viewBox="0 0 24 24"><path d="M12 16h.01"/><path d="M12 8v4"/><path d="M15.312 2a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586l-4.688-4.688A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2z"/></symbol>
+<symbol id="i-signal-high" viewBox="0 0 24 24"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/></symbol>
+<symbol id="i-signal-medium" viewBox="0 0 24 24"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/></symbol>
+<symbol id="i-signal-low" viewBox="0 0 24 24"><path d="M2 20h.01"/><path d="M7 20v-4"/></symbol>
+<symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+<symbol id="i-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+<symbol id="i-list-todo" viewBox="0 0 24 24"><path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><rect x="3" y="4" width="6" height="6" rx="1"/></symbol>
+<symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></symbol>
+<symbol id="i-calendar-clock" viewBox="0 0 24 24"><path d="M16 14v2.2l1.6 1"/><path d="M16 2v4"/><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M3 10h5"/><path d="M8 2v4"/><circle cx="16" cy="16" r="6"/></symbol>
+<symbol id="i-folder-kanban" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/><path d="M8 10v4"/><path d="M12 10v2"/><path d="M16 10v6"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></symbol>
+<symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-circle-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+</svg>
+<main class="page">
+  <header class="bar">
+    <div class="brand">
+      <span class="plate"><img id="logo" alt="Linear" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSJub25lIiB2aWV3Qm94PSIwIDAgNTEyIDUxMiI+PHBhdGggZmlsbD0idXJsKCNhKSIgZD0iTTAgMGg1MTJ2NTEySDB6Ii8+PGcgZmlsdGVyPSJ1cmwoI2IpIiBvcGFjaXR5PSIuOCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTM0Ni4xMTIgMzQyLjI2OGMxLjY3NCAxLjY3NCA0LjM2OSAxLjc3IDYuMTEyLjE2OCA1OC41MDItNTMuNzYzIDYxLjItMTQ4Ljc1MyA0LjUwNS0yMDUuNDQ4LTU2LjY5NC01Ni42OTUtMTUxLjY4NC01My45OTYtMjA1LjQ0NyA0LjUwNS0xLjYwMiAxLjc0My0xLjUwNiA0LjQzOS4xNjggNi4xMTNsMTk0LjY2MiAxOTQuNjYyWiIgc2hhcGUtcmVuZGVyaW5nPSJjcmlzcEVkZ2VzIiBzdHlsZT0ibWl4LWJsZW5kLW1vZGU6bXVsdGlwbHkiLz48L2c+PGcgZmlsdGVyPSJ1cmwoI2MpIiBvcGFjaXR5PSIuMyI+PHBhdGggZmlsbD0idXJsKCNkKSIgZD0iTTM0Ni4xMTIgMzQyLjI2OGMxLjY3NCAxLjY3NCA0LjM2OSAxLjc3IDYuMTEyLjE2OCA1OC41MDItNTMuNzYzIDYxLjItMTQ4Ljc1MyA0LjUwNS0yMDUuNDQ4LTU2LjY5NC01Ni42OTUtMTUxLjY4NC01My45OTYtMjA1LjQ0NyA0LjUwNS0xLjYwMiAxLjc0My0xLjUwNiA0LjQzOS4xNjggNi4xMTNsMTk0LjY2MiAxOTQuNjYyWiIvPjwvZz48ZyBmaWx0ZXI9InVybCgjZSkiIG9wYWNpdHk9Ii4zIj48cGF0aCBmaWxsPSJ1cmwoI2YpIiBkPSJNMjYxLjYwNyAzMjQuNzkyYzIuNDQxLTEuNDM0IDIuODQ0LTQuNzg2LjkxMi02Ljg1NUwxMjYuMTIxIDE3MS45NWMtMi4wMTgtMi4xNi01LjUzNS0xLjgzMS03LjAxNy43MjdhMTQ4Ljk5NiAxNDguOTk2IDAgMCAwLTYuNDkgMTIuNTM3Yy0uNzc0IDEuNjg4LS4zODkgMy42NzMuOTI2IDQuOTg0bDEzNy4wODggMTM2LjU5OGE0LjUxMyA0LjUxMyAwIDAgMCA0Ljk4NS45NDRjMi43MDItMS4xNzYgNC4wMjEtMS43OSA1Ljk5NC0yLjk0OFoiLz48L2c+PHBhdGggZmlsbD0idXJsKCNnKSIgZD0iTTM1Ny4zNTggMzc0LjMwNmMxLjc1OCAxLjc1OCA0LjU4MSAxLjg2NiA2LjQxNi4xODlhMTYzLjU5NSAxNjMuNTk1IDAgMCAwIDUuMzE2LTUuMDgxYzYyLjU0Ny02Mi41NDcgNjIuNTQ3LTE2My45NTYgMC0yMjYuNTA0LTYyLjU0OC02Mi41NDctMTYzLjk1Ny02Mi41NDctMjI2LjUwNCAwYTE2My41OTUgMTYzLjU5NSAwIDAgMC01LjA4MSA1LjMxNmMtMS42NzcgMS44MzUtMS41NjkgNC42NTguMTg5IDYuNDE2bDIxOS42NjQgMjE5LjY2NFoiLz48cGF0aCBmaWxsPSJ1cmwoI2gpIiBkPSJNMzU3LjM1OCAzNzQuMzA2YzEuNzU4IDEuNzU4IDQuNTgxIDEuODY2IDYuNDE2LjE4OWExNjMuNTk1IDE2My41OTUgMCAwIDAgNS4zMTYtNS4wODFjNjIuNTQ3LTYyLjU0NyA2Mi41NDctMTYzLjk1NiAwLTIyNi41MDQtNjIuNTQ4LTYyLjU0Ny0xNjMuOTU3LTYyLjU0Ny0yMjYuNTA0IDBhMTYzLjU5NSAxNjMuNTk1IDAgMCAwLTUuMDgxIDUuMzE2Yy0xLjY3NyAxLjgzNS0xLjU2OSA0LjY1OC4xODkgNi40MTZsMjE5LjY2NCAyMTkuNjY0WiIvPjxwYXRoIGZpbGw9InVybCgjaSkiIGQ9Ik0zMzYuMzMzIDM5NC42NzJjMi42MjctMS41MjggMy4wMjQtNS4xMTguODc1LTcuMjY3TDEyNC41OTUgMTc0Ljc5MmMtMi4xNDktMi4xNDktNS43MzktMS43NTItNy4yNjcuODc1YTE1OC44NyAxNTguODcgMCAwIDAtNy4xMTkgMTMuNzI1Yy0uODExIDEuNzcxLS40MSAzLjg1Mi45NjggNS4yMjlsMjA2LjIwMSAyMDYuMjAyYzEuMzc4IDEuMzc4IDMuNDU5IDEuNzc5IDUuMjMuOTY4YTE1OC44NyAxNTguODcgMCAwIDAgMTMuNzI1LTcuMTE5WiIvPjxwYXRoIGZpbGw9InVybCgjaikiIGQ9Ik0zMzYuMzMzIDM5NC42NzJjMi42MjctMS41MjggMy4wMjQtNS4xMTguODc1LTcuMjY3TDEyNC41OTUgMTc0Ljc5MmMtMi4xNDktMi4xNDktNS43MzktMS43NTItNy4yNjcuODc1YTE1OC44NyAxNTguODcgMCAwIDAtNy4xMTkgMTMuNzI1Yy0uODExIDEuNzcxLS40MSAzLjg1Mi45NjggNS4yMjlsMjA2LjIwMSAyMDYuMjAyYzEuMzc4IDEuMzc4IDMuNDU5IDEuNzc5IDUuMjMuOTY4YTE1OC44NyAxNTguODcgMCAwIDAgMTMuNzI1LTcuMTE5WiIvPjxwYXRoIGZpbGw9InVybCgjaykiIGQ9Ik0yODYuNjU5IDQxMy4zNDhjMy42MTktLjcwNyA0Ljg2LTUuMTM2IDIuMjUzLTcuNzQzTDEwNi4zOTUgMjIzLjA4OGMtMi42MDctMi42MDctNy4wMzYtMS4zNjYtNy43NDMgMi4yNTNhMTYwLjgxMyAxNjAuODEzIDAgMCAwLTIuNTAyIDE4LjQ2MiA0LjY2NiA0LjY2NiAwIDAgMCAxLjM2NiAzLjY1NGwxNjcuMDI3IDE2Ny4wMjdhNC42NjcgNC42NjcgMCAwIDAgMy42NTQgMS4zNjYgMTYwLjgzNCAxNjAuODM0IDAgMCAwIDE4LjQ2Mi0yLjUwMloiLz48cGF0aCBmaWxsPSJ1cmwoI2wpIiBkPSJNMjg2LjY1OSA0MTMuMzQ4YzMuNjE5LS43MDcgNC44Ni01LjEzNiAyLjI1My03Ljc0M0wxMDYuMzk1IDIyMy4wODhjLTIuNjA3LTIuNjA3LTcuMDM2LTEuMzY2LTcuNzQzIDIuMjUzYTE2MC44MTMgMTYwLjgxMyAwIDAgMC0yLjUwMiAxOC40NjIgNC42NjYgNC42NjYgMCAwIDAgMS4zNjYgMy42NTRsMTY3LjAyNyAxNjcuMDI3YTQuNjY3IDQuNjY3IDAgMCAwIDMuNjU0IDEuMzY2IDE2MC44MzQgMTYwLjgzNCAwIDAgMCAxOC40NjItMi41MDJaIi8+PHBhdGggZmlsbD0idXJsKCNtKSIgZD0iTTIxNy4wMzEgNDExLjU3N2M0LjQ1IDEuMTA3IDcuMjAxLTQuMTU1IDMuOTU5LTcuMzk4TDEwNy44MjEgMjkxLjAxYy0zLjI0My0zLjI0Mi04LjUwNC0uNDkxLTcuMzk4IDMuOTU5IDYuNzg0IDI3LjI3OSAyMC44MzggNTMuMTIxIDQyLjE2MyA3NC40NDUgMjEuMzI0IDIxLjMyNCA0Ny4xNjYgMzUuMzc5IDc0LjQ0NSA0Mi4xNjNaIi8+PHBhdGggZmlsbD0idXJsKCNuKSIgZD0iTTIxNy4wMzEgNDExLjU3N2M0LjQ1IDEuMTA3IDcuMjAxLTQuMTU1IDMuOTU5LTcuMzk4TDEwNy44MjEgMjkxLjAxYy0zLjI0My0zLjI0Mi04LjUwNC0uNDkxLTcuMzk4IDMuOTU5IDYuNzg0IDI3LjI3OSAyMC44MzggNTMuMTIxIDQyLjE2MyA3NC40NDUgMjEuMzI0IDIxLjMyNCA0Ny4xNjYgMzUuMzc5IDc0LjQ0NSA0Mi4xNjNaIi8+PHBhdGggc3Ryb2tlPSIjZmZmIiBzdHJva2Utb3BhY2l0eT0iLjUiIHN0cm9rZS13aWR0aD0iNSIgZD0iTTM2Mi4wODggMzcyLjY0OWMtLjgxNi43NDYtMi4xMTkuNzMzLTIuOTYzLS4xMTFMMTM5LjQ2MiAxNTIuODc1Yy0uODQ0LS44NDQtLjg1Ny0yLjE0Ny0uMTExLTIuOTYzYTE2MC42NjEgMTYwLjY2MSAwIDAgMSA1LjAwMy01LjIzNGM2MS41NzEtNjEuNTcgMTYxLjM5Ny02MS41NyAyMjIuOTY4IDAgNjEuNTcxIDYxLjU3MSA2MS41NzEgMTYxLjM5NyAwIDIyMi45NjhhMTYwLjY2MSAxNjAuNjYxIDAgMCAxLTUuMjM0IDUuMDAzWm0tMjYuNjQ4IDE2LjUyM2MxLjAzOCAxLjAzOC43ODYgMi42Ny0uMzY0IDMuMzRhMTU2LjU2MiAxNTYuNTYyIDAgMCAxLTEzLjUxIDcuMDA2Yy0uNzk0LjM2NC0xLjc2MS4xOTctMi40Mi0uNDYyTDExMi45NDQgMTkyLjg1NGMtLjY1OS0uNjU5LS44MjYtMS42MjYtLjQ2Mi0yLjQyYTE1Ni41NjIgMTU2LjU2MiAwIDAgMSA3LjAwNi0xMy41MWMuNjctMS4xNSAyLjMwMi0xLjQwMiAzLjM0LS4zNjRMMzM1LjQ0IDM4OS4xNzJabS00OC4yOTYgMTguMjAxYzEuMjc2IDEuMjc2LjU3NCAzLjIyMS0uOTY0IDMuNTIxYTE1OC4yNjkgMTU4LjI2OSAwIDAgMS0xOC4xNzUgMi40NjMgMi4xNjcgMi4xNjcgMCAwIDEtMS42OTQtLjY0TDk5LjI4MyAyNDUuNjg5YTIuMTY3IDIuMTY3IDAgMCAxLS42NC0xLjY5NCAxNTguMzEzIDE1OC4zMTMgMCAwIDEgMi40NjMtMTguMTc1Yy4zLTEuNTM4IDIuMjQ1LTIuMjQgMy41MjEtLjk2NGwxODIuNTE3IDE4Mi41MTdabS02Ny45MjItMS40MjZjLjgxLjgxLjgxMiAxLjczNS40NjQgMi4zOTEtLjMzMy42My0xLjAwNyAxLjA3Mi0yLjA1Mi44MTMtMjYuODUtNi42NzgtNTIuMjg2LTIwLjUxLTczLjI4LTQxLjUwNS0yMC45OTUtMjAuOTk0LTM0LjgyNy00Ni40My00MS41MDUtNzMuMjgtLjI1OS0xLjA0NS4xODMtMS43MTkuODEzLTIuMDUyLjY1Ni0uMzQ4IDEuNTgxLS4zNDYgMi4zOTEuNDY0bDExMy4xNjkgMTEzLjE2OVoiIHN0eWxlPSJtaXgtYmxlbmQtbW9kZTpzb2Z0LWxpZ2h0Ii8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJhIiB4MT0iMjU2IiB4Mj0iMjU2IiB5MT0iMCIgeTI9IjUxMiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIHN0b3AtY29sb3I9IiMyRDJFMzEiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwRjEwMTIiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iZCIgeDE9IjI1Ni4zMDYiIHgyPSIyNTYuMzA2IiB5MT0iOTUuMzMyIiB5Mj0iMzc5LjQ5MiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIHN0b3AtY29sb3I9IiNmZmYiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNDNUM1QzUiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iZiIgeDE9IjE3OC4zNjUiIHgyPSIxNzguMzY1IiB5MT0iMTY3LjI0OCIgeTI9IjM1MS4xMjYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBzdG9wLWNvbG9yPSIjZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjQzVDNUM1Ii8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIyNTYiIHgyPSIyNTYiIHkxPSI5NiIgeTI9IjQxNiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIHN0b3AtY29sb3I9IiNmZmYiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNDQ0MiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iaSIgeDE9IjI1NiIgeDI9IjI1NiIgeTE9Ijk2IiB5Mj0iNDE2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agc3RvcC1jb2xvcj0iI2ZmZiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI0NDQyIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJrIiB4MT0iMjU2IiB4Mj0iMjU2IiB5MT0iOTYiIHkyPSI0MTYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBzdG9wLWNvbG9yPSIjZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjQ0NDIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9Im0iIHgxPSIyNTYiIHgyPSIyNTYiIHkxPSI5NiIgeTI9IjQxNiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIHN0b3AtY29sb3I9IiNmZmYiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNDQ0MiLz48L2xpbmVhckdyYWRpZW50PjxyYWRpYWxHcmFkaWVudCBpZD0iaCIgY3g9IjAiIGN5PSIwIiByPSIxIiBncmFkaWVudFRyYW5zZm9ybT0ibWF0cml4KDAgMzIwIC0zMjAgMCAyNTYgOTYpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agc3RvcC1jb2xvcj0iI2ZmZiIvPjxzdG9wIG9mZnNldD0iLjU5OCIgc3RvcC1jb2xvcj0iI2ZmZiIgc3RvcC1vcGFjaXR5PSIwIi8+PC9yYWRpYWxHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9ImoiIGN4PSIwIiBjeT0iMCIgcj0iMSIgZ3JhZGllbnRUcmFuc2Zvcm09Im1hdHJpeCgwIDMyMCAtMzIwIDAgMjU2IDk2KSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIHN0b3AtY29sb3I9IiNmZmYiLz48c3RvcCBvZmZzZXQ9Ii41OTgiIHN0b3AtY29sb3I9IiNmZmYiIHN0b3Atb3BhY2l0eT0iMCIvPjwvcmFkaWFsR3JhZGllbnQ+PHJhZGlhbEdyYWRpZW50IGlkPSJsIiBjeD0iMCIgY3k9IjAiIHI9IjEiIGdyYWRpZW50VHJhbnNmb3JtPSJtYXRyaXgoMCAzMjAgLTMyMCAwIDI1NiA5NikiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBzdG9wLWNvbG9yPSIjZmZmIi8+PHN0b3Agb2Zmc2V0PSIuNTk4IiBzdG9wLWNvbG9yPSIjZmZmIiBzdG9wLW9wYWNpdHk9IjAiLz48L3JhZGlhbEdyYWRpZW50PjxyYWRpYWxHcmFkaWVudCBpZD0ibiIgY3g9IjAiIGN5PSIwIiByPSIxIiBncmFkaWVudFRyYW5zZm9ybT0ibWF0cml4KDAgMzIwIC0zMjAgMCAyNTYgOTYpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agc3RvcC1jb2xvcj0iI2ZmZiIvPjxzdG9wIG9mZnNldD0iLjU5OCIgc3RvcC1jb2xvcj0iI2ZmZiIgc3RvcC1vcGFjaXR5PSIwIi8+PC9yYWRpYWxHcmFkaWVudD48ZmlsdGVyIGlkPSJiIiB3aWR0aD0iMjk1LjU4MyIgaGVpZ2h0PSIyOTUuNTgyIiB4PSIxMjYuMTM1IiB5PSI2Ni44OCIgY29sb3ItaW50ZXJwb2xhdGlvbi1maWx0ZXJzPSJzUkdCIiBmaWx0ZXJVbml0cz0idXNlclNwYWNlT25Vc2UiPjxmZUZsb29kIGZsb29kLW9wYWNpdHk9IjAiIHJlc3VsdD0iQmFja2dyb3VuZEltYWdlRml4Ii8+PGZlQ29sb3JNYXRyaXggaW49IlNvdXJjZUFscGhhIiByZXN1bHQ9ImhhcmRBbHBoYSIgdmFsdWVzPSIwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAxMjcgMCIvPjxmZU9mZnNldCBkeT0iLTUuMTIiLz48ZmVHYXVzc2lhbkJsdXIgc3RkRGV2aWF0aW9uPSIxMiIvPjxmZUNvbXBvc2l0ZSBpbjI9ImhhcmRBbHBoYSIgb3BlcmF0b3I9Im91dCIvPjxmZUNvbG9yTWF0cml4IHZhbHVlcz0iMCAwIDAgMCAxIDAgMCAwIDAgMSAwIDAgMCAwIDEgMCAwIDAgMC40IDAiLz48ZmVCbGVuZCBpbjI9IkJhY2tncm91bmRJbWFnZUZpeCIgbW9kZT0icGx1cy1saWdodGVyIiByZXN1bHQ9ImVmZmVjdDFfZHJvcFNoYWRvd18xNDEzNF80NjU0Ii8+PGZlQmxlbmQgaW49IlNvdXJjZUdyYXBoaWMiIGluMj0iZWZmZWN0MV9kcm9wU2hhZG93XzE0MTM0XzQ2NTQiIHJlc3VsdD0ic2hhcGUiLz48L2ZpbHRlcj48ZmlsdGVyIGlkPSJjIiB3aWR0aD0iMjY3LjU4MyIgaGVpZ2h0PSIyNjcuNTgyIiB4PSIxNDAuMTM1IiB5PSI4NiIgY29sb3ItaW50ZXJwb2xhdGlvbi1maWx0ZXJzPSJzUkdCIiBmaWx0ZXJVbml0cz0idXNlclNwYWNlT25Vc2UiPjxmZUZsb29kIGZsb29kLW9wYWNpdHk9IjAiIHJlc3VsdD0iQmFja2dyb3VuZEltYWdlRml4Ii8+PGZlQmxlbmQgaW49IlNvdXJjZUdyYXBoaWMiIGluMj0iQmFja2dyb3VuZEltYWdlRml4IiByZXN1bHQ9InNoYXBlIi8+PGZlR2F1c3NpYW5CbHVyIHJlc3VsdD0iZWZmZWN0MV9mb3JlZ3JvdW5kQmx1cl8xNDEzNF80NjU0IiBzdGREZXZpYXRpb249IjUiLz48L2ZpbHRlcj48ZmlsdGVyIGlkPSJlIiB3aWR0aD0iMTcxLjUyMiIgaGVpZ2h0PSIxNzcuNTkyIiB4PSIxMDIuMjE4IiB5PSIxNjAuNTIyIiBjb2xvci1pbnRlcnBvbGF0aW9uLWZpbHRlcnM9InNSR0IiIGZpbHRlclVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PGZlRmxvb2QgZmxvb2Qtb3BhY2l0eT0iMCIgcmVzdWx0PSJCYWNrZ3JvdW5kSW1hZ2VGaXgiLz48ZmVCbGVuZCBpbj0iU291cmNlR3JhcGhpYyIgaW4yPSJCYWNrZ3JvdW5kSW1hZ2VGaXgiIHJlc3VsdD0ic2hhcGUiLz48ZmVHYXVzc2lhbkJsdXIgcmVzdWx0PSJlZmZlY3QxX2ZvcmVncm91bmRCbHVyXzE0MTM0XzQ2NTQiIHN0ZERldmlhdGlvbj0iNSIvPjwvZmlsdGVyPjwvZGVmcz48L3N2Zz4K" /></span>
+      <div><h1 data-t="title">Cycle report</h1><p id="sub"></p></div>
+    </div>
+    <div class="actions" id="actions"></div>
+  </header>
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="hero" aria-labelledby="hero-h">
+    <div>
+      <p class="eyebrow" id="week"></p>
+      <h2 id="hero-h" dir="auto"></h2>
+      <p class="lead" id="summary" dir="auto"></p>
+      <div class="room">
+        <button type="button" class="room-btn light" data-ask="goingAsk"><svg class="icon" aria-hidden="true"><use href="#i-gauge"/></svg><span data-t="goingTitle">How is the cycle going</span></button>
+        <button type="button" class="room-btn" data-ask="slipAsk"><svg class="icon" aria-hidden="true"><use href="#i-triangle-alert"/></svg><span data-t="slipTitle">What will slip</span></button>
+      </div>
+      <div class="papers" id="papers"></div>
+    </div>
+    <div id="cycles"></div>
+  </section>
+
+  <section class="tiles" id="tiles" aria-label="Numbers"></section>
+  <div class="teams" id="teams"></div>
+  <div class="boxes" id="projects" style="margin-top:12px"></div>
+
+  <h2 class="section-h" data-t="tools">Tools</h2>
+  <section class="tools">
+    <div class="tool">
+      <h4><svg class="icon" aria-hidden="true"><use href="#i-gauge"/></svg><span data-t="goingTitle">How is the cycle going</span></h4>
+      <p data-t="goingLine">Each team's done of total, days left, scope added, and whether it is on pace.</p>
+      <div class="go"><button type="button" class="btn" data-ask="goingAsk" data-t="ask">Ask</button></div>
+    </div>
+    <div class="tool">
+      <h4><svg class="icon" aria-hidden="true"><use href="#i-folder-kanban"/></svg><span data-t="projectTitle">Summarise a project</span></h4>
+      <label class="sr" for="project-pick" data-t="projectPick">Pick a project</label>
+      <select id="project-pick"></select>
+      <p data-t="projectLine">Health, the latest update, the issues that matter and the next date.</p>
+      <div class="go"><button type="button" class="btn" id="project-go" data-act="summarise" data-t="ask">Ask</button></div>
+    </div>
+    <div class="tool">
+      <h4><svg class="icon" aria-hidden="true"><use href="#i-triangle-alert"/></svg><span data-t="slipTitle">What will slip</span></h4>
+      <p data-t="slipLine">Open issues unlikely to finish before the cycle ends, and why.</p>
+      <div class="go"><button type="button" class="btn" data-ask="slipAsk" data-t="ask">Ask</button></div>
+    </div>
+  </section>
+  <p class="foot" id="tools-why" hidden></p>
+
+  <section class="ask" aria-labelledby="ask-h">
+    <h3 id="ask-h" data-t="askTitle">Ask about your Linear</h3>
+    <form id="ask-form">
+      <label class="sr" for="ask-input" data-t="askTitle">Ask about your Linear</label>
+      <input id="ask-input" dir="auto" maxlength="600" autocomplete="off" data-t-placeholder="askPlaceholder" />
+      <button type="submit" class="btn primary" id="ask-send"><svg class="icon flip" aria-hidden="true"><use href="#i-send"/></svg><span data-t="send">Send</span></button>
+    </form>
+    <div class="chips">
+      <button type="button" class="chip" data-ask="starter1" data-t="starter1"></button>
+      <button type="button" class="chip" data-ask="starter2" data-t="starter2"></button>
+      <button type="button" class="chip" data-ask="starter3" data-t="starter3"></button>
+    </div>
+    <p class="why" id="ask-why" hidden></p>
+  </section>
+
+  <footer class="foot">
+    <p data-t="footReads"></p>
+    <p data-t="notAffiliated"></p>
+  </footer>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script>
+(function () {
+  "use strict";
+  /* Shared by both Linear homes: language, theme, the bridge, the top bar, rows and Ask. */
+  var SHARED = {
+    en: {
+      connected: "Connected",
+      checked: "checked {time}",
+      notConnected: "Linear is not connected",
+      needsSignIn: "Needs a fresh sign-in",
+      updating: "Updating",
+      unreachable: "Could not be reached",
+      rateLimited: "Rate limit reached",
+      notHere: "Not available here",
+      outside: "Open in Cabinet",
+      updateNow: "Update now",
+      openInLinear: "Open in Linear",
+      connect: "Connect Linear",
+      signInAgain: "Sign in again",
+      tryAgain: "Try again",
+      example: "Example",
+      exampleLine: "A made-up team, {workspace}. Your own Linear takes its place after the first update.",
+      exampleNoConn: "A made-up team, {workspace}. Connect Linear and your own issues take its place.",
+      outsideLine: "Open this page inside Cabinet to connect Linear. Until then it shows an example.",
+      oldCabinet: "Connect Linear from Integrations in Cabinet.",
+      failedLine: "The last update could not read your Linear copy.",
+      askTitle: "Ask about your Linear",
+      askPlaceholder: "Ask anything about your issues, cycles or projects",
+      ask: "Ask",
+      send: "Send",
+      viewerWhy: "Only people who can edit this cabinet can ask its agent.",
+      connectWhy: "Connect Linear first.",
+      outsideWhy: "Open this page in Cabinet to ask.",
+      asked: "Asked. The answer is in the chat.",
+      started: "Updating. The page fills in when it is done.",
+      today: "Today",
+      tomorrow: "Tomorrow",
+      yesterday: "Yesterday",
+      overdue: "Overdue",
+      daysLeft_one: "1 day left",
+      daysLeft_other: "{n} days left",
+      lastDay: "Last day",
+      doneOf: "{done} of {total}",
+      cyclesOff: "No active cycles in the current copy.",
+      priority0: "No priority", priority1: "Urgent", priority2: "High", priority3: "Medium", priority4: "Low",
+      onTrack: "On track", atRisk: "At risk", offTrack: "Off track", noHealth: "No update yet",
+      target: "Target {day}",
+      firstRun: "Nothing here yet. The first update fills this page, usually within a few minutes.",
+      notAffiliated: "Cabinet is not affiliated with Linear."
+    },
+    he: {
+      connected: "מחובר",
+      checked: "נבדק ב-{time}",
+      notConnected: "Linear לא מחובר",
+      needsSignIn: "צריך להתחבר מחדש",
+      updating: "מתעדכן",
+      unreachable: "לא הצלחנו להגיע",
+      rateLimited: "הגעתם למגבלת הבקשות",
+      notHere: "לא זמין כאן",
+      outside: "פתחו ב-Cabinet",
+      updateNow: "עדכון עכשיו",
+      openInLinear: "פתיחה ב-Linear",
+      connect: "חיבור Linear",
+      signInAgain: "התחברות מחדש",
+      tryAgain: "לנסות שוב",
+      example: "דוגמה",
+      exampleLine: "צוות מומצא, {workspace}. ה-Linear שלכם יופיע כאן אחרי העדכון הראשון.",
+      exampleNoConn: "צוות מומצא, {workspace}. חברו את Linear והמשימות שלכם יופיעו במקומו.",
+      outsideLine: "פתחו את הדף הזה בתוך Cabinet כדי לחבר את Linear. עד אז מוצגת דוגמה.",
+      oldCabinet: "חברו את Linear מתוך החיבורים ב-Cabinet.",
+      failedLine: "העדכון האחרון לא הצליח לקרוא את העותק של Linear.",
+      askTitle: "שאלו על ה-Linear שלכם",
+      askPlaceholder: "שאלו כל דבר על המשימות, המחזורים או הפרויקטים",
+      ask: "לשאול",
+      send: "שליחה",
+      viewerWhy: "רק מי שיכול לערוך את הקבינט יכול לשאול את הסוכן שלו.",
+      connectWhy: "קודם צריך לחבר את Linear.",
+      outsideWhy: "פתחו את הדף ב-Cabinet כדי לשאול.",
+      asked: "נשאל. התשובה בצ'אט.",
+      started: "מתעדכן. הדף יתמלא כשזה יסתיים.",
+      today: "היום",
+      tomorrow: "מחר",
+      yesterday: "אתמול",
+      overdue: "באיחור",
+      daysLeft_one: "נותר יום אחד",
+      daysLeft_other: "נותרו {n} ימים",
+      lastDay: "יום אחרון",
+      doneOf: "{done} מתוך {total}",
+      cyclesOff: "אין מחזורים פעילים בעותק הנוכחי.",
+      priority0: "ללא עדיפות", priority1: "דחוף", priority2: "גבוהה", priority3: "בינונית", priority4: "נמוכה",
+      onTrack: "בזמן", atRisk: "בסיכון", offTrack: "באיחור", noHealth: "עוד אין עדכון",
+      target: "יעד {day}",
+      firstRun: "עוד אין כאן כלום. העדכון הראשון ימלא את הדף, בדרך כלל תוך כמה דקות.",
+      notAffiliated: "Cabinet אינו קשור ל-Linear."
+    }
+  };
+
+  var DAY = 86400000;
+  var LANG = pickLang();
+  var S = {};
+  function pickLang() {
+    var forced = /[?&]lang=(he|en)\b/.exec(location.search);
+    if (forced) return forced[1];
+    var stored = null;
+    try { stored = localStorage.getItem("cabinet-locale"); } catch (e) { /* storage blocked in a sealed frame */ }
+    var v = String(stored || navigator.language || "").toLowerCase();
+    return v.indexOf("he") === 0 || v.indexOf("iw") === 0 ? "he" : "en";
+  }
+  function t(key, vars) {
+    var text = S[key] != null ? S[key] : key;
+    if (vars) Object.keys(vars).forEach(function (k) { text = text.split("{" + k + "}").join(String(vars[k])); });
+    return text;
+  }
+  function tn(key, n) { return t(key + (n === 1 ? "_one" : "_other"), { n: n }); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function icon(name, cls) {
+    return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
+  }
+  function safeUrl(u) { return /^https:\/\/([a-z0-9-]+\.)*linear\.app\//i.test(String(u || "")) ? String(u) : ""; }
+  function el(id) { return document.getElementById(id); }
+
+  function followTheme() {
+    var forced = /[?&]theme=(dark|light)\b/.exec(location.search);
+    if (forced) { document.documentElement.setAttribute("data-theme", forced[1]); return; }
+    try {
+      var root = window.parent !== window ? window.parent.document.documentElement : null;
+      if (root) document.documentElement.setAttribute("data-theme", root.classList.contains("dark") ? "dark" : "light");
+    } catch (e) { /* a sealed frame: the system setting decides */ }
+  }
+  function watchTheme() {
+    followTheme();
+    try {
+      if (window.parent !== window && window.MutationObserver)
+        new MutationObserver(followTheme).observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    } catch (e) { /* a sealed frame */ }
+  }
+
+  // ── Dates ─────────────────────────────────────────────────────────────
+  var LOCALE = function () { return LANG === "he" ? "he-IL" : "en-GB"; };
+  function parse(v) {
+    if (!v) return NaN;
+    var s = String(v);
+    return Date.parse(s.length === 10 ? s + "T12:00:00" : s);
+  }
+  function startOfDay(ms) { var d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); }
+  function dayDiff(ms, now) { return Math.round((startOfDay(ms) - startOfDay(now)) / DAY); }
+  function fmt(ms, opts) { try { return new Intl.DateTimeFormat(LOCALE(), opts).format(new Date(ms)); } catch (e) { return new Date(ms).toDateString(); } }
+  function fmtTime(ms) { return fmt(ms, { hour: "2-digit", minute: "2-digit" }); }
+  function fmtDay(ms) { return fmt(ms, { day: "numeric", month: "short" }); }
+  function fmtLong(ms) { return fmt(ms, { weekday: "long", day: "numeric", month: "long" }); }
+  function weekday(ms) { return fmt(ms, { weekday: "long" }); }
+  /** A due date as people say it: Overdue, Today, Tomorrow, the weekday, then the date. */
+  function dueWords(due, now) {
+    var ms = parse(due);
+    if (isNaN(ms)) return null;
+    var d = dayDiff(ms, now);
+    if (d < 0) return { text: t("overdue"), cls: "late" };
+    if (d === 0) return { text: t("today"), cls: "soon" };
+    if (d === 1) return { text: t("tomorrow"), cls: "soon" };
+    if (d < 7) return { text: weekday(ms), cls: "soon" };
+    return { text: fmtDay(ms), cls: "" };
+  }
+  /** When something happened, short: a time today, Yesterday, else the date. */
+  function whenWords(at, now) {
+    var ms = parse(at);
+    if (isNaN(ms)) return "";
+    var d = dayDiff(ms, now);
+    if (d === 0) return fmtTime(ms);
+    if (d === -1) return t("yesterday");
+    return fmtDay(ms);
+  }
+  function daysLeft(endsAt, now) {
+    var ms = parse(endsAt);
+    if (isNaN(ms)) return "";
+    var d = dayDiff(ms, now);
+    if (d <= 0) return t("lastDay");
+    return tn("daysLeft", d);
+  }
+
+  // ── Linear's things, drawn Cabinet's way ──────────────────────────────
+  var STATE_ICON = { triage: "inbox", backlog: "circle-dashed", unstarted: "circle", started: "circle-dot", completed: "circle-check", canceled: "circle-x", duplicate: "circle-x" };
+  var PRI_ICON = ["minus", "octagon-alert", "signal-high", "signal-medium", "signal-low"];
+  function stateIcon(issue) {
+    var type = STATE_ICON[issue.stateType] ? issue.stateType : "unstarted";
+    return '<span title="' + esc(issue.state || "") + '">' + icon(STATE_ICON[type], "st " + type) + '<span class="sr">' + esc(issue.state || "") + "</span></span>";
+  }
+  function priIcon(p) {
+    var n = p >= 0 && p <= 4 ? p : 0;
+    var word = t("priority" + n);
+    return '<span title="' + esc(word) + '">' + icon(PRI_ICON[n], "pri" + (n === 1 ? " urgent" : "")) + '<span class="sr">' + esc(word) + "</span></span>";
+  }
+  function ident(id) { return '<span class="ident" dir="ltr">' + esc(id) + "</span>"; }
+  function healthBadge(h) {
+    var key = h === "onTrack" || h === "atRisk" || h === "offTrack" ? h : null;
+    return '<span class="health ' + (key || "none") + '"><i></i>' + esc(t(key || "noHealth")) + "</span>";
+  }
+  function bar(done, total, cls) {
+    var pct = total > 0 ? Math.round((Math.max(0, Math.min(done, total)) / total) * 100) : 0;
+    return '<span class="' + (cls || "bar-track") + '" role="img" aria-label="' + esc(t("doneOf", { done: done, total: total })) + '"><i style="width:' + pct + '%"></i></span>';
+  }
+  /** One issue as a row: state, identifier, title, a line under it, then due and priority. */
+  function issueRow(issue, now, opts) {
+    opts = opts || {};
+    var url = safeUrl(issue.url);
+    var sub = opts.sub || "";
+    var subCls = opts.subCls || "";
+    var due = opts.noDue ? null : dueWords(issue.due, now);
+    var side = (opts.side || "") + (due ? '<span class="due ' + due.cls + '">' + esc(due.text) + "</span>" : "") + priIcon(issue.priority);
+    var inner = stateIcon(issue) + ident(issue.identifier) +
+      '<span class="main"><span class="t" dir="auto">' + esc(issue.title) + "</span>" +
+      (sub ? '<span class="sub ' + subCls + '" dir="auto">' + esc(sub) + "</span>" : "") + "</span>" +
+      '<span class="side">' + side + "</span>";
+    return "<li>" + (url ? '<a class="row" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + inner + "</a>" : '<div class="row">' + inner + "</div>") + "</li>";
+  }
+  function rowsOrEmpty(list, emptyText, draw) {
+    if (!list || !list.length) return '<p class="empty">' + esc(emptyText) + "</p>";
+    return '<ul class="rows">' + list.map(draw).join("") + "</ul>";
+  }
+  function box(o) {
+    return '<section class="box' + (o.wide ? " wide" : "") + '" aria-label="' + esc(o.title) + '"><div class="box-h">' + icon(o.icon) +
+      "<h3>" + esc(o.title) + "</h3>" + (o.count != null ? '<span class="count num">' + esc(o.count) + "</span>" : "") +
+      (o.more ? '<a class="more" href="' + esc(o.more) + '" target="_blank" rel="noopener noreferrer">' + esc(t("openInLinear")) + icon("arrow-up-right", "flip") + "</a>" : "") +
+      "</div>" + o.body + "</section>";
+  }
+  function tile(ic, label, value, sub) {
+    return '<div class="tile"><div class="tl">' + icon(ic) + esc(label) + '</div><div class="tv"><span dir="ltr">' + esc(value) + '</span></div><div class="ts" dir="auto">' + esc(sub || " ") + "</div></div>";
+  }
+  function cycleStrip(cycles, now) {
+    if (!cycles) return "";
+    if (!cycles.length) return '<p class="cycles-off">' + esc(t("cyclesOff")) + "</p>";
+    return '<ul class="cycles">' + cycles.map(function (c) {
+      var url = safeUrl(c.url);
+      var name = '<span class="cname" dir="auto"><span class="key" dir="ltr">' + esc(c.team) + "</span> " + esc(c.teamName || "") + " · " + esc(c.name || "") + "</span>";
+      return '<li class="cycle">' + (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + name + "</a>" : name) +
+        '<span class="cnum num"><b>' + esc(t("doneOf", { done: c.done || 0, total: c.total || 0 })) + "</b> · " + esc(daysLeft(c.endsAt, now)) + "</span>" +
+        bar(c.done || 0, c.total || 0) + "</li>";
+    }).join("") + "</ul>";
+  }
+
+  /** A project as a row: health, name, its latest update, target date and progress. */
+  function projectRow(p, now) {
+    var url = safeUrl(p.url);
+    var target = parse(p.targetDate);
+    var sub = p.update || (p.lead || "");
+    var inner = healthBadge(p.health) +
+      '<span class="main"><span class="t" dir="auto">' + esc(p.name) + "</span>" + (sub ? '<span class="sub" dir="auto">' + esc(sub) + "</span>" : "") + "</span>" +
+      '<span class="side">' + (p.lead && p.update ? '<span class="lead" dir="auto">' + esc(p.lead) + "</span>" : "") +
+      (isNaN(target) ? "" : '<span class="when">' + esc(t("target", { day: fmtDay(target) })) + "</span>") +
+      bar(Math.round((p.progress || 0) * 100), 100, "mini") + '<span class="num">' + Math.round((p.progress || 0) * 100) + "%</span></span>";
+    return "<li>" + (url ? '<a class="proj" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + inner + "</a>" : '<div class="proj">' + inner + "</div>") + "</li>";
+  }
+
+  // ── The bridge ────────────────────────────────────────────────────────
+  var C = window.cabinet && window.cabinet.connectors ? window.cabinet : null;
+  var APP = {
+    conn: null, jobs: [], role: "owner", data: null, status: null, example: false, running: false,
+    firstReadStarted: false, jobsLoaded: false, toastTimer: 0,
+    cfg: null
+  };
+  function toast(text) {
+    var node = el("toast");
+    node.textContent = text;
+    node.hidden = false;
+    clearTimeout(APP.toastTimer);
+    APP.toastTimer = setTimeout(function () { node.hidden = true; }, 3800);
+  }
+  function linear() { return APP.conn; }
+  function job() { var id = APP.cfg.jobId; return APP.jobs.filter(function (j) { return j.id === id; })[0] || null; }
+  /** Why asking cannot happen here, or "" when it can. */
+  function askBlock() {
+    if (!C) return t("outsideWhy");
+    if (APP.role === "viewer") return t("viewerWhy");
+    var l = linear();
+    if (!l || l.state !== "connected") return t("connectWhy");
+    return "";
+  }
+  function ask(text) {
+    if (!C || !text) return;
+    C.ask(text).then(function () { toast(t("asked")); }, function (e) { toast(e.message); });
+  }
+  function runNow() {
+    if (!C) return;
+    C.jobs.run(APP.cfg.jobId).then(function () { toast(t("started")); }, function (e) { toast(e.message); });
+  }
+  function maybeRunExample() {
+    var connection = linear();
+    var j = job();
+    if (
+      !C ||
+      !APP.jobsLoaded ||
+      APP.role === "viewer" ||
+      !APP.example ||
+      APP.firstReadStarted ||
+      !connection ||
+      connection.state !== "connected" ||
+      (j && j.running)
+    ) return;
+    APP.firstReadStarted = true;
+    runNow();
+  }
+  function connect() {
+    if (!C) return;
+    C.connectors.connect("linear").catch(function (e) { toast(e.message); });
+  }
+  function workspaceUrl() { return safeUrl(APP.data && APP.data.workspaceUrl) || "https://linear.app/"; }
+
+  function pill() {
+    var l = linear();
+    var j = job();
+    var busy = (l && l.busy) || (j && j.running) || APP.running;
+    if (!C) return ["", t("outside")];
+    if (!l) return ["", t("notConnected")];
+    if (busy) return ["busy", t("updating")];
+    if (l.state === "not-added") return ["", t("notConnected")];
+    if (l.state === "needs-sign-in") return ["warn", t("needsSignIn")];
+    if (l.state === "not-available-here") return ["", t("notHere")];
+    if (l.state === "needs-you") return ["warn", (l.problem && l.problem.text) || t("notConnected")];
+    if (APP.status && APP.status.ok === false)
+      return ["bad", APP.status.reason === "rate-limited" ? t("rateLimited") : t("unreachable")];
+    var at = (j && j.lastRun && j.lastRun.at) || (APP.status && APP.status.at) || (!APP.example && APP.data && APP.data.generatedAt);
+    var ms = parse(at);
+    return ["ok", t("connected") + (isNaN(ms) ? "" : " · " + t("checked", { time: dayDiff(ms, Date.now()) === 0 ? fmtTime(ms) : fmtDay(ms) }))];
+  }
+  function paintBar() {
+    var p = pill();
+    var l = linear();
+    var j = job();
+    var running = (j && j.running) || APP.running;
+    var html = '<span class="pill ' + p[0] + '" role="status"><span class="dot"></span><span dir="auto">' + esc(p[1]) + "</span></span>";
+    var canRun = C && APP.role !== "viewer" && l && l.state === "connected" && !running;
+    if (C && l && (l.state === "not-added" || l.state === "needs-sign-in" || l.state === "needs-you") && l.canConnect) {
+      html += '<button type="button" class="btn primary" data-act="connect">' + esc(l.state === "needs-sign-in" ? t("signInAgain") : t("connect")) + "</button>";
+    } else if (C && l && l.state === "connected") {
+      html += '<button type="button" class="btn" data-act="run"' + (canRun ? "" : " disabled") +
+        (APP.role === "viewer" ? ' title="' + esc(t("viewerWhy")) + '"' : "") + ">" + icon("refresh-cw", running ? "spin" : "") + esc(t("updateNow")) + "</button>";
+    }
+    html += '<a class="quiet" href="' + esc(workspaceUrl()) + '" target="_blank" rel="noopener noreferrer">' + esc(t("openInLinear")) + icon("external-link") + "</a>";
+    el("actions").innerHTML = html;
+
+    var sub = [];
+    if (APP.data && APP.data.workspace) sub.push(APP.data.workspace);
+    if (APP.data && APP.data.you) sub.push(APP.data.you);
+    el("sub").textContent = sub.join(" · ");
+
+    var notice = el("notice");
+    var n = "";
+    if (APP.status && APP.status.ok === false && l && l.state === "connected") {
+      n = (APP.example ? '<span class="tag">' + esc(t("example")) + '</span>' : "") + '<p dir="auto">' + esc(APP.status.why || t("failedLine")) + "</p>" +
+        (canRun ? '<button type="button" class="btn" data-act="run">' + esc(t("tryAgain")) + "</button>" : "");
+      notice.className = "notice bad";
+    } else if (!APP.example && !(APP.data && APP.data.generatedAt)) {
+      n = '<p dir="auto">' + esc(t("firstRun")) + "</p>";
+      notice.className = "notice";
+    } else if (APP.example) {
+      var ws = (APP.data && APP.data.workspace) || "Northwind";
+      var line = !C ? t("outsideLine") : l && l.state === "connected" ? t("exampleLine", { workspace: ws }) : t("exampleNoConn", { workspace: ws });
+      n = '<span class="tag">' + esc(t("example")) + '</span><p dir="auto">' + esc(line) + "</p>";
+      notice.className = "notice";
+    } else if (C && l && l.problem && l.state !== "connected") {
+      n = '<p dir="auto">' + esc(l.problem.text) + "</p>";
+      notice.className = "notice";
+    }
+    notice.innerHTML = n;
+    notice.hidden = !n;
+  }
+
+  function paintAsk() {
+    var why = askBlock();
+    var input = el("ask-input");
+    input.disabled = !!why;
+    el("ask-send").disabled = !!why;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-ask]"), function (b) { b.disabled = !!why; });
+    var line = el("ask-why");
+    line.textContent = why;
+    line.hidden = !why;
+  }
+
+  function paint() {
+    if (!APP.data) return;
+    paintBar();
+    APP.cfg.render(APP.data, APP.example ? parse(APP.data.generatedAt) || Date.now() : Date.now());
+    paintAsk();
+  }
+
+  // ── Files ─────────────────────────────────────────────────────────────
+  function readJson(path) {
+    if (C) return C.files.read(path).then(JSON.parse);
+    // Opened on its own or in an older Cabinet: read the file beside the page.
+    return fetch(path.slice(APP.cfg.appDir.length + 1)).then(function (r) { if (!r.ok) throw new Error("missing"); return r.json(); });
+  }
+  function load() {
+    var dir = APP.cfg.appDir + "/data/";
+    var example = false;
+    var data = readJson(dir + "latest.json").catch(function () {
+      example = true;
+      var ex = readJson(dir + (LANG === "he" ? "EXAMPLE-latest.he.json" : "EXAMPLE-latest.json"));
+      if (LANG === "he") ex = ex.catch(function () { return readJson(dir + "EXAMPLE-latest.json"); });
+      return ex;
+    });
+    var status = readJson(dir + "status.json").catch(function () { return null; });
+    return Promise.all([data, status]).then(function (r) {
+      APP.example = example;
+      APP.data = r[0] || {};
+      APP.status = r[1];
+      paint();
+      maybeRunExample();
+    }, function () {
+      APP.data = {};
+      paint();
+    });
+  }
+
+  function boot(cfg) {
+    APP.cfg = cfg;
+    var base = SHARED[LANG];
+    S = {};
+    Object.keys(base).forEach(function (k) { S[k] = base[k]; });
+    Object.keys(cfg.strings[LANG]).forEach(function (k) { S[k] = cfg.strings[LANG][k]; });
+    document.documentElement.lang = LANG;
+    document.documentElement.dir = LANG === "he" ? "rtl" : "ltr";
+    document.title = t("title");
+    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (node) { node.textContent = t(node.getAttribute("data-t")); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-t-placeholder]"), function (node) { node.setAttribute("placeholder", t(node.getAttribute("data-t-placeholder"))); });
+    watchTheme();
+
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("[data-act],[data-ask]") : null;
+      if (!b || b.disabled) return;
+      var act = b.getAttribute("data-act");
+      if (b.hasAttribute("data-ask")) ask(t(b.getAttribute("data-ask")));
+      else if (act === "run") runNow();
+      else if (act === "connect") connect();
+      else if (cfg.onAct) cfg.onAct(act, b);
+    });
+    el("ask-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var text = el("ask-input").value.trim();
+      if (!text || askBlock()) return;
+      ask(text);
+      el("ask-input").value = "";
+    });
+
+    if (C) {
+      C.here().then(function (here) {
+        if (here && here.role) APP.role = here.role;
+        paint();
+        maybeRunExample();
+      }, function () { /* the defaults hold */ });
+      C.connectors.list().then(function (list) {
+        APP.conn = list.filter(function (c) { return c.id === "linear"; })[0] || null;
+        paint();
+        maybeRunExample();
+      }, function () { paint(); });
+      C.connectors.onChange(function (list) {
+        APP.conn = list.filter(function (c) { return c.id === "linear"; })[0] || null;
+        paint();
+        maybeRunExample();
+      });
+      C.jobs.list().then(function (list) {
+        APP.jobs = list || [];
+        APP.jobsLoaded = true;
+        paint();
+        maybeRunExample();
+      }, function () { /* no routines */ });
+      C.jobs.onChange(function (list) { APP.jobs = list || []; paint(); });
+      C.files.onChange(cfg.appDir + "/data", load);
+    }
+    load();
+  }
+
+
+  var STRINGS = {
+    en: {
+      title: "Cycle report",
+      weekOf: "Report of {day}",
+      heroPlain: "How the cycles are going",
+      tileDone: "Cycle done", tileScope: "Scope added", tileRisk: "At risk", tileProjects: "Projects at risk",
+      scopeSub: "Since the cycles started", riskSub_one: "1 issue may slip", riskSub_other: "{n} issues may slip",
+      projectsSub_one: "of 1 active", projectsSub_other: "of {n} active",
+      noCycle: "No cycle",
+      dates: "{from} to {to}",
+      doneWord: "done",
+      scope: "Scope added", scopeSince: "Scope added since {day}",
+      riskCount: "At risk",
+      atRiskHead: "At risk",
+      nothingAtRisk: "Nothing in this cycle looks at risk.",
+      boxProjects: "Projects", emptyProjects: "No active projects.",
+      report: "This week: {path}", retro: "Retro draft: {path}",
+      tools: "Tools",
+      goingTitle: "How is the cycle going", goingLine: "Each team's done of total, days left, scope added, and whether it is on pace.",
+      goingAsk: "How is the cycle going? For each team: done of total, days left, scope added, and whether it is on pace.",
+      projectTitle: "Summarise a project", projectPick: "Pick a project",
+      projectLine: "Health, the latest update, the issues that matter and the next date.",
+      projectAsk: "Summarise the Linear project {name}: health, the latest update, the open issues that matter and the next milestone.",
+      slipTitle: "What will slip", slipLine: "Open issues unlikely to finish before the cycle ends, and why.",
+      slipAsk: "What will slip this cycle? The open issues unlikely to finish before it ends, why, and the projects that hurts.",
+      starter1: "How much scope was added this cycle, and by whom?",
+      starter2: "Which projects have no update this week?",
+      starter3: "Write a cycle update I can post to the team",
+      footReads: "Reads the copy of your Linear workspace that Cabinet keeps, and writes a report to the reports folder in this cabinet every Friday. It never changes anything in Linear."
+    },
+    he: {
+      title: "דוח מחזור",
+      weekOf: "הדוח של {day}",
+      heroPlain: "איך המחזורים מתקדמים",
+      tileDone: "הושלם במחזור", tileScope: "היקף שנוסף", tileRisk: "בסיכון", tileProjects: "פרויקטים בסיכון",
+      scopeSub: "מאז שהמחזורים התחילו", riskSub_one: "משימה אחת עלולה להתעכב", riskSub_other: "{n} משימות עלולות להתעכב",
+      projectsSub_one: "מתוך פרויקט פעיל אחד", projectsSub_other: "מתוך {n} פעילים",
+      noCycle: "אין מחזור",
+      dates: "{from} עד {to}",
+      doneWord: "הושלמו",
+      scope: "היקף שנוסף", scopeSince: "היקף שנוסף מאז {day}",
+      riskCount: "בסיכון",
+      atRiskHead: "בסיכון",
+      nothingAtRisk: "שום דבר במחזור הזה לא נראה בסיכון.",
+      boxProjects: "פרויקטים", emptyProjects: "אין פרויקטים פעילים.",
+      report: "השבוע: {path}", retro: "טיוטת רטרו: {path}",
+      tools: "כלים",
+      goingTitle: "איך המחזור מתקדם", goingLine: "כמה הושלם מכל צוות, כמה ימים נותרו, כמה היקף נוסף, והאם זה בקצב.",
+      goingAsk: "איך המחזור מתקדם? לכל צוות: כמה הושלם מתוך הכול, כמה ימים נותרו, כמה היקף נוסף, והאם זה בקצב.",
+      projectTitle: "סיכום פרויקט", projectPick: "בחרו פרויקט",
+      projectLine: "מצב הפרויקט, העדכון האחרון, המשימות החשובות והתאריך הבא.",
+      projectAsk: "סכמו את פרויקט ה-Linear {name}: מצב, העדכון האחרון, המשימות הפתוחות החשובות ואבן הדרך הבאה.",
+      slipTitle: "מה יתעכב", slipLine: "משימות פתוחות שכנראה לא יסתיימו עד סוף המחזור, ולמה.",
+      slipAsk: "מה יתעכב במחזור הזה? המשימות הפתוחות שכנראה לא יסתיימו עד הסוף, למה, ואילו פרויקטים זה פוגע בהם.",
+      starter1: "כמה היקף נוסף במחזור הזה, ומי הוסיף?",
+      starter2: "לאילו פרויקטים אין עדכון השבוע?",
+      starter3: "כתבו עדכון מחזור שאפשר לפרסם לצוות",
+      footReads: "קורא את העותק של סביבת ה-Linear שלכם ש-Cabinet שומר, וכותב דוח לתיקייה reports בקבינט הזה בכל יום שישי. הוא אף פעם לא משנה שום דבר ב-Linear."
+    }
+  };
+
+  function teamSection(c, now) {
+    var url = safeUrl(c.url);
+    var name = '<span class="key" dir="ltr">' + esc(c.team) + "</span> " + esc(c.teamName || "") + " · " + esc(c.name || "");
+    var from = parse(c.startsAt), to = parse(c.endsAt);
+    var pct = c.total > 0 ? Math.round((c.done / c.total) * 100) : 0;
+    var added = Number(c.scopeAdded) || 0;
+    var since = parse(c.baselineFrom);
+    var risk = c.atRisk || [];
+    return '<section class="box wide" aria-label="' + esc((c.teamName || c.team) + " " + (c.name || "")) + '">' +
+      '<div class="team-h"><h3 dir="auto">' + (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + name + "</a>" : name) + "</h3>" +
+      (isNaN(from) || isNaN(to) ? "" : '<span class="dates">' + esc(t("dates", { from: fmtDay(from), to: fmtDay(to) })) + "</span>") +
+      '<span class="left">' + esc(daysLeft(c.endsAt, now)) + "</span></div>" +
+      '<div class="pace"><span class="done"><b>' + esc(t("doneOf", { done: c.done || 0, total: c.total || 0 })) + "</b>" + esc(t("doneWord")) + " · " + pct + "%</span>" +
+      '<span class="stat' + (added > 0 ? " hot" : "") + '"><b><span dir="ltr">+' + added + "</span></b>" + esc(isNaN(since) ? t("scope") : t("scopeSince", { day: fmtDay(since) })) + "</span>" +
+      '<span class="stat' + (risk.length ? " hot" : "") + '"><b>' + risk.length + "</b>" + esc(t("riskCount")) + "</span>" +
+      bar(c.done || 0, c.total || 0, "wide-bar") + "</div>" +
+      (c.note ? '<p class="note" dir="auto">' + esc(c.note) + "</p>" : "") +
+      (risk.length ? '<p class="risk-h">' + esc(t("atRiskHead")) + "</p>" : "") +
+      rowsOrEmpty(risk, t("nothingAtRisk"), function (i) {
+        return issueRow(i, now, { sub: [i.why, i.assignee].filter(Boolean).join(" · "), subCls: "stuck" });
+      }) + "</section>";
+  }
+
+  function render(d, now) {
+    var counts = d.counts || {};
+    var cycles = d.cycles || [], projects = d.projects || [];
+    var at = parse(d.generatedAt);
+    el("week").textContent = isNaN(at) ? "" : t("weekOf", { day: fmtLong(at) });
+    el("hero-h").textContent = d.headline || t("heroPlain");
+    el("summary").textContent = d.summary || "";
+    el("summary").hidden = !d.summary;
+    el("cycles").innerHTML = cycleStrip(cycles, now);
+    var papers = [];
+    if (d.report) papers.push('<span dir="auto">' + icon("file-text") + esc(t("report", { path: d.report })) + "</span>");
+    if (d.retro) papers.push('<span dir="auto">' + icon("file-text") + esc(t("retro", { path: d.retro })) + "</span>");
+    el("papers").innerHTML = papers.join("");
+
+    var total = counts.total || 0, done = counts.done || 0;
+    var risky = projects.filter(function (p) { return p.health === "atRisk" || p.health === "offTrack"; }).length;
+    var atRisk = counts.atRisk != null ? counts.atRisk : cycles.reduce(function (n, c) { return n + (c.atRisk || []).length; }, 0);
+    el("tiles").innerHTML =
+      tile("gauge", t("tileDone"), total ? Math.round((done / total) * 100) + "%" : "0%", total ? t("doneOf", { done: done, total: total }) : t("noCycle")) +
+      tile("plus", t("tileScope"), "+" + (counts.scopeAdded || 0), t("scopeSub")) +
+      tile("triangle-alert", t("tileRisk"), atRisk, tn("riskSub", atRisk)) +
+      tile("folder-kanban", t("tileProjects"), counts.projectsAtRisk != null ? counts.projectsAtRisk : risky, tn("projectsSub", projects.length));
+
+    el("teams").innerHTML = cycles.map(function (c) { return teamSection(c, now); }).join("");
+    el("projects").innerHTML = box({ title: t("boxProjects"), icon: "folder-kanban", count: projects.length, wide: true,
+      body: projects.length ? '<ul class="rows">' + projects.map(function (p) {
+        var by = [p.updateBy, isNaN(parse(p.updateAt)) ? "" : fmtDay(parse(p.updateAt))].filter(Boolean).join(", ");
+        return projectRow({ name: p.name, url: p.url, health: p.health, progress: p.progress, lead: p.lead, targetDate: p.targetDate,
+          update: p.update ? p.update + (by ? " (" + by + ")" : "") : "" }, now);
+      }).join("") + "</ul>" : '<p class="empty">' + esc(t("emptyProjects")) + "</p>" });
+
+    var pick = el("project-pick");
+    var was = pick.value;
+    pick.innerHTML = projects.map(function (p) { return '<option dir="auto">' + esc(p.name) + "</option>"; }).join("");
+    if (was) pick.value = was;
+    var why = askBlock();
+    pick.disabled = !!why || !projects.length;
+    el("project-go").disabled = !!why || !projects.length;
+    var line = el("tools-why");
+    line.textContent = why;
+    line.hidden = !why;
+  }
+
+  boot({
+    appDir: "cycle-report",
+    jobId: "cycle-report",
+    strings: STRINGS,
+    render: render,
+    onAct: function (act) {
+      if (act === "summarise") {
+        var name = el("project-pick").value;
+        if (name) ask(t("projectAsk", { name: name }));
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

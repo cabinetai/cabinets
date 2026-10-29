@@ -29,7 +29,7 @@ A cabinet is just a directory. Copy it, version it, share it — it works anywhe
 
 ## Browse the Registry
 
-Each top-level directory in this repo is a complete cabinet template you can install and customize — **164 templates**: the original personal & creator cabinets, a department-organized enterprise suite, per-integration showcases (Gmail, Asana, Stripe, Notion, …), and the wooden lifestyle templates. Install any of them with `npx cabinets add <name>`.
+Each top-level directory in this repo is a complete cabinet template you can install and customize — **178 templates**: the original personal & creator cabinets, a department-organized enterprise suite, per-integration showcases (Gmail, Asana, Stripe, Notion, …), and the wooden lifestyle templates. Install any of them with `npx cabinets add <name>`.
 
 ### All templates
 
@@ -45,6 +45,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [architecture-decision](./architecture-decision) | Software | 2 | 2 | 0 | Maintains a living ADR library — architecture decisions, tradeoffs, owners, diagrams, and rationale — discoverable in one place and kept… |
 | [asana-tasks](./asana-tasks) | Operations | 1 | 1 | 0 | Every morning, the Asana tasks that are actually on you today |
 | [audits](./audits) | Operations | 1 | 2 | 0 | Walk a product, file every friction as a markdown issue, ship fixes with a Senior Product Lead bar — then hand a stakeholder an interacti… |
+| [aws-s3-asset-library](./aws-s3-asset-library) | Media | 2 | 1 | 0 | Everything your agency has delivered, what landed this week, and what nobody has cleared to use |
 | [aws-s3-contents](./aws-s3-contents) | Operations | 1 | 1 | 0 | What's actually in your bucket, and what changed last |
 | [backblaze-b2-contents](./backblaze-b2-contents) | Operations | 1 | 1 | 0 | What's actually in your B2 bucket, and what changed last |
 | [biology-experiments](./biology-experiments) | Education | 1 | 1 | 0 | Five interactive simulations of landmark biology experiments — Griffith's transformation, Hershey-Chase, Mendel's peas, Meselson-Stahl, a… |
@@ -67,7 +68,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [cloudflare-r2-contents](./cloudflare-r2-contents) | Operations | 1 | 1 | 0 | What's actually in your R2 bucket, and what changed last |
 | [codex-style](./codex-style) | Knowledge | 1 | 1 | 0 | Shows you how you actually talk to Codex |
 | [company-brain](./company-brain) | Operations | 2 | 2 | 0 | The AI-native knowledge base that makes every doc findable and every question answerable |
-| [competitive-intelligence](./competitive-intelligence) | Operations | 3 | 4 | 0 | Cross-company competitive intelligence command center |
+| [competitive-intelligence](./competitive-intelligence) | Operations | 1 | 3 | 0 | A competitor watch that starts empty and asks you who to track |
 | [competitive-marketing](./competitive-marketing) | Media | 2 | 2 | 0 | The marketing-specific cut of competitive intelligence — messaging, campaigns, SEO footprint, ad presence, and share of voice for every t… |
 | [competitor-watch](./competitor-watch) | Product | 1 | 1 | 0 | Daily competitor watch for your product |
 | [compliance-evidence](./compliance-evidence) | Professional Services | 2 | 2 | 0 | Collects and maps compliance evidence — policies, screenshots, access logs, vendor docs — to SOC2, ISO 27001, and GDPR controls |
@@ -100,11 +101,18 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [gemini-image-studio](./gemini-image-studio) | Creative | 1 | 1 | 0 | Describe a picture and get a real image file in your cabinet |
 | [github-dev-brief](./github-dev-brief) | Operations | 1 | 1 | 0 | Every morning, what you shipped and what's waiting on you across GitHub in the last 24 hours |
 | [gitlab-dev-brief](./gitlab-dev-brief) | Operations | 1 | 1 | 0 | Every morning, what you shipped and what's waiting on you across GitLab in the last 24 hours |
-| [gmail-inbox](./gmail-inbox) | Operations | 1 | 2 | 0 | Every morning, a plain-English summary of the email that arrived overnight |
-| [good-morning](./good-morning) | Operations | 1 | 1 | 0 | One morning page from everything you've connected — mail, calendar, money, whatever you add next |
+| [gmail-creator](./gmail-creator) | Media | 1 | 1 | 0 | A brand desk for creators |
+| [gmail-finance](./gmail-finance) | Operations | 1 | 2 | 0 | The money in your business inbox |
+| [gmail-inbox](./gmail-inbox) | Operations | 1 | 3 | 0 | A front desk for your business inbox |
+| [gmail-personal](./gmail-personal) | Lifestyle | 1 | 2 | 0 | Your own inbox, calm |
+| [good-morning](./good-morning) | Operations | 1 | 1 | 0 | One morning page from the apps you pick, out of everything you connected to Cabinet |
 | [google-ads-brief](./google-ads-brief) | Marketing | 1 | 1 | 0 | Every Monday, where last week's ad money went and what it bought |
-| [google-calendar-week](./google-calendar-week) | Operations | 1 | 1 | 0 | Every morning, what's on your calendar today, with the rest of the week behind it |
+| [google-calendar-freelance](./google-calendar-freelance) | Professional Services | 1 | 2 | 0 | Your hours with each client, ready for invoices |
+| [google-calendar-personal](./google-calendar-personal) | Lifestyle | 1 | 2 | 0 | Your own week, calm. What is on today, appointments and plans coming up, birthdays, and your free evenings and weekends |
+| [google-calendar-week](./google-calendar-week) | Operations | 1 | 1 | 0 | Your work week with clients |
 | [google-cloud-storage-contents](./google-cloud-storage-contents) | Operations | 1 | 1 | 0 | What's actually in your Cloud Storage bucket, and what changed last |
+| [google-drive-business](./google-drive-business) | Operations | 1 | 3 | 0 | A file room for your business Drive |
+| [google-drive-personal](./google-drive-personal) | Lifestyle | 1 | 3 | 0 | Your own Drive, sorted |
 | [help-center](./help-center) | Operations | 2 | 2 | 0 | Drafts, updates, and maintains help articles from real customer questions and product release notes — keeping your knowledge base current… |
 | [higgsfield-studio](./higgsfield-studio) | Media | 1 | 1 | 0 | A fresh set of images each week, made on your own Higgsfield account |
 | [hiring-pipeline](./hiring-pipeline) | Operations | 2 | 2 | 0 | Talent operations command center — open roles, candidate funnel by stage, time-to-fill, bottlenecks, offer/accept rate, and headcount pla… |
@@ -120,7 +128,8 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [kpi-narrative](./kpi-narrative) | Software | 2 | 2 | 0 | Converts raw dashboard data from Looker, Tableau, and your data warehouse into plain-English business explanations and weekly metric narr… |
 | [leadership-meeting](./leadership-meeting) | Operations | 2 | 2 | 0 | Prepare leadership meeting agendas, summarize decisions, and track action items across every weekly meeting |
 | [legal-request](./legal-request) | Professional Services | 2 | 2 | 0 | Structured intake for legal requests from any team — classify type, gather required information, route to the right counsel, and track SLA |
-| [linear-cycle](./linear-cycle) | Operations | 1 | 1 | 0 | Every morning, the Linear issues that are on you this cycle |
+| [linear-cycle-report](./linear-cycle-report) | Operations | 1 | 1 | 0 | Every Friday, how each team's Linear cycle is going |
+| [linear-issue-desk](./linear-issue-desk) | Operations | 1 | 1 | 0 | Your Linear at a glance |
 | [mailchimp-delivery](./mailchimp-delivery) | Operations | 1 | 1 | 0 | Every morning, whether yesterday's email actually reached people |
 | [manager-one-on-one](./manager-one-on-one) | Operations | 2 | 2 | 0 | Per-report 1:1 workspace for managers — recurring agenda, running notes timeline, open action items, goals tracker, and feedback log — so… |
 | [meal-planner](./meal-planner) | Lifestyle | 1 | 1 | 0 | Every Saturday, a week of dinners you'll actually eat — and the shopping list to match |
@@ -136,14 +145,19 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [newborn](./newborn) | Lifestyle | 1 | 2 | 0 | The survival cabinet for weeks 0–12 with a brand-new baby |
 | [news-desk](./news-desk) | Media | 1 | 1 | 0 | Your news sites, read every morning — and analyzed the way you would, not the way a wire feed would |
 | [newsletter-factory](./newsletter-factory) | Media | 1 | 2 | 0 | A complete newsletter OS in a directory |
-| [notion-library](./notion-library) | Operations | 1 | 1 | 0 | Every morning, a list of the Notion pages you shared, with what each one is actually about |
-| [notion-project-status](./notion-project-status) | Operations | 1 | 1 | 0 | Every morning, which of your Notion projects are on track and which need a look |
+| [notion-library](./notion-library) | Operations | 1 | 1 | 0 | Your company's knowledge at a glance |
+| [notion-project-status](./notion-project-status) | Operations | 1 | 1 | 0 | Every open project in your Notion at a glance, late, at risk or on track, with owners, dates and what changed |
 | [obsidian-kb](./obsidian-kb) | Knowledge | 1 | 1 | 0 | Turns the vault you already wrote into a knowledge base you can ask questions of |
 | [office-ops](./office-ops) | Operations | 1 | 2 | 0 | Keeps the physical office running — visitor management, supply levels and reorders, facilities tickets, recurring maintenance tasks, and… |
 | [okr-command](./okr-command) | Operations | 3 | 2 | 0 | The living OKR board for your company and every department |
+| [onedrive-business](./onedrive-business) | Operations | 1 | 3 | 0 | A file room for your work OneDrive |
+| [onedrive-personal](./onedrive-personal) | Lifestyle | 1 | 3 | 0 | Your own OneDrive, sorted |
 | [openai-image-studio](./openai-image-studio) | Creative | 1 | 1 | 0 | Describe a picture and get a real image file in your cabinet |
+| [outlook-personal](./outlook-personal) | Lifestyle | 1 | 1 | 0 | Your own Outlook, calm |
+| [outlook-work](./outlook-work) | Operations | 1 | 1 | 0 | Your workday from Outlook on one board |
 | [performance-review](./performance-review) | Operations | 3 | 2 | 0 | Structured performance review packets generated from goals, manager notes, peer feedback, and shipped work — one packet per employee per… |
 | [personal-os](./personal-os) | Operations | 1 | 1 | 6 | Your life has departments |
+| [phone-line](./phone-line) | Operations | 1 | 1 | 0 | Your business phone line |
 | [physics-101](./physics-101) | Education | 1 | 1 | 0 | A 6-module beginner physics curriculum — Motion, Forces, Energy, Waves, Electricity, Light |
 | [physics-experiments](./physics-experiments) | Education | 1 | 1 | 0 | Five interactive, self-contained simulations of classic physics experiments — double-slit, pendulum wave, projectile motion, wave interfe… |
 | [pipeline-risk](./pipeline-risk) | Sales | 2 | 3 | 0 | Identify risky deals, stale opportunities, missing champions, and weak next steps before they cost you the quarter |
@@ -166,8 +180,10 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [sales-call-prep](./sales-call-prep) | Sales | 2 | 2 | 0 | Prep reps for every call with account context, recent activity, likely pain points, discovery questions, and competitive notes — delivere… |
 | [security-questionnaire](./security-questionnaire) | Professional Services | 3 | 2 | 0 | Auto-answers customer and vendor security questionnaires using your existing policies, SOC2 docs, and past answers |
 | [seo-content](./seo-content) | Media | 2 | 3 | 0 | Keyword research, content briefs, rankings tracking, and refresh tasks — all in one workspace |
-| [sharepoint-digest](./sharepoint-digest) | Operations | 1 | 1 | 0 | SharePoint keeps every file. This shows the few that changed for you, and which copy is the real one |
+| [sharepoint-digest](./sharepoint-digest) | Operations | 1 | 1 | 0 | SharePoint keeps every file |
+| [slack-answers](./slack-answers) | Operations | 1 | 1 | 0 | Every question your team has already answered in Slack, written down once so nobody has to ask it again |
 | [slack-digest](./slack-digest) | Operations | 1 | 1 | 0 | Every morning, what moved in all your Slack channels in the last 24 hours, and which of it wants you |
+| [slack-triage](./slack-triage) | Operations | 1 | 1 | 0 | Everything the support channel asked for, as a list of items with an owner and a state, instead of a wall of messages |
 | [snowflake-brief](./snowflake-brief) | Marketing | 1 | 1 | 0 | Every Monday, the numbers out of your warehouse, in plain words |
 | [spend-policy](./spend-policy) | Professional Services | 2 | 2 | 0 | Answers "can I expense this?" instantly, flags anomalous transactions before month-end, and keeps department spend summaries current — so… |
 | [sprint-planning](./sprint-planning) | Software | 2 | 2 | 0 | Automated sprint preparation and daily standup digest for engineering teams |
@@ -179,8 +195,8 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [support-macro](./support-macro) | Operations | 2 | 2 | 0 | Generates, QA-reviews, and maintains a library of reusable support macros from real ticket clusters — so every rep pulls a reviewed, on-b… |
 | [tavily-web-search](./tavily-web-search) | Research | 1 | 1 | 0 | Ask the live web a question and keep the answer |
 | [team-wiki](./team-wiki) | Operations | 2 | 2 | 0 | A living team page with responsibilities, active projects, rituals, key docs, and on-call ownership — always current, always findable |
-| [teams-digest](./teams-digest) | Operations | 1 | 1 | 0 | Every morning, what moved in your Teams channels in the last 24 hours, and which of it wants you |
-| [telegram-digest](./telegram-digest) | Operations | 1 | 1 | 0 | Every morning, what came in on Telegram overnight and which of it wants you |
+| [teams-digest](./teams-digest) | Operations | 1 | 1 | 0 | Your Teams, caught up |
+| [telegram-digest](./telegram-digest) | Operations | 1 | 1 | 0 | Telegram shows every chat |
 | [text-your-mom](./text-your-mom) | Software | 2 | 3 | 1 | A relatable B2C app company fully staffed with product, marketing, design, and app development teams working as one |
 | [tiktok-queue](./tiktok-queue) | Media | 1 | 1 | 0 | Finished videos go up on TikTok as private posts, ready for you to release |
 | [universal-request](./universal-request) | Operations | 2 | 2 | 0 | One intake flow for every team — marketing, IT, finance, design, legal, data, and ops |
@@ -194,8 +210,8 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [web-studio](./web-studio) | Software | 1 | 1 | 0 | Describe a website in plain words; a developer builds it in a folder, working and clickable, right here |
 | [wedding-planner](./wedding-planner) | Lifestyle | 1 | 2 | 0 | A complete wedding-planning OS in a directory |
 | [weekly-business-review](./weekly-business-review) | Operations | 2 | 2 | 0 | Auto-generates the weekly business review across revenue, product, support, engineering, and finance — so leadership walks into Monday wi… |
-| [whatsapp-catch-up](./whatsapp-catch-up) | Lifestyle | 1 | 2 | 0 | Who needs you in your chats, what you planned, and what you promised |
-| [x-mentions](./x-mentions) | Operations | 1 | 1 | 0 | Every morning, your mentions and which of them actually want an answer |
+| [whatsapp-catch-up](./whatsapp-catch-up) | Operations | 1 | 1 | 0 | Who needs you in your chats, what you planned, and what you promised |
+| [x-mentions](./x-mentions) | Operations | 1 | 1 | 0 | X tells you about every like, follow and bot |
 | [youtube-channel-factory](./youtube-channel-factory) | Media | 1 | 2 | 0 | A complete YouTube OS in a directory |
 
 ## Cabinet File Format
