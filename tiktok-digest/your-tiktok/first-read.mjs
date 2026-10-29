@@ -162,9 +162,9 @@ function linkOf(value, what) {
 }
 
 // ── The newest videos: a few real ones, so the person sees their account within seconds ──
-/** At most 5: the page's cleanRecent keeps no more. */
+/** At most 5: the page's cleanRecent keeps no more. An account with no videos sends []. */
 function recentOf(list) {
-  if (!Array.isArray(list) || !list.length) fail("the newest videos are a JSON list of 1 to 5 videos");
+  if (!Array.isArray(list)) fail("the newest videos are a JSON list of up to 5 videos, [] when there are none");
   if (list.length > 5) fail("at most 5 newest videos");
   const seen = new Set();
   return list.map((v, i) => {
