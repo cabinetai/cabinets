@@ -1,7 +1,7 @@
 ---
 title: Slack Digest
 created: '2026-08-09T00:00:00Z'
-modified: '2026-09-15T00:00:00Z'
+modified: '2026-10-29T00:00:00Z'
 tags: [slack, channels, messages, digest, showcase]
 order: 1
 ---
@@ -32,14 +32,14 @@ invented. Your first real digest takes its place.
 
 ## Before it can read your real Slack
 
-Connect Slack on Cabinet's integrations screen. Slack has no one press sign in, so the
-screen walks you through making a small Slack app of your own: it shows you the five things
-you will press in Slack's own console, hands you the two values to paste there, and then
-asks for the app's two keys. Set aside about two minutes once.
+Connect Slack on Cabinet's integrations screen. Press **Connect Slack**, check the
+workspace on Slack's own page and press **Allow**. There is no app to make and no key to
+paste.
 
-Cabinet keeps both keys in a locked file on your own machine, and writes them down only
-after the sign-in has actually worked. When you connect, it also asks which channels your
-team may read. Until Slack is connected the page keeps showing the example.
+Cabinet then asks which channels your team may use. Leave **Every public channel** on
+**Read** and the digest sees all of them, including ones that open later. Add a private
+channel only if you want it in the digest. Until Slack is connected the page keeps showing
+the example.
 
 ## What's inside
 

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  slack-triage showcase page.
+  slack-triage showcase page: the support queue, as a board.
 
-  Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
+  Reads ../triage/, one file per pass, written by this cabinet's single routine.
   The file names carry the timestamp, so the picker is built without opening any of them.
-  Relative URLs on purpose — they resolve under /api/assets/<cabinet>/<app>/ at any depth
+  Relative URLs on purpose: they resolve under /api/assets/<cabinet>/<app>/ at any depth
   and survive the user renaming the cabinet at install time. The folder listing comes from
   /api/tree because the assets route serves single files and cannot list a directory.
 
@@ -18,99 +18,243 @@
 <title>Slack Triage Board</title>
 <style>
   :root {
-    --parchment: #FAF6F1; --card: #FFFFFF; --line: #E8DFD2;
-    --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
+    --sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --parchment: #FAF6F1; --card: #FFFFFF; --line: #EFE7DC; --tint: #F4EEE6; --lane: #F3ECE3;
+    --ink: #3B2F2F; --muted: #7A6249; --faint: #A08E78;
     --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C;
-    --gold: #E0B23C; --green: #6FA45A; --teal: #4FA39A;
+    --green: #6FA45A; --grey: #A8998A;
   }
   * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
   body {
-    margin: 0; padding: 48px 24px 64px; background: var(--parchment); color: var(--ink);
-    font: 15px/1.55 Geist, "Geist Fallback", system-ui, sans-serif;
+    margin: 0; padding: 32px 28px 56px; background: var(--parchment); color: var(--ink);
+    font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 780px; margin: 0 auto; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  /* ---- header: title and summary on the left, the toolbar on the right ---- */
+  .top {
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+    gap: 16px 32px; padding-bottom: 20px; border-bottom: 1px solid var(--line);
+  }
+  .title { min-width: 0; }
   h1 {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 30px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
-    display: flex; align-items: center; gap: 12px;
+    margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.25;
+    display: flex; align-items: center; gap: 10px;
   }
-  /* An inline <svg> with a viewBox and no width fills its container — size it here or
-     the mark renders enormous. flex:none stops the flex row shrinking it. */
-  .mark { width: 26px; height: 26px; flex: none; }
-  .sub { color: var(--muted); margin: 6px 0 0; font-size: 14px; }
-  .card {
-    background: var(--card); border: none; border-radius: 12px;
-    padding: 18px 22px; margin-top: 18px;
-    box-shadow: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
-  }
+  /* An inline <svg> with a viewBox and no width fills its container, so size it here.
+     flex:none stops the flex row shrinking it. */
+  .mark { width: 20px; height: 20px; flex: none; }
+  .summary { margin: 8px 0 0; font-size: 15px; font-weight: 500; color: var(--ink); }
+  .summary .count { color: var(--terracotta); font-weight: 650; }
+  .next { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+  .sub { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+  .filters label { display: inline-flex; align-items: center; gap: 8px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
   .banner {
-    padding: 10px 14px; margin-top: 18px;
-    background: var(--card); border-radius: 8px; font-size: 14px; color: var(--muted);
-    box-shadow: 0 1px 2px rgba(59,47,47,0.04);
+    margin-top: 18px; padding: 10px 14px; background: #FBEDE4; border-radius: 10px;
+    font-size: 14px; color: #8A3F2E;
+  }
+
+  /* ---- the board ---- */
+  .board {
+    display: flex; gap: 14px; align-items: flex-start; margin-top: 22px;
+    overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity;
+  }
+  .col {
+    flex: 1 1 0; min-width: 248px; max-width: 420px; background: var(--lane);
+    border-radius: 14px; padding: 12px 10px 10px; scroll-snap-align: start;
+  }
+  .col-head {
+    display: flex; align-items: center; gap: 8px; padding: 0 6px 10px;
+    font-size: 13px; font-weight: 650; color: var(--ink);
+  }
+  .col-head .n {
+    margin-left: auto; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 10px;
+    background: rgba(59,47,47,.07); color: var(--muted); font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--grey); display: inline-block; }
+  .s-new .dot { background: var(--terracotta); }
+  .s-owned .dot { background: var(--blue); }
+  .s-waiting .dot { background: var(--orange); }
+  .s-done .dot { background: var(--green); }
+  .cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .slot {
+    padding: 18px 10px; text-align: center; font-size: 13px; color: var(--muted);
+    border-radius: 10px; background: rgba(255,255,255,.45);
+  }
+
+  .card {
+    position: relative; background: var(--card); border-radius: 10px; padding: 12px 14px;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.05), 0 1px 2px rgba(59,47,47,.05);
+  }
+  .card .item { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.35; color: var(--ink); }
+  .card .needs { margin: 4px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+  .card .word {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
+    font-size: 12px; color: var(--muted);
+  }
+  .foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-top: 12px;
+  }
+  .who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--ink); }
+  .who span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .who.nobody { color: var(--muted); }
+  .av {
+    width: 24px; height: 24px; border-radius: 50%; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10.5px; font-weight: 650; letter-spacing: 0.02em;
+  }
+  .av.empty { background: transparent; border: 1.5px dashed #C9B9A4; }
+  .thread {
+    flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px;
+    font-weight: 500; color: var(--muted); text-decoration: none; padding: 3px 6px;
+    margin-right: -6px; border-radius: 6px;
+  }
+  .thread svg { width: 12px; height: 12px; }
+  .thread:hover { color: var(--ink); background: var(--tint); }
+
+  /* The one item that most needs a person: first in New, with the reason on the card. */
+  .card.lead { padding-left: 18px; box-shadow: 0 0 0 1px rgba(226,114,91,.22), 0 2px 8px -4px rgba(226,114,91,.25); }
+  .card.lead::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    border-radius: 10px 0 0 10px; background: var(--terracotta);
   }
   .lead-tag {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--terracotta); margin-bottom: 6px;
+    display: inline-block; margin-bottom: 6px; font-size: 11.5px; font-weight: 650;
+    color: #A8432E; letter-spacing: 0.01em;
   }
-  .lead-who { font-weight: 600; }
-  .lead-verdict { margin: 4px 0 0; color: var(--muted); }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th {
-    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--muted); font-weight: 700; padding: 0 10px 10px 0; border-bottom: 1px solid var(--line);
+  .verdict {
+    margin: 10px 0 0; padding-top: 10px; border-top: 1px solid #F3E4DC;
+    font-size: 13px; line-height: 1.45; color: #7A3A2B;
   }
-  td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  .pill {
-    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
-    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+
+  /* Done: quieter cards, and folded to a narrow rail when only open items are shown. */
+  .col.s-done .card { background: rgba(255,255,255,.6); box-shadow: none; }
+  .col.s-done .card .item { color: var(--muted); font-weight: 500; }
+  .col.folded {
+    flex: 0 0 52px; min-width: 52px; padding: 0; background: transparent;
   }
-  .u-new { color: var(--terracotta); } .u-owned { color: var(--blue); } .u-waiting { color: var(--orange); } .u-done { color: var(--green); } .u-low { color: var(--muted); }
-  /* The item is what the eye runs down the board for, so it gets the accent. */
-  .key { color: var(--blue); font-weight: 600; }
-  /* An owner is a name, and a name never wraps mid-word. */
-  .num { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  /* The item links back to the message that raised it, so it reads as clickable. */
-  .deep-link { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
-  .deep-link:hover { border-bottom-color: var(--blue); }
+  .fold {
+    width: 100%; min-height: 168px; border: 0; border-radius: 14px; cursor: pointer;
+    background: var(--lane); color: var(--muted); font: 600 13px var(--sans);
+    display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0;
+  }
+  .fold:hover { background: #EEE5D9; color: var(--ink); }
+  .fold .label { writing-mode: vertical-rl; }
+  .fold .n { font-size: 12px; font-weight: 600; }
+  .unfold {
+    margin-left: auto; border: 0; background: none; cursor: pointer; padding: 2px 6px;
+    border-radius: 6px; font: 500 12px var(--sans); color: var(--muted);
+  }
+  .unfold:hover { background: rgba(59,47,47,.06); color: var(--ink); }
+  .col-head .unfold + .n, .col-head .n + .unfold { margin-left: 0; }
+
   .empty { color: var(--muted); font-size: 14px; }
   .empty code { font-size: 13px; }
-  .scroll { overflow-x: auto; }
-  .picker { margin-top: 18px; font-size: 14px; color: var(--muted); }
-  .picker select {
-    font: inherit; color: var(--ink); background: var(--card); max-width: 100%;
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; margin-left: 6px;
+  .notice {
+    margin-top: 22px; padding: 28px 20px; border-radius: 14px; background: var(--lane);
+    text-align: center;
   }
-  .picker .next { display: block; margin-top: 7px; color: var(--faint); }
+
+  /* Narrow: the columns stack, each one full width; Done folds to a single bar. */
+  @media (max-width: 640px) {
+    body { padding: 22px 14px 40px; }
+    h1 { font-size: 20px; }
+    .top { gap: 14px; }
+    #tools { width: 100%; }
+    .filters { width: 100%; display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; }
+    .filters label { display: contents; }
+    .filters select { width: 100%; }
+    .board { flex-direction: column; align-items: stretch; overflow: visible; }
+    .col { max-width: none; min-width: 0; }
+    .col.folded { flex: none; min-width: 0; }
+    .fold { min-height: 0; flex-direction: row; justify-content: flex-start; padding: 12px 16px; }
+    .fold .label { writing-mode: horizontal-tb; }
+    .fold .n { margin-left: auto; }
+  }
+
+  /* Cabinet's type and controls, shared by the three Slack pages. Cabinet sets its
+     headings in its UI sans, so nothing here is serif. Selects drop the browser's own
+     chrome for one quiet control: white, a hairline shadow, our chevron. */
+  body { font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  h1 { font-family: var(--sans); font-weight: 650; letter-spacing: -0.02em; }
+  label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px;
+    font-weight: 500; color: var(--muted); }
+  select {
+    -webkit-appearance: none; appearance: none; border: 0; margin: 0;
+    height: 34px; padding: 0 34px 0 12px; border-radius: 8px; cursor: pointer;
+    font: 500 14px/34px var(--sans); color: var(--ink); max-width: 100%;
+    background: #FFFFFF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B7355' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 1px 2px rgba(59,47,47,.06);
+    transition: box-shadow .15s ease;
+  }
+  select:hover { background-color: #FFFFFF;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.18), 0 1px 3px rgba(59,47,47,.08); }
+  input[type="search"] {
+    -webkit-appearance: none; appearance: none; border: 0; font: 400 15px/1.4 var(--sans);
+    color: var(--ink); background: #FFFFFF; border-radius: 10px;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 1px 2px rgba(59,47,47,.06);
+  }
+  input[type="search"]::placeholder { color: var(--faint); }
+  select:focus-visible, input[type="search"]:focus-visible { outline: none;
+    box-shadow: 0 0 0 1px rgba(91,143,214,.65), 0 0 0 4px rgba(91,143,214,.18); }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <header>
-    <h1>
-      <!-- The integration's own mark, inlined so the page still makes
-           zero external requests. -->
-      <svg class="mark" viewBox="0 0 127 127" aria-hidden="true"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2C6.7 93.2.8 87.3.8 80c0-7.3 5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/> <path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2C33.8 6.5 39.7.6 47 .6c7.3 0 13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H13.9C6.6 60.1.7 54.2.7 46.9c0-7.3 5.9-13.2 13.2-13.2H47z" fill="#36C5F0"/> <path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V13.8C66.9 6.5 72.8.6 80.1.6c7.3 0 13.2 5.9 13.2 13.2v33.1z" fill="#2EB67D"/> <path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2 0-7.3 5.9-13.2 13.2-13.2h33.1c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H80.1z" fill="#ECB22E"/></svg>
-      Slack Triage Board
-    </h1>
-    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
-    <p class="sub">Everything the support channel asked for, as a list of items with an owner and a state, instead of a wall of messages.</p>
+  <header class="top" id="top">
+    <div class="title">
+      <h1>
+        <!-- The integration's own mark, inlined so the page still makes
+             zero external requests. -->
+        <svg class="mark" viewBox="0 0 127 127" aria-hidden="true"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2C6.7 93.2.8 87.3.8 80c0-7.3 5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/> <path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2C33.8 6.5 39.7.6 47 .6c7.3 0 13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H13.9C6.6 60.1.7 54.2.7 46.9c0-7.3 5.9-13.2 13.2-13.2H47z" fill="#36C5F0"/> <path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V13.8C66.9 6.5 72.8.6 80.1.6c7.3 0 13.2 5.9 13.2 13.2v33.1z" fill="#2EB67D"/> <path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2 0-7.3 5.9-13.2 13.2-13.2h33.1c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H80.1z" fill="#ECB22E"/></svg>
+        Triage Board
+      </h1>
+      <!-- The one sentence. Identical to .cabinet description and index.md's first line.
+           Kept for screen readers; the summary line under the title says it for this pass. -->
+      <p class="sub">Everything the support channel asked for, as a list of items with an owner and a state, instead of a wall of messages.</p>
+      <p class="summary" id="summary" hidden></p>
+      <p class="next" id="next" hidden></p>
+    </div>
+    <div id="tools"></div>
   </header>
 
-  <div id="root"><div class="card empty">Loading…</div></div>
+  <div id="root"><div class="notice empty">Loading…</div></div>
 
 </div>
 
 <script>
 (function () {
   var root = document.getElementById('root');
+  var tools = document.getElementById('tools');
+  var summary = document.getElementById('summary');
+  var nextEl = document.getElementById('next');
   var DIR = 'triage';
   var JOB = '.jobs/support-triage.yaml';
   var job = null;
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
+  /* The board's columns, left to right. Anything else the agent writes gets its own
+     column after Waiting, so it still shows. */
+  var COLS = ['new', 'owned', 'waiting', 'other', 'done'];
+  var WORD = { 'new': 'New', owned: 'Owned', waiting: 'Waiting', done: 'Done' };
+  /* Filters survive a change of pass, so picking yesterday keeps "Nobody yet" on.
+     doneOpen is the Done rail unfolded by hand while only open items are shown. */
+  var view = { show: 'open', owner: '', doneOpen: false };
+
+  /* Initials avatars: a quiet tint and a dark ink of the same hue, picked by a hash of
+     the name so one person keeps one colour on every pass. Each ink is >= 4.5:1 on its tint. */
+  var TONES = [['#F6E1DA', '#8A3A28'], ['#DFE9F7', '#2F5B94'], ['#F7E6D3', '#87501B'],
+               ['#E2EEDB', '#3E6B2E'], ['#ECE3F3', '#5D4483'], ['#DDEEEC', '#2E6661'],
+               ['#F3E3EA', '#82395A'], ['#EDE6D9', '#5E4C33']];
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -141,75 +285,219 @@
     return out;
   }
 
-  /* Urgency is a closed set of three. Anything else the agent writes still has to render,
-     so it falls back to the quiet grey rather than to a class that does not exist. */
-  function urgencyClass(cell) {
-    var k = cell.toLowerCase();
-    return k === 'new' || k === 'owned' || k === 'waiting' || k === 'done' ? 'u-' + k : 'u-low';
+  /* Rows as objects, read by column name so a reordered table still renders. */
+  function items(data) {
+    var at = {};
+    data.cols.forEach(function (c, i) { at[c.toLowerCase()] = i; });
+    function get(r, k) { return at[k] !== undefined ? (r[at[k]] || '') : ''; }
+    return data.rows.map(function (r) {
+      var word = get(r, 'status');
+      return { item: get(r, 'item'), needs: get(r, 'needs'), owner: get(r, 'owner'),
+               url: get(r, 'url'), word: word, key: statusKey(word) };
+    });
+  }
+
+  /* Status is a closed set of four. Anything else the agent writes still has to show,
+     so it counts as open and wears the quiet grey under its own word. */
+  function statusKey(word) {
+    var k = word.toLowerCase();
+    return WORD[k] ? k : 'other';
+  }
+
+  function ownerMatches(it) {
+    if (view.owner === '-' && it.owner) return false;
+    if (view.owner && view.owner !== '-' && it.owner !== view.owner) return false;
+    return true;
+  }
+
+  function matches(it) {
+    if (!ownerMatches(it)) return false;
+    if (view.show === 'all') return true;
+    if (view.show === 'open') return it.key !== 'done';
+    return it.key === view.show;
+  }
+
+  /* Which columns a Show choice puts on the board. A single state shows just its column. */
+  function columnsFor(list) {
+    var hasOther = list.some(function (it) { return it.key === 'other'; });
+    return COLS.filter(function (k) {
+      if (k === 'other' && !hasOther) return false;
+      if (view.show === 'all' || view.show === 'open') return true;
+      return k === view.show;
+    });
+  }
+
+  function filters(name, files, list) {
+    var shows = [['open', 'Open items'], ['new', 'New'], ['owned', 'Owned'],
+                 ['waiting', 'Waiting'], ['done', 'Done'], ['all', 'Everything']];
+    var owners = [];
+    list.forEach(function (it) { if (it.owner && owners.indexOf(it.owner) < 0) owners.push(it.owner); });
+    /* A chosen owner stays chosen on a pass without them: an empty board says so,
+       where quietly widening to Anyone would show other people's items. */
+    if (view.owner && view.owner !== '-' && owners.indexOf(view.owner) < 0) owners.push(view.owner);
+    owners.sort();
+    function opt(v, text, on) {
+      return '<option value="' + esc(v) + '"' + (on ? ' selected' : '') + '>' + esc(text) + '</option>';
+    }
+    var html = '<div class="filters">';
+    if (list.length) {
+      html += '<label for="show">Show<select id="show">' + shows.map(function (s) {
+        return opt(s[0], s[1], view.show === s[0]);
+      }).join('') + '</select></label>';
+      html += '<label for="owner">Owner<select id="owner">' + opt('', 'Anyone', !view.owner) +
+              opt('-', 'Nobody yet', view.owner === '-') + owners.map(function (o) {
+                return opt(o, o, view.owner === o);
+              }).join('') + '</select></label>';
+    }
+    if (files.length) {
+      html += '<label for="pick">Pass<select id="pick">' + files.map(function (f) {
+        return opt(f, label(f), f === name);
+      }).join('') + '</select></label>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  /* The header pieces outside the board: toolbar, summary sentence, next pass. */
+  function chrome(name, files, list, meta) {
+    tools.innerHTML = filters(name, files, list);
+    var text = meta && meta.headline;
+    if (!text && list.length) {
+      var open = list.filter(function (it) { return it.key !== 'done'; }).length;
+      text = open === 1 ? '1 open item' : open + ' open items';
+    }
+    summary.textContent = text || '';
+    summary.hidden = !text;
+    var next = nextRunText();
+    nextEl.textContent = next;
+    nextEl.hidden = !next;
+  }
+
+  function initials(name) {
+    var parts = name.replace(/[^\p{L}\p{N}\s'-]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    var a = Array.from(parts[0])[0] || '';
+    var b = parts.length > 1 ? (Array.from(parts[parts.length - 1])[0] || '') : '';
+    return (a + b).toUpperCase();
+  }
+
+  function tone(name) {
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return TONES[h % TONES.length];
+  }
+
+  function who(it) {
+    if (!it.owner) {
+      return '<span class="who nobody"><span class="av empty" aria-hidden="true"></span>' +
+             '<span>Nobody yet</span></span>';
+    }
+    var t = tone(it.owner);
+    return '<span class="who"><span class="av" aria-hidden="true" style="background:' + t[0] +
+           ';color:' + t[1] + '">' + esc(initials(it.owner)) + '</span><span>' +
+           esc(it.owner) + '</span></span>';
+  }
+
+  var ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+              'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+              '<path d="M7 17 17 7M8 7h9v9"/></svg>';
+
+  /* One card. `lead` carries the reason line when this is the item to pick up first. */
+  function card(it, lead) {
+    var html = '<li class="card' + (lead ? ' lead' : '') + '">';
+    if (lead) html += '<span class="lead-tag">Pick this up first</span>';
+    html += '<p class="item">' + esc(it.item || 'Untitled item') + '</p>';
+    if (it.needs) html += '<p class="needs">' + esc(it.needs) + '</p>';
+    if (it.key === 'other' && it.word) {
+      html += '<span class="word"><span class="dot"></span>' + esc(it.word) + '</span>';
+    }
+    if (lead) html += '<p class="verdict">' + esc(lead) + '</p>';
+    html += '<div class="foot">' + who(it);
+    if (it.url) {
+      html += '<a class="thread" href="' + esc(it.url) + '" target="_blank" ' +
+              'rel="noopener noreferrer" aria-label="Open the Slack thread for ' +
+              esc(it.item) + '">Thread' + ARROW + '</a>';
+    }
+    return html + '</div></li>';
+  }
+
+  /* The lead names an item by its title. Found on the board, it moves to the top of its
+     column; not found, it still gets a card at the top of New so the reason is never lost. */
+  function leadOf(meta, list) {
+    if (!meta.lead || !meta.verdict) return null;
+    var want = meta.lead.toLowerCase();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].item.toLowerCase() === want) return { it: list[i], found: true };
+    }
+    return { it: { item: meta.lead, needs: '', owner: '', url: '', word: 'New', key: 'new' },
+             found: false };
+  }
+
+  function board(list, meta) {
+    var shown = list.filter(matches);
+    /* Show = Open items hides Done from the filter but keeps it on the board as a folded
+       rail, so its cards come from the owner filter alone. */
+    var done = view.show === 'open' ? list.filter(function (it) {
+      return it.key === 'done' && ownerMatches(it);
+    }) : [];
+    var lead = leadOf(meta, list);
+    var leadShown = lead && (lead.found ? shown.indexOf(lead.it) >= 0 : matches(lead.it));
+    if (!shown.length && !leadShown && !done.length) {
+      return '<div class="notice empty">Nothing matches these filters.</div>';
+    }
+    var html = '<div class="board">';
+    columnsFor(list).forEach(function (k) {
+      var pool = k === 'done' && view.show === 'open' ? done : shown;
+      var cards = pool.filter(function (it) { return it.key === k && !(lead && it === lead.it); });
+      var top = leadShown && lead.it.key === k;
+      var n = cards.length + (top ? 1 : 0);
+      var name = k === 'other' ? 'Other' : WORD[k];
+      var cls = 'col s-' + k;
+      /* Showing open items, Done folds to a rail with its count; a click unfolds it. */
+      if (k === 'done' && view.show === 'open' && !view.doneOpen) {
+        html += '<section class="' + cls + ' folded"><button type="button" class="fold" ' +
+                'id="fold" aria-expanded="false" aria-label="Show ' + n + ' done">' +
+                '<span class="dot"></span><span class="label">Done</span>' +
+                '<span class="n">' + n + '</span></button></section>';
+        return;
+      }
+      html += '<section class="' + cls + '" aria-label="' + name + '"><div class="col-head">' +
+              '<span class="dot"></span>' + name + '<span class="n">' + n + '</span>' +
+              (k === 'done' && view.show === 'open'
+                ? '<button type="button" class="unfold" id="fold" aria-expanded="true">Hide</button>'
+                : '') + '</div><ul class="cards">';
+      if (top) html += card(lead.it, meta.verdict);
+      html += cards.map(function (it) { return card(it, ''); }).join('');
+      if (!n) html += '<li class="slot">Nothing here</li>';
+      html += '</ul></section>';
+    });
+    return html + '</div>';
   }
 
   function render(data, name, files) {
-    var meta = data.meta, html = picker(name, files);
+    var meta = data.meta, list = items(data);
 
-    /* The routine could not reach Slack. It said so rather than writing nothing. */
-    if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">Last run could not reach ' +
-              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
-              '. Showing the previous result.</div>';
-    }
+    function draw() {
+      var html = '';
+      chrome(name, files, list, meta);
 
-    /* The single most consequential channel, in one sentence — absent most days on purpose. */
-    if (meta.lead && meta.verdict) {
-      html += '<div class="card lead"><span class="lead-tag">Lead</span>' +
-              '<div class="lead-who">' + esc(meta.lead) + '</div>' +
-              '<p class="lead-verdict">' + esc(meta.verdict) + '</p></div>';
-    }
-
-    if (!data.rows.length) {
-      html += '<div class="card empty">Nothing to show for this day.</div>';
+      /* The routine could not reach Slack. It said so rather than writing nothing. */
+      if (meta.status && meta.status !== 'ok') {
+        html += '<div class="banner">Last pass could not reach ' +
+                esc(meta.source || 'the source') + ': ' + esc(meta.status) +
+                '. Showing the previous result.</div>';
+      }
+      html += list.length || (meta.lead && meta.verdict) ? board(list, meta)
+              : '<div class="notice empty">Nothing on the board in this pass.</div>';
       root.innerHTML = html;
-      bind(files);
-      return;
+      bind(files, draw);
     }
-
-    var urlCol = data.cols.findIndex(function (c) { return c.toLowerCase() === 'url'; });
-
-    var t = '<div class="card scroll"><table><thead><tr>';
-    data.cols.forEach(function (c) {
-      if (c.toLowerCase() === 'url') return;
-      t += '<th>' + esc(c) + '</th>';
-    });
-    t += '</tr></thead><tbody>';
-    data.rows.forEach(function (r) {
-      var url = urlCol > -1 ? r[urlCol] : '';
-      t += '<tr>';
-      r.forEach(function (cell, i) {
-        var head = (data.cols[i] || '').toLowerCase();
-        if (head === 'url') {
-          return;
-        } else if (head === 'status') {
-          t += '<td><span class="pill ' + urgencyClass(cell) + '">' + esc(cell) + '</span></td>';
-        } else if (head === 'item') {
-          var text = url ? '<a class="deep-link" href="' + esc(url) +
-              '" target="_blank" rel="noopener noreferrer">' + esc(cell) + '</a>' : esc(cell);
-          t += '<td class="key">' + text + '</td>';
-        } else if (head === 'owner') {
-          t += '<td class="num">' + esc(cell) + '</td>';
-        } else {
-          t += '<td>' + esc(cell) + '</td>';
-        }
-      });
-      t += '</tr>';
-    });
-    t += '</tbody></table></div>';
-
-    root.innerHTML = html + t;
-    bind(files);
+    draw();
   }
 
-  /* ---- the folder of summaries ------------------------------------------------------ */
+  /* ---- the folder of passes --------------------------------------------------------- */
 
-  /* 2026-08-10T07-00-00-slack-summary.md — the name carries the date, so the picker
+  /* 2026-08-10T07-00-00-triage.md: the name carries the date, so the picker
      is built from names alone. EXAMPLE-triage.md is the one file without one. */
   function stamp(name) {
     var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
@@ -226,33 +514,37 @@
            d.getFullYear();
   }
 
+  function clock(d) {
+    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+
+  /* The routine runs three times a day, so a pass is named by its day and its hour. */
   function label(name) {
     var d = stamp(name);
     if (!d) return 'Triage Board Example';
     var now = new Date(), yday = new Date(now.getTime() - 86400000);
-    if (sameDay(d, now)) return 'Today';
-    if (sameDay(d, yday)) return 'Yesterday';
-    return human(d);
+    var day = sameDay(d, now) ? 'Today' : sameDay(d, yday) ? 'Yesterday' : human(d);
+    return day + ' at ' + clock(d);
   }
 
-  function picker(current, files) {
-    var html = '';
-    if (files.length) {
-      var opts = files.map(function (f) {
-        return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
-               esc(label(f)) + '</option>';
-      }).join('');
-      html = '<label for="pick">Date:</label><select id="pick">' + opts + '</select>';
-    }
-    var next = nextRunText();
-    if (next) html += '<span class="next">' + esc(next) + '</span>';
-    return html ? '<div class="picker">' + html + '</div>' : '';
+  /* The toolbar and board are rewritten on every draw, so the listeners are re-attached. */
+  function bind(files, draw) {
+    var f = document.getElementById('fold');
+    if (f) f.addEventListener('click', function () {
+      view.doneOpen = !view.doneOpen; draw(); refocus('fold');
+    });
+    var pick = document.getElementById('pick');
+    if (pick) pick.addEventListener('change', function () { show(pick.value, files); });
+    var s = document.getElementById('show');
+    if (s) s.addEventListener('change', function () { view.show = s.value; draw(); refocus('show'); });
+    var o = document.getElementById('owner');
+    if (o) o.addEventListener('change', function () { view.owner = o.value; draw(); refocus('owner'); });
   }
 
-  /* root.innerHTML is rewritten on every render, so the listener is re-attached each time. */
-  function bind(files) {
-    var sel = document.getElementById('pick');
-    if (sel) sel.addEventListener('change', function () { show(sel.value, files); });
+  /* A redraw replaces the select, so keyboard users get their place back. */
+  function refocus(id) {
+    var el = document.getElementById(id);
+    if (el) el.focus();
   }
 
   function show(name, files) {
@@ -263,10 +555,12 @@
       })
       .then(function (text) { render(parse(text), name, files); })
       .catch(function (err) {
-        root.innerHTML = picker(name, files) + '<div class="card empty">Could not read <code>' +
-          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write — reload ' +
+        chrome(name, files, [], null);
+        root.innerHTML = '<div class="notice empty">Could not read <code>' +
+          esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write, so reload ' +
           'in a moment.</div>';
-        bind(files);
+        var pick = document.getElementById('pick');
+        if (pick) pick.addEventListener('change', function () { show(pick.value, files); });
       });
   }
 
@@ -314,18 +608,17 @@
     if (!job.schedule) return '';
     var d = nextRun(job.schedule, new Date());
     if (!d) return '';
-    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    return 'Next run: ' + human(d) + ' at ' + clock;
+    return 'Next pass: ' + human(d) + ' at ' + clock(d);
   }
 
-  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+  /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments
      tells the page which cabinet it is installed in, whatever the user named it. */
   function cabinetDir() {
     var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
     return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
   }
 
-  /* Direct .md children of the folder only — never a nested one.
+  /* Direct .md children of the folder only, never a nested one.
      The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
      separately: `path` decides what lives in the folder, `name` is what we fetch. */
   function listFiles(nodes, dir, out) {
@@ -339,14 +632,14 @@
     return out;
   }
 
-  /* An empty folder is the normal state before the first run — not an error to shout about.
-     `fresh=1` busts the tree cache so a summary written minutes ago is already listed. */
+  /* An empty folder is the normal state before the first pass, not an error to shout about.
+     `fresh=1` busts the tree cache so a pass written minutes ago is already listed. */
   Promise.all([
     fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }),
-    /* The schedule is a nicety — never let a missing or renamed job file break the page. */
+    /* The schedule is a nicety, so a missing or renamed job file never breaks the page. */
     fetch('../' + JOB, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.text() : ''; })
       .catch(function () { return ''; })
@@ -360,8 +653,12 @@
       });
       var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
       if (!files.length) {
-        root.innerHTML = picker('', []) + '<div class="card empty">Nothing yet. This page ' +
-          'fills in after the routine runs for the first time.</div>';
+        var next = nextRunText();
+        nextEl.textContent = next;
+        nextEl.hidden = !next;
+        summary.hidden = true;
+        root.innerHTML = '<div class="notice empty">Nothing yet. The board fills in after the routine ' +
+          'reads Slack for the first time.</div>';
         return;
       }
       /* Newest first; the example, having no date, sits at the bottom of the list. */
@@ -370,15 +667,10 @@
         if (da && db) return db - da;
         return da ? -1 : db ? 1 : 0;
       });
-      var now = new Date();
-      var today = files.filter(function (f) {
-        var d = stamp(f);
-        return d && sameDay(d, now);
-      })[0];
-      show(today || files[0], files);
+      show(files[0], files);
     })
     .catch(function (err) {
-      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
+      root.innerHTML = '<div class="notice empty">Could not list <code>' + DIR + '/</code> (' +
         esc(err.message) + '). Reload in a moment.</div>';
     });
 })();
