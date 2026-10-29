@@ -52,8 +52,9 @@ Followers, Likes, Shares, and each idea as its own box with its picture). The
 connection, Catch up now, Ideas and Layout sit in the headline; without the headline they
 move to a slim bar on top. Each person moves, resizes, adds and removes them (mouse, finger
 or keyboard, with Undo), or asks the agent through Layout, which answers with
-`layout-change.json`. Boxes side by side always end on one line: the lowest box in each column
-of a row reaches down to the row's bottom. An idea offers itself at the foot of its box when the day's account
+`layout-change.json`. The layout is kept in whole rows; shown, each box is as tall as what is
+in it (in half rows) and the boxes under it move up, so no box shows an empty block. Boxes side
+by side end on one line when their content is about as tall. An idea offers itself at the foot of its box when the day's account
 says it would help.
 
 Before TikTok is connected, the band holds a setup guide under its Connect button: Connect

@@ -196,7 +196,7 @@
   .lane-head .count { font-size: 15px; font-weight: 500; color: var(--faint); }
   .lane-head .count.zero { display: none; }
   .lane-head .total { color: var(--ink-3); font-size: 14px; font-weight: 500; white-space: nowrap; }
-  .lane-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 100%; min-height: 120px; margin: 0; padding: 18px 28px 28px; color: var(--ink-3); font-size: 14.5px; text-align: center; text-wrap: balance; }
+  .lane-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 10px 28px 22px; color: var(--ink-3); font-size: 14.5px; text-align: center; text-wrap: balance; }
   .lane-empty .icon { width: 26px; height: 26px; color: var(--faint); stroke-width: 1.6; }
 
   .rows { list-style: none; margin: 0; padding: 0; }
@@ -269,7 +269,7 @@
   .tile .k .icon { width: 15px; height: 15px; }
   .tile .v { font-size: 26px; font-weight: 650; letter-spacing: -.025em; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tile .m { font-size: 12.5px; color: var(--ink-3); line-height: 1.4; }
-  .tiles.small .tile { padding: 12px 14px; background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+  .tiles.small .tile { padding: 12px 14px; }
   .tiles.small .tile .v { font-size: 21px; }
   .dl { font-weight: 600; white-space: nowrap; }
   .dl span[aria-hidden] { font-size: .8em; }
@@ -2699,15 +2699,72 @@
       while (y > 0 && !hits(b, y - 1, h)) y--;
       out.push({ id: b.id, x: b.x, y: y, w: b.w, h: h });
     });
-    if (!state.editing) flush(out);
     return out.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
   }
+  // ── Settling: each box as tall as what is in it ───────────────────────
+  // The layout is kept in whole rows (64px and a 16px gap), the size people move and resize
+  // by. Shown, the page uses half rows (24px and the same gap, two of them make one row): each
+  // box takes the half rows its content needs, up to the rows its layout gives a list, and the
+  // boxes under it move up. A box is never stretched to match a neighbour by more than one
+  // half row, so no box shows an empty block, and boxes side by side whose content is about
+  // as tall end on one line. While the page is arranged the whole rows show as they are.
+  var SUB = 2;
+  var SUB_ROW = (ROW - GAP) / SUB;
+
+  /** How tall a box is as it shows now, sized by its content alone. */
+  function shownHeight(el) {
+    el.style.alignSelf = "start";
+    var h = el.offsetHeight;
+    el.style.alignSelf = "";
+    return h;
+  }
+  /** How tall a box is with nothing cut: its rows all shown, sized by its content alone. */
+  function naturalHeight(el) {
+    var cut = Array.prototype.filter.call(el.querySelectorAll(".rows > li[hidden], .box-body ~ .nudge[hidden]"), function () { return true; });
+    var more = el.querySelector(".box-more");
+    var moreHidden = more ? more.hidden : true;
+    cut.forEach(function (x) { x.hidden = false; });
+    if (more) more.hidden = true;
+    el.style.alignSelf = "start";
+    var h = el.offsetHeight;
+    el.style.alignSelf = "";
+    cut.forEach(function (x) { x.hidden = true; });
+    if (more) more.hidden = moreHidden;
+    return h;
+  }
+  function subRows(px) { return Math.max(1, Math.ceil((px + GAP) / (SUB_ROW + GAP))); }
+
+  /** The shown places, in half rows: sized to content, moved up into what was given back. */
+  function settled(spots) {
+    var sized = spots.map(function (spot) {
+      var el = boxEls[spot.id];
+      var area = spot.h * SUB;
+      var h = area;
+      if (el && el.isConnected && el.firstChild) {
+        var want = subRows(naturalHeight(el));
+        // A list longer than its box shows the rows that fit and "+N more", and hugs those;
+        // anything else hugs all of its content.
+        h = BOXES[spot.id].list && want > area ? Math.min(area, subRows(shownHeight(el))) : want;
+      }
+      return { id: spot.id, x: spot.x, w: spot.w, y: spot.y * SUB, h: h };
+    }).sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    var out = [];
+    function hits(b, y) { return out.some(function (o) { return overlaps(o, b.x, y, b.w, b.h); }); }
+    sized.forEach(function (b) {
+      var y = b.y;
+      while (hits(b, y)) y++;
+      while (y > 0 && !hits(b, y - 1)) y--;
+      out.push({ id: b.id, x: b.x, y: y, w: b.w, h: b.h });
+    });
+    even(out);
+    return out;
+  }
   /**
-   * Boxes side by side end on one line: the boxes whose rows overlap form a band, and the
-   * lowest box in each column of a band reaches down to the band's bottom. So a row never
-   * ends ragged, whatever a list gave back or a headline grew.
+   * Boxes side by side end on one line when they nearly do: in a band of boxes whose rows
+   * overlap, the lowest box of each column reaches the band's bottom if that is at most one
+   * half row further down. A bigger difference stays a difference, never an empty block.
    */
-  function flush(spots) {
+  function even(spots) {
     var sorted = spots.slice().sort(function (a, b) { return a.y - b.y; });
     var bands = [];
     sorted.forEach(function (b) {
@@ -2718,10 +2775,37 @@
     bands.forEach(function (band) {
       band.boxes.forEach(function (b) {
         var below = band.boxes.some(function (o) { return o !== b && o.y >= b.y + b.h && o.x < b.x + b.w && b.x < o.x + o.w; });
-        if (!below) b.h = band.bottom - b.y;
+        if (!below && band.bottom - (b.y + b.h) <= 1) b.h = band.bottom - b.y;
       });
     });
   }
+  /** Shows the boxes at their settled places; whole rows again while the page is arranged. */
+  function settleGrid() {
+    var grid = $("grid");
+    if (!grid || grid.hidden || state.editing || phone() || drag) return;
+    var spots = settled(placed());
+    var rib = $("ribbon");
+    var under = null;
+    var band = byId(spots, "headline");
+    if (band && rib.parentNode === grid && !rib.hidden) {
+      var rows = subRows(rib.offsetHeight);
+      under = { cut: band.y + band.h, rows: rows };
+      rib.style.gridRow = under.cut + 1 + " / span " + rows;
+    }
+    grid.style.setProperty("--row", SUB_ROW + "px");
+    spots.forEach(function (spot) {
+      var el = boxEls[spot.id];
+      if (!el) return;
+      var row = spot.y + 1 + (under && spot.y >= under.cut ? under.rows : 0) + " / span " + spot.h;
+      if (el.style.gridRow !== row) el.style.gridRow = row;
+    });
+  }
+  var settleSoon = 0;
+  function settleLater() {
+    if (settleSoon) return;
+    settleSoon = requestAnimationFrame(function () { settleSoon = 0; settleGrid(); });
+  }
+
   /** On a phone the boxes stand in the order the person gave them there, else top to bottom. */
   function phoneOrder(spots) {
     var at = {};
@@ -2953,6 +3037,7 @@
     Array.prototype.slice.call(grid.children).forEach(function (el) {
       if (el.hasAttribute("data-box") && !keep[el.getAttribute("data-box")]) grid.removeChild(el);
     });
+    settleGrid();
     return spots;
   }
 
@@ -2987,6 +3072,7 @@
     var spots = placeBoxes();
     $("grid-empty").hidden = spots.length > 0;
     spots.forEach(function (spot) { drawBox(boxEl(spot.id)); });
+    settleGrid();
     countUp();
   }
 
@@ -3060,9 +3146,11 @@
       var entry = entryOf(id);
       // A box with rows to spare stands as tall as what is in it and gives the rest back, so
       // the boxes under it move up. While arranging it keeps the size it was given.
-      var fit = entry && id !== "headline" && !state.editing && grow && grow < entry.h ? grow : 0;
+      // Giving rows back is the settling's: it sizes every box to its content in half rows.
+      var fit = 0;
       grow = entry && grow > entry.h ? grow : 0;
       if ((state.need[id] || 0) !== grow || (state.fit[id] || 0) !== fit) { state.need[id] = grow; state.fit[id] = fit; placeBoxes(); }
+      else settleLater();
       return;
     }
     if (!body || !more) return;
@@ -3107,13 +3195,13 @@
     // A list with rows to spare stands as tall as its rows, opened or not, and gives the
     // rest back so the boxes under it move up: no empty white under a short list.
     var own = entryOf(id);
-    var fit = !shrinks || cut ? 0 : open ? need : Math.ceil((el.offsetHeight + GAP) / (ROW + GAP));
+    var fit = !shrinks || cut || !open ? 0 : need;
     if (!own || fit >= own.h) fit = 0;
     if ((state.need[id] || 0) !== need || (state.fit[id] || 0) !== fit) {
       state.need[id] = need;
       state.fit[id] = fit;
       placeBoxes();
-    }
+    } else settleLater();
   }
   // ── Editing the page ───────────────────────────────────────────────────
   // Edit layout turns on a bar above the grid; each box gets a remove button and stops
