@@ -6,34 +6,46 @@ provider: claude-code
 adapterType: claude_local
 ownerAgent: answer-keeper
 agentSlug: answer-keeper
-timeout: 600
+timeout: 900
 prompt: |-
-  Sweep today's Slack for answers worth keeping.
+  Sweep Slack for answers worth keeping, and keep them in the team's memory.
 
-  Your working directory is the cabinet root. Every sweep lives in `answers/`, one file per
-  run, named `<YYYY-MM-DD>T<HH-MM-SS>-answers.md`, the local time you ran and then that
-  exact postfix. The page reads the folder, sorts by the name and opens the newest, so a
-  name in any other shape is a sweep nobody will see. You only ever ADD a file: never
-  overwrite, rename or delete one already sitting there, including one from earlier today.
+  Your working directory is the cabinet root. You keep two kinds of file in `answers/`:
+  topic pages in `answers/topics/`, which you edit in place, and one sweep log per run in
+  `answers/` itself, named `<YYYY-MM-DD>T<HH-MM-SS>-sweep.md` with the local time you ran.
+  The Answer Book page reads both, so a name in any other shape is work nobody will see.
+  Sweep logs are add-only: never overwrite, rename or delete one already sitting there.
+  Topic pages are never renamed and never deleted, only edited.
 
-  1. Read your persona before anything else. It holds the frontmatter shape, the table
-     columns, the closed vocabularies and the tone. This prompt does not repeat them.
-  2. Read the newest file already in `answers/` and carry its rows forward. This file is
-     the whole book, not today's additions. A question that came up again gets its `Asked`
-     count raised; a row whose answer is now wrong is the only kind you drop.
-  3. With your Slack tools, read the channels you are allowed to read since the `generated`
-     time of the newest dated file, thread replies included, so a missed night is not lost.
-     If there is no dated file yet, read the last 7 days. Never read more than 7 days back.
-     Look for a question that got an answer somebody accepted. Read a private channel only
-     if the person added it on Cabinet's connect screen. Skip direct and group messages
+  1. Read your persona before anything else. It holds the topic page shape, the sweep log
+     shape, the closed vocabularies, how to match a question to an existing page, and the
+     tone. This prompt does not repeat them.
+  2. Find the newest dated sweep log in `answers/`. Ignore every file whose name starts
+     with `EXAMPLE-`, here and in `answers/topics/`: they are invented, so never match a
+     question to one, never count one, never copy from one.
+  3. With your Slack tools, read the channels you are allowed to read since the
+     `generated` time of the newest dated sweep log, thread replies included, so a missed
+     night is not lost. If there is no dated log yet, read the last 7 days. Never read more
+     than 7 days back. Start with search, and read a channel or a thread only when the
+     search left out something that matters: reading is slow. Read a private channel only
+     if the person added it on Cabinet's channel screen. Skip direct and group messages
      entirely.
-  4. This run is read only. Do not post, reply in a thread, react, or mark anything read,
-     however obvious the one-line answer looks.
-  5. If you have no Slack tool, or Slack is not connected, or the call fails, STOP HERE.
-     Write nothing. Leave `answers/` exactly as you found it, example and all. Report:
-     "Slack is not reachable. I would have read the last 24 hours of the channels you
-     allowed and kept the answers they settled." Then exit.
-  6. On the first run that does reach Slack, write your dated file and then delete
-     `answers/EXAMPLE-answers.md`. It is a demo, not a past sweep, and it must not sit in
-     the date list beside real ones. Do not merge with it, do not rename it, and never
-     write `EXAMPLE` into a name of your own.
+  4. If you have no Slack tool, or Slack is not connected, or the first call fails, STOP
+     HERE. Write nothing. Leave `answers/` exactly as you found it, examples and all.
+     Report: "Slack is not reachable. I would have read the channels you allowed since
+     the last sweep and kept the answers they settled." Then exit.
+  5. Look for a question that got an answer somebody accepted, a question that came back,
+     and an answer that changed. For each one, read the titles and `Also asked as` lists in
+     `answers/topics/` and find the page that already holds it, by meaning. Update that
+     page as your persona says. Make a new page only when none matches.
+  6. This run is read only in Slack. Do not post, reply in a thread, react, pin, or mark
+     anything read, however obvious the one-line answer looks.
+  7. Write this run's sweep log, one row per topic you touched. Write it even when you
+     touched nothing, with an empty table and a headline that says so: the next run reads
+     Slack from its `generated` time.
+  8. On the first run that does reach Slack, after the log is written, delete every file
+     whose name starts with `EXAMPLE-` in `answers/` and in `answers/topics/`. They are a
+     demo, not past sweeps and not things your team said. Never write `EXAMPLE` into a
+     name of your own.
+  9. Report in one or two lines: how many topics are new, asked again and updated, and the
+     lead if there is one.

@@ -1,0 +1,50 @@
+id: weekly-faq-canvas
+name: Weekly FAQ Canvas
+enabled: true
+schedule: 0 8 * * 1
+provider: claude-code
+adapterType: claude_local
+ownerAgent: answer-keeper
+agentSlug: answer-keeper
+timeout: 600
+prompt: |-
+  Refresh the team's FAQ canvas in Slack, if the team turned it on.
+
+  Your working directory is the cabinet root. The settings are in `faq-canvas.md`. The
+  answers are the topic pages in `answers/topics/`. You never post a message: the canvas
+  and one bookmark are the only things this run may make in Slack.
+
+  1. Read your persona before anything else. It holds the `faq-canvas.md` shape, what goes
+     in the canvas, and what you may and may not do. This prompt does not repeat them.
+  2. Read `faq-canvas.md`. If the file is missing or its `channel` line is empty, STOP
+     HERE. Change nothing. Report: "The FAQ canvas is off. Write a channel name in
+     faq-canvas.md to turn it on." Then exit.
+  3. With your Slack tools, list the channels you may use and find the one named in
+     `channel` (a leading `#` is fine). If you have no Slack tool, or Slack is not
+     connected, or the call fails, STOP HERE. Change nothing. Report: "Slack is not
+     reachable. I would have refreshed the Team FAQ canvas in #<channel>." Then exit.
+  4. If the channel is not in the list, or its level is read rather than write, STOP HERE.
+     Do not try the canvas tools to see what happens. Set only `status` in
+     `faq-canvas.md` to say why, such as `#team-questions is Read only`, and report in one
+     line that the person can set the channel to Write on Cabinet's channel screen. Then
+     exit.
+  5. Build the canvas content from `answers/topics/`, as your persona says: Settled topics
+     only, most asked first, at most 20, each with its thread link, and no topic from a
+     private channel unless it is this same channel. Skip every page whose name starts with
+     `EXAMPLE-`. If no topic qualifies, STOP HERE: change nothing in Slack, set `status`
+     to `no settled answers yet`, and report that in one line.
+  6. If `canvas` is set and `made-for` names this same channel, replace that canvas's
+     content with the new content. If Slack says the canvas no longer exists, treat it as
+     empty and go on to step 7. Any other refusal: STOP, set `status` to the reason in a
+     few words, and report it.
+  7. If `canvas` is empty, or `made-for` names another channel, create a new canvas titled
+     "Team FAQ" in this channel with the content. Write its id into `canvas` and the
+     channel into `made-for` straight away, so a failure later in this run never leads to
+     a second canvas next week. If Slack made it but could not share it with the channel,
+     say so in `status` and in your report. Then read the canvas's details for its
+     permalink, and add one bookmark titled "Team FAQ" at the top of the channel pointing
+     at it, unless the channel's bookmarks already have one pointing there. Only bookmark a
+     canvas you just made: if someone later removes the bookmark, leave it removed.
+  8. Write `link`, `updated` (the local time, `YYYY-MM-DD HH:MM`) and `status: ok` into
+     `faq-canvas.md`. Leave the person's text under the frontmatter exactly as it was.
+  9. Report in one line: how many answers are in the canvas and which channel it is in.
