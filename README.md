@@ -189,7 +189,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [vendor-renewal](./vendor-renewal) | Professional Services | 2 | 2 | 0 | Tracks every SaaS vendor renewal date, notice window, owner, and spend in one place — sends alerts before cancellation windows close and… |
 | [vendor-security-review](./vendor-security-review) | Professional Services | 2 | 3 | 0 | Assesses vendor risk through SOC2 reports, DPA status, sub-processor lists, and security questionnaires — producing a structured approval… |
 | [venture-capital](./venture-capital) | Professional Services | 6 | 7 | 0 | Run an early-stage venture firm from one knowledge base |
-| [video-library](./video-library) | Media | 1 | 0 | 0 | Save YouTube videos into your cabinet, then read, search and ask about them |
+| [video-library](./video-library) | Media | 1 | 0 | 0 | Save videos from YouTube, Instagram, TikTok, X, LinkedIn and Facebook into your cabinet, then read, search and ask about them |
 | [voice-of-customer](./voice-of-customer) | Software | 3 | 3 | 0 | Collects, clusters, and quantifies customer feedback across every channel — support, sales calls, reviews, and chat — turning raw signals… |
 | [wasabi-contents](./wasabi-contents) | Operations | 1 | 1 | 0 | What's actually in your Wasabi bucket, and what changed last |
 | [web-studio](./web-studio) | Software | 1 | 1 | 0 | Describe a website in plain words; a developer builds it in a folder, working and clickable, right here |

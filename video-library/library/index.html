@@ -2,11 +2,12 @@
 <!--
   Video Library: Your Video Library. The cabinet opens on this page.
 
-  For someone who wants to keep YouTube videos (a talk, a lesson, an interview, or one of their
-  own uploads) and know what is in them: paste a link, pick the video, the sound only or the
+  For someone who wants to keep videos from YouTube, Instagram, TikTok, X, LinkedIn or Facebook
+  (a talk, a lesson, an interview, a post, or one of their own uploads) and know what is in them: paste a link, pick the video, the sound only or the
   transcript only, and the cabinet's agent saves it and writes it up. Each saved video is a
   card: play it here, five lines on what it says, the key points with their times (a press
-  jumps the player there), the lines worth quoting, clip ideas, and the transcript.
+  jumps the player there), the lines worth quoting, clip ideas, and the transcript. The
+  Subjects box lists what the videos are about; a press narrows Your videos to one subject.
 
   The page is a grid of boxes, like YouTube Digest: each person moves, resizes, adds and
   removes them (mouse, finger or keyboard, with Undo), or asks the agent to suggest the boxes
@@ -21,16 +22,17 @@
   How it talks to Cabinet: window.cabinet v2 (ask, read and list files, this person's own
   layout). The page never saves a video itself: Save asks the agent in the chat, which checks
   the size and the free space first. A saved video or sound plays from the cabinet's own copy
-  (../videos/...), and from YouTube's privacy-enhanced player when there is no copy or the
-  copy cannot be reached (a sealed frame on Cloud has no login to send).
+  (../videos/...), and a YouTube video from YouTube's privacy-enhanced player when there is no
+  copy or the copy cannot be reached (a sealed frame on Cloud has no login to send). A video
+  from another site plays only from the cabinet's copy, and its card shows the post's text.
 
   The first save is told as it happens: the agent adds a line to reading.json (through
   first-read.mjs) at each step, and the things the person can do meanwhile (the gift, then a
   few offers). The page shows them as they come, from the moment Save is pressed. Every later
   save is told on its own card, as before.
 
-  One file on purpose: a sealed frame cannot load files next to it. Roboto from Google Fonts
-  with system fallbacks; icons are inline SVG.
+  One file on purpose: a sealed frame cannot load files next to it. It wears TikTok's look:
+  TikTok Sans (TikTok's own font) from Google Fonts with system fallbacks; icons are inline SVG.
 -->
 <html lang="en">
 <head>
@@ -39,48 +41,61 @@
 <title>Your Video Library</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=TikTok+Sans:wght@400..800&display=swap" rel="stylesheet" />
 <style>
-  /* Plain white sheets on YouTube's light grey under a headline band in YouTube's red, as in
-     YouTube Digest. Below the band red stays an accent: the box icons, the Save button, the
-     times you can press. Near-black is the Ask box and the players. */
+  /* A viewer may not ask or run: the buttons only an editor can use are not shown at all. */
+  html[data-role="viewer"] [data-viewer-off] { display: none !important; }
+  /* TikTok Digest's look, so the pages read as one family: TikTok's light web app, white
+     sheets on its pale grey in TikTok Sans, and the headline as TikTok's black band with the
+     count in plain white. TikTok red is the one strong button and marks the
+     times you can press; near-black stays behind the players. Each video wears its own
+     site's colour in the small pill on its card. */
   :root {
-    --canvas: #f2f2f2;
-    --page: #ffffff;
-    --panel: #f7f7f7;
-    --panel-2: #ececec;
-    --line: #ececec;
-    --line-2: #d9d9d9;
-    --ink: #0f0f0f;
-    --ink-2: #3d3d3d;
-    --ink-3: #606060;
+    --sans: "TikTok Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --canvas: #F1F1F2;
+    --page: #FFFFFF;
+    --panel: #F8F8F8;
+    --panel-2: #EBEBEC;
+    --line: #EBEBEC;
+    --line-2: #DCDCDE;
+    --ink: #161823;
+    --ink-2: #474953;
+    --ink-3: #66676E;
+    --faint: #B0B1B6;
 
-    --yt: #ff0000;
-    --brand: #cc0000;
-    --brand-2: #a80000;
-    --brand-tint: #fff1f1;
-    --brand-line: #ffd6d6;
-    --deep: #0f0f0f;
-    --deep-2: #272727;
-    --deep-line: #3f3f3f;
-    --deep-soft: #c8c8c8;
-    --red: #cc0000;
-    --red-ink: #b00000;
-    --red-tint: #fff1f1;
-    --blue-ink: #065fd4;
-    --green: #2b8a3e;
-    --green-ink: #1e6b31;
-    --green-tint: #ebf5ed;
-    --amber: #c27a00;
-    --amber-ink: #7a4b00;
-    --amber-tint: #fff6e3;
+    --tt-red: #fe2c55;
+    --tt-cyan: #25f4ee;
+    --brand: #FE2C55;
+    --brand-2: #E3214A;
+    --brand-ink: #C2123A;
+    --brand-3: #C8173F;
+    --brand-tint: #FFEEF2;
+    --brand-line: #FFD2DC;
+    --deep: #121212;
+    --deep-2: #2A2B33;
+    --deep-line: #2F3036;
+    --deep-soft: #D9D9DC;
+    --red: #E0244B;
+    --red-ink: #C2123A;
+    --red-tint: #FFEEF2;
+    --blue: #1E9FA8;
+    --blue-ink: #0B7C85;
+    --green: #12B5B0;
+    --green-ink: #007571;
+    --green-tint: #E5F8F7;
+    --amber: #F0A01F;
+    --amber-ink: #8A5A00;
+    --amber-tint: #FFF5E2;
 
-    --shadow-1: 0 1px 2px rgba(15, 15, 15, .05), 0 6px 18px -12px rgba(15, 15, 15, .16);
-    --shadow-2: 0 2px 4px rgba(15, 15, 15, .05), 0 16px 34px -18px rgba(15, 15, 15, .26);
-    --radius: 20px;
-    --font: "Roboto", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --shadow-1: 0 1px 2px rgba(22, 24, 35, .05), 0 10px 28px -14px rgba(22, 24, 35, .16);
+    --shadow-2: 0 2px 4px rgba(22, 24, 35, .06), 0 18px 38px -18px rgba(22, 24, 35, .28);
+    --hair: 0 0 0 1px rgba(22, 24, 35, .12), 0 1px 2px rgba(22, 24, 35, .06);
+    --hair-hover: 0 0 0 1px rgba(22, 24, 35, .22), 0 1px 3px rgba(22, 24, 35, .08);
+    --ring: 0 0 0 1px rgba(30, 159, 168, .7), 0 0 0 4px rgba(37, 244, 238, .22);
+    --radius: 16px;
+    --font: var(--sans);
   }
-  ::selection { background: color-mix(in srgb, var(--yt) 18%, transparent); }
+  ::selection { background: color-mix(in srgb, var(--blue) 24%, transparent); }
 
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -92,40 +107,37 @@
   button, input, select { font: inherit; color: inherit; }
   button { cursor: pointer; }
   a { color: var(--blue-ink); }
-  :focus-visible { outline: 3px solid color-mix(in srgb, var(--ink) 35%, transparent); outline-offset: 2px; border-radius: 10px; }
+  :focus-visible { outline: 2px solid rgba(30, 159, 168, .75); outline-offset: 2px; border-radius: 8px; }
   .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
   .num { font-variant-numeric: tabular-nums; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-
-  /* The play mark: YouTube's own logo (Simple Icons, CC0), small, the one solid red shape on
-     the page. Drawn in the background so the mark stays an empty span. */
-  .mark { width: 28px; height: 20px; display: inline-block; flex: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 3.5 24 17'%3E%3Cpath fill='%23ff0000' d='M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z'/%3E%3Cpath fill='%23fff' d='M9.545 15.568V8.432L15.818 12z'/%3E%3C/svg%3E") no-repeat center / contain; }
 
   /* ── Top bar: only when the headline box is not on the page ──────────── */
   .bar { background: var(--canvas); }
   .bar-in { max-width: 1280px; margin: 0 auto; padding: 16px 28px 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
   .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .brand h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+  .brand h1 { margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.02em; }
   .status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 
   .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 18px;
-    border-radius: 999px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink);
-    font-weight: 500; font-size: 15px; text-decoration: none; white-space: nowrap;
-    transition: background .15s ease, border-color .15s ease, transform .1s ease;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 16px;
+    border-radius: 8px; border: 0; background: var(--page); color: var(--ink); box-shadow: var(--hair);
+    font-weight: 500; font-size: 14.5px; text-decoration: none; white-space: nowrap;
+    transition: background .15s ease, box-shadow .15s ease, transform .1s ease;
   }
-  .btn:hover { background: var(--panel); border-color: #c4c4c4; }
+  .btn:focus-visible { outline: none; box-shadow: var(--ring); }
+  .btn:hover { background: var(--page); box-shadow: var(--hair-hover); }
   .btn:active { transform: translateY(1px); }
   .btn[disabled] { cursor: default; opacity: .6; transform: none; }
-  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
-  .btn.primary:hover { background: var(--brand-2); border-color: var(--brand-2); }
-  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .btn.dark:hover { background: var(--deep-2); }
-  .btn.small { min-height: 36px; padding: 6px 14px; font-size: 14px; }
+  .btn.primary { background: var(--brand-2); color: #fff; font-weight: 600; box-shadow: 0 1px 2px rgba(254, 44, 85, .25); }
+  .btn.primary:hover { background: var(--brand-3); box-shadow: 0 1px 3px rgba(254, 44, 85, .32); }
+  .btn.dark { background: var(--ink); color: #fff; box-shadow: 0 1px 2px rgba(22, 24, 35, .18); }
+  .btn.dark:hover { background: var(--deep-2); box-shadow: 0 1px 3px rgba(22, 24, 35, .24); }
+  .btn.small { min-height: 34px; padding: 5px 12px; font-size: 13.5px; border-radius: 8px; }
   .btn.small .icon { width: 17px; height: 17px; }
-  .btn.quiet { border-color: transparent; background: transparent; color: var(--ink-2); padding-inline: 10px; }
+  .btn.quiet { background: transparent; box-shadow: none; color: var(--ink-2); padding-inline: 10px; }
   .btn.quiet:hover { background: var(--panel-2); }
-  .status .btn { min-height: 40px; padding: 8px 14px; font-size: 14px; }
+  .status .btn { min-height: 34px; padding: 6px 12px; font-size: 13.5px; border-radius: 8px; }
 
   .wrap { max-width: 1280px; margin: 0 auto; padding: 16px 28px 40px; }
   .main { display: flex; flex-direction: column; gap: 18px; }
@@ -133,34 +145,34 @@
   /* ── Hero: only when the library could not be read ── */
   .hero:empty { display: none; }
 
-  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: 16px; background: var(--page); color: var(--ink); box-shadow: var(--shadow-1); border-left: 3px solid var(--red); }
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: 14px; background: var(--red-tint); color: var(--ink); }
   .notice .icon { color: var(--red-ink); margin-top: 2px; }
   .notice p { margin: 0; }
 
   #ribbon:empty { display: none; }
-  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 11px 16px; border-radius: 14px; background: var(--amber-tint); border: 1px solid #f1e0bd; }
+  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 16px; border-radius: 12px; background: var(--amber-tint); }
   .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
   .ribbon .icon { color: var(--amber-ink); }
-  .tag-example { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .tag-example { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 6px; background: var(--amber); color: #fff; font-size: 11px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; }
 
   /* ── Boxes with a list ───────────────────────────────────────────────── */
   /* Plain white sheets: no border, a soft shadow. A box title is an outline icon and bold words. */
   .lane { border-radius: var(--radius); background: var(--page); overflow: hidden; box-shadow: var(--shadow-1); }
   .lane-head { flex: none; display: flex; align-items: center; gap: 11px; margin: 0 20px; padding: 18px 0 10px; }
-  .lane-head .lane-icon { display: inline-grid; place-items: center; color: var(--brand); }
-  .lane-head .lane-icon .icon { width: 22px; height: 22px; stroke-width: 1.8; }
-  .lane-head h3 { margin: 0; flex: 1; min-width: 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
-  .lane-head .count { font-size: 17px; font-weight: 500; color: var(--ink-3); }
-  .lane-head .count.hot { color: var(--red-ink); font-weight: 700; }
+  .lane-head .lane-icon { display: inline-grid; place-items: center; color: var(--ink-3); }
+  .lane-head .lane-icon .icon { width: 19px; height: 19px; stroke-width: 1.8; }
+  .lane-head h3 { margin: 0; flex: 1; min-width: 0; font-size: 16.5px; font-weight: 650; letter-spacing: -.015em; }
+  .lane-head .count { font-size: 15px; font-weight: 500; color: var(--ink-3); }
+  .lane-head .count.hot { color: var(--red-ink); font-weight: 650; }
   .lane-head .count.zero { display: none; }
   .lane-head .total { color: var(--ink-3); font-size: 14px; font-weight: 500; white-space: nowrap; }
-  .lane-empty { padding: 14px 20px 18px; color: var(--ink-3); margin: 0; }
+  .lane-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 10px 28px 22px; color: var(--ink-3); font-size: 14.5px; text-align: center; text-wrap: balance; }
 
   .rows { list-style: none; margin: 0; padding: 0; }
   /* Short lists: key points, clip ideas and lines worth quoting, from every video. */
   .mini > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: baseline; margin: 0 20px; padding: 10px 0; border-top: 1px solid var(--line); }
   .mini .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
-  .mini .top b { font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
+  .mini .top b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
   .mini .top .where { color: var(--ink-3); font-size: 14px; overflow-wrap: anywhere; }
   .mini .t { grid-column: 1 / -1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
   .mini .t a { font-weight: 500; }
@@ -170,19 +182,19 @@
 
   /* ── Ask ─────────────────────────────────────────────────────────────── */
   /* Ask: the near-black box, the one dark sheet on the page. */
-  .ask { padding: 22px; border-radius: var(--radius); background: var(--deep); color: #fff; }
-  .ask h2 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
-  .ask-in > p { margin: 0 0 14px; color: var(--deep-soft); font-size: 15px; }
+  .ask { padding: 20px 22px; border-radius: var(--radius); background: var(--page); color: var(--ink); box-shadow: var(--shadow-1); }
+  .ask h2 { margin: 0 0 4px; font-size: 17px; font-weight: 650; letter-spacing: -.015em; }
+  .ask-in > p { margin: 0 0 14px; color: var(--ink-3); font-size: 15px; }
   .ask form { display: flex; gap: 10px; margin-top: 10px; }
-  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 999px; border: 1px solid var(--deep-line); background: var(--deep-2); color: #fff; padding: 10px 18px; font-size: 16px; }
-  .ask input::placeholder { color: #aaaaaa; }
-  .ask input:focus { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .2); }
-  .ask .btn.light { min-height: 50px; background: #fff; border-color: #fff; color: var(--ink); }
-  .ask .btn.light:hover { background: #e5e5e5; }
+  .ask input { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; min-height: 44px; border-radius: 10px; border: 0; background: var(--page); color: var(--ink); padding: 10px 14px; font: 400 15px/1.4 var(--sans); box-shadow: var(--hair); }
+  .ask input::placeholder { color: var(--ink-3); }
+  .ask input:focus { outline: none; box-shadow: var(--ring); }
+  .ask .btn.light { min-height: 44px; background: var(--ink); color: #fff; box-shadow: none; }
+  .ask .btn.light:hover { background: var(--deep-2); }
   .qs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .q { min-height: 38px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--deep-line); background: transparent; color: #f1f1f1; font-size: 14.5px; font-weight: 500; text-align: start; }
-  .q:hover { background: var(--deep-2); }
-  .ask .note { margin: 12px 0 0; font-size: 14px; color: var(--deep-soft); min-height: 1.5em; }
+  .q { min-height: 34px; padding: 6px 12px; border-radius: 999px; border: 0; background: var(--panel); color: var(--ink-2); font-size: 14px; font-weight: 500; text-align: start; }
+  .q:hover { background: var(--panel-2); color: var(--ink); }
+  .ask .note { margin: 12px 0 0; font-size: 13.5px; color: var(--ink-3); min-height: 1.5em; }
   .ask .cancel { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
   .box.ask { overflow: hidden; justify-content: flex-start; }
   .box.ask[data-level="S"] form { flex-direction: column; }
@@ -194,19 +206,11 @@
   .nudge-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
   .nudge-hide { margin-inline-start: auto; min-height: 36px; border: 0; background: transparent; color: var(--ink-3); font-size: 13.5px; font-weight: 500; padding: 6px 10px; border-radius: 999px; }
   .nudge-hide:hover { background: var(--panel-2); color: var(--ink); }
-  .box.ask .nudge { margin-top: 14px; border: 1px solid var(--deep-line); border-radius: 16px; background: transparent; }
-  .box.ask .nudge > .icon { color: var(--deep-soft); }
-  .box.ask .nudge p { color: #fff; }
-  .box.ask .nudge .btn:not(.primary) { background: transparent; border-color: #5a5a5a; color: #fff; }
-  .box.ask .nudge .btn:not(.primary):hover { background: var(--deep-2); }
-  .box.ask .nudge .btn.dark { background: #fff; border-color: #fff; color: var(--ink); }
-  .box.ask .nudge .btn.dark:hover { background: #e5e5e5; }
-  .box.ask .nudge-hide { color: var(--deep-soft); }
-  .box.ask .nudge-hide:hover { background: var(--deep-2); color: #fff; }
+  .box.ask .nudge { margin-top: 14px; border: 0; border-radius: 14px; background: var(--panel); }
 
   /* ── Ideas ───────────────────────────────────────────────────────────── */
-  .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--page); }
-  .idea h3 { margin: 0; font-size: 16.5px; font-weight: 700; line-height: 1.3; }
+  .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 16px; background: var(--page); box-shadow: var(--shadow-1); }
+  .idea h3 { margin: 0; font-size: 16.5px; font-weight: 650; line-height: 1.3; }
   .idea p { margin: 0; color: var(--ink-2); font-size: 15px; }
   .idea .go { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 4px; }
   .idea .go .btn { min-height: 42px; padding: 8px 14px; font-size: 14px; }
@@ -223,7 +227,7 @@
 
   /* One idea as its own box: its picture, today's line, and the presses. */
   .one-idea { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 10px; padding: 16px 20px; }
-  .one-idea h3 { margin: 0; font-size: 16.5px; font-weight: 700; line-height: 1.3; }
+  .one-idea h3 { margin: 0; font-size: 16.5px; font-weight: 650; line-height: 1.3; }
   .one-idea p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
   .one-idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
   .one-idea .art-img { aspect-ratio: auto; height: 96px; }
@@ -257,69 +261,66 @@
   .box-more { flex: none; display: flex; justify-content: center; width: 100%; padding: 10px 14px; border: 0; border-top: 1px solid var(--line); background: var(--page); color: var(--ink); font-weight: 500; font-size: 14px; }
   .box-more:hover { background: var(--panel); }
 
-  /* The headline: a band in YouTube red at the top of the page, as in YouTube Digest, with how
-     many videos are saved big in white, how long they run and the space they take under it.
-     Its buttons are light pills on the red. White text and every softer line on it keep at
-     least 4.5:1 on the lightest red. */
+  /* The headline: TikTok's black band at the top of the page, as on TikTok Digest, with how
+     many videos are saved in white, how long they run and the space they take under it. */
   .box.headline {
-    position: relative; overflow: hidden; justify-content: flex-start;
-    padding: 22px clamp(20px, 2.6vw, 34px) 26px; border-radius: 24px; color: #fff;
-    background: linear-gradient(180deg, var(--brand) 0%, #b20000 100%); box-shadow: var(--shadow-1);
+    --page: #121212; --panel: #232329; --panel-2: #2F3036; --line: #2F3036; --line-2: #45464D;
+    --ink: #FFFFFF; --ink-2: rgba(255, 255, 255, .82); --ink-3: rgba(255, 255, 255, .6); --faint: rgba(255, 255, 255, .38);
+    --red-ink: #FF6A86; --brand-ink: #FF6A86; --red-tint: rgba(254, 44, 85, .16); --brand-tint: rgba(254, 44, 85, .16); --brand-line: rgba(254, 44, 85, .4);
+    --green-ink: #25F4EE; --green-tint: rgba(37, 244, 238, .12); --amber-ink: #FFC35C; --amber-tint: rgba(240, 160, 31, .16);
+    --hair: 0 0 0 1px rgba(255, 255, 255, .16); --hair-hover: 0 0 0 1px rgba(255, 255, 255, .32);
+    position: relative; overflow: hidden; justify-content: center;
+    padding: 16px clamp(20px, 2.4vw, 30px) 18px; border-radius: var(--radius); color: var(--ink);
+    background: var(--page); box-shadow: var(--shadow-2);
   }
-  .box.headline :focus-visible { outline-color: #fff; }
-  /* On the red the play mark turns white, its triangle cut out in the band's red. */
-  .box.headline .mark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 3.5 24 17'%3E%3Cpath fill='%23fff' d='M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z'/%3E%3Cpath fill='%23cc0000' d='M9.545 15.568V8.432L15.818 12z'/%3E%3C/svg%3E"); }
-  .hl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 36px; align-items: end; min-height: 100%; }
+  .hl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 36px; align-items: end; align-content: start; }
   .hl-text { min-width: 0; align-self: start; }
   .hl-top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
-  .hl-name { display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: 15px; font-weight: 700; }
-  .hello { margin: 0 0 6px; font-size: 15px; color: rgba(255, 255, 255, .88); }
-  .hello b { font-weight: 700; color: #fff; }
-  .box.headline h2 { margin: 0; font-size: clamp(38px, 4.8vw, 64px); line-height: 1.02; font-weight: 700; letter-spacing: -.03em; text-wrap: balance; }
-  .box.headline .lead { margin: 12px 0 0; font-size: 17px; color: rgba(255, 255, 255, .9); max-width: 64ch; }
-  .box.headline .lead b { color: #fff; font-weight: 700; }
-  .box.headline .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 10px 0 0; font-size: 14px; color: rgba(255, 255, 255, .88); }
+  .hl-name { display: inline-flex; align-items: center; gap: 9px; margin: 0; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+  .hello { margin: 0 0 2px; font-size: 14px; color: var(--ink-3); }
+  .hello b { font-weight: 600; color: var(--ink-2); }
+  .box.headline h2 { margin: 0; font-size: clamp(30px, 3.4vw, 44px); line-height: 1.08; font-weight: 800; letter-spacing: -.02em; text-wrap: balance; text-align: left; }
+  .box.headline .lead { margin: 6px 0 0; font-size: 15.5px; line-height: 1.45; color: var(--ink-2); max-width: 64ch; }
+  .box.headline .lead b { color: var(--ink); font-weight: 600; }
+  .box.headline .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 6px 0 0; font-size: 13.5px; color: var(--ink-3); }
   /* The dot ends a part rather than starting the next, so a wrapped line never starts with one. */
-  .box.headline .meta > span:not(:last-child)::after { content: "·"; margin: 0 8px; color: rgba(255, 255, 255, .5); }
-  .box.headline .fine { margin: 6px 0 0; font-size: 14px; color: rgba(255, 255, 255, .88); }
-  .box.headline[data-level="S"] h2 { font-size: 28px; }
+  .box.headline .meta > span:not(:last-child)::after { content: "·"; margin: 0 8px; color: var(--faint); }
+  .box.headline .fine { margin: 6px 0 0; font-size: 13.5px; color: var(--ink-3); }
+  .box.headline[data-level="S"] h2 { font-size: 24px; }
   /* The example ribbon right under the band, in the grid. */
   .grid > #ribbon { align-self: center; }
   .hl-status { flex: none; justify-content: flex-end; gap: 6px 10px; }
-  /* The page's buttons, light pills on the red. */
-  .box.headline .hl-status .btn { border-color: transparent; background-color: rgba(255, 255, 255, .9); color: var(--ink); font-weight: 600; }
-  .box.headline .hl-status .btn:hover:not([disabled]) { background-color: #fff; border-color: transparent; }
   .box.headline[data-level="S"] .hl, .box.headline[data-level="M"] .hl { grid-template-columns: minmax(0, 1fr); }
 
   /* Small: one number and one line under it. */
   .sum { display: flex; flex-direction: column; gap: 2px; padding: 4px 20px 14px; }
-  .sum .value { font-size: 32px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .sum .value { font-size: 32px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; }
   .sum .value.none { color: var(--ink-3); }
   .sum .sub { color: var(--ink-3); font-size: 14px; }
-  .sum .sub .hot { color: var(--red-ink); font-weight: 700; }
+  .sum .sub .hot { color: var(--red-ink); font-weight: 650; }
   .sum .line { margin-top: 6px; color: var(--ink-2); font-size: 15px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   /* The numbers you can add: one big figure each. */
   .kpi { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 14px 20px; color: inherit; text-decoration: none; }
   .kpi .label { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 14px; font-weight: 500; }
   .kpi .label .icon { width: 17px; height: 17px; }
-  .kpi .value { font-size: 32px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .kpi .value { font-size: 32px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; }
   .kpi .value.hot { color: var(--red-ink); }
   .kpi .sub { color: var(--ink-3); font-size: 14px; }
 
   /* Editing the page. */
   /* A small toolbar while editing: just the four buttons. */
-  .editbar { position: sticky; top: 8px; z-index: 20; align-self: flex-end; display: flex; padding: 5px; border-radius: 999px; background: var(--brand-tint); border: 1px solid var(--brand-line); box-shadow: var(--shadow-2); }
+  .editbar { position: sticky; top: 8px; z-index: 20; align-self: flex-end; display: flex; padding: 5px; border-radius: 14px; background: var(--page); box-shadow: var(--hair), var(--shadow-2); }
   .editbar-actions { display: flex; flex-wrap: wrap; gap: 4px; }
   .editbar .btn { min-height: 36px; padding: 6px 14px; font-size: 13.5px; gap: 6px; }
   .editbar .btn .icon { width: 17px; height: 17px; }
   .editbar .btn.quiet { color: var(--ink-2); }
 
   /* The Layout button's two ways: by hand, or by asking the agent. */
-  .menu { position: fixed; z-index: 40; width: min(300px, calc(100vw - 32px)); padding: 6px; display: grid; gap: 2px; background: var(--page); border: 1px solid var(--line-2); border-radius: 16px; box-shadow: var(--shadow-2); }
+  .menu { position: fixed; z-index: 40; width: min(300px, calc(100vw - 32px)); padding: 6px; display: grid; gap: 2px; background: var(--page); border-radius: 14px; box-shadow: var(--hair), var(--shadow-2); }
   .menu button { display: grid; grid-template-columns: 20px 1fr; gap: 2px 10px; align-items: center; padding: 10px 12px; border: 0; border-radius: 12px; background: none; color: var(--ink); font: inherit; text-align: start; cursor: pointer; }
   .menu button:hover, .menu button:focus-visible { background: var(--panel); outline: none; }
   .menu .icon { width: 18px; height: 18px; color: var(--brand); }
-  .menu b { font-size: 14.5px; font-weight: 700; }
+  .menu b { font-size: 14.5px; font-weight: 650; }
   .menu span { grid-column: 2; color: var(--ink-3); font-size: 13.5px; }
 
   /* What the agent suggests for the page, with Apply and No thanks. */
@@ -329,7 +330,7 @@
   .suggest .why { display: block; margin-top: 2px; color: var(--ink-3); font-size: 14px; }
   .suggest-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
-  .grid.editing .box { position: relative; overflow: visible; outline: 2px dashed var(--line-2); outline-offset: 5px; border-radius: 20px; }
+  .grid.editing .box { cursor: grab; user-select: none; }
   .grid.editing .box > :not(.box-x):not(.box-resize):not(.box-size) { pointer-events: none; user-select: none; }
   .grid .box { -webkit-touch-callout: none; }
   .grid.editing .box { cursor: grab; user-select: none; }
@@ -345,13 +346,13 @@
   .grid.stack.editing { gap: 36px; padding-top: 8px; }
   .grid.stack.arranging .box:not(.lifted) { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
   .drop-spot { z-index: 1; border: 2px dashed var(--ink-3); border-radius: 20px; background: color-mix(in srgb, var(--ink) 5%, transparent); pointer-events: none; }
-  .size-tag { z-index: 31; place-self: center; padding: 8px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-2); }
+  .size-tag { z-index: 31; place-self: center; padding: 8px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 650; font-size: 14px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-2); }
   .size-tag:empty { display: none; }
   .box-resize { position: absolute; inset-inline-end: -11px; bottom: -11px; z-index: 3; width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid var(--ink-2); border-radius: 50%; background: var(--page); box-shadow: var(--shadow-1); cursor: nwse-resize; touch-action: none; transition: transform .15s ease; }
   .box-resize::after { content: ""; width: 8px; height: 8px; margin: 0 2px 2px 0; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); }
   .box-resize:hover { transform: scale(1.12); }
   .box-size { position: absolute; top: -16px; inset-inline-start: 12px; z-index: 3; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--ink); box-shadow: var(--shadow-2); }
-  .box-size button { min-height: 30px; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: #c8c8c8; font-size: 13px; font-weight: 700; }
+  .box-size button { min-height: 30px; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: #c8c8c8; font-size: 13px; font-weight: 650; }
   .box-size button[aria-pressed="true"] { background: #fff; color: var(--ink); }
   .box-x { position: absolute; top: -14px; inset-inline-end: -14px; z-index: 3; width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid var(--page); border-radius: 50%; background: var(--ink); color: #fff; box-shadow: var(--shadow-2); transition: transform .15s ease, background .15s ease; }
   .box-x:hover { background: var(--red); transform: scale(1.1); }
@@ -363,13 +364,13 @@
   .grid-empty p { margin: 0; }
 
   /* The Add a box panel. */
-  .pick-group h3 { margin: 6px 4px 8px; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
-  .pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); }
+  .pick-group h3 { margin: 6px 4px 8px; font-size: 12.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 8px; border-radius: 14px; background: var(--page); box-shadow: var(--shadow-1); }
   .pick.on { background: var(--panel); }
   .pick-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-tint); color: var(--brand); }
   .pick-ic.pic { width: 64px; height: 36px; overflow: hidden; padding: 0; }
   .pick-ic.pic img { width: 100%; height: 100%; object-fit: cover; object-position: 75% center; }
-  .pick b { display: block; font-size: 15px; font-weight: 700; }
+  .pick b { display: block; font-size: 15px; font-weight: 650; }
   .pick span { display: block; color: var(--ink-3); font-size: 14px; }
   .pick em { display: block; margin-top: 2px; font-style: normal; font-size: 13px; font-weight: 500; color: var(--green-ink); }
   .pick em.wait { color: var(--ink-3); }
@@ -383,7 +384,7 @@
   .drawer.open .drawer-panel { transform: none; }
   .drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 16px; border-bottom: 1px solid var(--line); }
   .drawer-head .lane-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-tint); color: var(--brand); flex: none; }
-  .drawer-head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  .drawer-head h2 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: -.02em; }
   .drawer-head p { margin: 2px 0 0; color: var(--ink-3); font-size: 14.5px; }
   .drawer-close { margin-inline-start: auto; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2); }
   .drawer-close:hover { background: var(--panel); }
@@ -392,31 +393,31 @@
   /* On a phone the boxes stack in their order and grow to fit. */
   .grid.stack { display: flex; flex-direction: column; gap: 14px; }
   .grid.stack .box { flex: none; }
-  /* A list box is as tall as its rows, up to the size its layout gives it: no empty white
-     under a short list, and its foot sits right under the rows. */
-  .grid:not(.editing):not(.stack) > .box.lane:not(.nbox):not(.idea1) { align-self: start; max-height: 100%; }
+  /* Every box fills the cells its layout gives it; the settling sizes those cells to what is
+     in each box, so boxes side by side share one top edge and no box shows an empty block. */
 
   /* ── Save a video ────────────────────────────────────────────────────── */
-  /* The link, how to keep it, and Save: the one red button on the page. */
+  /* The link, how to keep it, and Save: the one dark button on the page. */
   .box.save { justify-content: flex-start; overflow: hidden; border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
   .save-in { display: grid; gap: 10px; padding: 18px 20px 16px; }
   .save-head { display: flex; align-items: center; gap: 11px; }
-  .save-head .lane-icon { display: inline-grid; place-items: center; color: var(--brand); }
-  .save-head .lane-icon .icon { width: 22px; height: 22px; stroke-width: 1.8; }
-  .save-head h2 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+  .save-head .lane-icon { display: inline-grid; place-items: center; color: var(--ink-3); }
+  .save-head .lane-icon .icon { width: 19px; height: 19px; stroke-width: 1.8; }
+  .save-head h2 { margin: 0; font-size: 16.5px; font-weight: 650; letter-spacing: -.015em; }
   .save-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "link opts go"; gap: 10px; align-items: center; }
-  .save-form input { grid-area: link; min-width: 0; min-height: 48px; padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--panel); font-size: 16px; }
+  .save-form input { grid-area: link; -webkit-appearance: none; appearance: none; min-width: 0; min-height: 44px; padding: 10px 14px; border: 0; border-radius: 10px; background: var(--page); color: var(--ink); font: 400 15px/1.4 var(--sans); box-shadow: var(--hair); }
   .save-form input::placeholder { color: var(--ink-3); }
-  .save-form input:focus { outline: none; border-color: var(--ink-3); background: var(--page); box-shadow: 0 0 0 3px rgba(15, 15, 15, .08); }
+  .save-form input:focus { outline: none; box-shadow: var(--ring); }
   .save-form .opts { grid-area: opts; }
-  .save-form .btn { grid-area: go; min-height: 48px; }
+  .save-form .btn { grid-area: go; min-height: 44px; }
   .box.save[data-level="M"] .save-form { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "link go" "opts opts"; }
   .box.save[data-level="S"] .save-form { grid-template-columns: minmax(0, 1fr); grid-template-areas: "link" "opts" "go"; }
   .opts { display: inline-flex; flex-wrap: wrap; padding: 3px; gap: 2px; border-radius: 999px; background: var(--panel-2); justify-self: start; }
-  .opts button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2); font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .opts button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 12px; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2); font-size: 13.5px; font-weight: 500; white-space: nowrap; }
   .opts button .icon { width: 16px; height: 16px; }
-  .opts button[aria-pressed="true"] { background: var(--page); color: var(--ink); font-weight: 700; box-shadow: 0 1px 2px rgba(15, 15, 15, .12); }
+  .opts button[aria-pressed="true"] { background: var(--page); color: var(--ink); font-weight: 650; box-shadow: 0 1px 2px rgba(15, 15, 15, .12); }
   .save-fine { margin: 0; color: var(--ink-3); font-size: 13.5px; }
+  .howto p:not(.save-fine) { margin: 0; color: var(--ink-2); font-size: 14.5px; }
   .save-note { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 500; color: var(--ink); }
   .save-note .icon { width: 17px; height: 17px; color: var(--green); }
   .save-note.bad { color: var(--red-ink); }
@@ -434,37 +435,43 @@
   .pl-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .pl-play { position: absolute; left: 50%; top: 50%; width: 62px; height: 42px; transform: translate(-50%, -50%); display: grid; place-items: center; border-radius: 12px; background: rgba(15, 15, 15, .78); transition: background .15s ease; }
   .pl-play svg { width: 20px; height: 20px; fill: #fff; }
-  .pl-thumb:hover .pl-play, .pl-thumb:focus-visible .pl-play { background: var(--yt); }
+  .pl-thumb:hover .pl-play, .pl-thumb:focus-visible .pl-play { background: var(--brand); }
   .pl-audio { background: var(--deep); }
   .pl-audio img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .55; }
   .pl-audio audio { position: absolute; left: 10px; right: 10px; bottom: 10px; width: calc(100% - 20px); height: 40px; }
   .pl-audio .pl-label { position: absolute; left: 14px; top: 12px; }
   /* A made-up or not yet saved video: a plain poster, its title on a dark sheet. */
   .pl-poster { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 14px 16px; color: #fff; text-align: start; background: linear-gradient(140deg, var(--poster, #3d3d3d), #0f0f0f 72%); }
-  .pl-poster b { font-size: 15.5px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+  .pl-poster b { font-size: 15.5px; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
   .pl-poster span { font-size: 13px; color: #c8c8c8; }
-  .pl-label { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: rgba(15, 15, 15, .7); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .pl-label { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: rgba(15, 15, 15, .7); color: #fff; font-size: 12px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
   .pl-label .icon { width: 14px; height: 14px; }
   .pl-poster .pl-label { position: absolute; left: 12px; top: 12px; }
   .vc-body { min-width: 0; }
-  .vc-title { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+  .vc-title { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.015em; line-height: 1.3; overflow-wrap: anywhere; }
   .vc-meta { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 2px 0; font-size: 14px; color: var(--ink-3); }
   .vc-meta > span:not(:last-child)::after { content: "·"; margin: 0 7px; color: var(--line-2); }
   .vc-one { margin: 8px 0 0; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
-  .vc-state { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  /* Where a video came from, first in the line under its title: a small pill in the site's own colour with its mark. */
+  .vc-site { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 6px; border-radius: 999px; background: var(--site); color: #fff; font-size: 12.5px; font-weight: 600; }
+  .vc-site .icon { width: 13px; height: 13px; stroke-width: 2.2; }
+  /* The words posted with a video on Instagram, LinkedIn and the rest: two lines here, all of them under the card. */
+  .vc-post { margin: 8px 0 0; color: var(--ink-2); font-size: 14.5px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .post-text { margin: 0; color: var(--ink); font-size: 15px; white-space: pre-line; overflow-wrap: anywhere; }
+  .vc-state { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
   .vc-state .icon { width: 15px; height: 15px; }
   .vc-state.bad { color: var(--red-ink); }
   .vc-why { margin: 6px 0 0; color: var(--ink-2); font-size: 14.5px; }
   .pts { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 5px; }
   .pts li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 14.5px; color: var(--ink-2); overflow-wrap: anywhere; }
   /* A time you can press: it jumps the player there. */
-  .ts { min-height: 26px; padding: 2px 9px; border: 0; border-radius: 999px; background: var(--brand-tint); color: var(--brand); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ts { min-height: 26px; padding: 2px 9px; border: 0; border-radius: 999px; background: var(--brand-tint); color: var(--brand-ink); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .ts:hover { background: var(--brand-line); }
   .vc-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .vc-more { grid-column: 1 / -1; display: grid; gap: 16px; padding: 16px 18px; border-radius: 14px; background: var(--panel); }
   .box[data-level="L"] .vc-more { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .box[data-level="L"] .vc-more .wide { grid-column: 1 / -1; }
-  .vc-more h4 { margin: 0 0 8px; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .vc-more h4 { margin: 0 0 8px; font-size: 12.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
   .five { margin: 0; padding-inline-start: 20px; display: grid; gap: 4px; color: var(--ink); font-size: 15px; }
   .quotes-list { display: grid; gap: 10px; }
   .quote { margin: 0; padding: 2px 0 2px 12px; border-inline-start: 2px solid var(--brand-line); color: var(--ink); font-size: 15px; overflow-wrap: anywhere; }
@@ -479,24 +486,31 @@
   .mini .qt { display: block; color: var(--ink); font-size: 15px; }
 
   /* Ask about one video or all of them. */
-  .ask-about { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; color: var(--deep-soft); font-size: 14px; }
-  .ask-about select { max-width: 100%; min-height: 38px; padding: 6px 30px 6px 14px; border-radius: 999px; border: 1px solid var(--deep-line); background: var(--deep-2); color: #fff; font-size: 14px; }
+  .ask-about { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; color: var(--ink-3); font-size: 14px; }
+  .ask-about select {
+    -webkit-appearance: none; appearance: none; border: 0; margin: 0; height: 34px; padding: 0 34px 0 12px; border-radius: 8px; cursor: pointer; max-width: 100%;
+    font: 500 14px/34px var(--sans); color: var(--ink);
+    background: var(--page) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2373747B' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center;
+    box-shadow: var(--hair); transition: box-shadow .15s ease;
+  }
+  .ask-about select:hover { box-shadow: var(--hair-hover); }
+  .ask-about select:focus-visible { outline: none; box-shadow: var(--ring); }
 
   /* The free space, small, under the headline. */
   .disk { display: inline-flex; align-items: center; gap: 6px; }
   .disk .icon { width: 16px; height: 16px; }
 
   /* ── The first save, told as it happens: one line for each step ── */
-  .reading { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; padding: 28px clamp(20px, 3vw, 36px); border-radius: 24px; background: var(--page); box-shadow: var(--shadow-1); }
-  .reading h2 { margin: 0; font-size: clamp(28px, 3vw, 38px); line-height: 1.1; font-weight: 700; letter-spacing: -.02em; }
+  .reading { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; padding: 28px clamp(20px, 3vw, 36px); border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
+  .reading h2 { margin: 0; font-size: clamp(24px, 2.6vw, 32px); line-height: 1.15; font-weight: 650; letter-spacing: -.025em; }
   .reading > p { margin: 0 0 12px; color: var(--ink-3); font-size: 15.5px; }
   .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
   .read-lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 16.5px; color: var(--ink-2); overflow-wrap: anywhere; animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; }
-  .read-lines li b { color: var(--ink); font-weight: 700; }
+  .read-lines li b { color: var(--ink); font-weight: 650; }
   .read-lines li .icon { width: 20px; height: 20px; margin-top: 2px; color: var(--green); stroke-width: 2.2; }
   .read-lines li.old { animation: none; }
   .read-lines li.now { color: var(--ink-3); }
-  .pulse-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--yt); animation: read-pulse 1.2s ease-in-out infinite; }
+  .pulse-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--brand); animation: read-pulse 1.2s ease-in-out infinite; }
   .read-lines li .pulse-dot { margin: 7px 0 0 5px; }
   .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 14px; }
   @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
@@ -512,22 +526,22 @@
 
   /* While I save it, you can...: the gift first, then a few more things to do now. */
   .side-list { display: grid; align-content: start; gap: 14px; }
-  .side-title { margin: 0; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .side-title { margin: 0; font-size: 12.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
   .offers { list-style: none; margin: 0; padding: 0 20px; border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
   .offer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); }
   .offer:first-child { border-top: 0; }
   .offer.arrive { animation: rise .5s cubic-bezier(.2, .8, .2, 1) both; }
-  .offer div > b { display: block; font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
-  .offer span.sub { display: block; color: var(--ink-3); font-size: 14px; overflow-wrap: anywhere; }
+  .offer div > b { display: block; font-size: 15.5px; font-weight: 650; overflow-wrap: anywhere; }
+  .offer span.sub { display: block; color: var(--ink-3); font-size: 14px; }
   .offer .asked { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: var(--green-ink); white-space: nowrap; }
   .offer .asked .icon { width: 17px; height: 17px; color: var(--green); }
 
   /* The gift: one thing the person can do now, ready while the video saves. */
-  .gift { display: grid; align-content: center; gap: 14px; padding: 30px clamp(22px, 3vw, 40px); border-radius: 24px; background: var(--page); box-shadow: var(--shadow-2); }
-  .gift .eyebrow { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); }
+  .gift { display: grid; align-content: center; gap: 14px; padding: 30px clamp(22px, 3vw, 40px); border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-2); }
+  .gift .eyebrow { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--brand-ink); }
   .gift .eyebrow .icon { width: 17px; height: 17px; }
-  .gift h3 { margin: 0; max-width: 30ch; font-size: clamp(22px, 2.4vw, 30px); line-height: 1.2; font-weight: 500; letter-spacing: -.015em; overflow-wrap: anywhere; }
-  .gift h3 b { font-weight: 700; }
+  .gift h3 { margin: 0; max-width: 30ch; font-size: clamp(22px, 2.4vw, 30px); line-height: 1.2; font-weight: 500; letter-spacing: -.015em; }
+  .gift h3 b { font-weight: 650; }
   .gift .why { margin: 0; color: var(--ink-2); font-size: 16px; max-width: 56ch; }
   .gift .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .gift .asked { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: 500; color: var(--green-ink); }
@@ -550,7 +564,7 @@
     .wrap { padding: 12px 16px 32px; }
     .main { gap: 14px; }
     .box.headline { padding: 16px 18px 18px; }
-    .box.headline h2 { font-size: 36px; }
+    .box.headline h2 { font-size: 28px; }
     .box.headline .lead { font-size: 16px; }
     .hl-top { align-items: flex-start; }
     .hl-status { flex: 1 1 100%; justify-content: flex-start; }
@@ -608,13 +622,19 @@
   <symbol id="i-disk" viewBox="0 0 24 24"><rect x="3" y="13" width="18" height="7" rx="2" /><path d="M5 13l2.5-8h9L19 13M7 16.5h.01" /></symbol>
   <symbol id="i-quote" viewBox="0 0 24 24"><path d="M9.5 7H5.5a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1H8v1.5A2.5 2.5 0 0 1 5.5 17M19.5 7h-4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1H18v1.5a2.5 2.5 0 0 1-2.5 2.5" /></symbol>
   <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="7" r="2.8" /><circle cx="6" cy="17" r="2.8" /><path d="M8.3 8.6L20 18M8.3 15.4L20 6" /></symbol>
+  <symbol id="s-youtube" viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="4" /><path d="M10 9.5v5l4.5-2.5z" /></symbol>
+  <symbol id="s-instagram" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><circle cx="12" cy="12" r="4" /><path d="M17 7h.01" /></symbol>
+  <symbol id="s-tiktok" viewBox="0 0 24 24"><path d="M13 4v11.5a3.5 3.5 0 1 1-3.5-3.5" /><path d="M13 4c.5 2.6 2.4 4.4 5 4.6" /></symbol>
+  <symbol id="s-x" viewBox="0 0 24 24"><path d="M5 4h4l10 16h-4z" /><path d="M19 4l-6.3 7.2M11.3 12.8L5 20" /></symbol>
+  <symbol id="s-linkedin" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3" /><path d="M8 10.5V16M8 7.5v.01M12 16v-5.5M12 13a2.5 2.5 0 0 1 5 0v3" /></symbol>
+  <symbol id="s-facebook" viewBox="0 0 24 24"><path d="M15 4h-2a3.5 3.5 0 0 0-3.5 3.5V21M7 11h7" /></symbol>
   <symbol id="i-save" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5" /><path d="M4.5 16.5v1.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-1.5" /></symbol>
 </svg>
 
 <header class="bar" id="topbar" hidden>
   <div class="bar-in">
     <div class="brand">
-      <span class="mark" aria-hidden="true"></span>
+      <svg class="icon" aria-hidden="true"><use href="#i-film" /></svg>
       <h1>Your Video Library</h1>
     </div>
     <div class="status" id="status" aria-live="polite"></div>
@@ -641,7 +661,7 @@
     </div>
     <footer class="foot">
       <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
-      <p>A video is saved only when you ask, one link at a time, and anything over about 500 MB waits for your yes. Saving someone else's video is for your own use: the video and its rights stay with the creator. Everything stays in this cabinet. No YouTube account or sign-in is used.</p>
+      <p>A video is saved only when you ask, one link at a time, and anything over about 500 MB waits for your yes. Saving someone else's video is for your own use: the video and its rights stay with the creator. Everything stays in this cabinet. Saving from a link uses no account or sign-in on any site. Bringing in your YouTube likes uses your YouTube connection and only reads it.</p>
     </footer>
   </main>
 </div>
@@ -689,6 +709,10 @@
     "What should I watch first?",
     "How much space do my videos take?"
   ];
+  /** TikTok gives Cabinet no list of favorites: the agent reads TikTok's own data export instead. */
+  var TIKTOK_ASK = "Bring in my TikTok favorites";
+  /** YouTube does give Cabinet the Liked videos list, once YouTube is connected. */
+  var YOUTUBE_ASK = "Bring in my YouTube likes";
 
   /** The three ways to keep a video, as the save tool names them. */
   var OPTIONS = [
@@ -736,6 +760,8 @@
     askNote: "",
     /** Which video the Ask box is about: a slug, or "" for all of them. */
     askAbout: "",
+    /** The subject Your videos shows, or "" for all of them. Kept in cabinet.mine. */
+    subject: "",
     saveOption: "video",
     saveNote: "",
     saveBad: false,
@@ -984,6 +1010,39 @@
     return id ? id[1] : null;
   }
   function isPlaylist(link) { return /^(?:https?:\/\/)?(?:www\.|m\.|music\.)?youtube\.com\/(playlist\?|@|channel\/|c\/)/i.test(text(link, 600)); }
+
+  /** The sites a video can be saved from, as the save tool reads them, each with the colour its card's pill wears (its mark is the s-<id> drawing). YouTube's player and pictures are for YouTube only. */
+  var SITES = [
+    { id: "youtube", name: "YouTube", color: "#cc0000", host: /^(?:www\.|m\.|music\.)?(?:youtube\.com|youtube-nocookie\.com|youtu\.be)$/i },
+    { id: "instagram", name: "Instagram", color: "linear-gradient(90deg, #c13584, #833ab4)", host: /^(?:www\.|m\.)?instagram\.com$/i },
+    { id: "tiktok", name: "TikTok", color: "#000", host: /^(?:www\.|m\.|vm\.|vt\.)?tiktok\.com$/i },
+    { id: "x", name: "X", color: "#000", host: /^(?:www\.|mobile\.|m\.)?(?:x|twitter)\.com$/i },
+    { id: "linkedin", name: "LinkedIn", color: "#0a66c2", host: /^(?:www\.)?linkedin\.com$/i },
+    { id: "facebook", name: "Facebook", color: "#0866ff", host: /^(?:(?:www\.|m\.|web\.)?facebook\.com|fb\.watch)$/i }
+  ];
+  var SITE_WORDS = "YouTube, Instagram, TikTok, X, LinkedIn or Facebook";
+  /** The host of a pasted link, "https://" added when it was left off; "" when it is no web link. */
+  function hostOf(link) {
+    var s = text(link, 600);
+    try { return new URL(/^[a-z]+:\/\//i.test(s) ? s : "https://" + s).hostname.toLowerCase(); } catch (e) { return ""; }
+  }
+  function siteOfLink(link) {
+    var host = hostOf(link);
+    for (var i = 0; i < SITES.length; i++) if (host && SITES[i].host.test(host)) return SITES[i];
+    return null;
+  }
+  /** Where a saved video came from: its source, else its link's site, else YouTube (the first site there was). */
+  function siteOf(v) {
+    for (var i = 0; i < SITES.length; i++) if (SITES[i].id === text(v.source)) return SITES[i];
+    return siteOfLink(v.link) || SITES[0];
+  }
+  /** The video's own page on its site, or "" when the link is not one on that site. */
+  function siteLink(v) {
+    var link = text(v.link, 400);
+    return /^https:\/\//i.test(link) && siteOfLink(link) === siteOf(v) ? link : "";
+  }
+  /** A pasted link without what follows a "?" or "#", to know one already saved. */
+  function bareLink(link) { return text(link, 600).replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/[?#].*$/, "").replace(/\/+$/, "").toLowerCase(); }
   function setSaveNote(words, bad) {
     state.saveNote = words;
     state.saveBad = !!bad;
@@ -995,25 +1054,30 @@
   }
   function save(link) {
     var s = text(link, 600);
-    if (!s) { setSaveNote("Paste a YouTube link first.", true); return; }
+    if (!s) { setSaveNote("Paste a video link first.", true); return; }
     var id = youTubeId(s);
-    if (!id && !isPlaylist(s)) { setSaveNote("That doesn't look like a YouTube link. Copy it from the address bar or YouTube's Share button.", true); return; }
+    var site = siteOfLink(s);
+    if (/(^|\.)(vimeo\.com|reddit\.com|redd\.it)$/.test(hostOf(s))) { setSaveNote("Vimeo and Reddit ask for a sign-in before a download, so Cabinet can't save from them. Links from " + SITE_WORDS + " work.", true); return; }
+    if (!id && !isPlaylist(s) && (!site || site.id === "youtube")) { setSaveNote("That doesn't look like a video link from " + SITE_WORDS + ". Copy it from the address bar or the Share button.", true); return; }
     if (!canAsk()) {
       setSaveNote(V2 ? "Only people who can ask in this cabinet can save a video." : "Open this cabinet in Cabinet to save a video.", true);
       return;
     }
     var opt = optionOf(state.saveOption) || OPTIONS[0];
-    var have = id && !state.example ? videos().filter(function (v) { return v.videoId === id && keptAs(v, opt.id) && v.status !== "failed"; })[0] : null;
+    var have = (id || site) && !state.example ? videos().filter(function (v) {
+      return (id ? v.videoId === id : bareLink(v.link) === bareLink(s)) && keptAs(v, opt.id) && v.status !== "failed";
+    })[0] : null;
     if (have) { setSaveNote("Already in your library: “\u2068" + text(have.title, 100) + "\u2069”.", false); return; }
-    var words = id
+    var one = id || (site && site.id !== "youtube");
+    var words = one
       ? "Save " + opt.ask + " of " + s + " to my library and sum it up."
       : "This link is a playlist or a channel: " + s + ". Which videos are in it? I may want to save " + opt.ask + " of some of them.";
     setSaveNote("Asking...", false);
     cab.ask(words, { agent: AGENT, send: true }).then(function () {
-      setSaveNote(id ? "Asked. The chat next to this page shows its size first, then it lands here." : "Asked. The answer is coming in the chat.", false);
+      setSaveNote(one ? "Asked. The chat next to this page shows its size first, then it lands here." : "Asked. The answer is coming in the chat.", false);
       if ($("save-input")) $("save-input").value = "";
       // The first save fills the page from this moment, before the agent's first line.
-      if (id && firstSave()) { state.saveAskedAt = Date.now(); paint(); }
+      if (one && firstSave()) { state.saveAskedAt = Date.now(); paint(); }
     }).catch(function (e) {
       setSaveNote(e && e.message ? e.message : "That did not go through. Try again.", true);
     });
@@ -1213,8 +1277,8 @@
   }, 2500);
 
   // ── Playing a video ────────────────────────────────────────────────────
-  // A card plays the cabinet's own copy when there is one (a video or the sound), and YouTube's
-  // privacy-enhanced player otherwise, or when the copy cannot be reached. The player is made
+  // A card plays the cabinet's own copy when there is one (a video or the sound), and for a
+  // YouTube video YouTube's privacy-enhanced player otherwise, or when the copy cannot be reached. The player is made
   // once per card and moved back into place whenever the box is drawn again, so a press
   // elsewhere on the page never stops it.
 
@@ -1406,9 +1470,30 @@
   /** The saved videos, newest first, each with a slug the page can use. */
   function videos() {
     return (state.data ? list(state.data.videos) : []).filter(function (v) { return /^[\p{L}\p{N}_.-]{1,120}$/u.test(text(v.slug)); })
-      .map(function (v) { v.slug = text(v.slug); return v; }).slice().sort(byNewest("savedAt"));
+      .map(function (v) {
+        v.slug = text(v.slug);
+        // An id is YouTube's only: anything else would ask YouTube for a picture and a player that are not there.
+        v.videoId = siteOf(v).id === "youtube" && /^[\w-]{11}$/.test(text(v.videoId)) ? text(v.videoId) : null;
+        return v;
+      }).slice().sort(byNewest("savedAt"));
   }
   function saved() { return videos().filter(function (v) { return v.status !== "saving" && v.status !== "failed"; }); }
+  /** A video's subjects as the agent wrote them, in small letters, each once. */
+  function subjectsOf(v) {
+    return (Array.isArray(v.subjects) ? v.subjects : []).map(function (s) { return text(s, 40).toLowerCase(); })
+      .filter(function (s, i, all) { return s && all.indexOf(s) === i; });
+  }
+  /** Every subject of the saved videos with how many have it, the most common first. */
+  function subjectCounts() {
+    var n = {};
+    saved().forEach(function (v) { subjectsOf(v).forEach(function (s) { n[s] = (n[s] || 0) + 1; }); });
+    return Object.keys(n).map(function (s) { return { name: s, n: n[s] }; }).sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+  }
+  /** The subject Your videos is narrowed to, while a saved video still has it. */
+  function subjectNow() {
+    var s = state.subject;
+    return s && saved().some(function (v) { return subjectsOf(v).indexOf(s) >= 0; }) ? s : "";
+  }
   function videoBySlug(slug) {
     var all = videos();
     for (var i = 0; i < all.length; i++) if (all[i].slug === slug) return all[i];
@@ -1474,7 +1559,7 @@
     // Under the band: the Example line, or, after the first save, the gift kept for a few days.
     if (!state.example) { el.innerHTML = giftKeepHtml(); return; }
     el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
-      "A made-up library. None of these videos were saved. Paste a YouTube link below and your own videos replace them.</p></div>";
+      "A made-up library. None of these videos were saved. Paste a video link below and your own videos replace them.</p></div>";
   }
 
   // ── The boxes ──────────────────────────────────────────────────────────
@@ -1514,7 +1599,7 @@
   }
   /** The headline: how many videos, how long they run, and the space they take. */
   function drawHeadline(level) {
-    var top = '<div class="hl-top"><p class="hl-name"><span class="mark" aria-hidden="true"></span>Your Video Library</p>' +
+    var top = '<div class="hl-top"><p class="hl-name">' + icon("i-film") + 'Your Video Library</p>' +
       '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>";
     var all = saved();
     var n = all.length;
@@ -1526,7 +1611,7 @@
     var lead = n
       ? "<b>" + esc(ex + lengthWords(secondsSaved()) + " to watch, " + (bytesWords(bytesUsed()) || "a few KB") + " in this cabinet.") + "</b>" +
         (newest ? ' <span dir="auto">The newest: ' + bidi(text(newest.title, 90)) + ".</span>" : "")
-      : "<b>Paste a YouTube link below to save your first video.</b> A talk, a lesson, or one of your own uploads.";
+      : "<b>Paste a video link below to save your first video.</b> A talk, a lesson, a post, or one of your own uploads.";
     if (busy) lead += " " + busy + " " + plural(busy, "video is", "videos are") + " being saved now.";
     var meta = [];
     var free = diskWords();
@@ -1546,21 +1631,22 @@
     var can = canAsk();
     var note = state.saveNote;
     return '<div class="save-in"><div class="save-head"><span class="lane-icon" aria-hidden="true">' + icon("i-save") + "</span>" +
-      '<h2 id="h-save">Save a YouTube video</h2></div>' +
-      '<form class="save-form" id="save-form" autocomplete="off"><label for="save-input" class="sr">YouTube link</label>' +
-      '<input id="save-input" name="link" type="url" inputmode="url" dir="ltr" maxlength="600" placeholder="Paste a YouTube link" />' +
+      '<h2 id="h-save">Save a video</h2></div>' +
+      '<form class="save-form" id="save-form" autocomplete="off"><label for="save-input" class="sr">Video link</label>' +
+      '<input id="save-input" name="link" type="url" inputmode="url" dir="ltr" maxlength="600" placeholder="Paste a video link" />' +
       '<span class="opts" role="group" aria-label="What to keep">' + OPTIONS.map(function (o) {
         return '<button type="button" data-act="save-option" data-option="' + o.id + '" aria-pressed="' + (state.saveOption === o.id) + '">' + icon(o.icon) + esc(o.label) + "</button>";
       }).join("") + "</span>" +
       '<button type="submit" class="btn primary"' + (can || !V2 ? "" : " disabled") + ">" + icon("i-save") + "Save</button></form>" +
       '<p class="save-note' + (state.saveBad ? " bad" : "") + '" id="save-note" aria-live="polite"' + (note ? "" : " hidden") + ">" + (note ? icon(state.saveBad ? "i-alert" : "i-check") + "<span>" + esc(note) + "</span>" : "") + "</p>" +
-      (level === "S" ? "" : '<p class="save-fine">Video plays here, sound only is much smaller, transcript is the words with their times. You see the size first, and anything over ' + BIG_MB + " MB waits for your yes. Someone else's video is for your own use; the rights stay with the creator.</p>") +
+      (level === "S" ? "" : '<p class="save-fine">Links from ' + esc(SITE_WORDS.replace(" or ", " and ")) + '. Video plays here, sound only is much smaller, transcript is the words with their times. You see the size first, and anything over ' + BIG_MB + " MB waits for your yes. Someone else's video is for your own use; the rights stay with the creator.</p>") +
       "</div>";
   }
 
   // Your videos: a card each, newest first.
   function metaHtml(v) {
-    var parts = [];
+    var site = siteOf(v);
+    var parts = ['<span><b class="vc-site" style="--site:' + site.color + '">' + icon("s-" + site.id) + esc(site.name) + "</b></span>"];
     if (text(v.channel)) parts.push("<span>" + bidi(text(v.channel, 80)) + "</span>");
     if (count(v.durationSec)) parts.push("<span>" + esc(timeWords(v.durationSec)) + "</span>");
     var o = optionOf(v.option);
@@ -1573,7 +1659,7 @@
     var open = !!state.open[v.slug];
     var points = times(v.keyPoints);
     var can = canAsk();
-    var link = /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(text(v.link)) && !state.example ? text(v.link, 400) : "";
+    var link = state.example ? "" : siteLink(v);
     var head = '<h4 class="vc-title" dir="auto">' + esc(text(v.title, 160) || "A video") + "</h4>" + metaHtml(v);
     if (v.status === "saving") {
       return head + '<p class="vc-state">' + icon("i-refresh", "spin") + "Saving and reading it</p>" +
@@ -1587,6 +1673,7 @@
     var shown = open ? points.slice(0, 8) : points.slice(0, 3);
     var sound = state.example ? "" : soundOf(v);
     return head + (text(v.oneLine) ? '<p class="vc-one" dir="auto">' + esc(text(v.oneLine, 240)) + "</p>" : "") +
+      (text(v.postText) && !open ? '<p class="vc-post" dir="auto">' + esc(text(v.postText, 400).replace(/\s+/g, " ")) + "</p>" : "") +
       (shown.length ? '<ul class="pts">' + shown.map(function (p) {
         return "<li>" + tsButton(v.slug, p.sec) + '<span dir="auto">' + esc(text(p.text, 200)) + "</span></li>";
       }).join("") + "</ul>" : "") +
@@ -1594,7 +1681,7 @@
       '<button type="button" class="btn small' + (open ? " dark" : "") + '" data-act="card" data-slug="' + esc(v.slug) + '" aria-expanded="' + open + '">' + icon("i-down") + (open ? "Show less" : "Summary, quotes and transcript") + "</button>" +
       (can ? '<button type="button" class="btn small" data-act="ask-video" data-slug="' + esc(v.slug) + '">' + icon("i-chat") + "Ask about it</button>" : "") +
       (sound ? '<a class="btn small quiet" href="' + esc(cabUrl(sound)) + '" target="_blank" rel="noopener noreferrer">' + icon("i-music") + "Sound only</a>" : "") +
-      (link ? '<a class="btn small quiet" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "YouTube</a>" : "") +
+      (link ? '<a class="btn small quiet" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + esc(siteOf(v).name) + "</a>" : "") +
       "</div>";
   }
   function cardMoreHtml(v) {
@@ -1603,6 +1690,7 @@
     var quotes = times(v.quotes);
     var clips = times(v.clips, "fromSec");
     var parts = [];
+    if (text(v.postText)) parts.push('<div class="wide"><h4>Post text</h4><p class="post-text" dir="auto">' + esc(text(v.postText, 3000)) + "</p></div>");
     if (five.length) parts.push('<div><h4>In five lines</h4><ul class="five">' + five.map(function (l) { return '<li dir="auto">' + esc(l) + "</li>"; }).join("") + "</ul></div>");
     if (quotes.length) parts.push('<div><h4>Worth quoting</h4><div class="quotes-list">' + quotes.map(function (q) {
       return '<p class="quote" dir="auto">“' + esc(text(q.text, 300)) + "”" + tsButton(v.slug, q.sec) + "</p>";
@@ -1642,15 +1730,42 @@
     fitBox(el);
   }
   function drawLibrary(level) {
-    var all = videos();
-    var n = saved().length;
+    var subject = subjectNow();
+    var about = function (v) { return !subject || subjectsOf(v).indexOf(subject) >= 0; };
+    var all = videos().filter(about);
+    var n = saved().filter(about).length;
     if (level === "S") {
       var top = all[0];
       return sumBox("library", "Your videos", "i-library", String(n), plural(n, "video", "videos") + " saved", top ? "<b>Newest:</b> " + bidi(text(top.title, 100)) : "");
     }
-    return listBox("library", "Your videos", "i-library", n ? lengthWords(secondsSaved()) + " in all" : "", all.length,
+    return listBox("library", "Your videos", "i-library", subject ? "About " + subject : n ? lengthWords(secondsSaved()) + " in all" : "", all.length,
       '<ul class="rows vcards">' + all.map(function (v) { return cardHtml(v, level); }).join("") + "</ul>",
-      "No videos yet. Paste a YouTube link above to save your first one.") + nudgeHtml(boxIdea("library"));
+      "No videos yet. Paste a video link above to save your first one.") + nudgeHtml(boxIdea("library"));
+  }
+
+  // Subjects: what the videos are about, each with how many. A press shows only those in Your videos.
+  var SUBJECTS_ASK = "Give subjects to the videos in my library that have none yet.";
+  function drawSubjects() {
+    var all = subjectCounts();
+    var now = subjectNow();
+    var bare = saved().filter(function (v) { return !subjectsOf(v).length; }).length;
+    var chip = function (name, n, label) {
+      return '<button type="button" class="btn small' + (now === name ? " dark" : "") + '" data-act="subject" data-subject="' + esc(name) + '" aria-pressed="' + (now === name) + '">' +
+        bidi(label) + ' <span class="num">' + n + "</span></button>";
+    };
+    return '<div class="save-in"><div class="save-head"><span class="lane-icon" aria-hidden="true">' + icon("i-list") + '</span><h2 id="h-subjects">Subjects</h2></div>' +
+      (all.length ? '<div class="qs">' + chip("", saved().length, "All videos") + all.map(function (s) { return chip(s.name, s.n, s.name); }).join("") + "</div>" : "") +
+      (bare ? '<p class="save-fine">' + bare + " " + plural(bare, "video has", "videos have") + " no subjects yet." +
+        (canAsk() ? ' <button type="button" class="btn small quiet" data-act="ask" data-all data-q="' + esc(SUBJECTS_ASK) + '">Give them subjects</button>' : "") + "</p>" : "") + "</div>";
+  }
+
+  // How to bring videos in: one by its link, all TikTok favorites from TikTok's data export, or all YouTube likes.
+  function drawHowto() {
+    return '<div class="save-in"><div class="save-head"><span class="lane-icon" aria-hidden="true">' + icon("i-help") + '</span><h2 id="h-howto">Bring videos in</h2></div>' +
+      "<p><b>One video:</b> copy its link (in TikTok or Instagram press Share, then Copy link; on YouTube copy the address) and paste it into Save a video above. It downloads, plays here and gets subjects.</p>" +
+      "<p><b>All your TikTok favorites at once:</b> TikTok gives apps no list of them, so ask TikTok for your data. In the TikTok app: Settings and privacy, Account, Download your data, choose JSON. When the file arrives (hours to days), put it in this cabinet's imports folder and ask <b>" + esc(TIKTOK_ASK) + "</b>.</p>" +
+      "<p><b>All your YouTube likes at once:</b> connect YouTube in Integrations, then ask <b>" + esc(YOUTUBE_ASK) + "</b>. YouTube does not share Watch later or History with any app.</p>" +
+      '<p class="save-fine">Someone else\'s video is for your own use; the rights stay with the creator.</p></div>';
   }
 
   /** Key points, clip ideas or quotes from every video, newest video first. */
@@ -1717,7 +1832,8 @@
     if (state.layoutAsk) return drawLayoutAsk(level);
     var featured = level === "S" ? null : askIdea();
     var note = state.askNote || askHint();
-    var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? 6 : 3);
+    var subject = subjectNow() || (subjectCounts()[0] || {}).name;
+    var qs = level === "S" ? [] : (subject ? ["Show me all my videos about " + subject] : []).concat(TIKTOK_ASK, YOUTUBE_ASK, QUESTIONS.slice(0, level === "L" ? 6 : 3));
     var all = saved();
     var about = all.length > 1 || (all.length && level !== "S")
       ? '<label class="ask-about"><span>About</span><select id="ask-about"><option value="">All my videos</option>' + all.map(function (v) {
@@ -1730,7 +1846,7 @@
       '<button type="submit" class="btn light">' + icon("i-send") + "Ask</button></form>" +
       (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
       (qs.length ? '<div class="qs">' + qs.map(function (q) {
-        return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+        return '<button type="button" class="q" data-act="ask"' + (QUESTIONS.indexOf(q) < 0 ? " data-all" : "") + ' data-q="' + esc(q) + '">' + esc(q) + "</button>";
       }).join("") + "</div>" : "") +
       (level !== "S" && note ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "") + "</div>";
   }
@@ -1890,9 +2006,11 @@
     if (!fit) return "";
     var idea = fit.idea;
     var can = canAsk();
+    // Save is the page's one red button; the idea of the day takes it only when Save is not on the page.
+    var red = lead && !onPage("save");
     return '<div class="nudge">' + icon("i-bulb") + '<p dir="auto">' + esc(lead || "") + fit.line + "</p>" +
       '<div class="nudge-actions">' +
-      '<button type="button" class="btn small ' + (lead ? "primary" : "dark") + '" data-act="idea-now" data-idea="' + idea.id + '"' + (fit.ask ? ' data-fit="1"' : "") + (can ? "" : " disabled") + ">" + esc(fit.act) + "</button>" +
+      '<button type="button" class="btn small ' + (red ? "primary" : "dark") + '" data-act="idea-now" data-idea="' + idea.id + '"' + (fit.ask ? ' data-fit="1"' : "") + (can ? "" : " disabled") + ">" + esc(fit.act) + "</button>" +
       '<button type="button" class="nudge-hide" data-act="idea-hide" data-idea="' + idea.id + '" aria-label="Hide this idea from the page">Hide</button>' +
       "</div></div>";
   }
@@ -1987,14 +2105,18 @@
   var GAP = 16;
   var PHONE_ROWS = 3;
   var LAYOUT_KEY = "video-library-layout@1";
+  var SUBJECT_KEY = "video-library-subject@1";
   var DEFAULT_LAYOUT = [
     { id: "headline", x: 0, y: 0, w: 12, h: 3 },
     { id: "save", x: 0, y: 3, w: 12, h: 2 },
-    { id: "library", x: 0, y: 5, w: 8, h: 14 },
-    { id: "clips", x: 8, y: 5, w: 4, h: 7 },
-    { id: "quotes", x: 8, y: 12, w: 4, h: 7 },
-    { id: "ask", x: 0, y: 19, w: 7, h: 5 },
-    { id: "ideas", x: 7, y: 19, w: 5, h: 5 }
+    { id: "subjects", x: 0, y: 5, w: 12, h: 2 },
+    { id: "howto", x: 0, y: 7, w: 12, h: 2 },
+    { id: "library", x: 0, y: 9, w: 8, h: 14 },
+    { id: "clips", x: 8, y: 9, w: 4, h: 7 },
+    { id: "quotes", x: 8, y: 16, w: 4, h: 7 },
+    // One split for every row (8 and 4), so the right column keeps one edge down the page.
+    { id: "ask", x: 0, y: 23, w: 8, h: 5 },
+    { id: "ideas", x: 8, y: 23, w: 4, h: 5 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -2005,7 +2127,12 @@
     headline: { cls: "headline", draw: drawHeadline, group: "library", icon: "i-library", w: 12, h: 3, min: [4, 2], grow: true,
       title: "Headline", desc: "How many videos you saved, how long they run, and the space they take." },
     save: { cls: "save", draw: drawSave, group: "library", icon: "i-save", w: 12, h: 2, min: [4, 2], grow: true,
-      title: "Save a video", desc: "Paste a YouTube link and keep the video, the sound only, or the transcript." },
+      title: "Save a video", desc: "Paste a link from YouTube, Instagram, TikTok and more, and keep the video, the sound only, or the transcript." },
+    subjects: { cls: "save subjects", draw: drawSubjects, group: "library", icon: "i-list", w: 12, h: 2, min: [3, 2], grow: true,
+      title: "Subjects", desc: "What your videos are about, with how many each. Press one to see only those videos.",
+      show: function () { return saved().length > 0; }, when: "It shows once a video is saved." },
+    howto: { cls: "save howto", draw: drawHowto, group: "library", icon: "i-help", w: 12, h: 2, min: [3, 2], grow: true,
+      title: "Bring videos in", desc: "How to save one video by its link, or all your TikTok favorites or YouTube likes at once." },
     library: { cls: "lane library", list: true, draw: drawLibrary, after: mountPlayers, group: "library", icon: "i-library", w: 8, h: 14, min: [4, 5],
       title: "Your videos", desc: "Each video you saved: play it, what it says, the key points with their times, the transcript." },
     points: { cls: "lane points", list: true, draw: drawPoints, group: "library", icon: "i-list", w: 4, h: 7, min: [3, 3],
@@ -2092,6 +2219,112 @@
       out.push({ id: b.id, x: b.x, y: y, w: b.w, h: h });
     });
     return out.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+  }
+  // ── Settling: each box as tall as what is in it ───────────────────────
+  // The layout is kept in whole rows (64px and a 16px gap), the size people move and resize
+  // by. Shown, the page uses half rows (24px and the same gap, two of them make one row): each
+  // box takes the half rows its content needs, up to the rows its layout gives a list, and the
+  // boxes under it move up. A box is never stretched to match a neighbour by more than one
+  // half row, so no box shows an empty block, and boxes side by side whose content is about
+  // as tall end on one line. While the page is arranged the whole rows show as they are.
+  var SUB = 2;
+  var SUB_ROW = (ROW - GAP) / SUB;
+
+  function spotOverlaps(o, x, y, w, h) { return x < o.x + o.w && o.x < x + w && y < o.y + o.h && o.y < y + h; }
+  /** How tall a box is as it shows now, sized by its content alone. */
+  function shownHeight(el) {
+    el.style.alignSelf = "start";
+    var h = el.offsetHeight;
+    el.style.alignSelf = "";
+    return h;
+  }
+  /** How tall a box is with nothing cut: its rows all shown, sized by its content alone. */
+  function uncutHeight(el) {
+    var cut = Array.prototype.filter.call(el.querySelectorAll(".rows > li[hidden], .box-body ~ .nudge[hidden]"), function () { return true; });
+    var more = el.querySelector(".box-more");
+    var moreHidden = more ? more.hidden : true;
+    cut.forEach(function (x) { x.hidden = false; });
+    if (more) more.hidden = true;
+    var h = shownHeight(el);
+    cut.forEach(function (x) { x.hidden = true; });
+    if (more) more.hidden = moreHidden;
+    return h;
+  }
+  function subRows(px) { return Math.max(1, Math.ceil((px + GAP) / (SUB_ROW + GAP))); }
+
+  /** The shown places, in half rows: sized to content, moved up into what was given back. */
+  function settled(spots) {
+    var sized = spots.map(function (spot) {
+      var el = boxEls[spot.id];
+      var area = spot.h * SUB;
+      var h = area;
+      if (el && el.isConnected && el.firstChild) {
+        var want = subRows(uncutHeight(el));
+        // A list longer than its box shows the rows that fit and "+N more", and hugs those;
+        // anything else hugs all of its content.
+        h = BOXES[spot.id].list && want > area ? Math.min(area, subRows(shownHeight(el))) : want;
+      }
+      return { id: spot.id, x: spot.x, w: spot.w, y: spot.y * SUB, h: h };
+    }).sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    var out = [];
+    function hits(b, y) { return out.some(function (o) { return spotOverlaps(o, b.x, y, b.w, b.h); }); }
+    sized.forEach(function (b) {
+      var y = b.y;
+      while (hits(b, y)) y++;
+      while (y > 0 && !hits(b, y - 1)) y--;
+      out.push({ id: b.id, x: b.x, y: y, w: b.w, h: b.h });
+    });
+    even(out);
+    return out;
+  }
+  /**
+   * Boxes side by side end on one line when they nearly do: in a band of boxes whose rows
+   * overlap, the lowest box of each column reaches the band's bottom if that is at most one
+   * half row further down. A bigger difference stays a difference, never an empty block.
+   */
+  function even(spots) {
+    var sorted = spots.slice().sort(function (a, b) { return a.y - b.y; });
+    var bands = [];
+    sorted.forEach(function (b) {
+      var band = bands.length ? bands[bands.length - 1] : null;
+      if (band && b.y < band.bottom) { band.boxes.push(b); band.bottom = Math.max(band.bottom, b.y + b.h); }
+      else bands.push({ boxes: [b], bottom: b.y + b.h });
+    });
+    bands.forEach(function (band) {
+      band.boxes.forEach(function (b) {
+        var below = band.boxes.some(function (o) { return o !== b && o.y >= b.y + b.h && o.x < b.x + b.w && b.x < o.x + o.w; });
+        if (!below && band.bottom - (b.y + b.h) <= 1) b.h = band.bottom - b.y;
+      });
+    });
+  }
+  /** Shows the boxes at their settled places; whole rows again while the page is arranged. */
+  function settleGrid() {
+    var grid = $("grid");
+    if (!grid || grid.hidden || state.editing || phone() || drag) return;
+    var spots = settled(placed());
+    var rib = $("ribbon");
+    var under = null;
+    var band = spots.filter(function (spot) { return spot.id === "headline"; })[0];
+    if (band && rib.parentNode === grid && !rib.hidden) {
+      // The first half row under the band that no box beside it runs across.
+      var cut = band.y + band.h;
+      while (spots.some(function (spot) { return spot.y < cut && spot.y + spot.h > cut; })) cut++;
+      var rows = subRows(rib.offsetHeight);
+      under = { cut: cut, rows: rows };
+      rib.style.gridRow = cut + 1 + " / span " + rows;
+    }
+    grid.style.setProperty("--row", SUB_ROW + "px");
+    spots.forEach(function (spot) {
+      var el = boxEls[spot.id];
+      if (!el) return;
+      var row = spot.y + 1 + (under && spot.y >= under.cut ? under.rows : 0) + " / span " + spot.h;
+      if (el.style.gridRow !== row) el.style.gridRow = row;
+    });
+  }
+  var settleSoon = 0;
+  function settleLater() {
+    if (settleSoon) return;
+    settleSoon = requestAnimationFrame(function () { settleSoon = 0; settleGrid(); });
   }
   /** On a phone the boxes stand in the order the person gave them there, else top to bottom. */
   function phoneOrder(spots) {
@@ -2223,6 +2456,8 @@
   function countUp() {
     var els = $("grid").querySelectorAll(".kpi .value.num, .sum .value.num");
     Array.prototype.forEach.call(els, function (el) {
+      // A number still counting shows a passing value, not its own: it is left to land on it.
+      if (el.hasAttribute("data-counting")) return;
       var box = el.closest(".box");
       var key = box.getAttribute("data-box");
       var m = /^(\D*?)(\d[\d,]*(?:\.\d+)?)(\D*)$/.exec(el.textContent);
@@ -2242,6 +2477,8 @@
       };
       from = from == null ? 0 : from;
       var done = false;
+      var land = function () { done = true; el.removeAttribute("data-counting"); };
+      el.setAttribute("data-counting", "");
       show(from);
       requestAnimationFrame(function tick(now) {
         if (done) return;
@@ -2249,10 +2486,10 @@
         var p = Math.min(1, (now - start) / 900);
         show(from + (target - from) * (1 - Math.pow(1 - p, 3)));
         if (p < 1 && el.isConnected) requestAnimationFrame(tick);
-        else done = true;
+        else land();
       });
       // A page that draws no frames (a hidden tab) still shows the real number, never a stale one.
-      setTimeout(function () { if (!done) { done = true; show(target); } }, 1000);
+      setTimeout(function () { if (!done) { land(); show(target); } }, 1000);
     });
   }
 
@@ -2324,6 +2561,7 @@
     Array.prototype.slice.call(grid.children).forEach(function (el) {
       if (el.hasAttribute("data-box") && !keep[el.getAttribute("data-box")]) grid.removeChild(el);
     });
+    settleGrid();
     return spots;
   }
 
@@ -2358,6 +2596,7 @@
     var spots = placeBoxes();
     $("grid-empty").hidden = spots.length > 0;
     spots.forEach(function (spot) { drawBox(boxEl(spot.id)); });
+    settleGrid();
     countUp();
   }
 
@@ -2396,7 +2635,7 @@
   }
 
   /**
-   * How tall a box's words are, its padding and the red band's included: from the top of the
+   * How tall a box's words are, its padding and the band's included: from the top of the
    * box to the lowest of the inner parts. The inner sheet itself fills the box, so its own
    * height would say nothing.
    */
@@ -2422,9 +2661,11 @@
       var entry = entryOf(id);
       grow = entry && grow > entry.h ? grow : 0;
       if ((state.need[id] || 0) !== grow) { state.need[id] = grow; placeBoxes(); }
+      else settleLater();
       return;
     }
-    if (!body || !more) return;
+    // A box with no list to cut (a number, a short view) is sized by the settling alone.
+    if (!body || !more) { settleLater(); return; }
     var rows = Array.prototype.slice.call(body.querySelectorAll(".rows > li"));
     var open = !!state.expanded[id] || !!body.querySelector(".vcard.open");
     var stack = phone();
@@ -2463,16 +2704,16 @@
       });
       need = Math.ceil((total + GAP) / (ROW + GAP));
     }
-    // A list with rows to spare stands as tall as its rows, opened or not, and gives the
-    // rest back so the boxes under it move up: no empty white under a short list.
+    // An opened list takes the rows it needs; giving rows back is the settling's, which sizes
+    // every box to its content in half rows.
     var own = entryOf(id);
-    var fit = !shrinks || cut ? 0 : open ? need : Math.ceil((el.offsetHeight + GAP) / (ROW + GAP));
+    var fit = !shrinks || cut || !open ? 0 : need;
     if (!own || fit >= own.h) fit = 0;
     if ((state.need[id] || 0) !== need || (state.fit[id] || 0) !== fit) {
       state.need[id] = need;
       state.fit[id] = fit;
       placeBoxes();
-    }
+    } else settleLater();
   }
   // ── Editing the page ───────────────────────────────────────────────────
   // Edit layout turns on a bar above the grid; each box gets a remove button and stops
@@ -3160,7 +3401,13 @@
       fitBox(boxEl(boxId));
       glide(shown);
     }
-    else if (act === "ask") ask(el.getAttribute("data-q"), state.askAbout);
+    // A question about the whole library (data-all) is never sent as about the one video picked.
+    else if (act === "ask") ask(el.getAttribute("data-q"), el.hasAttribute("data-all") ? "" : state.askAbout);
+    else if (act === "subject") {
+      state.subject = el.getAttribute("data-subject") || "";
+      if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(SUBJECT_KEY, state.subject).catch(function () {});
+      paint();
+    }
     else if (act === "save-option") {
       state.saveOption = optionOf(el.getAttribute("data-option")) ? el.getAttribute("data-option") : "video";
       Array.prototype.forEach.call(document.querySelectorAll('[data-act="save-option"]'), function (b) {
@@ -3325,7 +3572,7 @@
     if (PHONE.addEventListener) PHONE.addEventListener("change", onPhoneChange);
     else if (PHONE.addListener) PHONE.addListener(onPhoneChange);
   }
-  // Rows are measured to fit their boxes; the web font changes their height once it arrives.
+  // Rows are measured to fit their boxes; a font that loads late changes their height once it arrives.
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(function () {
       Object.keys(boxEls).forEach(function (id) { if (boxEls[id].isConnected) fitBox(boxEls[id]); });
@@ -3340,6 +3587,8 @@
       if (clean) state.layout = clean;
       var seen = mine ? mine.get(CHANGE_SEEN_KEY) : null;
       if (typeof seen === "string") state.changeSeen = seen;
+      var subject = mine ? mine.get(SUBJECT_KEY) : null;
+      if (typeof subject === "string") state.subject = subject;
       var hidden = mine ? mine.get(HIDDEN_IDEAS_KEY) : null;
       if (Array.isArray(hidden)) hidden.forEach(function (id) { if (ideaById(id)) state.hiddenIdeas[id] = true; });
       var giftSeen = mine ? mine.get(GIFT_KEY) : null;
@@ -3351,6 +3600,7 @@
     }).catch(function () {});
     Promise.resolve(cab.here()).then(function (here) {
       state.here = here || null;
+      document.documentElement.setAttribute("data-role", role());
       if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
     }).catch(function () {}).then(function () {
       load();

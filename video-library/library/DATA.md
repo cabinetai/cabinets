@@ -3,10 +3,11 @@ title: How Your Video Library gets its words
 ---
 # How Your Video Library gets its words
 
-The page never saves a video and never talks to YouTube for data. When the person presses
-**Save**, the page asks the Video Librarian in the chat. The agent looks the video up with
-`youtube_video_info` (size, length, captions, free space), asks before anything over about
-500 MB, saves it with `youtube_save_video`, reads the transcript, and writes the files below.
+The page never saves a video and never talks to YouTube or any other site for data. When the
+person presses **Save** with a link from YouTube, Instagram, TikTok, X, LinkedIn or Facebook,
+the page asks the Video Librarian in the chat. The agent looks the video up with `video_info`
+(size, length, captions, the post's text, free space), asks before anything over about
+500 MB, saves it with `save_video`, reads the transcript, and writes the files below.
 Nothing runs on a schedule. The full rules are in the agent's persona
 (`.agents/video-librarian/persona.md`).
 
@@ -17,16 +18,19 @@ Nothing runs on a schedule. The full rules are in the agent's persona
 | `library/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `video-library/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet (`cabinet.mine`). |
 | `library/reading.json` | The first save only, through `first-read.mjs` | `{ schema, startedAt, updatedAt, done, lines, gift, offers }`: each step of the first save, one line at a time, and the things to do meanwhile, while the person watches. Schema `video-library/reading@1`. |
 | `library/.work/` | The first save, through `first-read.mjs` | The agent's own files for the helper (`gift.json`, `offer.json`, `line.txt`). Deleted when the save is told. |
-| `videos/<slug>/` | `youtube_save_video` | The media file (`video` or `audio` only), `transcript.md` (a time every 5 to 10 seconds) and `index.md` (title, channel, link, length, upload day, description, size). |
+| `videos/<slug>/` | `save_video` | The media file (`video` or `audio` only), `transcript.md` (a time every 5 to 10 seconds, when the video has captions) and `index.md` (site, title, channel or who posted it, link, length, upload day, size, and the description or the post's text). |
 | `videos/<slug>/summary.md` | The agent | Five lines, key points with times, lines worth quoting, clip ideas. |
 | `videos/EXAMPLE-*/` | Nobody | The made-up videos' transcripts and summaries. No media. |
+| `imports/` | The person (TikTok's data export), the agent (`<YYYY-MM-DD>.md`) | "Bring in my TikTok favorites": the agent reads only the video links in the export's lists whose names have Favorite or Like, saves them one at a time after one yes, and notes what was saved and what failed. The export's exact JSON shape is not fixed, so it looks for objects with a `Link` or `link` under any such list. "Bring in my YouTube likes": with YouTube connected, the agent lists the Liked videos playlist (or one of the person's own playlists) through YouTube's read access, counts them, saves them the same way and writes the same note. YouTube does not share Watch later or History with any app. Nothing is uploaded or posted, and nothing on YouTube is liked or changed. |
 
 `data.json` in short: `updatedAt`, `disk` `{ freeBytes, at }` (the free space the agent last
 read; the page shows it small under the headline), and `videos`, newest first, each:
-`slug`, `title`, `channel`, `link`, `videoId`, `own`, `durationSec`, `uploaded`, `option`
+`slug`, `title`, `channel`, `link`, `source` (`youtube`, `instagram`, `tiktok`, `x`,
+`linkedin` or `facebook`), `videoId` (YouTube only), `postId` (any other site), `postText`
+(the post's text, other sites only), `own`, `durationSec`, `uploaded`, `option`
 (`video`, `audio` or `transcript`), `sizeBytes`, `savedAt`, `paths` `{ folder, media,
 audio, transcript, info, summary }` (cabinet-relative, always under `videos/`), `oneLine`,
-`summary` (five lines), `keyPoints` `[{ sec, text }]`, `quotes` `[{ sec, text }]`, `clips`
+`subjects` (two to four, small letters, "sourdough", "baking"), `summary` (five lines), `keyPoints` `[{ sec, text }]`, `quotes` `[{ sec, text }]`, `clips`
 `[{ fromSec, toSec, why }]`, and `status` (`saving`, `saved`, or `failed` with `why`).
 
 A video saved both ways keeps one entry: `option` is `video`, `paths.media` the video file,
@@ -35,17 +39,26 @@ card says "Video and sound only", plays the video and links to the sound file, a
 numbers count it as a video and as a sound only.
 
 How a card plays: the cabinet's own copy (`../videos/<slug>/<file>`, served with byte ranges)
-when `paths.media` is there, else YouTube's privacy-enhanced player
+when `paths.media` is there, else, for a YouTube video, YouTube's privacy-enhanced player
 (`youtube-nocookie.com/embed/<id>`) once the person presses play. A copy that cannot be
 reached (deleted, or a sealed frame on Cloud with no login to send) falls back to the
-YouTube player. A time anywhere on the page jumps the card's player there.
+YouTube player. A video from another site plays only from the cabinet's copy. Each card
+names its site, links to the post there, and shows the first two lines of `postText`, all
+of it when the card is open. A time anywhere on the page jumps the card's player there.
+
+The Subjects box lists every subject of the saved videos with how many videos have it, and
+"All videos" first. A press shows only that subject's videos in Your videos; the choice is
+each person's own (`cabinet.mine`, `video-library-subject@1`). Videos with no `subjects` get
+a "Give them subjects" button, which asks the agent in the chat. The Ask box offers "Show me
+all my videos about ..." with the chosen subject, or the most common one.
 
 The transcript under a card is read from `paths.transcript` when the person opens it. Any
 line that starts with a time (`**[1:23]**` as Cabinet writes it, or `[00:01:23]`, `1:23`, `**1:23**`, `(1:23)`) gets a button
 that jumps the player there.
 
 The page is a 12-column grid of boxes on YouTube's light grey under a red headline band,
-laid out like YouTube Digest: Headline, Save a video, Your videos, Clip ideas, Worth quoting,
+laid out like YouTube Digest: Headline, Save a video, Subjects, Bring videos in (how to save one
+link, all TikTok favorites from TikTok's data export, or all YouTube likes), Your videos, Clip ideas, Worth quoting,
 Ask about your videos and Ideas for your videos to start with, and more to add (Key points,
 three numbers, and each idea as its own box with its picture from `ideas/`). Ideas and
 Layout sit in the headline. The idea pictures are copies of existing template covers,
