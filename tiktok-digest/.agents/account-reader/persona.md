@@ -73,7 +73,7 @@ every run, even on a quiet day (an empty list is `[]`): each person picks their 
                "likes": 1904300, "videos": 214, "verified": false, "url": "<profile_deep_link>" },
   "totals": { "views": 61840, "likes": 4120, "comments": 386, "shares": 902, "followers": 412, "newVideos": 1 },
   "spans": { "last7": { ... }, "last28": { ... } },
-  "history": [ { "day": "2026-10-15", "followers": 48200, "likes": 1904300, "videos": 214 } ],
+  "history": [ { "day": "2026-10-15", "followers": 48200, "following": 312, "likes": 1904300, "videos": 214 } ],
   "videos": [ ... ], "next": [ ... ],
   "known": [ { "videoId": "<id>", "views": 128400, "likes": 9100, "comments": 412, "shares": 1830, "at": "<when read>" } ]
 }
@@ -92,8 +92,10 @@ every run, even on a quiet day (an empty list is `[]`): each person picks their 
   that happened in those days: TikTok has no daily numbers. When your pages end while
   videos were still inside the 28 days, add `"partial": true` to `last28`.
 - `history`: the last catch-up's `history` with today's entry added, one per day (a second
-  run today replaces today's), oldest first, at most 30. The page counts how followers and
-  likes changed over 7 and 28 days from it, so copy it forward faithfully.
+  run today replaces today's), oldest first, at most 30. Each entry is today's `followers`,
+  `following`, `likes` and `videos` from `account`. The page compares every account number
+  with the entry before today's, and draws followers and likes over 7 and 28 days from it, so
+  copy it forward faithfully (an older entry without `following` stays as it is).
 - `known`: the counts you read today for every video in `videos`, plus the last catch-up's
   entries for other videos, at most 50, so tomorrow can tell what changed.
 
@@ -185,7 +187,8 @@ page then stays on "Opening your account..." until the catch-up is done.
   it, one per command. A line with an apostrophe: write it to
   `your-tiktok/data/.work/line.txt` and `push @line.txt`.
 - `recent @recent.json` right after your first `video/list`: the four or five newest videos,
-  `[{"title":"Brown butter cookies","at":"<create_time as ISO>","views":128400,"link":"<share_url>"}]`.
+  `[{"title":"Brown butter cookies","at":"<create_time as ISO>","views":128400,"link":"<share_url>"}]`,
+  or `[]` when the account has no videos yet (still send it, so the page stops waiting for them).
 - `gift @gift.json` once, right after that: `{"kind":"best","video":"<title>","views":128400,"at":"<create_time as ISO>","link":"<share_url>"}`,
   the recent video with the most views per day since it was posted, or `{"kind":"calm"}`
   when the account has no videos yet.

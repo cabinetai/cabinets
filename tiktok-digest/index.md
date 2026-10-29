@@ -16,8 +16,9 @@ The cabinet opens on it: **Your TikTok**.
 
 - **How your videos did**: views, likes, comments and shares for each recent video, what
   changed since yesterday, which one moved most and which one was quietest.
-- **Account numbers**: your followers and likes, and what your videos from the last 7 and 28
-  days gathered between them.
+- **Your account**: followers, following, likes and videos, each with what it gained or lost
+  since the read before; followers and likes as lines over 7 and 28 days; and what your videos
+  from those days gathered between them.
 - **Ideas for your next videos**: three ideas a day, each one backed by a video that did well.
 - **Ask about your account**: what your best videos have in common, which day you do best,
   how this month compares with the last. The answer comes up in the chat.

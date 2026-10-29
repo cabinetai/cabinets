@@ -32,24 +32,28 @@ out on the first one; `followers` can be below 0), and:
 | Part | Box | What it holds |
 |---|---|---|
 | `videos` | How your videos did, Headline | The 10 newest: `id`, `videoId`, `title` (`""` when the video has none; the page names it by its day), `published`, `duration`, `views`, `likes`, `comments`, `shares`, `gained` `{ views, likes, comments, shares }`, `mark` best (moved most), quiet or empty, `gist`, `url` |
-| `spans` | Account numbers | `last7` and `last28`, each `{ from, videos, views, likes, comments, shares }`: the totals of the videos posted since `from`, with `partial: true` when the reads stopped before 28 days |
-| `history` | Account numbers, Followers | `{ day, followers, likes, videos }` for each morning read, oldest first, at most 30. The page counts how followers and likes moved over 7 or 28 days from it, or "since <day>" while the reads are newer than that |
+| `spans` | Your account | `last7` and `last28`, each `{ from, videos, views, likes, comments, shares }`: the totals of the videos posted since `from`, with `partial: true` when the reads stopped before 28 days |
+| `history` | Your account, Followers | `{ day, followers, following, likes, videos }` for each morning read, oldest first, at most 30. The page compares each account number with the read before today's (up, down or no change, with the percent), draws followers and likes as lines over 7 or 28 days, and says "First read" while there is only one |
 | `next` | Ideas for your next videos | `id`, `title`, `why`, `from` (the video it builds on) |
 
 `known` (each video's counts at the last catch-up) is for the routine; the page ignores it.
 A `url` on TikTok's own address (`https://www.tiktok.com/...`, or `vm.`/`vt.` short links)
 becomes an "Open on TikTok" link.
 
-The page is a 12-column grid of boxes on a light grey, laid out like the Gmail front desk:
-Headline, How your videos did, Ideas for your next videos, Ideas for your account, Keep your
-TikToks in Cabinet (the setup guide's four steps for saving videos in Video Library, by their
-heads, no data, with a Show me how button that opens them in full in a side panel), Account numbers
-and Ask about your account to start with, and more to add (four numbers: Views,
+The page is a 12-column grid of white boxes on Cabinet's parchment, in Cabinet's own sans:
+Headline, Your account (the dashboard: followers, following, likes and videos against the read
+before, each up, down or unchanged with its percent; followers and likes as lines over 7 or 28
+days; and what the videos posted in those days gathered, against the last read), How your
+videos did, Ideas for your next videos, Ideas for your account, Ask about your account and Keep
+your TikToks in Cabinet (the setup guide's four steps for saving videos in Video Library, by
+their heads, no data, with a Show me how button that opens them in full in a side panel) to
+start with, and more to add (four numbers: Views,
 Followers, Likes, Shares, and each idea as its own box with its picture). The
 connection, Catch up now, Ideas and Layout sit in the headline; without the headline they
 move to a slim bar on top. Each person moves, resizes, adds and removes them (mouse, finger
 or keyboard, with Undo), or asks the agent through Layout, which answers with
-`layout-change.json`. An idea offers itself at the foot of its box when the day's account
+`layout-change.json`. Boxes side by side always end on one line: the lowest box in each column
+of a row reaches down to the row's bottom. An idea offers itself at the foot of its box when the day's account
 says it would help.
 
 Before TikTok is connected, the band holds a setup guide under its Connect button: Connect
@@ -64,8 +68,8 @@ The page writes its own headline from `account`, `totals` and `videos`: the acco
 then "191,900 views and 16,452 likes since yesterday. Moved most: Sourdough starter in 5
 days, +142,300 views. You gained 1,240 followers.", or "A quiet day: nothing new on your
 videos since the last catch-up.", and a line of followers, likes, videos and the handle. On
-the right, the views of the last 10 videos, oldest first, the one that moved most in
-TikTok's cyan. Until the first catch-up the Example line sits right under the band.
+the right, the views of the last 10 videos, oldest first, the one that moved most in the
+accent. Until the first catch-up the Example line sits right under the band.
 
 Nothing on the page writes on TikTok, and Cabinet's TikTok cannot: it only reads. Every
 button asks the agent in the chat for a plan, a caption or a page in the cabinet.
