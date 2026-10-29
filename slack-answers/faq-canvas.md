@@ -17,6 +17,11 @@ It is off until you choose the channel.
 
 ## Turn it on
 
+The quickest way: press **Turn on the FAQ canvas** at the bottom of the Answer Book. The
+Answer Keeper helps you choose the channel in the chat and writes it here for you.
+
+Or by hand:
+
 1. Write the channel's name after `channel:` at the top of this page, for example
    `channel: team-questions`. The `#` is optional.
 2. On Cabinet's Slack channel screen, set that channel to **Write**. On **Read**, the

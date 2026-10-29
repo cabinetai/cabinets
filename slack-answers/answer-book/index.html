@@ -8,9 +8,19 @@
     ../faq-canvas.md               whether the weekly Slack canvas is on, and where
   Every topic page is opened (a few at a time) and searched here; the newest sweep log
   supplies the headline, the "worth pinning" mark and the "changed in the last sweep" filter.
-  Relative URLs on purpose: they resolve under /api/assets/<cabinet>/<app>/ at any depth
-  and survive the user renaming the cabinet at install time. The folder listing comes from
-  /api/tree because the assets route serves single files and cannot list a directory.
+  What each file holds and who writes it: DATA.md beside this page.
+
+  In a Cabinet with the app bridge (window.cabinet v2) every file is read through
+  cabinet.files, with paths relative to the cabinet root, and the page repaints when a
+  routine writes. That is the only way that works in a sealed frame (anyone but the owner
+  on Cloud). The bridge also gives the Slack connection, the two routines, the ask box,
+  Ideas, the next steps under each answer, and the person's own layout (cabinet.mine).
+  Nothing here posts to Slack: every change goes through cabinet.ask, to the Answer Keeper,
+  who asks the person before anything is posted.
+
+  Without v2 (an older Cabinet) the page reads the same files the old way: relative URLs,
+  which resolve under /api/assets/<cabinet>/<app>/ and survive the cabinet being renamed,
+  and /api/tree for the folder listing, because the assets route cannot list a directory.
 
   Zero external requests. System fonts, inline CSS, no libraries.
   Every failure path renders something honest instead of a blank page.
@@ -282,10 +292,134 @@
   input[type="search"]::placeholder { color: var(--faint); }
   select:focus-visible, input[type="search"]:focus-visible { outline: none;
     box-shadow: 0 0 0 1px rgba(91,143,214,.65), 0 0 0 4px rgba(91,143,214,.18); }
+
+  /* ---- what the app bridge adds: the bar, the notices, the asks, the menus ---- */
+  /* A viewer may not ask, run or connect: those buttons are not shown at all. */
+  html[data-role="viewer"] [data-viewer-off] { display: none !important; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+    border: 0; border-radius: 8px; cursor: pointer; white-space: nowrap;
+    font: 500 13px/1 var(--sans); color: var(--ink); background: #FFFFFF;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 1px 2px rgba(59,47,47,.06);
+    transition: box-shadow .15s ease, background-color .15s ease;
+  }
+  .btn:hover { box-shadow: 0 0 0 1px rgba(59,47,47,.18), 0 1px 3px rgba(59,47,47,.08); }
+  .btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .btn[disabled] { cursor: default; opacity: .65; }
+  .btn svg { width: 14px; height: 14px; flex: none; }
+  .btn.primary { background: var(--ink); color: #FFFFFF; box-shadow: none; }
+  .btn.primary:hover { background: #2A2121; }
+  .btn.small { height: 28px; padding: 0 10px; font-size: 13px; }
+  /* A link-like button for a quiet side action in a line of text. */
+  .btn.link { height: auto; padding: 0; background: transparent; box-shadow: none;
+    color: var(--blue-ink); font-size: inherit; }
+  .btn.link:hover { text-decoration: underline; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin, .live { animation: none !important; } }
+
+  /* The top bar: the Slack connection on the left, Ideas and Layout on the right. */
+  .topbar {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 10px 16px; margin: -16px 0 26px; min-height: 32px;
+  }
+  .conn { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+    font-size: 13px; color: var(--muted-ink); }
+  .pillc { display: inline-flex; align-items: center; gap: 7px; font-weight: 500; color: var(--ink); }
+  .pillc i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; }
+  .pillc.ok i { background: var(--green); }
+  .pillc.warn i { background: var(--orange); }
+  .pillc.busy i { background: var(--blue); }
+  .live { animation: breathe 1.6s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .35; } }
+  .menus { display: inline-flex; gap: 8px; }
+  .menus > div { position: relative; }
+  .pop {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: 340px;
+    max-width: calc(100vw - 28px); padding: 6px; background: #FFFFFF; border-radius: 12px;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.08), 0 14px 34px -10px rgba(59,47,47,.30);
+  }
+  .pop[hidden] { display: none; }
+  .pop h2 {
+    margin: 8px 10px 6px; font-size: 12px; font-weight: 600; color: var(--muted-ink);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .pop .item {
+    display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px;
+    background: transparent; cursor: pointer; text-align: left;
+    font: 500 14px/1.4 var(--sans); color: var(--ink);
+  }
+  .pop .item:hover { background: var(--tint); }
+  .pop .item:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+  .pop label.check {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
+    font: 400 14px/1.4 var(--sans); color: var(--ink); cursor: pointer;
+  }
+  .pop label.check:hover { background: var(--tint); }
+  .pop input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
+  .pop .fine { margin: 4px 10px 8px; font-size: 13px; color: var(--muted-ink); }
+  .pop .row-end { display: flex; justify-content: flex-end; padding: 6px 6px 4px;
+    border-top: 1px solid var(--line); margin-top: 4px; }
+
+  /* The one notice under the sentence: connect, reading, or a sweep that did not finish. */
+  .notice {
+    max-width: 680px; margin: 24px auto 0; padding: 18px 20px; background: var(--card);
+    border-radius: 14px; box-shadow: var(--hair); display: flex; gap: 14px; align-items: flex-start;
+  }
+  .notice > svg { width: 22px; height: 22px; flex: none; margin-top: 1px; color: var(--muted); }
+  .notice.alert > svg { color: var(--terracotta-ink); }
+  .notice h2 { margin: 0 0 4px; font-size: 16px; font-weight: 600; line-height: 1.35; }
+  .notice p { margin: 0; font-size: 14px; color: var(--muted-ink); }
+  .notice p + p { margin-top: 6px; }
+  .notice .do { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 14px; }
+  .notice.strip { padding: 12px 16px; align-items: center; }
+  .notice.strip p { color: var(--ink); }
+  .notice .dotl { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); flex: none; }
+
+  /* Next steps under an open answer: small and quiet, the answer stays the main thing. */
+  .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 14px;
+    border-top: 1px dashed var(--line); }
+
+  /* The ask box under the book. */
+  .askbox { max-width: 760px; margin: 32px auto 0; }
+  .askbox form { display: flex; gap: 8px; }
+  .askbox input {
+    flex: 1; min-width: 0; height: 46px; padding: 0 16px; border: 0; border-radius: 12px;
+    -webkit-appearance: none; appearance: none; font: 400 15px/1.4 var(--sans);
+    color: var(--ink); background: #FFFFFF;
+    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 1px 2px rgba(59,47,47,.06);
+  }
+  .askbox input::placeholder { color: var(--muted); }
+  .askbox input:focus-visible { outline: none;
+    box-shadow: 0 0 0 1px rgba(91,143,214,.65), 0 0 0 4px rgba(91,143,214,.18); }
+  .askbox .btn { height: 46px; padding: 0 18px; font-size: 14px; border-radius: 12px; }
+  .askbox .asknote { margin: 8px 4px 0; min-height: 1.4em; font-size: 13px; color: var(--muted-ink); }
+  /* Beside the rail on a wide window, the ask box lines up with the book above it. */
+  @media (min-width: 1100px) { body.railed .askbox { max-width: none; margin-right: 304px; } }
+  .history .btn.small { height: 26px; font-size: 12px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; z-index: 30; max-width: calc(100vw - 32px);
+    padding: 10px 16px; border-radius: 10px; background: var(--ink); color: #FFFFFF;
+    font-size: 14px; line-height: 1.4; opacity: 0; pointer-events: none;
+    transform: translate(-50%, 12px); transition: opacity .2s ease, transform .2s ease;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 560px) {
+    .topbar { margin: -8px 0 20px; }
+    .pop { position: fixed; left: 14px; right: 14px; top: 64px; width: auto; }
+    .notice { padding: 16px; }
+    .askbox .btn { padding: 0 14px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
+
+  <!-- The Slack connection, Ideas and Layout. Painted by the script. -->
+  <div class="topbar" id="bar"></div>
 
   <header class="hero">
     <h1>
@@ -298,19 +432,49 @@
     <p class="sub">Every question your team has already answered in Slack, kept as a page in your knowledge base so nobody has to ask it again.</p>
   </header>
 
+  <div id="notice"></div>
+
   <div id="root"><div class="card empty">Loading…</div></div>
 
+  <!-- Hidden until the bridge says this person may ask. -->
+  <section class="askbox" id="askbox" hidden data-viewer-off>
+    <form id="ask-form" autocomplete="off">
+      <label for="ask-input" class="sr">Ask the Answer Keeper</label>
+      <input id="ask-input" name="q" dir="auto" maxlength="1200" placeholder="Ask about your Slack..." />
+      <button type="submit" class="btn primary">Ask</button>
+    </form>
+    <p class="asknote" id="ask-note" aria-live="polite"></p>
+  </section>
+
+  <div id="facts"></div>
+
 </div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function () {
+  'use strict';
+
+  var cab = window.cabinet;
+  /* v2 is the app bridge with files, routines, connections and the chat. Without it the
+     page still shows the book, read the old way, and offers nothing it cannot do. */
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs && typeof cab.ask === 'function');
+  var MODE = V2 ? 'bridge' : 'legacy';
+
   var root = document.getElementById('root');
   var DIR = 'answers';
   var TOPICS = 'answers/topics';
-  var JOB = '.jobs/nightly-answer-sweep.yaml';
+  var JOB = '.jobs/nightly-answer-sweep.yaml';   /* read only without the bridge */
   var CANVAS = 'faq-canvas.md';
-  var POOL = 6;        /* topic pages fetched at once: enough to be quick, few enough to be polite */
-  var job = null;
+  var CONNECTOR = 'slack';
+  var SWEEP = 'nightly-answer-sweep';
+  var FAQ_JOB = 'weekly-faq-canvas';
+  var POOL = 6;        /* topic pages read at once: enough to be quick, few enough to be polite */
+  /* Just after Run now, Cabinet may still say "not running" before the run has started. */
+  var GRACE_MS = 45000;
+  var LAYOUT_KEY = 'answer-book.layout';
+
+  var job = null;      /* without the bridge: the sweep's enabled and schedule lines */
   var canvas = null;   /* faq-canvas.md's frontmatter, or null when the file is missing */
   var sweep = null;    /* the newest sweep log: { name, meta, changes: { slug: change } } */
   var book = [];
@@ -318,10 +482,74 @@
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
 
+  /* The same list as the prompts in this cabinet's .cabinet, so Ideas and Cabinet agree.
+     The canvas one sends the fuller request the canvas line sends, so both start the same
+     conversation. */
+  var IDEAS = [
+    'Which questions keep coming back in Slack?',
+    'Has anyone already answered this in Slack?',
+    'Which questions were asked but never answered?',
+    'Which answers changed this month?',
+    'What did the last sweep add to our team memory?',
+    'What should go in the team handbook first?',
+    'Which answers have not been confirmed in three months?',
+    'Turn on the weekly FAQ canvas in our questions channel'
+  ];
+  var FAQ_IDEA = 7;
+
+  /* The parts of the page a person may hide for themselves. The book itself always stays. */
+  var PARTS = [
+    ['headline', 'What the last sweep did, under the search'],
+    ['asked', 'Asked most'],
+    ['states', 'By state'],
+    ['pin', 'Worth pinning'],
+    ['steps', 'Next steps under each answer']
+  ];
+
+  var FAQ_ASK = 'Help me turn on the weekly Team FAQ canvas. List the Slack channels I ' +
+    'allowed, suggest the one where my team asks questions most, and let me choose. Check ' +
+    'that the channel I choose is set to Write, and if it is Read, tell me how to change ' +
+    'that. Then write the channel into faq-canvas.md. Do not make the canvas or post ' +
+    'anything in Slack from this chat: the weekly routine makes it.';
+
+  var S = {
+    loaded: false,
+    empty: false,      /* no topic page and no sweep log at all */
+    example: false,    /* only the EXAMPLE- files are there */
+    failed: 0,         /* topic pages that could not be read on the last load */
+    error: '',         /* the folder itself could not be read */
+    role: 'owner',
+    place: 'computer',
+    slack: null,       /* the slack entry of connectors.list(), once known */
+    jobs: [],
+    pressed: {},       /* job id -> { at, saw } after Run now */
+    notes: {},         /* job id -> a refusal to show beside it */
+    wasRunning: {},
+    connecting: false,
+    connectNote: '',
+    hide: {},          /* this person's hidden parts, from cabinet.mine */
+    menu: ''           /* 'ideas', 'layout' or '' */
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
   function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+  /* A refusal from Cabinet is plain words, safe to show as is. Never a stack or a code. */
+  function said(e, fallback) {
+    return e && typeof e.message === 'string' && e.message ? e.message : fallback;
+  }
+
+  var toastTimer = 0;
+  function toast(words) {
+    var el = $('toast');
+    el.textContent = words;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 3600);
   }
 
   /* ---- reading the files ------------------------------------------------------------ */
@@ -480,21 +708,28 @@
     return out + esc(text.slice(at));
   }
 
-  var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
-    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/>' +
-    '<path d="m20 20-3.5-3.5"/></svg>';
-  var ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
-    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/>' +
-    '<path d="M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2V17h14v-1.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/></svg>';
-  var ICON_OUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
-    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/>' +
-    '<path d="M8 7h9v9"/></svg>';
-  var ICON_BOOK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
-    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5a2.5 2.5 0 0 0 0 5H19"/>' +
-    '<path d="M9 8h6"/></svg>';
-  var ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
-    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/>' +
-    '<path d="M12 7v5l3 2"/></svg>';
+  function svg(paths, width) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' +
+      (width || 2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      paths + '</svg>';
+  }
+  var ICON_SEARCH = svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>');
+  var ICON_PIN = svg('<path d="M12 17v5"/><path d="M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 ' +
+    '5 15.2V17h14v-1.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V6h1a2 2 0 0 0 0-4H8a2 2 0 0 ' +
+    '0 0 4h1z"/>', 2.2);
+  var ICON_OUT = svg('<path d="M7 17 17 7"/><path d="M8 7h9v9"/>');
+  var ICON_BOOK = svg('<path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5a2.5 2.5 0 0 0 0 5H19"/>' +
+    '<path d="M9 8h6"/>', 1.6);
+  var ICON_CLOCK = svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
+  var ICON_PLUG = svg('<path d="M9 2v6M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/>' +
+    '<path d="M12 17v5"/>', 1.8);
+  var ICON_ALERT = svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16v.5"/>', 1.8);
+  var ICON_REFRESH = svg('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>');
+  var ICON_BULB = svg('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 ' +
+    '1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>', 1.8);
+  var ICON_LAYOUT = svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>', 1.8);
+  var ICON_HASH = svg('<path d="M5 9h14M5 15h14M10 3 8 21M16 3l-2 18"/>', 1.8);
+
   var STATES = [['', 'All'], ['settled', 'Settled'], ['shifting', 'Shifting'], ['open', 'Open']];
   var STATE_NOTE = {
     shifting: 'The answer has changed before, so it may change again.',
@@ -502,8 +737,9 @@
   };
   var SORTS = [['asked', 'Most asked'], ['confirmed', 'Recently confirmed'],
                ['first', 'Newest'], ['az', 'A to Z']];
-  var stateOn = '';    /* the pressed State chip, '' for All */
-  var recentOn = false; /* only what the newest sweep changed */
+  /* What the person chose in the book. Kept across a repaint, so a routine that finishes
+     while they read does not throw away their search or close the answer they opened. */
+  var view = { find: '', state: '', recent: false, sort: 'asked', open: {} };
   var pinAt = '';      /* the slug the sweep says to pin */
   var pinWhy = '';
 
@@ -579,44 +815,114 @@
     var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
     return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
   }
+  function iso(v) {
+    var d = typeof v === 'string' && v ? new Date(v) : null;
+    return d && !isNaN(d.getTime()) ? d : null;
+  }
+  /* When the newest real sweep log was written, or null while only the example is there. */
+  function sweptAt() {
+    if (!sweep || S.example || !stamp(sweep.name)) return null;
+    return moment(sweep.meta.generated) || stamp(sweep.name);
+  }
 
-  /* ---- drawing ---------------------------------------------------------------------- */
+  /* ---- who is looking, and what Cabinet says ----------------------------------------- */
 
-  function render(example, failed) {
+  function canAsk() { return V2 && S.role !== 'viewer'; }
+  function canRun() { return V2 && S.role !== 'viewer'; }
+  function canConnect() { return !!(V2 && S.slack && S.slack.canConnect); }
+  function slackState() { return S.slack ? S.slack.state : null; }
+  function problemText() {
+    return S.slack && S.slack.problem && typeof S.slack.problem.text === 'string'
+      ? S.slack.problem.text : '';
+  }
+  function jobOf(id) {
+    for (var i = 0; i < S.jobs.length; i++) if (S.jobs[i] && S.jobs[i].id === id) return S.jobs[i];
+    return null;
+  }
+  function running(id) {
+    var j = jobOf(id), p = S.pressed[id];
+    if (j && j.running) return true;
+    return !!(p && !p.saw && Date.now() - p.at < GRACE_MS);
+  }
+  /* "Every night at 2" -> "every night at 2"; anything else (a paused routine says so in
+     its own words) is kept as Cabinet wrote it. */
+  function whenWords(id) {
+    var j = jobOf(id), w = j && typeof j.when === 'string' ? j.when.trim() : '';
+    return /^every\b/i.test(w) ? w.charAt(0).toLowerCase() + w.slice(1) : w;
+  }
+
+  /* The last sweep that did not finish, when it is newer than what the book shows. */
+  function failedAt() {
+    if (running(SWEEP)) return null;
+    var j = jobOf(SWEEP);
+    if (!j || !j.lastRun || j.lastRun.ok !== false) return null;
+    var at = iso(j.lastRun.at), shown = sweptAt();
+    if (!at || (shown && at <= shown)) return null;
+    return at;
+  }
+
+  /* ---- drawing the book --------------------------------------------------------------- */
+
+  /* Keep what the person has typed, pressed and opened, so a repaint changes only data. */
+  function remember() {
+    var find = $('find'), sort = $('sort');
+    if (find) view.find = find.value;
+    if (sort) view.sort = sort.value;
+    view.focus = document.activeElement && document.activeElement.id === 'find';
+    view.open = {};
+    [].forEach.call(root.querySelectorAll('details[open]'), function (d) {
+      view.open[d.getAttribute('data-i')] = true;
+    });
+  }
+
+  function render() {
+    if (!S.loaded) return;
+    if (S.error && !book.length) {
+      root.innerHTML = '<div class="card empty">' + esc(S.error) + '</div>';
+      return;
+    }
+    if (S.empty) {
+      root.innerHTML = '<div class="card blank">' + ICON_BOOK + '<h2>Nothing written down yet</h2>' +
+        '<p>The book fills in after the routine reads Slack for the first time. Every ' +
+        'answered question gets its own page, and lands here, searchable.</p></div>';
+      return;
+    }
+    remember();
     var meta = sweep ? sweep.meta : {}, html = '';
-    stateOn = '';
-    recentOn = false;
     pinAt = findPin(meta);
     pinWhy = meta.verdict || '';
+    var recent = recentCount();
+    if (!recent) view.recent = false;
 
     if (book.length) {
-      var c = counts(), recent = recentCount();
+      var c = counts();
       html += '<div class="hero"><div class="find">' + ICON_SEARCH +
               '<input type="search" id="find" placeholder="Search ' + book.length +
               (book.length === 1 ? ' answer' : ' answers') + '" ' +
-              'aria-label="Search the answers" autocomplete="off" /></div>';
-      if (meta.headline) html += '<p class="headline">' + esc(meta.headline) + '</p>';
+              'aria-label="Search the answers" autocomplete="off" value="' + esc(view.find) + '" /></div>';
+      if (meta.headline && !S.hide.headline) html += '<p class="headline">' + esc(meta.headline) + '</p>';
       html += '<div class="tools"><div class="seg" role="group" aria-label="State">' +
               STATES.map(function (s) {
                 return '<button type="button" data-state="' + s[0] + '" aria-pressed="' +
-                  (s[0] === '' ? 'true' : 'false') + '">' +
+                  (s[0] === view.state ? 'true' : 'false') + '">' +
                   (s[0] ? '<span class="dot s-' + s[0] + '" aria-hidden="true"></span>' : '') +
                   s[1] +
                   '<span class="c">' + c[s[0]] + '</span></button>';
               }).join('') + '</div>' +
-              (recent ? '<div class="seg"><button type="button" id="recent" aria-pressed="false">' +
-                ICON_CLOCK + 'Changed in the last sweep<span class="c">' + recent +
-                '</span></button></div>' : '') +
+              (recent ? '<div class="seg"><button type="button" id="recent" aria-pressed="' +
+                view.recent + '">' + ICON_CLOCK + 'Changed in the last sweep<span class="c">' +
+                recent + '</span></button></div>' : '') +
               '<label for="sort">Sort <select id="sort">' +
               SORTS.map(function (s) {
-                return '<option value="' + s[0] + '">' + s[1] + '</option>';
+                return '<option value="' + s[0] + '"' + (s[0] === view.sort ? ' selected' : '') +
+                  '>' + s[1] + '</option>';
               }).join('') + '</select></label></div></div>';
-    } else if (meta.headline) {
+    } else if (meta.headline && !S.hide.headline) {
       html += '<div class="hero"><p class="headline">' + esc(meta.headline) + '</p></div>';
     }
 
     /* The bundled example has no date in its name. Say so, so nobody acts on it. */
-    if (example) {
+    if (S.example) {
       html += '<div class="banner">This is example data. Your team\'s own answers replace it ' +
               'after the routine first reaches Slack.</div>';
     }
@@ -625,9 +931,9 @@
       html += '<div class="banner">The last sweep did not finish cleanly: ' + esc(meta.status) +
               '.</div>';
     }
-    if (failed) {
-      html += '<div class="banner">' + failed + (failed === 1 ? ' page' : ' pages') +
-              ' could not be read just now, so ' + (failed === 1 ? 'it is' : 'they are') +
+    if (S.failed) {
+      html += '<div class="banner">' + S.failed + (S.failed === 1 ? ' page' : ' pages') +
+              ' could not be read just now, so ' + (S.failed === 1 ? 'it is' : 'they are') +
               ' missing below. Reload in a moment.</div>';
     }
 
@@ -642,36 +948,46 @@
               '<p>The routine has read Slack, and nothing asked there had an answer worth ' +
               'writing down yet. Each answered question will get its own page here.</p></div>';
     }
-    html += facts();
     root.innerHTML = html;
+    document.body.classList.toggle('railed', /has-rail/.test(html));
     bind();
-    if (book.length) list();
+    if (book.length) {
+      list();
+      if (view.focus) {
+        var find = $('find');
+        find.focus();
+        find.setSelectionRange(find.value.length, find.value.length);
+      }
+    }
   }
 
   /* The wide-window rail: what comes up most, how settled the book is, and why one answer
-     is worth pinning. On a narrow window it is hidden and the rows carry the same signals. */
+     is worth pinning. On a narrow window it is hidden and the rows carry the same signals.
+     Each part can be hidden from Layout; with all three hidden there is no rail at all. */
   function rail(meta) {
     var top = book.filter(function (e) { return e.asked > 1; })
       .sort(function (x, y) { return y.asked - x.asked || x.q.localeCompare(y.q); }).slice(0, 5);
     var c = counts(), most = Math.max(c.settled, c.shifting, c.open, 1), html = '';
-    if (top.length) {
+    if (top.length && !S.hide.asked) {
       html += '<section><h2>Asked most</h2><ol>' + top.map(function (e) {
         return '<li><button type="button" class="jump" data-go="' + esc(e.slug) + '"><b>' +
           e.asked + '&times;</b><span>' + esc(e.q) + '</span></button></li>';
       }).join('') + '</ol></section>';
     }
-    html += '<section><h2>By state</h2><div class="states">' +
-      STATES.slice(1).map(function (s) {
-        return '<div class="s-' + s[0] + '"><span class="lbl state" style="color:var(--ink)">' +
-          s[1] + '</span><span class="bar"><i style="width:' + Math.round(c[s[0]] / most * 100) +
-          '%"></i></span><span class="num">' + c[s[0]] + '</span></div>';
-      }).join('') + '</div></section>';
+    if (!S.hide.states) {
+      html += '<section><h2>By state</h2><div class="states">' +
+        STATES.slice(1).map(function (s) {
+          return '<div class="s-' + s[0] + '"><span class="lbl state" style="color:var(--ink)">' +
+            s[1] + '</span><span class="bar"><i style="width:' + Math.round(c[s[0]] / most * 100) +
+            '%"></i></span><span class="num">' + c[s[0]] + '</span></div>';
+        }).join('') + '</div></section>';
+    }
     var pinned = book.filter(function (e) { return e.slug === pinAt; })[0];
-    if (pinned && pinWhy) {
+    if (pinned && pinWhy && !S.hide.pin) {
       html += '<section><h2>Worth pinning</h2><p class="why">' + esc(pinned.q) +
               '<span>' + esc(pinWhy) + '</span></p></section>';
     }
-    return '<aside class="rail" aria-label="About this book">' + html + '</aside>';
+    return html ? '<aside class="rail" aria-label="About this book">' + html + '</aside>' : '';
   }
 
   var SORT_BY = {
@@ -690,6 +1006,20 @@
 
   function section(title, inner, cls) {
     return '<div class="sec' + (cls ? ' ' + cls : '') + '"><h3>' + esc(title) + '</h3>' + inner + '</div>';
+  }
+
+  /* What a person can hand the Answer Keeper about one answer. An Open question has no
+     answer to reply with or write up, so it gets the one step that could settle it. */
+  function steps(e) {
+    if (!V2 || S.hide.steps || S.role === 'viewer') return '';
+    var list = stateKey(e.state) === 'open'
+      ? [['find', 'Look for an answer']]
+      : [['draft', 'Draft a reply with this answer'], ['doc', 'Turn this into a doc page'],
+         ['wrong', 'This answer is wrong']];
+    return '<div class="acts" data-viewer-off>' + list.map(function (s) {
+      return '<button type="button" class="btn small" data-act="step" data-kind="' + s[0] +
+        '" data-slug="' + esc(e.slug) + '">' + s[1] + '</button>';
+    }).join('') + '</div>';
   }
 
   function row(e, needle, open, hot) {
@@ -731,29 +1061,30 @@
       '<div class="foot">' + (facts.length ? '<span>' + facts.join(' &middot; ') + '</span>' : '') +
       (e.url ? '<a class="thread" href="' + esc(e.url) +
         '" target="_blank" rel="noopener noreferrer">Open the thread in Slack' + ICON_OUT + '</a>' : '') +
-      '</div></div></details>';
+      '</div>' + steps(e) + '</div></details>';
   }
 
   /* Search, state, the sweep filter and sort all redraw only the book; the controls keep
      focus and text. */
   function list() {
-    var find = document.getElementById('find');
-    var sort = document.getElementById('sort'), out = document.getElementById('book');
+    var find = $('find'), sort = $('sort'), out = $('book');
     var needle = find.value.trim(), low = needle.toLowerCase();
+    view.find = find.value;
+    view.sort = sort.value;
     var shown = book.filter(function (e) {
-      if (stateOn && stateKey(e.state) !== stateOn) return false;
-      if (recentOn && !changeOf(e)) return false;
+      if (view.state && stateKey(e.state) !== view.state) return false;
+      if (view.recent && !changeOf(e)) return false;
       return !low || e.hay.indexOf(low) > -1;
     });
     shown.sort(SORT_BY[sort.value] || SORT_BY.asked);
 
-    var filtered = needle || stateOn || recentOn;
-    document.getElementById('count').textContent = filtered
+    var filtered = needle || view.state || view.recent;
+    $('count').textContent = filtered
       ? shown.length + ' of ' + book.length + ' answers match'
       : book.length + (book.length === 1 ? ' answer' : ' answers');
-    var named = STATES.filter(function (s) { return s[0] === stateOn; })[0][1];
-    document.getElementById('shown-as').textContent =
-      (stateOn ? named : 'All answers') + (recentOn ? ', changed in the last sweep' : '');
+    var named = STATES.filter(function (s) { return s[0] === view.state; })[0][1];
+    $('shown-as').textContent =
+      (view.state ? named : 'All answers') + (view.recent ? ', changed in the last sweep' : '');
 
     if (!shown.length) {
       out.innerHTML = '<div class="empty">Nothing written down for that yet.</div>';
@@ -761,7 +1092,9 @@
     }
     var only = needle && shown.length === 1;
     var hot = Math.max.apply(null, book.map(function (e) { return e.asked; }));
-    out.innerHTML = shown.map(function (e) { return row(e, needle, only, hot); }).join('');
+    out.innerHTML = shown.map(function (e) {
+      return row(e, needle, only || !!view.open[e.slug], hot);
+    }).join('');
   }
 
   /* A rail entry opens its row: any filter that would hide it is cleared first. */
@@ -769,9 +1102,9 @@
     var sel = 'details[data-i="' + slug.replace(/["\\]/g, '\\$&') + '"]';
     var row = document.querySelector(sel);
     if (!row) {
-      document.getElementById('find').value = '';
-      recentOn = false;
-      var r = document.getElementById('recent');
+      $('find').value = '';
+      view.recent = false;
+      var r = $('recent');
       if (r) r.setAttribute('aria-pressed', 'false');
       press('');
       row = document.querySelector(sel);
@@ -783,16 +1116,16 @@
   }
 
   function press(value) {
-    stateOn = value;
+    view.state = value;
     [].forEach.call(document.querySelectorAll('.seg button[data-state]'), function (b) {
       b.setAttribute('aria-pressed', b.getAttribute('data-state') === value ? 'true' : 'false');
     });
     list();
   }
 
-  /* root.innerHTML is written once, so the listeners are attached once after it. */
+  /* root.innerHTML is written once per render, so the listeners are attached after it. */
   function bind() {
-    var find = document.getElementById('find');
+    var find = $('find');
     if (!find) return;
     find.addEventListener('input', list);
     find.addEventListener('keydown', function (e) {
@@ -801,52 +1134,216 @@
     [].forEach.call(document.querySelectorAll('.seg button[data-state]'), function (b) {
       b.addEventListener('click', function () { press(b.getAttribute('data-state')); });
     });
-    var recent = document.getElementById('recent');
+    var recent = $('recent');
     if (recent) recent.addEventListener('click', function () {
-      recentOn = !recentOn;
-      recent.setAttribute('aria-pressed', recentOn ? 'true' : 'false');
+      view.recent = !view.recent;
+      recent.setAttribute('aria-pressed', view.recent ? 'true' : 'false');
       list();
     });
     [].forEach.call(document.querySelectorAll('.jump'), function (b) {
       b.addEventListener('click', function () { go(b.getAttribute('data-go')); });
     });
-    document.getElementById('sort').addEventListener('change', list);
+    $('sort').addEventListener('change', list);
   }
 
-  /* The quiet line under the book: when the last sweep ran, when the next one will, and
-     whether the weekly FAQ canvas is on. Each part shows only when it has something true. */
-  function facts() {
-    var parts = [];
-    if (sweep && stamp(sweep.name)) {
-      var at = moment(sweep.meta.generated) || stamp(sweep.name);
-      parts.push('<span>Last sweep ' + esc(when(at)) + '</span>');
+  /* ---- the bar, the notice, the facts ------------------------------------------------ */
+
+  var BUSY_WORDS = {
+    linking: 'Linking Slack', reconnecting: 'Reconnecting Slack', checking: 'Checking Slack',
+    'catching-up': 'Slack is catching up', copying: 'Copying from Slack'
+  };
+
+  function paintBar() {
+    var s = slackState(), left;
+    if (!V2) {
+      left = '<span>Connect Slack from Integrations in Cabinet.</span>';
+    } else if (!S.slack) {
+      left = '<span class="pillc busy"><i class="live"></i>Checking Slack</span>';
+    } else if (S.slack.busy) {
+      left = '<span class="pillc busy"><i class="live"></i>' +
+        esc(BUSY_WORDS[S.slack.busy] || 'Slack is busy') + '</span>';
+    } else if (s === 'connected') {
+      left = '<span class="pillc ok"><i></i>Slack connected</span>' +
+        (canConnect() ? '<button type="button" class="btn link" data-act="channels" data-viewer-off>' +
+          'Choose channels</button>' : '');
+    } else if (s === 'needs-sign-in' || s === 'needs-you') {
+      left = '<span class="pillc warn"><i></i>Slack needs you</span>';
+    } else if (s === 'not-available-here') {
+      left = '<span class="pillc"><i></i>Slack not available here</span>';
+    } else {
+      left = '<span class="pillc"><i></i>Slack not connected</span>';
     }
-    var next = nextRunText();
+    var ideas = V2
+      ? '<div data-viewer-off><button type="button" class="btn" data-act="ideas" aria-haspopup="true" ' +
+        'aria-expanded="' + (S.menu === 'ideas') + '" aria-controls="ideas-pop">' + ICON_BULB +
+        'Ideas</button>' + ideasPop() + '</div>'
+      : '';
+    var layout = '<div><button type="button" class="btn" data-act="layout" aria-haspopup="true" ' +
+      'aria-expanded="' + (S.menu === 'layout') + '" aria-controls="layout-pop">' + ICON_LAYOUT +
+      'Layout</button>' + layoutPop() + '</div>';
+    $('bar').innerHTML = '<div class="conn">' + left + '</div><div class="menus">' + ideas + layout + '</div>';
+  }
+
+  function ideasPop() {
+    return '<div class="pop" id="ideas-pop" role="group" aria-label="Ideas"' +
+      (S.menu === 'ideas' ? '' : ' hidden') + '><h2>Ask the Answer Keeper</h2>' +
+      IDEAS.map(function (text, i) {
+        return '<button type="button" class="item" data-act="idea" data-i="' + i +
+          '">' + esc(text) + '</button>';
+      }).join('') + '</div>';
+  }
+
+  function layoutPop() {
+    var saves = !!(cab && cab.mine && typeof cab.mine.set === 'function');
+    return '<div class="pop" id="layout-pop" role="group" aria-label="Layout"' +
+      (S.menu === 'layout' ? '' : ' hidden') + '><h2>Show on this page</h2>' +
+      PARTS.map(function (p) {
+        if (p[0] === 'steps' && !canAsk()) return '';
+        return '<label class="check"><input type="checkbox" data-part="' + p[0] + '"' +
+          (S.hide[p[0]] ? '' : ' checked') + ' />' + esc(p[1]) + '</label>';
+      }).join('') +
+      '<p class="fine">' + (saves ? 'Only for you. The side panel shows on a wide window.'
+        : 'Kept until you close this page.') + '</p>' +
+      '<div class="row-end"><button type="button" class="btn small" data-act="layout-reset">Reset</button></div></div>';
+  }
+
+  /* The one thing that needs the person most, above the book. Nothing at all when all is well. */
+  function paintNotice() {
+    var s = slackState(), html = '';
+    var connectButton = function (label) {
+      return canConnect()
+        ? '<button type="button" class="btn primary" data-act="connect" data-viewer-off' +
+          (S.connecting ? ' disabled' : '') + '>' + (S.connecting ? 'Finish in the window Cabinet opened' : label) +
+          '</button>'
+        : '<span>The person who owns this cabinet connects Slack.</span>';
+    };
+    var note = S.connectNote ? '<p>' + esc(S.connectNote) + '</p>' : '';
+    if (!V2 || !S.slack || !S.loaded) {
+      html = '';
+    } else if (s === 'not-added') {
+      html = card('', ICON_PLUG, 'Connect Slack to start your answer book',
+        '<p>Every night the Answer Keeper reads the channels you choose and keeps one page ' +
+        'for every question your team answered. It only reads, unless you allow more. ' +
+        (S.example ? 'Below is an example from a made-up team.' : '') + '</p>' + note,
+        connectButton('Connect Slack'));
+    } else if (s === 'needs-sign-in' || s === 'needs-you') {
+      html = card('alert', ICON_ALERT, 'Slack needs you',
+        '<p>' + esc(problemText() || 'Slack stopped letting Cabinet in.') + '</p>' +
+        (sweptAt() ? '<p>The answers below are from the sweep ' + esc(when(sweptAt())) + '.</p>' : '') + note,
+        connectButton('Fix the connection'));
+    } else if (s === 'not-available-here') {
+      html = card('', ICON_PLUG, 'Slack cannot be connected here',
+        '<p>' + esc(problemText() || 'Slack is not available in this place yet.') + '</p>', '');
+    } else if (running(SWEEP)) {
+      html = '<div class="notice strip" role="status"><span class="dotl live" aria-hidden="true"></span>' +
+        '<p>Reading Slack... The book updates here when the sweep is done.</p></div>';
+    } else if (failedAt()) {
+      var shown = sweptAt();
+      html = card('alert', ICON_ALERT, 'The sweep ' + when(failedAt()) + ' did not finish',
+        '<p>' + (shown ? 'What you see is from the sweep ' + esc(when(shown)) + '.'
+          : S.example ? 'Nothing was kept from your Slack yet, so the example is still showing.'
+          : 'Nothing new was kept.') + '</p>' + runNote(SWEEP),
+        canRun() ? '<button type="button" class="btn primary" data-act="run" data-job="' + SWEEP +
+          '" data-viewer-off>' + ICON_REFRESH + 'Try again</button>'
+          : '<span>The person who owns this cabinet can run it again.</span>');
+    } else if (s === 'connected' && S.example) {
+      var every = whenWords(SWEEP);
+      html = card('', ICON_BOOK, 'Slack is connected. Your first sweep is next.',
+        '<p>The first sweep reads the last 7 days of the channels you allowed' +
+        (every && /^every\b/.test(every) ? ', and then it runs by itself, ' + esc(every) + '.' : '.') +
+        '</p>' + runNote(SWEEP),
+        canRun() ? '<button type="button" class="btn primary" data-act="run" data-job="' + SWEEP +
+          '" data-viewer-off>Run the first sweep now</button>' : '');
+    } else if (S.notes[SWEEP]) {
+      html = '<div class="notice strip alert" role="status">' + ICON_ALERT + '<p>' +
+        esc(S.notes[SWEEP]) + '</p></div>';
+    }
+    $('notice').innerHTML = html;
+  }
+
+  function card(kind, icon, title, body, actions) {
+    return '<div class="notice' + (kind ? ' ' + kind : '') + '">' + icon + '<div><h2>' + esc(title) +
+      '</h2>' + body + (actions ? '<div class="do">' + actions + '</div>' : '') + '</div></div>';
+  }
+  function runNote(id) { return S.notes[id] ? '<p>' + esc(S.notes[id]) + '</p>' : ''; }
+
+  /* The quiet line under the book: the last sweep, the next one, and the FAQ canvas. Each
+     part shows only when it has something true to say. */
+  function paintFacts() {
+    var parts = [], at = sweptAt();
+    if (!at && V2 && !S.example) {
+      var j = jobOf(SWEEP);
+      at = j && j.lastRun && j.lastRun.ok ? iso(j.lastRun.at) : null;
+    }
+    if (at) parts.push('<span>Last sweep ' + esc(when(at)) + '</span>');
+    var next = nextText();
     if (next) parts.push('<span>' + esc(next) + '</span>');
-    var faq = canvasText();
-    if (faq) parts.push('<span>' + faq + '</span>');
-    return parts.length ? '<div class="history">' + parts.join('') + '</div>' : '';
-  }
-
-  /* faq-canvas.md is off until someone writes a channel into it, and then says so here. */
-  function canvasText() {
-    if (!canvas || !canvas.channel) return '';
-    var where = '#' + canvas.channel.replace(/^#/, '');
-    var text = 'FAQ canvas on in ' + esc(where);
-    if (canvas.status && canvas.status !== 'ok') return text + ': ' + esc(canvas.status);
-    var up = moment(canvas.updated);
-    if (!canvas.canvas || !up) return text + ', first one on Monday';
-    text += ', updated ' + esc(dateText(canvas.updated));
-    if (/^https?:\/\//i.test(canvas.link || '')) {
-      text += ' (<a href="' + esc(canvas.link) + '" target="_blank" rel="noopener noreferrer">open in Slack</a>)';
+    if (V2 && S.slack && slackState() === 'connected' && canRun() && !S.example) {
+      parts.push(running(SWEEP)
+        ? '<button type="button" class="btn small" disabled>' + ICON_REFRESH.replace('<svg', '<svg class="spin"') +
+          'Reading Slack...</button>'
+        : '<button type="button" class="btn small" data-act="run" data-job="' + SWEEP +
+          '" data-viewer-off>' + ICON_REFRESH + 'Run now</button>');
     }
-    return text;
+    var faq = canvasHtml();
+    if (faq) parts.push('<span>' + faq + '</span>');
+    $('facts').innerHTML = parts.length ? '<div class="history">' + parts.join('') + '</div>' : '';
   }
 
-  /* ---- when the routine next runs ---------------------------------------------------
+  function nextText() {
+    if (V2 && jobOf(SWEEP)) {
+      var w = whenWords(SWEEP);
+      if (!w) return '';
+      return /^every\b/.test(w) ? 'Sweeps ' + w : 'Sweep: ' + w;
+    }
+    return nextRunText();
+  }
+
+  /* faq-canvas.md is off until a channel is written into it. Off, the line offers to set it
+     up in the chat; on, it says where and when, and offers to make or refresh it now. */
+  function canvasHtml() {
+    var on = canvas && canvas.channel;
+    if (!on) {
+      if (!canAsk() || !canvas) return '';
+      return 'FAQ canvas off. <button type="button" class="btn link" data-act="faq-on" data-viewer-off>' +
+        'Turn on the FAQ canvas</button>';
+    }
+    var where = '#' + canvas.channel.replace(/^#/, '');
+    var text = 'FAQ canvas in ' + esc(where);
+    var ready = V2 && S.slack && slackState() === 'connected' && canRun() && jobOf(FAQ_JOB);
+    if (running(FAQ_JOB)) return text + ', writing it now...';
+    if (canvas.status && canvas.status !== 'ok') {
+      text += ': ' + esc(canvas.status);
+      if (/read only|read-only/i.test(canvas.status) && canConnect()) {
+        text += ' <button type="button" class="btn link" data-act="channels" data-viewer-off>Choose channels</button>';
+      }
+      return text + (S.notes[FAQ_JOB] ? ' (' + esc(S.notes[FAQ_JOB]) + ')' : '');
+    }
+    var up = moment(canvas.updated);
+    if (!canvas.canvas || !up) {
+      text += ', first one on Monday';
+      if (ready) text += ' <button type="button" class="btn link" data-act="run" data-job="' + FAQ_JOB +
+        '" data-viewer-off>Make it now</button>';
+    } else {
+      text += ', updated ' + esc(dateText(canvas.updated));
+      if (/^https?:\/\//i.test(canvas.link || '')) {
+        text += ' (<a href="' + esc(canvas.link) + '" target="_blank" rel="noopener noreferrer">open in Slack</a>)';
+      }
+    }
+    return text + (S.notes[FAQ_JOB] ? ' (' + esc(S.notes[FAQ_JOB]) + ')' : '');
+  }
+
+  function paintAll() {
+    paintBar();
+    paintNotice();
+    paintFacts();
+    $('askbox').hidden = !canAsk();
+  }
+
+  /* ---- when the routine next runs, without the bridge ----------------------------------
      Read straight off this cabinet's own job file, so a user who edits the schedule or
      pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
-     which is the same host the routine runs on. */
+     which is the same host the routine runs on. With the bridge, Cabinet says it in words. */
 
   /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
   function field(spec, min, max) {
@@ -890,7 +1387,36 @@
     return 'Next sweep ' + human(d) + ' at ' + clock(d);
   }
 
-  /* ---- finding and fetching the files ----------------------------------------------- */
+  /* ---- finding and reading the files ------------------------------------------------- */
+
+  function isExample(name) { return /^EXAMPLE-/.test(name); }
+  function isSweep(name) { return /sweep\.md$/i.test(name); }
+
+  /* The text of a file, by its path from the cabinet root. */
+  function readFile(path) {
+    if (MODE === 'bridge') return cab.files.read(path);
+    return fetch('../' + path.split('/').map(encodeURIComponent).join('/'), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      });
+  }
+  /* A file that is only a nicety (the schedule, the canvas settings) never breaks the page. */
+  function maybe(path) {
+    return readFile(path).catch(function () { return ''; });
+  }
+
+  /* The .md files directly in one folder. A folder that is not there yet is empty. */
+  function mdIn(dir) {
+    return cab.files.list(dir).then(function (items) {
+      return (Array.isArray(items) ? items : []).filter(function (e) {
+        return e && !e.isDir && /\.md$/i.test(e.name || '');
+      }).map(function (e) { return e.name; });
+    }, function (e) {
+      if (e && e.code === 'not-found') return [];
+      throw e;
+    });
+  }
 
   /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments
      tells the page which cabinet it is installed in, whatever the user named it. */
@@ -899,9 +1425,9 @@
     return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
   }
 
-  /* Direct .md children of a folder only, never a nested one.
+  /* Without the bridge: direct .md children of a folder in /api/tree, never a nested one.
      The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
-     separately: `path` decides what lives in the folder, `name` is what we fetch. */
+     separately: `path` decides what lives in the folder, `name` is what we read. */
   function listFiles(nodes, dir, out) {
     (nodes || []).forEach(function (n) {
       if (!n || !n.path) return;
@@ -913,65 +1439,77 @@
     return out;
   }
 
-  function text(path) {
-    return fetch('../' + path.split('/').map(encodeURIComponent).join('/'), { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
+  /* What is on disk: topic page names, sweep log names, and the canvas settings. */
+  function gather() {
+    if (MODE === 'bridge') {
+      return Promise.all([mdIn(TOPICS), mdIn(DIR), maybe(CANVAS)]).then(function (r) {
+        return { topics: r[0], sweeps: r[1].filter(isSweep), canvas: r[2], job: '' };
+      }, function (e) {
+        /* A bridge that cannot read files here: read them the old way instead. */
+        if (e && (e.code === 'old-cabinet' || e.code === 'no-cabinet')) {
+          MODE = 'legacy';
+          return gather();
+        }
+        throw e;
       });
-  }
-  /* A file that is only a nicety (the schedule, the canvas settings) never breaks the page. */
-  function maybe(path) {
-    return text(path).catch(function () { return ''; });
+    }
+    /* `fresh=1` busts the tree cache so a page written minutes ago is already listed. */
+    return Promise.all([
+      fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }),
+      maybe(JOB),
+      maybe(CANVAS)
+    ]).then(function (all) {
+      var cab = cabinetDir();
+      return {
+        topics: listFiles(all[0], cab + '/' + TOPICS, []),
+        sweeps: listFiles(all[0], cab + '/' + DIR, []).filter(isSweep),
+        job: all[1],
+        canvas: all[2]
+      };
+    });
   }
 
   /* Every topic page, POOL at a time. A page that fails is counted, not fatal. */
-  function fetchAll(names, done) {
-    var out = [], failed = 0, next = 0, live = 0;
-    if (!names.length) { done(out, 0); return; }
-    function pump() {
-      while (live < POOL && next < names.length) {
-        (function (name) {
-          live++;
-          text(TOPICS + '/' + name)
-            .then(function (t) { out.push(topic(name, t)); })
-            .catch(function () { failed++; })
-            .then(function () {
-              live--;
-              if (next < names.length) pump();
-              else if (!live) done(out, failed);
-            });
-        })(names[next++]);
+  function readAll(names) {
+    return new Promise(function (done) {
+      var out = [], failed = 0, next = 0, live = 0;
+      if (!names.length) { done({ pages: out, failed: 0 }); return; }
+      function pump() {
+        while (live < POOL && next < names.length) {
+          (function (name) {
+            live++;
+            readFile(TOPICS + '/' + name)
+              .then(function (t) { out.push(topic(name, t)); })
+              .catch(function () { failed++; })
+              .then(function () {
+                live--;
+                if (next < names.length) pump();
+                else if (!live) done({ pages: out, failed: failed });
+              });
+          })(names[next++]);
+        }
       }
-    }
-    pump();
+      pump();
+    });
   }
 
-  function isExample(name) { return /^EXAMPLE-/.test(name); }
-
-  /* An empty cabinet is the normal state before the first run, not an error to shout about.
-     `fresh=1` busts the tree cache so a page written minutes ago is already listed. */
-  Promise.all([
-    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }),
-    maybe(JOB),
-    maybe(CANVAS)
-  ])
-    .then(function (all) {
-      var tree = all[0], cab = cabinetDir();
-      job = {};
-      all[1].split('\n').forEach(function (line) {
-        var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-        if (kv) job[kv[1]] = scalar(kv[2]);
-      });
-      canvas = all[2] ? split(all[2]).meta : null;
-
-      var topics = listFiles(tree, cab + '/' + TOPICS, []);
-      var sweeps = listFiles(tree, cab + '/' + DIR, []).filter(function (n) {
-        return /sweep\.md$/i.test(n);
-      });
+  var loading = false, again = false;
+  function load() {
+    if (loading) { again = true; return; }
+    loading = true;
+    gather().then(function (got) {
+      if (got.job) {
+        job = {};
+        got.job.split('\n').forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) job[kv[1]] = scalar(kv[2]);
+        });
+      }
+      canvas = got.canvas ? split(got.canvas).meta : null;
+      var topics = got.topics, sweeps = got.sweeps;
       /* The example only shows while nothing real exists. Once the routine has written
          anything of its own, a left-over EXAMPLE file is never mixed in with it. */
       var real = topics.concat(sweeps).some(function (n) { return !isExample(n); });
@@ -979,12 +1517,15 @@
         topics = topics.filter(function (n) { return !isExample(n); });
         sweeps = sweeps.filter(function (n) { return !isExample(n); });
       }
+      S.example = !real;
+      S.error = '';
       if (!topics.length && !sweeps.length) {
-        root.innerHTML = '<div class="card blank">' + ICON_BOOK + '<h2>Nothing written down yet</h2>' +
-          '<p>The book fills in after the routine reads Slack for the first time. Every ' +
-          'answered question gets its own page, and lands here, searchable.</p></div>' + facts();
-        return;
+        S.empty = true;
+        book = [];
+        sweep = null;
+        return null;
       }
+      S.empty = false;
       /* Newest first; the example, having no date, sits last. */
       sweeps.sort(function (a, b) {
         var da = stamp(a), db = stamp(b);
@@ -992,21 +1533,282 @@
         return da ? -1 : db ? 1 : 0;
       });
       var log = sweeps[0]
-        ? text(DIR + '/' + sweeps[0]).then(function (t) { return sweepOf(sweeps[0], t); },
-                                          function () { return null; })
+        ? readFile(DIR + '/' + sweeps[0]).then(function (t) { return sweepOf(sweeps[0], t); },
+                                               function () { return null; })
         : Promise.resolve(null);
-      log.then(function (s) {
-        sweep = s;
-        fetchAll(topics, function (pages, failed) {
-          book = pages;
-          render(!real, failed);
-        });
+      return Promise.all([log, readAll(topics)]).then(function (r) {
+        sweep = r[0];
+        book = r[1].pages;
+        S.failed = r[1].failed;
       });
-    })
-    .catch(function (err) {
-      root.innerHTML = '<div class="card empty">Could not list <code>' + DIR + '/</code> (' +
-        esc(err.message) + '). Reload in a moment.</div>';
+    }).catch(function (err) {
+      /* What is already on screen stays; only a first load with nothing to show says so. */
+      S.error = 'Could not read ' + DIR + '/ just now (' + said(err, 'no answer') + '). Reload in a moment.';
+    }).then(function () {
+      S.loaded = true;
+      loading = false;
+      render();
+      paintAll();
+      if (again) { again = false; load(); }
     });
+  }
+
+  /* ---- talking to Cabinet ------------------------------------------------------------ */
+
+  function setConnectors(items) {
+    if (!Array.isArray(items)) return;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i] && items[i].id === CONNECTOR) { S.slack = items[i]; break; }
+    }
+    if (!S.slack) S.slack = { id: CONNECTOR, state: 'not-available-here', busy: null, problem: null, canConnect: false };
+    paintAll();
+  }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    S.jobs = items;
+    var ended = false;
+    [SWEEP, FAQ_JOB].forEach(function (id) {
+      var j = jobOf(id), p = S.pressed[id];
+      if (j && j.running && p) p.saw = true;
+      var now = running(id);
+      if (S.wasRunning[id] && !now) ended = true;
+      S.wasRunning[id] = now;
+    });
+    /* files.onChange also fires when a routine finishes; this is for a write it missed. */
+    if (ended) load();
+    paintAll();
+  }
+
+  function run(id) {
+    if (!canRun() || running(id)) return;
+    S.pressed[id] = { at: Date.now(), saw: false };
+    S.notes[id] = '';
+    S.wasRunning[id] = true;
+    paintAll();
+    /* If the run never shows up, the grace ends and the page comes back. */
+    setTimeout(function () { S.wasRunning[id] = running(id); paintAll(); }, GRACE_MS + 500);
+    cab.jobs.run(id).catch(function (e) {
+      if (e && e.code === 'busy') return;
+      delete S.pressed[id];
+      S.wasRunning[id] = running(id);
+      S.notes[id] = said(e, 'The routine did not start. Try again.');
+      paintAll();
+    });
+  }
+
+  function connect(step) {
+    if (!canConnect() || S.connecting) return;
+    S.connecting = true;
+    S.connectNote = '';
+    paintAll();
+    cab.connectors.connect(CONNECTOR, step ? { step: step } : undefined).then(function (result) {
+      S.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        setConnectors(items);
+        /* Just connected and nothing of theirs here yet: the first sweep starts at once, so
+           the next thing they see is their own team's answers. */
+        if (!step && result === 'connected' && S.example) run(SWEEP);
+      });
+    }).catch(function (e) {
+      S.connecting = false;
+      S.connectNote = said(e, 'That did not work. Try again.');
+      paintAll();
+    });
+  }
+
+  function setAskNote(words) { $('ask-note').textContent = words; }
+
+  function ask(text, fromBox) {
+    var q = String(text || '').trim().slice(0, 3900);
+    if (!q) return;
+    if (!V2) { toast('Open this page in Cabinet to ask the Answer Keeper.'); return; }
+    if (!canAsk()) return;
+    if (fromBox) setAskNote('Asking...');
+    cab.ask(q, { send: true }).then(function (r) {
+      /* Without a fresh press Cabinet only fills the chat's box; the person sends it. */
+      var words = r && r.conversationId
+        ? 'Asked. The answer is coming in the chat beside this page.'
+        : 'It is in the chat beside this page. Press Send there to ask.';
+      if (fromBox) {
+        $('ask-input').value = '';
+        setAskNote(words);
+      } else {
+        toast(words);
+      }
+    }).catch(function (e) {
+      var words = said(e, 'That did not go through. Try again.');
+      if (fromBox) setAskNote(words); else toast(words);
+    });
+  }
+
+  /* One answer's next step, as a request that stands on its own: the question, the file
+     it is kept in and the thread, so the agent never has to guess which answer is meant. */
+  function stepAsk(kind, e) {
+    var q = '"' + e.q + '"';
+    var page = TOPICS + '/' + e.slug + '.md';
+    var link = e.url ? ' The thread is ' + e.url + '.' : ' The page has no link to a thread.';
+    if (kind === 'draft') {
+      return 'Someone in Slack is asking ' + q + ' again. Find the newest time it was asked in ' +
+        'the channels I allowed that has no answer yet, and draft a short reply from the answer ' +
+        'kept in ' + page + ', with a link to the thread it came from.' + link + ' Show me the ' +
+        'draft and where it would go. Do not post anything in Slack unless I say yes.';
+    }
+    if (kind === 'doc') {
+      return 'Turn the team\'s answer to ' + q + ' into a doc page people can read without ' +
+        'Slack. It is kept in ' + page + '.' + link + ' If a page in this knowledge base already ' +
+        'covers this, show me what you would add there and wait for my yes. If none does, make ' +
+        'a new page in handbook/. Then link the doc page from the topic page.';
+    }
+    if (kind === 'wrong') {
+      return 'The answer to ' + q + ' in ' + page + ' looks wrong.' + link + ' Read that thread ' +
+        'again and anything newer about it in Slack, update the topic page as your persona says, ' +
+        'and tell me in a few lines what changed. If Slack has nothing newer, say so and ask me ' +
+        'what the right answer is.';
+    }
+    return 'Nobody has settled ' + q + ' yet. It is kept in ' + page + '.' + link + ' Search the ' +
+      'channels I allowed for an answer given since ' + (dateText(e.confirmed || e.first) ||
+      'it was first asked') + '. If you find one, update the topic page as your persona says and ' +
+      'tell me what it says. If not, tell me who seems most likely to know.';
+  }
+
+  /* ---- the person's own layout -------------------------------------------------------- */
+
+  function canSave() { return !!(cab && cab.mine && typeof cab.mine.set === 'function'); }
+
+  function readLayout() {
+    try {
+      var v = cab && cab.mine && typeof cab.mine.get === 'function' ? cab.mine.get(LAYOUT_KEY) : null;
+      var hide = v && Array.isArray(v.hide) ? v.hide : [];
+      S.hide = {};
+      hide.forEach(function (k) {
+        if (PARTS.some(function (p) { return p[0] === k; })) S.hide[k] = true;
+      });
+    } catch (e) { S.hide = {}; }
+  }
+
+  function saveLayout() {
+    if (!canSave()) return;
+    try {
+      var keys = Object.keys(S.hide).filter(function (k) { return S.hide[k]; });
+      var done = keys.length ? cab.mine.set(LAYOUT_KEY, { hide: keys })
+        : (typeof cab.mine.remove === 'function' ? cab.mine.remove(LAYOUT_KEY) : cab.mine.set(LAYOUT_KEY, { hide: [] }));
+      Promise.resolve(done).catch(function () {
+        toast('Your layout could not be kept. It is back to the usual next time.');
+      });
+    } catch (e) { /* the page keeps working; the choice lasts until it is closed */ }
+  }
+
+  /* ---- menus and presses ------------------------------------------------------------- */
+
+  function openMenu(name) {
+    S.menu = S.menu === name ? '' : name;
+    paintBar();
+    var first = S.menu ? document.querySelector('#' + S.menu + '-pop .item, #' + S.menu + '-pop input') : null;
+    if (first) first.focus();
+  }
+  function closeMenu(refocus) {
+    if (!S.menu) return;
+    var was = S.menu;
+    S.menu = '';
+    paintBar();
+    if (refocus) {
+      var b = document.querySelector('[data-act="' + was + '"]');
+      if (b) b.focus();
+    }
+  }
+
+  document.addEventListener('pointerdown', function (event) {
+    if (!S.menu || !event.target.closest) return;
+    if (event.target.closest('.pop, [data-act="ideas"], [data-act="layout"]')) return;
+    closeMenu(false);
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && S.menu) closeMenu(true);
+  });
+
+  document.addEventListener('change', function (event) {
+    var part = event.target && event.target.getAttribute && event.target.getAttribute('data-part');
+    if (!part) return;
+    if (event.target.checked) delete S.hide[part]; else S.hide[part] = true;
+    saveLayout();
+    render();
+  });
+
+  document.addEventListener('click', function (event) {
+    var el = event.target.closest ? event.target.closest('[data-act]') : null;
+    if (!el || el.disabled) return;
+    var act = el.getAttribute('data-act');
+    if (act === 'ideas' || act === 'layout') openMenu(act);
+    else if (act === 'idea') {
+      var idea = IDEAS[+el.getAttribute('data-i')];
+      closeMenu(false);
+      if (idea) ask(+el.getAttribute('data-i') === FAQ_IDEA ? FAQ_ASK : idea, false);
+    }
+    else if (act === 'layout-reset') {
+      S.hide = {};
+      saveLayout();
+      paintBar();
+      render();
+    }
+    else if (act === 'connect') connect('');
+    else if (act === 'channels') connect('choose-chats');
+    else if (act === 'run') run(el.getAttribute('data-job'));
+    else if (act === 'faq-on') ask(FAQ_ASK, false);
+    else if (act === 'step') {
+      var slug = el.getAttribute('data-slug');
+      var e = book.filter(function (x) { return x.slug === slug; })[0];
+      if (!e) return;
+      if (S.example) {
+        toast('This answer is an example. Once the sweep reads your Slack, this works on your own answers.');
+        return;
+      }
+      ask(stepAsk(el.getAttribute('data-kind'), e), false);
+    }
+  });
+
+  $('ask-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    ask($('ask-input').value, true);
+  });
+
+  /* ---- start ------------------------------------------------------------------------- */
+
+  paintAll();
+
+  if (V2) {
+    if (cab.ready) {
+      Promise.resolve(cab.ready).then(function () {
+        readLayout();
+        paintBar();
+        render();
+      }).catch(function () {});
+    }
+    Promise.resolve(cab.here()).then(function (here) {
+      if (here && typeof here.role === 'string') S.role = here.role;
+      if (here && typeof here.place === 'string') S.place = here.place;
+    }).catch(function () {}).then(function () {
+      document.documentElement.setAttribute('data-role', S.role);
+      paintAll();
+      render();
+    });
+    load();
+    /* The sweep logs, the topic pages and faq-canvas.md: everything the page shows. */
+    /* The whole cabinet, because faq-canvas.md sits at its root beside answers/. A burst of
+       writes during a sweep collapses into one more load at most. */
+    try { cab.files.onChange('', function () { load(); }); } catch (e) { /* an older bridge */ }
+    cab.connectors.list().then(setConnectors).catch(function () {
+      setConnectors([]);
+    });
+    cab.connectors.onChange(setConnectors);
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    if (cab && cab.ready && cab.mine) {
+      Promise.resolve(cab.ready).then(function () { readLayout(); paintBar(); render(); }).catch(function () {});
+    }
+    load();
+  }
 })();
 </script>
 </body>
