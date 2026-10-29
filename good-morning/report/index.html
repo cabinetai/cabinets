@@ -9,17 +9,16 @@
   footer: what the routine looked at and what it could not reach.
 
   The look: a morning newspaper. The nameplate with the greeting and the controls in its
-  ears, a dateline, the morning's headline, and "In this edition": one entry per source
-  with what waits there, a tap away from its column. Under it the lead story (the one
-  thing that matters most), then one column per source, then what was checked, with a
-  way to connect one more source.
+  ears, a dateline and the morning's headline. Under it the lead story (the one thing
+  that matters most), then one column per source, then what was checked and which apps
+  the mornings read.
 
   How it talks to Cabinet: window.cabinet v2 (files, connectors, jobs, me). In an older
   Cabinet it lists the folder through /api/tree and reads files over relative URLs, so
   it still works when the cabinet is renamed at install time. It never changes anything
   in a connected service: it reads files and, when asked, starts the routine.
 
-  One file on purpose: a sealed frame cannot load files next to it. Grenze Gotisch for
+  One file on purpose: a sealed frame cannot load files next to it. UnifrakturMaguntia for
   the nameplate only, Newsreader for every word of news, Libre Franklin for the small
   print and buttons, from Google Fonts with system fallbacks. Every failure path draws
   something honest instead of a blank page.
@@ -31,7 +30,7 @@
 <title>The Morning Brief</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@600&family=Libre+Franklin:wght@500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Libre+Franklin:wght@500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&display=swap" rel="stylesheet" />
 <style>
   :root {
     --paper: #f8f7f4;         /* a clean warm white, paper without the pulp */
@@ -42,11 +41,8 @@
     --hair: #dcdad3;
     --red: #b3241c;           /* the press red: needs you. 6.2:1 on the paper */
     --clear: #2c6849;         /* nothing needs you */
-    --band: #e5ecf3;          /* the morning blue of the edition band: ink 13.7:1, red and green 5.5:1 on it */
-    --band-2: #d9e3ee;
-    --band-line: #cdd8e4;
     --warn: #85560f;
-    --nameplate: "Grenze Gotisch", "Old English Text MT", "UnifrakturMaguntia", Georgia, serif;
+    --nameplate: "UnifrakturMaguntia", "Old English Text MT", Georgia, serif;
     --news: "Newsreader", "Iowan Old Style", Georgia, serif;
     --small: "Libre Franklin", "Franklin Gothic Book", "Segoe UI", system-ui, sans-serif;
     --gutter: 24px;
@@ -75,7 +71,7 @@
   .greet { margin: 0; font-family: var(--news); font-style: italic; font-size: 19px; line-height: 1.25; color: var(--ink); }
   .eyebrow { margin: 3px 0 0; max-width: 30ch; }
   .nameplate {
-    margin: 0; font-family: var(--nameplate); font-weight: 600; text-align: center; white-space: nowrap;
+    margin: 0; font-family: var(--nameplate); font-weight: 400; text-align: center; white-space: nowrap;
     font-size: clamp(44px, 7.4vw, 96px); line-height: 1; letter-spacing: -.005em; padding: 2px 0 10px;
   }
   .daynav { display: inline-flex; align-items: center; border: 1px solid var(--ink); border-radius: 8px; overflow: hidden; }
@@ -101,24 +97,6 @@
   .headline {
     font-family: var(--news); font-weight: 600; font-size: clamp(34px, 4.7vw, 62px); line-height: 1.03;
     letter-spacing: -.018em; margin: 26px 0 0; max-width: 24ch; text-wrap: balance;
-  }
-
-  /* In this edition: one entry per source on a morning-blue band, each a jump to its column. */
-  .index { margin-top: 28px; border-radius: 14px; overflow: hidden; }
-  .index ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); background: var(--band); }
-  .index li { box-shadow: 1px 0 0 var(--band-line), 0 1px 0 var(--band-line); }
-  .index button {
-    width: 100%; height: 100%; border: 0; background: transparent; cursor: pointer; text-align: left;
-    display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 1px 12px; padding: 13px 18px 14px;
-  }
-  .index button:hover { background: var(--band-2); }
-  .index .ico { grid-row: 1 / span 2; width: 28px; height: 28px; color: var(--ink); }
-  .index .ico img { width: 28px; height: 28px; display: block; border-radius: 6px; }
-  .index .nm { font-weight: 600; font-size: 19px; line-height: 1.15; }
-  .index .pill { font-size: 14.5px; line-height: 1.2; }
-  @media (max-width: 520px) {
-    .index ul { grid-template-columns: 1fr 1fr; }
-    .index button { padding: 11px 12px 12px; gap: 1px 10px; }
   }
 
   /* ── Under the fold ─────────────────────────────────────────────────── */
@@ -257,7 +235,6 @@
     </div>
     <div class="dateline double" id="when"></div>
     <h1 class="headline" id="headline">Reading this morning&rsquo;s page&hellip;</h1>
-    <nav class="index" id="index" aria-label="In this edition" hidden></nav>
   </header>
   <main id="root"></main>
 </div>
@@ -440,7 +417,6 @@
     var firstPick = showPicker() && !state.picks;
     $("when").innerHTML = data && !firstPick ? whenWords(meta, d).map(function (w) { return "<span>" + esc(w) + "</span>"; }).join("") : "";
     if (firstPick) $("headline").textContent = "First, pick the apps your mornings should read.";
-    drawIndex(firstPick ? null : data);
     drawNav();
   }
 
@@ -457,15 +433,6 @@
     var next = nextRunWords();
     if (next) bits.push(next);
     return bits;
-  }
-
-  /* In this edition: each source, what waits there, and a jump to its column. */
-  function drawIndex(data) {
-    var list = data ? sources(data) : [], nav = $("index");
-    nav.hidden = list.length < 2;
-    nav.innerHTML = "<ul>" + list.map(function (s, i) {
-      return '<li><button type="button" data-jump="sec-' + i + '">' + iconFor(s.title) + '<span class="nm">' + esc(s.title) + "</span>" + pillOf(s) + "</button></li>";
-    }).join("") + "</ul>";
   }
 
   function drawNav() {
@@ -506,9 +473,9 @@
         '<p class="verdict">' + esc(meta.verdict) + "</p></section>";
     }
 
-    var list = sources(data);
-    if (list.length) {
-      html += '<div class="cols"><div class="grid">' + list.map(sheet).join("") + "</div></div>";
+    var sources = data.sections.filter(function (s) { return !/^checked$/i.test(s.title) && s.items.length; });
+    if (sources.length) {
+      html += '<div class="cols"><div class="grid">' + sources.map(sheet).join("") + "</div></div>";
     } else {
       html += '<div class="empty">This report has no sections yet. The file may still be being written. Look again in a moment.</div>';
     }
@@ -527,19 +494,14 @@
     });
   }
 
-  /* The sources of a report: every section with bullets, except the honesty footer. */
-  function sources(data) { return data.sections.filter(function (s) { return !/^checked$/i.test(s.title) && s.items.length; }); }
-  /* "All clear", or how many items wait in a section. */
-  function pillOf(s) {
-    var open = s.items.filter(function (it) { return !isClear(it); }).length;
-    return !open ? '<span class="pill clear">All clear</span>' : '<span class="pill count">' + open + (open === 1 ? " item" : " items") + "</span>";
-  }
-
-  function sheet(s, i) {
+  function sheet(s) {
     var rows = s.items.map(function (it) { var p = splitTime(it); p.ok = isClear(it); return p; });
     var timed = rows.some(function (r) { return r.time; });
+    var open = rows.filter(function (r) { return !r.ok; }).length;
+    var allClear = rows.length && rows.every(function (r) { return r.ok; });
+    var pill = allClear ? '<span class="pill clear">All clear</span>' : open ? '<span class="pill count">' + open + (open === 1 ? " item" : " items") + "</span>" : "";
     var check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
-    return '<section class="sheet" id="sec-' + i + '"><div class="sheet-head">' + iconFor(s.title) + "<h2>" + esc(s.title) + "</h2>" + pillOf(s) + "</div>" +
+    return '<section class="sheet"><div class="sheet-head">' + iconFor(s.title) + "<h2>" + esc(s.title) + "</h2>" + pill + "</div>" +
       '<ul class="items' + (timed ? "" : " no-times") + '">' + rows.map(function (r) {
         if (r.ok) return '<li class="ok">' + (timed ? '<span class="t">' + check + "</span>" : "") + "<span>" + (timed ? "" : "✓ ") + esc(r.text) + "</span></li>";
         return "<li>" + (timed ? '<span class="t">' + esc(r.time) + "</span>" : "") + "<span>" + richText(r.text) + "</span></li>";
@@ -567,10 +529,9 @@
         (fresh.length ? "You also connected " + esc(listWords(fresh.map(function (c) { return c.name; }))) + ". " : "") +
         '<button type="button" class="linkish" id="change-apps">' + (fresh.length ? "Add to my mornings" : "Change apps") + "</button></p>";
     }
-    var adds = V2 && state.picks ? addButtons(POPULAR) : "";
-    if (!chips && !mine && !adds) return "";
+    if (!chips && !mine) return "";
     return '<section class="looked double" aria-labelledby="looked-h"><h2 id="looked-h">What I looked at</h2>' +
-      (chips ? '<ul class="chips">' + chips + "</ul>" : "") + mine + adds +
+      (chips ? '<ul class="chips">' + chips + "</ul>" : "") + mine +
       "</section>" + '<p class="foot">Read only, everywhere. This page never sends, replies or changes anything.</p>';
   }
 
@@ -628,8 +589,7 @@
       (first ? "" : '<button type="button" class="ghost" id="pick-cancel">Cancel</button>') +
       '<button type="button" class="first-run" id="pick-save"' + (n && !state.saving ? "" : " disabled") + ">" +
       (state.saving ? "Saving&hellip;" : first ? "Start my mornings" : "Save my apps") + "</button></div>";
-    var more = POPULAR.filter(function (id) { return !apps.some(function (c) { return c.id === id; }); });
-    return html + (more.length ? addButtons(more) : "") + "</section>";
+    return html + '<p class="mine">Another app joins this list once you connect it in Integrations in Cabinet.</p></section>';
   }
   function countWords(n, of) { return n ? n + " of " + of + " picked" : "Pick at least one app"; }
   function addButtons(ids) {
@@ -813,11 +773,7 @@
     if (e.key === "ArrowLeft" && !$("older").disabled && !$("daynav").hidden) $("older").click();
     if (e.key === "ArrowRight" && !$("newer").disabled && !$("daynav").hidden) $("newer").click();
   });
-  $("index").addEventListener("click", function (e) {
-    var b = e.target.closest("[data-jump]"), to = b && $(b.getAttribute("data-jump"));
-    if (to) to.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-  });
-  // Each minute the needle moves on; at the morning hour the page turns to the new morning.
+  // Each minute the greeting keeps up with the clock; at the morning hour the page turns to the new morning.
   setInterval(function () {
     if (state.morning && morningStart(new Date()).getTime() !== state.morning) { state.pinned = false; load(); }
     else drawMast();
