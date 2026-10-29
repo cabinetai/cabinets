@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  slack-digest showcase page: the morning briefing.
+  slack-digest showcase page: Slack Catch-up, the morning briefing about you.
 
   Reads ../daily-summaries/, one file per run, written by this cabinet's single routine.
   The file names carry the timestamp, so the day picker is built without opening any of them.
@@ -8,15 +8,20 @@
   and survive the user renaming the cabinet at install time. The folder listing comes from
   /api/tree because the assets route serves single files and cannot list a directory.
 
-  Laid out like a short newspaper, read top to bottom: what needs you, what is worth a look,
-  and the quiet channels folded away. Zero external requests. System fonts, inline CSS,
-  no libraries. Every failure path renders something honest instead of a blank page.
+  Each summary has two tables: "Waiting on you" (one row per thing someone wants from the
+  person) and "Decided" (agreements made without them). The month's decision log, a page in
+  ../decisions/, is fetched only when the reader opens it.
+
+  Laid out like a short newspaper, read top to bottom: what needs you today, what wants an
+  answer, the for-your-information folded away, then what was decided. Zero external
+  requests. System fonts, inline CSS, no libraries. Every failure path renders something
+  honest instead of a blank page.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Slack Channel Digest</title>
+<title>Slack Catch-up</title>
 <style>
   :root {
     --sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -24,7 +29,8 @@
     --ink: #2F2626; --ink-2: #4A3D35; --muted: #76644E; --faint: #B3A28B;
     --accent: #C4553D; --accent-ink: #A8432D; --accent-soft: #F7E2DA;
     --amber: #C98A35; --amber-ink: #8A5A1C;
-    --link: #365F9C; --bar: #D9CBB6; --bar-hot: #D98C76;
+    --green-ink: #3F6B4A; --green-soft: #E3EDDF;
+    --link: #365F9C;
   }
   * { box-sizing: border-box; }
   body {
@@ -34,11 +40,11 @@
   .wrap { max-width: 880px; margin: 0 auto; }
   a { color: var(--link); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  a:focus-visible, select:focus-visible, summary:focus-visible, [tabindex="-1"]:focus-visible {
+  a:focus-visible, select:focus-visible, summary:focus-visible, button:focus-visible,
+  [tabindex="-1"]:focus-visible {
     outline: 2px solid var(--link); outline-offset: 3px; border-radius: 6px;
   }
   [tabindex="-1"]:focus { outline: none; }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
   /* ---- Masthead: a morning paper. Small name on top, the day as the headline,
      one sentence set large, then a ruled edition line. ---- */
@@ -57,6 +63,16 @@
     margin-top: 22px; padding: 9px 0; border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
 
+  /* The small facts about this run: what it covers, direct messages, reminders. */
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px;
+    margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .status span { display: inline-flex; align-items: center; gap: 7px; }
+  .status .off { color: var(--amber-ink); }
+  .status .set { color: var(--green-ink); }
+  .status button { border: 0; padding: 0; background: none; cursor: pointer;
+    font: 600 13px/1.4 var(--sans); color: var(--link); }
+  .status button:hover { text-decoration: underline; }
+
   .banner { margin-top: 20px; padding: 11px 16px; font-size: 14px; color: var(--amber-ink);
     background: #F6E8D2; border-radius: 10px; }
 
@@ -73,28 +89,7 @@
     color: var(--muted); }
   .top-meta a { font-weight: 600; }
 
-  /* ---- At a glance: every channel in one wrapping strip, before any reading. ---- */
-  .glance { margin-top: 38px; }
-  .kick { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap;
-    gap: 4px 16px; margin: 0 0 12px; font-size: 11px; font-weight: 700;
-    letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-  .legend { display: flex; gap: 14px; font-size: 12px; font-weight: 500; letter-spacing: 0;
-    text-transform: none; }
-  .legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .strip { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { display: flex; flex-direction: column; gap: 1px; min-width: 108px; padding: 9px 13px 8px;
-    background: var(--card); border-radius: 10px; color: var(--ink);
-    box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .15s ease; }
-  .chip:hover { text-decoration: none; box-shadow: inset 0 0 0 1px var(--faint); }
-  .chip.high { background: var(--accent-soft); box-shadow: none; }
-  .chip.high:hover { box-shadow: inset 0 0 0 1px #E3B2A3; }
-  .chip.low { background: transparent; }
-  .chip-name { display: flex; align-items: center; gap: 7px; font-weight: 650; font-size: 14px; }
-  .chip-meta { font-size: 12px; color: var(--muted); padding-left: 15px;
-    font-variant-numeric: tabular-nums; }
-  .chip.high .chip-meta { color: var(--accent-ink); }
-
-  /* State marks: a filled dot needs you, a ring is worth a look, a dash is quiet. */
+  /* State marks: a filled dot needs you, a ring wants an answer, a dash is for your information. */
   .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; }
   .dot.high { background: var(--accent); }
   .dot.medium { box-shadow: inset 0 0 0 2px var(--amber); }
@@ -109,54 +104,81 @@
   .section h2 .count { font-weight: 600; letter-spacing: .04em; }
   .section.hot h2 { color: var(--accent-ink); }
 
-  /* Needs you: a story per channel, the ask set large because it is the news. */
+  /* Needs you today: a story per item, the ask set large because it is the news. */
   .stories { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .stories .solo { grid-column: 1 / -1; }
   .story { display: flex; flex-direction: column; padding: 18px 20px 16px; background: var(--card);
     border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); scroll-margin-top: 16px; }
   .story-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
     font-size: 13px; }
-  .story-top .chan { color: var(--accent-ink); }
+  .who { font-weight: 700; color: var(--ink); }
+  .story .who { color: var(--accent-ink); font-size: 14px; }
+  .where { color: var(--muted); font-weight: 500; }
   .ask { font-size: 21px; line-height: 1.3; font-weight: 600; letter-spacing: -0.015em;
     margin: 8px 0 18px; }
   .open { font-size: 13px; font-weight: 600; white-space: nowrap; }
-  .chan { font-weight: 700; color: var(--ink); }
-  a.chan:hover { color: var(--link); }
 
-  /* Volume, labelled: the count, a short bar against the busiest channel, and the rank. */
-  .vol { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 12px;
-    border-top: 1px solid var(--line); font-size: 13px; color: var(--muted);
+  /* How long it has waited: the age set plainly, then when it was asked. */
+  .age { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: auto;
+    padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted);
     font-variant-numeric: tabular-nums; }
-  .vol b { color: var(--ink); font-weight: 600; }
-  .vol-bar { width: 72px; height: 4px; background: var(--tint); border-radius: 4px; flex: none;
-    overflow: hidden; }
-  .vol-bar i { display: block; height: 100%; background: var(--bar); border-radius: 4px; }
-  .hot .vol-bar i { background: var(--bar-hot); }
+  .age b { color: var(--accent-ink); font-weight: 650; }
+  .remind { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px;
+    border-radius: 999px; background: var(--green-soft); color: var(--green-ink);
+    font-weight: 600; font-size: 12px; }
 
-  /* Worth a look: a compact two-column list, a hairline above each entry. */
+  /* Worth an answer: a compact two-column list, a hairline above each entry. */
   .brief { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
   .item { padding: 12px 0 14px; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
-  .item-top { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-  .item-top .msgs { margin-left: auto; }
+  .item-top { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+  .item-top .dot { align-self: center; }
+  .item-top .since { margin-left: auto; }
   .item:nth-child(-n+2) { border-top: 0; padding-top: 0; }
   .item .what { margin: 3px 0 0 16px; color: var(--ink-2); }
-  .msgs { font-size: 13px; color: var(--muted); white-space: nowrap;
+  .item .what a { font-size: 13px; font-weight: 600; margin-left: 6px; white-space: nowrap; }
+  .since { font-size: 13px; color: var(--muted); white-space: nowrap;
     font-variant-numeric: tabular-nums; }
 
-  /* Quiet: folded away, one line each. */
+  /* Just so you know: folded away, one line each. */
   details.quiet { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  details.quiet summary { cursor: pointer; padding: 13px 0; color: var(--muted);
+  details summary { cursor: pointer; padding: 13px 0; color: var(--muted);
     font-weight: 600; font-size: 14px; list-style-position: inside; }
-  .line { display: grid; grid-template-columns: 140px 1fr auto; gap: 2px 16px;
-    align-items: baseline; padding: 8px 0; font-size: 14px; color: var(--muted);
-    scroll-margin-top: 16px; }
+  .line { display: grid; grid-template-columns: 170px 1fr auto; gap: 2px 16px;
+    align-items: baseline; padding: 8px 0; font-size: 14px; color: var(--muted); }
   .line:last-child { padding-bottom: 14px; }
-  .line .chan { color: var(--ink-2); font-weight: 600; }
+  .line .who { color: var(--ink-2); font-weight: 600; }
+
+  /* Nothing waiting: calm, not empty. */
+  .calm { padding: 22px 24px; background: var(--card); border-radius: 12px;
+    box-shadow: inset 0 0 0 1px var(--line); }
+  .calm .calm-head { margin: 0; color: var(--ink); font-size: 22px; font-weight: 650; letter-spacing: -0.015em; }
+  .calm p { margin: 6px 0 0; color: var(--muted); }
+
+  /* Decided: the outcome first, then where and who. */
+  .decisions { list-style: none; margin: 0; padding: 0; }
+  .decision { display: grid; grid-template-columns: 1fr auto; gap: 2px 20px; padding: 13px 0;
+    border-top: 1px solid var(--line); }
+  .decision:first-child { border-top: 0; padding-top: 0; }
+  .decision-what { font-size: 16px; font-weight: 600; letter-spacing: -0.005em; }
+  .decision-meta { grid-column: 1; font-size: 13px; color: var(--muted); }
+  .decision-meta .chan { color: var(--ink-2); font-weight: 600; }
+  .decision .open { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+
+  /* The month's decision log, fetched when opened. */
+  details.log { margin-top: 18px; border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line); }
+  details.log summary span { font-weight: 500; }
+  .log-body { padding: 4px 0 16px; }
+  .log-body h4 { margin: 16px 0 6px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+  .log-body ul { margin: 0; padding-left: 18px; }
+  .log-body li { margin: 3px 0; color: var(--ink-2); font-size: 14px; }
+  .log-body p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+  .log-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
 
   .empty { margin-top: 28px; padding: 20px 22px; color: var(--muted); font-size: 15px;
     background: var(--card); border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); }
   .empty code { font-size: 13px; }
-  .note { color: var(--muted); font-size: 14px; margin-top: 30px; }
+  .note { color: var(--muted); font-size: 14px; margin: 0; }
 
   @media (max-width: 640px) {
     body { padding: 22px 16px 56px; }
@@ -170,10 +192,12 @@
     .top-head { font-size: 24px; }
     .top-why { font-size: 16px; }
     .stories, .brief { grid-template-columns: 1fr; }
+    .ask { font-size: 19px; }
     .item:nth-child(2) { border-top: 1px solid var(--line); padding-top: 12px; }
-    .chip { min-width: 0; flex: 1 1 calc(50% - 4px); }
     .line { grid-template-columns: 1fr auto; }
     .line .what { grid-column: 1 / -1; grid-row: 2; }
+    .decision { grid-template-columns: 1fr; }
+    .decision .open { grid-column: 1; grid-row: auto; justify-self: start; }
   }
 
   /* Cabinet's type and controls, shared by the three Slack pages. Cabinet sets its
@@ -212,7 +236,7 @@
         <!-- The integration's own mark, inlined so the page still makes
              zero external requests. -->
         <svg class="mark" viewBox="0 0 127 127" aria-hidden="true"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2C6.7 93.2.8 87.3.8 80c0-7.3 5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/> <path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2C33.8 6.5 39.7.6 47 .6c7.3 0 13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H13.9C6.6 60.1.7 54.2.7 46.9c0-7.3 5.9-13.2 13.2-13.2H47z" fill="#36C5F0"/> <path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V13.8C66.9 6.5 72.8.6 80.1.6c7.3 0 13.2 5.9 13.2 13.2v33.1z" fill="#2EB67D"/> <path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2 0-7.3 5.9-13.2 13.2-13.2h33.1c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H80.1z" fill="#ECB22E"/></svg>
-        <span>Slack Channel Digest</span>
+        <span>Slack Catch-up</span>
       </div>
       <div id="tools" class="tools"></div>
     </div>
@@ -221,9 +245,10 @@
     </div>
     <div class="edition">
       <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
-      <span>Every morning, what moved in all your Slack channels in the last 24 hours, and which of it wants you.</span>
+      <span>Every morning, who is waiting on you in Slack, and what was decided without you.</span>
       <span id="next"></span>
     </div>
+    <div id="status" class="status" role="status"></div>
   </header>
 
   <div id="root"><div class="empty">Loading…</div></div>
@@ -236,16 +261,17 @@
   var head = document.getElementById('head');
   var tools = document.getElementById('tools');
   var nextLine = document.getElementById('next');
+  var statusLine = document.getElementById('status');
   var DIR = 'daily-summaries';
+  var LOG_DIR = 'decisions';
   var JOB = '.jobs/morning-slack-digest.yaml';
   var job = null;
   var showing = 'all';
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
-  var SHOW = [['all', 'Everything'], ['high', 'Needs you'], ['medium', 'Worth a look'],
-              ['low', 'Quiet']];
-  var STATE = { high: 'Needs you', medium: 'Worth a look', low: 'Quiet' };
+  var SHOW = [['all', 'Everything'], ['high', 'Needs you today'], ['medium', 'Worth an answer'],
+              ['low', 'Just so you know'], ['decided', 'Decided']];
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -253,11 +279,30 @@
     });
   }
 
-  /* Frontmatter + markdown table, the only two shapes this page reads.
+  function pad(n) { return ('0' + n).slice(-2); }
+
+  /* ---- reading a summary ------------------------------------------------------------ */
+
+  function cells(l) {
+    return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
+  }
+
+  /* A markdown table: header row, separator, then rows. Read by column name below, so a
+     reordered or extra column still reads right. */
+  function table(lines) {
+    var rows = lines.filter(function (l) { return l.trim().indexOf('|') === 0; });
+    if (rows.length < 2) return { cols: [], rows: [] };
+    return {
+      cols: cells(rows[0]).map(function (c) { return c.toLowerCase(); }),
+      rows: rows.slice(2).map(cells).filter(function (r) { return r.join('').length; })
+    };
+  }
+
+  /* Frontmatter, then one table under each "## " heading. The only shapes this page reads.
      Anything richer belongs in the file, not in a parser here. */
   function parse(text) {
-    var out = { meta: {}, rows: [], cols: [] };
-    var m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    var out = { meta: {}, sections: {} };
+    var m = text.replace(/\r\n/g, '\n').match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
     var body = text;
     if (m) {
       body = m[2];
@@ -266,149 +311,296 @@
         if (kv) out.meta[kv[1]] = kv[2].replace(/^['"]|['"]$/g, '').trim();
       });
     }
-    var lines = body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
-    if (lines.length < 2) return out;
-    function cells(l) {
-      return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
-    }
-    out.cols = cells(lines[0]);
-    out.rows = lines.slice(2).map(cells).filter(function (r) { return r.join('').length; });
+    var name = '', lines = [];
+    function close() { if (name) out.sections[name] = table(lines); }
+    body.split('\n').forEach(function (l) {
+      var h = l.match(/^##\s+(.+?)\s*$/);
+      if (h) { close(); name = h[1].toLowerCase(); lines = []; } else lines.push(l);
+    });
+    close();
     return out;
   }
 
+  function pick(t, row, name) {
+    var i = t.cols.indexOf(name);
+    return i > -1 && row[i] !== undefined ? row[i] : '';
+  }
+
   /* Urgency is a closed set of three. Anything else the agent writes still has to render,
-     so it falls in with the quiet channels rather than disappearing. */
+     so it falls in with the for-your-information items rather than disappearing. */
   function urgency(cell) {
     var k = String(cell || '').toLowerCase();
     return (k === 'high' || k === 'medium') ? k : 'low';
   }
 
-  /* The table by column name, so a reordered or extra column still reads right. */
-  function channels(data) {
-    function col(name) {
-      return data.cols.map(function (c) { return c.toLowerCase(); }).indexOf(name);
-    }
-    var c = col('channel'), n = col('messages'), u = col('urgency'), w = col('what it wants'),
-        l = col('url');
-    return data.rows.map(function (r) {
-      var count = parseInt(c > -1 && n > -1 ? r[n] : '', 10);
+  function waiting(data, reminded) {
+    var t = data.sections['waiting on you'] || { cols: [], rows: [] };
+    return t.rows.map(function (r, i) {
+      var url = pick(t, r, 'url');
       return {
-        name: c > -1 ? r[c] : r[0], what: w > -1 ? r[w] : '', url: l > -1 ? r[l] : '',
-        count: isNaN(count) ? null : count, level: urgency(u > -1 ? r[u] : '')
+        id: 'w-' + i, who: pick(t, r, 'who'), where: pick(t, r, 'where'),
+        what: pick(t, r, 'what they want'), level: urgency(pick(t, r, 'urgency')),
+        since: when(pick(t, r, 'since')), url: url,
+        reminded: isUrl(url) && reminded.indexOf(url) > -1
       };
     });
   }
 
+  function decided(data) {
+    var t = data.sections['decided'] || { cols: [], rows: [] };
+    return t.rows.map(function (r) {
+      return { what: pick(t, r, 'decision'), where: pick(t, r, 'where'),
+               who: pick(t, r, 'who'), url: pick(t, r, 'url') };
+    }).filter(function (d) { return d.what; });
+  }
+
   function isUrl(u) { return /^https?:\/\//i.test(u || ''); }
 
-  function chan(ch) {
-    /* Only a real Slack-style link becomes clickable; anything else stays text. */
-    return isUrl(ch.url)
-      ? '<a class="chan" href="' + esc(ch.url) + '" target="_blank" rel="noopener noreferrer">' +
-        esc(ch.name) + '</a>'
-      : '<span class="chan">' + esc(ch.name) + '</span>';
+  /* "2026-08-10 09:00" in the person's own time, as the agent writes it. */
+  function when(s) {
+    var m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) : null;
   }
 
-  function openLink(ch) {
-    return isUrl(ch.url) ? '<a class="open" href="' + esc(ch.url) +
-      '" target="_blank" rel="noopener noreferrer">Open in Slack</a>' : '';
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
   }
 
-  function msgs(ch) {
-    if (ch.count === null) return '';
-    return ch.count + (ch.count === 1 ? ' message' : ' messages');
+  function clock(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+
+  /* A day said the way a person would, relative to the morning the summary was written. */
+  function dayWord(d, ref) {
+    if (ref && sameDay(d, ref)) return 'today';
+    if (ref && sameDay(d, new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() - 1))) {
+      return 'yesterday';
+    }
+    if (ref && ref - d < 6 * 86400000) return DAYS[d.getDay()];
+    return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
+  }
+
+  /* How long it had waited by the time the summary was written, not by now: an older
+     morning reads as it did that morning. */
+  function age(d, ref) {
+    if (!d || !ref) return '';
+    var h = Math.floor((ref - d) / 3600000);
+    if (h < 1) return 'under an hour';
+    if (h < 24) return h + (h === 1 ? ' hour' : ' hours');
+    var n = Math.floor(h / 24);
+    return n + (n === 1 ? ' day' : ' days');
+  }
+
+  function asked(it, ref) {
+    return it.since ? 'Asked ' + dayWord(it.since, ref) + ' at ' + clock(it.since) : '';
+  }
+
+  /* ---- drawing ---------------------------------------------------------------------- */
+
+  function whereText(where) {
+    return /^dm$/i.test(where) ? 'in a direct message'
+      : /^group dm$/i.test(where) ? 'in a group message'
+      : /^#/.test(where) ? 'in ' + where : where;
+  }
+
+  function openLink(url, words) {
+    return isUrl(url) ? '<a class="open" href="' + esc(url) +
+      '" target="_blank" rel="noopener noreferrer">' + (words || 'Open in Slack') + '</a>' : '';
   }
 
   function dot(level) { return '<i class="dot ' + level + '" aria-hidden="true"></i>'; }
 
-  function ordinal(n) {
-    var t = n % 100, o = n % 10;
-    return n + ((t > 10 && t < 14) ? 'th' : o === 1 ? 'st' : o === 2 ? 'nd' : o === 3 ? 'rd' : 'th');
+  function whoWhere(it) {
+    var where = whereText(it.where);
+    return '<span class="who">' + esc(it.who || 'Someone') + '</span>' +
+      (where ? ' <span class="where">' + esc(where) + '</span>' : '');
   }
 
-  /* Volume, labelled: "42 messages", a short bar against the busiest channel of the day,
-     and where that puts the channel ("busiest", "2nd busiest of 6"). */
-  function volume(ch, all, max) {
-    if (ch.count === null) return '';
-    var counted = all.filter(function (o) { return o.count !== null; });
-    var rank = 1 + counted.filter(function (o) { return o.count > ch.count; }).length;
-    var pct = max ? Math.max(4, Math.round(ch.count / max * 100)) : 0;
-    var note = counted.length < 2 ? '' : rank === 1 ? 'busiest channel today'
-      : ordinal(rank) + ' busiest of ' + counted.length;
-    return '<div class="vol"><b>' + esc(msgs(ch)) + '</b>' +
-      '<span class="vol-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></span>' +
-      (note ? '<span>' + esc(note) + '</span>' : '') + '</div>';
-  }
-
-  function needsYou(list, all, max) {
-    return '<div class="stories">' + list.map(function (ch) {
-      return '<article class="story' + (list.length === 1 ? ' solo' : '') + '" id="' + ch.id +
+  function needsYou(list, ref) {
+    return '<div class="stories">' + list.map(function (it) {
+      var waited = age(it.since, ref), foot = [];
+      if (waited) foot.push('<b>Waiting ' + esc(waited) + '</b>');
+      if (it.since) foot.push('<span>' + esc(asked(it, ref)) + '</span>');
+      if (it.reminded) foot.push('<span class="remind">Reminder set in Slack</span>');
+      return '<article class="story' + (list.length === 1 ? ' solo' : '') + '" id="' + it.id +
         '" tabindex="-1">' +
-        '<div class="story-top">' + chan(ch) + openLink(ch) + '</div>' +
-        '<p class="ask">' + esc(ch.what || 'Wants a look from you.') + '</p>' +
-        volume(ch, all, max) + '</article>';
+        '<div class="story-top"><span>' + whoWhere(it) + '</span>' + openLink(it.url) + '</div>' +
+        '<p class="ask">' + esc(it.what || 'Wants an answer from you.') + '</p>' +
+        (foot.length ? '<div class="age">' + foot.join('') + '</div>' : '') + '</article>';
     }).join('') + '</div>';
   }
 
-  function worthALook(list) {
-    return '<div class="brief">' + list.map(function (ch) {
-      return '<div class="item" id="' + ch.id + '" tabindex="-1">' +
-        '<div class="item-top">' + dot('medium') + chan(ch) +
-        '<span class="msgs">' + esc(msgs(ch)) + '</span></div>' +
-        (ch.what ? '<p class="what">' + esc(ch.what) + '</p>' : '') + '</div>';
+  function worthAnAnswer(list, ref) {
+    return '<div class="brief">' + list.map(function (it) {
+      var waited = age(it.since, ref);
+      return '<div class="item" id="' + it.id + '" tabindex="-1">' +
+        '<div class="item-top">' + dot('medium') + '<span>' + whoWhere(it) + '</span>' +
+        (waited ? '<span class="since" title="' + esc(asked(it, ref)) + '">' + esc(waited) +
+          '</span>' : '') + '</div>' +
+        '<p class="what">' + esc(it.what || 'Wants an answer from you.') +
+        openLink(it.url, 'Open') + '</p></div>';
     }).join('') + '</div>';
   }
 
-  function quiet(list, open) {
-    return '<details class="quiet"' + (open ? ' open' : '') + '><summary>Quiet channels (' +
-      list.length + ')</summary>' + list.map(function (ch) {
-        return '<div class="line" id="' + ch.id + '" tabindex="-1">' + chan(ch) +
-          '<span class="what">' + esc(ch.what) + '</span>' +
-          '<span class="msgs">' + esc(msgs(ch)) + '</span></div>';
+  function forYourInfo(list, ref, open) {
+    return '<details class="quiet"' + (open ? ' open' : '') + '><summary>Just so you know (' +
+      list.length + ')</summary>' + list.map(function (it) {
+        return '<div class="line" id="' + it.id + '" tabindex="-1"><span>' + whoWhere(it) +
+          '</span><span class="what">' + esc(it.what) + ' ' + openLink(it.url, 'Open') +
+          '</span><span class="since">' + esc(it.since ? dayWord(it.since, ref) : '') +
+          '</span></div>';
       }).join('') + '</details>';
   }
 
-  /* Every channel in the view as one compact tile: name, volume, state. A tile jumps to its
-     channel further down the page. */
-  function glance(list) {
-    var legend = ['high', 'medium', 'low'].filter(function (lv) {
-      return list.some(function (ch) { return ch.level === lv; });
-    }).map(function (lv) { return '<span>' + dot(lv) + STATE[lv] + '</span>'; }).join('');
-    return '<section class="glance" aria-label="Channels at a glance">' +
-      '<div class="kick"><span>At a glance</span><span class="legend">' + legend + '</span></div>' +
-      '<div class="strip">' + list.map(function (ch) {
-        return '<a class="chip ' + ch.level + '" href="#' + ch.id + '">' +
-          '<span class="chip-name">' + dot(ch.level) + esc(ch.name) + '</span>' +
-          '<span class="chip-meta">' + (ch.count === null ? '' : ch.count + ' msgs') +
-          '<span class="sr">, ' + STATE[ch.level] + '</span></span></a>';
-      }).join('') + '</div></section>';
-  }
-
   function section(cls, title, count, body) {
-    return '<section class="section ' + cls + '"><h2>' + title + ' <span class="count">' +
-      count + '</span></h2>' + body + '</section>';
+    return '<section class="section ' + cls + '"><h2>' + esc(title) +
+      (count === null ? '' : ' <span class="count">' + count + '</span>') + '</h2>' + body +
+      '</section>';
   }
 
-  /* The lead is free text. If it names a channel from the table, link the story to it. */
-  function leadChannel(lead, all) {
-    return all.filter(function (ch) {
-      if (!ch.name) return false;
-      var i = lead.toLowerCase().indexOf(ch.name.toLowerCase());
-      return i > -1 && !/[\w-]/.test(lead.charAt(i + ch.name.length));
+  /* The lead is free text. If it names someone in the table, link the story to their ask,
+     the most urgent one first. */
+  function leadItem(lead, all) {
+    var low = lead.toLowerCase();
+    return all.filter(function (it) {
+      if (!it.who) return false;
+      var i = low.indexOf(it.who.toLowerCase());
+      return i > -1 && !/\w/.test(low.charAt(i - 1)) && !/\w/.test(low.charAt(i + it.who.length));
     })[0] || null;
   }
 
-  function topStory(meta, all, max) {
-    var ch = leadChannel(meta.lead, all), bits = [];
-    if (ch) {
-      bits.push('<a href="#' + ch.id + '">' + 'See ' + esc(ch.name) + ' below</a>');
-      if (ch.count !== null) bits.push('<span>' + esc(msgs(ch)) + '</span>');
-      if (isUrl(ch.url)) bits.push(openLink(ch));
+  function topStory(meta, all, ref) {
+    var it = leadItem(meta.lead, all), bits = [];
+    if (it) {
+      bits.push('<a href="#' + it.id + '">See ' + esc(it.who) + '’s ask below</a>');
+      if (it.since) bits.push('<span>Waiting ' + esc(age(it.since, ref)) + '</span>');
+      if (isUrl(it.url)) bits.push(openLink(it.url));
     }
     return '<section class="top" aria-label="Top story"><span class="top-label">Start here</span>' +
       '<div><p class="top-head">' + esc(meta.lead) + '</p>' +
       '<p class="top-why">' + esc(meta.verdict) + '</p>' +
       (bits.length ? '<div class="top-meta">' + bits.join('') + '</div>' : '') + '</div></section>';
+  }
+
+  /* "Decided yesterday" on a normal morning, "Decided since Friday" after a weekend. */
+  function decidedTitle(from, ref) {
+    if (!from || !ref) return 'Decided';
+    var word = dayWord(from, ref);
+    return word === 'yesterday' ? 'Decided yesterday'
+      : word === 'today' ? 'Decided this morning' : 'Decided since ' + word;
+  }
+
+  function decisionList(list) {
+    return '<ul class="decisions">' + list.map(function (d) {
+      var meta = [];
+      if (d.where) meta.push('<span class="chan">' + esc(d.where) + '</span>');
+      if (d.who) meta.push(esc(d.who));
+      return '<li class="decision"><span class="decision-what">' + esc(d.what) + '</span>' +
+        (meta.length ? '<span class="decision-meta">' + meta.join(', ') + '</span>' : '') +
+        openLink(d.url) + '</li>';
+    }).join('') + '</ul>';
+  }
+
+  /* Which month page holds this morning's decisions. The agent names it in `log`; an older
+     summary without one falls back to the month it was written in. */
+  function logPath(meta, name) {
+    var p = String(meta.log || '');
+    if (/^decisions\/[\w.-]+\.md$/.test(p)) return p.slice(LOG_DIR.length + 1);
+    var d = stamp(name);
+    return d ? d.getFullYear() + '-' + pad(d.getMonth() + 1) + '.md' : null;
+  }
+
+  /* "October 2026" from the page's name; the example's month comes from its summary. */
+  function logTitle(file, ref) {
+    var m = String(file).match(/^(\d{4})-(\d{2})\.md$/);
+    if (m) return MONTHS[+m[2] - 1] + ' ' + m[1];
+    return ref ? MONTHS[ref.getMonth()] + ' ' + ref.getFullYear() +
+      (/^EXAMPLE-/.test(file) ? ' (example)' : '') : 'this month';
+  }
+
+  function logFold(file, ref) {
+    if (!file) return '';
+    return '<details class="log" data-log="' + esc(file) + '" data-title="' +
+      esc(logTitle(file, ref)) + '"><summary>Decision log, ' + esc(logTitle(file, ref)) + ' <span>(every decision this month, newest day first)</span>' +
+      '</summary><div class="log-body">Loading…</div></details>' +
+      '<p class="log-note">It is also a page in this cabinet: <code>' + LOG_DIR + '/' +
+      esc(file) + '</code>.</p>';
+  }
+
+  /* The log page is plain markdown: day headings and one bullet per decision, with bold and
+     links. Escaped first, so nothing in it can become markup of its own. */
+  function inline(s) {
+    return esc(s)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  }
+
+  function renderLog(text) {
+    var body = text.replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n?/, '');
+    var html = '', list = false;
+    body.split('\n').forEach(function (l) {
+      var li = l.match(/^\s*[-*]\s+(.*)$/), h = l.match(/^(#{1,6})\s+(.*)$/);
+      if (!li && list) { html += '</ul>'; list = false; }
+      if (h) { if (h[1].length > 1) html += '<h4>' + inline(h[2]) + '</h4>'; }
+      else if (li) { if (!list) { html += '<ul>'; list = true; } html += '<li>' + inline(li[1]) + '</li>'; }
+      else if (l.trim()) html += '<p>' + inline(l.trim()) + '</p>';
+    });
+    if (list) html += '</ul>';
+    return html || '<p>No decisions on it yet.</p>';
+  }
+
+  root.addEventListener('toggle', function (e) {
+    var fold = e.target;
+    if (!fold.classList || !fold.classList.contains('log') || !fold.open || fold.dataset.done) return;
+    fold.dataset.done = '1';
+    var box = fold.querySelector('.log-body');
+    var file = fold.getAttribute('data-log');
+    fetch('../' + LOG_DIR + '/' + encodeURIComponent(file), { cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 404) return null;
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (text) {
+        box.innerHTML = text === null
+          ? '<p>No log for ' + esc(fold.getAttribute('data-title')) + ' yet. The next run starts it.</p>'
+          : renderLog(text);
+      })
+      .catch(function (err) {
+        delete fold.dataset.done;
+        box.innerHTML = '<p>Could not read the log (' + esc(err.message) + '). Close and ' +
+          'open it again in a moment.</p>';
+      });
+  }, true);
+
+  /* The facts about this run, in one quiet line under the masthead. */
+  function status(meta) {
+    var bits = [], from = when(meta.since), to = when(meta.generated);
+    if (from && to) {
+      bits.push('<span>Covers ' + esc(DAYS[from.getDay()] + ' ' + clock(from)) + ' to ' +
+        esc(DAYS[to.getDay()] + ' ' + clock(to)) + '</span>');
+    }
+    if (String(meta.dms).toLowerCase() === 'off') {
+      var cab = window.cabinet;
+      var can = !!(cab && cab.connectors && typeof cab.connectors.connect === 'function');
+      bits.push('<span class="off">' + dot('medium') + 'Direct messages are off. Turn them ' +
+        'on in Cabinet’s Slack settings to include them.' +
+        (can ? ' <button type="button" id="dm-settings">Open Slack settings</button>' : '') +
+        '</span>');
+    }
+    var n = parseInt(meta.reminders, 10);
+    if (n > 0) {
+      bits.push('<span class="set">' + n + (n === 1 ? ' reminder' : ' reminders') +
+        ' set in Slack</span>');
+    }
+    statusLine.innerHTML = bits.join('');
+    var btn = document.getElementById('dm-settings');
+    if (btn) btn.addEventListener('click', function () {
+      /* Opens the channel screen at the step that holds the Direct messages row. Only the
+         cabinet's owner may; anyone else simply gets nothing, so the error is dropped. */
+      Promise.resolve(window.cabinet.connectors.connect('slack', { step: 'choose-chats' }))
+        .catch(function () {});
+    });
   }
 
   function header(name, meta) {
@@ -420,62 +612,77 @@
   }
 
   function render(data, name, files) {
-    var meta = data.meta, html = controls(name, files);
+    var meta = data.meta, html = '';
+    controls(name, files);
     header(name, meta);
+    status(meta);
+    var ref = when(meta.generated) || stamp(name);
 
     /* The bundled example has no date in its name. Say so, so nobody acts on it. */
     if (!stamp(name)) {
-      html += '<div class="banner">This is example data. Your own briefing replaces it ' +
-              'after the routine first reaches Slack.</div>';
+      html += '<div class="banner">This is example data. Dana, Megan and the rest are ' +
+              'invented. Your own catch-up replaces it after the routine first reaches ' +
+              'Slack.</div>';
     }
 
-    /* The routine could not reach Slack. It said so rather than writing nothing. */
+    /* The routine reached Slack but something went wrong. It said so rather than guess. */
     if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">Last run could not reach ' +
-              esc(meta.source || 'the source') + ': ' + esc(meta.status) +
-              '. Showing the previous result.</div>';
+      html += '<div class="banner">This run did not finish cleanly: ' + esc(meta.status) +
+              '. What it found is below.</div>';
     }
 
-    var all = channels(data);
-    all.forEach(function (ch, i) { ch.id = 'ch-' + i; });
+    var reminded = String(meta.reminded || '').split(/\s+/).filter(isUrl);
+    var all = waiting(data, reminded), done = decided(data);
 
-    /* The single most consequential channel, in one sentence. Absent most days on purpose.
-       The lead names no urgency, so a filtered view leaves it out rather than guess. */
-    if (meta.lead && meta.verdict && showing === 'all') html += topStory(meta, all);
-
-    if (!all.length) {
-      root.innerHTML = html + '<div class="empty">Nothing to show for this day.</div>';
-      bind(name, files);
-      return;
+    /* The single most consequential item, in one sentence. Absent most days on purpose. */
+    if (meta.lead && meta.verdict && (showing === 'all' || showing === 'high')) {
+      html += topStory(meta, all, ref);
     }
 
-    var max = all.reduce(function (m, ch) { return Math.max(m, ch.count || 0); }, 0);
     function at(level) {
       return (showing === 'all' || showing === level)
-        ? all.filter(function (ch) { return ch.level === level; }) : [];
+        ? all.filter(function (it) { return it.level === level; }) : [];
     }
     var high = at('high'), medium = at('medium'), low = at('low'), body = '';
 
-    if (high.length) body += section('hot', 'Needs you', high.length, needsYou(high, all, max));
-    if (medium.length) body += section('', 'Worth a look', medium.length, worthALook(medium));
-    /* Folded unless quiet is the only thing asked for. */
-    if (low.length) body += '<section class="section">' + quiet(low, showing === 'low') + '</section>';
+    if (showing !== 'decided') {
+      if (!all.length) {
+        var from = when(meta.since);
+        body += section('', 'Waiting on you', null, '<div class="calm">' +
+          '<p class="calm-head">Nothing is waiting on you.</p>' +
+          '<p>Nobody asked you anything in Slack' +
+          (from ? ' since ' + esc(dayWord(from, ref) + ' at ' + clock(from)) : '') +
+          ' that is still open.</p></div>');
+      }
+      if (high.length) body += section('hot', 'Needs you today', high.length, needsYou(high, ref));
+      if (medium.length) body += section('', 'Worth an answer', medium.length, worthAnAnswer(medium, ref));
+      /* Folded unless it is the only thing asked for. */
+      if (low.length) {
+        body += '<section class="section">' + forYourInfo(low, ref, showing === 'low') + '</section>';
+      }
+      if (all.length && !high.length && !medium.length && !low.length) {
+        var word = SHOW.filter(function (s) { return s[0] === showing; })[0][1].toLowerCase();
+        body += '<p class="note" style="margin-top:40px">Nothing under ' + esc(word) +
+          ' this morning.</p>';
+      }
+    }
 
-    if (!body) {
-      var word = SHOW.filter(function (s) { return s[0] === showing; })[0][1].toLowerCase();
-      body = '<p class="note">Nothing under ' + esc(word) + ' this morning.</p>';
-    } else {
-      body = glance(high.concat(medium, low)) + body;
+    if (showing === 'all' || showing === 'decided') {
+      var title = decidedTitle(when(meta.since), ref);
+      body += section('', title, done.length || null,
+        (done.length ? decisionList(done)
+          : '<p class="note">No decisions in your channels that you were not part of.</p>') +
+        logFold(logPath(meta, name), ref));
     }
 
     root.innerHTML = html + body;
     bind(name, files);
   }
 
-  /* A tile jumps to its channel. Quiet channels sit in a folded list, so open it first;
-     scrolling in place keeps the page's own address free of fragments. */
+  /* "See Dana's ask below" jumps to the card; scrolling in place keeps the page's own
+     address free of fragments. */
   root.addEventListener('click', function (e) {
-    var a = e.target.closest && e.target.closest('a[href^="#ch-"]');
+    var a = e.target.closest && e.target.closest('a[href^="#w-"]');
     if (!a) return;
     var el = document.getElementById(a.getAttribute('href').slice(1));
     if (!el) return;
@@ -491,13 +698,8 @@
   /* 2026-08-10T07-00-00-slack-summary.md: the name carries the date, so the picker
      is built from names alone. EXAMPLE-slack-summary.md is the one file without one. */
   function stamp(name) {
-    var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
+    var m = String(name).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
     return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
-  }
-
-  function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
-           a.getDate() === b.getDate();
   }
 
   function human(d) {
@@ -505,23 +707,23 @@
            d.getFullYear();
   }
 
-  function label(name) {
+  /* Today, Yesterday, or the date; with the time when a day has more than one run. */
+  function label(name, files) {
     var d = stamp(name);
-    if (!d) return 'Slack Daily Example';
-    var now = new Date(), yday = new Date(now.getTime() - 86400000);
-    if (sameDay(d, now)) return 'Today';
-    if (sameDay(d, yday)) return 'Yesterday';
-    return human(d);
+    if (!d) return 'Example morning';
+    var now = new Date(), yday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    var word = sameDay(d, now) ? 'Today' : sameDay(d, yday) ? 'Yesterday' : human(d);
+    var twins = files.filter(function (f) { var o = stamp(f); return o && sameDay(o, d); });
+    return twins.length > 1 ? word + ', ' + clock(d) : word;
   }
 
-  /* The selects live in the masthead and the next run on the edition line, so this draws
-     both and returns nothing for the body. */
+  /* The selects live in the masthead and the next run on the edition line. */
   function controls(current, files) {
     var html = '';
     if (files.length) {
       var days = files.map(function (f) {
         return '<option value="' + esc(f) + '"' + (f === current ? ' selected' : '') + '>' +
-               esc(label(f)) + '</option>';
+               esc(label(f, files)) + '</option>';
       }).join('');
       var shows = SHOW.map(function (s) {
         return '<option value="' + s[0] + '"' + (s[0] === showing ? ' selected' : '') + '>' +
@@ -532,17 +734,16 @@
     }
     tools.innerHTML = html;
     nextLine.textContent = nextRunText();
-    return '';
   }
 
   /* The controls are rewritten on every render, so the listeners are re-attached each time. */
   function bind(current, files) {
-    var pick = document.getElementById('pick'), filter = document.getElementById('show');
-    if (pick) pick.addEventListener('change', function () { show(pick.value, files); });
+    var pickEl = document.getElementById('pick'), filter = document.getElementById('show');
+    if (pickEl) pickEl.addEventListener('change', function () { show(pickEl.value, files); });
     if (filter) filter.addEventListener('change', function () {
       showing = filter.value;
       /* The picked day, not the drawn one: that day's fetch may still be on its way. */
-      show(pick ? pick.value : current, files);
+      show(pickEl ? pickEl.value : current, files);
     });
   }
 
@@ -555,7 +756,9 @@
       .then(function (text) { render(parse(text), name, files); })
       .catch(function (err) {
         header(name, null);
-        root.innerHTML = controls(name, files) + '<div class="empty">Could not read <code>' +
+        statusLine.innerHTML = '';
+        controls(name, files);
+        root.innerHTML = '<div class="empty">Could not read <code>' +
           esc(name) + '</code> (' + esc(err.message) + '). It may be mid-write, so reload ' +
           'in a moment.</div>';
         bind(name, files);
@@ -606,18 +809,17 @@
     if (!job.schedule) return '';
     var d = nextRun(job.schedule, new Date());
     if (!d) return '';
-    var clock = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    return 'Next run: ' + human(d) + ' at ' + clock;
+    return 'Next run: ' + human(d) + ' at ' + clock(d);
   }
 
-  /* /api/assets/<cabinet path>/<app folder>/index.html — dropping the last two segments
+  /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments
      tells the page which cabinet it is installed in, whatever the user named it. */
   function cabinetDir() {
     var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
     return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
   }
 
-  /* Direct .md children of the folder only — never a nested one.
+  /* Direct .md children of the folder only, never a nested one.
      The tree strips `.md` from `path` but keeps it on `name`, so the two are matched
      separately: `path` decides what lives in the folder, `name` is what we fetch. */
   function listFiles(nodes, dir, out) {
@@ -652,8 +854,10 @@
       });
       var files = listFiles(tree, cabinetDir() + '/' + DIR, []);
       if (!files.length) {
-        root.innerHTML = controls('', []) + '<div class="empty">Nothing yet. Your first ' +
-          'briefing appears here after the routine runs for the first time.</div>';
+        controls('', []);
+        root.innerHTML = '<div class="empty">Nothing yet. Your first catch-up appears here ' +
+          'after the routine runs for the first time: who is waiting on you, and what was ' +
+          'decided without you.</div>';
         return;
       }
       /* Newest first; the example, having no date, sits at the bottom of the list. */

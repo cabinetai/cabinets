@@ -1,36 +1,59 @@
 id: morning-slack-digest
-name: Morning Slack Digest
+name: Morning Slack Catch-up
 enabled: true
 schedule: 0 9 * * *
 provider: claude-code
 adapterType: claude_local
 ownerAgent: channel-reader
 agentSlug: channel-reader
-timeout: 600
+timeout: 900
 prompt: |-
-  Write this morning's Slack digest.
+  Write this morning's Slack catch-up: who is waiting on the person, and what was decided
+  without them.
 
   Your working directory is the cabinet root. Every summary lives in `daily-summaries/`,
   one file per run, named `<YYYY-MM-DD>T<HH-MM-SS>-slack-summary.md`: the local time you
   ran, then that exact postfix. The page reads the folder, sorts by the name and opens the
   newest, so a name in any other shape is a summary nobody will see. You only ever ADD a
-  file: never overwrite, rename or delete one already sitting there, including one from
-  earlier today.
+  summary: never overwrite, rename or delete one already there, including one from earlier
+  today. The decision log in `decisions/` is the one page you edit in place.
 
-  1. Read your persona before anything else. It holds the frontmatter shape, the table
-     columns, the urgency vocabulary and the tone. This prompt does not repeat them.
-  2. With your Slack tools, list every channel you can see and read the last 24 hours of
-     each one, thread replies included. Every channel, not a shortlist. Skip direct
-     messages entirely. This digest is about channels.
-  3. This run is read only. Do not post, reply in a thread, react, or mark anything read,
-     however obvious the one-line answer looks.
-  4. If you have no Slack tool, or Slack is not connected, or the call fails, STOP HERE.
-     Write nothing. Leave `daily-summaries/` exactly as you found it, example and all.
-     Report what you tried and what Slack said, then: "I would have read the last 24 hours
-     of every channel you allowed and written this morning's digest." Then exit.
-  5. On the first run that does reach Slack, write your dated file and then delete
-     `daily-summaries/EXAMPLE-slack-summary.md`. It is a demo, not a past summary, and it
-     must not sit in the date list beside real ones. Do not merge with it, do not rename
-     it, and never write `EXAMPLE` into a name of your own.
+  1. Read your persona before anything else. It holds the file shapes, what counts as
+     waiting and as a decision, the urgency vocabulary, the decision log, the reminder
+     rules and the tone. This prompt does not repeat them.
+  2. If you have no Slack tool, or Slack is not connected, or the first call fails, STOP
+     HERE. Write nothing. Leave `daily-summaries/` and `decisions/` exactly as you found
+     them, examples and all. Report what you tried and what Slack said, then: "I would
+     have read your mentions, threads and direct messages and written this morning's
+     catch-up." Then exit.
+  3. Find out who the person is (persona, "Who you are"): their user id, display name,
+     time zone and user groups.
+  4. Call `slack_list_channels` (every page). Keep the channels they are a member of and
+     the `direct_messages` read and write flags. Work out the window from the newest dated
+     summary's `generated` (persona, "The window").
+  5. Search, newest first, 100 a page, paging only while results are still in the window:
+     - mentions of their user id, and of each user group they belong to;
+     - their own messages from the last 14 days, to learn which threads are theirs, then
+       new replies by others in those threads, channel by channel;
+     - when direct messages may be read: direct and group messages to them, not from them.
+       When they may not, skip them without a call and write `dms: off`;
+     - for decisions, each of their channels once, first page only, inside the window.
+       At most 25 channels: the ones with the most messages in the window first. Say in
+       `status` when channels were left out.
+     Search covers almost everything. Read a thread (`slack_read_thread`) only when a reply
+     makes no sense without the start, at most 5 reads a run: each one takes about a minute.
+  6. For each ask, check whether they or someone else answered it after it was made. Bring
+     forward the open High and Medium rows of the newest summary (persona, "Carry forward").
+  7. Write the summary. Then add this run's decisions to `decisions/<YYYY-MM>.md`, making
+     the page if this is the month's first.
+  8. Only when `direct_messages.write` is true: set reminders for the High rows (persona,
+     "Reminders"), then record them in the summary's `reminders` and `reminded`. A refusal
+     is the normal default: skip quietly.
+  9. This run never posts, replies, reacts or marks anything read, however obvious the
+     one-line answer looks.
+  10. On the first run that does reach Slack, after writing your files, delete
+     `daily-summaries/EXAMPLE-slack-summary.md` and `decisions/EXAMPLE-decisions.md`. They
+     are a demo, not a past morning, and must not sit beside real ones. Do not merge with
+     them, do not rename them, and never write `EXAMPLE` into a name of your own.
 createdAt: '2026-09-01T11:33:24.906Z'
-updatedAt: '2026-09-01T11:33:24.906Z'
+updatedAt: '2026-10-29T00:00:00.000Z'
