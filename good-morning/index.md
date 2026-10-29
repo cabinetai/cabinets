@@ -1,11 +1,11 @@
 ---
-title: Good Morning
+title: Morning Brief
 created: '2026-08-13T00:00:00Z'
-modified: '2026-09-15T00:00:00Z'
+modified: '2026-10-29T00:00:00Z'
 tags: [morning, briefing, email, calendar, generic, flagship]
 order: 1
 ---
-# Good Morning
+# Morning Brief
 
 One morning page from the apps you pick: mail, calendar, money, whatever you add next.
 
