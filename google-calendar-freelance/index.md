@@ -25,6 +25,8 @@ The cabinet opens on it: **Your hours**.
 
 On the 1st of every month it writes **last month's hours list**, one section per client
 with every meeting and its length, ready to copy into your invoices.
+- **Add to your calendar**: fill in a new event, or tell the agent in your own words what to
+  add or move. A new event waits for your press on its card in the chat; a move or a delete waits for your yes.
 
 Press **Edit layout** to add, remove, move and resize the boxes. Your layout is yours.
 
