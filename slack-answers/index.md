@@ -1,7 +1,7 @@
 ---
 title: Slack Answers
 created: '2026-09-16T00:00:00Z'
-modified: '2026-09-16T00:00:00Z'
+modified: '2026-10-29T00:00:00Z'
 tags: [slack, questions, knowledge, search, showcase]
 order: 1
 ---
@@ -33,7 +33,8 @@ workspace on Slack's own page and press **Allow**. There is no app to make and n
 paste.
 
 Cabinet then asks which channels your team may use. Pick the channels where questions get
-answered and give them **Read**: this cabinet only reads. Until Slack is connected the page
+answered and give them **Read**: this cabinet only reads. Direct messages are never read,
+so a question answered in private stays private. Until Slack is connected the page
 keeps showing the example.
 
 ## What's inside

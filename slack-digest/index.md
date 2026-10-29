@@ -1,7 +1,7 @@
 ---
 title: Slack Digest
 created: '2026-08-09T00:00:00Z'
-modified: '2026-09-15T00:00:00Z'
+modified: '2026-10-29T00:00:00Z'
 tags: [slack, channels, messages, digest, showcase]
 order: 1
 ---

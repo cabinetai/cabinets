@@ -1,7 +1,7 @@
 ---
 title: Slack Triage
 created: '2026-09-16T00:00:00Z'
-modified: '2026-09-16T00:00:00Z'
+modified: '2026-10-29T00:00:00Z'
 tags: [slack, support, triage, tracking, showcase]
 order: 1
 ---
@@ -34,7 +34,8 @@ workspace on Slack's own page and press **Allow**. There is no app to make and n
 paste.
 
 Cabinet then asks which channels your team may use. Point it at your support or incident
-channel with **Read** and leave the rest out: this cabinet only reads. Until Slack is
+channel with **Read** and leave the rest out: this cabinet only reads. A private support
+channel works too. Add it by name, because private channels are never included on their own. Until Slack is
 connected the board keeps showing the example.
 
 ## How the owner gets there
