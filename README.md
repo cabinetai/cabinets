@@ -197,6 +197,8 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [whatsapp-catch-up](./whatsapp-catch-up) | Lifestyle | 1 | 2 | 0 | Who needs you in your chats, what you planned, and what you promised |
 | [x-mentions](./x-mentions) | Operations | 1 | 1 | 0 | Every morning, your mentions and which of them actually want an answer |
 | [youtube-channel-factory](./youtube-channel-factory) | Media | 1 | 2 | 0 | A complete YouTube OS in a directory |
+| [youtube-digest](./youtube-digest) | Media | 1 | 1 | 0 | Every morning, how your YouTube channel did, the comments waiting for you, and what viewers keep asking |
+| [youtube-watch](./youtube-watch) | Media | 1 | 1 | 0 | Every morning, what on your YouTube channel needs a look, ranked, each with a link and a next step |
 
 ## Cabinet File Format
 

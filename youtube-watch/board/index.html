@@ -1,0 +1,2726 @@
+<!DOCTYPE html>
+<!--
+  YouTube Watch: Watch Board. The cabinet opens on this page.
+
+  What on a YouTube channel needs a person, ranked: angry comments, complaints and bug
+  reports, spam and scams, questions waiting too long, business and collab requests,
+  videos doing much worse than usual, false claims about the creator, and anything else
+  that needs a human. Each item once, with the comments behind it, a link, and one
+  suggested next step. Plus an Ask box and Ideas they can ask for once, switch on as a
+  routine, or add as a box.
+
+  The page is a grid of boxes, the same way Your YouTube works: 12 columns, each box moved,
+  resized, added and removed by mouse, finger or keyboard, with Undo. Each person's layout
+  is kept in cabinet.mine, so it follows them.
+
+  Where the words come from: the Daily Channel Watch routine reads the channel and writes
+  board/data.json (DATA.md next to this page describes it; the exact shape is in
+  .agents/channel-watcher/persona.md, and this page reads it as it is). Until that file
+  exists, the page shows data/EXAMPLE-data.json, a made-up channel in the same shape,
+  always labelled as an example.
+  The first check is told as it happens: the agent adds a line to data/reading.json (through
+  first-read.mjs) after each look at YouTube, and the one comment that needs the person first
+  (the gift) and a few offers. The page shows them under the band as they come, and the gift
+  waits under the board afterwards.
+
+  How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
+  routine, read files, the person's own layout). In an older Cabinet it reads the same files over the page's own
+  address. The page never changes anything on YouTube, and no press here asks the agent to:
+  every button asks for a summary or a draft to copy. A reply is posted only when the
+  person asks for it in the chat. Nothing here depends on the computer it runs on.
+
+  The look follows the Gmail templates' front desk: white sheets on a grey canvas, serif
+  titles, labels as plain words. The headline is a band in YouTube's red with the answer big
+  in white; below it red is an accent only: the sheet icons, the main button and what is
+  urgent; near-black for the Ask box and the chosen filter.
+
+  One file on purpose: a sealed frame cannot load files next to it. Newsreader for titles and
+  Plus Jakarta Sans for text, from Google Fonts with system fallbacks; icons are inline SVG.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Watch Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* White sheets on YouTube's light grey under a headline band in YouTube's red. Below the
+     band red is for the sheet icons, and where something is urgent or the one thing to press;
+     near-black for the Ask box and the chosen filter, like YouTube's own chip bar. Green only
+     for "connected". */
+  :root {
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --canvas: #f2f2f2;
+    --page: #ffffff;
+    --panel: #f8f8f8;
+    --chip: #f2f2f2;
+    --chip-2: #e5e5e5;
+    --line: #ebebeb;
+    --line-2: #d3d3d3;
+    --ink: #0f0f0f;
+    --ink-2: #3f3f3f;
+    --ink-3: #606060;
+
+    --yt: #ff0000;
+    --yt-ink: #cc0000;
+    --yt-deep: #a80000;
+    --yt-tint: #fff1f1;
+    --yt-line: #f7d4d4;
+    --deep: #0f0f0f;
+    --deep-2: #272727;
+    --green: #1e8e3e;
+    --green-ink: #137333;
+    --green-tint: #e6f4ea;
+    --amber: #b06d00;
+    --amber-ink: #7a4b00;
+    --amber-tint: #fef4e0;
+    --sand-tint: #f7f1e6;
+
+    --shadow-1: 0 1px 2px rgba(15, 15, 15, .05), 0 6px 18px -12px rgba(15, 15, 15, .16);
+    --shadow-2: 0 2px 4px rgba(15, 15, 15, .05), 0 16px 34px -18px rgba(15, 15, 15, .26);
+    --radius: 20px;
+    --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  ::selection { background: color-mix(in srgb, var(--yt) 18%, transparent); }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--ink);
+    font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--ink); }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--ink) 35%, transparent); outline-offset: 2px; border-radius: 10px; }
+  .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 18px 28px 40px; }
+  .main { display: flex; flex-direction: column; gap: 22px; }
+
+  /* ── Example ribbon ──────────────────────────────────────────────────── */
+  #ribbon:empty { display: none; }
+  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border-radius: 12px; background: var(--sand-tint); border: 1px solid #eadfca; }
+  .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .tag-example { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+  /* ── The headline band: the mark, the state, and the one answer ──────── */
+  /* A band in YouTube red at the top of the page, the answer big in white. Its buttons are
+     light pills on the red. White text and every softer line on it keep at least 4.5:1 on the
+     lightest red. */
+  .headline {
+    border-radius: 24px; box-shadow: var(--shadow-1); padding: 20px clamp(20px, 2.6vw, 34px) 28px; color: #fff;
+    background: linear-gradient(180deg, var(--yt-ink) 0%, #b20000 100%);
+  }
+  .headline :focus-visible { outline-color: #fff; }
+  .hl-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  /* YouTube's own logo (Simple Icons, CC0), drawn in the background so the mark stays an empty span. */
+  .mark { width: 30px; height: 21px; display: inline-block; flex: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 3.5 24 17'%3E%3Cpath fill='%23ff0000' d='M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z'/%3E%3Cpath fill='%23fff' d='M9.545 15.568V8.432L15.818 12z'/%3E%3C/svg%3E") no-repeat center / contain; }
+  /* On the red the play mark turns white, its triangle cut out in the band's red. */
+  .headline .mark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 3.5 24 17'%3E%3Cpath fill='%23fff' d='M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z'/%3E%3Cpath fill='%23cc0000' d='M9.545 15.568V8.432L15.818 12z'/%3E%3C/svg%3E"); }
+  .brand b { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .brand .chan { color: rgba(255, 255, 255, .88); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .status .btn { min-height: 38px; padding: 6px 14px; font-size: 14px; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 4px 11px; border-radius: 999px; background: var(--chip); font-weight: 600; font-size: 13.5px; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
+  .pill.ok { background: var(--green-tint); color: var(--green-ink); }
+  .pill.ok .dot { background: var(--green); }
+  .pill.warn { background: var(--amber-tint); color: var(--amber-ink); }
+  .pill.warn .dot { background: var(--amber); }
+  .pill.off { background: var(--yt-tint); color: var(--yt-ink); }
+  .pill.off .dot { background: var(--yt); }
+  .updated, .next { color: var(--ink-3); font-size: 14px; }
+  /* On the band: the connection is a see-through pill, the buttons light pills. */
+  .headline .pill { background: rgba(255, 255, 255, .16); color: #fff; }
+  .headline .pill .dot { background: #fff; }
+  .headline .pill.ok .dot { background: #8ee6a8; }
+  .headline .pill.warn .dot { background: #ffd27a; }
+  .headline .updated, .headline .next { color: rgba(255, 255, 255, .88); }
+  .headline .btn { border-color: transparent; background: rgba(255, 255, 255, .9); color: var(--ink); }
+  .headline .btn:hover:not([disabled]) { background: #fff; border-color: transparent; }
+  /* The one thing to press stands out as solid white with red words. */
+  .headline .btn.primary { background: #fff; color: var(--yt-ink); }
+  .headline .btn.primary:hover:not([disabled]) { background: var(--yt-tint); }
+
+  .hero { margin-top: 18px; }
+  .hello { margin: 0 0 4px; font-size: 15px; color: rgba(255, 255, 255, .88); }
+  .hello b { font-weight: 700; color: #fff; }
+  .hero h2 { margin: 0; font-family: var(--serif); font-size: clamp(40px, 5vw, 68px); line-height: 1; font-weight: 600; letter-spacing: -.025em; }
+  .hero .lead { margin: 12px 0 0; font-size: 17px; color: rgba(255, 255, 255, .9); max-width: 72ch; }
+  .hero .lead b { color: #fff; font-weight: 700; }
+  .hero .meta { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 14px; color: rgba(255, 255, 255, .88); }
+  .hero .meta button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .5); text-underline-offset: 3px; }
+  .hero .meta button:hover { color: #fff; text-decoration-color: currentColor; }
+  .hero .meta .hot { color: #fff; font-weight: 800; }
+  .hero .fine { margin: 8px 0 0; font-size: 15px; color: rgba(255, 255, 255, .88); }
+  .hero .fine b { color: #fff; }
+  .hero .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+  /* Before the first check or when YouTube needs someone: a picture and the one step. */
+  .card-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center; }
+  .art { width: 132px; height: 104px; }
+  .card-hero h2 { font-size: clamp(26px, 2.8vw, 34px); }
+  .steps { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; padding: 0; list-style: none; color: var(--ink-2); font-size: 15px; }
+  .steps li { display: flex; align-items: center; gap: 8px; }
+  .steps .icon { color: var(--green); width: 18px; height: 18px; }
+  .headline .steps { color: rgba(255, 255, 255, .9); }
+  .headline .steps .icon { color: #fff; }
+  .headline .skeleton { color: rgba(255, 255, 255, .88); }
+
+  /* A notice in the band is a white slip, so its words read as they do anywhere else. */
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: var(--page); color: var(--ink); border: 1px solid var(--yt-line); margin-top: 16px; }
+  .notice .icon { color: var(--yt-ink); margin-top: 2px; }
+  .notice p { margin: 0; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px;
+    border-radius: 999px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink);
+    font-weight: 600; font-size: 15px; text-decoration: none; white-space: nowrap;
+    transition: background .15s ease, border-color .15s ease, transform .1s ease;
+  }
+  .btn:hover { background: var(--chip); border-color: #c4c4c4; }
+  .btn:active { transform: translateY(1px); }
+  .btn[disabled] { cursor: default; opacity: .55; transform: none; }
+  .btn.primary { background: var(--yt-ink); border-color: var(--yt-ink); color: #fff; }
+  .btn.primary:hover { background: var(--yt-deep); border-color: var(--yt-deep); }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.dark:hover { background: var(--deep-2); }
+  .btn.quiet { border-color: transparent; background: transparent; color: var(--ink-2); padding-inline: 10px; }
+  .btn.quiet:hover { background: var(--chip); }
+  .btn.big { min-height: 52px; padding: 13px 26px; font-size: 17px; }
+  .btn.small { min-height: 38px; padding: 7px 14px; font-size: 14px; }
+  .btn.small .icon { width: 17px; height: 17px; }
+
+  /* ── Boxes with a list ───────────────────────────────────────────────── */
+  .lane { border-radius: var(--radius); background: var(--page); overflow: hidden; box-shadow: var(--shadow-1); }
+  /* A sheet title: a plain outline icon, a serif word, and the count. */
+  .lane-head { flex: none; display: flex; align-items: center; gap: 11px; margin: 0 20px; padding: 18px 0 12px; }
+  .lane-head .lane-icon { display: inline-grid; place-items: center; color: var(--yt-ink); }
+  .lane-head .lane-icon .icon { width: 22px; height: 22px; stroke-width: 1.8; }
+  .lane-head h3 { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 600; letter-spacing: -.015em; flex: 1; min-width: 0; }
+  .lane-head .count { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--ink-3); }
+  .lane-head .count.hot { color: var(--yt-ink); }
+  .lane-head .count.zero { display: none; }
+  .lane-empty { padding: 18px 20px; color: var(--ink-3); margin: 0; }
+
+  /* Small: one number and one line under it. */
+  .sum { display: flex; flex-direction: column; gap: 2px; padding: 4px 20px 14px; }
+  .sum .value { font-family: var(--serif); font-size: 34px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+  .sum .value.none { color: var(--ink-3); }
+  .sum .sub { color: var(--ink-3); font-size: 14px; }
+  .sum .line { margin-top: 6px; color: var(--ink-2); font-size: 15px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .box-pad { padding: 0 20px 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* Filter by kind, the way YouTube's own chip bar looks: grey chips, the chosen one black.
+     They wrap on a wide screen; on a phone one row scrolls sideways, never the page. */
+  .filters { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 4px; }
+  .filters::-webkit-scrollbar { display: none; }
+  .f { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 5px 12px; border-radius: 8px; border: 0; background: var(--chip); font-size: 14px; font-weight: 600; color: var(--ink); }
+  .f:hover { background: var(--chip-2); }
+  .f .n { color: var(--ink-3); font-weight: 600; }
+  .f[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .f[aria-pressed="true"] .n { color: rgba(255, 255, 255, .72); }
+
+  /* The magnifier is drawn in the background so the input stays a plain input. */
+  .find { display: block; width: calc(100% - 40px); margin: 12px 20px 6px; min-height: 44px; padding: 9px 16px 9px 44px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 15.5px;
+    background: var(--page) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23606060' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 16px center / 18px; }
+  .find::placeholder { color: var(--ink-3); }
+  .find:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(15, 15, 15, .08); }
+  .nohits { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+
+  .rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .row { border-bottom: 1px solid var(--line); }
+  /* Not what the person is looking for: kept out of the box's own row count too. */
+  .row.miss { display: none; }
+  .row:last-child { border-bottom: 0; }
+  /* A row is a line in a note: the problem in bold, then plain words. Labels are words, not
+     pills: grey for the kind, red only when it is urgent. */
+  .row-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 14px; align-items: start; width: 100%; text-align: start; padding: 14px 20px; border: 0; background: transparent; }
+  .row-main:hover, .row.open .row-main { background: var(--panel); }
+  .who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; }
+  .who b { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+  .chips { display: inline-flex; flex-wrap: wrap; gap: 2px 10px; }
+  .chip { font-size: 13px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+  .chip.hot { color: var(--yt-ink); font-weight: 700; }
+  .chip.look { color: var(--ink); font-weight: 700; }
+  .when { grid-row: span 2; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 13.5px; color: var(--ink-3); white-space: nowrap; }
+  .gist { grid-column: 1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
+  .gist .under { color: var(--ink-3); font-size: 14px; }
+  .step { grid-column: 1 / -1; display: flex; gap: 8px; align-items: flex-start; margin-top: 3px; font-size: 14.5px; color: var(--ink); overflow-wrap: anywhere; }
+  .step .icon { width: 16px; height: 16px; margin-top: 3px; color: var(--ink-3); }
+  .step b { font-weight: 700; }
+
+  .row-body { padding: 2px 20px 18px; background: var(--panel); }
+  .route { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; background: var(--page); border: 1px solid var(--line); font-size: 14.5px; color: var(--ink-2); }
+  .route .icon { color: var(--ink); margin-top: 1px; }
+  .route b { color: var(--ink); }
+  .msgs { list-style: none; margin: 0 0 12px; padding: 0; border-radius: 12px; background: var(--page); border: 1px solid var(--line); }
+  .msg { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 14.5px; }
+  .msg:first-child { border-top: 0; }
+  .msg .by { font-weight: 700; }
+  .msg .at { color: var(--ink-3); font-size: 13px; margin-inline-start: 6px; font-weight: 500; }
+  .msg q { grid-column: 1 / 2; color: var(--ink-2); quotes: "\201C" "\201D"; overflow-wrap: anywhere; }
+  .msg .open { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 13.5px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .msg .open .icon { width: 15px; height: 15px; }
+  .more { margin: 0 0 10px; color: var(--ink-3); font-size: 14px; }
+  .row-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  /* ── Ask ─────────────────────────────────────────────────────────────── */
+  .ask { padding: 22px; border-radius: var(--radius); background: var(--deep); color: #fff; }
+  .ask h2 { margin: 0 0 4px; font-family: var(--serif); font-size: 25px; font-weight: 500; letter-spacing: -.015em; }
+  .ask > p { margin: 0 0 14px; color: rgba(255, 255, 255, .78); font-size: 15px; }
+  .ask form { display: flex; gap: 10px; }
+  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .24); background: rgba(255, 255, 255, .08); color: #fff; padding: 10px 18px; font-size: 16px; }
+  .ask input::placeholder { color: rgba(255, 255, 255, .6); }
+  .ask input:focus { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .2); }
+  .ask .btn.light { min-height: 50px; background: #fff; border-color: #fff; color: var(--deep); }
+  .ask .btn.light:hover { background: var(--chip); }
+  .ask .qs-label { margin: 16px 0 0; font-size: 12.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: rgba(255, 255, 255, .6); }
+  .qs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .q { min-height: 38px; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .05); color: #f1f1f1; font-size: 14px; font-weight: 500; text-align: start; }
+  .q:hover { background: rgba(255, 255, 255, .13); }
+  .ask .note { margin: 12px 0 0; font-size: 14px; color: rgba(255, 255, 255, .72); min-height: 1.5em; }
+  .box.ask { overflow: hidden; }
+  .box.ask[data-level="S"] form { flex-direction: column; }
+
+  /* ── Ideas ───────────────────────────────────────────────────────────── */
+  .idea { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
+  .idea h3 { margin: 4px 0 0; font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
+  .idea p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .idea .go .btn { min-height: 42px; padding: 8px 14px; font-size: 14px; }
+  .idea .on-page { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--green-ink); }
+  .idea .on-page .icon { width: 16px; height: 16px; }
+  /* The same carved-wood pictures as the template covers. The object sits on the right of
+     each cover, so the crop keeps the right side. */
+  .art-img { flex: none; aspect-ratio: 16 / 8; border-radius: 14px; overflow: hidden; background: var(--chip); }
+  .art-img img { width: 100%; height: 100%; object-fit: cover; object-position: 75% center; display: block; }
+  .idea-rows > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--line); }
+  .idea-rows > li:last-child { border-bottom: 0; }
+  .idea-rows b { display: block; font-size: 15px; }
+  .idea-rows span[dir] { display: block; color: var(--ink-3); font-size: 14px; }
+  /* One idea as its own box: its picture, and the presses. */
+  .one-idea { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 10px; padding: 16px 20px; }
+  .one-idea h3 { margin: 0; font-size: 16.5px; font-weight: 800; line-height: 1.3; }
+  .one-idea p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+  .one-idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+  .one-idea .art-img { aspect-ratio: auto; height: 96px; }
+  .box[data-level="L"] .one-idea .art-img { height: 130px; }
+
+  /* ── The grid of boxes ───────────────────────────────────────────────── */
+  /* Each box sits on a 12 column grid at the place its layout gives it, and draws itself
+     small, medium or large by its own width (data-level). A list shows the rows that fit,
+     then "+N more". */
+  .grid { --row: 64px; --gap: 16px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: var(--row); gap: var(--gap); }
+  .box { display: flex; flex-direction: column; min-width: 0; min-height: 0; transition: box-shadow .2s ease; }
+  .box > .box-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .box-more { flex: none; display: flex; justify-content: center; width: 100%; padding: 10px 14px; border: 0; border-top: 1px solid var(--line); background: var(--page); color: var(--ink); font-weight: 600; font-size: 14px; }
+  .box-more:hover { background: var(--panel); }
+  .box.nbox > .sum { flex: 1; justify-content: center; }
+  /* On a phone the boxes stack in their order and grow to fit. */
+  .grid.stack { display: flex; flex-direction: column; gap: 16px; }
+  .grid.stack .box { flex: none; }
+  /* A list box is as tall as its rows, up to the size its layout gives it: no empty white
+     under a short list, and its foot sits right under the rows. */
+  .grid:not(.editing):not(.stack) > .box.lane:not(.nbox):not([data-box^="idea-"]) { align-self: start; max-height: 100%; }
+
+  /* Editing the page: a small bar of buttons, handles on every box. */
+  .editbar { position: sticky; top: 8px; z-index: 20; align-self: flex-end; display: flex; padding: 5px; border-radius: 999px; background: var(--yt-tint); border: 1px solid var(--yt-line); box-shadow: var(--shadow-2); }
+  .editbar-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .editbar .btn { min-height: 36px; padding: 6px 14px; font-size: 13.5px; gap: 6px; }
+  .editbar .btn .icon { width: 17px; height: 17px; }
+  .grid.editing .box { position: relative; overflow: visible; outline: 2px dashed var(--line-2); outline-offset: 5px; }
+  .grid.editing .box > :not(.box-x):not(.box-resize):not(.box-size) { pointer-events: none; user-select: none; }
+  .grid .box { -webkit-touch-callout: none; }
+  .grid.editing .box { cursor: grab; user-select: none; }
+  .grid.editing .box:focus-visible { outline: 3px solid var(--ink-2); outline-offset: 5px; }
+  .grid.editing .box:not(.lifted) { box-shadow: 0 14px 30px -18px rgba(15, 15, 15, .24); }
+  body.is-moving, body.is-moving * { cursor: grabbing !important; user-select: none; }
+  body.is-sizing, body.is-sizing * { cursor: nwse-resize !important; user-select: none; }
+  .box.lifted { z-index: 30; box-shadow: 0 26px 50px -18px rgba(15, 15, 15, .32); will-change: transform; }
+  .box.sizing { z-index: 30; }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } }
+  .grid.fresh .box-x, .grid.fresh .box-resize, .grid.fresh .box-size { animation: pop .45s var(--spring, ease-out) backwards; }
+  .grid.stack.editing { gap: 36px; padding-top: 8px; }
+  /* On a phone the size switch sits on the box's top edge: the title moves down out of its way. */
+  .grid.stack.editing .lane-head { padding-top: 28px; }
+  .grid.stack.editing .box.ask { padding-top: 34px; }
+  .grid.stack.arranging .box:not(.lifted) { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+  .drop-spot { z-index: 1; border: 2px dashed var(--ink-3); border-radius: var(--radius); background: color-mix(in srgb, var(--ink) 5%, transparent); pointer-events: none; }
+  .size-tag { z-index: 31; place-self: center; padding: 8px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-2); }
+  .size-tag:empty { display: none; }
+  .box-resize { position: absolute; inset-inline-end: -11px; bottom: -11px; z-index: 3; width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid var(--ink-2); border-radius: 50%; background: var(--page); box-shadow: var(--shadow-1); cursor: nwse-resize; touch-action: none; transition: transform .15s ease; }
+  .box-resize::after { content: ""; width: 8px; height: 8px; margin: 0 2px 2px 0; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); }
+  .box-resize:hover { transform: scale(1.12); }
+  .box-size { position: absolute; top: -16px; inset-inline-start: 12px; z-index: 3; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--ink); box-shadow: var(--shadow-2); }
+  .box-size button { min-height: 30px; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: #c8c8c8; font-size: 13px; font-weight: 700; }
+  .box-size button[aria-pressed="true"] { background: #fff; color: var(--ink); }
+  .box-x { position: absolute; top: -14px; inset-inline-end: -14px; z-index: 3; width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid var(--page); border-radius: 50%; background: var(--ink); color: #fff; box-shadow: var(--shadow-2); transition: transform .15s ease, background .15s ease; }
+  .box-x:hover { background: var(--yt-ink); transform: scale(1.1); }
+  .box-x .icon { width: 16px; height: 16px; stroke-width: 2.6; }
+  .box.leaving { opacity: 0; transform: scale(.94); transition: opacity .2s ease, transform .2s ease; }
+  .box.flash { animation: flash 1.4s ease; }
+  @keyframes flash { 25% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--ink) 25%, transparent); } }
+  .grid-empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 24px; border: 2px dashed var(--line-2); border-radius: var(--radius); color: var(--ink-2); }
+  .grid-empty p { margin: 0; }
+
+  /* The Add a box and Ideas panels. */
+  .pick-group h3 { margin: 6px 4px 8px; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); }
+  .pick.on { background: var(--panel); }
+  .pick-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--yt-tint); color: var(--yt-ink); }
+  .pick b { display: block; font-size: 15px; font-weight: 700; }
+  .pick span { display: block; color: var(--ink-3); font-size: 14px; }
+  .pick em { display: block; margin-top: 2px; font-style: normal; font-size: 13px; font-weight: 600; color: var(--green-ink); }
+  .pick-on { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--green-tint); color: var(--green-ink); }
+  .drawer { position: fixed; inset: 0; z-index: 40; }
+  .drawer-scrim { position: absolute; inset: 0; background: rgba(15, 15, 15, .38); opacity: 0; transition: opacity .25s ease; }
+  .drawer-panel { position: absolute; top: 0; bottom: 0; inset-inline-end: 0; width: min(460px, 100%); display: flex; flex-direction: column; background: var(--page); box-shadow: -24px 0 60px -24px rgba(15, 15, 15, .4); transform: translateX(100%); transition: transform .34s cubic-bezier(.2, .8, .2, 1); outline: none; }
+  .drawer.open .drawer-scrim { opacity: 1; }
+  .drawer.open .drawer-panel { transform: none; }
+  .drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 16px; border-bottom: 1px solid var(--line); }
+  .drawer-head .lane-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--yt-tint); color: var(--yt-ink); flex: none; }
+  .drawer-head h2 { margin: 0; font-family: var(--serif); font-size: 25px; font-weight: 600; letter-spacing: -.015em; }
+  .drawer-head p { margin: 2px 0 0; color: var(--ink-3); font-size: 14.5px; }
+  .drawer-close { margin-inline-start: auto; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2); }
+  .drawer-close:hover { background: var(--panel); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--canvas); }
+
+  .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line-2); color: var(--ink-3); font-size: 14px; }
+  .foot .icon { color: var(--green); }
+  .foot p { margin: 0; }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0; background: var(--ink); color: #fff; padding: 11px 18px; border-radius: 999px; font-weight: 600; font-size: 14.5px; box-shadow: var(--shadow-2); transition: opacity .2s ease, transform .2s ease; z-index: 50; max-width: calc(100% - 32px); text-align: center; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .spin { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* "backwards": hidden until its turn, then it lets go, so it never holds a box still when dragged. */
+  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: var(--d, 0ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
+
+  /* ── The first check, told as it happens: one line for each thing found ── */
+  .reading { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; padding: 28px clamp(20px, 3vw, 36px); border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
+  .reading h2 { margin: 0 0 12px; font-family: var(--serif); font-size: clamp(26px, 2.6vw, 32px); line-height: 1.1; font-weight: 600; letter-spacing: -.015em; }
+  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .read-lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 16.5px; color: var(--ink-2); overflow-wrap: anywhere; animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; }
+  .read-lines li b { color: var(--ink); font-weight: 700; }
+  .read-lines li .icon { width: 20px; height: 20px; margin-top: 2px; color: var(--green); stroke-width: 2.2; }
+  .read-lines li.old { animation: none; }
+  .read-lines li.now { color: var(--ink-3); }
+  .pulse-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--yt); animation: read-pulse 1.2s ease-in-out infinite; }
+  .read-lines li.now .pulse-dot { margin: 7px 0 0 5px; }
+  .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 14px; }
+  @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  /* The board is there and the agent is still finishing: its latest line, quietly, in the band. */
+  .read-strip { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 10px 16px; border-radius: 12px; background: var(--page); color: var(--ink-2); font-size: 14.5px; overflow-wrap: anywhere; }
+  .read-strip b { color: var(--ink); }
+  /* While the first check reads, the reading is the page under the band: no made-up example. */
+  .first-read #ribbon, .first-read #grid, .first-read #grid-empty, .first-read #gift-keep, .first-read #editbar { display: none !important; }
+  .read-page { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 20px; }
+  @media (min-width: 980px) {
+    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 22px; }
+    .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* While I read, you can...: the gift first, then a few more things to do now. */
+  .side-list { display: grid; align-content: start; gap: 14px; }
+  .side-title { margin: 0; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .offers { list-style: none; margin: 0; padding: 0 20px; border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
+  .offer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); }
+  .offer:first-child { border-top: 0; }
+  .offer.arrive { animation: rise .5s cubic-bezier(.2, .8, .2, 1) both; }
+  .offer .ic { display: inline-grid; color: var(--yt-ink); }
+  .offer b { display: block; font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
+  .offer span.sub { display: block; color: var(--ink-3); font-size: 14px; overflow-wrap: anywhere; }
+  .offer .asked { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: var(--green-ink); white-space: nowrap; }
+  .offer .asked .icon { width: 17px; height: 17px; color: var(--green); }
+
+  /* The gift: one thing the person can do now, found while the agent reads. */
+  .gift { display: grid; align-content: center; gap: 14px; padding: 30px clamp(22px, 3vw, 40px); border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-2); }
+  .gift .eyebrow { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--yt-ink); }
+  .gift .eyebrow .icon { width: 17px; height: 17px; }
+  .gift h3 { margin: 0; max-width: 30ch; font-family: var(--serif); font-size: clamp(22px, 2.4vw, 30px); line-height: 1.2; font-weight: 500; letter-spacing: -.015em; overflow-wrap: anywhere; }
+  .gift h3 b { font-weight: 700; }
+  .gift .about { margin: 0; padding: 2px 0 2px 14px; border-left: 2px solid var(--line-2); color: var(--ink-2); font-size: 16px; max-width: 60ch; }
+  .gift .why { margin: 0; color: var(--ink-2); font-size: 16px; max-width: 56ch; overflow-wrap: anywhere; }
+  .gift .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .gift .asked { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: 500; color: var(--green-ink); }
+  .gift .asked .icon { color: var(--green); }
+  .gift .fine { margin: 0; color: var(--ink-3); font-size: 14px; }
+  .gift.arrive { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; }
+  .gift.looking { justify-items: start; min-height: 220px; background: color-mix(in srgb, var(--page) 55%, transparent); box-shadow: none; }
+  .gift.looking h3 { color: var(--ink-3); }
+  @media (max-width: 979px) { .gift.looking { display: none; } }
+  /* After the reading, the gift and the offers wait under the boxes, so the band stays on top,
+     until used or put away. */
+  .gift-keep { display: grid; gap: 12px; }
+
+  /* ── Narrow screens ──────────────────────────────────────────────────── */
+  @media (max-width: 560px) {
+    .wrap { padding: 12px 16px 32px; }
+    .main { gap: 16px; }
+    .headline { padding: 16px 18px 22px; border-radius: 20px; }
+    .status { width: 100%; }
+    .hero h2 { font-size: 38px; }
+    .hero .lead { font-size: 16px; }
+    .card-hero { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .art { width: 104px; height: 82px; }
+    .card-hero .btn.big { width: 100%; }
+    .lane-head { margin: 0 16px; }
+    .filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 0 4px; padding-inline-start: 16px; }
+    /* The row's end space, as a last item: not every browser scrolls a flex row's end padding into view. */
+    .filters::after { content: ""; flex: none; width: 8px; }
+    .find { width: calc(100% - 32px); margin-inline: 16px; }
+    /* On a phone the time and the count go under the title, so the words get the width. */
+    .row-main { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; gap: 3px; }
+    .when { grid-row: auto; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0; }
+    /* The dot ends a part rather than starting the next, so a wrapped line never starts with one. */
+    .when > span:not(:last-child)::after { content: "·"; margin: 0 7px; color: var(--line-2); }
+    .row-body { padding: 2px 16px 16px; }
+    .msg { grid-template-columns: minmax(0, 1fr); }
+    .msg .open { grid-column: 1; grid-row: auto; margin-top: 4px; }
+    .ask { padding: 20px 18px; }
+    .ask form { flex-direction: column; }
+    .reading, .gift { padding: 22px 18px; }
+    .gift .acts .btn { flex: 1 1 auto; }
+    .offers { padding: 0 16px; }
+    .offer { grid-template-columns: auto minmax(0, 1fr); }
+    .offer > .btn, .offer > .asked { grid-column: 2; justify-self: start; }
+    .sum, .box-pad { padding-inline: 16px; }
+    .idea-rows > li { padding-inline: 16px; }
+    .editbar { align-self: stretch; border-radius: 18px; }
+    .editbar-actions { justify-content: center; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-watch" viewBox="0 0 24 24"><circle cx="6.5" cy="15" r="3.5" /><circle cx="17.5" cy="15" r="3.5" /><path d="M10 14.5h4M4 12.5l2-6h3l1 6M20 12.5l-2-6h-3l-1 6" /></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="2.5" /><path d="M10.5 8.3v4.9l4.2-2.45z" /><path d="M8 20.5h8" /></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10.5 13.5" /><path d="M21 3l-6.5 18-4-7.5L3 9.5z" /></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3 3-3 3" /><path d="M4 11V9.5a4 4 0 0 1 4-4h12" /><path d="M7 21.5l-3-3 3-3" /><path d="M20 13v1.5a4 4 0 0 1-4 4H4" /></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9" /><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" /></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9a4.8 4.8 0 0 1-.6 9.5z" /></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 6 8.5 7 8.5-7" /></symbol>
+  <symbol id="i-reply" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z" /></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2" /><rect x="13" y="3" width="8" height="6" rx="2" /><rect x="13" y="11" width="8" height="10" rx="2" /><rect x="3" y="15" width="8" height="6" rx="2" /></symbol>
+</svg>
+
+<div class="wrap">
+  <main class="main">
+    <header class="headline">
+      <div class="hl-top">
+        <div class="brand">
+          <span class="mark" aria-hidden="true"></span>
+          <b>Watch Board</b><span class="chan" id="chan" dir="auto"></span>
+        </div>
+        <div class="status" id="status" aria-live="polite"></div>
+      </div>
+      <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your channel...</p></section>
+    </header>
+    <div class="editbar" id="editbar" role="region" aria-label="Editing your board" hidden>
+      <div class="editbar-actions">
+        <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>Add a box</button>
+        <button type="button" class="btn" data-act="undo" id="undo-btn" disabled><svg class="icon" aria-hidden="true"><use href="#i-reply" /></svg>Undo</button>
+        <button type="button" class="btn quiet" data-act="reset-layout">Reset to default</button>
+        <button type="button" class="btn dark" data-act="edit-done"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Done</button>
+      </div>
+    </div>
+    <div id="ribbon"></div>
+    <section id="reading" aria-live="polite" hidden></section>
+    <section class="grid" id="grid" aria-label="What needs a look, most urgent first" hidden></section>
+    <div class="gift-keep" id="gift-keep" role="region" aria-label="Things you can do now" hidden></div>
+    <div class="grid-empty" id="grid-empty" hidden>
+      <p><b>Your board has no boxes.</b> Add the ones you want to see.</p>
+      <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>Add a box</button>
+    </div>
+    <footer class="foot">
+      <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
+      <p>The board only reads, and nothing on this page writes on YouTube. A reply to a comment is posted only when you ask for it in the chat, and only if you chose Allow comments when you connected YouTube. You see the words first. Business asks are never answered for you. Cabinet never deletes, hides or reports a comment: the board tells you where to do that in YouTube Studio.</p>
+    </footer>
+  </main>
+</div>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-scrim" data-act="drawer-close"></div>
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+    <div class="drawer-head">
+      <span class="lane-icon" id="drawer-icon" aria-hidden="true"></span>
+      <div>
+        <h2 id="drawer-title"></h2>
+        <p id="drawer-sub"></p>
+      </div>
+      <button type="button" class="drawer-close" data-act="drawer-close" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var JOB = "daily-channel-watch";
+  var AGENT = "channel-watcher";
+  var POLL_MS = 60000;
+
+  /** The board's closed vocabulary, in the order the filter shows it, with the words people read. */
+  var KINDS = ["Angry", "Complaint", "Spam", "Waiting", "Business", "Drop", "Claim", "Other"];
+  var KIND_WORDS = { Angry: "Angry", Complaint: "Complaint", Spam: "Spam or scam", Waiting: "Waiting", Business: "Business and collab", Drop: "Video drop", Claim: "False claim", Other: "Other" };
+  /** A row whose comments can be answered offers a draft reply; the others offer a look. */
+  var ANSWERABLE = { Angry: 1, Complaint: 1, Waiting: 1, Business: 1, Claim: 1, Other: 1 };
+  var LEVEL_RANK = { High: 0, Medium: 1, Low: 2 };
+  /** What a business or collab request asks for. Any other word shows as plain "Business". */
+  var ASKS = { Sponsorship: 1, Collaboration: 1, Hiring: 1, Consulting: 1, Partnership: 1, "Bulk order": 1, Press: 1 };
+  /** The two ways to answer one. Neither happens by itself: the chat drafts, the person decides. */
+  var REACH = {
+    chat: { icon: "i-reply", words: "Reply from the chat", how: "Ask for a reply in the chat. You see the words first, and it goes under the comment only if you say so.", draft: "Draft a reply" },
+    email: { icon: "i-mail", words: "Reach out by email", how: "Write to them from your own email. The chat can draft it for you, and nothing is sent from here.", draft: "Draft an email" }
+  };
+
+  /** Ready-made questions. None of them writes on YouTube. */
+  var QUESTIONS = [
+    "What needs my attention on the channel?",
+    "Who asked about a sponsorship or a collab?",
+    "Are there spam comments I should remove?",
+    "Which video is doing worse than usual?",
+    "Is anyone angry in the comments?"
+  ];
+
+  /** Watch plays: one tap to ask now, to switch on as a routine, or to add as a box. Each reads or drafts to copy. */
+  var IDEAS = [
+    { id: "spam", art: "ideas/spam.jpg", title: "Clean up spam",
+      text: "Every spam and scam comment this week in one list, with a link to each so you can remove it.",
+      ask: "List every spam or scam comment under my videos this week: who wrote it, under which video, and why it looks like spam, with a link to each so I can remove them in YouTube Studio. Do not change anything on YouTube.",
+      when: "Every Monday", at: "every Monday at 9 am" },
+    { id: "angry", art: "ideas/angry.jpg", title: "Calm answers to angry comments",
+      text: "A short, calm reply to each angry comment worth answering, ready to copy.",
+      ask: "Find the angry comments under my videos from the last few days that are worth answering, and draft a short, calm reply to each in my voice, as drafts I can copy. Tell me which ones are better left alone. Do not post anything on YouTube.",
+      when: "Every day", at: "every day at 10 am" },
+    { id: "drop", art: "ideas/drop.jpg", title: "Why did a video drop?",
+      text: "For a video doing under your usual: its numbers, its title, what people said, and what to try.",
+      ask: "Look at my videos doing under my usual right now. For each, compare its daily views with my usual and with my best recent video, look at its title and what people said, and give me three things to try. Drafts only: do not change anything on YouTube.",
+      when: "Every Monday", at: "every Monday at 9:30 am" },
+    { id: "waiting", art: "ideas/waiting.jpg", title: "Questions waiting too long",
+      text: "Questions under your videos nobody answered in three days, each with a reply to copy.",
+      ask: "List the questions under my videos that nobody from the channel answered for more than three days, the most liked first, and draft a short reply to each in my voice, as drafts I can copy. Do not post anything on YouTube.",
+      when: "Every Wednesday", at: "every Wednesday at 9 am" },
+    { id: "weekly", art: "ideas/weekly.jpg", title: "Weekly channel check",
+      text: "What needed a look this week, what is still open, the business asks, and what got better.",
+      ask: "Write a five line check of my channel this week from the Watch Board: what needed a look, what is still open, any business or collab asks, what got better, and the one thing to do first.",
+      when: "Every Friday", at: "every Friday at 4 pm" },
+    { id: "claims", art: "ideas/claims.jpg", title: "What people say about you",
+      text: "Claims about you in the comments, how far they spread, and a calm way to answer, if at all.",
+      ask: "Look for comments under my videos from the last two weeks that say something about me as a person or about how I make my videos, true or not. Tell me what is said, how many people said or liked it, and whether it is worth answering. If it is, draft one calm answer I can copy. Do not post anything on YouTube.",
+      when: "Every Monday", at: "every Monday at 10 am" }
+  ];
+
+  var state = {
+    appPath: appPathFromUrl(),
+    here: null,
+    yt: null,
+    jobs: [],
+    jobsKnown: false,
+    /** The routine's cron and switch, read from its job file; null until read. */
+    schedule: null,
+    /** The missed run being caught up on, as a Date, while it runs. */
+    catchingUp: null,
+    query: "",
+    loaded: false,
+    data: null,
+    example: true,
+    broken: false,
+    filter: "All",
+    open: {},
+    running: false,
+    runNote: "",
+    connecting: false,
+    connectNote: "",
+    askNote: "",
+    animate: true,
+    /** The boxes on this person's board, from cabinet.mine; null is the default board. */
+    layout: null,
+    drawerOpen: false,
+    drawerKind: "ideas",
+    editing: false,
+    undo: [],
+    expanded: {},
+    need: {},
+    /** Rows a short list gives back: it stands as tall as its rows and the boxes under it move up. */
+    fit: {},
+    /** The first check's lines as data/reading.json has them, and how many are on screen. */
+    reading: null,
+    readShown: 0,
+    readStartedAt: null,
+    sawReading: false,
+    giftAsked: null,
+    giftShownAt: null,
+    giftDone: null,
+    offersShown: {},
+    offersAsked: {}
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── Small helpers ──────────────────────────────────────────────────────
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  /**
+   * Words someone else wrote (a name, a title), set apart so a right-to-left one reads whole
+   * inside an English line. A handle stays left to right, the @ first, as YouTube shows it:
+   * "@סהרברוך-ש1ת", never with the @ at the far end.
+   */
+  function bidi(value) { return "<bdi>" + esc(value) + "</bdi>"; }
+  function nameHtml(value) {
+    var name = String(value == null ? "" : value);
+    return /^@/.test(name) ? '<bdi dir="ltr">' + esc(name) + "</bdi>" : bidi(name);
+  }
+  function icon(id, cls) {
+    return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+  }
+  function text(value, max) {
+    var s = typeof value === "string" ? value.trim() : "";
+    return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function appPathFromUrl() {
+    var parts = location.pathname.split("/").filter(Boolean);
+    var at = parts.length - 2;
+    return at >= 0 ? decodeURIComponent(parts[at]) : "board";
+  }
+  var toastTimer = 0;
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
+  }
+
+  // ── Dates ──────────────────────────────────────────────────────────────
+
+  function parseTime(value) {
+    if (typeof value !== "string" || !value) return null;
+    var d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function ago(d, now) {
+    var mins = Math.round((now - d) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + " min ago";
+    var hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + " " + plural(hrs, "hour", "hours") + " ago";
+    var days = Math.round(hrs / 24);
+    if (days < 7) return days + " " + plural(days, "day", "days") + " ago";
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+  /** The example was written on a fixed day; its times are told from that day, not today. */
+  function nowRef() {
+    var g = state.example && state.data ? parseTime(state.data.generated) : null;
+    return g ? g.getTime() + 10 * 60000 : Date.now();
+  }
+  /** "Good morning. Wednesday, 14 October." from this computer's clock. */
+  function hello() {
+    var d = new Date(), h = d.getHours();
+    var part = h < 5 ? "Good evening" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    var day = d.toLocaleDateString([], { weekday: "long" }) + ", " + d.getDate() + " " + d.toLocaleDateString([], { month: "long" });
+    return "<b>" + part + ".</b> " + esc(day) + ".";
+  }
+
+  // ── Reading the board ──────────────────────────────────────────────────
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  function readText(rel) {
+    if (V2) return cab.files.read(state.appPath + "/" + rel);
+    return fetch(rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+      if (r.status === 404) throw notFound();
+      if (!r.ok) throw new Error("Could not read " + rel + ".");
+      return r.text();
+    });
+  }
+  function readJson(rel) { return readText(rel).then(function (t) { return JSON.parse(t); }); }
+  function maybe(promise) {
+    return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; });
+  }
+  function usable(d) { return d && typeof d === "object" && Array.isArray(d.items); }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = readReading().then(function (r) {
+      if (r) setReading(r);
+      return maybe(readJson("data.json"));
+    }).catch(function () { return "broken"; }).then(function (got) {
+      state.broken = got === "broken";
+      if (usable(got) && got.example !== true) {
+        state.data = got;
+        state.example = false;
+        return null;
+      }
+      if (state.broken && state.data && !state.example) return null;
+      return maybe(readJson("data/EXAMPLE-data.json")).then(function (ex) {
+        state.data = usable(ex) ? ex : null;
+        state.example = true;
+      });
+    }).catch(function () {
+      if (!state.data) state.data = null;
+    }).then(function () {
+      state.loaded = true;
+      loading = null;
+      paint();
+      catchUp();
+    });
+    return loading;
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canAsk() { return V2 && role() !== "viewer"; }
+  function canRun() { return V2 && role() !== "viewer"; }
+  function theJob() {
+    for (var i = 0; i < state.jobs.length; i++) if (state.jobs[i].id === JOB) return state.jobs[i];
+    return null;
+  }
+  function pickYouTube(items) {
+    if (!Array.isArray(items)) return null;
+    for (var i = 0; i < items.length; i++) if (items[i] && items[i].id === "youtube") return items[i];
+    return null;
+  }
+  function ytState() { return state.yt ? state.yt.state : null; }
+  function askReady() {
+    var s = ytState();
+    return !state.yt || s === "connected" || s === "needs-you" || s === "needs-sign-in";
+  }
+
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var wasRunning = state.running;
+    state.jobs = items;
+    var job = theJob();
+    state.running = !!(job && job.running);
+    state.jobsKnown = true;
+    if (wasRunning && !state.running) { state.catchingUp = null; load(); }
+    paint();
+    catchUp();
+  }
+
+  // ── When the routine runs ──────────────────────────────────────────────
+  // Read straight off this cabinet's own job file, so a person who edits the schedule or
+  // pauses the routine sees the truth here. Cron is read in the browser's timezone, which is
+  // the same computer the routine runs on.
+
+  /** One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
+  function cronField(spec, min, max) {
+    var set = {};
+    spec.split(",").forEach(function (part) {
+      var bits = part.split("/"), step = bits[1] ? +bits[1] : 1, lo = min, hi = max;
+      if (bits[0] !== "*") {
+        var r = bits[0].split("-");
+        lo = +r[0];
+        hi = r[1] !== undefined ? +r[1] : (bits[1] ? max : +r[0]);
+      }
+      for (var v = lo; v <= hi; v += step) set[v] = true;
+    });
+    return set;
+  }
+  /** The nearest minute the schedule matches, walking `dir` (1 forward, -1 back) up to `days`. */
+  function cronMatch(cron, from, dir, days) {
+    var f = cron.trim().split(/\s+/);
+    if (f.length !== 5) return null;
+    var mins = cronField(f[0], 0, 59), hrs = cronField(f[1], 0, 23), doms = cronField(f[2], 1, 31),
+        mons = cronField(f[3], 1, 12), dows = cronField(f[4], 0, 7);
+    if (dows[7]) dows[0] = true;
+    var d = new Date(from.getTime() + (dir > 0 ? 60000 : 0));
+    d.setSeconds(0, 0);
+    for (var i = 0; i < days * 1440; i++) {
+      if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] && hrs[d.getHours()] && mins[d.getMinutes()]) return d;
+      d = new Date(d.getTime() + dir * 60000);
+    }
+    return null;
+  }
+  function clockOf(d) { return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  /** "Next check at 08:30", "Next check Tuesday at 08:30", or "Routine paused". */
+  function nextRunText() {
+    var job = state.schedule;
+    if (!job) return "";
+    if (job.enabled === "false") return "Routine paused";
+    if (!job.schedule) return "";
+    var d = cronMatch(job.schedule, new Date(), 1, 366);
+    if (!d) return "";
+    var today = new Date().toDateString() === d.toDateString();
+    return "Next check " + (today ? "" : d.toLocaleDateString([], { weekday: "long" }) + " ") + "at " + clockOf(d);
+  }
+  /** The schedule is a nicety: a missing or renamed job file only means no next run and no catching up. */
+  function readSchedule() {
+    return fetch("../.jobs/" + JOB + ".yaml", { cache: "no-store", credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : ""; })
+      .catch(function () { return ""; })
+      .then(function (t) {
+        var job = {};
+        t.split("\n").forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) job[kv[1]] = kv[2].replace(/^['"]|['"]$/g, "").trim();
+        });
+        state.schedule = job;
+        paintStatus();
+        catchUp();
+      });
+  }
+
+  // ── Catching up on open ────────────────────────────────────────────────
+  // A laptop asleep at the scheduled time misses the run, or starts it with no network. When
+  // the page opens and the board is older than the last time the schedule says it should have
+  // run, it runs once for that time. The time is remembered in this browser, so a run that
+  // fails again is not retried in a loop: Check now is still there.
+  function catchUp() {
+    if (!canRun() || !state.loaded || !state.jobsKnown || state.running || state.catchingUp) return;
+    if (ytState() !== "connected" || !state.schedule || !state.schedule.schedule || state.schedule.enabled === "false") return;
+    var due = cronMatch(state.schedule.schedule, new Date(), -1, 8);
+    var shown = state.data && !state.example ? parseTime(state.data.generated) : null;
+    if (!due || (shown && shown >= due)) return;
+    var key = "catch-up:" + JOB + ":" + due.getTime();
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch (e) { return; }
+    state.catchingUp = due;
+    runNow();
+  }
+
+  function connect() {
+    if (!V2 || state.connecting) return;
+    state.connecting = true;
+    state.connectNote = "";
+    paint();
+    cab.connectors.connect("youtube").then(function (result) {
+      state.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        state.yt = pickYouTube(items) || state.yt;
+        paint();
+        if (result === "connected" && state.example && canRun()) runNow();
+      });
+    }).catch(function (e) {
+      state.connecting = false;
+      state.connectNote = e && e.message ? e.message : "That did not work. Try again.";
+      paint();
+    });
+  }
+
+  function runNow() {
+    if (!V2 || state.running) return;
+    state.running = true;
+    state.runNote = "";
+    paint();
+    cab.jobs.run(JOB).then(function () {
+      watchRun();
+    }).catch(function (e) {
+      if (e && e.code === "busy") { watchRun(); return; }
+      state.running = false;
+      state.catchingUp = null;
+      state.runNote = e && e.message ? e.message : "It did not start. Try again.";
+      paint();
+    });
+  }
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!state.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+
+  function ask(question) {
+    var q = text(question, 3900);
+    if (!q) return;
+    if (!V2) { toast("Open this cabinet in Cabinet to ask about your channel."); return; }
+    if (!askReady()) {
+      if (state.yt && state.yt.canConnect) { toast("Connect YouTube first. It takes about a minute."); connect(); }
+      else toast("Ask the person who owns this cabinet to connect YouTube.");
+      return;
+    }
+    setAskNote("Asking...");
+    cab.ask(q, { agent: AGENT, send: true }).then(function () {
+      setAskNote("Asked. The answer is coming in the chat next to this page.");
+      toast("Asked. The answer is coming in the chat.");
+      if ($("ask-input")) $("ask-input").value = "";
+    }).catch(function (e) {
+      setAskNote(e && e.message ? e.message : "That did not go through. Try again.");
+      toast(state.askNote);
+    });
+  }
+  /** The line under the Ask box; it lives in state because the box can be drawn again. */
+  function setAskNote(words) {
+    state.askNote = words;
+    if ($("ask-note")) $("ask-note").textContent = words;
+  }
+
+  function ytLink(url) {
+    var u = typeof url === "string" ? url.trim() : "";
+    return /^https:\/\/(www\.|m\.)?youtube\.com\/watch\?v=/i.test(u) && u.length < 400 ? u : "";
+  }
+
+  // ── The items ──────────────────────────────────────────────────────────
+
+  function kindOf(item) { return KIND_WORDS[item.kind] ? item.kind : "Other"; }
+  function urgencyOf(item) {
+    if (LEVEL_RANK[item.level] == null) return "Low";
+    // A business ask is never urgent: at most "worth a look", ranked after the trouble.
+    return item.kind === "Business" && item.level === "High" ? "Medium" : item.level;
+  }
+  function reachOf(item) { return item.reach === "email" ? "email" : "chat"; }
+  function askOf(item) { return ASKS[item.ask] ? item.ask : "Business"; }
+  /** How urgent, in words. Red only for urgent; a business ask is at most "worth a look". */
+  function levelWord(item) {
+    var level = urgencyOf(item);
+    if (level === "High") return '<span class="chip hot">Urgent</span>';
+    if (level === "Low") return '<span class="chip">Can wait</span>';
+    return kindOf(item) === "Business" ? '<span class="chip look">Worth a look</span>' : "";
+  }
+  /** The most urgent first; at the same level trouble before a business ask, then the ones
+      with the most comments, then the newest. */
+  function items() {
+    var all = state.data ? list(state.data.items) : [];
+    var biz = function (x) { return kindOf(x) === "Business" ? 1 : 0; };
+    return all.slice().sort(function (a, b) {
+      return LEVEL_RANK[urgencyOf(a)] - LEVEL_RANK[urgencyOf(b)] || biz(a) - biz(b) ||
+        (b.count || 0) - (a.count || 0) ||
+        ((parseTime(b.lastSeen) || 0) - (parseTime(a.lastSeen) || 0));
+    });
+  }
+
+  // ── The first check, told as it happens ────────────────────────────────
+  // On the first check the agent adds a line to data/reading.json after each look at YouTube
+  // (first-read.mjs push), and the things the person can do right now (gift, then offers).
+  // The board shows them as they come. Later checks write no reading, and a missing file
+  // leaves the board as it always was.
+
+  var READ_FRESH_MIN = 20;
+  // Lines that arrive together are still told one by one, so the reading never jumps to the
+  // board with lines nobody saw. Only once this page has shown the reading.
+  var REVEAL_MS = 1200;
+  var DAY_MS = 86400000;
+
+  /** data/reading.json, cleaned, or null when there is none. Never stops the board loading. */
+  function readReading() {
+    return maybe(readJson("data/reading.json")).catch(function () { return null; }).then(cleanReading);
+  }
+  function cleanReading(d) {
+    if (!d || typeof d !== "object" || !Array.isArray(d.lines)) return null;
+    var lines = d.lines.map(function (l) { return text(typeof l === "string" ? l : l && l.text, 200); }).filter(Boolean).slice(-14);
+    return { startedAt: d.startedAt, done: d.done === true, lines: lines, gift: cleanGift(d.gift), offers: cleanOffers(d.offers) };
+  }
+  /** What changed in a reading, in one string: a new line, the gift, an offer, done. */
+  function readingSig(r) {
+    return [r.startedAt, r.done, r.lines.join("\n"), r.gift && r.gift.at, r.offers.map(function (o) { return o.at; }).join(",")].join("|");
+  }
+  /** A new read (another startedAt) starts its lines from the first one. */
+  function setReading(r) {
+    if (r && r.startedAt !== state.readStartedAt) { state.readShown = 0; state.readStartedAt = r.startedAt; }
+    state.reading = r;
+  }
+  function freshReading() {
+    var at = state.reading ? parseTime(state.reading.startedAt) : null;
+    return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
+  }
+  /** Lines from a read that started over 20 minutes ago are not this one's. */
+  function freshLines() { return freshReading() ? state.reading.lines : []; }
+  /** The agent is still reading: the file says so, it is fresh, and the run is on. */
+  function readingNow() {
+    var r = state.reading;
+    // A run that ended without saying done is not still reading.
+    if (!r || r.done || !state.running) return false;
+    return freshReading();
+  }
+  // Once done, one more beat on "Putting your board together" before the board.
+  function revealing() { return !!(state.sawReading && state.reading && state.readShown < freshLines().length + (state.reading.done ? 1 : 0)); }
+  /** The reading fills the page under the band: the first check is on and has started telling. */
+  function showReading() { return (state.running && state.example && readingNow()) || revealing(); }
+  setInterval(function () {
+    if (!revealing()) return;
+    state.readShown++;
+    if (revealing()) paintReading(); else paint();
+  }, REVEAL_MS);
+  // While the first check reads, its lines are looked at every few seconds: a file change
+  // says so too, but a missed one never leaves the reading stuck.
+  setInterval(function () {
+    if (!state.running && !readingNow()) return;
+    readReading().then(function (r) {
+      if (!r || (state.reading && readingSig(r) === readingSig(state.reading))) return;
+      setReading(r);
+      paint();
+      if (r.done) load();
+    });
+  }, 2500);
+
+  /** A line may mark its finding in **bold**; everything else is plain text. */
+  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  function paintReading() {
+    var el = $("reading");
+    var show = showReading();
+    el.hidden = !show;
+    el.innerHTML = show ? readingHtml() : "";
+  }
+  function readingHtml() {
+    // The last lines come with done: keep them on screen until the board itself is ready.
+    var done = !!(state.reading && state.reading.done);
+    var all = freshLines();
+    state.sawReading = true;
+    var lines = all.slice(0, Math.min(state.readShown, all.length));
+    done = done && lines.length === all.length;
+    var gift = giftNow();
+    var offers = freshReading() ? state.reading.offers : [];
+    var side = gift || offers.length
+      ? '<div class="side-list"><p class="side-title">While I read, you can...</p>' + (gift ? giftHtml(gift, "reading") : "") + offersHtml(offers, "reading") + "</div>"
+      : done ? ""
+      : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for the one comment that needs you first.</h3></section>';
+    return '<div class="read-page' + (!side ? " solo" : "") + '"><div class="reading"><h2>Found so far</h2>' +
+      '<ul class="read-lines">' + lines.map(function (l, i) { return "<li" + (i < lines.length - 1 ? ' class="old"' : "") + ">" + icon("i-check") + '<span dir="auto">' + lineHtml(l) + "</span></li>"; }).join("") +
+      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + (done ? "Putting your board together" : lines.length ? "Reading on" : "Opening your channel") + "...</span></li></ul>" +
+      '<p class="fine">Only reads. Nothing is posted on YouTube, and it all stays in your cabinet.</p></div>' + side + "</div>";
+  }
+
+  // ── The gift and the offers ────────────────────────────────────────────
+  // While it reads, the agent finds one thing the person can do now (first-read.mjs gift):
+  // the comment that needs an answer first, or, when nothing is urgent, a thank-you for the
+  // kindest one. Then up to two more (first-read.mjs offer): the biggest drop, a business ask.
+  // A press asks the agent in the chat beside the board for a look or a draft to copy;
+  // nothing is posted.
+  var GIFT_KEY = "youtube-watch-gift-done@1";
+  var OFFERS_KEY = "youtube-watch-offers-done@1";
+  var GIFT_KEEP_DAYS = 3;
+  function cleanGift(g) {
+    if (!g || typeof g !== "object" || !parseTime(g.at)) return null;
+    var kind = g.kind === "urgent" || g.kind === "calm" ? g.kind : null;
+    if (kind === "calm") return { kind: kind, at: g.at };
+    var gift = { kind: kind, at: g.at, title: text(g.title, 80), who: text(g.who, 80), video: text(g.video, 120), gist: text(g.gist, 140),
+      since: parseTime(g.since), link: ytLink(g.link) };
+    if (!kind || !gift.title || !gift.who || !gift.video || !gift.since) return null;
+    return gift;
+  }
+  function cleanOffers(value) {
+    return list(value).map(function (o) {
+      return { kind: o.kind, video: text(o.video, 120), from: text(o.from, 80), ask: ASKS[o.ask] ? o.ask : "", at: text(o.at, 40) };
+    }).filter(function (o) {
+      return ((o.kind === "drop" && o.video) || (o.kind === "business" && o.from && o.ask)) && o.at;
+    }).slice(0, 2);
+  }
+  function giftNow() { return freshReading() ? state.reading.gift : null; }
+  function giftParts(g) {
+    if (g.kind === "urgent") {
+      return {
+        head: "<b>" + bidi(g.title) + "</b> under <b>" + bidi(g.video) + "</b>.",
+        why: nameHtml(g.who) + " wrote it " + esc(ago(g.since, Date.now())) + ".",
+        button: "Draft a reply", icon: "i-pen",
+        ask: "Draft a short, calm reply in my voice to " + g.who + "'s comment under \"" + g.video + "\" (\"" + g.title + "\" on the Watch Board)" + (g.link ? ", " + g.link : "") + ". Read the comment and its thread on YouTube first. Show it to me here as a draft I can copy. Do not post anything on YouTube."
+      };
+    }
+    return {
+      head: "Nothing urgent to answer under your videos. A good place to be.",
+      why: "Want a short thank-you for the kindest comment this week?",
+      button: "Draft a thank-you", icon: "i-pen",
+      ask: "Find the kindest comment under my videos this week and draft a short thank-you reply in my voice. Quote the comment with its author and video above the draft. Show it to me here as a draft I can copy. Do not post anything on YouTube."
+    };
+  }
+  function giftHtml(g, where) {
+    var p = giftParts(g);
+    var asked = state.giftAsked === g.at;
+    var arrive = where === "reading" && state.giftShownAt !== g.at;
+    if (where === "reading") state.giftShownAt = g.at;
+    return '<section class="gift' + (arrive ? " arrive" : "") + '" aria-live="polite">' +
+      '<p class="eyebrow">' + icon(g.kind === "urgent" ? "i-alert" : "i-check") + (where === "reading" ? (g.kind === "urgent" ? "First, the comment that needs you" : "First, the good news") : "Found in your first check") + "</p>" +
+      "<h3>" + p.head + "</h3>" +
+      (g.gist ? '<p class="about" dir="auto">' + esc(g.gist) + "</p>" : "") +
+      '<p class="why">' + (g.kind === "urgent" ? p.why : esc(p.why)) + "</p>" +
+      (asked
+        ? '<p class="asked">' + icon("i-check") + "Asked. The answer is coming in the chat.</p>"
+        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do">' + icon(p.icon) + esc(p.button) + "</button>" : "") +
+          (g.link ? '<a class="btn" href="' + esc(g.link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on YouTube</a>" : "") +
+          (where === "keep" ? '<button type="button" class="btn" data-act="gift-skip">Not now</button>' : "") + "</div>") +
+      '<p class="fine">Nothing is posted. A reply is a draft for you to copy.</p></section>';
+  }
+  function offerKey(o) { return o.at + "|" + o.kind + "|" + (o.video || o.from || ""); }
+  function offerParts(o) {
+    if (o.kind === "drop") {
+      return { icon: "i-play", title: "Explain the biggest drop", sub: o.video + " is getting fewer views than your usual.", button: "Explain it",
+        ask: "Explain why \"" + o.video + "\" is getting fewer views than my usual. Compare its daily views with my usual and with my best recent video, look at its title and what people said under it, and give me three things to try. Do not change anything on YouTube." };
+    }
+    return { icon: "i-mail", title: "Answer the business ask", sub: o.ask + " ask from " + o.from + ".", button: "Draft an answer",
+      ask: "Draft a short answer in my voice to the " + o.ask.toLowerCase() + " ask from " + o.from + " under my videos. Read their comment first. If it touches money or private details, make it an email for me to send from my own email, with my rates and dates as [brackets]. Show it to me here as a draft I can copy. Do not post anything on YouTube and do not send anything." };
+  }
+  function offersHtml(offers, where) {
+    if (!offers.length) return "";
+    var can = canAsk();
+    return '<ul class="offers">' + offers.map(function (o) {
+      var key = offerKey(o);
+      var p = offerParts(o);
+      var arrive = where === "reading" && !state.offersShown[key];
+      if (where === "reading") state.offersShown[key] = true;
+      return '<li class="offer' + (arrive ? " arrive" : "") + '"><span class="ic" aria-hidden="true">' + icon(p.icon) + "</span>" +
+        '<div><b dir="auto">' + esc(p.title) + '</b><span class="sub" dir="auto">' + esc(p.sub) + "</span></div>" +
+        (state.offersAsked[key] ? '<span class="asked">' + icon("i-check") + "Asked</span>"
+          : can ? '<button type="button" class="btn small" data-act="offer-do" data-key="' + esc(key) + '">' + esc(p.button) + "</button>" : "") +
+        "</li>";
+    }).join("") + "</ul>";
+  }
+  /** After the reading: the gift and the offers stay under the boxes for a few days, until used or put away. */
+  function paintGiftKeep() {
+    var el = $("gift-keep");
+    var r = state.reading;
+    var at = r ? parseTime(r.startedAt) : null;
+    // Used, the gift goes; "Not now" puts away the gift and the offers together.
+    var g = r && r.gift && state.giftDone !== r.gift.at ? r.gift : null;
+    var offers = r ? r.offers.filter(function (o) { return !state.offersAsked[offerKey(o)]; }) : [];
+    var show = !!(r && (g || offers.length) && at && state.giftDone !== "all:" + r.startedAt &&
+      (Date.now() - at.getTime()) < GIFT_KEEP_DAYS * DAY_MS && state.loaded && !state.example && !readingNow() && !revealing());
+    el.hidden = !show;
+    el.innerHTML = show ? (g ? giftHtml(g, "keep") : '<p class="side-title">Found in your first check</p>') + offersHtml(offers, "keep") +
+      (g ? "" : '<p style="margin:0"><button type="button" class="btn small" data-act="gift-skip">Not now</button></p>') : "";
+  }
+  /** Kept in this browser, so a used or put away gift stays away. */
+  function remember(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* not kept: it comes back on the next open */ }
+  }
+  /** The gift was used (`all` false), or the person put the gift and the offers away. */
+  function giftDone(all) {
+    var r = state.reading;
+    if (!r) return;
+    state.giftDone = all || !r.gift ? "all:" + r.startedAt : r.gift.at;
+    remember(GIFT_KEY, state.giftDone);
+  }
+
+  // ── Painting ───────────────────────────────────────────────────────────
+
+  function paint() {
+    document.documentElement.classList.toggle("first-read", showReading());
+    paintStatus();
+    paintHero();
+    paintReading();
+    paintRibbon();
+    paintGrid();
+    paintGiftKeep();
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+    if (state.loaded && state.data) state.animate = false;
+  }
+
+  function paintStatus() {
+    var s = ytState();
+    var d = state.data;
+    var pill;
+    if (!V2) pill = '<span class="updated">Connect YouTube from Integrations in Cabinet.</span>';
+    else if (!state.yt) pill = '<span class="pill"><span class="dot pulse"></span>Checking YouTube</span>';
+    else if (s === "connected") pill = '<span class="pill ok"><span class="dot"></span>YouTube connected</span>';
+    else if (s === "not-available-here") pill = '<span class="pill"><span class="dot"></span>YouTube not available here</span>';
+    else if (s === "needs-sign-in" || s === "needs-you") pill = '<span class="pill warn"><span class="dot"></span>YouTube needs you</span>';
+    else pill = '<span class="pill off"><span class="dot"></span>YouTube not connected</span>';
+    // When it was updated and when it runs next share one line, which wraps on a phone.
+    var g = d && !state.example ? parseTime(d.generated) : null;
+    var when = [g ? "Checked " + ago(g, nowRef()) : "", nextRunText()].filter(Boolean).join(". ");
+    var updated = when ? '<span class="next">' + esc(when) + "</span>" : "";
+    // The same routine the schedule runs. It needs window.cabinet, so it is hidden outside
+    // Cabinet and for a viewer.
+    var button = "";
+    if (canRun()) {
+      button = state.running
+        ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Checking...</button>" +
+          (state.catchingUp ? '<span class="next">Catching up on the ' + clockOf(state.catchingUp) + " check you missed</span>" : "")
+        : '<button class="btn" data-act="run"' + (s === "connected" ? "" : " disabled") + ">" + icon("i-refresh") + "Check now</button>";
+    }
+    // Ideas, and the board's layout.
+    var page = state.loaded && state.data && !showReading();
+    var ideas = page ? '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-bulb") + "Ideas</button>" : "";
+    var edit = !page || state.editing ? "" : '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Layout</button>";
+    $("status").innerHTML = pill + updated + button + ideas + edit;
+    var chan = d && d.channel ? text(d.channel.title, 60) : "";
+    $("chan").textContent = chan;
+  }
+
+  /** Binoculars on a screen, with a badge that matches the state. */
+  function artBoard(badge) {
+    var mark = badge === "check"
+      ? '<circle cx="108" cy="24" r="14" fill="#1e8e3e"/><path d="M101 24l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+      : badge === "alert"
+        ? '<circle cx="108" cy="24" r="14" fill="#b06d00"/><path d="M108 16.5v9M108 30.5v.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>'
+        : "";
+    return '<svg class="art" viewBox="0 0 132 104" aria-hidden="true">' +
+      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#f2f2f2"/>' +
+      '<rect x="24" y="28" width="84" height="56" rx="9" fill="#fff" stroke="#0f0f0f" stroke-width="3"/>' +
+      '<circle cx="52" cy="58" r="10" fill="none" stroke="#cc0000" stroke-width="3"/><circle cx="80" cy="58" r="10" fill="none" stroke="#cc0000" stroke-width="3"/>' +
+      '<path d="M62 56h8M46 46l4-6h8M86 46l-4-6h-8" fill="none" stroke="#0f0f0f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' +
+      mark + "</svg>";
+  }
+  function cardHero(art, title, body, busy) {
+    var picture = busy
+      ? '<div class="art" aria-hidden="true" style="display:grid;place-items:center">' + icon("i-refresh", "spin") + "</div>"
+      : art && art.indexOf("<svg") === 0 ? '<div class="art" aria-hidden="true" style="display:grid;place-items:center;border-radius:18px;background:var(--chip)">' + art.replace('class="icon"', 'class="icon" style="width:44px;height:44px;color:var(--ink-3)"') + "</div>"
+      : artBoard(art);
+    return '<div class="card-hero">' + picture + "<div><h2>" + esc(title) + "</h2>" + body + "</div></div>";
+  }
+  function runNoteHtml() { return state.runNote ? '<div class="notice">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
+
+  function paintHero() {
+    var hero = $("hero");
+    if (!state.loaded) { hero.innerHTML = '<p class="skeleton">Opening your channel...</p>'; return; }
+    var s = ytState();
+    var g = state.yt;
+    var html;
+    if (V2 && s === "not-available-here") {
+      html = cardHero(icon("i-cloud"), "YouTube can’t be connected here yet",
+        "<p class=\"fine\">YouTube connects with Sign in with Google, in the Cabinet app on a computer." + (state.example ? " Below is an example from a made-up channel." : "") + "</p>");
+    } else if (V2 && (s === "needs-sign-in" || s === "needs-you")) {
+      html = cardHero("alert", "YouTube needs you",
+        '<p class="lead">' + esc(g && g.problem && g.problem.text ? g.problem.text : "Google needs you to sign in again.") + "</p>" +
+        (g && g.canConnect ? '<div class="actions"><button class="btn primary big" data-act="connect">' + icon("i-play") + "Sign in again</button></div>" : ""));
+    } else if (V2 && s === "not-added") {
+      html = cardHero(null, "See what on your channel needs a look",
+        '<p class="lead">Connect YouTube and every morning this board lists the angry comments, the spam, the questions waiting too long, the business asks and the videos doing worse than usual, the most urgent first.</p>' +
+        (g && g.canConnect
+          ? '<div class="actions"><button class="btn primary big" data-act="connect"' + (state.connecting ? " disabled" : "") + ">" + icon(state.connecting ? "i-refresh" : "i-play", state.connecting ? "spin" : "") + (state.connecting ? "Connecting..." : "Connect YouTube") + "</button>" +
+            '<span class="fine">Sign in with the Google account that owns your channel. About a minute.</span></div>'
+          : '<p class="fine"><b>Ask the person who owns this cabinet to connect YouTube.</b></p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
+        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never posts on its own</li><li>" + icon("i-check") + "Every morning at 8:30</li>" + (state.example ? "<li>" + icon("i-check") + "Below: an example from a made-up channel</li>" : "") + "</ul>");
+    } else if (showReading() || (state.running && state.example)) {
+      html = cardHero(null, "Checking your channel...", '<p class="lead">' + (showReading()
+        ? "Your first check takes a few minutes. You don’t need to do anything: what I find shows up below as I find it."
+        : "The first check reads two weeks of comments and takes a few minutes. Stay here or come back later: the board fills in by itself.") + "</p>", true);
+    } else if (V2 && s === "connected" && state.example) {
+      html = cardHero("check", "YouTube is connected. Let’s check your channel.",
+        '<p class="lead">The first check reads the last two weeks of comments and your recent videos, and takes a few minutes. After that it runs by itself every morning.</p>' +
+        (canRun() ? '<div class="actions"><button class="btn primary big" data-act="run">' + icon("i-refresh") + "Check now</button></div>" : "") + runNoteHtml());
+    } else if (!state.data) {
+      html = cardHero(null, "Your channel shows up here", '<p class="lead">Nothing could be read yet. Try again in a moment.</p>');
+    } else {
+      html = dataHero();
+    }
+    var problem = state.data && !state.example && state.data.status && state.data.status !== "ok"
+      ? '<div class="notice">' + icon("i-alert") + "<p><b>The last check didn’t work.</b> " + esc(text(state.data.status, 200)) + "</p></div>" : "";
+    var broken = state.broken && !state.example ? '<div class="notice">' + icon("i-alert") + "<p>The board file could not be read. The next check rewrites it.</p></div>" : "";
+    // The board is there; the agent is still finishing. Its latest line, quietly, in the band.
+    var last = readingNow() && !state.example && !showReading() ? state.reading.lines[state.reading.lines.length - 1] : null;
+    var strip = last !== null ? '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still reading your channel' + (last ? ": " + lineHtml(last) : "...") + "</span></div>" : "";
+    hero.innerHTML = html + strip + problem + broken;
+  }
+
+  /** One headline: how many things need a look, the most urgent one's own words under it,
+      and a line of counts that each open their filter. */
+  function dataHero() {
+    var all = items();
+    var ex = state.example ? "Example: " : "";
+    if (!all.length) {
+      return '<p class="hello">' + hello() + "</p><h2>" + esc(ex + "Nothing needs a look") + '</h2><p class="lead">No angry comments, no spam, no question waiting too long, and your videos are doing as usual.</p>' + runNoteHtml();
+    }
+    var top = all[0];
+    var count = function (fn) { return all.filter(fn).length; };
+    var high = count(function (x) { return urgencyOf(x) === "High"; });
+    var head = all.length + " " + plural(all.length, "thing needs", "things need") + " a look";
+    var sum = text(top.summary, 220);
+    var meta = [];
+    if (high) meta.push('<li><span class="hot">' + high + " urgent</span></li>");
+    [["Business", "business or collab ask", "business or collab asks"], ["Waiting", "question waiting", "questions waiting"], ["Spam", "spam or scam", "spam and scams"]].forEach(function (k) {
+      var n = count(function (x) { return kindOf(x) === k[0]; });
+      if (n) meta.push('<li><button type="button" data-act="filter" data-kind="' + k[0] + '">' + n + " " + plural(n, k[1], k[2]) + "</button></li>");
+    });
+    return '<p class="hello">' + hello() + "</p><h2>" + esc(ex + head) + "</h2>" +
+      '<p class="lead">First: <b dir="auto">' + esc(text(top.title, 80)) + ".</b> " + (sum ? '<span dir="auto">' + esc(sum) + "</span>" : "") + "</p>" +
+      (meta.length ? '<ul class="meta">' + meta.join("") + "</ul>" : "") +
+      runNoteHtml();
+  }
+
+  function paintRibbon() {
+    var el = $("ribbon");
+    if (!state.loaded || !state.data || !state.example) { el.innerHTML = ""; return; }
+    var name = state.data.channel ? text(state.data.channel.title, 60) : "";
+    el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
+      (name ? "<b>" + esc(name) + "</b>, a made-up channel. " : "A made-up channel. ") +
+      "None of this is your channel. " + (ytState() === "connected" ? "Your first check replaces it." : "Connect YouTube and your own board replaces it.") + "</p></div>";
+  }
+
+  /** A row's id: the item's own id, or its rank when it has none. findItem reads it the same way. */
+  function rowId(r, rank) { return text(r.id, 80) || "i" + rank; }
+
+  function itemRow(r, rank, now) {
+    var id = rowId(r, rank);
+    var open = !!state.open[id];
+    var kind = kindOf(r);
+    var biz = kind === "Business";
+    var reach = REACH[reachOf(r)];
+    var n = typeof r.count === "number" && r.count > 0 ? Math.round(r.count) : 0;
+    var all = list(r.comments);
+    var msgs = all.slice().sort(function (a, b) { return (parseTime(b.at) || 0) - (parseTime(a.at) || 0); }).slice(0, 10);
+    var msgsHtml = msgs.length ? '<ul class="msgs">' + msgs.map(function (m) {
+      var link = state.example ? "" : ytLink(m.link || m.url);
+      var at = parseTime(m.at);
+      return '<li class="msg"><span><span class="by">' + nameHtml(text(m.author, 40) || "Someone") + "</span>" +
+        (at ? '<span class="at">' + esc(ago(at, now)) + "</span>" : "") + "</span>" +
+        '<q dir="auto">' + esc(text(m.text, 220)) + "</q>" +
+        (link ? '<a class="open" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on YouTube</a>" : "") + "</li>";
+    }).join("") + "</ul>" : "";
+    var link = state.example ? "" : ytLink(r.link || r.url);
+    var acts = [];
+    if (canAsk()) {
+      if (ANSWERABLE[kind] && msgs.length) acts.push('<button class="btn small dark" data-act="draft" data-id="' + esc(id) + '">' + icon("i-pen") + esc(biz ? reach.draft : "Draft a reply") + "</button>");
+      acts.push('<button class="btn small" data-act="about" data-id="' + esc(id) + '">' + icon("i-chat") + "Ask about this</button>");
+    }
+    if (link) acts.push('<a class="btn small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on YouTube</a>");
+    var where = text(r.video, 70);
+    // A title that already names the video needs no "Under" line repeating it.
+    if (where && text(r.title, 80).toLowerCase().indexOf(where.toLowerCase()) >= 0) where = "";
+    var last = parseTime(r.lastSeen);
+    var from = biz ? text(r.from, 40) : "";
+    // A business ask names who asked and what for; every other kind names its kind.
+    var label = biz ? '<span class="chip">' + esc(askOf(r)) + (from ? " from " + nameHtml(from) : "") + "</span>" : '<span class="chip">' + esc(KIND_WORDS[kind]) + "</span>";
+    var step = biz
+      ? '<span class="step" dir="auto">' + icon(reach.icon) + "<span><b>" + esc(reach.words) + ".</b> " + esc(text(r.next, 200)) + "</span></span>"
+      : text(r.next) ? '<span class="step" dir="auto">' + icon("i-arrow") + "<span><b>Next:</b> " + esc(text(r.next, 200)) + "</span></span>" : "";
+    return '<li class="row' + (open ? " open" : "") + '">' +
+      '<button class="row-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
+      '<span class="who"><b dir="auto">' + esc(text(r.title, 80) || "Something to look at") + "</b>" +
+      '<span class="chips">' + levelWord(r) + label + "</span></span>" +
+      '<span class="when num">' + (last ? "<span>" + esc(ago(last, now)) + "</span>" : "") + (n ? "<span>" + n + " " + plural(n, "comment", "comments") + "</span>" : "") + "</span>" +
+      '<span class="gist" dir="auto">' + esc(text(r.summary, 220)) + (where ? ' <span class="under">Under ' + bidi(where) + "</span>" : "") + "</span>" +
+      step + "</button>" +
+      '<div class="row-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" +
+      (biz ? '<p class="route">' + icon(reach.icon) + "<span>" + esc(reach.how) + "</span></p>" : "") +
+      msgsHtml +
+      (n > msgs.length ? '<p class="more">And ' + (n - msgs.length) + " older " + plural(n - msgs.length, "comment", "comments") + ".</p>" : "") +
+      (acts.length ? '<div class="row-actions">' + acts.join("") + "</div>" : "") + "</div>" +
+      "</li>";
+  }
+
+  // Needs a look: every item once, most urgent first, a filter by kind and a find box above the rows.
+  function drawItems(level) {
+    var all = items();
+    var high = all.filter(function (x) { return urgencyOf(x) === "High"; }).length;
+    if (level === "S") {
+      return sumBox("items", "Needs a look", "i-watch", String(all.length), plural(all.length, "thing needs a look", "things need a look"),
+        all[0] ? "<b>" + esc(text(all[0].title, 60)) + "</b>" : "");
+    }
+    var counts = {};
+    all.forEach(function (r) { var k = kindOf(r); counts[k] = (counts[k] || 0) + 1; });
+    if (state.filter !== "All" && !counts[state.filter]) state.filter = "All";
+    var kinds = KINDS.filter(function (k) { return counts[k]; });
+    var filters = kinds.length < 2 ? "" : '<div class="filters" role="group" aria-label="Show one kind">' +
+      ["All"].concat(kinds).map(function (k) {
+        return '<button class="f" data-act="filter" data-kind="' + esc(k) + '" aria-pressed="' + (state.filter === k) + '">' + esc(k === "All" ? "All" : KIND_WORDS[k]) +
+          '<span class="n num">' + (k === "All" ? all.length : counts[k]) + "</span></button>";
+      }).join("") + "</div>";
+    var now = nowRef();
+    var ranked = all.map(function (r, i) { return { r: r, rank: i + 1 }; });
+    var shown = state.filter === "All" ? ranked : ranked.filter(function (x) { return kindOf(x.r) === state.filter; });
+    var inner = all.length
+      ? '<input class="find" id="find" type="search" dir="auto" placeholder="Find on the board" aria-label="Find on the board" value="' + esc(state.query) + '" />' +
+        '<ul class="rows">' + shown.map(function (x) { return itemRow(x.r, x.rank, now); }).join("") + "</ul>"
+      : '<p class="lane-empty">Nothing needs a look right now. The board fills in when something does.</p>';
+    return boxHead("items", "Needs a look", "i-watch", all.length, high) + filters +
+      '<div class="box-body">' + inner + "</div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
+  }
+
+  /** Finding one item runs over each row's words and hides the rest. No re-render. */
+  function filterRows() {
+    var needle = state.query.trim().toLowerCase();
+    var rows = document.querySelectorAll("#box-items .row");
+    var hits = 0;
+    Array.prototype.forEach.call(rows, function (row) {
+      var hit = !needle || row.textContent.toLowerCase().indexOf(needle) > -1;
+      row.classList.toggle("miss", !hit);
+      if (hit) hits++;
+    });
+    var none = $("nohits");
+    if (none) none.remove();
+    if (hits || !rows.length) return;
+    // Not on the board: the Channel Watcher can still look for it in the comments, in the chat.
+    var p = document.createElement("p");
+    p.id = "nohits";
+    p.className = "lane-empty nohits";
+    p.innerHTML = "<span>Nothing on the board for that.</span>" +
+      (canAsk() ? '<button class="btn small" type="button" data-act="find-ask">' + icon("i-chat") + "Ask in chat</button>" : "");
+    $("box-items").querySelector(".box-body").appendChild(p);
+  }
+
+  // ── The grid of boxes ──────────────────────────────────────────────────
+  // Each box is drawn by its own function at one of three levels, picked by its width on
+  // screen: S (one number), M (the rows that fit), L (everything, with more detail). The
+  // layout is a list of { id, x, y, w, h } on a 12 column grid of fixed rows; each person's
+  // own layout is kept in cabinet.mine, so it follows them to any computer.
+
+  var COLS = 12;
+  var ROW = 64;
+  var GAP = 16;
+  var PHONE_ROWS = 3;
+  var LAYOUT_KEY = "youtube-watch-layout@1";
+  // On a phone the board's list starts Large, so it shows every item as it always did.
+  var DEFAULT_LAYOUT = [
+    { id: "items", x: 0, y: 0, w: 7, h: 12, p: "L" },
+    { id: "ask", x: 7, y: 0, w: 5, h: 7 },
+    { id: "ideas", x: 7, y: 7, w: 5, h: 6 }
+  ];
+  /**
+   * Every box a board can hold: how it draws, and for the Add a box panel its name, what it
+   * shows, its group and the size it starts at. `show` keeps a box off the board while it
+   * has nothing to be (`when` says why).
+   */
+  var BOXES = {
+    items: { cls: "lane", list: true, draw: drawItems, group: "board", icon: "i-watch", w: 7, h: 12, min: [3, 3],
+      title: "Needs a look", desc: "Everything on the channel that needs you, most urgent first, with the comments behind it." },
+    "n-items": { cls: "lane nbox", draw: drawNumber("items"), group: "numbers", icon: "i-watch", w: 3, h: 2, min: [2, 2],
+      title: "Things to look at", desc: "How many things on the board need a look." },
+    "n-urgent": { cls: "lane nbox", draw: drawNumber("urgent"), group: "numbers", icon: "i-alert", w: 3, h: 2, min: [2, 2],
+      title: "Urgent", desc: "How many of them are urgent." },
+    "n-business": { cls: "lane nbox", draw: drawNumber("business"), group: "numbers", icon: "i-mail", w: 3, h: 2, min: [2, 2],
+      title: "Business asks", desc: "How many sponsorship, collab and other business asks came in, and the first one." },
+    ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-chat", w: 5, h: 7, min: [3, 3],
+      title: "Ask about your channel", desc: "Ask anything about your comments and videos.",
+      show: function () { return !V2 || role() !== "viewer"; }, when: "Only people who can ask in this cabinet see it." },
+    ideas: { cls: "lane", list: true, draw: drawIdeasBox, group: "ask", icon: "i-bulb", w: 5, h: 6, min: [3, 3],
+      title: "All ideas", desc: "Every idea in one box, one tap each." }
+  };
+  IDEAS.forEach(function (idea) {
+    BOXES["idea-" + idea.id] = { cls: "lane", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
+      icon: "i-bulb", w: 4, h: 4, min: [3, 3], title: idea.title, desc: idea.text };
+  });
+  var GROUPS = [
+    { id: "board", title: "Your board" },
+    { id: "numbers", title: "Numbers" },
+    { id: "ask", title: "Ask and ideas" },
+    { id: "single", title: "One idea" }
+  ];
+  var PHONE = window.matchMedia ? window.matchMedia("(max-width: 720px)") : null;
+
+  function phone() { return !!(PHONE && PHONE.matches); }
+  function levelFor(width) { return width < 320 ? "S" : width < 640 ? "M" : "L"; }
+  var LEVEL_WORDS = { S: "Small", M: "Medium", L: "Large" };
+  /** The smallest a box may be made: wide and tall enough that what it shows still fits. */
+  function minSize(id) { var m = BOXES[id].min || [3, 3]; return { w: m[0], h: m[1] }; }
+  function whole(n) { return typeof n === "number" && n === Math.floor(n) && n >= 0; }
+
+  /** A saved layout, keeping only entries that name a box we have and fit the grid. */
+  function cleanLayout(value) {
+    if (!Array.isArray(value)) return null;
+    var seen = {};
+    var out = value.filter(function (b) {
+      var ok = !!(b && BOXES[b.id] && !seen[b.id] && whole(b.x) && whole(b.y) && whole(b.w) && whole(b.h) &&
+        b.w >= 1 && b.h >= 1 && b.x + b.w <= COLS && b.h <= 40);
+      if (ok) seen[b.id] = true;
+      return ok;
+    }).map(copyEntry);
+    return out.length ? out : null;
+  }
+  /** One layout entry: its place on the grid, and on a phone its order (o) and size (p). */
+  function copyEntry(b) {
+    var out = { id: b.id, x: b.x, y: b.y, w: b.w, h: b.h };
+    if (whole(b.o)) out.o = b.o;
+    if (b.p === "S" || b.p === "M" || b.p === "L") out.p = b.p;
+    return out;
+  }
+  function copyLayout(value) { return value.map(copyEntry); }
+
+  /**
+   * Where the boxes land: each keeps its columns, is pushed down past any box above it that
+   * it would overlap (an opened list grows), then rises into the space left above it, so a
+   * hidden or shorter box never leaves a hole. A pinned box (the one being moved or resized)
+   * is placed first, exactly where it was put, and the others make room around it.
+   */
+  function placed(source, pinId) {
+    var out = [];
+    function hits(b, y, h) {
+      return out.some(function (o) { return b.x < o.x + o.w && o.x < b.x + b.w && y < o.y + o.h && o.y < y + h; });
+    }
+    var boxes = (source || state.layout || DEFAULT_LAYOUT)
+      .filter(function (b) { return !BOXES[b.id].show || BOXES[b.id].show(); })
+      .slice().sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) out.push({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h });
+    });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) return;
+      var h = Math.max(state.fit[b.id] || b.h, state.need[b.id] || 0);
+      var y = b.y;
+      while (hits(b, y, h)) y++;
+      while (y > 0 && !hits(b, y - 1, h)) y--;
+      out.push({ id: b.id, x: b.x, y: y, w: b.w, h: h });
+    });
+    return out.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+  }
+  /** On a phone the boxes stand in the order the person gave them there, else top to bottom. */
+  function phoneOrder(spots) {
+    var at = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { at[b.id] = b; });
+    return spots.slice().sort(function (a, b) {
+      var oa = at[a.id] && whole(at[a.id].o) ? at[a.id].o : 1e6;
+      var ob = at[b.id] && whole(at[b.id].o) ? at[b.id].o : 1e6;
+      return oa - ob || a.y - b.y || a.x - b.x;
+    });
+  }
+  function entryOf(id) {
+    var l = state.layout || DEFAULT_LAYOUT;
+    for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+    return null;
+  }
+  /** The level a box draws at: by its width on a wide screen, by the person's choice on a phone. */
+  function levelOf(el) {
+    if (phone()) {
+      var e = entryOf(el.getAttribute("data-box"));
+      return e && e.p ? e.p : "M";
+    }
+    return levelFor(el.offsetWidth);
+  }
+
+  // ── Motion ─────────────────────────────────────────────────────────────
+  // Boxes glide to new places on a spring with a small, quick bounce. Before a change the
+  // page notes where every box is (and stops what is still moving); after it, each box
+  // starts where it was and glides to where it is now. A box that changes size grows or
+  // shrinks for real, so its words never stretch. People who asked their system for less
+  // motion get the change at once.
+
+  var MOVE_MS = 460;
+  var ENTER_MS = 380;
+  var lessMotion = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function motionOK() { return !(lessMotion && lessMotion.matches) && typeof document.body.animate === "function"; }
+
+  /** A damped spring as a CSS easing: about 4% past the mark, settled by the end. */
+  function springEasing(zeta, omega, steps) {
+    var wd = omega * Math.sqrt(1 - zeta * zeta);
+    var pts = [];
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      var v = 1 - Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + (zeta * omega / wd) * Math.sin(wd * t));
+      pts.push(i === steps ? 1 : Math.round(v * 1000) / 1000);
+    }
+    return "linear(" + pts.join(", ") + ")";
+  }
+  var SPRING = window.CSS && CSS.supports && CSS.supports("transition-timing-function", "linear(0, 1)")
+    ? springEasing(0.72, 10, 32)
+    : "cubic-bezier(.34, 1.3, .64, 1)";
+  document.documentElement.style.setProperty("--spring", SPRING);
+  /** No bounce: what the hand moves glides smoothly, so nothing seems to jump under it. */
+  var SMOOTH = "cubic-bezier(.22, 1, .36, 1)";
+
+  /** Where every box is now, then stops what is still gliding so the change starts clean. */
+  function snapshot(skip) {
+    var at = {};
+    if (!motionOK()) return at;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip) return;
+      at[id] = el.getBoundingClientRect();
+      el.getAnimations().forEach(function (a) { if (a.id === "glide" || a.id === "enter") a.cancel(); });
+    });
+    return at;
+  }
+  /** Each box glides from where the snapshot saw it to where it is now; a new box grows in. */
+  function glide(before, skip, easing) {
+    if (!motionOK() || !before) return;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip || el.hidden) return;
+      if (before[id]) glideFrom(el, before[id], true, MOVE_MS, easing);
+      else enter(el);
+    });
+  }
+  /** One element glides from the rectangle `a` to where it is now, growing for real if its size changed. */
+  function glideFrom(el, a, isBox, ms, easing) {
+    var b = el.getBoundingClientRect();
+    var dx = a.left - b.left;
+    var dy = a.top - b.top;
+    var resized = Math.abs(a.width - b.width) >= 1 || Math.abs(a.height - b.height) >= 1;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && !resized) return;
+    var from = { transform: "translate(" + dx + "px, " + dy + "px)" };
+    var to = { transform: "none" };
+    if (resized) {
+      from.width = a.width + "px";
+      from.height = a.height + "px";
+      to.width = b.width + "px";
+      to.height = b.height + "px";
+      // While it grows, the box is not drawn again at every in-between size.
+      if (isBox) el.setAttribute("data-gliding", "");
+    }
+    var anim = el.animate([from, to], { duration: ms, easing: easing || SPRING });
+    anim.id = "glide";
+    if (!isBox) return;
+    anim.onfinish = anim.oncancel = function () {
+      if (!el.hasAttribute("data-gliding")) return;
+      el.removeAttribute("data-gliding");
+      if (el.isConnected && el.offsetWidth) {
+        if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+        else fitBox(el);
+      }
+    };
+  }
+  function enter(el) {
+    if (!motionOK()) return;
+    var anim = el.animate([{ opacity: 0, transform: "scale(.94)" }, { opacity: 1, transform: "none" }], { duration: ENTER_MS, easing: SPRING });
+    anim.id = "enter";
+  }
+  /** A box held by the hand lets go of its offset and its free size, so the glide can carry it home. */
+  function letGo() {
+    Object.keys(boxEls).forEach(function (id) {
+      var s = boxEls[id].style;
+      s.transform = "";
+      s.width = "";
+      s.height = "";
+    });
+  }
+
+  var sizeWatch = window.ResizeObserver ? new ResizeObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var el = entry.target;
+      if (!el.isConnected || !el.offsetWidth || el.hasAttribute("data-gliding")) return;
+      if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+      else fitBox(el);
+      sizeTag(el);
+    });
+  }) : null;
+
+  var boxEls = {};
+  /** What each box last drew, so a repaint that changes nothing leaves it (and its input) alone. */
+  var drawn = {};
+  function boxEl(id) {
+    if (!boxEls[id]) {
+      var el = document.createElement("section");
+      el.className = "box " + BOXES[id].cls;
+      el.id = "box-" + id;
+      el.setAttribute("data-box", id);
+      if (BOXES[id].list) el.setAttribute("aria-labelledby", "h-" + id);
+      boxEls[id] = el;
+      el.addEventListener("animationend", function (e) { if (e.animationName === "rise") el.classList.remove("rise"); });
+      if (sizeWatch) sizeWatch.observe(el);
+    }
+    return boxEls[id];
+  }
+
+  /** Puts every box in its place and order, without drawing what is inside. */
+  function placeBoxes() {
+    var grid = $("grid");
+    var stack = phone();
+    grid.classList.toggle("stack", stack);
+    grid.classList.toggle("editing", state.editing);
+    grid.style.setProperty("--row", ROW + "px");
+    grid.style.setProperty("--gap", GAP + "px");
+    var spots = stack ? phoneOrder(placed()) : placed();
+    var keep = {};
+    spots.forEach(function (spot, i) {
+      keep[spot.id] = true;
+      var el = boxEl(spot.id);
+      if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null);
+      el.style.gridColumn = stack ? "" : spot.x + 1 + " / span " + spot.w;
+      el.style.gridRow = stack ? "" : spot.y + 1 + " / span " + spot.h;
+      // In edit mode a box is one stop for the keyboard: arrows move it, Shift and arrows resize it.
+      if (state.editing) {
+        el.tabIndex = 0;
+        el.setAttribute("aria-label", BOXES[spot.id].title + (stack
+          ? ". Up and down arrows move it."
+          : ". Arrow keys move it. Shift and arrow keys change its size."));
+      } else {
+        el.removeAttribute("tabindex");
+        el.removeAttribute("aria-label");
+      }
+      if (state.animate) {
+        el.classList.add("rise");
+        el.style.setProperty("--d", i * 70 + "ms");
+      }
+    });
+    Array.prototype.slice.call(grid.children).forEach(function (el) {
+      if (el.hasAttribute("data-box") && !keep[el.getAttribute("data-box")]) grid.removeChild(el);
+    });
+    return spots;
+  }
+
+  function paintGrid() {
+    var grid = $("grid");
+    var show = state.loaded && !!state.data;
+    grid.hidden = !show;
+    if (!show) { $("grid-empty").hidden = true; return; }
+    var spots = placeBoxes();
+    $("grid-empty").hidden = spots.length > 0;
+    spots.forEach(function (spot) { drawBox(boxEl(spot.id)); });
+  }
+
+  /** Draws one box at the level its width gives it; what someone was typing survives. */
+  function drawBox(el) {
+    var id = el.getAttribute("data-box");
+    var level = levelOf(el);
+    var html = BOXES[id].draw(level);
+    if (state.editing) {
+      html += '<button type="button" class="box-x" data-act="remove-box" aria-label="Remove ' + esc(BOXES[id].title) + '">' + icon("i-x") + "</button>";
+      html += phone()
+        ? '<div class="box-size" role="group" aria-label="Size of ' + esc(BOXES[id].title) + '">' + ["S", "M", "L"].map(function (size) {
+            return '<button type="button" data-act="phone-size" data-size="' + size + '" aria-pressed="' + (level === size) + '">' + LEVEL_WORDS[size] + "</button>";
+          }).join("") + "</div>"
+        : '<span class="box-resize" title="Drag to resize" aria-hidden="true"></span>';
+    }
+    el.setAttribute("data-level", level);
+    if (drawn[id] !== html) {
+      var input = el.querySelector("input");
+      var typed = input ? input.value : "";
+      var caret = input && document.activeElement === input ? [input.selectionStart, input.selectionEnd] : null;
+      // Opening a row draws the box again; the chip row keeps where it was scrolled to.
+      var bar = el.querySelector(".filters");
+      var keep = bar ? bar.scrollLeft : 0;
+      el.innerHTML = html;
+      drawn[id] = html;
+      var again = el.querySelector("input");
+      if (again && typed) again.value = typed;
+      if (again && caret) {
+        again.focus({ preventScroll: true });
+        try { again.setSelectionRange(caret[0], caret[1]); } catch (e) { /* not a text box any more */ }
+      }
+      bar = el.querySelector(".filters");
+      if (bar) bar.scrollLeft = keep;
+      // A new draw of the list keeps what the person is looking for.
+      if (id === "items") filterRows();
+    }
+    fitBox(el);
+  }
+
+  /**
+   * A list shows the rows that fit its box, then "+N more". Opened (by that button, or by
+   * opening one of its rows) it shows them all and the box grows to hold them.
+   */
+  function fitBox(el) {
+    var id = el.getAttribute("data-box");
+    var body = el.querySelector(".box-body");
+    var more = el.querySelector(".box-more");
+    if (!body || !more) return;
+    var rows = Array.prototype.slice.call(body.querySelectorAll(".rows > li:not(.miss)"));
+    var open = !!state.expanded[id] || !!body.querySelector(".row.open");
+    var stack = phone();
+    var cut = 0;
+    rows.forEach(function (r) { r.hidden = false; });
+    more.hidden = true;
+    // A list that gave rows back and now needs more takes back its own size before it measures.
+    var shrinks = !state.editing && !stack && el.matches(".lane:not(.nbox):not([data-box^='idea-'])");
+    if (state.fit[id] && (!shrinks || body.scrollHeight > body.clientHeight + 1)) {
+      delete state.fit[id];
+      placeBoxes();
+    }
+    if (!open && stack) {
+      var keepRows = el.getAttribute("data-level") === "L" ? rows.length : PHONE_ROWS;
+      rows.forEach(function (r, i) { if (i >= keepRows) { r.hidden = true; cut++; } });
+    } else if (!open && body.scrollHeight > body.clientHeight + 1) {
+      more.hidden = false;
+      for (var i = rows.length - 1; i > 0 && body.scrollHeight > body.clientHeight + 1; i--) { rows[i].hidden = true; cut++; }
+    }
+    more.hidden = !cut && !state.expanded[id];
+    more.textContent = cut ? "+" + cut + " more" : "Show less";
+    more.setAttribute("aria-expanded", String(!cut));
+
+    var need = 0;
+    if (open && !stack) {
+      var total = 2;
+      Array.prototype.forEach.call(el.children, function (child) {
+        if (child.matches(".box-x, .box-resize, .box-size")) return;
+        total += child === body ? body.scrollHeight : child.hidden ? 0 : child.offsetHeight;
+      });
+      need = Math.ceil((total + GAP) / (ROW + GAP));
+    }
+    // A list with rows to spare stands as tall as its rows, opened or not, and gives the
+    // rest back so the boxes under it move up: no empty white under a short list.
+    var own = entryOf(id);
+    var fit = !shrinks || cut ? 0 : open ? need : Math.ceil((el.offsetHeight + GAP) / (ROW + GAP));
+    if (!own || fit >= own.h) fit = 0;
+    if ((state.need[id] || 0) !== need || (state.fit[id] || 0) !== fit) {
+      state.need[id] = need;
+      state.fit[id] = fit;
+      placeBoxes();
+    }
+  }
+
+
+  function boxHead(key, title, iconId, n, hot) {
+    return '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="h-' + key + '">' + esc(title) + "</h3>" +
+      (n === null ? "" : '<span class="count num' + (n ? (hot ? " hot" : "") : " zero") + '">' + n + "</span>") + "</div>";
+  }
+  function listBox(key, title, iconId, n, rowsHtml, emptyText) {
+    return boxHead(key, title, iconId, n) +
+      '<div class="box-body">' + (n ? rowsHtml : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
+  }
+  /** The small level: one number, a line under it, and the one that matters most. */
+  function sumBox(key, title, iconId, value, subHtml, lineHtml) {
+    return boxHead(key, title, iconId, null) +
+      '<div class="sum"><span class="value num' + (value ? "" : " none") + '" dir="auto">' + esc(value || "None") + "</span>" +
+      '<span class="sub">' + subHtml + "</span>" + (lineHtml ? '<span class="line" dir="auto">' + lineHtml + "</span>" : "") + "</div>";
+  }
+
+  /** The number boxes: one number each, from the board. */
+  function drawNumber(which) {
+    return function () {
+      var all = items();
+      if (which === "items") {
+        return sumBox("n-items", "Things to look at", "i-watch", String(all.length), plural(all.length, "thing needs a look", "things need a look"), "");
+      }
+      if (which === "urgent") {
+        var high = all.filter(function (x) { return urgencyOf(x) === "High"; });
+        return sumBox("n-urgent", "Urgent", "i-alert", String(high.length), high.length ? plural(high.length, "thing is urgent", "things are urgent") : "Nothing urgent",
+          high[0] ? "<b>" + esc(text(high[0].title, 60)) + "</b>" : "");
+      }
+      var biz = all.filter(function (x) { return kindOf(x) === "Business"; });
+      var first = biz[0];
+      var from = first ? text(first.from, 40) : "";
+      return sumBox("n-business", "Business asks", "i-mail", String(biz.length), plural(biz.length, "business or collab ask", "business or collab asks"),
+        first ? "<b>" + esc(askOf(first)) + "</b>" + (from ? " from " + nameHtml(from) : "") : "");
+    };
+  }
+
+  /** Every idea, one tap each. */
+  function drawIdeasBox(level) {
+    var can = canAsk() || !V2;
+    if (level === "S") {
+      return sumBox("ideas", "Ideas", "i-bulb", String(IDEAS.length), "ideas, one tap each", "") +
+        '<div class="box-pad"><button class="btn small" data-act="ideas">' + icon("i-bulb") + "See them all</button></div>";
+    }
+    return listBox("ideas", "Ideas for your channel", "i-bulb", IDEAS.length,
+      '<ul class="rows idea-rows">' + IDEAS.map(function (idea) {
+        return "<li><div><b>" + esc(idea.title) + "</b>" + (level === "L" ? '<span dir="auto">' + esc(idea.text) + "</span>" : "") + "</div>" +
+          '<button class="btn small" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask</button></li>";
+      }).join("") + "</ul>",
+      "No ideas yet.");
+  }
+
+  /** One idea as its own box, put there by the person. */
+  function drawOneIdea(idea, level) {
+    var can = canAsk() || !V2;
+    return '<div class="one-idea">' + (level === "L" ? preview(idea) : "") +
+      "<h3>" + esc(idea.title) + "</h3>" +
+      (level === "S" ? "" : "<p>" + esc(idea.text) + "</p>") +
+      '<div class="go"><button class="btn small dark" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now</button>" +
+      (level === "S" ? "" : '<button class="btn small" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + esc(idea.when) + "</button>") +
+      "</div></div>";
+  }
+  /** A picture of what the idea is about, in the template covers' style. */
+  function preview(idea) {
+    return '<div class="art-img" aria-hidden="true"><img src="' + esc(idea.art) + '" alt="" loading="lazy" /></div>';
+  }
+  function ideaById(id) {
+    for (var i = 0; i < IDEAS.length; i++) if (IDEAS[i].id === id) return IDEAS[i];
+    return null;
+  }
+
+  // Ask about your channel: the ready-made questions under the box.
+  function drawAsk(level) {
+    var note = state.askNote || askHint();
+    return (level === "S" ? "" : '<h2 id="ask-title">Ask about your channel</h2><p>Anything from "is anyone angry?" to "who asked about a sponsorship?"</p>') +
+      '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="A comment or a video..." />' +
+      '<button type="submit" class="btn light">' + icon("i-send") + "Ask</button></form>" +
+      (level === "S" ? "" : '<p class="qs-label">Try</p><div class="qs">' + QUESTIONS.map(function (q) {
+        return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+      }).join("") + "</div>") +
+      (level !== "S" ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "");
+  }
+  function askHint() {
+    if (!V2) return "Open this cabinet in Cabinet to ask. The answer comes up in the chat next to this page.";
+    return askReady() ? "The answer comes up in the chat next to this page." : "Connect YouTube first, then ask anything.";
+  }
+
+  var DRAWERS = {
+    ideas: { title: "Ideas for your channel", sub: "One tap to ask now, to have it done for you on a schedule, or to keep it on your board as a box.", icon: "i-bulb", paint: paintIdeasPanel },
+    add: { title: "Add a box", sub: "Pick what you want on your board. You can remove it again any time.", icon: "i-plus", paint: paintPicker }
+  };
+  function paintDrawer() {
+    var kind = DRAWERS[state.drawerKind] || DRAWERS.ideas;
+    $("drawer-title").textContent = kind.title;
+    $("drawer-sub").textContent = kind.sub;
+    $("drawer-icon").innerHTML = icon(kind.icon);
+    kind.paint();
+  }
+
+  // The Add a box panel: every box by group, the ones on the board ticked.
+  function paintPicker() {
+    var on = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { on[b.id] = true; });
+    $("drawer-body").innerHTML = GROUPS.map(function (group) {
+      var ids = Object.keys(BOXES).filter(function (id) { return BOXES[id].group === group.id; });
+      return '<section class="pick-group"><h3>' + esc(group.title) + "</h3>" + ids.map(function (id) {
+        var box = BOXES[id];
+        var ready = !box.show || box.show();
+        var note = on[id] ? (ready ? "On your board" : "On your board. " + box.when) : ready ? "" : box.when;
+        return '<div class="pick' + (on[id] ? " on" : "") + '"><span class="pick-ic" aria-hidden="true">' + icon(box.icon) + "</span>" +
+          "<div><b>" + esc(box.title) + "</b><span>" + esc(box.desc) + "</span>" +
+          (note ? "<em>" + esc(note) + "</em>" : "") + "</div>" +
+          (on[id]
+            ? '<span class="pick-on" aria-hidden="true">' + icon("i-check") + "</span>"
+            : '<button type="button" class="btn small" data-act="add-this" data-add="' + id + '"' + (ready ? "" : " disabled") +
+              ' aria-label="Add ' + esc(box.title) + '">' + icon("i-plus") + "Add</button>") +
+          "</div>";
+      }).join("") + "</section>";
+    }).join("");
+  }
+
+  // The Ideas panel: every idea with its picture, and a way to keep it on the board as a box.
+  function paintIdeasPanel() {
+    var can = canAsk() || !V2;
+    var on = {};
+    (state.layout || DEFAULT_LAYOUT).forEach(function (b) { on[b.id] = true; });
+    $("drawer-body").innerHTML =
+      (!V2 ? '<p class="fine" style="margin:0">Ask for any of these in the cabinet’s chat.</p>'
+        : !askReady() ? '<p class="fine" style="margin:0">Connect YouTube and each of these is one tap away.</p>' : "") +
+      IDEAS.map(function (idea) {
+        var boxed = !!on["idea-" + idea.id];
+        return '<article class="idea">' + preview(idea) +
+          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
+          '<div class="go"><button class="btn dark" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-send") + "Ask now" + "</button>" +
+          '<button class="btn" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled") + ">" + icon("i-repeat") + esc(idea.when) + "</button>" +
+          (boxed ? '<span class="on-page">' + icon("i-check") + "On your board</span>"
+            : '<button class="btn" data-act="add-this" data-add="idea-' + idea.id + '">' + icon("i-plus") + "Add as a box</button>") +
+          "</div></article>";
+      }).join("");
+  }
+
+  // ── Editing the board ──────────────────────────────────────────────────
+  // Layout turns on a bar above the grid; each box gets a remove button and stops reacting
+  // to presses. Every change is kept at once in cabinet.mine, and Undo steps back.
+
+  function startEdit() {
+    // Boxes show the size they were given while being arranged, not grown by an open list.
+    state.open = {};
+    state.expanded = {};
+    state.need = {};
+    state.fit = {};
+    state.editing = true;
+    state.undo = [];
+    // The page's opening fade ends here, so no box is caught half way into it while moving.
+    Object.keys(boxEls).forEach(function (id) { boxEls[id].classList.remove("rise"); });
+    paint();
+    // The remove and resize handles pop in once, as edit mode starts.
+    var grid = $("grid");
+    grid.classList.add("fresh");
+    setTimeout(function () { grid.classList.remove("fresh"); }, 700);
+    toast(phone() ? "Hold a box to move it. Pick its size on top." : "Drag a box to move it. Pull its corner to resize it.");
+  }
+  function doneEdit() {
+    state.editing = false;
+    state.undo = [];
+    closeDrawer();
+    paint();
+  }
+  function paintEditbar() {
+    $("editbar").hidden = !state.editing;
+    $("undo-btn").disabled = !state.undo.length;
+  }
+
+  function saveLayout() {
+    if (!V2 || !cab.mine || typeof cab.mine.set !== "function") return;
+    cab.mine.set(LAYOUT_KEY, state.layout).catch(function () {
+      toast("Your board could not be saved. It goes back to how it was next time.");
+    });
+  }
+  function changeLayout(next, easing) {
+    var before = snapshot();
+    letGo();
+    state.undo.push(copyLayout(state.layout || DEFAULT_LAYOUT));
+    if (state.undo.length > 30) state.undo.shift();
+    state.layout = next;
+    saveLayout();
+    paintGrid();
+    glide(before, null, easing);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  function removeBox(id) {
+    var el = boxEls[id];
+    var next = copyLayout(state.layout || DEFAULT_LAYOUT).filter(function (b) { return b.id !== id; });
+    if (el) el.classList.add("leaving");
+    setTimeout(function () {
+      if (el) el.classList.remove("leaving");
+      changeLayout(next);
+      toast(BOXES[id].title + " removed. Undo brings it back.");
+    }, 200);
+  }
+  /** The first place, reading left to right and top down, where a w by h box touches nothing. */
+  function freeSpot(w, h, source) {
+    var spots = placed(source);
+    for (var y = 0; ; y++) {
+      for (var x = 0; x + w <= COLS; x++) {
+        var hit = spots.some(function (o) { return x < o.x + o.w && o.x < x + w && y < o.y + o.h && o.y < y + h; });
+        if (!hit) return { x: x, y: y };
+      }
+    }
+  }
+  function addBox(id) {
+    var box = BOXES[id];
+    var w = Math.min(box.w, COLS);
+    var at = freeSpot(w, box.h);
+    changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).concat({ id: id, x: at.x, y: at.y, w: w, h: box.h }));
+    closeDrawer();
+    var el = boxEls[id];
+    if (el && el.isConnected) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+    }
+    toast(box.title + " added." + (state.editing ? "" : " Press Layout to move it."));
+  }
+  function resetLayout() {
+    changeLayout(copyLayout(DEFAULT_LAYOUT));
+    toast("Back to the first board. Undo brings yours back.");
+  }
+  function undoLayout() {
+    if (!state.undo.length) return;
+    var before = snapshot();
+    state.layout = state.undo.pop();
+    saveLayout();
+    paintGrid();
+    glide(before);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  // ── Moving and resizing ────────────────────────────────────────────────
+  // A mouse or pen drags a box from anywhere on it in edit mode. A finger holds a box for a
+  // moment first, so the page still scrolls under a passing finger; outside edit mode the
+  // hold also starts editing. While a box moves, the others make room live and an outline
+  // shows where it lands. The corner handle resizes it on the grid, naming the size it
+  // reaches. On a phone a box moves up and down its column; its size is a switch.
+
+  var HOLD_MS = 600;
+  var SLOP = 8;
+  /** How far a mouse moves, pressed, before the box comes along: a slip of the hand is not a move. */
+  var DRAG_START = 10;
+  /** How far past a border (in cells) the moving box must be before the others make room. */
+  var STICK = 0.8;
+  var drag = null;
+  var press = null;
+  var hold = null;
+
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function spotIn(spots, id) {
+    for (var i = 0; i < spots.length; i++) if (spots[i].id === id) return spots[i];
+    return null;
+  }
+  function gridMetrics() {
+    var r = $("grid").getBoundingClientRect();
+    return { left: r.left, top: r.top, col: (r.width + GAP) / COLS, row: ROW + GAP };
+  }
+  /** The page with one box put at x, y and sized w by h, every other box making room. */
+  function previewWith(id, x, y, w, h) {
+    return placed(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+      if (b.id === id) { b.x = x; b.y = y; b.w = w; b.h = h; }
+      return b;
+    }), id);
+  }
+  function showSpots(spots) {
+    spots.forEach(function (s) {
+      var el = boxEls[s.id];
+      if (!el) return;
+      el.style.gridColumn = s.x + 1 + " / span " + s.w;
+      el.style.gridRow = s.y + 1 + " / span " + s.h;
+    });
+  }
+  /** Keeps the places a move or resize ended on; nothing is kept when nothing moved. */
+  function keepSpots(spots, easing) {
+    var at = {};
+    spots.forEach(function (s) { at[s.id] = s; });
+    var before = copyLayout(state.layout || DEFAULT_LAYOUT);
+    var next = copyLayout(before).map(function (b) {
+      var s = at[b.id];
+      if (s) { b.x = s.x; b.y = s.y; b.w = s.w; b.h = s.h; }
+      return b;
+    });
+    // Compared as the page shows them, so a drop back in the same place is no change.
+    var shown = function (l) { return JSON.stringify(placed(l).map(function (s) { return [s.id, s.x, s.y, s.w, s.h]; })); };
+    if (shown(next) === shown(before)) { settleBack(easing); return false; }
+    changeLayout(next, easing);
+    return true;
+  }
+  /** Nothing changed: every box glides back to the place it already had. */
+  function settleBack(easing) {
+    var before = snapshot();
+    letGo();
+    paintGrid();
+    glide(before, null, easing);
+  }
+
+  // The outline where a moving box lands, and the size a resized box has reached.
+  function overlay(cls) {
+    var grid = $("grid");
+    var el = grid.querySelector("." + cls);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = cls;
+      el.setAttribute("aria-hidden", "true");
+      grid.appendChild(el);
+    }
+    return el;
+  }
+  /** Puts the outline (or the size label) on a spot; once shown, it glides from spot to spot. */
+  function placeOverlay(el, s) {
+    var was = el.style.gridColumn && motionOK() ? el.getBoundingClientRect() : null;
+    if (was) el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.style.gridColumn = s.x + 1 + " / span " + s.w;
+    el.style.gridRow = s.y + 1 + " / span " + s.h;
+    if (was) glideFrom(el, was, false, 300, SMOOTH);
+  }
+  function clearOverlays() {
+    Array.prototype.slice.call($("grid").querySelectorAll(".drop-spot, .size-tag")).forEach(function (el) { el.parentNode.removeChild(el); });
+  }
+  /** "Medium: 3 rows": what a box shows at the size it has now. */
+  function sizeWords(el) {
+    var id = el.getAttribute("data-box");
+    var level = el.getAttribute("data-level") || "M";
+    var name = LEVEL_WORDS[level];
+    if (!BOXES[id].list) return name;
+    if (level === "S") return name + ": the total only";
+    var n = el.querySelectorAll(".rows > li.row:not([hidden]):not(.miss), .idea-rows > li:not([hidden])").length;
+    return n ? name + ": " + n + " " + plural(n, "row", "rows") : name;
+  }
+
+  function beginDrag(kind, el, x, y, touch) {
+    var id = el.getAttribute("data-box");
+    var r = el.getBoundingClientRect();
+    var spot = spotIn(placed(), id);
+    if (!spot) return;
+    drag = { kind: kind, id: id, el: el, touch: !!touch, x: x, y: y, x0: x, y0: y, scroll0: window.scrollY, spots: null };
+    if (kind === "stack") {
+      var boxes = Array.prototype.filter.call($("grid").children, function (c) { return c.hasAttribute("data-box"); });
+      drag.boxes = boxes;
+      drag.from = boxes.indexOf(el);
+      drag.to = drag.from;
+      drag.gap = parseFloat(getComputedStyle($("grid")).rowGap) || GAP;
+      drag.step = r.height + drag.gap;
+      drag.mids = boxes.map(function (b) { var br = b.getBoundingClientRect(); return br.top + window.scrollY + br.height / 2; });
+    } else if (kind === "move") {
+      drag.w = spot.w;
+      drag.h = spot.h;
+      drag.grabX = x - r.left;
+      drag.grabY = y - r.top;
+    } else {
+      drag.sx = spot.x;
+      drag.sy = spot.y;
+      drag.pw0 = r.width;
+      drag.ph0 = r.height;
+    }
+    // Whatever was still animating this box lets go of it, or it would hold the box still
+    // while the hand moves.
+    el.classList.remove("rise");
+    el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.classList.add(kind === "size" ? "sizing" : "lifted");
+    $("grid").classList.add("arranging");
+    document.body.classList.add(kind === "size" ? "is-sizing" : "is-moving");
+    if (touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not allowed here */ } }
+    moveDrag(x, y);
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function moveDrag(x, y) {
+    drag.x = x;
+    drag.y = y;
+    if (drag.kind === "stack") moveInColumn();
+    else if (drag.kind === "move") moveOnGrid();
+    else resizeOnGrid();
+  }
+
+  function moveOnGrid() {
+    var m = gridMetrics();
+    var left = drag.x - drag.grabX;
+    var top = drag.y - drag.grabY;
+    // The spot only changes once the box is well past a border (four fifths of a cell),
+    // so a hand resting near the line does not flip it back and forth.
+    var fx = (left - m.left) / m.col;
+    var fy = (top - m.top) / m.row;
+    var tx = drag.spots && Math.abs(fx - drag.tx) < STICK ? drag.tx : clamp(Math.round(fx), 0, COLS - drag.w);
+    var ty = drag.spots && Math.abs(fy - drag.ty) < STICK ? drag.ty : Math.max(0, Math.round(fy));
+    if (!drag.spots || drag.tx !== tx || drag.ty !== ty) {
+      drag.tx = tx;
+      drag.ty = ty;
+      var before = snapshot(drag.el);
+      drag.spots = previewWith(drag.id, tx, ty, drag.w, drag.h);
+      showSpots(drag.spots);
+      glide(before, drag.el, SMOOTH);
+      placeOverlay(overlay("drop-spot"), spotIn(drag.spots, drag.id));
+    }
+    drag.el.style.transform = "translate(" + (left - (m.left + tx * m.col)) + "px," + (top - (m.top + ty * m.row)) + "px)";
+  }
+
+  // The box follows the hand pixel by pixel; the outline shows the grid size it will take,
+  // the neighbours make room for that size, and letting go glides the box into it.
+  function resizeOnGrid() {
+    var m = gridMetrics();
+    var min = minSize(drag.id);
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    var pw = clamp(drag.pw0 + drag.x - drag.x0, min.w * m.col - GAP, (COLS - drag.sx) * m.col - GAP);
+    var ph = clamp(drag.ph0 + dy, min.h * m.row - GAP, 40 * m.row - GAP);
+    drag.el.style.width = pw + "px";
+    drag.el.style.height = ph + "px";
+    var fw = (pw + GAP) / m.col;
+    var fh = (ph + GAP) / m.row;
+    var w = drag.spots && Math.abs(fw - drag.w) < STICK ? drag.w : clamp(Math.round(fw), min.w, COLS - drag.sx);
+    var h = drag.spots && Math.abs(fh - drag.h) < STICK ? drag.h : clamp(Math.round(fh), min.h, 40);
+    if (drag.spots && drag.w === w && drag.h === h) return;
+    drag.w = w;
+    drag.h = h;
+    var before = snapshot(drag.el);
+    drag.spots = previewWith(drag.id, drag.sx, drag.sy, w, h);
+    showSpots(drag.spots);
+    glide(before, drag.el, SMOOTH);
+    var spot = spotIn(drag.spots, drag.id);
+    placeOverlay(overlay("drop-spot"), spot);
+    placeOverlay(overlay("size-tag"), spot);
+  }
+  /** The label names what the box shows at the size it has under the hand. */
+  function sizeTag(el) {
+    var tag = drag && drag.kind === "size" && drag.el === el ? $("grid").querySelector(".size-tag") : null;
+    if (tag) tag.textContent = sizeWords(el);
+  }
+
+  function moveInColumn() {
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    drag.el.style.transform = "translateY(" + dy + "px) scale(1.02)";
+    // The edge leading the move passes a box once it crosses that box's middle, so a tall
+    // box does not have to travel its own height before the others make room.
+    var top = drag.mids[drag.from] - (drag.step - drag.gap) / 2 + dy;
+    var bottom = top + drag.step - drag.gap;
+    var to = drag.from;
+    drag.mids.forEach(function (mid, i) {
+      if (i > drag.from && bottom > mid + 24) to++;
+      if (i < drag.from && top < mid - 24) to--;
+    });
+    drag.to = to;
+    drag.boxes.forEach(function (b, i) {
+      if (b === drag.el) return;
+      var shift = drag.from < to && i > drag.from && i <= to ? -drag.step : drag.from > to && i >= to && i < drag.from ? drag.step : 0;
+      b.style.transform = shift ? "translateY(" + shift + "px)" : "";
+    });
+  }
+
+  /**
+   * Near the top or bottom of the window, the page scrolls while something is held: only
+   * after it has rested there for a moment, slowly at first and never fast, so a box carried
+   * past the edge does not send the page racing.
+   */
+  var EDGE = 56;
+  var EDGE_WAIT_MS = 300;
+  var EDGE_MAX = 7;
+  function edgeScroll(now) {
+    if (!drag) return;
+    var into = drag.y < EDGE ? -(EDGE - drag.y) : drag.y > window.innerHeight - EDGE ? drag.y - window.innerHeight + EDGE : 0;
+    if (!into) drag.edgeSince = 0;
+    else if (!drag.edgeSince) drag.edgeSince = now || performance.now();
+    var waited = drag.edgeSince ? (now || performance.now()) - drag.edgeSince : 0;
+    if (into && waited > EDGE_WAIT_MS) {
+      // Speed grows with how deep into the edge the hand is and how long it has stayed.
+      var ramp = Math.min(1, (waited - EDGE_WAIT_MS) / 600);
+      var v = Math.max(1, Math.round(Math.min(EDGE_MAX, Math.abs(into) / 6) * ramp));
+      window.scrollBy(0, into < 0 ? -v : v);
+      moveDrag(drag.x, drag.y);
+    }
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function endDrag(cancelled) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    cancelAnimationFrame(d.raf);
+    clearOverlays();
+    $("grid").classList.remove("arranging");
+    document.body.classList.remove("is-moving", "is-sizing");
+    d.el.classList.remove("lifted", "sizing");
+    // The held box and the ones that made room keep their offsets until the glide takes over.
+    if (d.kind === "stack") {
+      if (cancelled || d.to === d.from) { settleBack(SMOOTH); return; }
+      var ids = d.boxes.map(function (b) { return b.getAttribute("data-box"); });
+      ids.splice(d.to, 0, ids.splice(d.from, 1)[0]);
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+        var at = ids.indexOf(b.id);
+        if (at >= 0) b.o = at;
+        return b;
+      }), SMOOTH);
+      return;
+    }
+    if (cancelled || !d.spots) { settleBack(SMOOTH); return; }
+    if (keepSpots(d.spots, SMOOTH) && d.kind === "size") {
+      requestAnimationFrame(function () { toast(BOXES[d.id].title + ": " + sizeWords(d.el)); });
+    }
+  }
+
+  // Mouse and pen: press on a box and move a little; the corner handle resizes at once
+  // (for a finger too: it never scrolls the page).
+  document.addEventListener("pointerdown", function (e) {
+    if (!state.editing || drag || e.button !== 0) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el) return;
+    if (e.target.closest(".box-resize")) {
+      e.preventDefault();
+      beginDrag("size", el, e.clientX, e.clientY, false);
+      return;
+    }
+    if (e.pointerType === "touch" || e.target.closest(".box-x, .box-size")) return;
+    press = { el: el, x: e.clientX, y: e.clientY };
+  });
+  document.addEventListener("pointermove", function (e) {
+    if (drag && !drag.touch) { moveDrag(e.clientX, e.clientY); return; }
+    if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > DRAG_START) {
+      var p = press;
+      press = null;
+      beginDrag(phone() ? "stack" : "move", p.el, e.clientX, e.clientY, false);
+      // The grab point is where the press began, not where the move was noticed.
+      if (drag && drag.kind === "move") { drag.grabX -= e.clientX - p.x; drag.grabY -= e.clientY - p.y; moveDrag(e.clientX, e.clientY); }
+      if (drag && drag.kind === "stack") { drag.y0 = p.y; moveDrag(e.clientX, e.clientY); }
+    }
+  });
+  document.addEventListener("pointerup", function () { press = null; if (drag && !drag.touch) endDrag(false); });
+  document.addEventListener("pointercancel", function () { press = null; if (drag && !drag.touch) endDrag(true); });
+
+  // A finger: hold still on a box for a moment, then drag.
+  document.addEventListener("touchstart", function (e) {
+    if (drag || e.touches.length !== 1 || !state.data) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el || e.target.closest(".box-x, .box-size, .box-resize")) return;
+    var t = e.touches[0];
+    hold = { el: el, x: t.clientX, y: t.clientY, timer: setTimeout(function () {
+      var h = hold;
+      hold = null;
+      if (!h || !h.el.isConnected) return;
+      if (!state.editing) startEdit();
+      beginDrag(phone() ? "stack" : "move", h.el, h.x, h.y, true);
+    }, HOLD_MS) };
+  }, { passive: true });
+  document.addEventListener("touchmove", function (e) {
+    var t = e.touches[0];
+    if (hold && t && Math.abs(t.clientX - hold.x) + Math.abs(t.clientY - hold.y) > SLOP) {
+      clearTimeout(hold.timer);
+      hold = null;
+    }
+    if (drag && drag.touch && t) {
+      e.preventDefault();
+      moveDrag(t.clientX, t.clientY);
+    }
+  }, { passive: false });
+  function touchOver(e, cancelled) {
+    if (hold) { clearTimeout(hold.timer); hold = null; }
+    if (drag && drag.touch) {
+      // No tap reaches what was under the finger when it lets go of a box.
+      if (e.cancelable) e.preventDefault();
+      endDrag(cancelled);
+    }
+  }
+  document.addEventListener("touchend", function (e) { touchOver(e, false); }, { passive: false });
+  document.addEventListener("touchcancel", function (e) { touchOver(e, true); }, { passive: false });
+  document.addEventListener("contextmenu", function (e) { if (drag || hold) e.preventDefault(); });
+
+  // The keyboard: arrows move the box in focus, Shift and arrows resize it.
+  var ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  function keyMove(el, d, resize) {
+    var id = el.getAttribute("data-box");
+    if (phone()) {
+      if (!d[1]) return;
+      var ids = phoneOrder(placed()).map(function (s) { return s.id; });
+      var from = ids.indexOf(id);
+      var to = clamp(from + d[1], 0, ids.length - 1);
+      if (to === from) return;
+      ids.splice(to, 0, ids.splice(from, 1)[0]);
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (b) {
+        var at = ids.indexOf(b.id);
+        if (at >= 0) b.o = at;
+        return b;
+      }));
+      el.focus();
+      toast(BOXES[id].title + " moved " + (d[1] < 0 ? "up" : "down") + ".");
+      return;
+    }
+    var s = spotIn(placed(), id);
+    if (!s) return;
+    var min = minSize(id);
+    if (resize) {
+      var w = clamp(s.w + d[0], min.w, COLS - s.x);
+      var h = clamp(s.h + d[1], min.h, 40);
+      if (keepSpots(previewWith(id, s.x, s.y, w, h))) {
+        el.focus();
+        requestAnimationFrame(function () { toast(BOXES[id].title + ": " + sizeWords(el)); });
+      }
+      return;
+    }
+    // Down past empty space would only float back up, so it goes as far as it takes to move.
+    for (var step = 1; step <= 40; step++) {
+      var x = clamp(s.x + d[0] * step, 0, COLS - s.w);
+      var y = Math.max(0, s.y + d[1] * step);
+      if (x === s.x && y === s.y) return;
+      if (keepSpots(previewWith(id, x, y, s.w, s.h))) {
+        el.focus();
+        toast(BOXES[id].title + " moved.");
+        return;
+      }
+      if (d[0]) return;
+    }
+  }
+  document.addEventListener("keydown", function (e) {
+    if (!state.editing || drag || !ARROWS[e.key]) return;
+    var el = document.activeElement;
+    if (!el || !el.matches || !el.matches("#grid > .box")) return;
+    e.preventDefault();
+    keyMove(el, ARROWS[e.key], e.shiftKey);
+  });
+
+  var drawerTimer = 0;
+  var drawerFrom = null;
+  function openDrawer(kind) {
+    var el = $("drawer");
+    clearTimeout(drawerTimer);
+    drawerFrom = document.activeElement;
+    state.drawerOpen = true;
+    state.drawerKind = kind;
+    el.querySelector(".drawer-body").scrollTop = 0;
+    paintDrawer();
+    el.hidden = false;
+    document.body.style.overflow = "hidden";
+    // One frame on screen closed first, so the panel slides in rather than appearing.
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("open"); }); });
+    el.querySelector(".drawer-panel").focus();
+  }
+  function closeDrawer() {
+    var el = $("drawer");
+    if (!state.drawerOpen) return;
+    state.drawerOpen = false;
+    el.classList.remove("open");
+    document.body.style.overflow = "";
+    drawerTimer = setTimeout(function () { el.hidden = true; }, 360);
+    if (drawerFrom && drawerFrom.focus) drawerFrom.focus();
+  }
+
+  // ── Presses ────────────────────────────────────────────────────────────
+
+  /** The item behind a row's buttons, by the id the row was painted with (see rowId). */
+  function findItem(id) {
+    var all = items();
+    for (var i = 0; i < all.length; i++) if (rowId(all[i], i + 1) === id) return all[i];
+    return null;
+  }
+  /** The words sent to the chat for a draft. Every one ends with "do not post": a draft is
+      shown in the chat to copy, and a reply goes up only if the person asks there. */
+  function draftAsk(d) {
+    var title = text(d.title, 80);
+    var under = text(d.video) ? ", under \"" + text(d.video, 120) + "\"" : "";
+    if (kindOf(d) !== "Business") {
+      return "Draft a short, calm reply in my voice for \"" + title + "\" on the Watch Board" + under + ". Read the comments behind it first. Show it to me here as a draft I can copy. Do not post anything on YouTube.";
+    }
+    var who = text(d.from, 40) ? " from " + text(d.from, 40) : "";
+    var what = askOf(d) === "Business" ? "business" : askOf(d).toLowerCase();
+    if (reachOf(d) === "email") {
+      return "Draft a short email in my voice answering the " + what + " request" + who + " (\"" + title + "\" on the Watch Board" + under + "), for me to send from my own email. Read their comment first, and leave my rates and dates as [brackets] for me to fill in. Show it to me here as a draft I can copy. Do not post anything on YouTube and do not send anything.";
+    }
+    return "Draft a short public reply in my voice to the " + what + " request" + who + " (\"" + title + "\" on the Watch Board" + under + "). Read their comment first. Thank them and say where to write to me about business, without rates or private details. Show it to me here as a draft I can copy. Do not post anything on YouTube.";
+  }
+
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest ? event.target.closest("[data-act]") : null;
+    if (!el || el.disabled) return;
+    var act = el.getAttribute("data-act");
+    var id = el.getAttribute("data-id");
+    if (act === "toggle") {
+      var was = snapshot();
+      state.open[id] = !state.open[id];
+      paintGrid();
+      glide(was);
+      var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+      if (again) again.focus();
+    } else if (act === "filter") {
+      var fromHero = !el.closest(".filters");
+      var then = snapshot();
+      state.filter = el.getAttribute("data-kind") || "All";
+      paintGrid();
+      glide(then);
+      var f = document.querySelector('[data-act="filter"][aria-pressed="true"]');
+      if (f) {
+        // On a phone the chips scroll sideways: bring the chosen one into the row's view.
+        f.parentNode.scrollLeft = Math.max(0, f.offsetLeft - f.parentNode.offsetLeft - 16);
+        f.focus({ preventScroll: true });
+        if (fromHero && f.scrollIntoView) f.closest(".lane").scrollIntoView({ block: "start", behavior: "smooth" });
+      } else if (fromHero) {
+        // One kind on the board has no chips to pick: the count takes the person to the list.
+        var lane = boxEls.items;
+        if (lane && lane.scrollIntoView) lane.scrollIntoView({ block: "start", behavior: "smooth" });
+      }
+    } else if (act === "more-rows") {
+      var boxId = el.closest(".box").getAttribute("data-box");
+      var shown = snapshot();
+      state.expanded[boxId] = !state.expanded[boxId];
+      fitBox(boxEl(boxId));
+      glide(shown);
+    } else if (act === "connect") connect();
+    else if (act === "run") runNow();
+    else if (act === "ask") ask(el.getAttribute("data-q"));
+    else if (act === "find-ask") {
+      var q = state.query.trim();
+      if (q) ask("Look in the comments under my videos for this, and tell me who said it, where and when: " + q);
+    } else if (act === "about") {
+      var r = findItem(id);
+      if (r) ask("Tell me about \"" + text(r.title, 80) + "\" on the Watch Board: what happened, who is involved, under which video, whether it is growing, and what you would do first.");
+    } else if (act === "draft") {
+      var d = findItem(id);
+      if (d) ask(draftAsk(d));
+    } else if (act === "gift-do") {
+      var gift = state.reading && state.reading.gift;
+      if (gift) {
+        ask(giftParts(gift).ask);
+        state.giftAsked = gift.at;
+        if (showReading()) paintReading();
+        else { giftDone(); paintGiftKeep(); }
+      }
+    } else if (act === "gift-skip") {
+      giftDone(true);
+      paintGiftKeep();
+    } else if (act === "offer-do") {
+      var key = el.getAttribute("data-key");
+      var offer = state.reading ? state.reading.offers.filter(function (o) { return offerKey(o) === key; })[0] : null;
+      if (offer) {
+        ask(offerParts(offer).ask);
+        state.offersAsked[key] = true;
+        remember(OFFERS_KEY, Object.keys(state.offersAsked));
+        if (showReading()) paintReading(); else paintGiftKeep();
+      }
+    } else if (act === "idea-now") {
+      var idea = ideaById(el.getAttribute("data-idea"));
+      if (idea) { closeDrawer(); ask(idea.ask); }
+    } else if (act === "idea-routine") {
+      var it = ideaById(el.getAttribute("data-idea"));
+      if (it) { closeDrawer(); ask("Set this up as a routine that runs " + it.at + ": " + it.ask + " Show me the routine so I can approve it before it starts."); }
+    } else if (act === "ideas") {
+      openDrawer("ideas");
+    } else if (act === "add-box") {
+      openDrawer("add");
+    } else if (act === "add-this") {
+      var add = el.getAttribute("data-add");
+      if (BOXES[add]) addBox(add);
+    } else if (act === "phone-size") {
+      var sized = el.closest(".box").getAttribute("data-box");
+      var size = el.getAttribute("data-size");
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).map(function (x) { if (x.id === sized) x.p = size; return x; }));
+      if (boxEls[sized]) { var btn = boxEls[sized].querySelector('[data-size="' + size + '"]'); if (btn) btn.focus(); }
+    } else if (act === "remove-box") {
+      removeBox(el.closest(".box").getAttribute("data-box"));
+    } else if (act === "edit-start") {
+      startEdit();
+    } else if (act === "edit-done") {
+      doneEdit();
+    } else if (act === "undo") {
+      undoLayout();
+    } else if (act === "reset-layout") {
+      resetLayout();
+    } else if (act === "drawer-close") {
+      closeDrawer();
+    }
+  });
+
+  document.addEventListener("input", function (event) {
+    if (event.target && event.target.id === "find") {
+      state.query = event.target.value;
+      filterRows();
+      if (boxEls.items) fitBox(boxEls.items);
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    if (drag) endDrag(true);
+    else if (state.drawerOpen) closeDrawer();
+    else if (state.editing) doneEdit();
+  });
+
+  // The Ask box is drawn again as it changes size, so its form is listened to from here.
+  document.addEventListener("submit", function (event) {
+    if (!event.target || event.target.id !== "ask-form") return;
+    event.preventDefault();
+    ask($("ask-input").value);
+  });
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  try {
+    var put = JSON.parse(localStorage.getItem(GIFT_KEY) || "null");
+    if (typeof put === "string") state.giftDone = put;
+    var used = JSON.parse(localStorage.getItem(OFFERS_KEY) || "[]");
+    if (Array.isArray(used)) used.forEach(function (k) { if (typeof k === "string") state.offersAsked[k] = true; });
+  } catch (e) { /* nothing kept in this browser */ }
+  paint();
+
+  if (PHONE) {
+    var onPhoneChange = function () { if (state.loaded && state.data) paintGrid(); };
+    if (PHONE.addEventListener) PHONE.addEventListener("change", onPhoneChange);
+    else if (PHONE.addListener) PHONE.addListener(onPhoneChange);
+  }
+  // Rows are measured to fit their boxes; the web font changes their height once it arrives.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      Object.keys(boxEls).forEach(function (id) { if (boxEls[id].isConnected) fitBox(boxEls[id]); });
+    });
+  }
+
+  if (V2) {
+    // This person's own layout, if they changed it; the default otherwise.
+    Promise.resolve(cab.ready).then(function () {
+      var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
+      var clean = cleanLayout(mine ? mine.get(LAYOUT_KEY) : null);
+      if (clean) state.layout = clean;
+    }).catch(function () {}).then(function () { paint(); });
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      try { cab.files.onChange(state.appPath, function () { load(); }); } catch (e) { /* older bridge */ }
+    });
+    cab.connectors.list().then(function (items) {
+      state.yt = pickYouTube(items) || { id: "youtube", state: "not-available-here", problem: null, canConnect: false };
+      paint();
+      catchUp();
+    }).catch(function () {
+      state.yt = { id: "youtube", state: "not-available-here", problem: null, canConnect: false };
+      paint();
+    });
+    cab.connectors.onChange(function (items) { var g = pickYouTube(items); if (g) { state.yt = g; paint(); } });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+    readSchedule();
+  } else {
+    load();
+    readSchedule();
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") load(); });
+  }
+})();
+</script>
+</body>
+</html>
