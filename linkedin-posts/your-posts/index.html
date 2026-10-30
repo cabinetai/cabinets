@@ -1,0 +1,3260 @@
+<!DOCTYPE html>
+<!--
+  LinkedIn Posts: Your posts. The cabinet opens on this page.
+
+  For someone who posts on LinkedIn: every draft they are working on, each marked Draft,
+  Approved or Posted, the three ideas the weekly routine wrote from their notes, and an Ask
+  box and Ideas that send requests to the cabinet's chat, plus Ideas they can ask for once or
+  switch on as a routine. A Keep your LinkedIn posts in Cabinet box says how to bring in past
+  posts from LinkedIn's copy of the person's data, with a guide drawn from LinkedIn's screens.
+
+  LinkedIn lets apps like Cabinet read only the person's name and picture, and post as them.
+  It shares no posts, comments or numbers, so the page shows only what was written in the
+  cabinet and never how a post did.
+
+  The page is a grid of boxes, like the digests: each person moves, resizes, adds and removes
+  them (mouse, finger or keyboard, with Undo), or asks the agent to suggest the boxes
+  (data/layout-change.json, offered with Apply and No thanks). Each person's layout is kept
+  in cabinet.mine, not in a file.
+
+  Where the words come from: the agent writes one markdown page per draft in ../drafts/
+  (frontmatter title, status draft, approved or posted, created, audience, and once it is on
+  LinkedIn posted_urn and posted_date), and the Weekly post ideas routine writes three ideas
+  in ../ideas/<YYYY-MM-DD>.md. Until LinkedIn is connected, and only while the cabinet has
+  none of its own, the page shows data/EXAMPLE-posts.json: made-up drafts, labelled as an
+  example.
+
+  How it talks to Cabinet: window.cabinet v2 (connection state, connect, ask, run the
+  routine, read and list files, this person's own layout). Nothing here publishes: Publish
+  asks the agent in the chat, which shows the exact words and who will see them, and posts
+  only after the person's yes there. In an older Cabinet it shows the example and says to
+  connect LinkedIn from Integrations.
+
+  One file on purpose: a sealed frame cannot load files next to it. System fonts; icons are
+  inline SVG; LinkedIn's mark is Simple Icons' (CC0).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Your posts</title>
+<style>
+  /* Plain white sheets on LinkedIn's warm grey, the way the digests are laid out, under a deep
+     navy headline band with LinkedIn's blue glowing in it. Below the band LinkedIn's blue is the
+     accent: the box icons and the main button. The navy is the Ask box too. Green only for
+     what went out. */
+  :root {
+    --canvas: #f3f2ef;
+    --page: #ffffff;
+    --panel: #f7f6f3;
+    --panel-2: #ebe9e4;
+    --line: #ebe9e4;
+    --line-2: #d6d3cc;
+    --ink: #191919;
+    --ink-2: #3a3a3a;
+    --ink-3: #5c5c5c;
+
+    --li-blue: #0a66c2;
+    --li-sky: #70b5f9;
+    --brand: #0a66c2;
+    --brand-2: #004182;
+    --brand-tint: #eaf3fc;
+    --brand-line: #c7dcf3;
+    --deep: #0c1f35;
+    --deep-2: #18324f;
+    --deep-line: #33506f;
+    --deep-soft: #c4d1df;
+    --red: #b42318;
+    --red-ink: #b42318;
+    --red-tint: #fdeceb;
+    --blue-ink: #0a66c2;
+    --green: #2b8a3e;
+    --green-ink: #1e6b31;
+    --green-tint: #ebf5ed;
+    --amber: #c27a00;
+    --amber-ink: #7a4b00;
+    --amber-tint: #fff6e3;
+
+    --shadow-1: 0 1px 2px rgba(25, 25, 25, .05), 0 6px 18px -12px rgba(25, 25, 25, .16);
+    --shadow-2: 0 2px 4px rgba(25, 25, 25, .05), 0 16px 34px -18px rgba(25, 25, 25, .26);
+    --radius: 20px;
+    --font: -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  ::selection { background: color-mix(in srgb, var(--li-sky) 30%, transparent); }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; scrollbar-color: var(--line-2) transparent; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--ink);
+    font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--blue-ink); }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--ink) 35%, transparent); outline-offset: 2px; border-radius: 10px; }
+  .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .num { font-variant-numeric: tabular-nums; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* The mark: LinkedIn's own logo (Simple Icons, CC0) in its blue, small. Drawn in the
+     background so the mark stays an empty span. */
+  .mark { width: 22px; height: 22px; display: inline-block; flex: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%230a66c2' d='M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z'/%3E%3C/svg%3E") no-repeat center / contain; border-radius: 3px; }
+
+  /* ── Top bar: only when the headline box is not on the page ──────────── */
+  .bar { background: var(--canvas); }
+  .bar-in { max-width: 1280px; margin: 0 auto; padding: 16px 28px 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: var(--page); font-weight: 500; font-size: 14px; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
+  .pill .when { font-weight: 400; opacity: .85; margin-inline-start: 4px; }
+  .pill.ok .dot { background: var(--green); }
+  .pill.warn { color: var(--amber-ink); }
+  .pill.warn .dot { background: var(--amber); }
+  .pill.off { color: var(--red-ink); }
+  .pill.off .dot { background: var(--red); }
+  .updated { color: var(--ink-3); font-size: 14px; }
+  .day-pick { min-height: 36px; padding: 6px 30px 6px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--page); font-size: 14px; font-weight: 500; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 18px;
+    border-radius: 999px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink);
+    font-weight: 500; font-size: 15px; text-decoration: none; white-space: nowrap;
+    transition: background .15s ease, border-color .15s ease, transform .1s ease;
+  }
+  .btn:hover { background: var(--panel); border-color: #c4c4c4; }
+  .btn:active { transform: translateY(1px); }
+  .btn[disabled] { cursor: default; opacity: .6; transform: none; }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn.primary:hover { background: var(--brand-2); border-color: var(--brand-2); }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.dark:hover { background: var(--deep-2); }
+  .btn.big { min-height: 52px; padding: 13px 26px; font-size: 17px; }
+  .btn.small { min-height: 36px; padding: 6px 14px; font-size: 14px; }
+  .btn.small .icon { width: 17px; height: 17px; }
+  .btn.quiet { border-color: transparent; background: transparent; color: var(--ink-2); padding-inline: 10px; }
+  .btn.quiet:hover { background: var(--panel-2); }
+  .status .btn { min-height: 40px; padding: 8px 14px; font-size: 14px; }
+
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 16px 28px 40px; }
+  .main { display: flex; flex-direction: column; gap: 18px; }
+
+  /* ── Hero: a connection problem, or LinkedIn not connected yet. With the headline box on
+     the page it is told inside its band. ── */
+  .hero:empty { display: none; }
+  .hero h2 { margin: 0; font-size: clamp(26px, 3vw, 36px); line-height: 1.12; font-weight: 700; letter-spacing: -.02em; }
+  .hero .lead { margin: 10px 0 0; font-size: 17px; color: var(--ink-2); max-width: 70ch; }
+  .hero .fine { margin: 8px 0 0; font-size: 15px; color: var(--ink-3); }
+  .hero .actions, .box.headline .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+  .card-hero {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center;
+    padding: 28px 30px; border-radius: 24px; background: var(--page); box-shadow: var(--shadow-1);
+  }
+  .art { width: 132px; height: 104px; }
+  /* An icon in place of the picture, on a soft tile. */
+  .art-icon { display: grid; place-items: center; border-radius: 18px; background: var(--panel); }
+  .art-icon .icon { width: 44px; height: 44px; color: var(--ink-3); }
+  .steps { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; padding: 0; list-style: none; color: var(--ink-2); font-size: 15px; }
+  .steps li { display: flex; align-items: center; gap: 8px; }
+  .steps .icon { color: var(--green); width: 18px; height: 18px; }
+
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: 16px; background: var(--page); color: var(--ink); box-shadow: var(--shadow-1); border-left: 3px solid var(--red); }
+  .notice .icon { color: var(--red-ink); margin-top: 2px; }
+  .notice p { margin: 0; }
+  .notice .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+  #ribbon:empty { display: none; }
+  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 11px 16px; border-radius: 14px; background: var(--amber-tint); border: 1px solid #f1e0bd; }
+  .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .ribbon .icon { color: var(--amber-ink); }
+  .tag-example { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+
+  /* ── Boxes with a list ───────────────────────────────────────────────── */
+  /* Plain white sheets: no border, a soft shadow. A box title is an outline icon and bold words. */
+  .lane { border-radius: var(--radius); background: var(--page); overflow: hidden; box-shadow: var(--shadow-1); }
+  .lane-head { flex: none; display: flex; align-items: center; gap: 11px; margin: 0 20px; padding: 18px 0 10px; }
+  .lane-head .lane-icon { display: inline-grid; place-items: center; color: var(--brand); }
+  .lane-head .lane-icon .icon { width: 22px; height: 22px; stroke-width: 1.8; }
+  .lane-head h3 { margin: 0; flex: 1; min-width: 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+  .lane-head .count { font-size: 17px; font-weight: 500; color: var(--ink-3); }
+  .lane-head .count.zero { display: none; }
+  .lane-head .total { color: var(--ink-3); font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .lane-empty { padding: 14px 20px 18px; color: var(--ink-3); margin: 0; }
+
+  .rows { list-style: none; margin: 0; padding: 0; }
+  .row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+  /* Drafts: the title in bold with its status, when and for whom under it, the first words
+     after that. Opened, the whole post and the presses. */
+  .chan { border-top: 1px solid var(--line); }
+  .chan-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 14px; width: 100%; text-align: start; padding: 13px 20px; border: 0; background: transparent; }
+  .chan-main:hover { background: var(--panel); }
+  .chan.open .chan-main { background: var(--panel); }
+  .chan-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; font-weight: 700; font-size: 16px; }
+  .chan-name b { overflow-wrap: anywhere; }
+  .chan-count { font-size: 14px; color: var(--ink-3); white-space: nowrap; }
+  .chan-gist { grid-column: 1 / -1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
+  .chan-body { padding: 0 20px 16px; background: var(--panel); }
+  .chan-body .row-actions { margin-top: 0; }
+  .vstats { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 14px; color: var(--ink-3); }
+  .vstats .up { color: var(--green-ink); font-weight: 500; }
+
+
+  /* The status of a draft: grey while it is written, blue once it is final, green once it is out. */
+  .st { display: inline-flex; align-items: center; min-height: 22px; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+  .st.draft { background: var(--panel-2); color: var(--ink-2); }
+  .st.approved { background: var(--brand-tint); color: var(--brand-2); }
+  .st.posted { background: var(--green-tint); color: var(--green-ink); }
+  .post-text { margin: 0 0 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--page); color: var(--ink); font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 340px; overflow-y: auto; }
+
+  /* Short lists: the ideas for the next posts. */
+  .mini > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: baseline; margin: 0 20px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .mini .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
+  .mini .top b { font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
+  .mini .t { grid-column: 1 / -1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
+  .mini .t a { font-weight: 500; }
+  .mini .side { font-size: 13.5px; color: var(--ink-3); white-space: nowrap; }
+  .mini .t .btn.quiet { min-height: 32px; padding: 2px 8px; margin-inline-start: -4px; font-size: 14px; color: var(--ink); }
+  .lane-act { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 20px 16px; }
+
+  .mini .t .from { color: var(--ink-3); font-size: 14px; }
+
+  /* ── Ask ─────────────────────────────────────────────────────────────── */
+  /* Ask: the navy box, the one dark sheet on the page. */
+  .ask { padding: 22px; border-radius: var(--radius); background: var(--deep); color: #fff; }
+  .ask h2 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  .ask > p { margin: 0 0 14px; color: var(--deep-soft); font-size: 15px; }
+  .ask form { display: flex; gap: 10px; margin-top: 10px; }
+  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 999px; border: 1px solid var(--deep-line); background: var(--deep-2); color: #fff; padding: 10px 18px; font-size: 16px; }
+  .ask input::placeholder { color: #aaaaaa; }
+  .ask input:focus { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .2); }
+  .ask .btn.light { min-height: 50px; background: #fff; border-color: #fff; color: var(--ink); }
+  .ask .btn.light:hover { background: #e5e5e5; }
+  .qs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .q { min-height: 38px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--deep-line); background: transparent; color: #f1f1f1; font-size: 14.5px; font-weight: 500; text-align: start; }
+  .q:hover { background: var(--deep-2); }
+  .ask .note { margin: 12px 0 0; font-size: 14px; color: var(--deep-soft); min-height: 1.5em; }
+  .ask .cancel { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+  .box.ask { overflow: hidden; justify-content: flex-start; }
+  .box.ask[data-level="S"] form { flex-direction: column; }
+
+  /* An idea at the foot of a box, picked from the drafts on the page. */
+  .nudge { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: start; padding: 12px 20px 14px; border-top: 1px solid var(--line); background: var(--page); }
+  .nudge > .icon { color: var(--ink-3); margin-top: 1px; }
+  .nudge p { margin: 0; font-size: 15px; font-weight: 500; color: var(--ink); }
+  .nudge-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .nudge-hide { margin-inline-start: auto; min-height: 36px; border: 0; background: transparent; color: var(--ink-3); font-size: 13.5px; font-weight: 500; padding: 6px 10px; border-radius: 999px; }
+  .nudge-hide:hover { background: var(--panel-2); color: var(--ink); }
+  .box.ask .nudge { margin-top: 14px; border: 1px solid var(--deep-line); border-radius: 16px; background: transparent; }
+  .box.ask .nudge > .icon { color: var(--deep-soft); }
+  .box.ask .nudge p { color: #fff; }
+  .box.ask .nudge .btn:not(.primary) { background: transparent; border-color: #5a5a5a; color: #fff; }
+  .box.ask .nudge .btn:not(.primary):hover { background: var(--deep-2); }
+  .box.ask .nudge-hide { color: var(--deep-soft); }
+  .box.ask .nudge-hide:hover { background: var(--deep-2); color: #fff; }
+
+  /* ── Ideas ───────────────────────────────────────────────────────────── */
+  .idea { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--page); }
+  .idea h3 { margin: 0; font-size: 16.5px; font-weight: 700; line-height: 1.3; }
+  .idea p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .idea .go { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 4px; }
+  .idea .go .btn { min-height: 42px; padding: 8px 14px; font-size: 14px; }
+  /* Idea icons are plain outline drawings, never a coloured tile. */
+  .ic { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--brand-tint); color: var(--brand); }
+  .ic .icon { width: 20px; height: 20px; }
+  .today { margin: 0; padding: 8px 12px; border-radius: 12px; background: var(--panel); color: var(--ink); font-size: 14px; font-weight: 500; }
+  .idea .off-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; color: var(--ink-3); }
+  .idea.off { background: var(--panel); }
+
+  /* One idea as its own box: its icon, today's line, and the presses. */
+  .one-idea { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 10px; padding: 16px 20px; }
+  .one-idea h3 { margin: 0; font-size: 16.5px; font-weight: 700; line-height: 1.3; }
+  .one-idea p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+  .one-idea .go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+  /* Its own height, never the box's: the Keep box grows to fit it (grow), and a stretched child would grow it forever. */
+  .one-idea.hug { flex: none; gap: 8px; }
+  .idea-rows > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; margin: 0 20px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .idea-rows .ic { width: 34px; height: 34px; }
+  .idea-rows b { display: block; font-size: 15px; font-weight: 500; }
+  .idea-rows span[dir] { display: block; color: var(--ink-3); font-size: 14px; }
+
+  .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line-2); color: var(--ink-3); font-size: 14px; }
+  .foot .icon { color: var(--ink-3); width: 18px; height: 18px; margin-top: 1px; }
+  .foot p { margin: 0; }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0; background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 999px; font-weight: 500; font-size: 15px; box-shadow: var(--shadow-2); transition: opacity .2s ease, transform .2s ease; z-index: 50; max-width: calc(100% - 40px); text-align: center; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .spin { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* "backwards": hidden until its turn, then it lets go, so it never holds a box still when dragged. */
+  .rise { animation: rise .4s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: var(--d, 0ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .skeleton { color: var(--ink-3); font-size: 17px; margin: 0; }
+
+  /* ── The grid of boxes ───────────────────────────────────────────────── */
+  /* Each box sits on a 12 column grid at the place its layout gives it, and draws itself
+     small, medium or large by its own width (data-level). A list shows the rows that fit,
+     then "+N more". */
+  .grid { --row: 64px; --gap: 16px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: var(--row); gap: var(--gap); }
+  .box { display: flex; flex-direction: column; min-width: 0; min-height: 0; transition: box-shadow .2s ease; }
+  .box > .box-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .box-more { flex: none; display: flex; justify-content: center; width: 100%; padding: 10px 14px; border: 0; border-top: 1px solid var(--line); background: var(--page); color: var(--ink); font-weight: 500; font-size: 14px; }
+  .box-more:hover { background: var(--panel); }
+
+  /* The headline: a deep navy band at the top of the page, LinkedIn's blue glowing in two
+     corners, with the person's name big in white, what is ready to publish under it, and on the
+     right the drafts by status. Its buttons are light pills on the dark. White text and every
+     softer line on it keep well over 4.5:1. */
+  .box.headline {
+    position: relative; overflow: hidden; justify-content: flex-start;
+    padding: 22px clamp(20px, 2.6vw, 34px) 26px; border-radius: 24px; color: #fff;
+    background:
+      radial-gradient(90% 120% at 100% 0%, rgba(112, 181, 249, .22), transparent 55%),
+      radial-gradient(80% 120% at 0% 100%, rgba(10, 102, 194, .45), transparent 55%),
+      var(--deep);
+    box-shadow: var(--shadow-1);
+  }
+  .box.headline :focus-visible { outline-color: #fff; }
+  /* On the dark the mark turns white, the letters cut out of it. */
+  .box.headline .mark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z'/%3E%3C/svg%3E"); }
+  .hl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 36px; align-items: end; min-height: 100%; }
+  .hl-text { min-width: 0; align-self: start; }
+  .hl-top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+  .hl-name { display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: 15px; font-weight: 700; }
+  .hello { margin: 0 0 6px; font-size: 15px; color: rgba(255, 255, 255, .88); }
+  .hello b { font-weight: 700; color: #fff; }
+  .box.headline h2 { margin: 0; font-size: clamp(38px, 4.8vw, 64px); line-height: 1.02; font-weight: 700; letter-spacing: -.03em; text-wrap: balance; }
+  .box.headline .lead { margin: 12px 0 0; font-size: 17px; color: rgba(255, 255, 255, .9); max-width: 64ch; }
+  .box.headline .lead b { color: #fff; font-weight: 700; }
+  .box.headline .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 10px 0 0; font-size: 14px; color: rgba(255, 255, 255, .88); }
+  /* The dot ends a part rather than starting the next, so a wrapped line never starts with one. */
+  .box.headline .meta > span:not(:last-child)::after { content: "·"; margin: 0 8px; color: rgba(255, 255, 255, .5); }
+  /* Before LinkedIn is connected, when it needs a new sign-in, or the first time it is connected, the band says so in place of its headline. */
+  .box.headline .card-hero { grid-template-columns: minmax(0, 1fr) auto; gap: 28px; margin-top: 18px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
+  .box.headline .card-hero > .art { order: 2; }
+  .box.headline .card-hero h2 { font-size: clamp(30px, 3.4vw, 44px); line-height: 1.08; }
+  .box.headline .steps { color: rgba(255, 255, 255, .88); }
+  .box.headline .steps .icon { color: var(--li-sky); }
+  .box.headline .card-hero .btn { border-color: transparent; background: rgba(255, 255, 255, .9); color: var(--ink); }
+  .box.headline .card-hero .btn:hover { background: #fff; }
+  .box.headline .card-hero .btn.primary { background: #fff; color: var(--brand-2); }
+  .box.headline .card-hero .btn.primary:hover { background: var(--brand-tint); }
+  .box.headline .notice, .box.headline .ribbon { margin-top: 16px; }
+  /* The example ribbon right under the band, in the grid. */
+  .grid > #ribbon { align-self: center; }
+  .box.headline .moved { color: var(--li-sky); font-weight: 700; }
+  .box.headline .fine { margin: 6px 0 0; font-size: 14px; color: rgba(255, 255, 255, .88); }
+  .box.headline[data-level="S"] h2 { font-size: 28px; }
+  .hl-status { flex: none; justify-content: flex-end; gap: 6px 10px; }
+  /* The connection is a quiet see-through pill: a small dot, then the time. */
+  .box.headline .hl-status .pill { min-height: 32px; padding: 4px 12px; gap: 7px; background: rgba(255, 255, 255, .12); color: #fff; font-size: 13.5px; }
+  .box.headline .hl-status .pill .when { opacity: 1; color: inherit; }
+  .box.headline .hl-status .pill .dot { background: #fff; }
+  .box.headline .hl-status .pill.ok .dot { background: #8ee6a8; }
+  .box.headline .hl-status .pill.warn .dot { background: #ffd27a; }
+  .box.headline .hl-status .updated { color: rgba(255, 255, 255, .88); }
+  /* The page's buttons, light pills on the dark. */
+  .box.headline .hl-status .btn, .box.headline .day-pick { border-color: transparent; background-color: rgba(255, 255, 255, .9); color: var(--ink); font-weight: 600; }
+  .box.headline .hl-status .btn:hover:not([disabled]) { background-color: #fff; border-color: transparent; }
+  /* The drafts by status: three see-through tiles, the one that matters next lit in LinkedIn's sky blue. */
+  .spark { width: min(380px, 36vw); }
+  .pipe { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .pipe > div { min-width: 0; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, .08); }
+  .pipe > div.on { background: rgba(112, 181, 249, .2); box-shadow: inset 0 0 0 1px rgba(112, 181, 249, .55); }
+  .pipe b { display: block; font-size: 32px; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; color: #fff; }
+  .pipe span { display: block; margin-top: 2px; font-size: 13.5px; color: rgba(255, 255, 255, .88); }
+  .spark .cap { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, .3); font-size: 13px; color: rgba(255, 255, 255, .88); }
+  .spark .cap b { color: #fff; font-weight: 500; }
+  .box.headline[data-level="M"] .spark { display: none; }
+  .box.headline[data-level="S"] .hl, .box.headline[data-level="M"] .hl { grid-template-columns: minmax(0, 1fr); }
+
+  /* Small: one number and one line under it. */
+  .sum { display: flex; flex-direction: column; gap: 2px; padding: 4px 20px 14px; }
+  .sum .value { font-size: 32px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .sum .value.none { color: var(--ink-3); }
+  .sum .sub { color: var(--ink-3); font-size: 14px; }
+  .sum .line { margin-top: 6px; color: var(--ink-2); font-size: 15px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  /* The numbers you can add: one big figure each. */
+  .kpi { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 14px 20px; color: inherit; text-decoration: none; }
+  .kpi .label { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 14px; font-weight: 500; }
+  .kpi .label .icon { width: 17px; height: 17px; }
+  .kpi .value { font-size: 32px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .kpi .sub { color: var(--ink-3); font-size: 14px; }
+
+  /* Editing the page. */
+  /* A small toolbar while editing: just the four buttons. */
+  .editbar { position: sticky; top: 8px; z-index: 20; align-self: flex-end; display: flex; padding: 5px; border-radius: 999px; background: var(--brand-tint); border: 1px solid var(--brand-line); box-shadow: var(--shadow-2); }
+  .editbar-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .editbar .btn { min-height: 36px; padding: 6px 14px; font-size: 13.5px; gap: 6px; }
+  .editbar .btn .icon { width: 17px; height: 17px; }
+  .editbar .btn.quiet { color: var(--ink-2); }
+
+  /* The Layout button's two ways: by hand, or by asking the agent. */
+  .menu { position: fixed; z-index: 40; width: min(300px, calc(100vw - 32px)); padding: 6px; display: grid; gap: 2px; background: var(--page); border: 1px solid var(--line-2); border-radius: 16px; box-shadow: var(--shadow-2); }
+  .menu button { display: grid; grid-template-columns: 20px 1fr; gap: 2px 10px; align-items: center; padding: 10px 12px; border: 0; border-radius: 12px; background: none; color: var(--ink); font: inherit; text-align: start; cursor: pointer; }
+  .menu button:hover, .menu button:focus-visible { background: var(--panel); outline: none; }
+  .menu .icon { width: 18px; height: 18px; color: var(--brand); }
+  .menu b { font-size: 14.5px; font-weight: 700; }
+  .menu span { grid-column: 2; color: var(--ink-3); font-size: 13.5px; }
+
+  /* What the agent suggests for the page, with Apply and No thanks. */
+  .suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 14px 20px; background: var(--page); border-radius: var(--radius); box-shadow: var(--shadow-1); }
+  .suggest p { flex: 1 1 320px; margin: 0; font-size: 15px; color: var(--ink-2); }
+  .suggest p b { color: var(--ink); }
+  .suggest .why { display: block; margin-top: 2px; color: var(--ink-3); font-size: 14px; }
+  .suggest-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .grid.editing .box { position: relative; overflow: visible; outline: 2px dashed var(--line-2); outline-offset: 5px; border-radius: 20px; }
+  .grid.editing .box > :not(.box-x):not(.box-resize):not(.box-size) { pointer-events: none; user-select: none; }
+  .grid .box { -webkit-touch-callout: none; }
+  .grid.editing .box { cursor: grab; user-select: none; }
+  .grid.editing .box:focus-visible { outline: 3px solid var(--ink-2); outline-offset: 5px; }
+  body.is-moving, body.is-moving * { cursor: grabbing !important; user-select: none; }
+  body.is-sizing, body.is-sizing * { cursor: nwse-resize !important; user-select: none; }
+  .box.lifted { z-index: 30; box-shadow: 0 26px 50px -18px rgba(15, 15, 15, .32); will-change: transform; }
+  .box.sizing { z-index: 30; }
+  /* Motion: edit mode lifts the boxes a little, and the handles pop in once. */
+  .grid.editing .box:not(.headline):not(.lifted) { box-shadow: 0 14px 30px -18px rgba(15, 15, 15, .24); }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } }
+  .grid.fresh .box-x, .grid.fresh .box-resize, .grid.fresh .box-size { animation: pop .45s var(--spring, ease-out) backwards; }
+  .grid.stack.editing { gap: 36px; padding-top: 8px; }
+  .grid.stack.arranging .box:not(.lifted) { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+  .drop-spot { z-index: 1; border: 2px dashed var(--ink-3); border-radius: 20px; background: color-mix(in srgb, var(--ink) 5%, transparent); pointer-events: none; }
+  .size-tag { z-index: 31; place-self: center; padding: 8px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-2); }
+  .size-tag:empty { display: none; }
+  .box-resize { position: absolute; inset-inline-end: -11px; bottom: -11px; z-index: 3; width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid var(--ink-2); border-radius: 50%; background: var(--page); box-shadow: var(--shadow-1); cursor: nwse-resize; touch-action: none; transition: transform .15s ease; }
+  .box-resize::after { content: ""; width: 8px; height: 8px; margin: 0 2px 2px 0; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); }
+  .box-resize:hover { transform: scale(1.12); }
+  .box-size { position: absolute; top: -16px; inset-inline-start: 12px; z-index: 3; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--ink); box-shadow: var(--shadow-2); }
+  .box-size button { min-height: 30px; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: #c8c8c8; font-size: 13px; font-weight: 700; }
+  .box-size button[aria-pressed="true"] { background: #fff; color: var(--ink); }
+  .box-x { position: absolute; top: -14px; inset-inline-end: -14px; z-index: 3; width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid var(--page); border-radius: 50%; background: var(--ink); color: #fff; box-shadow: var(--shadow-2); transition: transform .15s ease, background .15s ease; }
+  .box-x:hover { background: var(--red); transform: scale(1.1); }
+  .box-x .icon { width: 16px; height: 16px; stroke-width: 2.6; }
+  .box.leaving { opacity: 0; transform: scale(.94); transition: opacity .2s ease, transform .2s ease; }
+  .box.flash { animation: flash 1.4s ease; }
+  @keyframes flash { 25% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--ink) 25%, transparent); } }
+  .grid-empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 24px; border: 2px dashed var(--line-2); border-radius: 20px; color: var(--ink-2); }
+  .grid-empty p { margin: 0; }
+
+  /* The Add a box panel. */
+  .pick-group h3 { margin: 6px 4px 8px; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--page); }
+  .pick.on { background: var(--panel); }
+  .pick-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-tint); color: var(--brand); }
+  .pick b { display: block; font-size: 15px; font-weight: 700; }
+  .pick span { display: block; color: var(--ink-3); font-size: 14px; }
+  .pick em { display: block; margin-top: 2px; font-style: normal; font-size: 13px; font-weight: 500; color: var(--green-ink); }
+  .pick em.wait { color: var(--ink-3); }
+  .pick-on { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--green-tint); color: var(--green-ink); }
+
+  /* The side panel: Ideas, from the headline, and Add a box. */
+  .drawer { position: fixed; inset: 0; z-index: 40; }
+  .drawer-scrim { position: absolute; inset: 0; background: rgba(15, 15, 15, .38); opacity: 0; transition: opacity .25s ease; }
+  .drawer-panel { position: absolute; top: 0; bottom: 0; inset-inline-end: 0; width: min(460px, 100%); display: flex; flex-direction: column; background: var(--page); box-shadow: -24px 0 60px -24px rgba(15, 15, 15, .4); transform: translateX(100%); transition: transform .34s cubic-bezier(.2, .8, .2, 1); outline: none; }
+  .drawer.open .drawer-scrim { opacity: 1; }
+  .drawer.open .drawer-panel { transform: none; }
+  .drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 16px; border-bottom: 1px solid var(--line); }
+  .drawer-head .lane-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-tint); color: var(--brand); flex: none; }
+  .drawer-head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  .drawer-head p { margin: 2px 0 0; color: var(--ink-3); font-size: 14.5px; }
+  .drawer-close { margin-inline-start: auto; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2); }
+  .drawer-close:hover { background: var(--panel); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--canvas); }
+
+  /* ── The setup guide: numbered steps, each with a picture of the real screen ── */
+  .guide { display: grid; gap: 4px; padding: 0 16px 14px; border-radius: var(--radius); background: var(--page); color: var(--ink); }
+  .g-part { padding-top: 16px; }
+  .g-part h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .g-note { margin: 4px 0; color: var(--ink-3); font-size: 15px; }
+  .g-steps { list-style: none; margin: 0; padding: 0; }
+  .g-step { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .g-step:last-child { border-bottom: 0; padding-bottom: 6px; }
+  .g-txt { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .g-num { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--brand); color: var(--brand-2); font-weight: 700; font-size: 15px; }
+  .g-txt b { display: block; margin-top: 3px; font-size: 16.5px; font-weight: 700; line-height: 1.3; }
+  .g-txt p { margin: 6px 0 0; color: var(--ink-2); font-size: 14.5px; line-height: 1.6; }
+  .g-shot { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); box-shadow: var(--shadow-2); }
+
+  /* On a phone the boxes stack in their order and grow to fit. */
+  .grid.stack { display: flex; flex-direction: column; gap: 14px; }
+  .grid.stack .box { flex: none; }
+  /* A list box is as tall as its rows, up to the size its layout gives it: no empty white
+     under a short list, and its foot sits right under the rows. */
+  .grid:not(.editing):not(.stack) > .box.lane:not(.nbox):not(.idea1) { align-self: start; max-height: 100%; }
+  /* The Keep box too: its sheet ends under its button, not at the bottom of its last row. */
+  .grid:not(.editing):not(.stack) > .box.keep { align-self: start; }
+
+
+  /* ── Narrow screens ──────────────────────────────────────────────────── */
+  @media (max-width: 720px) {
+    .hl { grid-template-columns: minmax(0, 1fr); }
+    .box.headline .spark, .box.headline[data-level="M"] .spark { display: block; width: 100%; }
+  }
+  @media (max-width: 560px) {
+    .bar-in { padding: 12px 16px 0; }
+    .wrap { padding: 12px 16px 32px; }
+    .main { gap: 14px; }
+    .updated { display: none; }
+    .box.headline { padding: 16px 18px 18px; }
+    .box.headline h2 { font-size: 36px; }
+    .box.headline .lead { font-size: 16px; }
+    .hl-top { align-items: flex-start; }
+    .hl-status { flex: 1 1 100%; justify-content: flex-start; }
+    .hero h2 { font-size: 26px; }
+    .hero .lead { font-size: 16px; }
+    .card-hero { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; gap: 14px; }
+    .art { width: 104px; height: 82px; }
+    .card-hero .btn.big { width: 100%; }
+    .box.headline .card-hero { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .box.headline .card-hero > .art { order: 0; }
+    .lane-head { margin: 0 16px; padding-top: 16px; }
+    .chan-main { padding: 12px 16px; }
+    .chan-body { padding: 0 16px 16px; }
+    .mini > li, .idea-rows > li { margin: 0 16px; }
+    .sum, .kpi { padding-inline: 16px; }
+    .nudge { padding: 12px 16px 14px; }
+    .ask { padding: 18px 16px; }
+    .ask form { flex-direction: column; }
+    .editbar { align-self: stretch; border-radius: 18px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10.5 13.5" /><path d="M21 3l-6.5 18-4-7.5L3 9.5z" /></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3 3-3 3" /><path d="M4 11V9.5a4 4 0 0 1 4-4h12" /><path d="M7 21.5l-3-3 3-3" /><path d="M20 13v1.5a4 4 0 0 1-4 4H4" /></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9" /><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" /></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9a4.8 4.8 0 0 1-.6 9.5z" /></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z" /></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2" /><rect x="13" y="3" width="8" height="6" rx="2" /><rect x="13" y="11" width="8" height="10" rx="2" /><rect x="3" y="15" width="8" height="6" rx="2" /></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M14 5l7 7-7 7" /><path d="M21 12h-9a8 8 0 0 0-8 8" /></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 20.5a8 8 0 0 1 16 0" /></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2.5" /><path d="M15.5 8.5V6a2.5 2.5 0 0 0-2.5-2.5H6A2.5 2.5 0 0 0 3.5 6v7A2.5 2.5 0 0 0 6 15.5h2.5" /></symbol>
+</svg>
+
+<header class="bar" id="topbar" hidden>
+  <div class="bar-in">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <h1>Your posts</h1>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <main class="main">
+    <section class="hero" id="hero" aria-live="polite"><p class="skeleton">Opening your posts...</p></section>
+    <div id="ribbon"></div>
+    <div class="editbar" id="editbar" role="region" aria-label="Editing your page" hidden>
+      <div class="editbar-actions">
+        <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>Add a box</button>
+        <button type="button" class="btn" data-act="undo" id="undo-btn" disabled><svg class="icon" aria-hidden="true"><use href="#i-undo" /></svg>Undo</button>
+        <button type="button" class="btn quiet" data-act="reset-layout">Reset to default</button>
+        <button type="button" class="btn dark" data-act="edit-done"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Done</button>
+      </div>
+    </div>
+    <div class="suggest" id="suggest" role="region" aria-label="A change to your page" aria-live="polite" hidden></div>
+    <section class="grid" id="grid" aria-label="Your posts" hidden></section>
+    <div class="grid-empty" id="grid-empty" hidden>
+      <p><b>Your page has no boxes.</b> Add the ones you want to see.</p>
+      <button type="button" class="btn primary" data-act="add-box"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>Add a box</button>
+    </div>
+    <footer class="foot">
+      <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
+      <p>Nothing on this page publishes. Every press asks the agent in the chat, and a post goes on LinkedIn only after you say yes to its exact words and who will see them. Routines never publish. LinkedIn does not share your posts, their views, reactions or comments with apps like Cabinet, so this page never shows them, and the cabinet keeps nothing about other people on LinkedIn.</p>
+    </footer>
+  </main>
+</div>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-scrim" data-act="drawer-close"></div>
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+    <div class="drawer-head">
+      <span class="lane-icon" id="drawer-icon" aria-hidden="true"></span>
+      <div>
+        <h2 id="drawer-title"></h2>
+        <p id="drawer-sub"></p>
+      </div>
+      <button type="button" class="drawer-close" data-act="drawer-close" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+</div>
+
+<div class="menu" id="layout-menu" role="menu" aria-label="Change your page" hidden>
+  <button type="button" role="menuitem" data-act="layout-edit"><svg class="icon" aria-hidden="true"><use href="#i-layout" /></svg><b>Add or remove boxes</b><span>Arrange the page yourself.</span></button>
+  <button type="button" role="menuitem" data-act="layout-ask"><svg class="icon" aria-hidden="true"><use href="#i-chat" /></svg><b>Ask the agent</b><span>Say what you need. It suggests the boxes, you say OK.</span></button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var IDEAS_JOB = "weekly-post-ideas";
+  /** Questions go to the agent who writes the posts, not the cabinet's general assistant. */
+  var AGENT = "post-writer";
+  var POLL_MS = 60000;
+  /** The drafts the page reads, newest first: months of posts, never a whole folder of years. */
+  var MAX_DRAFTS = 40;
+
+  /**
+   * Ready-made questions, the way someone asks them about their posts. None of them publishes:
+   * a post goes out only after the person says yes in the chat.
+   */
+  var QUESTIONS = [
+    "Draft a LinkedIn post about what I shipped this week",
+    "Which of my drafts is ready to publish?",
+    "Turn my newest note into a LinkedIn post",
+    "Make three variants of my newest draft",
+    "Make my newest draft shorter and sharper",
+    "Write a post thanking my team for the launch",
+    "Bring in my LinkedIn posts"
+  ];
+
+  /**
+   * Writing plays: one tap to ask now, or (when it has `when`) to switch on as a routine. Each
+   * one belongs to a box and offers itself there when the drafts say it would help (see
+   * IDEA_FITS); each can also be its own box, and all of them are always in the Ideas panel.
+   * Every one writes a draft or an answer in the chat: none of them publishes.
+   */
+  var IDEAS = [
+    { id: "shipped", box: "drafts", icon: "i-pen", title: "What I shipped this week",
+      text: "A draft from your notes about what you finished this week, in your voice.",
+      ask: "Draft a LinkedIn post about what I shipped this week, from my notes in this cabinet. Save it as a draft and show it to me. Do not publish it.",
+      when: "Every Friday", at: "every Friday at 3 pm" },
+    { id: "variants", box: "drafts", icon: "i-repeat", title: "Three takes on a draft",
+      text: "Your newest draft three ways: a short one, a story, and one that opens with a question.",
+      ask: "Make three variants of my newest LinkedIn draft: a short one, a story, and one that opens with a question. Show them in the chat and save only the one I pick." },
+    { id: "ready", box: "drafts", icon: "i-check", title: "Which draft is ready?",
+      text: "The draft closest to ready, and the one change that would get it there.",
+      ask: "Which of my LinkedIn drafts is ready to publish? Tell me which one, and the one change that would make it better. Do not publish anything.",
+      when: "Every Monday", at: "every Monday at 10 am" },
+    { id: "note", box: "next", icon: "i-bulb", title: "Turn a note into a post",
+      text: "Your newest note in this cabinet, written as a LinkedIn post and kept as a draft.",
+      ask: "Turn my newest note in this cabinet into a LinkedIn post. Save it as a draft and show it to me. Do not publish it." },
+    { id: "monthly", box: "ask", icon: "i-chart", title: "Month in review",
+      text: "A draft looking back on your month: what you worked on, learned and shipped.",
+      ask: "Draft a LinkedIn post looking back on my month, from my notes and drafts in this cabinet: what I worked on, what I learned and what I shipped. Save it as a draft and show it to me. Do not publish it.",
+      when: "Every month on the 1st", at: "on the 1st of every month at 10 am" }
+  ];
+
+  var state = {
+    /** The app's folder, as here() gives it once it answers. */
+    appPath: "your-posts",
+    here: null,
+    li: null,
+    jobs: [],
+    jobsKnown: false,
+    /** The drafts and ideas are read; with window.cabinet, LinkedIn's state is known too. */
+    filesRead: false,
+    loaded: false,
+    /** What the cabinet holds: the person's own drafts and newest ideas. */
+    own: null,
+    /** The made-up drafts that ship with the template. */
+    exampleSet: null,
+    data: null,
+    example: true,
+    connecting: false,
+    connectNote: "",
+    running: false,
+    runNote: "",
+    /** What the hero says, told inside the headline band when that box is on the page. */
+    band: null,
+    askNote: "",
+    open: {},
+    layout: null,
+    hiddenIdeas: {},
+    drawerOpen: false,
+    drawerKind: "ideas",
+    editing: false,
+    undo: [],
+    menuOpen: false,
+    layoutAsk: false,
+    change: null,
+    changeSeen: "",
+    changeApplied: false,
+    expanded: {},
+    need: {},
+    /** Rows a short list gives back: it stands as tall as its rows and the boxes under it move up. */
+    fit: {},
+    /** This person has seen the first screen after connecting LinkedIn (cabinet.mine). */
+    firstDone: false,
+    mineReady: false,
+    animate: true
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── Small helpers ──────────────────────────────────────────────────────
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  /**
+   * Words someone else wrote (a name, a title, a gist), set apart so a right-to-left one reads
+   * whole inside an English line. A name stays whole.
+   */
+  function bidi(value) { return "<bdi>" + esc(value) + "</bdi>"; }
+  function icon(id, cls) {
+    return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+  }
+  function text(value, max) {
+    var s = typeof value === "string" ? value.trim() : "";
+    return max && s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+  /** "1,240 followers": a count and its word. */
+  function counted(n, one, many) { return big(n) + " " + plural(n, one, many); }
+  function list(value) { return Array.isArray(value) ? value.filter(function (x) { return x && typeof x === "object"; }) : []; }
+  function count(value) { return typeof value === "number" && isFinite(value) && value >= 0 ? Math.round(value) : null; }
+  /** A change that may be below 0, such as followers lost. */
+  function delta(value) { return typeof value === "number" && isFinite(value) ? Math.round(value) : null; }
+  /** The first in `items` whose `key` (its id unless said) is `id`, or null. */
+  function byId(items, id, key) {
+    for (var i = 0; i < items.length; i++) if (items[i] && items[i][key || "id"] === id) return items[i];
+    return null;
+  }
+  /** What an error says, when it says anything, or `fallback`. */
+  function errText(e, fallback) { return e && e.message ? e.message : fallback; }
+  /** Sets a part of the page only when its words changed, so a repaint that changes nothing leaves it alone. */
+  var setFor = {};
+  function setHtml(el, html) {
+    if (setFor[el.id] === html) return;
+    setFor[el.id] = html;
+    el.innerHTML = html;
+  }
+
+  var toastTimer = 0;
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
+  }
+
+  // ── Dates, in the person's own clock ───────────────────────────────────
+
+  var DAY_MS = 86400000;
+  function parseTime(value) {
+    if (typeof value !== "string" || !value) return null;
+    // A bare date is a calendar day, not midnight in another zone.
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    // "+0300" as `date +%z` prints it is read like "+03:00".
+    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  /** When something was written, never later than now: a routine's own clock can be wrong. */
+  function writtenAt(value) {
+    var d = parseTime(value);
+    var now = new Date();
+    return d && d > now ? now : d;
+  }
+  function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / DAY_MS); }
+  function clock(d) { return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+  function bareClock(d) { return clock(d).replace(/\s?[AaPp]\.?\s?[Mm]\.?$/, ""); }
+  function shortDate(d) { return d.toLocaleDateString([], { month: "short", day: "numeric" }); }
+  function ymd(d) { return d.getFullYear() + "-" + (d.getMonth() < 9 ? "0" : "") + (d.getMonth() + 1) + "-" + (d.getDate() < 10 ? "0" : "") + d.getDate(); }
+
+  /** "9:02 this morning", "yesterday at 9:02 AM", "Tuesday at 9:02 AM", "Sep 12". */
+  function whenWords(d, now) {
+    var gap = daysBetween(d, now);
+    if (gap === 0) {
+      var h = d.getHours();
+      return bareClock(d) + (h < 12 ? " this morning" : h < 18 ? " this afternoon" : " this evening");
+    }
+    if (gap === 1) return "yesterday at " + clock(d);
+    if (gap > 1 && gap < 7) return d.toLocaleDateString([], { weekday: "long" }) + " at " + clock(d);
+    return shortDate(d);
+  }
+  /** The time on a row: "6:52 AM" today, "Yesterday", "Tue", or "Sep 12". */
+  function rowTime(value, ref) {
+    var d = parseTime(value);
+    if (!d) return "";
+    var gap = daysBetween(d, ref);
+    if (gap <= 0) return clock(d);
+    if (gap === 1) return "Yesterday";
+    if (gap < 7) return d.toLocaleDateString([], { weekday: "short" });
+    return shortDate(d);
+  }
+
+  // ── Reading the drafts and ideas ───────────────────────────────────────
+  // The page never talks to LinkedIn. It reads what the agent wrote in the cabinet: one
+  // markdown page per draft in drafts/ (frontmatter status: draft, approved or posted), and
+  // each week's ideas in ideas/<YYYY-MM-DD>.md. Until LinkedIn is connected, and only while
+  // the cabinet has no drafts or ideas of its own, it shows made-up ones, marked as such.
+
+  function notFound() { var e = new Error("not written yet"); e.code = "not-found"; return e; }
+  /** A file by its path from the cabinet root, the form files.read takes. */
+  function readText(rel) {
+    if (V2) return cab.files.read(rel);
+    // An older Cabinet: the page sits one folder under the cabinet root, on the same address.
+    return fetch("../" + rel, { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+      if (r.status === 404) throw notFound();
+      if (!r.ok) throw new Error("Could not read " + rel + ".");
+      return r.text();
+    });
+  }
+  function readJson(rel) { return readText(rel).then(function (t) { return JSON.parse(t); }); }
+  function maybe(promise) {
+    return promise.catch(function (e) { if (e && e.code === "not-found") return null; throw e; });
+  }
+  function quiet(promise) { return promise.catch(function () { return null; }); }
+
+  /** The markdown pages in one of the cabinet's folders, newest name first. None before it exists. */
+  function listPages(dir) {
+    if (!V2) return Promise.resolve([]);
+    return cab.files.list(dir).then(function (items) {
+      return list(items).filter(function (x) { return !x.isDir && /^[^.].*\.md$/i.test(x.name); })
+        .map(function (x) { return { name: x.name, path: text(x.path) || dir + "/" + x.name, modified: x.modified }; })
+        .sort(function (a, b) { return a.name < b.name ? 1 : a.name > b.name ? -1 : 0; });
+    }).catch(function () { return []; });
+  }
+
+  /** "---\nkey: value\n---\nbody" as { meta, body }. Only flat `key: value` lines are read. */
+  function frontmatter(t) {
+    var meta = {};
+    var body = String(t == null ? "" : t);
+    var m = /^﻿?---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(body);
+    if (m) {
+      body = body.slice(m[0].length);
+      m[1].split(/\r?\n/).forEach(function (line) {
+        var kv = /^([A-Za-z_][\w-]*):[ \t]*(.*)$/.exec(line);
+        if (kv) meta[kv[1]] = kv[2].trim().replace(/^(['"])(.*)\1$/, "$2");
+      });
+    }
+    return { meta: meta, body: body.trim() };
+  }
+
+  var STATUS_WORDS = { draft: "Draft", approved: "Approved", posted: "Posted" };
+  /** A post's id as LinkedIn answers it, and nothing else. */
+  function urnOf(value) {
+    var s = text(value, 120);
+    return /^urn:li:(share|ugcPost|activity):\d{5,30}$/.test(s) ? s : "";
+  }
+  function dayOfName(name) { var m = /^(\d{4}-\d{2}-\d{2})/.exec(name || ""); return m ? m[1] : ""; }
+  function firstLine(t) {
+    var line = String(t || "").split(/\n/).map(function (x) { return x.trim(); }).filter(Boolean)[0] || "";
+    return text(line, 90);
+  }
+  /** One draft page as the page shows it. A status it does not know reads as a draft. */
+  function cleanDraft(entry, t) {
+    var fm = frontmatter(t);
+    var m = fm.meta;
+    var status = String(m.status || "").toLowerCase();
+    if (!STATUS_WORDS[status]) status = "draft";
+    var urn = urnOf(m.posted_urn);
+    return {
+      id: entry.name.replace(/\.md$/i, ""),
+      file: entry.path,
+      title: text(m.title, 100) || firstLine(fm.body) || "A draft",
+      status: status,
+      created: text(m.created, 40) || dayOfName(entry.name),
+      audience: m.audience === "everyone" || m.audience === "connections" ? m.audience : "",
+      urn: urn,
+      postedDate: text(m.posted_date, 40),
+      words: fm.body.slice(0, 3200)
+    };
+  }
+  /**
+   * The newest ideas page: its day and its ideas, each a `## title`, a line or two on the
+   * angle, and a `From:` line naming the note it comes from. At most three.
+   */
+  function cleanIdeas(entry, t) {
+    var fm = frontmatter(t);
+    var items = [];
+    fm.body.split(/^##[ \t]+/m).slice(1).forEach(function (chunk) {
+      var lines = chunk.split(/\r?\n/);
+      var title = text(lines.shift().replace(/^\d+[.)][ \t]*/, ""), 100);
+      var from = "";
+      var why = lines.map(function (l) { return l.trim(); }).filter(function (l) {
+        var f = /^From:[ \t]*(.+)$/i.exec(l);
+        if (f) { from = text(f[1], 100); return false; }
+        return !!l;
+      }).join(" ");
+      if (title) items.push({ title: title, why: text(why, 240), from: from });
+    });
+    return { file: entry.path, day: text(fm.meta.created, 40) || dayOfName(entry.name), items: items.slice(0, 3) };
+  }
+
+  /** The made-up drafts ship with the template and never change: they are read once. */
+  var exampleRead = null;
+  function readExample() {
+    if (!exampleRead) {
+      exampleRead = maybe(readJson(state.appPath + "/data/EXAMPLE-posts.json")).then(cleanExample)
+        .catch(function (e) { exampleRead = null; throw e; });
+    }
+    return exampleRead;
+  }
+  /** The example holds each page as it would be written, so the same reading shows it. */
+  function cleanExample(d) {
+    if (!d || typeof d !== "object" || !Array.isArray(d.drafts)) return null;
+    function entry(file) { return { name: String(file).split("/").pop(), path: String(file) }; }
+    return {
+      name: text(d.name, 80),
+      generatedAt: d.generatedAt,
+      drafts: list(d.drafts).filter(function (x) { return text(x.file) && typeof x.page === "string"; })
+        .map(function (x) { return cleanDraft(entry(x.file), x.page); }),
+      ideas: d.ideas && text(d.ideas.file) && typeof d.ideas.page === "string" ? cleanIdeas(entry(d.ideas.file), d.ideas.page) : null
+    };
+  }
+
+  var loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = Promise.all([
+      listPages("drafts").then(function (pages) {
+        return Promise.all(pages.slice(0, MAX_DRAFTS).map(function (p) {
+          return quiet(readText(p.path)).then(function (t) { return t == null ? null : cleanDraft(p, t); });
+        }));
+      }),
+      listPages("ideas").then(function (pages) {
+        var p = pages.filter(function (x) { return /^\d{4}-\d{2}-\d{2}\.md$/.test(x.name); })[0];
+        return p ? quiet(readText(p.path)).then(function (t) { return t == null ? null : cleanIdeas(p, t); }) : null;
+      }),
+      quiet(readJson(state.appPath + "/data/layout-change.json")),
+      readExample().catch(function () { return null; })
+    ]).then(function (got) {
+      state.own = { drafts: got[0].filter(Boolean), ideas: got[1] && got[1].items.length ? got[1] : null };
+      state.change = cleanChange(got[2]);
+      state.exampleSet = got[3];
+    }).catch(function () {}).then(function () {
+      state.filesRead = true;
+      loading = null;
+      settle();
+      paint();
+    });
+    return loading;
+  }
+  /**
+   * What the page shows: the person's own drafts and ideas, or, until LinkedIn is connected
+   * and while the cabinet holds none of its own, the made-up ones.
+   */
+  function settle() {
+    state.loaded = state.filesRead && (!V2 || !!state.li);
+    var own = state.own || { drafts: [], ideas: null };
+    var useExample = !own.drafts.length && !own.ideas && liState() !== "connected" && !!state.exampleSet;
+    state.example = useExample;
+    state.data = useExample ? state.exampleSet : { name: "", generatedAt: null, drafts: own.drafts, ideas: own.ideas };
+  }
+
+  // ── Talking to Cabinet ─────────────────────────────────────────────────
+
+  function role() { return state.here && state.here.role ? state.here.role : "owner"; }
+  function canRun() { return V2 && role() !== "viewer"; }
+  /** Asking the agent is for the same people as running the routine. */
+  var canAsk = canRun;
+  /** A post goes out as the person who connected LinkedIn, so only the owner is offered Publish. */
+  function canPublish() { return canAsk() && role() === "owner"; }
+  function ideasJob() { return byId(state.jobs, IDEAS_JOB); }
+  function pickLinkedIn(items) { return Array.isArray(items) ? byId(items, "linkedin") : null; }
+  /** What Cabinet says when it has no LinkedIn for this cabinet, or could not say. */
+  function noLinkedIn() { return { id: "linkedin", state: "not-available-here", problem: null, canConnect: false }; }
+  function liState() { return state.li ? state.li.state : null; }
+  /** The name LinkedIn signed in, when Cabinet tells the page; "" when it does not. */
+  function signedInAs() {
+    var a = state.li ? state.li.account : null;
+    return text(typeof a === "string" ? a : a && a.label, 80);
+  }
+  /** The ideas routine's schedule in words, lower case, or "" when it is paused or unknown. */
+  function scheduleWords() {
+    var job = ideasJob();
+    var when = job && typeof job.when === "string" ? job.when.trim() : "";
+    return /^every\b/i.test(when) ? when.charAt(0).toLowerCase() + when.slice(1) : "";
+  }
+
+  /** What the page uses of the ideas routine: a change in anything else draws nothing new. */
+  var jobSeen = null;
+  function setJobs(items) {
+    if (!Array.isArray(items)) return;
+    var job = byId(items, IDEAS_JOB);
+    var seen = JSON.stringify(job ? [!!job.running, job.lastRun || null, job.when || ""] : null);
+    if (state.jobsKnown && seen === jobSeen && state.running === !!(job && job.running)) return;
+    jobSeen = seen;
+    var wasRunning = state.running;
+    state.jobs = items;
+    state.running = !!(job && job.running);
+    state.jobsKnown = true;
+    // The run ended: the next paint comes with the ideas it wrote.
+    if (wasRunning && !state.running) {
+      if (job && job.lastRun && job.lastRun.ok === false) state.runNote = "The ideas did not come through this time. Try again.";
+      load();
+      return;
+    }
+    paint();
+  }
+
+  function connect() {
+    if (!V2 || state.connecting) return;
+    state.connecting = true;
+    state.connectNote = "";
+    paint();
+    cab.connectors.connect("linkedin").then(function () {
+      state.connecting = false;
+      return cab.connectors.list().then(function (items) {
+        state.li = pickLinkedIn(items) || state.li;
+        settle();
+        paint();
+      });
+    }).catch(function (e) {
+      state.connecting = false;
+      state.connectNote = errText(e, "That did not work. Try again.");
+      paint();
+    });
+  }
+
+  /** The ideas routine, now: it reads the cabinet and writes three ideas. It never publishes. */
+  function runIdeas() {
+    if (!V2 || state.running) return;
+    state.running = true;
+    state.runNote = "";
+    paint();
+    cab.jobs.run(IDEAS_JOB).then(function () {
+      watchRun();
+    }).catch(function (e) {
+      if (e && e.code === "busy") { watchRun(); return; }
+      state.running = false;
+      state.runNote = errText(e, "The ideas did not start. Try again.");
+      paint();
+    });
+  }
+
+  // jobs.onChange says when the run ends; this is the fallback if a change is ever missed.
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!state.running) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+
+  function ask(question) {
+    var q = text(question, 3900);
+    if (!q) return;
+    if (!V2) { toast("Open this cabinet in Cabinet to ask the agent."); return; }
+    if (!canAsk()) { toast("Only people who can edit this cabinet can ask the agent."); return; }
+    setAskNote("Asking...");
+    cab.ask(q, { agent: AGENT, send: true }).then(function () {
+      setAskNote("Asked. The answer is coming in the chat next to this page.");
+      toast(ASKED);
+      if ($("ask-input")) $("ask-input").value = "";
+    }).catch(function (e) {
+      setAskNote(errText(e, "That did not go through. Try again."));
+      toast(state.askNote);
+    });
+  }
+  var ASKED = "Asked. The answer is coming in the chat.";
+  /** The line under the Ask box; it lives in state because the box can be drawn again. */
+  function setAskNote(words) {
+    state.askNote = words;
+    if ($("ask-note")) $("ask-note").textContent = words;
+  }
+  /** The chat's own box, with the start of a sentence for the person to finish. */
+  function startInChat(words, note) {
+    if (!V2) { toast("Open this cabinet in Cabinet to ask the agent."); return; }
+    if (!canAsk()) { toast("Only people who can edit this cabinet can ask the agent."); return; }
+    cab.ask(words, { agent: AGENT, send: false }).then(function () { toast(note); })
+      .catch(function (e) { toast(errText(e, "The chat could not be opened. Try again.")); });
+  }
+
+  /**
+   * Publishing is asked for in the chat, never done from here: the agent shows the exact final
+   * words and who will see them, and posts only after the person's yes there.
+   */
+  function publish(d) {
+    if (state.example) { toast("These drafts are made up. Connect LinkedIn and ask for your own."); return; }
+    if (!canPublish()) { toast("Only the owner of this cabinet publishes on LinkedIn."); return; }
+    var s = liState();
+    if (s !== "connected") {
+      if (state.li && state.li.canConnect) { toast(s === "not-added" ? "Connect LinkedIn first. It takes about a minute." : "Sign in to LinkedIn again first."); connect(); }
+      else toast(s === "not-available-here" ? "LinkedIn can’t be connected here yet." : "LinkedIn needs a new sign-in first.");
+      return;
+    }
+    ask("Publish my LinkedIn draft \"" + d.title + "\" (" + d.file + "). Show me the exact final text and who will see it, and wait for my yes before you post anything.");
+  }
+  /** A press on a made-up draft says so instead of asking about it. */
+  function askAbout(d, words) {
+    if (state.example) { toast("These drafts are made up. Ask for your own draft in the Ask box."); return; }
+    ask(words.replace("{title}", "\"" + d.title + "\" (" + d.file + ")"));
+  }
+
+  /** The draft's words on the clipboard, for posting by hand. */
+  function copyWords(d) {
+    var t = d.words;
+    var done = function () { toast("Copied. Paste it on LinkedIn, or ask the agent to publish it."); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(done, function () { fallbackCopy(t); done(); });
+    } else { fallbackCopy(t); done(); }
+  }
+  function fallbackCopy(t) {
+    var ta = document.createElement("textarea");
+    ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch (e) { /* nothing more to try */ }
+    ta.remove();
+  }
+
+  /** mineSet keeps something in this person's own part of Cabinet; `failToast` says so when it could not be kept. */
+  function mineSet(key, value, failToast) {
+    if (!V2) return;
+    cab.mine.set(key, value).catch(function () { if (failToast) toast(failToast); });
+  }
+  /** This person's own value for `key`, or null in an older Cabinet. */
+  function mineGet(key) { return V2 ? cab.mine.get(key) : null; }
+
+  // ── Painting ───────────────────────────────────────────────────────────
+
+  /** The example is read on its own morning; the person's drafts against today. */
+  function refDate() {
+    var g = state.data && state.example ? parseTime(state.data.generatedAt) : null;
+    return g || new Date();
+  }
+  var STATUS_ORDER = { approved: 0, draft: 1, posted: 2 };
+  /** When a draft last moved: the day it was posted, or the day it was started. */
+  function dayOf(d) { return d.status === "posted" && d.postedDate ? d.postedDate : d.created; }
+  /** Approved first (ready to go), then drafts, then posted; the newest first in each. */
+  function drafts() {
+    return (state.data ? state.data.drafts : []).slice().sort(function (a, b) {
+      return STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || (dayOf(a) < dayOf(b) ? 1 : dayOf(a) > dayOf(b) ? -1 : 0) || (a.id < b.id ? 1 : -1);
+    });
+  }
+  function withStatus(status) { return drafts().filter(function (d) { return d.status === status; }); }
+  function nextIdeas() { return state.data && state.data.ideas ? state.data.ideas.items : []; }
+  function findItem(id) { return byId(drafts(), id); }
+  /** "12,840" for the page. */
+  function big(n) { return (count(n) || 0).toLocaleString("en-US"); }
+  function wordCount(t) { return (String(t || "").match(/\S+/g) || []).length; }
+  /** "Oct 14" from a day, or "" when it is not one. */
+  function dayWords(value) { var d = parseTime(value); return d ? shortDate(d) : ""; }
+  function audienceWords(a) { return a === "everyone" ? "everyone" : a === "connections" ? "your connections" : ""; }
+  /** A draft's day on its row: "Today" for a bare date of today (no clock time), as rowTime otherwise. */
+  function dayTime(value) {
+    var d = parseTime(value);
+    if (!d) return "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) && daysBetween(d, refDate()) <= 0 ? "Today" : rowTime(value, refDate());
+  }
+  /** The post on LinkedIn, from its id. */
+  function postLink(d) { return d.urn && !state.example ? "https://www.linkedin.com/feed/update/" + d.urn + "/" : ""; }
+
+  function paint() {
+    paintStatus();
+    paintHero();
+    paintSuggest();
+    paintRibbon();
+    paintGrid();
+    if (state.drawerOpen) paintDrawer();
+    if (state.loaded && state.data) state.animate = false;
+  }
+
+  /**
+   * The connection and the page's buttons. They sit in the headline box; only when that box
+   * is not on the page (removed, or nothing loaded yet) do they show in a slim bar of their
+   * own, so Layout can always be reached.
+   */
+  function paintStatus() {
+    var inHeadline = !!(state.loaded && state.data && onPage("headline"));
+    $("topbar").hidden = inHeadline || !state.loaded;
+    setHtml($("status"), inHeadline ? "" : statusHtml());
+  }
+  function statusHtml() {
+    var s = liState();
+    var pill;
+    // An older Cabinet cannot say whether LinkedIn is connected: plain words, no state dot.
+    if (!V2) pill = '<span class="updated">Connect LinkedIn from Integrations in Cabinet.</span>';
+    else if (!state.li) pill = '<span class="pill"><span class="dot pulse"></span>Checking LinkedIn</span>';
+    else if (s === "connected") {
+      var who = signedInAs();
+      pill = '<span class="pill ok"><span class="dot"></span>LinkedIn connected' + (who ? ' as <bdi>' + esc(who) + "</bdi>" : "") + "</span>";
+    }
+    else if (s === "not-available-here") pill = '<span class="pill"><span class="dot"></span>LinkedIn not available here</span>';
+    else if (s === "needs-sign-in" || s === "needs-you") pill = '<span class="pill warn"><span class="dot"></span>LinkedIn needs a new sign-in</span>';
+    else pill = '<span class="pill off"><span class="dot"></span>LinkedIn not connected</span>';
+
+    var button = "";
+    if (canRun() && state.jobsKnown && ideasJob() && state.loaded) {
+      button = state.running
+        ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Writing ideas...</button>"
+        : '<button class="btn" data-act="run">' + icon("i-bulb") + "New ideas</button>";
+    }
+    var page = state.loaded && state.data;
+    var ideas = page ? '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-pen") + "Ideas</button>" : "";
+    // Someone who can ask chooses between arranging by hand and asking the agent.
+    var edit = !(page && !state.editing) ? ""
+      : canAsk()
+        ? '<button class="btn" data-act="layout-menu" aria-haspopup="menu" aria-expanded="' + state.menuOpen + '">' + icon("i-layout") + "Layout</button>"
+        : '<button class="btn" data-act="edit-start">' + icon("i-layout") + "Edit layout</button>";
+    return pill + button + ideas + edit;
+  }
+
+  /** A post card in LinkedIn's blue, with a badge that matches the state. */
+  function artPost(badge) {
+    var mark = badge === "check"
+      ? '<circle cx="108" cy="24" r="14" fill="#1e8e3e"/><path d="M101 24l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+      : badge === "alert"
+        ? '<circle cx="108" cy="24" r="14" fill="#f9ab00"/><path d="M108 16.5v9M108 30.5v.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>'
+        : "";
+    return '<svg class="art" viewBox="0 0 132 104" aria-hidden="true">' +
+      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#eaf3fc"/>' +
+      '<rect x="24" y="24" width="84" height="64" rx="9" fill="#fff" stroke="#0a66c2" stroke-width="3"/>' +
+      '<circle cx="40" cy="40" r="7" fill="#0a66c2"/>' +
+      '<path d="M53 37h30M53 44h18M33 58h66M33 66h66M33 74h40" stroke="#70b5f9" stroke-width="4" stroke-linecap="round"/>' +
+      mark + "</svg>";
+  }
+
+  function paintHero() {
+    var hero = $("hero");
+    if (!state.loaded) { setHtml(hero, '<p class="skeleton">Opening your posts...</p>'); return; }
+    var s = liState();
+    var g = state.li;
+    // A card says what is going on in place of the headline; notes go under it.
+    var card = "";
+    var notes = "";
+
+    if (V2 && s === "not-available-here") {
+      var why = g && g.problem && g.problem.text ? g.problem.text : "";
+      card = cardHero(icon("i-cloud"), "LinkedIn can’t be connected here yet",
+        (why ? '<p class="lead">' + esc(why) + "</p>" : "") +
+        '<p class="fine">You can still write drafts with the agent and copy them to LinkedIn yourself.' +
+        (state.example ? " Below are made-up drafts." : "") + "</p>");
+    } else if (V2 && (s === "needs-sign-in" || s === "needs-you")) {
+      card = cardHero("alert", "LinkedIn needs a new sign-in",
+        '<p class="lead">' + esc(g && g.problem && g.problem.text ? g.problem.text : "A LinkedIn sign-in lasts 60 days. Sign in again to publish.") + "</p>" +
+        (g && g.canConnect
+          ? '<div class="actions">' + connectButton("Sign in again", "Signing in...") + "</div>"
+          : '<p class="fine">Ask the person who owns this cabinet to sign in to LinkedIn again.</p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
+        '<p class="fine">Your drafts are all still here.</p>');
+    } else if (V2 && s === "not-added") {
+      var canConnect = g && g.canConnect;
+      card = cardHero(null, "Write your LinkedIn posts here",
+        '<p class="lead">Connect LinkedIn, then ask the agent for a draft. It publishes a post only when you say yes to its exact words.</p>' +
+        (canConnect
+          ? '<div class="actions">' + connectButton("Connect LinkedIn", "Connecting...") +
+            '<span class="fine">' + (state.connecting ? "Finish in the window Cabinet opened." : "Sign in to LinkedIn. About a minute.") + "</span></div>"
+          : '<p class="fine"><b>Ask the person who owns this cabinet to connect LinkedIn.</b></p>') +
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
+        '<ul class="steps"><li>' + icon("i-check") + "Publishes only after your yes</li><li>" + icon("i-check") + "Ideas every Monday at 9</li>" + (state.example ? "<li>" + icon("i-check") + "Below: made-up drafts</li>" : "") + "</ul>");
+    } else if (!state.data) {
+      card = cardHero(null, "Your drafts show up here", '<p class="lead">Nothing could be read yet. Try again in a moment.</p>');
+    } else if (showFirst()) {
+      card = firstHtml();
+    } else {
+      // The headline is a box on the grid now; up here only what went wrong.
+      notes = runNoteHtml();
+    }
+    // With the headline box on the page all of this is said inside its band, so the band stays
+    // the first thing on the page: a card in place of the headline, notes under it.
+    state.band = state.data && onPage("headline") ? { card: card, notes: notes } : null;
+    setHtml(hero, state.band ? "" : card + notes);
+  }
+  /** The Connect button, saying `busy` while Cabinet's connect window is open. */
+  function connectButton(idle, busy) {
+    return '<button class="btn primary big" data-act="connect"' + (state.connecting ? " disabled" : "") + ">" +
+      icon(state.connecting ? "i-refresh" : "i-user", state.connecting ? "spin" : "") + (state.connecting ? busy : idle) + "</button>";
+  }
+
+  /** `art` is an icon for the picture, or "check", "alert" or null for the screen's badge. */
+  function cardHero(art, title, body) {
+    var picture = art && art.indexOf("<svg") === 0 ? '<div class="art art-icon" aria-hidden="true">' + art + "</div>" : artPost(art);
+    return '<div class="card-hero">' + picture + "<div><h2>" + esc(title) + "</h2>" + body + "</div></div>";
+  }
+
+  // ── The first screen after connecting ──────────────────────────────────
+  // The other templates show what the agent found in its first read. LinkedIn gives Cabinet
+  // nothing to read, so this one says so once, with the way to a first post. It shows until
+  // the person presses Got it or starts a draft, and never again for them (cabinet.mine), not
+  // even after LinkedIn is connected again.
+
+  var FIRST_KEY = "linkedin-posts-first-done@1";
+
+  function showFirst() { return state.mineReady && !state.firstDone && canAsk() && liState() === "connected"; }
+  /** "Signed in to LinkedIn as Maya Cohen", or without the name when Cabinet does not tell the page. */
+  function firstHtml() {
+    var who = signedInAs();
+    return cardHero("check", "Signed in to LinkedIn" + (who ? " as " + who : ""),
+      '<p class="lead">LinkedIn lets Cabinet post as you but not read your feed, so there is nothing to catch up on. Start with a draft, here or in the Ask box.</p>' +
+      '<div class="actions"><button type="button" class="btn primary big" data-act="new-draft">' + icon("i-pen") + "Write your first post</button>" +
+      '<button type="button" class="btn big" data-act="first-done">Got it</button></div>' +
+      '<p class="fine">Nothing goes on LinkedIn until you say yes to its exact words in the chat.</p>');
+  }
+  function endFirst() {
+    if (state.firstDone) return;
+    state.firstDone = true;
+    mineSet(FIRST_KEY, true);
+    paint();
+  }
+
+  function runNoteHtml() { return state.runNote ? '<div class="notice">' + icon("i-alert") + "<p>" + esc(state.runNote) + "</p></div>" : ""; }
+
+  function paintRibbon() {
+    var el = $("ribbon");
+    if (!state.loaded || !state.data || !state.example) { setHtml(el, ""); return; }
+    var name = text(state.data.name, 60);
+    setHtml(el, '<div class="ribbon"><span class="tag-example">Example</span><p>' +
+      (name ? "<b>" + esc(name) + "</b>, a made-up person. " : "Made-up drafts. ") +
+      "None of these are yours. Connect LinkedIn and ask for a draft: your own replace them.</p></div>");
+  }
+
+  // ── The boxes ──────────────────────────────────────────────────────────
+
+  function boxHead(key, title, iconId, total, n) {
+    return '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="h-' + key + '">' + esc(title) + "</h3>" +
+      (total ? '<span class="total" dir="auto">' + esc(total) + "</span>" : "") +
+      (n === null || n === undefined ? "" : '<span class="count num' + (n ? "" : " zero") + '">' + n + "</span>") + "</div>";
+  }
+  function listBox(key, title, iconId, total, n, rowsHtml, emptyText) {
+    return boxHead(key, title, iconId, total, n) + listBody(n, rowsHtml, emptyText);
+  }
+  /** A list's rows (or what it says without any), and its "+N more" under them. */
+  function listBody(n, rowsHtml, emptyText) {
+    return '<div class="box-body">' + (n ? rowsHtml : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</div>" +
+      '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
+  }
+  /** The small level: one number, a line under it, and the one that matters most. */
+  function sumBox(key, title, iconId, value, subHtml, lineHtml) {
+    return boxHead(key, title, iconId, "", null) +
+      '<div class="sum"><span class="value num' + (value ? "" : " none") + '" dir="auto">' + esc(value || "None") + "</span>" +
+      '<span class="sub">' + subHtml + "</span>" + (lineHtml ? '<span class="line" dir="auto">' + lineHtml + "</span>" : "") + "</div>";
+  }
+
+  /** "Good morning, Maya. Sunday, 18 October." on the person's own clock. */
+  function helloHtml(d) {
+    var h = d.getHours();
+    var hi = h < 5 ? "Good evening" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    var me = state.example ? text(state.data.name, 60) : cabName();
+    var day = d.toLocaleDateString([], { weekday: "long" }) + ", " + d.getDate() + " " + d.toLocaleDateString([], { month: "long" });
+    return "<b>" + esc(hi + (me ? ", " + me.split(" ")[0] : "")) + ".</b> " + esc(day) + ".";
+  }
+  /**
+   * The headline: whose posts these are, what is ready to publish and what went out last, and
+   * on the right the drafts by status. The connection and the page's buttons ride in its
+   * first row.
+   */
+  function drawHeadline(level) {
+    var top = '<div class="hl-top"><p class="hl-name"><span class="mark" aria-hidden="true"></span>Your posts</p>' +
+      '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>";
+    var band = state.band || { card: "", notes: "" };
+    if (band.card) return '<div class="hl">' + top + '<div class="hl-text">' + band.card + band.notes + "</div></div>";
+    var name = (state.example ? text(state.data.name, 80) : signedInAs()) || "Your LinkedIn posts";
+    if (level === "S") return '<div class="hl">' + top + '<div class="hl-text"><h2 dir="auto">' + esc(name) + "</h2>" + band.notes + "</div></div>";
+    var ex = state.example ? "Example: " : "";
+    var ready = withStatus("approved");
+    var open = withStatus("draft");
+    var posted = withStatus("posted");
+    var news;
+    if (ready.length) {
+      news = "<b>" + esc(ex) + plural(ready.length, "One post is", ready.length + " posts are") + " approved and ready to publish.</b>" +
+        ' <span dir="auto">Next up: <span class="moved">' + bidi(ready[0].title) + "</span>.</span>";
+    } else if (open.length) {
+      news = "<b>" + esc(ex) + counted(open.length, "draft", "drafts") + " in progress.</b>" +
+        ' <span dir="auto">Newest: <span class="moved">' + bidi(open[0].title) + "</span>.</span>";
+    } else {
+      news = "<b>" + esc(ex) + "No drafts yet.</b> Ask for one below, or start from an idea.";
+    }
+    if (posted[0]) {
+      var when = dayWords(posted[0].postedDate);
+      news += ' <span dir="auto">Last posted' + (when ? " " + esc(when) : "") + ": " + bidi(posted[0].title) + ".</span>";
+    }
+    var meta = [counted(open.length, "draft", "drafts"), big(ready.length) + " approved", big(posted.length) + " posted"];
+    var n = nextIdeas().length;
+    if (n) meta.push(counted(n, "idea", "ideas") + " this week");
+    return '<div class="hl">' + top + '<div class="hl-text"><p class="hello">' + helloHtml(new Date()) + "</p>" +
+      '<h2 dir="auto">' + esc(name) + "</h2>" + '<p class="lead">' + news + "</p>" +
+      '<p class="meta num">' + meta.map(function (m) { return "<span>" + m + "</span>"; }).join("") + "</p>" +
+      band.notes + "</div>" + pipeHtml(open.length, ready.length, posted.length) + "</div>";
+  }
+  /** The drafts by status, the one that matters next lit up. Nothing here is read from LinkedIn. */
+  function pipeHtml(open, ready, posted) {
+    var cell = function (n, label, on) { return "<div" + (on ? ' class="on"' : "") + '><b class="num">' + big(n) + "</b><span>" + label + "</span></div>"; };
+    return '<div class="spark" role="img" aria-label="' + esc(counted(open, "draft", "drafts") + ", " + ready + " approved, " + posted + " posted.") + '">' +
+      '<div class="pipe">' + cell(open, "Drafts", !ready && open > 0) + cell(ready, "Approved", ready > 0) + cell(posted, "Posted", false) + "</div>" +
+      '<div class="cap"><span><b>Your posts</b>, by status</span><span>written in this cabinet</span></div></div>';
+  }
+
+  // Your drafts: approved first, then drafts, then posted, each with its status.
+  function draftRow(d) {
+    var id = d.id;
+    var open = !!state.open[id];
+    var actions = [];
+    var can = canAsk();
+    if (d.status === "approved" && canPublish()) {
+      actions.push('<button class="btn small primary" data-act="publish" data-id="' + esc(id) + '">' + icon("i-share") + "Publish this</button>");
+    }
+    if (d.status !== "posted" && can) {
+      actions.push('<button class="btn small dark" data-act="polish" data-id="' + esc(id) + '">' + icon("i-pen") + "Polish it</button>");
+      actions.push('<button class="btn small" data-act="variants" data-id="' + esc(id) + '">' + icon("i-repeat") + "Three variants</button>");
+    }
+    if (d.status === "draft" && can) {
+      actions.push('<button class="btn small" data-act="approve" data-id="' + esc(id) + '">' + icon("i-check") + "It’s final</button>");
+    }
+    if (d.status === "posted") {
+      var link = postLink(d);
+      if (link) actions.push('<a class="btn small" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on LinkedIn</a>");
+      if (can) actions.push('<button class="btn small dark" data-act="followup" data-id="' + esc(id) + '">' + icon("i-pen") + "Write a follow-up</button>");
+    }
+    actions.push('<button class="btn small quiet" data-act="copy" data-id="' + esc(id) + '">' + icon("i-copy") + "Copy</button>");
+    var who = audienceWords(d.audience);
+    var line = d.status === "posted"
+      ? "Posted" + (dayWords(d.postedDate) ? " " + dayWords(d.postedDate) : "") + (who ? " to " + who : "")
+      : (d.status === "approved" ? "Final" : "Draft") + (who ? ", for " + who : "") + ", " + counted(wordCount(d.words), "word", "words");
+    return '<li class="chan' + (open ? " open" : "") + '">' +
+      '<button class="chan-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '" aria-controls="body-' + esc(id) + '">' +
+      '<span class="chan-name"><b dir="auto">' + esc(d.title) + "</b>" +
+      '<span class="st ' + d.status + '">' + STATUS_WORDS[d.status] + "</span></span>" +
+      '<span class="chan-count">' + esc(dayTime(dayOf(d))) + "</span>" +
+      '<span class="vstats">' + esc(line) + "</span>" +
+      (open ? "" : '<span class="chan-gist" dir="auto">' + esc(text(d.words.replace(/\s+/g, " "), 150)) + "</span>") +
+      "</button>" +
+      '<div class="chan-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" +
+      '<p class="post-text" dir="auto">' + esc(d.words || "This draft has no words yet.") + "</p>" +
+      '<div class="row-actions">' + actions.join("") + "</div></div>" +
+      "</li>";
+  }
+  function drawDrafts(level) {
+    var all = drafts();
+    var working = all.filter(function (d) { return d.status !== "posted"; });
+    var ready = withStatus("approved");
+    if (level === "S") {
+      return sumBox("drafts", "Your drafts", "i-pen", String(working.length), plural(working.length, "draft", "drafts") + " in progress",
+        ready[0] ? "<b>Ready:</b> " + bidi(ready[0].title) : working[0] ? "<b>Newest:</b> " + bidi(working[0].title) : "");
+    }
+    return boxHead("drafts", "Your drafts", "i-pen", all.length ? counted(all.length, "post", "posts") : "", null) +
+      listBody(all.length, '<ul class="rows chans">' + all.map(draftRow).join("") + "</ul>", "No drafts yet. Ask the agent for your first one.") +
+      (canAsk() ? '<div class="lane-act"><button type="button" class="btn small" data-act="new-draft">' + icon("i-plus") + "Write a new draft</button></div>" : "") +
+      nudgeHtml(boxIdea("drafts"));
+  }
+
+  function drawNext(level) {
+    var n = nextIdeas();
+    var ideas = state.data && state.data.ideas;
+    var week = ideas && dayWords(ideas.day) ? "Week of " + dayWords(ideas.day) : "";
+    if (level === "S") {
+      return sumBox("next", "Post ideas", "i-bulb", String(n.length), plural(n.length, "idea", "ideas") + " this week", n[0] ? esc(n[0].title) : "");
+    }
+    var empty = scheduleWords()
+      ? "Ideas come " + scheduleWords() + ", from your notes and drafts."
+      : "Ideas come from your notes and drafts when the weekly routine runs.";
+    return listBox("next", "Ideas for your next posts", "i-bulb", week, n.length,
+      '<ul class="rows mini">' + n.map(function (x, i) {
+        return '<li><span class="top"><b dir="auto">' + esc(x.title) + "</b></span><span class=\"side\"></span>" +
+          '<span class="t" dir="auto">' + esc(x.why) + (x.from ? ' <span class="from">From ' + esc(x.from) + ".</span>" : "") +
+          (canAsk() ? ' <button type="button" class="btn quiet small" data-act="draft-idea" data-i="' + i + '">' + icon("i-pen") + "Draft it</button>" : "") + "</span></li>";
+      }).join("") + "</ul>", empty) +
+      (!n.length && canRun() && ideasJob() && !state.running ? '<div class="lane-act"><button type="button" class="btn small" data-act="run">' + icon("i-bulb") + "Get ideas now</button></div>" : "") +
+      nudgeHtml(boxIdea("next"));
+  }
+
+  /** The numbers someone looks for first, each a small box. */
+  function kpi(label, iconId, value, sub) {
+    return '<div class="kpi"><span class="label">' + icon(iconId) + esc(label) + "</span>" +
+      '<span class="value num">' + value + '</span><span class="sub">' + esc(sub) + "</span></div>";
+  }
+  function drawNumDrafts() { return kpi("Drafts", "i-pen", big(withStatus("draft").length), "still being written"); }
+  function drawNumApproved() { return kpi("Approved", "i-check", big(withStatus("approved").length), "ready to publish"); }
+  function drawNumPosted() {
+    var p = withStatus("posted");
+    var when = p[0] ? dayWords(p[0].postedDate) : "";
+    return kpi("Posted", "i-share", big(p.length), when ? "the last one " + when : "from this cabinet");
+  }
+
+  // Ask about your posts: the idea for today on top, the usual questions under it.
+  function drawAsk(level) {
+    if (state.layoutAsk) return drawLayoutAsk(level);
+    var featured = level === "S" ? null : askIdea();
+    var note = state.askNote || askHint();
+    var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? QUESTIONS.length : 3);
+    return (level === "S" ? "" : '<h2 id="ask-title">Ask about your posts</h2>') +
+      askForm("Your question", "A post about...", "Ask") +
+      (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
+      (qs.length ? '<div class="qs">' + qs.map(function (q) {
+        return '<button type="button" class="q" data-act="ask" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+      }).join("") + "</div>" : "") +
+      (level !== "S" && note ? '<p class="note" id="ask-note">' + esc(note) + "</p>" : "");
+  }
+  /** The Ask box while it takes a request about the boxes, from the Layout button. */
+  function drawLayoutAsk(level) {
+    var note = state.askNote || "The agent suggests the boxes. Nothing changes until you press Apply.";
+    return (level === "S" ? "" : '<h2 id="ask-title">Ask the agent about your boxes</h2>') +
+      askForm("What you want on your page", "For example: show what I posted, hide the ideas", "Send") +
+      '<p class="note" id="ask-note">' + esc(note) + "</p>" +
+      '<p class="note"><button type="button" class="cancel" data-act="layout-ask-cancel">Back to asking about your posts</button></p>';
+  }
+  /** The Ask box's one line to type in; the page listens to its submit (see "submit" below). */
+  function askForm(label, placeholder, button) {
+    return '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">' + esc(label) + "</label>" +
+      '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="' + esc(placeholder) + '" />' +
+      '<button type="submit" class="btn light">' + icon("i-send") + esc(button) + "</button></form>";
+  }
+  function askHint() {
+    if (!V2) return "Open this cabinet in Cabinet to ask the agent.";
+    if (!canAsk()) return "Only people who can edit this cabinet can ask the agent.";
+    return liState() === "connected"
+      ? "The answer comes up in the chat. Nothing is published until you say yes there."
+      : "The agent drafts without LinkedIn. Connect LinkedIn to publish.";
+  }
+
+  /** Every idea the person has not hidden, one tap each; today's line when it fits. */
+  function drawIdeasBox(level) {
+    var shown = IDEAS.filter(function (idea) { return !state.hiddenIdeas[idea.id]; });
+    if (level === "S") {
+      return sumBox("ideas", "Ideas", "i-pen", String(shown.length), "ideas, one tap each", "") +
+        '<div class="lane-act"><button class="btn small" data-act="ideas">' + icon("i-pen") + "See them all</button></div>";
+    }
+    var facts = ideaFacts();
+    return listBox("ideas", "Ideas for your posts", "i-pen", "", shown.length,
+      '<ul class="rows idea-rows">' + shown.map(function (idea) {
+        var fit = fitted(idea, facts);
+        return '<li><span class="ic" aria-hidden="true">' + icon(idea.icon) + "</span>" +
+          "<div><b>" + esc(idea.title) + "</b>" + (level === "L" ? '<span dir="auto">' + esc(fit ? "Today: " + fit.line : idea.text) + "</span>" : "") + "</div>" +
+          ideaButton(idea, null, "btn small", icon("i-send") + "Ask") + "</li>";
+      }).join("") + "</ul>",
+      "Every idea is hidden from the page. Find them under Ideas.");
+  }
+
+  /**
+   * One idea as its own box, put there by the person, so it shows even on a day it does not
+   * fit.
+   */
+  function drawOneIdea(idea, level) {
+    var fit = state.data ? fitted(idea, null, true) : null;
+    return '<div class="one-idea">' + (level !== "S" ? '<span class="ic" aria-hidden="true">' + icon(idea.icon) + "</span>" : "") + "<h3>" + esc(idea.title) + "</h3>" +
+      (level === "S" ? "" : (fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "<p>" + esc(idea.text) + "</p>")) +
+      '<div class="go">' + ideaButton(idea, fit, "btn small dark", icon("i-send") + esc(fit && level !== "S" ? fit.act : "Ask now")) +
+      (level === "S" ? "" : routineButton(idea, "btn small")) +
+      "</div></div>";
+  }
+
+  /** How to keep past posts in this cabinet: the setup guide's steps by their heads, in the idea card look. */
+  function drawKeep() {
+    return '<div class="one-idea hug"><h3>' + esc(BOXES.keep.title) + "</h3>" +
+      GUIDE.steps.map(function (st) { return "<p>" + esc(st.head) + "</p>"; }).join("") +
+      '<div class="go"><button type="button" class="btn small" data-act="guide" aria-haspopup="dialog">Show me how</button></div></div>';
+  }
+
+  // ── Ideas, where and when they help ────────────────────────────────────
+  // An idea offers itself in its box when the drafts say it would help, at most one per box.
+  // "Hide" takes it off the page for good (kept per person in cabinet.mine); the Ideas panel
+  // in the top bar always has every one.
+
+  var HIDDEN_IDEAS_KEY = "linkedin-posts-hidden-ideas@1";
+
+  /** What the drafts say, counted once for every idea. */
+  function ideaFacts() {
+    return {
+      ref: refDate(),
+      open: withStatus("draft"),
+      ready: withStatus("approved"),
+      all: drafts().length,
+      next: nextIdeas().length
+    };
+  }
+
+  /** For each idea: the line and the press that fit today, or null when it would not help now. */
+  var IDEA_FITS = {
+    shipped: function (f) {
+      var day = f.ref.getDay();
+      return day === 4 || day === 5
+        ? { line: "It’s " + f.ref.toLocaleDateString([], { weekday: "long" }) + ". Draft a post about what you shipped this week?", act: "Draft it" }
+        : null;
+    },
+    variants: function (f) {
+      var d = f.open[0];
+      if (!d) return null;
+      var title = text(d.title, 70);
+      return { line: title + " is still a draft. Try it three ways?", act: "Make three variants",
+        ask: "Make three variants of my LinkedIn draft \"" + d.title + "\" (" + d.file + "): a short one, a story, and one that opens with a question. Show them in the chat and save only the one I pick." };
+    },
+    ready: function (f) {
+      return f.open.length >= 2 && !f.ready.length
+        ? { line: f.open.length + " drafts are waiting. Find the one closest to ready?", act: "Pick the ready one" }
+        : null;
+    },
+    note: function (f) {
+      return !f.all ? { line: "No drafts yet. Turn a note from this cabinet into your first one?", act: "Turn a note into a post" } : null;
+    },
+    monthly: function (f) {
+      return f.ref.getDate() <= 3
+        ? { line: "A new month. Look back on the last one in a post?", act: "Draft the review" }
+        : null;
+    }
+  };
+
+  function ideaById(id) { return byId(IDEAS, id); }
+  /** The idea with what fits today, or null when it would not help now (or is hidden, unless asked anyway). */
+  function fitted(idea, facts, evenHidden) {
+    if (!idea || (!evenHidden && state.hiddenIdeas[idea.id]) || !state.data || state.example) return null;
+    var fit = IDEA_FITS[idea.id] ? IDEA_FITS[idea.id](facts || ideaFacts()) : null;
+    return fit ? { idea: idea, line: fit.line, act: fit.act, ask: fit.ask || "" } : null;
+  }
+  function onPage(boxId) {
+    return placed().some(function (spot) { return spot.id === boxId; });
+  }
+  /** The first idea of this box that fits today. */
+  function boxIdea(boxId) {
+    var facts = ideaFacts();
+    for (var i = 0; i < IDEAS.length; i++) {
+      if (IDEAS[i].box !== boxId || onPage("idea-" + IDEAS[i].id)) continue;
+      var f = fitted(IDEAS[i], facts);
+      if (f) return f;
+    }
+    return null;
+  }
+  /** Ideas the boxes on the page are showing right now. */
+  function shownIdeas() {
+    var shown = {};
+    ["drafts", "next"].forEach(function (id) {
+      var el = boxEls[id];
+      if (!onPage(id) || (el && el.getAttribute("data-level") === "S")) return;
+      var f = boxIdea(id);
+      if (f) shown[f.idea.id] = true;
+    });
+    return shown;
+  }
+  /** The Ask box's idea for today: its own, or one whose box is not on the page. */
+  function askIdea() {
+    var facts = ideaFacts();
+    var shown = shownIdeas();
+    var best = null;
+    IDEAS.forEach(function (idea) {
+      if (best || shown[idea.id] || onPage("idea-" + idea.id) || (idea.box !== "ask" && onPage(idea.box))) return;
+      best = fitted(idea, facts);
+    });
+    return best;
+  }
+
+  /** "every Monday", "every Friday": the schedule as the end of "Do this ...". */
+  function routineWords(idea) { return idea.when.charAt(0).toLowerCase() + idea.when.slice(1); }
+  /** An idea's press to ask now: today's ask when `fit` has one, its usual ask otherwise. */
+  function ideaButton(idea, fit, cls, labelHtml) {
+    return '<button type="button" class="' + cls + '" data-act="idea-now" data-idea="' + idea.id + '"' + (fit && fit.ask ? ' data-fit="1"' : "") +
+      (canAsk() ? "" : " disabled") + ">" + labelHtml + "</button>";
+  }
+  /** An idea's press to have it done on a schedule; an idea that only makes sense once has none. */
+  function routineButton(idea, cls) {
+    if (!idea.when) return "";
+    return '<button type="button" class="' + cls + '" data-act="idea-routine" data-idea="' + idea.id + '"' + (canAsk() ? "" : " disabled") + ">" +
+      icon("i-repeat") + "Do this " + esc(routineWords(idea)) + "</button>";
+  }
+
+  function nudgeHtml(fit, lead) {
+    if (!fit) return "";
+    var idea = fit.idea;
+    return '<div class="nudge">' + icon("i-bulb") + '<p dir="auto">' + esc((lead || "") + fit.line) + "</p>" +
+      '<div class="nudge-actions">' +
+      ideaButton(idea, fit, "btn small " + (lead ? "primary" : "dark"), esc(fit.act)) + routineButton(idea, "btn small") +
+      '<button type="button" class="nudge-hide" data-act="idea-hide" data-idea="' + idea.id + '" aria-label="Hide this idea from the page">Hide</button>' +
+      "</div></div>";
+  }
+
+  function setIdeaHidden(id, hidden) {
+    var before = snapshot();
+    if (hidden) state.hiddenIdeas[id] = true;
+    else delete state.hiddenIdeas[id];
+    paintGrid();
+    glide(before);
+    // The idea that takes its place fades up.
+    var idea = ideaById(id);
+    var home = idea && boxEls[idea.box];
+    if (home && home.isConnected) fadeIn(home.querySelector(".nudge"));
+    if (state.drawerOpen) paintDrawer();
+    toast(hidden ? "Hidden. You can always find it under Ideas." : "It’s back on your page when it fits your day.");
+    mineSet(HIDDEN_IDEAS_KEY, Object.keys(state.hiddenIdeas), "That could not be saved. It comes back next time.");
+  }
+
+  var DRAWERS = {
+    ideas: { title: "Ideas for your posts", sub: "One tap to ask now, or to have a draft written on a schedule. Nothing is published.", icon: "i-pen", paint: paintIdeasPanel },
+    add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker },
+    guide: { title: "Setup guide", sub: "Every step, with a picture of each screen.", icon: "i-copy", paint: paintGuidePanel }
+  };
+  function paintDrawer() {
+    var kind = DRAWERS[state.drawerKind];
+    $("drawer-title").textContent = kind.title;
+    $("drawer-sub").textContent = kind.sub;
+    $("drawer-icon").innerHTML = icon(kind.icon);
+    kind.paint();
+  }
+
+  // The Add a box panel: every box by group, the ones on the page ticked.
+  function paintPicker() {
+    var on = {};
+    layoutNow().forEach(function (b) { on[b.id] = true; });
+    $("drawer-body").innerHTML = GROUPS.map(function (group) {
+      var ids = Object.keys(BOXES).filter(function (id) { return BOXES[id].group === group.id; });
+      return '<section class="pick-group"><h3>' + esc(group.title) + "</h3>" + ids.map(function (id) {
+        var box = BOXES[id];
+        var ready = !box.show || box.show();
+        var note = on[id] ? (ready ? "On your page" : "On your page. " + box.when) : ready ? "" : box.when;
+        return '<div class="pick' + (on[id] ? " on" : "") + '"><span class="pick-ic" aria-hidden="true">' + icon(box.icon) + "</span>" +
+          "<div><b>" + esc(box.title) + "</b><span>" + esc(box.desc) + "</span>" +
+          (note ? "<em" + (ready ? "" : ' class="wait"') + ">" + esc(note) + "</em>" : "") + "</div>" +
+          (on[id]
+            ? '<span class="pick-on" aria-hidden="true">' + icon("i-check") + "</span>"
+            : '<button type="button" class="btn small" data-act="add-this" data-add="' + id + '"' + (ready ? "" : " disabled") +
+              ' aria-label="Add ' + esc(box.title) + '">' + icon("i-plus") + "Add</button>") +
+          "</div>";
+      }).join("") + "</section>";
+    }).join("");
+  }
+
+  // The Ideas panel: every idea, today's line when it fits, and the hidden ones to bring
+  // back. Each one can also go on the page as its own box.
+  function paintIdeasPanel() {
+    var facts = state.data ? ideaFacts() : null;
+    $("drawer-body").innerHTML =
+      (!V2 ? '<p class="fine" style="margin:0">Ask for any of these in the cabinet’s chat.</p>'
+        : !canAsk() ? '<p class="fine" style="margin:0">Only people who can edit this cabinet can ask the agent.</p>' : "") +
+      IDEAS.map(function (idea) {
+        var off = !!state.hiddenIdeas[idea.id];
+        var fit = fitted(idea, facts);
+        var boxed = !!entryOf("idea-" + idea.id);
+        return '<article class="idea' + (off ? " off" : "") + '">' +
+          '<span class="ic" aria-hidden="true">' + icon(idea.icon) + "</span>" +
+          "<h3>" + esc(idea.title) + "</h3><p>" + esc(idea.text) + "</p>" +
+          (fit ? '<p class="today" dir="auto">Today: ' + esc(fit.line) + "</p>" : "") +
+          (off ? '<div class="off-note">Hidden from your page<button type="button" class="btn quiet" data-act="idea-unhide" data-idea="' + idea.id + '">Show on my page</button></div>' : "") +
+          '<div class="go">' + ideaButton(idea, null, "btn dark", icon("i-send") + "Ask now") + routineButton(idea, "btn") + "</div>" +
+          (state.data ? (boxed ? '<p class="fine" style="margin:0;color:var(--green-ink);font-weight:700">' + icon("i-check") + " On your page as a box</p>"
+            : '<button type="button" class="btn quiet small" data-act="add-this" data-add="idea-' + idea.id + '">' + icon("i-plus") + "Add it to my page as a box</button>") : "") +
+          "</article>";
+      }).join("");
+  }
+
+  // ── The setup guide ────────────────────────────────────────────────────
+  // Every step a person takes to bring their past posts into this cabinet from LinkedIn's copy
+  // of their data, each with a picture of what they will see (drawn from LinkedIn's and
+  // Cabinet's real screens, with a made-up account). The Keep box says the same steps by their heads.
+
+  /**
+   * The guide's pictures: LinkedIn's, the email's and Cabinet's screens, redrawn with a made-up
+   * account, each built once.
+   */
+  var SHOTS = (function () {
+    /** A picture, 600 by 380 on LinkedIn's warm grey, the way the guide shows it, as an image address. */
+    function svg(body) {
+      return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif">' +
+        '<rect width="600" height="380" fill="#f4f2ee"/>' + body + "</svg>");
+    }
+    /** Words at x, y. more: other attributes, such as bold or centred. */
+    function t(x, y, words, size, fill, more) {
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 13) + '" fill="' + (fill || "#191919") + '"' + (more ? " " + more : "") + ">" + words + "</text>";
+    }
+    var B = 'font-weight="700"';
+    var MID = 'text-anchor="middle"';
+    var BMID = B + " " + MID;
+    var SOFT = "#666666";
+    var BLUE = "#0a66c2";
+    var GREEN = "#01754f";
+    /** A white sheet with LinkedIn's soft edge. */
+    function card(x, y, w, h) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="10" fill="#fff" stroke="#e0dfdc"/>';
+    }
+    function line(x, y, w) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="1" fill="#e8e6e2"/>'; }
+    /** A button at x, y: its words centred and bold, stroke an outline when it has one. */
+    function pill(x, y, w, h, r, fill, words, size, ink, stroke) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + r + '" fill="' + fill + '"' + (stroke ? ' stroke="' + stroke + '"' : "") + "/>" +
+        t(x + w / 2, y + h / 2 + Math.round(size * .35), words, size, ink, BMID);
+    }
+    /** The red ring around what to press. */
+    function mark(x, y, w, h, r) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + r + '" fill="none" stroke="#cc1016" stroke-width="3"/>';
+    }
+    /** LinkedIn's mark: "in" on a blue tile, s wide. */
+    function logo(x, y, s) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + s + '" height="' + s + '" rx="' + Math.round(s / 6) + '" fill="' + BLUE + '"/>' +
+        t(x + s / 2, y + s * .76, "in", Math.round(s * .62), "#fff", BMID);
+    }
+    /** The made-up account's picture. */
+    function face(cx, cy, r) { return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#f5c26b"/>'; }
+    /** LinkedIn's top bar: the mark, the search, and Me (ringed when it is the step). */
+    function nav(markMe) {
+      return '<rect width="600" height="56" fill="#fff"/>' + line(0, 56, 600) + logo(16, 12, 32) +
+        '<rect x="58" y="14" width="150" height="28" rx="4" fill="#edf3f8"/>' + t(78, 33, "Search", 13, SOFT) +
+        ["Home", "My Network", "Jobs", "Messaging"].map(function (label, i) {
+          var cx = 262 + i * 58;
+          return '<rect x="' + (cx - 9) + '" y="12" width="18" height="15" rx="3" fill="' + SOFT + '"/>' + t(cx, 46, label, 10, SOFT, MID);
+        }).join("") +
+        face(510, 21, 10) + t(510, 46, "Me ▾", 10, "#191919", MID) + (markMe ? mark(486, 4, 48, 48, 8) : "");
+    }
+
+    return {
+      settings: svg(nav(true) +
+        // The feed, faded behind the menu.
+        card(16, 72, 290, 128) + face(44, 100, 14) + '<rect x="66" y="92" width="110" height="9" rx="4" fill="#e0dfdc"/><rect x="32" y="128" width="256" height="8" rx="4" fill="#ebe9e4"/><rect x="32" y="146" width="220" height="8" rx="4" fill="#ebe9e4"/><rect x="32" y="164" width="240" height="8" rx="4" fill="#ebe9e4"/>' +
+        card(16, 214, 290, 150) + '<rect x="32" y="234" width="256" height="110" rx="6" fill="#ebe9e4"/>' +
+        // The Me menu.
+        card(330, 64, 254, 304) + face(366, 104, 22) +
+        t(398, 100, "Maya Levi", 15, "#191919", B) + t(398, 120, "Product lead at Northwind", 12, SOFT) +
+        pill(346, 140, 222, 30, 15, "#fff", "View profile", 13, BLUE, BLUE) + line(346, 186, 222) +
+        t(346, 210, "Account", 14, "#191919", B) +
+        t(346, 238, "Settings &amp; Privacy", 13, SOFT) + mark(338, 220, 184, 28, 6) +
+        t(346, 264, "Help", 13, SOFT) + t(346, 290, "Language", 13, SOFT) + line(346, 306, 222) +
+        t(346, 330, "Manage", 14, "#191919", B) + t(346, 354, "Posts &amp; Activity", 13, SOFT)),
+
+      privacy: svg(nav(false) +
+        card(16, 72, 200, 292) + face(40, 100, 12) + t(60, 106, "Settings", 17, "#191919", B) +
+        ["Account preferences", "Sign in &amp; security", "Visibility", "Data privacy", "Advertising data", "Notifications"].map(function (row, i) {
+          var y = 150 + i * 36;
+          var on = i === 3;
+          return (on ? '<rect x="16" y="' + (y - 20) + '" width="4" height="30" fill="' + GREEN + '"/>' : "") +
+            '<rect x="34" y="' + (y - 12) + '" width="14" height="14" rx="3" fill="' + (on ? GREEN : "#b0aea9") + '"/>' +
+            t(58, y, row, 13, on ? "#191919" : SOFT, on ? B : "") + (on ? mark(24, y - 22, 186, 34, 8) : "");
+        }).join("") +
+        card(232, 72, 352, 292) + t(256, 110, "How LinkedIn uses your data", 17, "#191919", B) +
+        ["Manage your data and activity", "Get a copy of your data", "Search history", "Personal demographic information"].map(function (row, i) {
+          var y = 156 + i * 46;
+          return t(256, y, row, 13) + t(556, y, "→", 15, SOFT) + line(256, y + 18, 312) + (i === 1 ? mark(244, y - 24, 334, 36, 8) : "");
+        }).join("")),
+
+      request: svg(nav(false) +
+        card(16, 72, 568, 296) + t(36, 98, "‹ Back", 12, SOFT) +
+        t(36, 128, "Get a copy of your data", 19, "#191919", B) +
+        t(36, 150, "Your LinkedIn data is yours. Pick what to download.", 12, SOFT) +
+        '<circle cx="44" cy="180" r="8" fill="#fff" stroke="#8c8c8c" stroke-width="2"/>' + t(60, 184, "Download larger data archive (everything)", 13) +
+        '<circle cx="44" cy="212" r="8" fill="#fff" stroke="' + GREEN + '" stroke-width="2"/><circle cx="44" cy="212" r="4" fill="' + GREEN + '"/>' +
+        t(60, 216, "Want something in particular? Pick the files.", 13, "#191919", B) + mark(30, 196, 380, 32, 8) +
+        [["Articles", 1], ["Comments", 1], ["Reactions", 1], ["Shares", 1], ["Connections", 0], ["Messages", 0], ["Profile", 0], ["Invitations", 0]].map(function (f, i) {
+          var x = 60 + (i % 4) * 124;
+          var y = 244 + Math.floor(i / 4) * 32;
+          return '<rect x="' + x + '" y="' + y + '" width="15" height="15" rx="3" fill="' + (f[1] ? GREEN : "#fff") + '" stroke="' + (f[1] ? GREEN : "#8c8c8c") + '" stroke-width="1.6"/>' +
+            (f[1] ? '<path d="M' + (x + 3.5) + " " + (y + 8) + "l3 3 5-6" + '" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' : "") +
+            t(x + 23, y + 12, f[0], 12);
+        }).join("") +
+        pill(418, 318, 150, 36, 18, BLUE, "Request archive", 14, "#fff") + mark(411, 311, 164, 50, 25)),
+
+      email: svg(
+        // LinkedIn's mail, with its download link.
+        card(16, 16, 300, 348) + t(36, 46, "Inbox", 13, SOFT) + line(36, 60, 260) +
+        logo(36, 74, 30) + t(76, 86, "LinkedIn", 13, "#191919", B) + t(76, 102, "to me", 11, SOFT) +
+        t(36, 140, "Your LinkedIn data is ready", 16, "#191919", B) +
+        t(36, 168, "Hi Maya, the copy of your data you", 12, "#3d3d3d") + t(36, 186, "asked for is ready to download.", 12, "#3d3d3d") +
+        pill(36, 206, 170, 36, 18, BLUE, "Download archive", 13, "#fff") + mark(29, 199, 184, 50, 25) +
+        '<rect x="36" y="270" width="260" height="48" rx="8" fill="#f4f2ee"/>' +
+        '<path d="M50 282h14l6 6v20h-20z" fill="#fff" stroke="' + SOFT + '" stroke-width="1.4"/>' +
+        t(80, 292, "LinkedInDataExport.zip", 12, "#191919", B) + t(80, 308, "Downloaded", 11, SOFT) +
+        '<path d="M322 190h18m-6-6l6 6-6 6" fill="none" stroke="' + SOFT + '" stroke-width="2" stroke-linecap="round"/>' +
+        // Cabinet's files, the zip in imports, and the question to ask.
+        card(346, 16, 238, 348) + t(366, 46, "Files", 14, "#191919", B) +
+        [["linkedin-posts", 366, 0], ["drafts", 382, 0], ["ideas", 382, 0], ["imports", 382, 0], ["LinkedInDataExport.zip", 398, 1]].map(function (f, i) {
+          var y = 80 + i * 28;
+          var ic = f[2] ? '<path d="M' + f[1] + " " + (y - 12) + 'h8l4 4v10h-12z" fill="#fff" stroke="' + SOFT + '" stroke-width="1.4"/>'
+            : '<path d="M' + f[1] + " " + (y - 11) + 'h6l2 2h7v10h-15z" fill="' + SOFT + '"/>';
+          return (i === 3 ? '<rect x="356" y="' + (y - 18) + '" width="218" height="26" rx="6" fill="#ebe9e4"/>' : "") + ic + t(f[1] + 20, y, f[0], 12, "#191919", i === 3 ? B : "");
+        }).join("") +
+        mark(390, 175, 188, 26, 6) +
+        pill(366, 248, 200, 34, 17, "#fff", "Bring in my LinkedIn posts", 12, "#191919", "#d6d3cc") + mark(359, 241, 214, 48, 24) +
+        '<rect x="366" y="306" width="200" height="38" rx="19" fill="#fff" stroke="#d6d3cc"/>' + t(384, 330, "Ask about your posts...", 12, "#8c8c8c") +
+        '<circle cx="548" cy="325" r="13" fill="#0f1c2e"/><path d="M543 325h10m-4-4l4 4-4 4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>')
+    };
+  })();
+
+  var GUIDE = {
+    note: "LinkedIn lets Cabinet read none of your posts, so you ask LinkedIn for a copy and keep it here.",
+    steps: [
+      { shot: SHOTS.settings, head: "On linkedin.com, open Me, then Settings and Privacy.",
+        text: "Me is your picture at the top of LinkedIn. In the phone app, tap your picture, then Settings.",
+        alt: "LinkedIn's top bar with Me marked, and its menu open with Settings and Privacy marked." },
+      { shot: SHOTS.privacy, head: "Open Data privacy, then Get a copy of your data.",
+        text: "Data privacy is in the list on the left. Get a copy of your data is under How LinkedIn uses your data.",
+        alt: "LinkedIn's settings with Data privacy marked on the left, and Get a copy of your data marked on the right." },
+      { shot: SHOTS.request, head: "Pick your posts and articles, then Request archive.",
+        text: "Choose Want something in particular? and tick your posts (they may say Shares) and Articles, with Comments and Reactions if you want those too. Or take the whole archive. LinkedIn may ask for your password.",
+        alt: "LinkedIn's Get a copy of your data page with Want something in particular? chosen, Articles, Comments, Reactions and Shares ticked, and Request archive marked." },
+      { shot: SHOTS.email, head: "When LinkedIn emails you, put the file in imports and ask.",
+        text: "It usually takes up to a day, and a quick mail with part of it may come before the full one. Download the zip, put it in this cabinet’s imports folder (on Cabinet Cloud, upload it in Files), then ask Bring in my LinkedIn posts. Nothing leaves this cabinet.",
+        alt: "LinkedIn's email with Download archive marked, and Cabinet's files with the zip in imports and the Bring in my LinkedIn posts question marked." }
+    ]
+  };
+
+  /** The guide, its steps numbered from 1, under the Keep box's title. */
+  function paintGuidePanel() {
+    $("drawer-body").innerHTML = '<div class="guide"><section class="g-part"><h3>' + esc(BOXES.keep.title) + "</h3>" +
+      '<p class="g-note">' + esc(GUIDE.note) + '</p><ol class="g-steps">' + GUIDE.steps.map(function (st, i) {
+        return '<li class="g-step"><div class="g-txt"><span class="g-num" aria-hidden="true">' + (i + 1) + "</span><div><b>" + esc(st.head) + "</b><p>" + esc(st.text) + "</p></div></div>" +
+          '<img class="g-shot" src="' + st.shot + '" alt="' + esc(st.alt) + '" width="600" height="380" decoding="async" /></li>';
+      }).join("") + "</ol></section></div>";
+  }
+
+  // ── The grid of boxes ──────────────────────────────────────────────────
+  // Each box is drawn by its own function at one of three levels, picked by its width on
+  // screen: S (one number), M (the rows that fit), L (everything, with more detail). The
+  // layout is a list of { id, x, y, w, h } on a 12 column grid of fixed rows; each person's
+  // own layout is kept in cabinet.mine, so it follows them to any computer.
+
+  var COLS = 12;
+  var ROW = 64;
+  var GAP = 16;
+  var PHONE_ROWS = 3;
+  var LAYOUT_KEY = "linkedin-posts-layout@1";
+  var DEFAULT_LAYOUT = [
+    { id: "headline", x: 0, y: 0, w: 12, h: 3 },
+    { id: "drafts", x: 0, y: 3, w: 7, h: 14 },
+    { id: "next", x: 7, y: 3, w: 5, h: 5 },
+    { id: "ideas", x: 7, y: 8, w: 5, h: 5 },
+    { id: "keep", x: 7, y: 13, w: 5, h: 4 },
+    { id: "ask", x: 0, y: 17, w: 12, h: 5 }
+  ];
+  /**
+   * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
+   * shows, its group and the size it starts at. `show` keeps a box off the page while it
+   * has nothing to be (`when` says what it waits for).
+   */
+  var BOXES = {
+    headline: { cls: "headline", draw: drawHeadline, group: "posts", icon: "i-pen", w: 12, h: 3, min: [4, 2], grow: true,
+      title: "Headline", desc: "What is ready to publish, and what went out last." },
+    drafts: { cls: "lane drafts", list: true, draw: drawDrafts, group: "posts", icon: "i-pen", w: 7, h: 10,
+      title: "Your drafts", desc: "Every post you are working on, marked Draft, Approved or Posted." },
+    next: { cls: "lane next", list: true, draw: drawNext, group: "posts", icon: "i-bulb", w: 5, h: 5, min: [3, 3],
+      title: "Ideas for your next posts", desc: "Three ideas every Monday, from your notes and drafts." },
+    "n-drafts": { cls: "lane nbox", draw: drawNumDrafts, group: "numbers", icon: "i-pen", w: 3, h: 2, min: [2, 2],
+      title: "Drafts", desc: "How many drafts are still being written." },
+    "n-approved": { cls: "lane nbox", draw: drawNumApproved, group: "numbers", icon: "i-check", w: 3, h: 2, min: [2, 2],
+      title: "Approved", desc: "How many posts are final and ready to publish." },
+    "n-posted": { cls: "lane nbox", draw: drawNumPosted, group: "numbers", icon: "i-share", w: 3, h: 2, min: [2, 2],
+      title: "Posted", desc: "How many posts went out from this cabinet." },
+    ask: { cls: "ask", draw: drawAsk, group: "ask", icon: "i-chat", w: 12, h: 5,
+      title: "Ask about your posts", desc: "Ask for a draft or about your drafts, with an idea for today.",
+      show: canAsk, when: "Only people who can ask in this cabinet see it." },
+    ideas: { cls: "lane ideas", list: true, draw: drawIdeasBox, group: "ask", icon: "i-pen", w: 5, h: 5,
+      title: "Ideas for your posts", desc: "Every idea in one box, one tap each." },
+    keep: { cls: "lane idea1 keep", draw: drawKeep, group: "posts", icon: "i-copy", w: 5, h: 4, grow: true,
+      title: "Keep your LinkedIn posts in Cabinet", desc: "How to bring in your past posts from LinkedIn’s copy of your data." }
+  };
+  IDEAS.forEach(function (idea) {
+    BOXES["idea-" + idea.id] = { cls: "lane idea1", draw: function (level) { return drawOneIdea(idea, level); }, group: "single",
+      icon: idea.icon, w: 4, h: 4, min: [3, 3], title: idea.title, desc: idea.text };
+  });
+  var GROUPS = [
+    { id: "posts", title: "Your posts" },
+    { id: "numbers", title: "Numbers" },
+    { id: "ask", title: "Ask and ideas" },
+    { id: "single", title: "One idea" }
+  ];
+  var PHONE = window.matchMedia ? window.matchMedia("(max-width: 720px)") : null;
+
+  function phone() { return !!(PHONE && PHONE.matches); }
+  function levelFor(width) { return width < 320 ? "S" : width < 640 ? "M" : "L"; }
+  var LEVEL_WORDS = { S: "Small", M: "Medium", L: "Large" };
+  /** The smallest a box may be made: wide and tall enough that what it shows still fits. */
+  function minSize(id) { var m = BOXES[id].min || [3, 3]; return { w: m[0], h: m[1] }; }
+  function whole(n) { return typeof n === "number" && n === Math.floor(n) && n >= 0; }
+
+  /** A saved layout, keeping only entries that name a box we have and fit the grid. */
+  function cleanLayout(value) {
+    if (!Array.isArray(value)) return null;
+    var seen = {};
+    var out = value.filter(function (b) {
+      var ok = !!(b && BOXES[b.id] && !seen[b.id] && whole(b.x) && whole(b.y) && whole(b.w) && whole(b.h) &&
+        b.w >= 1 && b.h >= 1 && b.x + b.w <= COLS && b.h <= 40);
+      if (ok) seen[b.id] = true;
+      return ok;
+    }).map(copyEntry);
+    return out.length ? out : null;
+  }
+  /** One layout entry: its place on the grid, and on a phone its order (o) and size (p). */
+  function copyEntry(b) {
+    var out = { id: b.id, x: b.x, y: b.y, w: b.w, h: b.h };
+    if (whole(b.o)) out.o = b.o;
+    if (b.p === "S" || b.p === "M" || b.p === "L") out.p = b.p;
+    return out;
+  }
+  function copyLayout(value) { return value.map(copyEntry); }
+  /** This person's layout, or the first page while they have not changed it. */
+  function layoutNow() { return state.layout || DEFAULT_LAYOUT; }
+  /** Whether box `a` and the w by h spot at x, y share a cell. */
+  function overlaps(a, x, y, w, h) { return x < a.x + a.w && a.x < x + w && y < a.y + a.h && a.y < y + h; }
+
+  /**
+   * Where the boxes land: each keeps its columns, is pushed down past any box above it that
+   * it would overlap (an opened list grows), then rises into the space left above it, so a
+   * hidden or shorter box never leaves a hole. A pinned box (the one being moved or resized)
+   * is placed first, exactly where it was put, and the others make room around it.
+   */
+  function placed(source, pinId) {
+    var out = [];
+    function hits(b, y, h) {
+      return out.some(function (o) { return overlaps(o, b.x, y, b.w, h); });
+    }
+    var boxes = (source || layoutNow())
+      .filter(function (b) { return !BOXES[b.id].show || BOXES[b.id].show(); })
+      .slice().sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) out.push({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h });
+    });
+    boxes.forEach(function (b) {
+      if (b.id === pinId) return;
+      var h = Math.max(state.fit[b.id] || b.h, state.need[b.id] || 0);
+      var y = b.y;
+      while (hits(b, y, h)) y++;
+      while (y > 0 && !hits(b, y - 1, h)) y--;
+      out.push({ id: b.id, x: b.x, y: y, w: b.w, h: h });
+    });
+    return out.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+  }
+  /** On a phone the boxes stand in the order the person gave them there, else top to bottom. */
+  function phoneOrder(spots) {
+    var at = {};
+    layoutNow().forEach(function (b) { at[b.id] = b; });
+    return spots.slice().sort(function (a, b) {
+      var oa = at[a.id] && whole(at[a.id].o) ? at[a.id].o : 1e6;
+      var ob = at[b.id] && whole(at[b.id].o) ? at[b.id].o : 1e6;
+      return oa - ob || a.y - b.y || a.x - b.x;
+    });
+  }
+  function entryOf(id) { return byId(layoutNow(), id); }
+  /** The level a box draws at: by its width on a wide screen, by the person's choice on a phone. */
+  function levelOf(el) {
+    if (phone()) {
+      var e = entryOf(el.getAttribute("data-box"));
+      return e && e.p ? e.p : "M";
+    }
+    return levelFor(el.offsetWidth);
+  }
+
+  // ── Motion ─────────────────────────────────────────────────────────────
+  // Boxes glide to new places on a spring with a small, quick bounce. Before a change the
+  // page notes where every box is (and stops what is still moving); after it, each box
+  // starts where it was and glides to where it is now. A box that changes size grows or
+  // shrinks for real, so its words never stretch. People who asked their system for less
+  // motion get the change at once.
+
+  var MOVE_MS = 460;
+  var ENTER_MS = 380;
+  var lessMotion = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function motionOK() { return !(lessMotion && lessMotion.matches) && typeof document.body.animate === "function"; }
+
+  /** A damped spring as a CSS easing: about 4% past the mark, settled by the end. */
+  function springEasing(zeta, omega, steps) {
+    var wd = omega * Math.sqrt(1 - zeta * zeta);
+    var pts = [];
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      var v = 1 - Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + (zeta * omega / wd) * Math.sin(wd * t));
+      pts.push(i === steps ? 1 : Math.round(v * 1000) / 1000);
+    }
+    return "linear(" + pts.join(", ") + ")";
+  }
+  var SPRING = window.CSS && CSS.supports && CSS.supports("transition-timing-function", "linear(0, 1)")
+    ? springEasing(0.72, 10, 32)
+    : "cubic-bezier(.34, 1.3, .64, 1)";
+  document.documentElement.style.setProperty("--spring", SPRING);
+  /** No bounce: what the hand moves glides smoothly, so nothing seems to jump under it. */
+  var SMOOTH = "cubic-bezier(.22, 1, .36, 1)";
+
+  /** Where every box is now, then stops what is still gliding so the change starts clean. */
+  function snapshot(skip) {
+    var at = {};
+    if (!motionOK()) return at;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip) return;
+      at[id] = el.getBoundingClientRect();
+      el.getAnimations().forEach(function (a) { if (a.id === "glide" || a.id === "enter") a.cancel(); });
+    });
+    return at;
+  }
+  /** Each box glides from where the snapshot saw it to where it is now; a new box grows in. */
+  function glide(before, skip, easing) {
+    if (!motionOK() || !before) return;
+    Object.keys(boxEls).forEach(function (id) {
+      var el = boxEls[id];
+      if (!el.isConnected || el === skip || el.hidden) return;
+      if (before[id]) glideFrom(el, before[id], true, MOVE_MS, easing);
+      else enter(el);
+    });
+  }
+  /** One element glides from the rectangle `a` to where it is now, growing for real if its size changed. */
+  function glideFrom(el, a, isBox, ms, easing) {
+    var b = el.getBoundingClientRect();
+    var dx = a.left - b.left;
+    var dy = a.top - b.top;
+    var resized = Math.abs(a.width - b.width) >= 1 || Math.abs(a.height - b.height) >= 1;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && !resized) return;
+    var from = { transform: "translate(" + dx + "px, " + dy + "px)" };
+    var to = { transform: "none" };
+    if (resized) {
+      from.width = a.width + "px";
+      from.height = a.height + "px";
+      to.width = b.width + "px";
+      to.height = b.height + "px";
+      // While it grows, the box is not drawn again at every in-between size.
+      if (isBox) el.setAttribute("data-gliding", "");
+    }
+    var anim = el.animate([from, to], { duration: ms, easing: easing || SPRING });
+    anim.id = "glide";
+    if (!isBox) return;
+    anim.onfinish = anim.oncancel = function () {
+      if (!el.hasAttribute("data-gliding")) return;
+      el.removeAttribute("data-gliding");
+      if (el.isConnected && el.offsetWidth) {
+        if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+        else fitBox(el);
+      }
+    };
+  }
+  function enter(el) {
+    if (!motionOK()) return;
+    var anim = el.animate([{ opacity: 0, transform: "scale(.94)" }, { opacity: 1, transform: "none" }], { duration: ENTER_MS, easing: SPRING });
+    anim.id = "enter";
+  }
+  /** Something new inside a box (the next idea) fades up into place. */
+  function fadeIn(el) {
+    if (el && motionOK()) el.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 320, easing: "ease-out" });
+  }
+  /** A box held by the hand lets go of its offset and its free size, so the glide can carry it home. */
+  function letGo() {
+    Object.keys(boxEls).forEach(function (id) {
+      var s = boxEls[id].style;
+      s.transform = "";
+      s.width = "";
+      s.height = "";
+    });
+  }
+
+  // Numbers count up to a new value ("0" to "18,420") the first time they show and when
+  // they change; the same number drawn again stays still.
+  var shownNumbers = {};
+  function countUp() {
+    var els = $("grid").querySelectorAll(".kpi .value.num, .sum .value.num");
+    Array.prototype.forEach.call(els, function (el) {
+      var box = el.closest(".box");
+      var key = box.getAttribute("data-box");
+      var m = /^(\D*?)(\d[\d,]*(?:\.\d+)?)(\D*)$/.exec(el.textContent);
+      if (!m) return;
+      var target = parseFloat(m[2].replace(/,/g, ""));
+      var from = shownNumbers[key];
+      shownNumbers[key] = target;
+      if (from === target || !motionOK()) return;
+      var decimals = (m[2].split(".")[1] || "").length;
+      var commas = m[2].indexOf(",") >= 0;
+      var start = null;
+      var show = function (v) {
+        var s = commas
+          ? v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+          : v.toFixed(decimals);
+        el.textContent = m[1] + s + m[3];
+      };
+      from = from == null ? 0 : from;
+      var done = false;
+      show(from);
+      requestAnimationFrame(function tick(now) {
+        if (done) return;
+        if (start === null) start = now;
+        var p = Math.min(1, (now - start) / 900);
+        show(from + (target - from) * (1 - Math.pow(1 - p, 3)));
+        if (p < 1 && el.isConnected) requestAnimationFrame(tick);
+        else done = true;
+      });
+      // A page that draws no frames (a hidden tab) still shows the real number, never a stale one.
+      setTimeout(function () { if (!done) { done = true; show(target); } }, 1000);
+    });
+  }
+
+  var sizeWatch = window.ResizeObserver ? new ResizeObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var el = entry.target;
+      if (!el.isConnected || !el.offsetWidth || el.hasAttribute("data-gliding")) return;
+      if (el.getAttribute("data-level") !== levelOf(el)) drawBox(el);
+      else fitBox(el);
+      sizeTag(el);
+    });
+  }) : null;
+
+  var boxEls = {};
+  /** What each box last drew, so a repaint that changes nothing leaves it (and its input) alone. */
+  var drawn = {};
+  function boxEl(id) {
+    if (!boxEls[id]) {
+      var el = document.createElement("section");
+      el.className = "box " + BOXES[id].cls;
+      el.id = "lane-" + id;
+      el.setAttribute("data-box", id);
+      if (BOXES[id].list) el.setAttribute("aria-labelledby", "h-" + id);
+      boxEls[id] = el;
+      el.addEventListener("animationend", function (e) { if (e.animationName === "rise") el.classList.remove("rise"); });
+      if (sizeWatch) sizeWatch.observe(el);
+    }
+    return boxEls[id];
+  }
+
+  /** Puts every box in its place and order, without drawing what is inside. */
+  function placeBoxes() {
+    var grid = $("grid");
+    var stack = phone();
+    grid.classList.toggle("stack", stack);
+    grid.classList.toggle("editing", state.editing);
+    grid.style.setProperty("--row", ROW + "px");
+    grid.style.setProperty("--gap", GAP + "px");
+    var spots = stack ? phoneOrder(placed()) : placed();
+    var under = ribbonSpot(spots, stack);
+    var keep = {};
+    var at = 0;
+    spots.forEach(function (spot, i) {
+      keep[spot.id] = true;
+      var el = boxEl(spot.id);
+      if (grid.children[at] !== el) grid.insertBefore(el, grid.children[at] || null);
+      at++;
+      if (under && spot.id === "headline") {
+        if (grid.children[at] !== $("ribbon")) grid.insertBefore($("ribbon"), grid.children[at] || null);
+        at++;
+      }
+      el.style.gridColumn = stack ? "" : spot.x + 1 + " / span " + spot.w;
+      el.style.gridRow = stack ? "" : spot.y + 1 + (under && spot.y >= under.cut ? under.rows : 0) + " / span " + spot.h;
+      // In edit mode a box is one stop for the keyboard: arrows move it, Shift and arrows resize it.
+      if (state.editing) {
+        el.tabIndex = 0;
+        el.setAttribute("aria-label", BOXES[spot.id].title + (stack
+          ? ". Up and down arrows move it."
+          : ". Arrow keys move it. Shift and arrow keys change its size."));
+      } else {
+        el.removeAttribute("tabindex");
+        el.removeAttribute("aria-label");
+      }
+      if (state.animate) {
+        el.classList.add("rise");
+        el.style.setProperty("--d", i * 70 + "ms");
+      }
+    });
+    Array.prototype.slice.call(grid.children).forEach(function (el) {
+      if (el.hasAttribute("data-box") && !keep[el.getAttribute("data-box")]) grid.removeChild(el);
+    });
+    return spots;
+  }
+
+  /**
+   * The example ribbon stands right under the headline band, in the grid: the boxes below the
+   * band move down to make room for it. While the boxes are arranged it steps aside.
+   */
+  function ribbonSpot(spots, stack) {
+    var grid = $("grid");
+    var rib = $("ribbon");
+    var band = spots.filter(function (spot) { return spot.id === "headline"; })[0];
+    rib.hidden = !!(band && rib.firstChild && state.editing);
+    if (!band || !rib.firstChild || rib.hidden) {
+      if (rib.parentNode === grid) $("hero").insertAdjacentElement("afterend", rib);
+      return null;
+    }
+    if (stack) { rib.style.gridColumn = rib.style.gridRow = ""; return { cut: 0, rows: 0 }; }
+    // The first row under the band that no box beside it runs across.
+    var cut = band.y + band.h;
+    while (spots.some(function (spot) { return spot.y < cut && spot.y + spot.h > cut; })) cut++;
+    rib.style.gridColumn = "1 / -1";
+    var rows = Math.max(1, Math.ceil((rib.offsetHeight + GAP) / (ROW + GAP)));
+    rib.style.gridRow = cut + 1 + " / span " + rows;
+    return { cut: cut, rows: rows };
+  }
+
+  function paintGrid() {
+    var grid = $("grid");
+    var show = state.loaded && !!state.data;
+    grid.hidden = !show;
+    if (!show) { $("grid-empty").hidden = true; return; }
+    var spots = placeBoxes();
+    $("grid-empty").hidden = spots.length > 0;
+    spots.forEach(function (spot) { drawBox(boxEl(spot.id)); });
+    countUp();
+  }
+
+  /** Draws one box at the level its width gives it; what someone was typing survives. */
+  function drawBox(el) {
+    var id = el.getAttribute("data-box");
+    var level = levelOf(el);
+    var html = BOXES[id].draw(level);
+    if (state.editing) {
+      html += '<button type="button" class="box-x" data-act="remove-box" aria-label="Remove ' + esc(BOXES[id].title) + '">' + icon("i-x") + "</button>";
+      html += phone()
+        ? '<div class="box-size" role="group" aria-label="Size of ' + esc(BOXES[id].title) + '">' + ["S", "M", "L"].map(function (size) {
+            return '<button type="button" data-act="phone-size" data-size="' + size + '" aria-pressed="' + (level === size) + '">' + LEVEL_WORDS[size] + "</button>";
+          }).join("") + "</div>"
+        : '<span class="box-resize" title="Drag to resize" aria-hidden="true"></span>';
+    }
+    el.setAttribute("data-level", level);
+    if (drawn[id] !== html) {
+      var input = el.querySelector("input");
+      var typed = input ? input.value : "";
+      var focused = !!input && document.activeElement === input;
+      el.innerHTML = html;
+      drawn[id] = html;
+      var again = el.querySelector("input");
+      if (again && typed) again.value = typed;
+      if (again && focused) again.focus();
+    }
+    fitBox(el);
+  }
+
+  /**
+   * A box of numbers counts what sits under its first part too: the number under its head at
+   * its smallest size, the idea at its foot.
+   */
+  function contentHeight(el) {
+    var inner = el.firstElementChild;
+    var tall = inner ? inner.scrollHeight : 0;
+    Array.prototype.forEach.call(el.children, function (child) {
+      if (child !== inner && !child.matches(".box-x, .box-resize, .box-size")) tall += child.scrollHeight;
+    });
+    return tall;
+  }
+  /**
+   * The band stretches its inside to its own height, so it is measured by where its words end,
+   * with its padding: a card in place of the headline is never cut off.
+   */
+  function bandHeight(el) {
+    var inner = el.firstElementChild;
+    if (!inner) return 0;
+    var top = el.getBoundingClientRect().top;
+    // The bars sit at the band's foot, so they count by their own height under the top row.
+    var bottom = function (sel) { var c = inner.querySelector(sel); return c ? c.getBoundingClientRect().bottom - top : 0; };
+    var spark = inner.querySelector(".spark");
+    return Math.max(bottom(".hl-text"), bottom(".hl-top") + (spark ? spark.offsetHeight + 18 : 0)) +
+      (parseFloat(getComputedStyle(el).paddingBottom) || 0);
+  }
+
+  /**
+   * A list shows the rows that fit its box, then "+N more". Opened (by that button, or by
+   * opening one of its rows) it shows them all and the box grows to hold them.
+   */
+  function fitBox(el) {
+    var id = el.getAttribute("data-box");
+    var body = el.querySelector(".box-body");
+    var more = el.querySelector(".box-more");
+    // The headline grows a row when its words need it (a narrow window wraps them).
+    if (BOXES[id].grow && !phone()) {
+      var tall = id === "headline" ? bandHeight(el) : contentHeight(el);
+      var grow = el.firstElementChild ? Math.ceil((tall + 6 + GAP) / (ROW + GAP)) : 0;
+      var entry = entryOf(id);
+      // A box with rows to spare stands as tall as what is in it and gives the rest back, so
+      // the boxes under it move up. While arranging it keeps the size it was given.
+      var fit = entry && id !== "headline" && !state.editing && grow && grow < entry.h ? grow : 0;
+      grow = entry && grow > entry.h ? grow : 0;
+      if ((state.need[id] || 0) !== grow || (state.fit[id] || 0) !== fit) { state.need[id] = grow; state.fit[id] = fit; placeBoxes(); }
+      return;
+    }
+    if (!body || !more) return;
+    var rows = Array.prototype.slice.call(body.querySelectorAll(".rows > li"));
+    var open = !!state.expanded[id] || !!body.querySelector(".chan.open");
+    var stack = phone();
+    var cut = 0;
+    rows.forEach(function (r) { r.hidden = false; });
+    more.hidden = true;
+    var nudge = el.querySelector(".box-body ~ .nudge");
+    if (nudge) nudge.hidden = false;
+    // A list that gave rows back and now needs more takes back its own size before it measures.
+    var shrinks = !state.editing && !stack;
+    if (state.fit[id] && (!shrinks || body.scrollHeight > body.clientHeight + 1)) {
+      delete state.fit[id];
+      placeBoxes();
+    }
+    // In a short box the rows come first: the idea at its foot steps aside for them.
+    if (nudge) {
+      if (!open && !stack && rows.length && body.clientHeight < rows[0].offsetHeight + 8) nudge.hidden = true;
+    }
+    if (!open && stack) {
+      var keepRows = el.getAttribute("data-level") === "L" ? rows.length : PHONE_ROWS;
+      rows.forEach(function (r, i) { if (i >= keepRows) { r.hidden = true; cut++; } });
+    } else if (!open && body.scrollHeight > body.clientHeight + 1) {
+      more.hidden = false;
+      for (var i = rows.length - 1; i > 0 && body.scrollHeight > body.clientHeight + 1; i--) { rows[i].hidden = true; cut++; }
+    }
+    more.hidden = !cut && !state.expanded[id];
+    more.textContent = cut ? "+" + cut + " more" : "Show less";
+    more.setAttribute("aria-expanded", String(!cut));
+
+    var need = 0;
+    if (open && !stack) {
+      var total = 2;
+      Array.prototype.forEach.call(el.children, function (child) {
+        if (child.matches(".box-x, .box-resize, .box-size")) return;
+        total += child === body ? body.scrollHeight : child.hidden ? 0 : child.offsetHeight;
+      });
+      need = Math.ceil((total + GAP) / (ROW + GAP));
+    }
+    // A list with rows to spare stands as tall as its rows, opened or not, and gives the
+    // rest back so the boxes under it move up: no empty white under a short list.
+    var own = entryOf(id);
+    var fit = !shrinks || cut ? 0 : open ? need : Math.ceil((el.offsetHeight + GAP) / (ROW + GAP));
+    if (!own || fit >= own.h) fit = 0;
+    if ((state.need[id] || 0) !== need || (state.fit[id] || 0) !== fit) {
+      state.need[id] = need;
+      state.fit[id] = fit;
+      placeBoxes();
+    }
+  }
+  // ── Editing the page ───────────────────────────────────────────────────
+  // Edit layout turns on a bar above the grid; each box gets a remove button and stops
+  // reacting to presses. Every change is kept at once in cabinet.mine, and Undo steps back.
+
+  function startEdit() {
+    // Boxes show the size they were given while being arranged, not grown by an open list.
+    state.open = {};
+    state.expanded = {};
+    state.need = {};
+    state.fit = {};
+    state.editing = true;
+    state.undo = [];
+    // The page's opening fade ends here, so no box is caught half way into it while moving.
+    Object.keys(boxEls).forEach(function (id) { boxEls[id].classList.remove("rise"); });
+    paint();
+    paintEditbar();
+    // The remove and resize handles pop in once, as edit mode starts.
+    var grid = $("grid");
+    grid.classList.add("fresh");
+    setTimeout(function () { grid.classList.remove("fresh"); }, 700);
+    toast(phone() ? "Hold a box to move it. Pick its size on top." : "Drag a box to move it. Pull its corner to resize it.");
+  }
+  function doneEdit() {
+    state.editing = false;
+    state.undo = [];
+    closeDrawer();
+    paint();
+    paintEditbar();
+  }
+  function paintEditbar() {
+    $("editbar").hidden = !state.editing;
+    $("undo-btn").disabled = !state.undo.length;
+  }
+
+  function saveLayout() { mineSet(LAYOUT_KEY, state.layout, "Your page could not be saved. It goes back to how it was next time."); }
+  function changeLayout(next, easing) {
+    var before = snapshot();
+    letGo();
+    state.undo.push(copyLayout(layoutNow()));
+    if (state.undo.length > 30) state.undo.shift();
+    state.layout = next;
+    saveLayout();
+    paintGrid();
+    glide(before, null, easing);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  function removeBox(id) {
+    var el = boxEls[id];
+    var next = copyLayout(layoutNow()).filter(function (b) { return b.id !== id; });
+    if (el) el.classList.add("leaving");
+    setTimeout(function () {
+      if (el) el.classList.remove("leaving");
+      changeLayout(next);
+      toast(BOXES[id].title + " removed. Undo brings it back.");
+    }, 200);
+  }
+  /** The first place, reading left to right and top down, where a w by h box touches nothing. */
+  function freeSpot(w, h, source) {
+    var spots = placed(source);
+    for (var y = 0; ; y++) {
+      for (var x = 0; x + w <= COLS; x++) {
+        var hit = spots.some(function (o) { return overlaps(o, x, y, w, h); });
+        if (!hit) return { x: x, y: y };
+      }
+    }
+  }
+  /** Puts box `id` on `next` at the first free place, at its own size, and gives `next` back. */
+  function placeBox(next, id) {
+    var box = BOXES[id];
+    var at = freeSpot(box.w, box.h, next);
+    next.push({ id: id, x: at.x, y: at.y, w: box.w, h: box.h });
+    return next;
+  }
+  function addBox(id) {
+    var box = BOXES[id];
+    changeLayout(placeBox(copyLayout(layoutNow()), id));
+    closeDrawer();
+    var el = boxEls[id];
+    if (el && el.isConnected) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+    }
+    toast(box.title + " added.");
+  }
+  function resetLayout() {
+    changeLayout(copyLayout(DEFAULT_LAYOUT));
+    toast("Back to the first page. Undo brings yours back.");
+  }
+  function undoLayout() {
+    if (!state.undo.length) return;
+    var before = snapshot();
+    state.layout = state.undo.pop();
+    saveLayout();
+    paintGrid();
+    glide(before);
+    paintEditbar();
+    if (state.drawerOpen) paintDrawer();
+  }
+
+  // ── Asking the agent to change the page ────────────────────────────────
+  // The agent cannot reach a person's layout (it lives in cabinet.mine), so it writes what
+  // to add and remove into data/layout-change.json. The page shows that with Apply and
+  // No thanks, and remembers in cabinet.mine which change it last showed.
+
+  var CHANGE_SEEN_KEY = "linkedin-posts-layout-change-seen@1";
+  var CHANGE_DAYS = 2;
+
+  function openMenu(button) {
+    var menu = $("layout-menu");
+    var r = button.getBoundingClientRect();
+    state.menuOpen = true;
+    menu.hidden = false;
+    menu.style.top = r.bottom + 6 + "px";
+    menu.style.left = Math.max(16, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 16)) + "px";
+    button.setAttribute("aria-expanded", "true");
+    menu.querySelector("button").focus();
+  }
+  /** Closes the Layout menu; focus goes back to its button unless `stay` (a press elsewhere put it there). */
+  function closeMenu(stay) {
+    if (!state.menuOpen) return;
+    state.menuOpen = false;
+    $("layout-menu").hidden = true;
+    var button = document.querySelector('[data-act="layout-menu"]');
+    if (!button) return;
+    button.setAttribute("aria-expanded", "false");
+    if (!stay) button.focus();
+  }
+
+  /** The words sent with a layout request: the boxes on the page now and who is asking. */
+  function layoutWords(wish) {
+    var on = placed().map(function (spot) { return BOXES[spot.id].title; });
+    var me = cabName();
+    return "Change the boxes on my Your posts page." + (me ? " I am " + me + "." : "") +
+      " On it now: " + (on.length ? on.join(", ") : "no boxes") + ". What I want: " + wish;
+  }
+  function cabName() {
+    var me = V2 ? cab.me() : null;
+    // Without a cloud sign-in Cabinet says "You": that is no name, so the greeting leaves it out.
+    var name = me && typeof me.name === "string" ? me.name.trim() : "";
+    return /^you$/i.test(name) ? "" : name;
+  }
+  /** The Ask box takes the request when it is on the page; otherwise the chat's own box does. */
+  function askAboutLayout() {
+    var el = boxEls.ask;
+    if (onPage("ask") && el && el.isConnected) {
+      state.layoutAsk = true;
+      setAskNote("");
+      drawBox(el);
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if ($("ask-input")) $("ask-input").focus({ preventScroll: true });
+      return;
+    }
+    cab.ask(layoutWords(""), { agent: AGENT, send: false }).then(function () {
+      toast("Finish the sentence in the chat. The agent's suggestion shows up on this page.");
+    }).catch(function (e) { toast(errText(e, "The chat could not be opened. Try again.")); });
+  }
+  function sendLayoutAsk(wish) {
+    var words = text(wish, 600);
+    if (!words) return;
+    setAskNote("Sending...");
+    cab.ask(layoutWords(words), { agent: AGENT, send: true }).then(function () {
+      state.layoutAsk = false;
+      if ($("ask-input")) $("ask-input").value = "";
+      setAskNote("Sent. The agent's suggestion shows up at the top of this page.");
+      if (boxEls.ask) drawBox(boxEls.ask);
+    }).catch(function (e) {
+      setAskNote(errText(e, "That did not go through. Try again."));
+    });
+  }
+  function stopLayoutAsk() {
+    state.layoutAsk = false;
+    setAskNote("");
+    if (boxEls.ask) drawBox(boxEls.ask);
+  }
+
+  /** data/layout-change.json, keeping only box ids the page knows. */
+  function cleanChange(d) {
+    if (!d || typeof d !== "object" || !writtenAt(d.at)) return null;
+    function ids(list) {
+      return Array.isArray(list) ? list.filter(function (id, i) { return typeof id === "string" && BOXES[id] && list.indexOf(id) === i; }) : [];
+    }
+    return { at: d.at, for: text(d.for, 80), add: ids(d.add), remove: ids(d.remove), note: text(d.note, 300) };
+  }
+  /** The change to offer now: new, recent, meant for this person, and not done already. */
+  function pendingChange() {
+    var c = state.change;
+    if (!c || !canAsk() || state.editing || c.at === state.changeSeen) return null;
+    if (daysBetween(writtenAt(c.at), new Date()) > CHANGE_DAYS) return null;
+    var me = cabName();
+    if (c.for && me && c.for.toLowerCase() !== me.toLowerCase()) return null;
+    // A box waiting for its data counts as there: it is in the layout, only not drawn yet.
+    var add = c.add.filter(function (id) { return !entryOf(id) && c.remove.indexOf(id) < 0; });
+    var remove = c.remove.filter(function (id) { return !!entryOf(id); });
+    if (!add.length && !remove.length && !c.note) return null;
+    return { at: c.at, add: add, remove: remove, note: c.note };
+  }
+  // A number box is named for its number ("Views", "Likes"), so it says it is the number, not a list.
+  function titles(ids) {
+    return ids.map(function (id) { return BOXES[id].title + (BOXES[id].group === "numbers" ? " (number)" : ""); }).join(", ");
+  }
+  function paintSuggest() {
+    var el = $("suggest");
+    if (state.changeApplied) {
+      el.hidden = false;
+      el.innerHTML = "<p><b>Your page changed.</b></p>" +
+        '<div class="suggest-actions"><button type="button" class="btn" data-act="change-undo">' + icon("i-undo") + "Undo</button>" +
+        '<button type="button" class="btn dark" data-act="change-ok">OK</button></div>';
+      return;
+    }
+    var c = state.loaded ? pendingChange() : null;
+    el.hidden = !c;
+    if (!c) { el.innerHTML = ""; return; }
+    var parts = [];
+    if (c.add.length) parts.push("add " + titles(c.add));
+    if (c.remove.length) parts.push("remove " + titles(c.remove));
+    var waits = c.add.filter(function (id) { return BOXES[id].show && !BOXES[id].show(); });
+    var why = [c.note].concat(waits.map(function (id) { return BOXES[id].title + ": " + BOXES[id].when; })).filter(Boolean).join(" ");
+    el.innerHTML = "<p>" + (parts.length ? "<b>The agent suggests:</b> " + esc(parts.join(", and ")) + "." : "<b>From the agent:</b>") +
+      (why ? '<span class="why" dir="auto">' + esc(why) + "</span>" : "") + "</p>" +
+      '<div class="suggest-actions">' + (parts.length
+        ? '<button type="button" class="btn primary" data-act="change-apply">' + icon("i-check") + "Apply</button>" +
+          '<button type="button" class="btn" data-act="change-skip">No thanks</button>'
+        : '<button type="button" class="btn" data-act="change-skip">OK</button>') + "</div>";
+  }
+  function markChangeSeen(at) {
+    state.changeSeen = at;
+    mineSet(CHANGE_SEEN_KEY, at);
+  }
+  function applyChange() {
+    var c = pendingChange();
+    if (!c) return;
+    var next = copyLayout(layoutNow()).filter(function (b) { return c.remove.indexOf(b.id) < 0; });
+    c.add.forEach(function (id) { placeBox(next, id); });
+    markChangeSeen(c.at);
+    state.changeApplied = true;
+    changeLayout(next);
+    paintSuggest();
+  }
+  function skipChange() {
+    var c = pendingChange();
+    if (c) markChangeSeen(c.at);
+    paintSuggest();
+  }
+
+  // ── Moving and resizing ────────────────────────────────────────────────
+  // A mouse or pen drags a box from anywhere on it in edit mode. A finger holds a box for a
+  // moment first, so the page still scrolls under a passing finger; outside edit mode the
+  // hold also starts editing. While a box moves, the others make room live and an outline
+  // shows where it lands. The corner handle resizes it on the grid, naming the size it
+  // reaches. On a phone a box moves up and down its column; its size is a switch.
+
+  var HOLD_MS = 600;
+  var SLOP = 8;
+  /** How far a mouse moves, pressed, before the box comes along: a slip of the hand is not a move. */
+  var DRAG_START = 10;
+  /** How far past a border (in cells) the moving box must be before the others make room. */
+  var STICK = 0.8;
+  var drag = null;
+  var press = null;
+  var hold = null;
+
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function spotIn(spots, id) { return byId(spots, id); }
+  function gridMetrics() {
+    var r = $("grid").getBoundingClientRect();
+    return { left: r.left, top: r.top, col: (r.width + GAP) / COLS, row: ROW + GAP };
+  }
+  /** The page with one box put at x, y and sized w by h, every other box making room. */
+  function previewWith(id, x, y, w, h) {
+    return placed(copyLayout(layoutNow()).map(function (b) {
+      if (b.id === id) { b.x = x; b.y = y; b.w = w; b.h = h; }
+      return b;
+    }), id);
+  }
+  function showSpots(spots) {
+    spots.forEach(function (s) {
+      var el = boxEls[s.id];
+      if (!el) return;
+      el.style.gridColumn = s.x + 1 + " / span " + s.w;
+      el.style.gridRow = s.y + 1 + " / span " + s.h;
+    });
+  }
+  /** Keeps the places a move or resize ended on; nothing is kept when nothing moved. */
+  function keepSpots(spots, easing) {
+    var at = {};
+    spots.forEach(function (s) { at[s.id] = s; });
+    var before = copyLayout(layoutNow());
+    var next = copyLayout(before).map(function (b) {
+      var s = at[b.id];
+      if (s) { b.x = s.x; b.y = s.y; b.w = s.w; b.h = s.h; }
+      return b;
+    });
+    // Compared as the page shows them, so a drop back in the same place is no change.
+    var shown = function (l) { return JSON.stringify(placed(l).map(function (s) { return [s.id, s.x, s.y, s.w, s.h]; })); };
+    if (shown(next) === shown(before)) { settleBack(easing); return false; }
+    changeLayout(next, easing);
+    return true;
+  }
+  /** Nothing changed: every box glides back to the place it already had. */
+  function settleBack(easing) {
+    var before = snapshot();
+    letGo();
+    paintGrid();
+    glide(before, null, easing);
+  }
+
+  // The outline where a moving box lands, and the size a resized box has reached.
+  function overlay(cls) {
+    var grid = $("grid");
+    var el = grid.querySelector("." + cls);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = cls;
+      el.setAttribute("aria-hidden", "true");
+      grid.appendChild(el);
+    }
+    return el;
+  }
+  /** Puts the outline (or the size label) on a spot; once shown, it glides from spot to spot. */
+  function placeOverlay(el, s) {
+    var was = el.style.gridColumn && motionOK() ? el.getBoundingClientRect() : null;
+    if (was) el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.style.gridColumn = s.x + 1 + " / span " + s.w;
+    el.style.gridRow = s.y + 1 + " / span " + s.h;
+    if (was) glideFrom(el, was, false, 300, SMOOTH);
+  }
+  function clearOverlays() {
+    Array.prototype.slice.call($("grid").querySelectorAll(".drop-spot, .size-tag")).forEach(function (el) { el.parentNode.removeChild(el); });
+  }
+  /** "Medium: 3 rows": what a box shows at the size it has now. */
+  function sizeWords(el) {
+    var id = el.getAttribute("data-box");
+    var level = el.getAttribute("data-level") || "M";
+    var name = LEVEL_WORDS[level];
+    if (!BOXES[id].list) return name;
+    if (level === "S") return name + ": the total only";
+    var n = el.querySelectorAll(".rows > li:not([hidden])").length;
+    return n ? name + ": " + n + " " + plural(n, "row", "rows") : name;
+  }
+
+  function beginDrag(kind, el, x, y, touch) {
+    var id = el.getAttribute("data-box");
+    var r = el.getBoundingClientRect();
+    var spot = spotIn(placed(), id);
+    if (!spot) return;
+    drag = { kind: kind, id: id, el: el, touch: !!touch, x: x, y: y, x0: x, y0: y, scroll0: window.scrollY, spots: null };
+    if (kind === "stack") {
+      var boxes = Array.prototype.filter.call($("grid").children, function (c) { return c.hasAttribute("data-box"); });
+      drag.boxes = boxes;
+      drag.from = boxes.indexOf(el);
+      drag.to = drag.from;
+      drag.gap = parseFloat(getComputedStyle($("grid")).rowGap) || GAP;
+      drag.step = r.height + drag.gap;
+      drag.mids = boxes.map(function (b) { var br = b.getBoundingClientRect(); return br.top + window.scrollY + br.height / 2; });
+    } else if (kind === "move") {
+      drag.w = spot.w;
+      drag.h = spot.h;
+      drag.grabX = x - r.left;
+      drag.grabY = y - r.top;
+    } else {
+      drag.sx = spot.x;
+      drag.sy = spot.y;
+      drag.pw0 = r.width;
+      drag.ph0 = r.height;
+    }
+    // Whatever was still animating this box lets go of it, or it would hold the box still
+    // while the hand moves.
+    el.classList.remove("rise");
+    el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.classList.add(kind === "size" ? "sizing" : "lifted");
+    $("grid").classList.add("arranging");
+    document.body.classList.add(kind === "size" ? "is-sizing" : "is-moving");
+    if (touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not allowed here */ } }
+    moveDrag(x, y);
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function moveDrag(x, y) {
+    drag.x = x;
+    drag.y = y;
+    if (drag.kind === "stack") moveInColumn();
+    else if (drag.kind === "move") moveOnGrid();
+    else resizeOnGrid();
+  }
+
+  function moveOnGrid() {
+    var m = gridMetrics();
+    var left = drag.x - drag.grabX;
+    var top = drag.y - drag.grabY;
+    // The spot only changes once the box is well past a border (four fifths of a cell),
+    // so a hand resting near the line does not flip it back and forth.
+    var fx = (left - m.left) / m.col;
+    var fy = (top - m.top) / m.row;
+    var tx = drag.spots && Math.abs(fx - drag.tx) < STICK ? drag.tx : clamp(Math.round(fx), 0, COLS - drag.w);
+    var ty = drag.spots && Math.abs(fy - drag.ty) < STICK ? drag.ty : Math.max(0, Math.round(fy));
+    if (!drag.spots || drag.tx !== tx || drag.ty !== ty) {
+      drag.tx = tx;
+      drag.ty = ty;
+      var before = snapshot(drag.el);
+      drag.spots = previewWith(drag.id, tx, ty, drag.w, drag.h);
+      showSpots(drag.spots);
+      glide(before, drag.el, SMOOTH);
+      placeOverlay(overlay("drop-spot"), spotIn(drag.spots, drag.id));
+    }
+    drag.el.style.transform = "translate(" + (left - (m.left + tx * m.col)) + "px," + (top - (m.top + ty * m.row)) + "px)";
+  }
+
+  // The box follows the hand pixel by pixel; the outline shows the grid size it will take,
+  // the neighbours make room for that size, and letting go glides the box into it.
+  function resizeOnGrid() {
+    var m = gridMetrics();
+    var min = minSize(drag.id);
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    var pw = clamp(drag.pw0 + drag.x - drag.x0, min.w * m.col - GAP, (COLS - drag.sx) * m.col - GAP);
+    var ph = clamp(drag.ph0 + dy, min.h * m.row - GAP, 40 * m.row - GAP);
+    drag.el.style.width = pw + "px";
+    drag.el.style.height = ph + "px";
+    var fw = (pw + GAP) / m.col;
+    var fh = (ph + GAP) / m.row;
+    var w = drag.spots && Math.abs(fw - drag.w) < STICK ? drag.w : clamp(Math.round(fw), min.w, COLS - drag.sx);
+    var h = drag.spots && Math.abs(fh - drag.h) < STICK ? drag.h : clamp(Math.round(fh), min.h, 40);
+    if (drag.spots && drag.w === w && drag.h === h) return;
+    drag.w = w;
+    drag.h = h;
+    var before = snapshot(drag.el);
+    drag.spots = previewWith(drag.id, drag.sx, drag.sy, w, h);
+    showSpots(drag.spots);
+    glide(before, drag.el, SMOOTH);
+    var spot = spotIn(drag.spots, drag.id);
+    placeOverlay(overlay("drop-spot"), spot);
+    placeOverlay(overlay("size-tag"), spot);
+  }
+  /** The label names what the box shows at the size it has under the hand. */
+  function sizeTag(el) {
+    var tag = drag && drag.kind === "size" && drag.el === el ? $("grid").querySelector(".size-tag") : null;
+    if (tag) tag.textContent = sizeWords(el);
+  }
+
+  function moveInColumn() {
+    var dy = drag.y - drag.y0 + (window.scrollY - drag.scroll0);
+    drag.el.style.transform = "translateY(" + dy + "px) scale(1.02)";
+    // The edge leading the move passes a box once it crosses that box's middle, so a tall
+    // box does not have to travel its own height before the others make room.
+    var top = drag.mids[drag.from] - (drag.step - drag.gap) / 2 + dy;
+    var bottom = top + drag.step - drag.gap;
+    var to = drag.from;
+    drag.mids.forEach(function (mid, i) {
+      if (i > drag.from && bottom > mid + 24) to++;
+      if (i < drag.from && top < mid - 24) to--;
+    });
+    drag.to = to;
+    drag.boxes.forEach(function (b, i) {
+      if (b === drag.el) return;
+      var shift = drag.from < to && i > drag.from && i <= to ? -drag.step : drag.from > to && i >= to && i < drag.from ? drag.step : 0;
+      b.style.transform = shift ? "translateY(" + shift + "px)" : "";
+    });
+  }
+
+  /**
+   * Near the top or bottom of the window, the page scrolls while something is held: only
+   * after it has rested there for a moment, slowly at first and never fast, so a box carried
+   * past the edge does not send the page racing.
+   */
+  var EDGE = 56;
+  var EDGE_WAIT_MS = 300;
+  var EDGE_MAX = 7;
+  function edgeScroll(now) {
+    if (!drag) return;
+    var into = drag.y < EDGE ? -(EDGE - drag.y) : drag.y > window.innerHeight - EDGE ? drag.y - window.innerHeight + EDGE : 0;
+    if (!into) drag.edgeSince = 0;
+    else if (!drag.edgeSince) drag.edgeSince = now || performance.now();
+    var waited = drag.edgeSince ? (now || performance.now()) - drag.edgeSince : 0;
+    if (into && waited > EDGE_WAIT_MS) {
+      // Speed grows with how deep into the edge the hand is and how long it has stayed.
+      var ramp = Math.min(1, (waited - EDGE_WAIT_MS) / 600);
+      var v = Math.max(1, Math.round(Math.min(EDGE_MAX, Math.abs(into) / 6) * ramp));
+      window.scrollBy(0, into < 0 ? -v : v);
+      moveDrag(drag.x, drag.y);
+    }
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function endDrag(cancelled) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    cancelAnimationFrame(d.raf);
+    clearOverlays();
+    $("grid").classList.remove("arranging");
+    document.body.classList.remove("is-moving", "is-sizing");
+    d.el.classList.remove("lifted", "sizing");
+    // The held box and the ones that made room keep their offsets until the glide takes over.
+    if (d.kind === "stack") {
+      if (cancelled || d.to === d.from) { settleBack(SMOOTH); return; }
+      changeLayout(reorder(d.boxes.map(function (b) { return b.getAttribute("data-box"); }), d.from, d.to), SMOOTH);
+      return;
+    }
+    if (cancelled || !d.spots) { settleBack(SMOOTH); return; }
+    if (keepSpots(d.spots, SMOOTH) && d.kind === "size") {
+      requestAnimationFrame(function () { toast(BOXES[d.id].title + ": " + sizeWords(d.el)); });
+    }
+  }
+
+  // Mouse and pen: press on a box and move a little; the corner handle resizes at once
+  // (for a finger too: it never scrolls the page).
+  document.addEventListener("pointerdown", function (e) {
+    if (!state.editing || drag || e.button !== 0) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el) return;
+    if (e.target.closest(".box-resize")) {
+      e.preventDefault();
+      beginDrag("size", el, e.clientX, e.clientY, false);
+      return;
+    }
+    if (e.pointerType === "touch" || e.target.closest(".box-x, .box-size")) return;
+    press = { el: el, x: e.clientX, y: e.clientY };
+  });
+  document.addEventListener("pointermove", function (e) {
+    if (drag && !drag.touch) { moveDrag(e.clientX, e.clientY); return; }
+    if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > DRAG_START) {
+      var p = press;
+      press = null;
+      beginDrag(phone() ? "stack" : "move", p.el, e.clientX, e.clientY, false);
+      // The grab point is where the press began, not where the move was noticed.
+      if (drag && drag.kind === "move") { drag.grabX -= e.clientX - p.x; drag.grabY -= e.clientY - p.y; moveDrag(e.clientX, e.clientY); }
+      if (drag && drag.kind === "stack") { drag.y0 = p.y; moveDrag(e.clientX, e.clientY); }
+    }
+  });
+  document.addEventListener("pointerup", function () { press = null; if (drag && !drag.touch) endDrag(false); });
+  document.addEventListener("pointercancel", function () { press = null; if (drag && !drag.touch) endDrag(true); });
+
+  // A finger: hold still on a box for a moment, then drag.
+  document.addEventListener("touchstart", function (e) {
+    if (drag || e.touches.length !== 1 || !state.data) return;
+    var el = e.target.closest ? e.target.closest("#grid > .box") : null;
+    if (!el || e.target.closest(".box-x, .box-size, .box-resize")) return;
+    var t = e.touches[0];
+    hold = { el: el, x: t.clientX, y: t.clientY, timer: setTimeout(function () {
+      var h = hold;
+      hold = null;
+      if (!h || !h.el.isConnected) return;
+      if (!state.editing) startEdit();
+      beginDrag(phone() ? "stack" : "move", h.el, h.x, h.y, true);
+    }, HOLD_MS) };
+  }, { passive: true });
+  document.addEventListener("touchmove", function (e) {
+    var t = e.touches[0];
+    if (hold && t && Math.abs(t.clientX - hold.x) + Math.abs(t.clientY - hold.y) > SLOP) {
+      clearTimeout(hold.timer);
+      hold = null;
+    }
+    if (drag && drag.touch && t) {
+      e.preventDefault();
+      moveDrag(t.clientX, t.clientY);
+    }
+  }, { passive: false });
+  function touchOver(e, cancelled) {
+    if (hold) { clearTimeout(hold.timer); hold = null; }
+    if (drag && drag.touch) {
+      // No tap reaches what was under the finger when it lets go of a box.
+      if (e.cancelable) e.preventDefault();
+      endDrag(cancelled);
+    }
+  }
+  document.addEventListener("touchend", function (e) { touchOver(e, false); }, { passive: false });
+  document.addEventListener("touchcancel", function (e) { touchOver(e, true); }, { passive: false });
+  document.addEventListener("contextmenu", function (e) { if (drag || hold) e.preventDefault(); });
+
+  /** The layout with the box at `from` in the phone's order of `ids` moved to `to`. */
+  function reorder(ids, from, to) {
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    return copyLayout(layoutNow()).map(function (b) {
+      var at = ids.indexOf(b.id);
+      if (at >= 0) b.o = at;
+      return b;
+    });
+  }
+
+  // The keyboard: arrows move the box in focus, Shift and arrows resize it.
+  var ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  function keyMove(el, d, resize) {
+    var id = el.getAttribute("data-box");
+    if (phone()) {
+      if (!d[1]) return;
+      var ids = phoneOrder(placed()).map(function (s) { return s.id; });
+      var from = ids.indexOf(id);
+      var to = clamp(from + d[1], 0, ids.length - 1);
+      if (to === from) return;
+      changeLayout(reorder(ids, from, to));
+      el.focus();
+      toast(BOXES[id].title + " moved " + (d[1] < 0 ? "up" : "down") + ".");
+      return;
+    }
+    var s = spotIn(placed(), id);
+    if (!s) return;
+    var min = minSize(id);
+    if (resize) {
+      var w = clamp(s.w + d[0], min.w, COLS - s.x);
+      var h = clamp(s.h + d[1], min.h, 40);
+      if (keepSpots(previewWith(id, s.x, s.y, w, h))) {
+        el.focus();
+        requestAnimationFrame(function () { toast(BOXES[id].title + ": " + sizeWords(el)); });
+      }
+      return;
+    }
+    // Down past empty space would only float back up, so it goes as far as it takes to move.
+    for (var step = 1; step <= 40; step++) {
+      var x = clamp(s.x + d[0] * step, 0, COLS - s.w);
+      var y = Math.max(0, s.y + d[1] * step);
+      if (x === s.x && y === s.y) return;
+      if (keepSpots(previewWith(id, x, y, s.w, s.h))) {
+        el.focus();
+        toast(BOXES[id].title + " moved.");
+        return;
+      }
+      if (d[0]) return;
+    }
+  }
+  document.addEventListener("keydown", function (e) {
+    if (!state.editing || drag || !ARROWS[e.key]) return;
+    var el = document.activeElement;
+    if (!el || !el.matches || !el.matches("#grid > .box")) return;
+    e.preventDefault();
+    keyMove(el, ARROWS[e.key], e.shiftKey);
+  });
+  var drawerTimer = 0;
+  var drawerFrom = null;
+  function openDrawer(kind) {
+    var el = $("drawer");
+    clearTimeout(drawerTimer);
+    drawerFrom = document.activeElement;
+    state.drawerOpen = true;
+    state.drawerKind = kind;
+    el.querySelector(".drawer-body").scrollTop = 0;
+    paintDrawer();
+    el.hidden = false;
+    document.body.style.overflow = "hidden";
+    // One frame on screen closed first, so the panel slides in rather than appearing.
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("open"); }); });
+    el.querySelector(".drawer-panel").focus();
+  }
+  function closeDrawer() {
+    var el = $("drawer");
+    if (!state.drawerOpen) return;
+    state.drawerOpen = false;
+    el.classList.remove("open");
+    document.body.style.overflow = "";
+    drawerTimer = setTimeout(function () { el.hidden = true; }, 360);
+    if (drawerFrom && drawerFrom.focus) drawerFrom.focus();
+  }
+
+
+  // ── Presses ────────────────────────────────────────────────────────────
+
+  // A press anywhere outside the Layout menu closes it.
+  document.addEventListener("pointerdown", function (event) {
+    if (!state.menuOpen || !event.target.closest) return;
+    if (event.target.closest("#layout-menu, [data-act='layout-menu']")) return;
+    closeMenu(true);
+  });
+  window.addEventListener("resize", function () { if (state.menuOpen) { state.menuOpen = false; $("layout-menu").hidden = true; } });
+
+  /** What a press on a draft asks the agent; {title} becomes the draft's title and file. */
+  var DRAFT_ASKS = {
+    polish: "Polish my LinkedIn draft {title}: a first line that makes people stop, shorter lines, the same voice. Show me the new words and save them as the draft. Do not publish it.",
+    variants: "Make three variants of my LinkedIn draft {title}: a short one, a story, and one that opens with a question. Show them in the chat and save only the one I pick.",
+    approve: "Mark my LinkedIn draft {title} as approved: the words are final. Change nothing else, and do not publish it.",
+    followup: "Write a follow-up to my LinkedIn post {title}: a new angle on the same story, as a new draft. Show it to me. Do not publish it."
+  };
+
+  document.addEventListener("click", function (event) {
+    var el = event.target.closest ? event.target.closest("[data-act]") : null;
+    if (!el || el.disabled) return;
+    var act = el.getAttribute("data-act");
+    var id = el.getAttribute("data-id");
+    var item = id ? findItem(id) : null;
+    if (act === "toggle") {
+      var was = snapshot();
+      state.open[id] = !state.open[id];
+      paintGrid();
+      glide(was);
+      var again = document.querySelector('[data-act="toggle"][data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+      if (again) again.focus();
+    } else if (act === "connect") connect();
+    else if (act === "run") runIdeas();
+    else if (act === "more-rows") {
+      var boxId = el.closest(".box").getAttribute("data-box");
+      var shown = snapshot();
+      state.expanded[boxId] = !state.expanded[boxId];
+      fitBox(boxEl(boxId));
+      glide(shown);
+    }
+    else if (act === "ask") ask(el.getAttribute("data-q"));
+    else if (act === "publish" && item) publish(item);
+    else if (DRAFT_ASKS[act] && item) askAbout(item, DRAFT_ASKS[act]);
+    else if (act === "copy" && item) copyWords(item);
+    else if (act === "new-draft") {
+      endFirst();
+      startInChat("Draft a LinkedIn post. The topic is ", "Finish the sentence in the chat. The draft lands in Your drafts and in the chat, never on LinkedIn.");
+    } else if (act === "draft-idea") {
+      var nx = nextIdeas()[+el.getAttribute("data-i")];
+      if (!nx) return;
+      if (state.example) { toast("These ideas are made up. Your own come every Monday, from your notes."); return; }
+      ask("Draft a LinkedIn post from this idea: " + nx.title + (nx.why ? " (" + nx.why + ")" : "") + ". Save it as a draft and show it to me. Do not publish it.");
+    } else if (act === "idea-now") {
+      var idea = ideaById(el.getAttribute("data-idea"));
+      var fit = idea && el.getAttribute("data-fit") ? fitted(idea, null, true) : null;
+      if (idea) { closeDrawer(); ask(fit && fit.ask ? fit.ask : idea.ask); }
+    } else if (act === "idea-routine") {
+      var r = ideaById(el.getAttribute("data-idea"));
+      if (r && r.when) { closeDrawer(); ask("Set this up as a routine that runs " + r.at + ": " + r.ask + " The routine writes the draft only, it never publishes. Show me the routine so I can approve it before it starts."); }
+    } else if (act === "idea-hide") {
+      setIdeaHidden(el.getAttribute("data-idea"), true);
+    } else if (act === "idea-unhide") {
+      setIdeaHidden(el.getAttribute("data-idea"), false);
+    } else if (act === "ideas") {
+      openDrawer("ideas");
+    } else if (act === "guide") {
+      openDrawer("guide");
+    } else if (act === "add-box") {
+      openDrawer("add");
+    } else if (act === "add-this") {
+      var add = el.getAttribute("data-add");
+      if (BOXES[add]) addBox(add);
+    } else if (act === "phone-size") {
+      var sized = el.closest(".box").getAttribute("data-box");
+      var size = el.getAttribute("data-size");
+      changeLayout(copyLayout(layoutNow()).map(function (b) { if (b.id === sized) b.p = size; return b; }));
+      if (boxEls[sized]) { var btn = boxEls[sized].querySelector('[data-size="' + size + '"]'); if (btn) btn.focus(); }
+    } else if (act === "remove-box") {
+      removeBox(el.closest(".box").getAttribute("data-box"));
+    } else if (act === "layout-menu") {
+      if (state.menuOpen) closeMenu(); else openMenu(el);
+    } else if (act === "layout-edit") {
+      closeMenu();
+      startEdit();
+    } else if (act === "layout-ask") {
+      closeMenu();
+      askAboutLayout();
+    } else if (act === "layout-ask-cancel") {
+      stopLayoutAsk();
+    } else if (act === "change-apply") {
+      applyChange();
+    } else if (act === "change-skip") {
+      skipChange();
+    } else if (act === "change-undo") {
+      state.changeApplied = false;
+      undoLayout();
+      paintSuggest();
+      toast("Your page is back to how it was.");
+    } else if (act === "change-ok") {
+      state.changeApplied = false;
+      paintSuggest();
+    } else if (act === "edit-start") {
+      startEdit();
+    } else if (act === "edit-done") {
+      doneEdit();
+    } else if (act === "undo") {
+      undoLayout();
+    } else if (act === "reset-layout") {
+      resetLayout();
+    } else if (act === "drawer-close") {
+      closeDrawer();
+    } else if (act === "first-done") {
+      endFirst();
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    if (drag) endDrag(true);
+    else if (state.menuOpen) closeMenu();
+    else if (state.drawerOpen) closeDrawer();
+    else if (state.editing) doneEdit();
+  });
+
+  // The Ask box is drawn again as it changes size, so its form is listened to from here.
+  document.addEventListener("submit", function (event) {
+    if (!event.target || event.target.id !== "ask-form") return;
+    event.preventDefault();
+    if (state.layoutAsk) sendLayoutAsk($("ask-input").value);
+    else ask($("ask-input").value);
+  });
+
+  // ── Start ──────────────────────────────────────────────────────────────
+
+  paint();
+
+  if (PHONE) {
+    var onPhoneChange = function () { if (state.loaded && state.data) paintGrid(); };
+    if (PHONE.addEventListener) PHONE.addEventListener("change", onPhoneChange);
+    else if (PHONE.addListener) PHONE.addListener(onPhoneChange);
+  }
+  // Rows are measured to fit their boxes; the web font changes their height once it arrives.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      Object.keys(boxEls).forEach(function (id) { if (boxEls[id].isConnected) fitBox(boxEls[id]); });
+    });
+  }
+
+  if (V2) {
+    // This person's own layout, if they changed it; the default otherwise.
+    Promise.resolve(cab.ready).then(function () {
+      var clean = cleanLayout(mineGet(LAYOUT_KEY));
+      if (clean) state.layout = clean;
+      var seen = mineGet(CHANGE_SEEN_KEY);
+      if (typeof seen === "string") state.changeSeen = seen;
+      var hidden = mineGet(HIDDEN_IDEAS_KEY);
+      if (Array.isArray(hidden)) hidden.forEach(function (id) { if (ideaById(id)) state.hiddenIdeas[id] = true; });
+      state.firstDone = mineGet(FIRST_KEY) === true;
+      state.mineReady = true;
+      paint();
+    }).catch(function () {});
+    Promise.resolve(cab.here()).then(function (here) {
+      state.here = here || null;
+      if (here && typeof here.appPath === "string" && here.appPath) state.appPath = here.appPath;
+    }).catch(function () {}).then(function () {
+      load();
+      // The drafts, the ideas, and the agent's suggestion for the boxes.
+      ["drafts", "ideas", state.appPath].forEach(function (dir) {
+        try { cab.files.onChange(dir, function () { load(); }); } catch (e) { /* older bridge */ }
+      });
+    });
+    cab.connectors.list().then(function (items) {
+      state.li = pickLinkedIn(items) || noLinkedIn();
+      settle();
+      paint();
+    }).catch(function () {
+      state.li = noLinkedIn();
+      settle();
+      paint();
+    });
+    cab.connectors.onChange(function (items) { var g = pickLinkedIn(items); if (g) { state.li = g; settle(); paint(); } });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    load();
+    // No live changes in an older Cabinet: look again now and then while the page is in view.
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, POLL_MS);
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") load(); });
+  }
+})();
+</script>
+</body>
+</html>
