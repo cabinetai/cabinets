@@ -81,6 +81,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [customer-escalation](./customer-escalation) | Sales | 3 | 3 | 0 | Converts customer escalation chaos into a structured packet — incident header, timeline, customer impact, root-cause status, owner plan,… |
 | [customer-health](./customer-health) | Sales | 2 | 4 | 0 | Always-on customer health command center |
 | [data-request](./data-request) | Software | 2 | 2 | 0 | Structured intake, triage, and delivery for every business data question — from the Slack "can someone pull this?" to a routed, answered,… |
+| [deal-watch](./deal-watch) | Sales | 1 | 1 | 0 | Every morning, the deals and leads that need a person today, ranked, each with the facts and one next step |
 | [decision-log](./decision-log) | Operations | 2 | 1 | 0 | Extracts and preserves every material decision made in meetings, Slack, docs, and email — with owner, rationale, consequences, and status… |
 | [digitalocean-spaces-contents](./digitalocean-spaces-contents) | Operations | 1 | 1 | 0 | What's actually in your Space, and what changed last |
 | [discord-digest](./discord-digest) | Operations | 1 | 1 | 0 | Every morning, what was worth reading in your Discord server over the last 24 hours |
@@ -146,6 +147,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [personal-os](./personal-os) | Operations | 1 | 1 | 6 | Your life has departments |
 | [physics-101](./physics-101) | Education | 1 | 1 | 0 | A 6-module beginner physics curriculum — Motion, Forces, Energy, Waves, Electricity, Light |
 | [physics-experiments](./physics-experiments) | Education | 1 | 1 | 0 | Five interactive, self-contained simulations of classic physics experiments — double-slit, pendulum wave, projectile motion, wave interfe… |
+| [pipeline-digest](./pipeline-digest) | Sales | 1 | 1 | 0 | Every morning, the deals that moved in Salesforce, what closes this week, what went quiet, and what is due today |
 | [pipeline-risk](./pipeline-risk) | Sales | 2 | 3 | 0 | Identify risky deals, stale opportunities, missing champions, and weak next steps before they cost you the quarter |
 | [playwright-site-check](./playwright-site-check) | Engineering | 1 | 1 | 0 | Every morning, opens your site and tells you if anything broke |
 | [podcast-factory](./podcast-factory) | Media | 1 | 2 | 0 | A complete Podcast OS in a directory |
