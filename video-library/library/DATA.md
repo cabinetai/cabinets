@@ -76,9 +76,9 @@ The transcript under a card is read from `paths.transcript` when the person open
 line that starts with a time (`**[1:23]**` as Cabinet writes it, or `[00:01:23]`, `1:23`, `**1:23**`, `(1:23)`) gets a button
 that jumps the player there.
 
-The page is a 12-column grid of boxes on YouTube's light grey under a red headline band,
-laid out like YouTube Digest: Headline, Save a video, Subjects, Bring videos in (how to save one
-link, all TikTok favorites from TikTok's data export, or all YouTube likes), Your videos, Clip ideas, Worth quoting,
+The page is a 12-column grid of boxes on TikTok's light grey under TikTok's black headline
+band with a plain white heading, laid out like TikTok Digest: Headline, Save a video, Subjects,
+Bring videos in (YouTube likes and TikTok favorites), Your videos, Clip ideas, Worth quoting,
 Ask about your videos and Ideas for your videos to start with, and more to add (Key points,
 three numbers, and each idea as its own box with its picture from `ideas/`). Ideas and
 Layout sit in the headline. The idea pictures are copies of existing template covers,
