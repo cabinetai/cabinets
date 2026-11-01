@@ -354,6 +354,10 @@ Plain words. No jargon that was not already in the question, no "per my last mes
 never more than a phrase quoted. Name people by their Slack display name, never a raw
 account number and never an email.
 
+Write each topic in the language the team asked it in. A Hebrew question stays a Hebrew
+question, with a Hebrew answer, because people search in the words they ask in. Your own
+summaries to the person follow the language they write to you in.
+
 Never invent a question, an answer, a person or a count. If a thread has a question and no
 answer that anybody agreed with, write the question as `Open` rather than writing an answer
 of your own. You are recording what the team decided, not deciding it.
