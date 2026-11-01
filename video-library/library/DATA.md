@@ -53,6 +53,11 @@ Each quote has Copy: the words, the channel, the title, the time and the link. W
 frame refuses the clipboard, the page falls back to the browser's older copy, and last to a
 panel with the words selected.
 
+When a link from a site other than YouTube is pasted, a line under Save says what that site
+usually gives (TikTok posts usually have no captions or separate sound), so Video is picked
+knowingly. A card with no `paths.transcript` says "No transcript: this post has no captions."
+and its button names what opening it shows; with nothing more to show there is no button.
+
 The Subjects box lists every subject of the saved videos with how many videos have it, and
 "All videos" first. A press shows only that subject's videos in Your videos; the choice is
 each person's own (`cabinet.mine`, `video-library-subject@1`). Videos with no `subjects` get

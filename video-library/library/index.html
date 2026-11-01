@@ -677,7 +677,7 @@
     </div>
     <footer class="foot">
       <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
-      <p>A video is saved only when you ask, one link at a time, and anything over about 500 MB waits for your yes. Saving someone else's video is for your own use: the video and its rights stay with the creator. Everything stays in this cabinet. Saving from a link uses no account or sign-in on any site. Bringing in your YouTube likes uses your YouTube connection and only reads it.</p>
+      <p>A video is saved only when you ask, one link at a time, and anything over about 500 MB waits for your yes. Saving someone else's video is for your own use: the video and its rights stay with the creator. Everything stays in this cabinet: a saved video is at most 720p, and your copy stays if the post is deleted. Saving from a link uses no account or sign-in on any site. Bringing in your YouTube likes uses your YouTube connection and only reads it.</p>
     </footer>
   </main>
 </div>
@@ -786,6 +786,8 @@
     saveOption: "video",
     saveNote: "",
     saveBad: false,
+    /** What the pasted link's site usually gives, said before the choice is made. */
+    saveHint: "",
     /** Cards opened to show everything, and transcripts read so far, by slug. */
     open: {},
     transcripts: {},
@@ -1078,6 +1080,25 @@
     el.className = "save-note" + (bad ? " bad" : "");
     el.innerHTML = words ? icon(bad ? "i-alert" : "i-check") + "<span>" + esc(words) + "</span>" : "";
     el.hidden = !words;
+    fitBox(boxEls.save);
+  }
+  var SITE_HINTS = {
+    instagram: "Instagram posts usually have no captions. Video is the safe choice.",
+    tiktok: "TikTok posts usually have no captions or separate sound. Video is the safe choice.",
+    x: "X posts only sometimes have captions or separate sound. Video is the safe choice.",
+    linkedin: "LinkedIn posts only sometimes have captions or separate sound. Video is the safe choice.",
+    facebook: "Facebook posts usually have no captions. Video is the safe choice."
+  };
+  function setSaveHint(link) {
+    var site = siteOfLink(link);
+    var words = (site && SITE_HINTS[site.id]) || "";
+    if (words === state.saveHint) return;
+    state.saveHint = words;
+    var el = $("save-hint");
+    if (!el) return;
+    el.textContent = words;
+    el.hidden = !words;
+    fitBox(boxEls.save);
   }
   function save(link) {
     var s = text(link, 600);
@@ -1104,6 +1125,7 @@
     cab.ask(words, { agent: AGENT, send: true }).then(function () {
       setSaveNote(one ? "Asked. The chat next to this page shows its size first, then it lands here." : "Asked. The answer is coming in the chat.", false);
       if ($("save-input")) $("save-input").value = "";
+      setSaveHint("");
       // The first save fills the page from this moment, before the agent's first line.
       if (one && firstSave()) { state.saveAskedAt = Date.now(); paint(); }
     }).catch(function (e) {
@@ -1753,6 +1775,7 @@
       }).join("") + "</span>" +
       '<button type="submit" class="btn primary"' + ((can || !V2) && !cloud ? "" : " disabled") + ">" + icon("i-save") + "Save</button></form>" +
       '<p class="save-note' + (state.saveBad ? " bad" : "") + '" id="save-note" aria-live="polite"' + (note ? "" : " hidden") + ">" + (note ? icon(state.saveBad ? "i-alert" : "i-check") + "<span>" + esc(note) + "</span>" : "") + "</p>" +
+      '<p class="save-fine" id="save-hint"' + (state.saveHint ? "" : " hidden") + ">" + esc(state.saveHint) + "</p>" +
       (cloud ? '<p class="save-fine">' + esc(CLOUD_WORDS) + "</p>"
         : can && firstSave() ? '<p class="save-fine">The first save needs a free tool called yt-dlp. The chat shows you how.</p>' : "") +
       (level === "S" ? "" : '<p class="save-fine">Links from ' + esc(SITE_WORDS.replace(" or ", " and ")) + '. Video plays here, sound only is much smaller, transcript is the words with their times. You see the size first, and anything over ' + BIG_MB + " MB waits for your yes. Someone else's video is for your own use; the rights stay with the creator.</p>") +
@@ -1771,6 +1794,12 @@
     if (at && v.status !== "saving") parts.push("<span>Saved " + esc(rowTime(v.savedAt, refDate()).replace(/^Yesterday$/, "yesterday")) + "</span>");
     return parts.length ? '<p class="vc-meta num">' + parts.join("") + "</p>" : "";
   }
+  /** What opening a card shows, in words; "" when there is nothing more to show. */
+  function moreLabel(v) {
+    if (hasTranscript(v)) return "Summary, quotes and transcript";
+    var written = (Array.isArray(v.summary) && v.summary.length) || times(v.quotes).length || times(v.clips, "fromSec").length;
+    return written ? "Summary and quotes" : text(v.postText) ? "Post text" : "";
+  }
   function cardBodyHtml(v, level) {
     var open = !!state.open[v.slug];
     var points = times(v.keyPoints);
@@ -1788,13 +1817,15 @@
     }
     var shown = open ? points.slice(0, 8) : points.slice(0, 3);
     var sound = state.example ? "" : soundOf(v);
+    var label = moreLabel(v);
     return head + (text(v.oneLine) ? '<p class="vc-one" dir="auto">' + esc(text(v.oneLine, 240)) + "</p>" : "") +
       (text(v.postText) && !open ? '<p class="vc-post" dir="auto">' + esc(text(v.postText, 400).replace(/\s+/g, " ")) + "</p>" : "") +
       (shown.length ? '<ul class="pts">' + shown.map(function (p) {
         return "<li>" + tsButton(v.slug, p.sec) + '<span dir="auto">' + esc(text(p.text, 200)) + "</span></li>";
       }).join("") + "</ul>" : "") +
+      (hasTranscript(v) ? "" : '<p class="vc-why">No transcript: this post has no captions.</p>') +
       '<div class="vc-acts">' +
-      '<button type="button" class="btn small' + (open ? " dark" : "") + '" data-act="card" data-slug="' + esc(v.slug) + '" aria-expanded="' + open + '">' + icon("i-down") + (open ? "Show less" : "Summary, quotes and transcript") + "</button>" +
+      (label ? '<button type="button" class="btn small' + (open ? " dark" : "") + '" data-act="card" data-slug="' + esc(v.slug) + '" aria-expanded="' + open + '">' + icon("i-down") + (open ? "Show less" : label) + "</button>" : "") +
       (can ? '<button type="button" class="btn small" data-act="ask-video" data-slug="' + esc(v.slug) + '">' + icon("i-chat") + "Ask about it</button>" : "") +
       (sound ? '<a class="btn small quiet" href="' + esc(cabUrl(sound)) + '" target="_blank" rel="noopener noreferrer">' + icon("i-music") + "Sound only</a>" : "") +
       (link ? '<a class="btn small quiet" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + esc(siteOf(v).name) + "</a>" : "") +
@@ -1815,7 +1846,7 @@
       return "<li>" + tsButton(v.slug, c.fromSec, count(c.toSec)) + '<span dir="auto">' + esc(text(c.why, 200)) + "</span></li>";
     }).join("") + "</ul></div>");
     var tx = state.transcripts[v.slug];
-    parts.push('<div class="wide"><h4>Transcript</h4>' + (tx ? transcriptHtml(v)
+    if (hasTranscript(v)) parts.push('<div class="wide"><h4>Transcript</h4>' + (tx ? transcriptHtml(v)
       : '<button type="button" class="btn small" data-act="transcript" data-slug="' + esc(v.slug) + '">' + icon("i-doc") + "Show the transcript</button>") + "</div>");
     return parts.join("");
   }
@@ -3778,7 +3809,10 @@
   });
   // A link pasted or typed again clears the last note.
   document.addEventListener("input", function (event) {
-    if (event.target && event.target.id === "save-input" && state.saveNote) setSaveNote("", false);
+    if (event.target && event.target.id === "save-input") {
+      if (state.saveNote) setSaveNote("", false);
+      setSaveHint(event.target.value);
+    }
     if (event.target && event.target.id === "lib-find" && !event.isComposing) {
       state.find = event.target.value;
       state.txFind = null;

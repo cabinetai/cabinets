@@ -17,8 +17,9 @@ The cabinet opens on it: **Your Video Library**.
 
 - **Save a video**: paste a link from YouTube, Instagram, TikTok, X, LinkedIn or Facebook
   and pick how to keep it: the whole video, the
-  sound only, or the transcript only. You see its size and your free space first, and
-  anything big waits for your yes.
+  sound only, or the transcript only. A saved video is at most 720p, and your copy stays if
+  the post is deleted. You see its size and your free space first, and anything big waits
+  for your yes.
 - **Your videos**: each one as a card you can play right on the page, from your own copy
   when you saved the video or the sound, from YouTube otherwise. Each card says which site
   the video came from, and a post from Instagram, LinkedIn and the rest shows its text.
