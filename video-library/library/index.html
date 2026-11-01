@@ -1077,8 +1077,16 @@
     var link = text(v.link, 400);
     return /^https:\/\//i.test(link) && siteOfLink(link) === siteOf(v) ? link : "";
   }
-  /** A pasted link without what follows a "?" or "#", to know one already saved. */
-  function bareLink(link) { return text(link, 600).replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/[?#].*$/, "").replace(/\/+$/, "").toLowerCase(); }
+  /** A pasted link reduced to what names the post, to know one already saved: the same post from any address gives the same words. */
+  function bareLink(link) {
+    var s = text(link, 600).replace(/^https?:\/\//i, "").replace(/^(?:www|m|mobile|web)\./i, "").toLowerCase();
+    // Facebook's watch page names its video only after the "?".
+    var fb = /^facebook\.com\/(?:watch\/?|video\.php)\?(?:.*&)?v=(\d+)/.exec(s);
+    if (fb) return "facebook.com/watch/" + fb[1];
+    return s.replace(/[?#].*$/, "").replace(/\/+$/, "")
+      .replace(/^twitter\.com\//, "x.com/")
+      .replace(/^instagram\.com\/(?:[^/]+\/)?(?:p|reel|reels)\//, "instagram.com/p/");
+  }
   function setSaveNote(words, bad) {
     state.saveNote = words;
     state.saveBad = !!bad;
