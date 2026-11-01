@@ -1412,12 +1412,18 @@
     var v = videoBySlug(slug);
     if (!v) return;
     if (state.example) { toast("This is a made-up video, so there is nothing to play. Save one of yours above."); return; }
+    // A time pressed anywhere on the page brings its video into view first.
+    var subject = subjectNow();
+    if (subject && subjectsOf(v).indexOf(subject) < 0) { setSubject(""); paint(); }
     var box = boxEls.library;
     var slot = box && box.isConnected ? box.querySelector('[data-player="' + cssEsc(slug) + '"]') : null;
     if (!slot) {
       if (v.videoId) window.open("https://www.youtube.com/watch?v=" + encodeURIComponent(v.videoId) + "&t=" + sec + "s", "_blank", "noopener");
+      else toast("Make Your videos bigger to play this one here.");
       return;
     }
+    var card = slot.closest(".vcard");
+    if (card && card.hidden) { state.expanded.library = true; fitBox(box); }
     var media = slot.querySelector("video, audio");
     if (media) {
       try { media.currentTime = sec; } catch (e) { /* not loaded yet */ }
@@ -1437,7 +1443,6 @@
       toast("This video can't be played here.");
       return;
     }
-    var card = slot.closest(".vcard");
     if (card) {
       var r = card.getBoundingClientRect();
       if (r.top < 0 || r.top > window.innerHeight - 120) card.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1513,6 +1518,10 @@
     var n = {};
     saved().forEach(function (v) { subjectsOf(v).forEach(function (s) { n[s] = (n[s] || 0) + 1; }); });
     return Object.keys(n).map(function (s) { return { name: s, n: n[s] }; }).sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+  }
+  function setSubject(name) {
+    state.subject = name;
+    if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(SUBJECT_KEY, name).catch(function () {});
   }
   /** The subject Your videos is narrowed to, while a saved video still has it. */
   function subjectNow() {
@@ -3433,8 +3442,7 @@
     // A question about the whole library (data-all) is never sent as about the one video picked.
     else if (act === "ask") ask(el.getAttribute("data-q"), el.hasAttribute("data-all") ? "" : state.askAbout);
     else if (act === "subject") {
-      state.subject = el.getAttribute("data-subject") || "";
-      if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(SUBJECT_KEY, state.subject).catch(function () {});
+      setSubject(el.getAttribute("data-subject") || "");
       paint();
     }
     else if (act === "save-option") {
