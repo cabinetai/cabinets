@@ -445,6 +445,8 @@
   .vcard { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px 20px 16px; border-top: 1px solid var(--line); }
   .box[data-level="L"] .vcard { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 14px 20px; align-items: start; }
   .vc-player { position: relative; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--deep); }
+  /* A phone video stands upright, as tall as a card can take. */
+  .vc-player.tall { aspect-ratio: 9 / 16; width: min(100%, 315px); max-height: 560px; justify-self: center; }
   .vc-player > * { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
   .vc-player video { object-fit: contain; background: var(--deep); }
   .pl-thumb { padding: 0; background: var(--deep); cursor: pointer; }
@@ -801,6 +803,8 @@
     /** How each card plays: "embed" once someone pressed play, "embed-fallback" when the cabinet's copy could not be reached. */
     playing: {},
     seekTo: {},
+    /** Videos taller than they are wide, by slug, as their files said. */
+    tall: {},
     layout: null,
     hiddenIdeas: {},
     drawerOpen: false,
@@ -1469,8 +1473,21 @@
       var p = players[v.slug];
       if (!p || p.key !== mode.key) p = players[v.slug] = { key: mode.key, node: makePlayer(v, mode) };
       if (p.node.parentNode !== slot) slot.appendChild(p.node);
+      slot.classList.toggle("tall", !!state.tall[v.slug]);
     });
   }
+  // The file itself says which way up it is; the shape stays by slug because a card can be drawn again.
+  document.addEventListener("loadedmetadata", function (event) {
+    var el = event.target;
+    if (!el || !el.matches || !el.matches("video[data-slug]")) return;
+    var slug = el.getAttribute("data-slug");
+    var tall = el.videoHeight > el.videoWidth;
+    if (!!state.tall[slug] === tall) return;
+    state.tall[slug] = tall;
+    var slot = el.closest("[data-player]");
+    if (slot) slot.classList.toggle("tall", tall);
+    if (boxEls.library && boxEls.library.isConnected) fitBox(boxEls.library);
+  }, true);
   // The cabinet's copy did not load (moved, deleted, or a sealed frame with no login): YouTube's player instead.
   document.addEventListener("error", function (event) {
     var el = event.target;

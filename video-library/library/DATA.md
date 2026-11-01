@@ -38,6 +38,8 @@ A video saved both ways keeps one entry: `option` is `video`, `paths.media` the 
 card says "Video and sound only", plays the video and links to the sound file, and the
 numbers count it as a video and as a sound only.
 
+A video taller than it is wide stands upright on its card, 9 by 16, once its file loads.
+
 How a card plays: the cabinet's own copy (`../videos/<slug>/<file>`, served with byte ranges)
 when `paths.media` is there, else, for a YouTube video, YouTube's privacy-enhanced player
 (`youtube-nocookie.com/embed/<id>`) once the person presses play. A copy that cannot be
