@@ -830,9 +830,10 @@
     filtersEl.innerHTML = filtersHtml(c.list);
     var html = '';
     /* The routine stopped short and said so: the rows below may lag the channel. */
-    if (c.meta.status && c.meta.status !== 'ok') {
+    var left = String(c.meta.status || '').replace(/^ok\b[,:;.\s]*/i, '').replace(/\.$/, '');
+    if (left) {
       html += '<div class="notice soft">' + icon('i-alert') + '<p dir="auto">This update is not complete: ' +
-              esc(c.meta.status) + '.</p></div>';
+              esc(left) + '.</p></div>';
     }
     html += c.list.length || (c.meta.lead && c.meta.verdict) ? board(c.list, c.meta, c.example)
             : '<p class="empty">Nothing on the board in this update.</p>';
@@ -1277,7 +1278,7 @@
       failed('');
       return;
     }
-    cab.ask(q, { send: true }).then(function () {
+    cab.ask(q, { agent: 'triage-desk', send: true }).then(function () {
       toast('Asked. The answer is coming in the chat beside this page.');
       if (onAsked) onAsked();
     }, function (err) {
@@ -1366,11 +1367,8 @@
   /* The gift: the request that has waited longest for a person, with an answer drafted in the
      chat; or, when nobody is waiting, saved replies for what comes in most. */
   function waitedWords(since) {
-    var a = new Date(since), b = new Date();
-    a.setHours(0, 0, 0, 0);
-    b.setHours(0, 0, 0, 0);
-    var days = Math.round((b - a) / 86400000);
-    return days <= 0 ? 'since today' : days === 1 ? 'since yesterday' : days + ' days';
+    var ms = Date.now() - new Date(since);
+    return ms < 0 || isNaN(ms) ? 'since today' : ago(ms);
   }
 
   function giftParts(g) {
