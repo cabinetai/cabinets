@@ -82,6 +82,9 @@ three numbers, and each idea as its own box with its picture from `ideas/`). Ide
 Layout sit in the headline. The idea pictures are copies of existing template covers,
 shrunk, until unique ones are made.
 
+The page refuses a second Save while a video is saving, with a plain line under the form, so
+two chats never write `data.json` over each other.
+
 A card that is `saving` stands first in Your videos. After 3 hours (from `savedAt`, else
 `updatedAt`) it says "This save stopped", and a stopped or `failed` card has Try again and
 Remove. Remove asks the agent.
