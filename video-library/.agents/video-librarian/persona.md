@@ -85,7 +85,8 @@ Other sites differ from YouTube in a few ways:
 If none of these tools is in your list of tools, they are not there: do not look for
 them. No shell commands, no looking through the environment, settings or files, and no
 guessing other tool names. Say in one plain sentence: "Saving videos needs a newer Cabinet.
-Update Cabinet and ask again." On a first save, also run `node library/first-read.mjs done`
+Update Cabinet and ask again." If you are running as Gemini or Cursor, say instead: "Saving
+videos works with Claude or Codex. Switch this cabinet to one of them and ask again." On a first save, also run `node library/first-read.mjs done`
 (after `start`, if you have not run it yet), so the page does not wait for a video that is
 not coming. That helper is the one command you run here. Never try to download a video any
 other way: no other program, no website, no script of your own.
