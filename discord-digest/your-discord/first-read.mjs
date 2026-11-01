@@ -19,7 +19,8 @@
 //   node <app>/first-read.mjs latest @<file>        write data/latest.json from your script's file, its
 //                                                   copy in data/days/, and data/status.json
 //                                                   (schema, generatedAt and the day set here; a
-//                                                   top-level "why" goes to status.json)
+//                                                   top-level "why" goes to status.json), and
+//                                                   delete data/EXAMPLE-latest.json for good
 //   node <app>/first-read.mjs done                  mark the reading done, delete data/.work/
 // A <file> is relative to data/.work/.
 import fs from "node:fs";
@@ -27,7 +28,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCHEMA = "discord-digest";
-const LATEST_SCHEMA = "discord-digest/your-discord@1";
+const LATEST_SCHEMA = "discord-digest/your-discord@2";
 const GIFT_KINDS = { question: ["who", "channel", "since"], busy: ["name"], calm: [] };
 const OFFER_KINDS = { reply: ["who", "channel", "since"], catchup: ["name"], summary: ["name"] };
 const MAX_OFFERS = 3;
@@ -233,7 +234,9 @@ if (cmd === "start") {
   writeJson(path.join(dataDir, "latest.json"), l);
   fs.mkdirSync(daysDir, { recursive: true });
   writeJson(path.join(daysDir, ymd(n) + ".json"), l);
-  // Day files older than 30 days go.
+  // The made-up server is gone once a real catch-up exists: the two never mix.
+  fs.rmSync(path.join(dataDir, "EXAMPLE-latest.json"), { force: true });
+  // Day files older than 30 days go: Cabinet lists 500 files of a folder, oldest name first.
   for (const f of fs.readdirSync(daysDir)) {
     const m = /^(\d{4})-(\d{2})-(\d{2})\.json$/.exec(f);
     if (m && n.getTime() - new Date(+m[1], +m[2] - 1, +m[3]).getTime() > 30 * DAY) fs.rmSync(path.join(daysDir, f), { force: true });
@@ -242,7 +245,7 @@ if (cmd === "start") {
   console.log(`latest.json written, its copy in days/${ymd(n)}.json, and status.json`);
 } else if (cmd === "done") {
   lockReading();
-  const r =fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
+  const r = fs.existsSync(readingFile) ? readJson(readingFile) : fail("run start first");
   r.done = true;
   writeJson(readingFile, r);
   try { fs.rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { console.log("data/.work/ is busy: delete it in your next call"); }

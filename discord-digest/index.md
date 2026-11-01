@@ -1,44 +1,54 @@
 ---
 title: Discord Digest
 created: '2026-08-09T00:00:00Z'
-modified: '2026-10-12T00:00:00Z'
+modified: '2026-11-01T00:00:00Z'
 tags: [discord, channels, community, digest, showcase]
 order: 1
 ---
 # Discord Digest
 
-Every morning, what moved in your Discord server, the channels worth your time first.
+For the person who runs a Discord server: every morning, the questions nobody answered and
+what moved in each channel.
 
 The cabinet opens on it: **Your Discord**.
 
 ## What you get
 
-- **Catch up**: one line per channel, thread and forum post that moved, the ones worth your
-  time first. The two-hundred-message off-topic channel sits at the bottom, and the three
-  messages that actually mattered sit at the top.
+- **Unanswered questions**: questions and help requests nobody picked up, the longest
+  waiting first, with a draft answer one press away.
+- **Catch up by channel**: one line per channel, thread and forum post that moved, what
+  needs you first.
+- **Heated threads**: where people went back and forth or complained, and what about.
+- **New and active people**: who said hello and who talked most, as far as the channels
+  you chose show it.
 - **Ask about your server**: what a channel talked about, who asked for help, what was
   announced this week. The answer comes up in the chat.
-- **Ideas**: a weekly recap, a welcome for new members, the links people shared. Ask once,
-  or switch one on to run on a schedule.
+- **Ideas**: a weekly recap, draft answers, the links people shared. Ask once, or switch
+  one on to run on a schedule.
 
-**The channels you choose.** When you connect Discord you pick, channel by channel, what
-Cabinet may read, and that is all the digest covers. **One server**: the one you added
-Cabinet to. Direct messages are left out.
+## How it sees your server
+
+It is Cabinet's bot in one server, not your account. It reads the channels you choose, and
+a channel you did not choose does not exist for it. It sees no direct messages and no list
+of members. It cannot search old history, so the catch-up reads channels from the newest
+message back, and says what it skipped.
 
 ## Getting started
 
 1. On the page, press **Connect Discord**, or connect it from Integrations in Cabinet. You
-   add Cabinet to your server and choose its channels, once.
-2. A few minutes later your own server is there. It updates every morning at 9.
+   add the Cabinet bot to one server, which needs Manage Server there.
+2. Choose its channels in Integrations, then Discord, then Channels and permissions.
+3. A few minutes later your own server is there, reading back up to a week. It updates
+   every morning at 9.
 
-Until then, the page shows a made-up server, and says so.
+Until then, the page shows a made-up server, and says so. Your first catch-up removes it.
 
 ## It reads, and writes only where you allow
 
-The morning catch-up only reads, and nothing is posted in Discord unless you asked for it.
-Your team writes in Discord only when you ask for it in the chat, and only in channels you
-set to Write in Discord's settings in Cabinet. You see the exact words first, and they are
-posted after you say yes. Everywhere else, replies are drafted in the chat for you to send yourself.
+The morning catch-up and every routine only read. Nothing is posted on a schedule. In the
+chat you can ask for a post in a channel set to Write: you see the exact words first, and
+they are posted after you say yes, as the Cabinet bot. Everywhere else, answers are drafted
+in the chat for you to send yourself.
 
 ## What's inside
 
