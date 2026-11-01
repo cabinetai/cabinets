@@ -417,6 +417,12 @@
   .opts button .icon { width: 16px; height: 16px; }
   .opts button[aria-pressed="true"] { background: var(--page); color: var(--ink); font-weight: 650; box-shadow: 0 1px 2px rgba(15, 15, 15, .12); }
   .save-fine { margin: 0; color: var(--ink-3); font-size: 13.5px; }
+  .bring { list-style: none; margin: 0; padding: 0; }
+  .bring li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 14.5px; }
+  .bring li:first-child { padding-top: 0; border-top: 0; }
+  .bring li:last-child { padding-bottom: 0; }
+  .bring .icon { color: var(--ink-3); }
+  .bring b { color: var(--ink); font-weight: 600; }
   .howto p:not(.save-fine) { margin: 0; color: var(--ink-2); font-size: 14.5px; }
   .save-note { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 500; color: var(--ink); }
   .save-note .icon { width: 17px; height: 17px; color: var(--green); }
@@ -713,8 +719,6 @@
   /** Saving and questions go to the agent who keeps this library, not the cabinet's general assistant. */
   var AGENT = "video-librarian";
   var POLL_MS = 60000;
-  /** The size the agent asks about before saving, said on the page the same way. */
-  var BIG_MB = 500;
 
   /** Ready-made questions, the way someone asks them about what they saved. */
   var QUESTIONS = [
@@ -783,6 +787,9 @@
     txFind: null,
     txLines: {},
     copyWords: "",
+    /** cabinet.connectors.list() as last read, or null in a Cabinet that has none. */
+    connectors: null,
+    tiktokHow: false,
     saveOption: "video",
     saveNote: "",
     saveBad: false,
@@ -1778,7 +1785,7 @@
       '<p class="save-fine" id="save-hint"' + (state.saveHint ? "" : " hidden") + ">" + esc(state.saveHint) + "</p>" +
       (cloud ? '<p class="save-fine">' + esc(CLOUD_WORDS) + "</p>"
         : can && firstSave() ? '<p class="save-fine">The first save needs a free tool called yt-dlp. The chat shows you how.</p>' : "") +
-      (level === "S" ? "" : '<p class="save-fine">Links from ' + esc(SITE_WORDS.replace(" or ", " and ")) + '. Video plays here, sound only is much smaller, transcript is the words with their times. You see the size first, and anything over ' + BIG_MB + " MB waits for your yes. Someone else's video is for your own use; the rights stay with the creator.</p>") +
+      (level === "S" ? "" : '<p class="save-fine">Video plays here and stays if the post is deleted. Sound only is much smaller. You see the size first.</p>') +
       "</div>";
   }
 
@@ -1997,13 +2004,32 @@
         (canAsk() ? ' <button type="button" class="btn small quiet" data-act="ask" data-all data-q="' + esc(SUBJECTS_ASK) + '">Give them subjects</button>' : "") + "</p>" : "") + "</div>";
   }
 
-  // How to bring videos in: one by its link, all TikTok favorites from TikTok's data export, or all YouTube likes.
+  // Bring many videos in at once: YouTube likes through the connection, TikTok favorites from TikTok's data file.
+  function youTubeButton() {
+    if (!canAsk()) return "";
+    var c = (state.connectors || []).filter(function (x) { return x && x.id === "youtube"; })[0];
+    return c && c.state !== "connected" && c.canConnect
+      ? '<button type="button" class="btn small" data-act="youtube-connect">Connect YouTube</button>'
+      // Without a list to read (an older Cabinet), the agent checks the connection itself.
+      : '<button type="button" class="btn small" data-act="ask" data-all data-q="' + esc(YOUTUBE_ASK) + '">Bring them in</button>';
+  }
   function drawHowto() {
-    return '<div class="save-in"><div class="save-head"><span class="lane-icon" aria-hidden="true">' + icon("i-help") + '</span><h2 id="h-howto">Bring videos in</h2></div>' +
-      "<p><b>One video:</b> copy its link (in TikTok or Instagram press Share, then Copy link; on YouTube copy the address) and paste it into Save a video above. It downloads, plays here and gets subjects.</p>" +
-      "<p><b>All your TikTok favorites at once:</b> TikTok gives apps no list of them, so ask TikTok for your data. In the TikTok app: Settings and privacy, Account, Download your data, choose JSON. When the file arrives (hours to days), put it in this cabinet's imports folder and ask <b>" + esc(TIKTOK_ASK) + "</b>.</p>" +
-      "<p><b>All your YouTube likes at once:</b> connect YouTube in Integrations, then ask <b>" + esc(YOUTUBE_ASK) + "</b>. YouTube does not share Watch later or History with any app.</p>" +
-      '<p class="save-fine">Someone else\'s video is for your own use; the rights stay with the creator.</p></div>';
+    var head = '<div class="save-in"><div class="save-head"><span class="lane-icon" aria-hidden="true">' + icon("i-help") + '</span><h2 id="h-howto">Bring videos in</h2></div>';
+    if (onCloud()) return head + '<p class="save-fine">' + esc(CLOUD_WORDS) + "</p></div>";
+    return head + '<ul class="bring">' +
+      "<li>" + icon("s-youtube") + "<div><b>YouTube likes</b></div>" + youTubeButton() + "</li>" +
+      "<li>" + icon("s-tiktok") + "<div><b>TikTok favorites.</b> TikTok sends a data file, which can take days.</div>" +
+      '<button type="button" class="btn small" data-act="tiktok-how" aria-expanded="' + state.tiktokHow + '">Show me how</button></li></ul>' +
+      (state.tiktokHow ? "<p>In the TikTok app: Settings and privacy, Account, Download your data, choose JSON. When the file arrives, put it in this cabinet's imports folder and ask <b>" + esc(TIKTOK_ASK) + "</b>.</p>" : "") + "</div>";
+  }
+  function connectYouTube() {
+    cab.connectors.connect("youtube").then(function () { return cab.connectors.list(); }).then(setConnectors).catch(function (e) {
+      toast(e && e.message ? e.message : "YouTube could not be connected. Try again from Integrations.");
+    });
+  }
+  function setConnectors(items) {
+    state.connectors = Array.isArray(items) ? items : null;
+    paint();
   }
 
   /** Key points, clip ideas or quotes from every video, newest video first. */
@@ -2376,7 +2402,7 @@
       title: "Subjects", desc: "What your videos are about, with how many each. Press one to see only those videos.",
       show: function () { return saved().length > 0; }, when: "It shows once a video is saved." },
     howto: { cls: "save howto", draw: drawHowto, group: "library", icon: "i-help", w: 12, h: 2, min: [3, 2], grow: true,
-      title: "Bring videos in", desc: "How to save one video by its link, or all your TikTok favorites or YouTube likes at once." },
+      title: "Bring videos in", desc: "Your YouTube likes or your TikTok favorites, all at once." },
     library: { cls: "lane library", list: true, draw: drawLibrary, after: mountPlayers, group: "library", icon: "i-library", w: 8, h: 14, min: [4, 5],
       title: "Your videos", desc: "Each video you saved: play it, what it says, the key points with their times, the transcript." },
     points: { cls: "lane points", list: true, draw: drawPoints, group: "library", icon: "i-list", w: 4, h: 7, min: [3, 3],
@@ -3678,6 +3704,11 @@
     } else if (act === "retry" && slug) {
       var rv = videoBySlug(slug);
       if (rv) { state.saveOption = optionOf(rv.option) ? rv.option : "video"; save(rv.link); }
+    } else if (act === "youtube-connect") {
+      connectYouTube();
+    } else if (act === "tiktok-how") {
+      state.tiktokHow = !state.tiktokHow;
+      paint();
     } else if (act === "copy-quote" && slug) {
       copyQuote(slug, count(+el.getAttribute("data-sec")) || 0);
     } else if (act === "find-tx") {
@@ -3857,6 +3888,10 @@
       state.mineReady = true;
       paint();
     }).catch(function () {});
+    if (cab.connectors && typeof cab.connectors.list === "function") {
+      Promise.resolve(cab.connectors.list()).then(setConnectors).catch(function () {});
+      if (typeof cab.connectors.onChange === "function") cab.connectors.onChange(setConnectors);
+    }
     Promise.resolve(cab.here()).then(function (here) {
       state.here = here || null;
       document.documentElement.setAttribute("data-role", role());

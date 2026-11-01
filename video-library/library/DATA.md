@@ -82,6 +82,10 @@ three numbers, and each idea as its own box with its picture from `ideas/`). Ide
 Layout sit in the headline. The idea pictures are copies of existing template covers,
 shrunk, until unique ones are made.
 
+Bring videos in holds two rows. YouTube likes reads `cabinet.connectors.list()`: Connect YouTube
+when YouTube is not connected and this person can connect it, else Bring them in, which asks
+the agent. TikTok favorites has Show me how, which opens the steps on the page.
+
 The first save needs yt-dlp on the person's computer, and the tools say how to add it when it
 is missing. Until the first video lands, a line under Save says so. On Cabinet Cloud
 (`here.place` is `cloud`) Save is off and the page says saving needs Cabinet on a computer.
