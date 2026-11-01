@@ -3,117 +3,86 @@ title: How Your Instagram gets its words
 ---
 # How Your Instagram gets its words
 
-The page never talks to Instagram. The morning routine reads the account through Instagram's
-Graph API (through the sign-in Cabinet already holds; the run never sees a token), writes
-files here, and the page shows them. The full rules for each field are in the agent's persona
-(`.agents/account-reader/persona.md`).
+The page never talks to Instagram. The morning routine saves Instagram's answers (with curl,
+through the address Cabinet gives each run, never a token), `first-read.mjs compute` counts every
+number, the agent adds only its words, and `first-read.mjs latest` checks all of it and writes the
+files here. The agent's rules are in `.agents/account-reader/persona.md`.
+
+Instagram gives apps the profile's counts, each post's counts and numbers (views, reach, saves,
+shares), account numbers for up to 30 days at a time, and with the comments level the comments.
+It gives no followers per day, no hours when followers are online, and nothing from other accounts.
+So the page draws followers from the routine's own reads (`history`) and says so.
 
 | File | Written by | What it holds |
 |---|---|---|
 | `data/latest.json` | Morning Instagram Digest, every day at 9 | This morning's catch-up. Schema `instagram-digest/your-instagram@1`. |
 | `data/days/<YYYY-MM-DD>.json` | The same routine | A copy of each day's catch-up, for the date picker. Kept for 30 days. |
-| `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up account in the same shape, with every box filled. Shown, marked as an example, until `latest.json` exists. |
-| `data/status.json` | The same routine | `{ at, ok, why }`. `ok: false` means the last run could not read Instagram; the page shows `why` with a Try again button. |
-| `data/reading.json` | The first catch-up only, through `first-read.mjs` | `{ schema, startedAt, done, lines, recent, gift, offers }`: what the agent found, one line at a time, while the person watches. Schema `instagram-digest/reading@1`. |
-| `data/.work/` | The first catch-up, through `first-read.mjs` | The agent's own files for the helper. Deleted when the reading is done. |
-| `data/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `instagram-digest/layout-change@1`. The page offers it with Apply and No thanks; each person's layout stays in Cabinet (`cabinet.mine`), not in a file. |
-| `../imports/<YYYY-MM-DD>-<list>.md` | The agent, in a chat, when the person asks "Bring in my Instagram export" | One page per list read from Instagram's own copy of their data, which they put in the cabinet's `imports/` folder: `saved` and `likes` by default, `comments` and `messages` only when asked for by name. Each item's link, date, author and caption when there is one, newest first; from messages only the posts shared in them. `../imports/<YYYY-MM-DD>.md` says what was brought in. The page never reads them. |
+| `data/EXAMPLE-latest.json` | Nobody (it ships with the template) | A made-up account in the same shape, shown, marked as an example, until `latest.json` exists. |
+| `data/status.json` | `first-read.mjs` | `{ at, ok, kind, why }`. `ok: false` means the last run could not read Instagram, and `latest.json` stays as it was. `kind` is `signed-out`, `personal`, `not-connected`, `rate-limited`, `unreachable` or `other`; only `signed-out` and `personal` offer Connect Instagram again. A partial run is `ok: true` with a `why`. |
+| `data/reading.json` | The first catch-up only | `{ schema, startedAt, done, lines, recent, gift, offers }`, told while the person watches. Schema `instagram-digest/reading@1`. |
+| `data/.work/` | Every catch-up | Instagram's answers under fixed names (`me.json`, `media.json`, `media-2.json`, `post-<id>.json`, `comments-<id>.json`, `acc-*.json`), `computed.json` and the agent's `words.json`. Deleted by `done`. |
+| `setup.md` | The person, or the agent when told in a chat | What they post, their goal, how they sound, what to avoid. |
+| `data/layout-change.json` | The agent, in a chat | Boxes to `add` or `remove`, with `at`, `for` and a `note`. Schema `instagram-digest/layout-change@1`. The page offers it with Apply and No thanks; each layout stays in `cabinet.mine`. |
+| `../imports/<YYYY-MM-DD>-<list>.md` | The agent, in a chat | One page per list read from Instagram's copy of the person's data. The page never reads them. |
 
-`latest.json` in short: `generatedAt`, `since`, `account` `{ username, name, followers,
-follows, posts, url }`, `readComments` (false when Instagram is connected to read only, so the
-comment boxes say how to allow comments instead of "nobody is waiting"), `totals` `{ likes,
-comments, views, newPosts, waiting }` (`likes` and `views` are what the recent posts gained
-since the last catch-up, left out on the first one), `insights` (below), and one list for each
-box:
+`latest.json` in short: `generatedAt`, `since` (the read it is compared with), `timeZone`,
+`account` `{ name, username, userId, followers, following, posts, url }`, `readComments` (false at
+the read level), `commentsMissed` (posts whose comments failed this run, so "nobody is waiting" is
+not claimed), `totals` `{ newPosts, comments, waiting, views, likes, saves, shares, followers }`
+(the gains are left out of a first catch-up, `followers` can be below 0), and:
 
-| List | Box | Each item |
+| Part | Box | What it holds |
 |---|---|---|
-| `posts` | How your posts did | `id`, `mediaId`, `kind` (reel, photo, video, carousel), `title` (the caption's start), `published`, `views`, `reach`, `likes`, `comments` (Instagram's count), `viewerComments` (by others), `saves`, `shares`, `gained` `{ views, likes, comments }` (left out on the first catch-up), `mark` best, quiet or empty, `gist`, `url` |
-| `waiting` | Waiting for an answer | `id`, `who` (`@username`), `post`, `mediaId`, `commentId`, `gist`, `short`, `since`, `likes`, `url` |
-| `recent` | Latest comments | `id`, `who`, `post`, `gist`, `at`, `url` |
-| `asks` | What people keep asking | `id`, `what`, `people` (different authors), `posts` (titles), `answered`, `url` |
-| `next` | Ideas for your next posts | `id`, `title`, `format`, `why`, `from` (the `asks` id behind it) |
+| `waiting` | Waiting for your answer | `id`, `who`, `post`, `mediaId`, `commentId` (always the top-level comment, where a reply goes), `gist`, `short`, `since`, `likes`, `url`. A thread that failed to read keeps yesterday's items. |
+| `posts` | How your posts did, Headline | The 10 newest, then the best or quiet post with `older: true`: `id`, `mediaId`, `kind`, `title` (`""` without a caption; the page names it by its day), `published`, `views`, `reach`, `likes`, `comments`, `viewerComments`, `saves`, `shares`, `gained`, `mark`, `firstDay` `{ views, usual, pace }`, `gist`, `url`. A number Instagram did not send is `null`. |
+| `next` | Ideas for your next posts | `id`, `title`, `why`, `format`, `from` (a post or an ask, shown as "From: ...") |
+| `history` | Your account | `{ day, followers, following, posts, viewsGained }` for each morning read, at most 30 |
+| `insights` | Your account | `{ ok: true, until, last7, last28, daily, countries }`, each span `{ from, views, reach, engaged, interactions, likes, comments, saves, shares, linkTaps, follows, unfollows }`, `daily` `{ day, reach }`; or `{ ok: false, why }` |
+| `spans` | Your account | `last7`, `last28`: `{ from, posts, views, likes, comments, saves, shares, top }` for posts from those days, `top` the four most saved and shared, `partial: true` when the reads stopped short |
+| `works` | What works for you | Over up to 40 posts at least 3 days old: `posts`, `measure` (`kept`, or `likes` without Instagram's numbers), `usual`, and `format`, `weekday`, `hour`, each `{ label, posts, median }`, groups of 3 or more only |
+| `asks` | What people keep asking | `id`, `what`, `people`, `posts`, `answered`, `url` |
+| `recent` | Latest comments | `id`, `who`, `post`, `text`, `at`, `url`: others' newest, at most 10 |
 
-`insights` holds Instagram's numbers, up to two days late: `{ ok: true, until, last7, last28,
-daily, online, countries }`. `until` is the last day Instagram has a number for; `last7` and
-`last28` are each `{ from, views, reach, engaged, interactions, likes, comments, saves,
-shares, linkTaps, newFollowers }`; `daily` is `{ day, reach }` for each day; `online` is
-`{ hour, followers }` (the hour in the person's own time) and `countries` the top 5
-`{ code, followers }`. A number Instagram has not sent, or no longer offers, is `null`, and
-the page says "Not there yet" in its place, never a 0. The routine asks for the numbers in
-small groups, so one Instagram turns down never costs the others. Under 100 followers
-Instagram sends no follower numbers at all (`newFollowers`, `online`, `countries`), and the
-page says why. Without the numbers it is
-`{ ok: false, why: "not-allowed" }` or `why: "unavailable"`, and the Account numbers box shows
-the public counts from `account` and `posts` with one quiet line on what is missing.
+`known` is for the routine: each post read with its counts, `own` (the account's own comments),
+`at` and `day1`, at most 400. An older post keeps these numbers, so a run spends calls only on the
+newest posts and those with none yet.
 
-`me` (the account's id and username) and `known` (each post's counts at the last catch-up, so
-the next one can tell what changed) are for the routine; the page ignores them. A `url` on
-Instagram's own address (`https://www.instagram.com/p/...` or `/reel/...`) becomes an "Open on
-Instagram" link. Instagram has no link to one comment, so a comment opens its post.
+How compute counts, so the page's words stay true:
 
-The page is a 12-column grid of boxes on a light grey, laid out like the Gmail front desk:
-Headline, Waiting for an answer, Latest comments, Account numbers, How your posts did, What
-people keep asking, Ideas for your next posts, Ask about your Instagram, Ideas for your
-Instagram and Keep more of your Instagram in Cabinet to start with, and more to add (four numbers, People reached only with Instagram's
-numbers, and each idea as its own box with its picture). The headline is a band
-in Instagram's purple to pink to orange, with the connection, Catch up now, Ideas and Layout
-in it; without the headline they move to a slim bar on top. Each person moves, resizes, adds
-and removes boxes (mouse, finger or keyboard, with Undo), or asks the agent through Layout,
-which answers with `layout-change.json`. An idea offers itself at the foot of its box when the
-day's account says it would help.
+- `gained`: a post in the baseline's `known` always subtracts. Only one missing from it and posted
+  since that read counts whole.
+- The baseline is the last catch-up. When that was today it is the last day file before today, so
+  a second press counts nothing twice. Another account has no baseline; a new username on the same
+  account keeps it.
+- `best`: the most views gained, or likes without views. On a first catch-up, the most per day
+  since posting, never a post under a day old.
+- `quiet`: the smallest reach among posts 7 to 60 days old, only when under half their middle.
+- A comment is `answered` when the account replied in its thread after it. Hidden comments are left
+  out. Captions and comments are cleaned, never refused.
 
-The page writes its own headline from `account`, `totals`, `posts` and `waiting`: the
-account's name, then "1,846 likes and 64 comments from others since yesterday. 5 questions are
-waiting for your answer.", or "A quiet day: nothing new on your posts since the last
-catch-up.", and a line of followers, posts and the handle. On the first catch-up there is
-nothing to compare with: `first-read.mjs latest` drops the likes and views gained and every
-post's `gained`, and while at most one day is kept and nothing gained a like or a view the
-page shows the counts instead ("64 comments from others since yesterday, across your last 10
-posts."), never "0 likes since yesterday". With Instagram's numbers, the people reached on
-each of the 28 days stand on its right, the last seven solid.
+The page is a 12-column grid of white sheets on Instagram's pale background, in the system font
+Instagram's web uses. Under the band, Waiting, ideas and posts stand on the left, Your account,
+asks and comments on the right, then What works for you, Ask and Keep. On a phone: band, Waiting,
+Your account, then the rest. With no posts the account takes the row, and boxes with nothing to
+show stay off the page. Each person moves, resizes, adds and removes boxes, or asks through Layout.
 
-Instagram gives apps no saved posts, likes or messages, so the Keep more of your Instagram in
-Cabinet box (`keep`) says, in four steps, how to ask Instagram for a copy of the data and bring
-it in, and its Show me how opens a guide with a drawing of each screen (Settings, Accounts
-Center, Download your information, the email). It is the same for everyone and reads no file.
-It is on the page for anyone new; a layout saved before it came gets it from Add a box. The Ask
-box has the question "Bring in my Instagram export", which goes to the chat even before
-Instagram is connected, since it reads only the export.
+The band is Instagram's gradient with its stops darkened so white stays over 5:1 at every point.
+Its one strong button is white; everywhere else blue, `#0074CC` (4.81:1 with white), is the action
+colour. One strong button shows at a time: Connect or Catch up now, then the day's own: "Draft my
+5 replies", "Plan a follow-up to <post>", "Plan my next post" or "Plan my first post".
 
-Nothing on the page writes on Instagram. Every button asks the agent in the chat for a
-summary, a plan or a draft to copy. The agent replies to a comment, or hides one, only when
-the person asks for it in the chat, with Instagram connected to Allow comments, after showing
-the exact words and getting a yes.
+Before Instagram is connected the band holds Connect Instagram, one line and See the steps, which
+opens the side panel. Sign-in comes back by itself. A personal account is refused by Cabinet's own
+window; if one reaches a run, `compute` stops with `kind: personal`. The pictures are drawn by the
+page's script, so they show on Cloud too, as are the ideas' pictures, written into `index.html`.
 
-The first catch-up (no `latest.json` yet) is told as it happens. The agent runs
-`node your-instagram/first-read.mjs start`, then `push '<line>'` after each look at Instagram
-("**23 new comments** since yesterday, 5 of them questions"), `recent @recent.json` very
-early, `gift @gift.json` once, `offer @offer.json` up to twice, `latest @latest.json` and
-`done`. The helper writes `reading.json` atomically under a lock, refuses an empty, broken or
-repeated line, and checks every name, post, time and link (no raw ids, no em-dash). The page
-shows the lines one by one under "Reading your account", the newest comments at once under
-them as "Just now on your account", and beside them "While I read, you can...": the gift
-`{ kind: "waiting", who, post, mediaId, commentId, since, gist, link, at }` ("Draft my reply"
-asks the agent for a draft in the chat, never posted) or `{ kind: "calm" }` ("Give me three
-ideas"), then the `offers`: `{ kind: "asked", what, people }` or `{ kind: "next" }`. After the
-reading, the gift and the offers not yet used wait under the page's boxes for 3 days, or until
-put away; an offer of ideas steps aside once the Ideas for your next posts box shows the day's
-ideas. A reading older than 20 minutes is ignored. Without `reading.json` the reading screen
-shows "Opening your account..." until the first line, so with no lines at all it stays on that
-until the catch-up is done. Every later catch-up shows "Catching up..." on its button.
+The first catch-up (no `latest.json`) is told as it happens: lines from `push`, the newest comments
+from `recent`, then the `gift` and `offers`. After it they wait under the boxes for 3 days. A
+reading older than 20 minutes is ignored. Later catch-ups show "Catching up..." on the button.
 
-`first-read.mjs` and the page keep the same limits, each said on both sides: who is at most 80
-characters, a post's name at most 120, a gist at most 140 (120 for one of the newest
-comments) and an offer's question at most 100; at most 5 newest comments and 2 offers; a day
-file is `data/days/<YYYY-MM-DD>.json`, kept for 30 days. The helper takes only a post's link
-(`https://www.instagram.com/p/...`, `/reel/...` or `/tv/...`); the page opens those and the
-profile's, under 400 characters. Change one, change both.
+`first-read.mjs` and the page keep the same limits: who 80 characters, a post's name 120, a gist
+140, an offer 100; at most 5 newest comments and 2 offers; day files kept 30 days. Change one,
+change both.
 
-The page's ideas show the same template covers YouTube Digest uses, shrunk to about 7KB each
-and written into `index.html` itself, until unique ones are made. A page shown to anyone but
-its owner on Cloud cannot load a file beside it, so a picture in its own file would stay blank
-for them.
-
-If the morning run was missed (the computer was asleep at 9), the page runs it once when it
-opens, from the schedule in `../.jobs/morning-instagram-digest.yaml`.
+If the morning run was missed, the page runs it once when it opens, from the schedule in
+`../.jobs/morning-instagram-digest.yaml`.
