@@ -181,9 +181,6 @@
   /* An icon in place of the picture, on a soft tile. */
   .art-icon { display: grid; place-items: center; border-radius: 18px; background: var(--panel); }
   .art-icon .icon { width: 44px; height: 44px; color: var(--ink-3); }
-  .steps { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; padding: 0; list-style: none; color: var(--ink-2); font-size: 15px; }
-  .steps li { display: flex; align-items: center; gap: 8px; }
-  .steps .icon { color: var(--green); width: 18px; height: 18px; }
 
   .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: 14px; background: var(--red-tint); color: var(--ink); }
   .notice .icon { color: var(--red-ink); margin-top: 2px; }
@@ -426,7 +423,6 @@
   .box.headline .card-hero { grid-template-columns: minmax(0, 1fr) auto; gap: 28px; margin-top: 16px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
   .box.headline .card-hero > .art { order: 2; }
   .box.headline .card-hero h2 { font-size: clamp(24px, 2.8vw, 34px); line-height: 1.12; }
-  .box.headline .steps .icon { color: var(--green); }
   .box.headline .notice, .box.headline .ribbon { margin-top: 16px; }
   /* The example ribbon right under the band, in the grid. */
   .grid > #ribbon { align-self: center; }
@@ -1642,7 +1638,6 @@
     // A card says what is going on in place of the headline; notes go under it.
     var card = "";
     var notes = "";
-    var guide = "";
     var told = false;
 
     if (V2 && s === "not-available-here") {
@@ -1654,24 +1649,18 @@
       card = cardHero("alert", "TikTok needs you",
         '<p class="lead">' + esc(g && g.problem && g.problem.text ? g.problem.text : "TikTok needs you to sign in again.") + "</p>" +
         (g && g.canConnect
-          ? '<div class="actions">' + connectButton("Sign in again", "Signing in...") + "</div>"
+          ? '<div class="actions">' + connectButton("Sign in again", "Signing in...") + stepsButton() + "</div>"
           : '<p class="fine">Ask the person who owns this cabinet to sign in to TikTok again.</p>') +
         (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") + ageHtml());
-      // Signing in again is the same connect window, so its steps show too.
-      if (g && g.canConnect) guide = guideHtml(["connect"]);
     } else if (V2 && s === "not-added") {
-      var canConnect = g && g.canConnect;
+      // The first press is the button and one line. The steps wait in the side panel.
+      var then = scheduleWords();
       card = cardHero(null, "See how your TikTok is doing",
-        '<p class="lead">Connect TikTok and every morning this page shows how your recent videos did, which one moved most, and ideas for the next one.</p>' +
-        (canConnect
-          ? '<div class="actions">' + connectButton("Connect TikTok", "Connecting...") +
-            '<span class="fine">' + (state.connecting ? "Finish in the window Cabinet opened." : "Sign in to TikTok. About a minute.") + "</span></div>"
+        (g && g.canConnect
+          ? '<div class="actions">' + connectButton("Connect TikTok", "Connecting...") + stepsButton() + "</div>" +
+            '<p class="fine">' + esc(state.connecting ? "Finish in the window Cabinet opened." : "Sign in to TikTok, about a minute. " + (then ? "Your page updates " + then + "." : "Cabinet only reads.")) + "</p>"
           : '<p class="fine"><b>Ask the person who owns this cabinet to connect TikTok.</b></p>') +
-        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : "") +
-        '<ul class="steps"><li>' + icon("i-check") + "Only reads, never posts</li><li>" + icon("i-check") + "Every morning at 9</li>" + (state.example ? "<li>" + icon("i-check") + "Below: an example from a made-up account</li>" : "") + "</ul>");
-      // Before TikTok is connected, every step, with a picture of each screen. Someone who
-      // cannot connect gets only the steps they can take.
-      guide = guideHtml(canConnect ? ["connect", "keep"] : ["keep"]);
+        (state.connectNote ? '<p class="fine">' + esc(state.connectNote) + "</p>" : ""));
     } else if (showReading()) {
       card = readingHtml();
     } else if (readingNow() && !state.example) {
@@ -1697,7 +1686,6 @@
       notes = runNoteHtml();
     }
     if (!told) notes += failureHtml() || partialHtml();
-    notes += guide;
     // With the headline box on the page all of this is said inside its band, so the band stays
     // the first thing on the page: a card in place of the headline, notes under it. The first
     // catch-up's reading fills the page instead, so it stays up here.
@@ -1711,9 +1699,14 @@
       icon(state.connecting ? "i-refresh" : "i-play", state.connecting ? "spin" : "") + (state.connecting ? busy : idle) + "</button>";
   }
 
+  /** Opens how connecting works, with a picture of each screen, in the side panel. */
+  function stepsButton() {
+    return '<button type="button" class="btn" data-act="steps" aria-haspopup="dialog">See the steps</button>';
+  }
+
   // ── The setup guide ────────────────────────────────────────────────────
-  // Every step a person takes to connect TikTok and to keep its videos in Video Library, each
-  // with a picture of what they will see (drawn from TikTok's and Cabinet's real screens, with
+  // Every step a person takes to connect TikTok or to keep its videos in Video Library, each in
+  // the side panel, with a picture of what they will see (drawn from TikTok's and Cabinet's real screens, with
   // a made-up account). The Keep your TikToks in Cabinet box says the same steps by their heads.
 
   /**
@@ -1753,11 +1746,11 @@
         '<rect x="22" y="82" width="88" height="10" rx="5" fill="#d0d0d0"/><rect width="600" height="380" fill="#0f0f0f" opacity=".3"/>' +
         '<rect x="100" y="26" width="400" height="328" rx="18" fill="#fff"/>' + logo(128, 50) + body;
     }
-    /** A browser window showing addr, picked: the address selected. */
-    function browser(addr, picked, body) {
+    /** A browser window showing addr. */
+    function browser(addr, body) {
       return '<rect x="20" y="16" width="560" height="348" rx="12" fill="#fff" stroke="#d9d9d9"/><path d="M20 28a12 12 0 0 1 12-12h536a12 12 0 0 1 12 12v32H20z" fill="#ececec"/>' +
         '<circle cx="40" cy="38" r="5" fill="#ff5f57"/><circle cx="56" cy="38" r="5" fill="#febc2e"/><circle cx="72" cy="38" r="5" fill="#28c840"/>' +
-        '<rect x="94" y="26" width="466" height="24" rx="12" fill="#fff"/>' + (picked ? '<rect x="106" y="30" width="400" height="16" rx="3" fill="#c7dbfb"/>' : "") +
+        '<rect x="94" y="26" width="466" height="24" rx="12" fill="#fff"/>' +
         t(110, 43, addr, 13, "#0f0f0f") + body;
     }
     /** A phone at x, w wide, its screen in bg. */
@@ -1783,7 +1776,7 @@
         pill(128, 246, 344, 50, 25, "#0f0f0f", "Continue with TikTok", 16, "#fff") +
         mark(120, 238, 360, 66, 33))),
 
-      approve: svg(browser("https://www.tiktok.com/v2/auth/authorize/", false,
+      approve: svg(browser("https://www.tiktok.com/v2/auth/authorize/",
         logo(278, 72) +
         t(300, 146, "Cabinet would like to access", 18, "#161823", BMID) +
         t(300, 168, "your TikTok account", 18, "#161823", BMID) +
@@ -1795,24 +1788,9 @@
         pill(180, 308, 112, 40, 6, "#f1f1f2", "Cancel", 15, "#161823") + pill(308, 308, 112, 40, 6, "#fe2c55", "Continue", 15, "#fff") +
         mark(301, 301, 126, 54, 10))),
 
-      address: svg(browser("localhost:3455/callback/?code=Xk2fQ9pLm4wA7sTdc...", true,
-        mark(88, 21, 478, 34, 17) +
-        '<path d="M268 110h44l20 20v66h-64z" fill="#f1f1f1" stroke="#c4c4c4" stroke-width="2"/>' +
-        '<circle cx="288" cy="150" r="3" fill="#9a9a9a"/><circle cx="312" cy="150" r="3" fill="#9a9a9a"/>' +
-        '<path d="M286 176c6-6 22-6 28 0" fill="none" stroke="#9a9a9a" stroke-width="3" stroke-linecap="round"/>' +
-        t(300, 240, "This site can’t be reached", 22, "#202124", MID) +
-        t(300, 268, "localhost refused to connect.", 14, "#5f6368", MID) +
-        pill(262, 296, 76, 34, 17, "#1a73e8", "Reload", 13, "#fff"))),
-
-      paste: svg(sheet(
-        t(128, 128, "Paste the address.", 21, "#0f0f0f", B) +
-        t(128, 158, "After you authorize Cabinet, TikTok opens a") +
-        t(128, 178, "page that does not load. Copy the address from") +
-        t(128, 198, "your browser’s address bar and paste it here.") +
-        '<rect x="128" y="218" width="344" height="44" rx="10" fill="#f7f7f7" stroke="#d9d9d9"/>' +
-        t(144, 245, "http://localhost:3455/callback/?code=Xk2fQ9pLm...", 13, "#0f0f0f") +
-        pill(128, 280, 344, 48, 24, "#0f0f0f", "Finish", 16, "#fff") +
-        mark(120, 272, 360, 64, 32))),
+      back: svg(browser("localhost:3455/callback/",
+        t(300, 196, "You can close this tab and go back to Cabinet.", 19, "#161823", MID) +
+        t(300, 228, "אפשר לסגור את הלשונית ולחזור ל־Cabinet.", 17, "#161823", MID))),
 
       share: svg(
         // The video, with Share on the right.
@@ -1889,12 +1867,9 @@
       { shot: SHOTS.approve, head: "Log in to TikTok and press Continue.",
         text: "TikTok shows what Cabinet asks for: your profile, your videos and their numbers. Leave it all on, then press Continue.",
         alt: "TikTok's page asking to let Cabinet in, for the account sunny.bakery, with the Continue button marked." },
-      { shot: SHOTS.address, head: "Copy the whole address from the address bar.",
-        text: "TikTok then lands on a page that will not load. That is expected. Click the address bar, select all of it and copy it: it starts with localhost:3455/callback/ and holds the code Cabinet needs.",
-        alt: "A browser page that did not load, its address bar showing localhost:3455/callback/?code= and more, marked." },
-      { shot: SHOTS.paste, head: "Paste it into Cabinet and press Finish.",
-        text: "Go back to the Cabinet window and paste it where it says Paste the address. Press Finish. Your first catch-up starts on this page.",
-        alt: "Cabinet's window Paste the address, with the address pasted and the Finish button marked." }
+      { shot: SHOTS.back, head: "TikTok sends you back to Cabinet. Close the tab.",
+        text: "There is nothing to copy or paste. Your first catch-up starts on this page by itself.",
+        alt: "A browser tab saying you can close it and go back to Cabinet." }
     ] },
     keep: { note: "One video at a time, or all your favorites at once.", steps: [
       { shot: SHOTS.share, head: "One video: in TikTok, press Share, then Copy link.",
@@ -1913,7 +1888,7 @@
   };
 
   /** The guide for some of its parts, its steps numbered from 1 across the parts shown. A part with no title of its own has its box's. */
-  function guideHtml(parts, panel) {
+  function guideHtml(parts) {
     var n = 0;
     var body = parts.map(function (id) {
       var part = GUIDE[id];
@@ -1924,10 +1899,13 @@
             '<img class="g-shot" src="' + st.shot + '" alt="' + esc(st.alt) + '" width="600" height="380" decoding="async" /></li>';
         }).join("") + "</ol></section>";
     }).join("");
-    return '<div class="guide' + (panel ? " panel" : "") + '">' + body + "</div>";
+    return '<div class="guide panel">' + body + "</div>";
   }
   function paintGuidePanel() {
-    $("drawer-body").innerHTML = guideHtml(["keep"], true);
+    $("drawer-body").innerHTML = guideHtml(["keep"]);
+  }
+  function paintStepsPanel() {
+    $("drawer-body").innerHTML = guideHtml(["connect"]);
   }
 
   /** A catch-up that worked but could not read everything says what is missing, quietly. */
@@ -2541,7 +2519,8 @@
   var DRAWERS = {
     ideas: { title: "Ideas for your account", sub: "One tap to ask now, or to have it done for you on a schedule.", icon: "i-bulb", paint: paintIdeasPanel },
     add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker },
-    guide: { title: "Setup guide", sub: "Every step, with a picture of each screen.", icon: "i-play", paint: paintGuidePanel }
+    guide: { title: "Setup guide", sub: "Every step, with a picture of each screen.", icon: "i-play", paint: paintGuidePanel },
+    steps: { title: "How connecting works", sub: "Every step, with a picture of each screen.", icon: "i-play", paint: paintStepsPanel }
   };
   function paintDrawer() {
     var kind = DRAWERS[state.drawerKind];
@@ -3939,6 +3918,8 @@
       openDrawer("ideas");
     } else if (act === "guide") {
       openDrawer("guide");
+    } else if (act === "steps") {
+      openDrawer("steps");
     } else if (act === "add-box") {
       openDrawer("add");
     } else if (act === "add-this") {
