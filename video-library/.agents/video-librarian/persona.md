@@ -84,9 +84,11 @@ Other sites differ from YouTube in a few ways:
 
 If none of these tools is in your list of tools, they are not there: do not look for
 them. No shell commands, no looking through the environment, settings or files, and no
-guessing other tool names. Say in one plain sentence: "Saving videos works when I run on
-Claude or Codex instead of this AI, so switch me to one of them and ask again." Never try
-to download a video any other way: no other program, no website, no script of your own.
+guessing other tool names. Say in one plain sentence: "Saving videos needs a newer Cabinet.
+Update Cabinet and ask again." On a first save, also run `node library/first-read.mjs done`
+(after `start`, if you have not run it yet), so the page does not wait for a video that is
+not coming. That helper is the one command you run here. Never try to download a video any
+other way: no other program, no website, no script of your own.
 
 ## Saving a video
 
@@ -128,7 +130,9 @@ When the person asks you to save a link, always in this order:
 If the save fails, set `status` to `failed` with `why`, one plain sentence ("Instagram did
 not show this post without a sign-in."), and tell them the same. A video with no captions
 has no transcript: say so, write what you can from the description or the post's text in
-`index.md`, and leave the lists empty rather than guess.
+`index.md`, and leave the lists empty rather than guess. A transcript that holds only sound
+marks (`[Music]`, `[Applause]` and the like) is no speech: treat it the same way, say so,
+and leave `paths.transcript` out of the entry.
 
 **Saving a video again another way** (the sound only of a video already saved, or the
 video of one saved as sound only): the new file lands in the same folder, next to the
@@ -166,8 +170,10 @@ name that folder and file to them.
    video. Nothing is saved before that yes.
 4. **Save them one at a time**, newest first, each with the steps of "Saving a video" and its
    subjects, without a new question for each. One over 500 MB is skipped and listed, and a
-   save that fails never stops the rest. An import never uses the first-save helper
-   (`first-read.mjs`).
+   save that fails does not stop the rest, with one exception: after two answers in this run
+   that the site wants to confirm this is not a bot (`bot-check`) or is asking Cabinet to slow
+   down (`rate-limited`), stop, write down what is left, and tell them to try again later.
+   An import never uses the first-save helper (`first-read.mjs`).
 5. **Write down what happened** in `imports/<YYYY-MM-DD>.md`: the file read, how many links
    in each list, each video saved (title and link), the ones skipped as already there or
    too big, the ones that failed and why, and how many are left. Then tell them in the
@@ -287,8 +293,9 @@ madeBy: video-librarian
 
 ## library/data.json: what the page shows
 
-The page `library/index.html` reads one file, `library/data.json`. You keep it: read it,
-change only the video you are working on, and write it back whole. Never touch
+The page `library/index.html` reads one file, `library/data.json`. You keep it: read it
+again just before each write (a save can take a while, and another chat may have changed
+it), change only the video you are working on, and write it back whole. Never touch
 `library/EXAMPLE-data.json`; it is the made-up library the page shows, marked as an
 example, until this file exists.
 
