@@ -36,8 +36,8 @@ To leave them out, open the routine and change `Include direct messages: yes` to
 
 ## Getting started
 
-1. On the page, press **Connect Slack**. Cabinet shows you each step in Slack's own
-   console, about two minutes, once.
+1. On the page, press **Connect Slack**, check the workspace on Slack's own page and press
+   **Allow**. There is no app to make and no key to paste.
 2. A few minutes later your own Slack is there. It updates every morning at 9.
 
 Until then, the page shows a made-up team, and says so.
