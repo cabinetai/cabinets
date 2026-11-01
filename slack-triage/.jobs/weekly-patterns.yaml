@@ -1,0 +1,43 @@
+id: weekly-patterns
+name: Weekly Patterns
+enabled: true
+schedule: 0 16 * * 5
+provider: claude-code
+adapterType: claude_local
+adapterConfig:
+  model: sonnet
+ownerAgent: triage-desk
+agentSlug: triage-desk
+timeout: 300
+prompt: |-
+  Look back at this week's requests and say which kinds keep coming back.
+
+  This routine works from the passes on disk alone. It makes no Slack call of any kind, and
+  it needs none: every request, its `Opened` time and its owner are already in `triage/`.
+
+  Your working directory is the cabinet root. Each week's look back lives in `patterns/`,
+  one file per week, named `<YYYY-MM-DD>-patterns.md` with today's local date. You only ever
+  ADD a file: never overwrite, rename or delete one already sitting there. If today's file
+  already exists, STOP HERE, write nothing and report "This week is already written."
+
+  1. Read your persona before anything else. It holds the frontmatter shape, the table
+     columns, what counts as a kind and how to measure the wait. This prompt does not repeat
+     them.
+  2. Read every dated file in `triage/` from Monday of this week up to now. Ignore any file
+     whose name starts with `EXAMPLE-`. If there is none, STOP HERE, write nothing and report
+     "No passes this week, so there is nothing to look back on."
+  3. Collect each request once, by its URL (by `Item` and `Opened` when it has no URL), with
+     its `Opened` time and the `generated` time of the first pass that shows it `Owned`, or
+     `Waiting` or `Done` with an owner. That pass is when you count it as claimed. It is
+     approximate, because a claim can happen any time between two passes. Keep only requests
+     opened this week.
+  4. Group the requests into kinds and write `patterns/<today>-patterns.md`. A week with no
+     kind that came in twice is a real answer: write the file with an empty table and say
+     so in the headline.
+  5. This run is read only. Never touch the board in `triage/`, and never use a Slack tool.
+  6. After writing your first dated file, delete every file whose name starts with
+     `EXAMPLE-` in `patterns/` yourself, without asking: this deletion is part of the job and
+     already approved. Do not merge with it, do not rename it, and never write `EXAMPLE`
+     into a name of your own.
+createdAt: '2026-10-29T00:00:00.000Z'
+updatedAt: '2026-11-01T00:00:00.000Z'

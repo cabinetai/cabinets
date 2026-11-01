@@ -4,33 +4,96 @@ enabled: true
 schedule: 0 9,13,17 * * 1-5
 provider: claude-code
 adapterType: claude_local
+adapterConfig:
+  model: sonnet
 ownerAgent: triage-desk
 agentSlug: triage-desk
-timeout: 600
+timeout: 900
 prompt: |-
   Bring the triage board up to date.
 
   Your working directory is the cabinet root. Every pass lives in `triage/`, one file per
   run, named `<YYYY-MM-DD>T<HH-MM-SS>-triage.md`, the local time you ran and then that exact
   postfix. The page reads the folder, sorts by the name and opens the newest, so a name in
-  any other shape is a pass nobody will see. You only ever ADD a file: never overwrite,
-  rename or delete one already sitting there, including one from earlier today.
+  any other shape is a pass nobody will see. You ADD a file: never overwrite or rename one
+  already sitting there, including one from earlier today. The only files you delete are
+  passes more than 60 days old, at the end of the run: Cabinet lists 500 files of a folder,
+  oldest name first, so a folder that only grows would hide the newest pass.
+
+  This run has 900 seconds, and Slack's calls cost very different amounts of them. Search
+  first, always. These numbers are limits, not targets:
+  - Search is fast, 100 messages a page. It does nearly all the work.
+  - `slack_read_thread` and `slack_read_channel` cost about a minute each and return 15
+    messages. At most 5 thread reads a run. Never read a channel in this routine.
+  - `slack_get_reactions` is a normal speed call. At most 20 a run, for New rows only.
+  Print the time with `date` at the start. When 12 minutes have gone, stop looking and write
+  what you have. If you cannot finish everything, the board you write is still the best
+  one anyone has: carry the rows you did not get to, unchanged, and say what is left in
+  `status`, for example "3 rows not checked, next update picks them up".
 
   1. Read your persona before anything else. It holds the frontmatter shape, the table
-     columns, the closed vocabularies and the tone. This prompt does not repeat them.
-  2. Read the newest file already in `triage/` and carry its board forward. This file is the
-     whole board, not what arrived since. Keep every unfinished item, move the ones the
-     channel moved, and drop only what has been Done for a full day.
-  3. With your Slack tools, read the channels you are allowed to read since the last pass,
-     thread replies included. Skip direct messages and private channels entirely.
-  4. This run is read only, and it assigns nothing. An owner goes in a row only when that
-     person said in the channel that they would take it. Do not post, reply in a thread,
-     react, or mark anything read.
-  5. If you have no Slack tool, or Slack is not connected, or the call fails, STOP HERE.
-     Write nothing. Leave `triage/` exactly as you found it, example and all. Report:
-     "Slack is not reachable. I would have read the channels you allowed since the last pass
-     and brought the board up to date." Then exit.
-  6. On the first run that does reach Slack, write your dated file and then delete
-     `triage/EXAMPLE-triage.md`. It is a demo, not a past pass, and it must not sit in the
-     list beside real ones. Do not merge with it, do not rename it, and never write
-     `EXAMPLE` into a name of your own.
+     columns, the closed vocabularies, who counts as an owner and what counts as done. This
+     prompt does not repeat them.
+  2. Read the frontmatter of `desk-rules.md`: the `claimed` and `done` emoji,
+     `flagAfterHours` and `channels`. Use the default for anything missing or unreadable.
+  3. Read the newest dated file in `triage/`, ignoring any whose name starts with
+     `EXAMPLE-`, and carry its board forward. Your file is the whole board, not what arrived
+     since. Keep every unfinished item with its `Opened` value unchanged, move the ones the
+     channel moved, and drop only what has been Done for a full day. Note its `generated`
+     time and the oldest `Opened` among its rows that are not Done. With no dated file, this
+     is the first update: look at the last 3 days, and follow "The first update" in your
+     persona as well as these steps.
+  4. Look at which Slack tools you have, because they decide which calls you make:
+     - **`slack_search_messages`**: Slack is connected through Cabinet's own app. The
+       numbers above apply as written.
+     - **Slack's own tools** (`slack_search_public`, and `slack_search_public_and_private`
+       for a private channel): Slack is connected through the person's own app. Follow the
+       same steps with those tools and the same filters. Reads may be quicker there, so up
+       to 20 thread reads a run are fine, but the 900 seconds stand and search still comes
+       first. If there is no tool that lists who reacted, see step 8.
+  5. List the channels you may use with your Slack tools. If `channels` names some, keep
+     only those. If it is empty, keep every channel you may read, up to 8 in a run: private
+     channels first (a person added each one by name), then names with support, help, ask,
+     desk or incident in them. Say in `status` when you left channels out. Read a private
+     channel only if it is on that list. Skip direct and group messages entirely.
+  6. Find what came in. For each channel, search `in:#<channel> after:<date>`, newest first,
+     100 to a page, until the results are older than the last pass, at most 5 pages. Slack's
+     `after:` leaves out the date it names and a date filter alone returns nothing, so name
+     the channel and use the day before the last pass. Keep what came since `generated`.
+     Replies come back in these results. A reply belongs to the row whose message its
+     `thread_ts` names (it is also in the reply's permalink as `thread_ts=`), so one search
+     shows you most owners and finishes said in words. Add a row for each new request, with
+     `Opened` from the raising message's own timestamp.
+  7. Find the reactions. For each channel, run one search per emoji in `done` and in
+     `claimed`, with the colons as Slack writes them: `in:#<channel> has::eyes:
+     after:<the day before the oldest open Opened>`. Stay with the date of the message: a
+     reaction added today sits on an old message. Match each result to a row by the
+     timestamp in the row's URL. This is one search per channel per emoji, never one call
+     per row. If the filter fails or returns nothing you can trust, use step 8 for the New
+     rows alone.
+  8. Apply what you found. A `done` emoji makes a row Done. A `claimed` emoji on a New row
+     makes it Owned: use `slack_get_reactions` on that row's message to find the first
+     person who added it, oldest rows first, at most 20 a run, and look up the name only
+     for a person not already on the board. Past 20, or with no tool that lists who
+     reacted, the row is `Owned` with an empty `Owner`, and a later pass may fill the name
+     in. Do not fetch reactions for a row already Owned with a name, or Waiting.
+  9. Read a thread only when the search left a row's state in doubt: a reply in the window
+     that you cannot place, a finish you cannot confirm. Choose the rows that matter most,
+     and stop at the limit above. Everything else stays as it was.
+  10. If Slack rate-limits a call, wait about a minute and try that call again, up to three
+      times, and no more than five minutes of waiting in the whole run.
+  11. This run is read only, and it assigns nothing. Do not post, reply in a thread, react,
+      or mark anything read, however clear the answer looks. Nothing reaches Slack on a
+      schedule.
+  12. If you have no Slack tool, or Slack is not connected, or the first search fails after
+      its retries, STOP HERE. Write nothing. Leave `triage/` exactly as you found it, example
+      and all. Report: "Slack is not reachable. I would have read the channels you allowed
+      since the last pass and brought the board up to date." Then exit. If Slack fails
+      later in the run, write what you have and say so in `status`.
+  13. On the first run that does reach Slack, write your dated file and then delete every
+      file whose name starts with `EXAMPLE-` in `triage/` and in `patterns/` yourself,
+      without asking: this deletion is part of the job and already approved. They are a
+      demo, not past work, and they must not sit in the lists beside real ones. Do not merge
+      with them, do not rename them, and never write `EXAMPLE` into a name of your own.
+createdAt: '2026-10-29T00:00:00.000Z'
+updatedAt: '2026-11-01T00:00:00.000Z'

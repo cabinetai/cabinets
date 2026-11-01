@@ -1,51 +1,68 @@
 ---
-title: Slack Triage
+title: Slack Support Desk
 created: '2026-09-16T00:00:00Z'
-modified: '2026-09-16T00:00:00Z'
+modified: '2026-11-01T00:00:00Z'
 tags: [slack, support, triage, tracking, showcase]
 order: 1
 ---
-# Slack Triage
+# Slack Support Desk
 
-Everything the support channel asked for, as a list of items with an owner and a state, instead of a wall of messages.
+Every request in your team's Slack support channel on one board, what is still owed, by whom, and how long it has waited.
+
+The cabinet opens on it: **Triage Board**.
 
 ## What you get
 
-One board, refreshed three times on a weekday. Every request that came into the channel gets
-a row: what it is, what it actually needs from you, who has it, and where it stands. A
-message somebody already handled is marked Done and drops down the board. A message nobody
-picked up sits at the top marked New until somebody does.
+- **New, Owned, Waiting, Done**: one card per request, with what it needs, who has it and
+  how long it has waited. A request nobody picked up stays in New, oldest first.
+- **No owner for 6h**: a flag on any new request that has waited longer than your team
+  allows.
+- **Pick this up first**: the one request that will hurt if it sits, and why, on a day that
+  has one.
+- **Two asks on each card**: **Draft an answer** writes a reply in the chat beside the board,
+  from the thread and what this cabinet already knows. **Who could take this?** names one or
+  two people who handled requests like it, and assigns nobody.
+- **Draft a nudge**: when requests are overdue, one press asks for a single message listing
+  them, for you to read in the chat.
+- **Weekly patterns**: every Friday, the kinds of request that kept coming back, about how
+  long they waited for an owner, and one fix for each. **Write the saved reply** turns one
+  into a page in this cabinet that later drafts draw on.
+- **Ask, Ideas and Layout**: type your own question, take a ready one, or hide the parts of
+  the page you do not need.
 
-The board is the thing a support channel never has. Scrolling back through a channel tells
-you what was said. This tells you what is still owed.
+The board only repeats what the channel shows. The owner is whoever added your team's "I've
+got it" emoji or wrote "I'll take this". Nobody is ever assigned, and a request is Done only
+when the channel shows it was finished.
 
-Nothing is posted, replied to or reacted to. It only reads.
+## Getting started
 
-## How to look at it
+1. On the page, press **Connect Slack**. Check the workspace on Slack's page and press
+   **Allow**. Cabinet then asks which channels it may use. Pick your support or incident
+   channel and leave the rest out. A private channel works too: add it by name.
+2. Your first update starts by itself and you can watch it read. After that it runs at 9, 13
+   and 17 on weekdays, and **Update the board** runs it any time.
 
-Open the **Triage Board** app in this cabinet. It comes pre-filled with a made-up example so
-you can see the shape of it straight away. The page says clearly that those items are
-invented. Your first real pass takes its place.
+Until then, the page shows a made-up team, and says so.
 
-## Before it can read your real Slack
+## Make it yours
 
-Connect Slack on Cabinet's integrations screen. Slack has no one press sign in, so the
-screen walks you through making a small Slack app of your own: it shows you the five things
-you will press in Slack's own console, hands you the two values to paste there, and then
-asks for the app's two keys. Set aside about two minutes once.
+Open **Desk Rules** to set your team's "I've got it" emoji (:eyes: by default), its
+"finished" emoji (:white_check_mark:), how many hours a request may wait (4), and which
+channels to watch.
 
-When you connect, Cabinet asks which channels your team may read. Point it at your support
-or incident channel and leave the rest out. Until Slack is connected the board keeps showing
-the example.
+## It reads, and writes only where you allow
 
-## How the owner gets there
-
-The board only ever repeats what the channel said. If somebody wrote "I'll take this", they
-are the owner. If nobody did, the owner column is empty and the item stays New, which is the
-honest answer and the useful one. Nothing here assigns work to anybody.
+The routines only read. Nothing reaches Slack on a schedule. A drafted answer or nudge stays
+in the chat, and is posted only when you say yes to the exact words there, in a channel you set
+to **Write** on Cabinet's channel screen. Setting a channel to Write is not consent to post by
+itself. Anything posted appears with your name and photo, because Cabinet signs in as you. On
+**Read**, the default, the board works just the same and you copy the drafts yourself.
 
 ## What's inside
 
-- **Triage Desk** is the one agent. Reads the channel, keeps the board true.
-- **Support Triage** is the one routine. Runs at 09:00, 13:00 and 17:00 on weekdays.
-- **Triage Board** is the one page. Opens on the newest pass.
+- **Triage Desk** is the one agent. Reads the channel and keeps the board true.
+- **Support Triage** runs at 9, 13 and 17 on weekdays and keeps the board.
+- **Weekly Patterns** runs Fridays at 16, from this cabinet's own files, without touching Slack.
+- **Triage Board** is the page the cabinet opens on, with earlier updates in its picker.
+- **Desk Rules** holds your team's emoji, time limit and channels.
+- **Saved replies** are the pages the desk writes when you ask from a weekly pattern.
