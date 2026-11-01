@@ -52,6 +52,12 @@ each person's own (`cabinet.mine`, `video-library-subject@1`). Videos with no `s
 a "Give them subjects" button, which asks the agent in the chat. The Ask box offers "Show me
 all my videos about ..." with the chosen subject, or the most common one.
 
+The field in the Your videos head narrows the cards as the person types, by title, channel,
+one line, post text, subjects, key points and quotes. Search transcripts, offered under it, reads
+each `paths.transcript` once, only when pressed, and shows up to five lines per video as time
+buttons. A line matches when it holds every word typed, so a phrase split across two caption
+pieces is not found.
+
 The transcript under a card is read from `paths.transcript` when the person opens it. Any
 line that starts with a time (`**[1:23]**` as Cabinet writes it, or `[00:01:23]`, `1:23`, `**1:23**`, `(1:23)`) gets a button
 that jumps the player there.

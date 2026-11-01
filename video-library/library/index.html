@@ -426,6 +426,16 @@
   /* ── Your videos ─────────────────────────────────────────────────────── */
   /* A card per video: the player, then what is in it. Wide, they sit side by side. */
   .vcards { list-style: none; margin: 0; padding: 0; }
+  .library .lane-head { flex-wrap: wrap; }
+  .lib-find { flex: 0 1 260px; min-width: 0; }
+  .box[data-level="M"] .lib-find { flex: 1 1 100%; order: 3; }
+  .lib-find input { -webkit-appearance: none; appearance: none; width: 100%; min-height: 36px; padding: 6px 12px; border: 0; border-radius: 10px; background: var(--page); color: var(--ink); font: 400 14.5px/1.4 var(--sans); box-shadow: var(--hair); }
+  .lib-find input::placeholder { color: var(--ink-3); }
+  .lib-find input:focus { outline: none; box-shadow: var(--ring); }
+  .find-tx { display: grid; gap: 8px; justify-items: start; padding: 2px 20px 12px; }
+  .find-hits { margin: 0; width: 100%; max-height: 260px; overflow-y: auto; }
+  .find-hits li.find-title { display: block; margin-top: 6px; color: var(--ink); font-size: 14.5px; }
+  .find-hits li.find-title b { font-weight: 600; }
   .vcard { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px 20px 16px; border-top: 1px solid var(--line); }
   .box[data-level="L"] .vcard { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 14px 20px; align-items: start; }
   .vc-player { position: relative; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--deep); }
@@ -763,6 +773,10 @@
     askAbout: "",
     /** The subject Your videos shows, or "" for all of them. Kept in cabinet.mine. */
     subject: "",
+    /** The words in the find field of Your videos, and the last look through the transcripts. */
+    find: "",
+    txFind: null,
+    txLines: {},
     saveOption: "video",
     saveNote: "",
     saveBad: false,
@@ -1415,6 +1429,7 @@
     // A time pressed anywhere on the page brings its video into view first.
     var subject = subjectNow();
     if (subject && subjectsOf(v).indexOf(subject) < 0) { setSubject(""); paint(); }
+    if (!foundBy(v)) { clearFind(); paint(); }
     var box = boxEls.library;
     var slot = box && box.isConnected ? box.querySelector('[data-player="' + cssEsc(slug) + '"]') : null;
     if (!slot) {
@@ -1598,13 +1613,13 @@
 
   // ── The boxes ──────────────────────────────────────────────────────────
 
-  function boxHead(key, title, iconId, total, n, hot) {
-    return '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="h-' + key + '">' + esc(title) + "</h3>" +
+  function boxHead(key, title, iconId, total, n, hot, field) {
+    return '<div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon(iconId) + '</span><h3 id="h-' + key + '">' + esc(title) + "</h3>" + (field || "") +
       (total ? '<span class="total" dir="auto">' + esc(total) + "</span>" : "") +
       (n === null || n === undefined ? "" : '<span class="count num' + (n ? (hot ? " hot" : "") : " zero") + '">' + n + "</span>") + "</div>";
   }
-  function listBox(key, title, iconId, total, n, rowsHtml, emptyText, hot) {
-    return boxHead(key, title, iconId, total, n, hot) +
+  function listBox(key, title, iconId, total, n, rowsHtml, emptyText, hot, field) {
+    return boxHead(key, title, iconId, total, n, hot, field) +
       '<div class="box-body">' + (n ? rowsHtml : '<p class="lane-empty">' + esc(emptyText) + "</p>") + "</div>" +
       '<button type="button" class="box-more" data-act="more-rows" hidden></button>';
   }
@@ -1767,18 +1782,109 @@
     drawn.library = drawBoxHtml("library", level);
     fitBox(el);
   }
+  // Finding a video: the field narrows the cards as you type, from what the page already holds.
+  // Search transcripts opens each transcript once, one after the other, and only when pressed.
+  var FIND_PER_VIDEO = 5;
+  function findNow() { return text(state.find, 80).toLowerCase(); }
+  function findWords() { return findNow().split(/\s+/).filter(Boolean); }
+  function hasAll(words, hay) { return words.every(function (w) { return hay.indexOf(w) >= 0; }); }
+  function findText(v) {
+    var said = function (x) { return x.text; };
+    return [v.title, v.channel, v.oneLine, v.postText].concat(subjectsOf(v), times(v.keyPoints).map(said), times(v.quotes).map(said))
+      .map(function (s) { return text(s); }).join("\n").toLowerCase();
+  }
+  function hasTranscript(v) { return !!cabPath(v.paths && v.paths.transcript); }
+  /** The last look through the transcripts, while it is for the words in the field. */
+  function txFound() { return state.txFind && state.txFind.q === findNow() ? state.txFind : null; }
+  /** A card shows when the field is empty, its own words match, or a transcript hit points at it. */
+  function foundBy(v) {
+    var words = findWords();
+    var tx = txFound();
+    return !words.length || hasAll(words, findText(v)) || !!(tx && tx.hits.some(function (h) { return h.slug === v.slug; }));
+  }
+  function clearFind() {
+    state.find = "";
+    state.txFind = null;
+    if ($("lib-find")) $("lib-find").value = "";
+  }
+  function findTxHtml() {
+    var t = txFound();
+    if (!t) return '<button type="button" class="btn small" data-act="find-tx">' + icon("i-doc") + "Search transcripts</button>";
+    if (t.busy) return '<p class="tx-note">Reading the transcripts, ' + t.read + " of " + t.total + "...</p>";
+    var bad = t.failed ? " " + t.failed + " could not be read." : "";
+    if (!t.hits.length) return '<p class="tx-note">No transcript says that.' + bad + "</p>";
+    var last = "";
+    return '<p class="tx-note">Found in the transcripts:' + bad + '</p><ul class="pts find-hits">' + t.hits.map(function (h) {
+      var title = h.slug === last ? "" : '<b dir="auto">' + esc(h.title) + "</b>";
+      last = h.slug;
+      return (title ? '<li class="find-title">' + title + "</li>" : "") + "<li>" + tsButton(h.slug, h.sec) + '<span dir="auto">' + esc(text(h.text, 200)) + "</span></li>";
+    }).join("") + "</ul>";
+  }
+  function searchTranscripts() {
+    var words = findWords();
+    if (!words.length) return;
+    var all = saved().filter(hasTranscript);
+    var find = state.txFind = { q: findNow(), busy: true, read: 0, total: all.length, failed: 0, hits: [] };
+    var paintTx = function () { if ($("find-tx")) $("find-tx").innerHTML = findTxHtml(); };
+    paintTx();
+    var next = function (i) {
+      if (state.txFind !== find) return;
+      if (i >= all.length) { find.busy = false; redrawFound(); return; }
+      var v = all[i];
+      var lines = state.txLines[v.slug];
+      (lines ? Promise.resolve(lines) : readCab(cabPath(v.paths.transcript)).then(function (raw) { return (state.txLines[v.slug] = transcriptLines(raw)); })).then(function (got) {
+        got.filter(function (l) { return l.sec != null && hasAll(words, l.text.toLowerCase()); }).slice(0, FIND_PER_VIDEO).forEach(function (l) {
+          find.hits.push({ slug: v.slug, title: text(v.title, 90), sec: l.sec, text: l.text });
+        });
+      }, function () { find.failed++; }).then(function () {
+        find.read = i + 1;
+        paintTx();
+        next(i + 1);
+      });
+    };
+    next(0);
+  }
+  /** The cards drawn again around the find field. The field itself stays, so a phone's keyboard does not drop. */
+  function redrawFound() {
+    var el = boxEls.library;
+    if (!el || !el.isConnected) return;
+    var html = drawBoxHtml("library", el.getAttribute("data-level") || "M");
+    var fresh = document.createElement("div");
+    fresh.innerHTML = html;
+    var body = el.querySelector(".box-body");
+    var count = el.querySelector(".lane-head .count");
+    var newCount = fresh.querySelector(".lane-head .count");
+    if (!body || !fresh.querySelector(".box-body")) { drawBox(el); return; }
+    body.innerHTML = fresh.querySelector(".box-body").innerHTML;
+    if (count && newCount) { count.className = newCount.className; count.textContent = newCount.textContent; }
+    drawn.library = html;
+    mountPlayers(el);
+    fitBox(el);
+  }
   function drawLibrary(level) {
     var subject = subjectNow();
     var about = function (v) { return !subject || subjectsOf(v).indexOf(subject) >= 0; };
-    var all = videos().filter(about);
-    var n = saved().filter(about).length;
+    var field = level !== "S" && videos().length > 1;
+    var find = field ? findNow() : "";
+    var shows = function (v) { return about(v) && (!find || foundBy(v)); };
+    var all = videos().filter(level === "S" ? about : shows);
+    var n = saved().filter(level === "S" ? about : shows).length;
     if (level === "S") {
       var top = all[0];
       return sumBox("library", "Your videos", "i-library", String(n), plural(n, "video", "videos") + " saved", top ? "<b>Newest:</b> " + bidi(text(top.title, 100)) : "");
     }
-    return listBox("library", "Your videos", "i-library", subject ? "About " + subject : n ? lengthWords(secondsSaved()) + " in all" : "", all.length,
+    var fieldHtml = field ? '<label class="lib-find"><span class="sr">Find in your videos</span><input id="lib-find" type="search" dir="auto" maxlength="80" autocomplete="off" placeholder="Find in your videos" value="' + esc(state.find) + '" /></label>' : "";
+    var total = subject ? "About " + subject : n && !find ? lengthWords(secondsSaved()) + " in all" : "";
+    if (find) {
+      var bar = saved().some(hasTranscript) ? '<div class="find-tx" id="find-tx" aria-live="polite">' + findTxHtml() + "</div>" : "";
+      return boxHead("library", "Your videos", "i-library", total, all.length, false, fieldHtml) + '<div class="box-body">' +
+        (all.length ? bar + '<ul class="rows vcards">' + all.map(function (v) { return cardHtml(v, level); }).join("") + "</ul>"
+          : '<p class="lane-empty">Nothing ' + (subject ? "about " + esc(subject) + " " : "in your videos ") + "matches “<bdi>" + esc(text(state.find, 80)) + "</bdi>”.</p>" + bar) +
+        '</div><button type="button" class="box-more" data-act="more-rows" hidden></button>' + nudgeHtml(boxIdea("library"));
+    }
+    return listBox("library", "Your videos", "i-library", total, all.length,
       '<ul class="rows vcards">' + all.map(function (v) { return cardHtml(v, level); }).join("") + "</ul>",
-      onCloud() ? "No videos yet. " + CLOUD_WORDS : "No videos yet. Paste a video link above to save your first one.") + nudgeHtml(boxIdea("library"));
+      onCloud() ? "No videos yet. " + CLOUD_WORDS : "No videos yet. Paste a video link above to save your first one.", false, fieldHtml) + nudgeHtml(boxIdea("library"));
   }
 
   // Subjects: what the videos are about, each with how many. A press shows only those in Your videos.
@@ -3472,6 +3578,8 @@
     } else if (act === "retry" && slug) {
       var rv = videoBySlug(slug);
       if (rv) { state.saveOption = optionOf(rv.option) ? rv.option : "video"; save(rv.link); }
+    } else if (act === "find-tx") {
+      searchTranscripts();
     } else if (act === "read-leave") {
       leaveReading();
     } else if (act === "gift-do") {
@@ -3600,6 +3708,11 @@
   // A link pasted or typed again clears the last note.
   document.addEventListener("input", function (event) {
     if (event.target && event.target.id === "save-input" && state.saveNote) setSaveNote("", false);
+    if (event.target && event.target.id === "lib-find" && !event.isComposing) {
+      state.find = event.target.value;
+      state.txFind = null;
+      redrawFound();
+    }
   });
 
   // ── Start ──────────────────────────────────────────────────────────────
