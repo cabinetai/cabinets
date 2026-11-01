@@ -477,6 +477,10 @@
   /* A time you can press: it jumps the player there. */
   .ts { min-height: 26px; padding: 2px 9px; border: 0; border-radius: 999px; background: var(--brand-tint); color: var(--brand-ink); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .ts:hover { background: var(--brand-line); }
+  .ts.copy { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 6px; background: var(--panel-2); color: var(--ink-2); }
+  .ts.copy:hover { background: var(--line-2); }
+  .ts.copy .icon { width: 13px; height: 13px; }
+  .copy-words { width: 100%; padding: 12px 14px; border: 0; border-radius: 10px; background: var(--page); color: var(--ink); font: 400 15px/1.5 var(--sans); box-shadow: var(--hair); resize: vertical; }
   .vc-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .vc-more { grid-column: 1 / -1; display: grid; gap: 16px; padding: 16px 18px; border-radius: 14px; background: var(--panel); }
   .box[data-level="L"] .vc-more { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -639,6 +643,7 @@
   <symbol id="s-x" viewBox="0 0 24 24"><path d="M5 4h4l10 16h-4z" /><path d="M19 4l-6.3 7.2M11.3 12.8L5 20" /></symbol>
   <symbol id="s-linkedin" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3" /><path d="M8 10.5V16M8 7.5v.01M12 16v-5.5M12 13a2.5 2.5 0 0 1 5 0v3" /></symbol>
   <symbol id="s-facebook" viewBox="0 0 24 24"><path d="M15 4h-2a3.5 3.5 0 0 0-3.5 3.5V21M7 11h7" /></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></symbol>
   <symbol id="i-save" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5" /><path d="M4.5 16.5v1.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-1.5" /></symbol>
 </svg>
 
@@ -777,6 +782,7 @@
     find: "",
     txFind: null,
     txLines: {},
+    copyWords: "",
     saveOption: "video",
     saveNote: "",
     saveBad: false,
@@ -1421,8 +1427,21 @@
     if (box && box.isConnected) mountPlayers(box);
   }, true);
 
-  /** Jumps a card's player to a time: its own copy, YouTube's player, or YouTube itself. */
-  function seek(slug, sec) {
+  // A clip plays to its end and stops. Scrubbing away from it lets the video play on.
+  var clipEnds = {};
+  var CLIP_SLACK_SEC = 2;
+  document.addEventListener("timeupdate", function (event) {
+    var el = event.target;
+    var slug = el && el.getAttribute ? el.getAttribute("data-slug") : "";
+    var clip = slug ? clipEnds[slug] : null;
+    if (!clip) return;
+    var at = el.currentTime;
+    if (at < clip.from - CLIP_SLACK_SEC || at > clip.to + CLIP_SLACK_SEC) { delete clipEnds[slug]; return; }
+    if (at >= clip.to) { el.pause(); delete clipEnds[slug]; }
+  }, true);
+
+  /** Jumps a card's player to a time: its own copy, YouTube's player, or YouTube itself. `toSec` ends a clip. */
+  function seek(slug, sec, toSec) {
     var v = videoBySlug(slug);
     if (!v) return;
     if (state.example) { toast("This is a made-up video, so there is nothing to play. Save one of yours above."); return; }
@@ -1441,6 +1460,8 @@
     if (card && card.hidden) { state.expanded.library = true; fitBox(box); }
     var media = slot.querySelector("video, audio");
     if (media) {
+      if (toSec > sec) clipEnds[slug] = { from: sec, to: toSec };
+      else delete clipEnds[slug];
       try { media.currentTime = sec; } catch (e) { /* not loaded yet */ }
       var played = media.play();
       if (played && played.catch) played.catch(function () {});
@@ -1553,8 +1574,50 @@
   }
   function tsButton(slug, sec, toSec) {
     var words = timeWords(sec) + (toSec != null ? " to " + timeWords(toSec) : "");
-    return '<button type="button" class="ts" data-act="seek" data-slug="' + esc(slug) + '" data-sec="' + count(sec) + '" aria-label="Play from ' + esc(timeWords(sec)) + '">' + esc(words) + "</button>";
+    return '<button type="button" class="ts" data-act="seek" data-slug="' + esc(slug) + '" data-sec="' + count(sec) + '"' + (toSec != null ? ' data-to="' + count(toSec) + '"' : "") +
+      ' aria-label="Play from ' + esc(words) + '">' + esc(words) + "</button>";
   }
+  /** A quote is found again by its video and its time. */
+  function copyButton(slug, sec) {
+    return '<button type="button" class="ts copy" data-act="copy-quote" data-slug="' + esc(slug) + '" data-sec="' + count(sec) + '" aria-label="Copy this quote with its source">' + icon("i-copy") + "Copy</button>";
+  }
+  /** The quote as it goes elsewhere: the words, who said them, where, and the link back. */
+  function quoteWords(v, q) {
+    var by = [text(v.channel, 80), text(v.title, 160)].filter(Boolean).join(", ");
+    var link = state.example ? "" : siteLink(v);
+    return "“" + text(q.text, 400) + "”\n" + by + ", at " + timeWords(q.sec) + (link ? "\n" + link : "");
+  }
+  /** The old way to copy: it needs only the press itself, so it works where a sealed frame refuses the clipboard. */
+  function copyByHand(words) {
+    var was = document.activeElement;
+    var area = document.createElement("textarea");
+    area.value = words;
+    area.setAttribute("readonly", "");
+    area.className = "sr";
+    document.body.appendChild(area);
+    area.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    area.remove();
+    if (was && was.focus) was.focus();
+    return ok;
+  }
+  function copyQuote(slug, sec) {
+    var v = videoBySlug(slug);
+    var q = v ? times(v.quotes).filter(function (x) { return x.sec === sec; })[0] : null;
+    if (!q) return;
+    var words = quoteWords(v, q);
+    var shown = function () { toast("Copied, with the channel, the time and the link."); };
+    var byHand = function () {
+      if (copyByHand(words)) { shown(); return; }
+      // Nothing may touch the clipboard here: the words open ready to select.
+      state.copyWords = words;
+      openDrawer("copy");
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(words).then(shown, byHand);
+    else byHand();
+  }
+
   /** The sound file of a video that was saved as both the video and the sound only. */
   function soundOf(v) { return v.option === "video" ? cabPath(v.paths && v.paths.audio) : ""; }
   /** True when the library holds this video in this way, on its own or next to the other. */
@@ -1746,7 +1809,7 @@
     if (text(v.postText)) parts.push('<div class="wide"><h4>Post text</h4><p class="post-text" dir="auto">' + esc(text(v.postText, 3000)) + "</p></div>");
     if (five.length) parts.push('<div><h4>In five lines</h4><ul class="five">' + five.map(function (l) { return '<li dir="auto">' + esc(l) + "</li>"; }).join("") + "</ul></div>");
     if (quotes.length) parts.push('<div><h4>Worth quoting</h4><div class="quotes-list">' + quotes.map(function (q) {
-      return '<p class="quote" dir="auto">“' + esc(text(q.text, 300)) + "”" + tsButton(v.slug, q.sec) + "</p>";
+      return '<p class="quote" dir="auto">“' + esc(text(q.text, 300)) + "”" + tsButton(v.slug, q.sec) + copyButton(v.slug, q.sec) + "</p>";
     }).join("") + "</div></div>");
     if (clips.length) parts.push('<div><h4>Clip ideas</h4><ul class="pts">' + clips.map(function (c) {
       return "<li>" + tsButton(v.slug, c.fromSec, count(c.toSec)) + '<span dir="auto">' + esc(text(c.why, 200)) + "</span></li>";
@@ -1947,7 +2010,7 @@
       '<ul class="rows mini">' + all.map(function (r) {
         return '<li><span class="t"><span class="qt" dir="auto">“' + esc(text(r.x.text, 280)) + "”</span></span>" +
           '<span class="top"><span class="where" dir="auto">' + esc(text(r.v.channel, 60) || text(r.v.title, 60)) + "</span></span>" +
-          '<span class="side">' + tsButton(r.v.slug, r.x.sec) + "</span></li>";
+          '<span class="side">' + tsButton(r.v.slug, r.x.sec) + copyButton(r.v.slug, r.x.sec) + "</span></li>";
       }).join("") + "</ul>", "Lines worth quoting, word for word, show up here.") + nudgeHtml(boxIdea("quotes"));
   }
 
@@ -2180,7 +2243,8 @@
 
   var DRAWERS = {
     ideas: { title: "Ideas for your videos", sub: "One tap to ask now. Nothing here runs on its own.", icon: "i-bulb", paint: paintIdeasPanel },
-    add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker }
+    add: { title: "Add a box", sub: "Pick what you want on your page. You can remove it again any time.", icon: "i-plus", paint: paintPicker },
+    copy: { title: "Copy this quote", sub: "This window can't reach your clipboard. Select the words and copy them.", icon: "i-copy", paint: paintCopy }
   };
   function paintDrawer() {
     var kind = DRAWERS[state.drawerKind] || DRAWERS.ideas;
@@ -2188,6 +2252,11 @@
     $("drawer-sub").textContent = kind.sub;
     $("drawer-icon").innerHTML = icon(kind.icon);
     kind.paint();
+  }
+
+  function paintCopy() {
+    $("drawer-body").innerHTML = '<textarea class="copy-words" id="copy-words" readonly rows="6" dir="auto" aria-label="The quote">' + esc(state.copyWords) + "</textarea>";
+    $("copy-words").select();
   }
 
   // The Add a box panel: every box by group, the ones on the page ticked.
@@ -3562,7 +3631,7 @@
       state.playing[slug] = "embed";
       if (boxEls.library) mountPlayers(boxEls.library);
     } else if (act === "seek" && slug) {
-      seek(slug, count(+el.getAttribute("data-sec")) || 0);
+      seek(slug, count(+el.getAttribute("data-sec")) || 0, el.hasAttribute("data-to") ? count(+el.getAttribute("data-to")) : null);
     } else if (act === "card" && slug) {
       var was = snapshot();
       state.open[slug] = !state.open[slug];
@@ -3578,6 +3647,8 @@
     } else if (act === "retry" && slug) {
       var rv = videoBySlug(slug);
       if (rv) { state.saveOption = optionOf(rv.option) ? rv.option : "video"; save(rv.link); }
+    } else if (act === "copy-quote" && slug) {
+      copyQuote(slug, count(+el.getAttribute("data-sec")) || 0);
     } else if (act === "find-tx") {
       searchTranscripts();
     } else if (act === "read-leave") {

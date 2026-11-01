@@ -44,7 +44,14 @@ when `paths.media` is there, else, for a YouTube video, YouTube's privacy-enhanc
 reached (deleted, or a sealed frame on Cloud with no login to send) falls back to the
 YouTube player. A video from another site plays only from the cabinet's copy. Each card
 names its site, links to the post there, and shows the first two lines of `postText`, all
-of it when the card is open. A time anywhere on the page jumps the card's player there.
+of it when the card is open. A time anywhere on the page jumps the card's player there, and
+brings the card into view first: it leaves the chosen subject or the words in the find field
+when they hide the card, and opens the list when the card sits under "+N more". A clip's time
+stops the cabinet's own copy at `toSec`; YouTube's player keeps playing.
+
+Each quote has Copy: the words, the channel, the title, the time and the link. Where a sealed
+frame refuses the clipboard, the page falls back to the browser's older copy, and last to a
+panel with the words selected.
 
 The Subjects box lists every subject of the saved videos with how many videos have it, and
 "All videos" first. A press shows only that subject's videos in Your videos; the choice is
