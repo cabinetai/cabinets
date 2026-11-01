@@ -2,10 +2,10 @@
 <!--
   TikTok Digest: Your TikTok. The cabinet opens on this page.
 
-  For someone who makes TikTok videos: how each recent video did since yesterday (views,
-  likes, comments, shares), which one moved most, the account's numbers over 7 and 28 days,
-  and three ideas for the next video, each one tap from a plan in the cabinet's chat, plus
-  Ideas they can ask for once or switch on as a routine.
+  For someone who makes TikTok videos: how each recent video did since the last catch-up
+  (views, likes, comments, shares), which one moved most, three ideas for the next video, the
+  account's numbers over 7 and 28 days and what works for them, each idea one tap from a plan in
+  the cabinet's chat, plus Ideas they can ask for once or switch on as a routine.
 
   TikTok gives apps like Cabinet only counts: the account's, and each video's totals. No
   comment text, no daily views, no watch time. The page says so where it matters and never
@@ -16,10 +16,11 @@
   boxes (data/layout-change.json, offered with Apply and No thanks). Each person's layout is
   kept in cabinet.mine, not in a file.
 
-  Where the words come from: the morning routine reads TikTok and writes data/latest.json
-  next to this page (the shape is data/EXAMPLE-latest.json: a made-up account, always
-  labelled as an example here), a copy of it in data/days/<YYYY-MM-DD>.json for the date
-  picker, and data/status.json with ok:false and why when it could not read TikTok.
+  Where the words come from: the morning routine saves TikTok's answers and first-read.mjs
+  counts every number from them, the agent adding only its gists and ideas. That writes
+  data/latest.json next to this page (the shape is data/EXAMPLE-latest.json: a made-up account,
+  always labelled as an example here), a copy of it in data/days/<YYYY-MM-DD>.json for the date
+  picker, and data/status.json with ok:false, kind and why when it could not read TikTok.
 
   The first catch-up is told as it happens: the agent adds a line to data/reading.json (through
   first-read.mjs) after each look at TikTok, the newest videos very early, and the things the
@@ -86,6 +87,8 @@
     --amber: #F0A01F;
     --amber-ink: #8A5A00;
     --amber-tint: #FFF5E2;
+    /* A video under 3 days old: its total is still climbing. */
+    --climb: #2A9D9A;
 
     --shadow-1: 0 1px 2px rgba(22, 24, 35, .05), 0 10px 28px -14px rgba(22, 24, 35, .16);
     --shadow-2: 0 2px 4px rgba(22, 24, 35, .06), 0 18px 38px -18px rgba(22, 24, 35, .28);
@@ -210,7 +213,9 @@
   .row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 
   /* Videos: the title in bold, its numbers in plain words, what stands out under them. */
-  .chan { border-top: 1px solid var(--line); }
+  /* A cut list shares its spare height across its rows, so no empty strip sits above "+N more". */
+  .chans { min-height: 100%; display: flex; flex-direction: column; }
+  .chan { flex: 1 0 auto; border-top: 1px solid var(--line); }
   .chan-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 14px; width: 100%; text-align: start; padding: 13px 20px; border: 0; background: transparent; }
   .chan-main:hover { background: var(--panel); }
   .chan.open .chan-main { background: var(--panel); }
@@ -220,6 +225,7 @@
   .chan-gist { grid-column: 1 / -1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
   .chan-body { padding: 0 20px 16px; background: var(--panel); }
   .chan-body .row-actions { margin-top: 0; }
+  .row-facts { margin: 0 0 12px; color: var(--ink-2); font-size: 14px; }
   /* Best and quietest are words, like a label on a folder: no pill. */
   .vmark { font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
   .vmark.best { color: var(--green-ink); }
@@ -234,6 +240,9 @@
   .mini .top b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
   .mini .t { grid-column: 1 / -1; color: var(--ink-2); font-size: 15px; overflow-wrap: anywhere; }
   .mini .t a { font-weight: 500; }
+  .mini .idea-foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 2px 12px; }
+  .mini .from { min-width: 0; color: var(--ink-3); font-size: 13.5px; overflow-wrap: anywhere; }
+  .mini .idea-foot .btn.quiet { flex: none; min-height: 30px; padding: 2px 8px; margin-inline-end: -8px; font-size: 14px; color: var(--ink); }
   .mini .side { font-size: 13.5px; color: var(--ink-3); white-space: nowrap; }
   .mini .t .btn.quiet { min-height: 32px; padding: 2px 8px; margin-inline-start: -4px; font-size: 14px; color: var(--ink); }
   .lane-act { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 20px 16px; }
@@ -261,7 +270,8 @@
   .bars .vl b { color: var(--ink); font-weight: 500; margin-inline-end: 6px; }
   .bars .tr { grid-column: 1 / -1; height: 4px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
   .bars .tr i { display: block; height: 100%; border-radius: 999px; background: var(--ink-2); }
-  .bars li:first-child .tr i { background: var(--brand); }
+  .bars li.top .tr i { background: var(--brand); }
+  .bars .tr i.young { background: var(--climb); }
   .chn-note { display: flex; gap: 10px; align-items: flex-start; margin: 0 20px; padding: 12px 0 16px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
   .chn-note .icon { width: 17px; height: 17px; margin-top: 2px; }
   .box[data-level="M"] .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -276,6 +286,7 @@
   .tile .k .icon { width: 15px; height: 15px; }
   .tile .v { font-size: 26px; font-weight: 650; letter-spacing: -.025em; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tile .m { font-size: 12.5px; color: var(--ink-3); line-height: 1.4; }
+  .tile .m:empty { display: none; }
   .tiles.small .tile { padding: 12px 14px; }
   .tiles.small .tile .v { font-size: 21px; }
   .dl { font-weight: 600; white-space: nowrap; }
@@ -298,12 +309,18 @@
   .trend-cap { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; color: var(--ink-3); }
   .trend-wait { margin: 0; padding: 6px 0 4px; color: var(--ink-3); font-size: 13.5px; }
   .trend.wide { grid-column: 1 / -1; }
+  .growth { margin: 10px 20px 0; padding: 12px 16px; border-radius: 12px; background: var(--panel); color: var(--ink); font-size: 14.5px; }
   .dash-sub { margin: 18px 20px 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
   .dash-empty { margin: 0 20px; padding: 14px 16px; border-radius: 12px; background: var(--panel); color: var(--ink-3); font-size: 14px; }
   .dash .splits { margin-top: 12px; }
   .dash .chn-note { margin-top: 14px; }
   .box[data-level="M"] .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .box[data-level="M"] .trends { grid-template-columns: minmax(0, 1fr); }
+
+  /* What works for you: median views by length, posting day and posting time. */
+  .works-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 28px; margin: 0 20px; padding-bottom: 14px; border-top: 1px solid var(--line); }
+  .works-usual { margin: 2px 20px 12px; color: var(--ink-2); font-size: 14.5px; }
+  .box[data-level="M"] .works-cols { grid-template-columns: minmax(0, 1fr); }
 
   /* ── Ask ─────────────────────────────────────────────────────────────── */
   /* Ask: a white sheet like the rest, its one line to type in a soft well. */
@@ -427,6 +444,15 @@
   /* The example ribbon right under the band, in the grid. */
   .grid > #ribbon { align-self: center; }
   .box.headline .moved { color: #FF6A86; font-weight: 700; }
+  /* On black a dark button turns white, so it still reads as one. */
+  .box.headline .btn.dark { background: #FFFFFF; color: #121212; box-shadow: none; }
+  .box.headline .btn.dark:hover { background: #E4E4E7; }
+  .box.headline .meta a { color: inherit; text-underline-offset: 3px; }
+  .box.headline .meta a:hover { color: var(--ink); }
+  .hl-plan { margin-top: 12px; }
+  .hl-plan .btn { white-space: normal; text-align: start; }
+  /* While arranging, the Add a box button is the one red: Connect in the band steps back. */
+  .grid.editing .box.headline .btn.primary { background: transparent; box-shadow: var(--hair); }
   .box.headline .fine { margin: 6px 0 0; font-size: 13.5px; color: var(--ink-3); }
   .box.headline[data-level="S"] h2 { font-size: 24px; }
   .hl-status { flex: none; justify-content: flex-end; gap: 6px 10px; }
@@ -435,9 +461,13 @@
   .spark { width: min(340px, 32vw); }
   .spark .cols { display: flex; align-items: flex-end; gap: 3px; height: 84px; }
   .spark .cols i { flex: 1; min-height: 2px; border-radius: 3px 3px 0 0; background: #3A3B42; }
+  .spark .cols i.young { background: var(--climb); }
   .spark .cols i.wk { background: var(--brand); }
-  .spark .cap { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-3); }
+  .spark .cols i.wk.young { opacity: .72; }
+  .spark .cap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-3); }
   .spark .cap b { color: var(--ink-2); font-weight: 500; }
+  .spark .key { display: inline-flex; align-items: center; gap: 6px; }
+  .spark .key i { width: 9px; height: 9px; border-radius: 2px; background: var(--climb); }
   .box.headline[data-level="M"] .spark { display: none; }
   .box.headline[data-level="S"] .hl, .box.headline[data-level="M"] .hl { grid-template-columns: minmax(0, 1fr); }
 
@@ -629,6 +659,7 @@
   @media (max-width: 720px) {
     .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .trends { grid-template-columns: minmax(0, 1fr); }
+    .works-cols { grid-template-columns: minmax(0, 1fr); }
     .g-step { grid-template-columns: minmax(0, 1fr); gap: 12px; }
     .g-note { margin-left: 0; }
     .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -666,7 +697,7 @@
     .chan-main { padding: 12px 16px; }
     .chan-body { padding: 0 16px 16px; }
     .mini > li, .idea-rows > li { margin: 0 16px; }
-    .figs, .splits { margin-inline: 16px; }
+    .figs, .splits, .works-cols, .works-usual, .growth { margin-inline: 16px; }
     .fig { padding-inline-end: 10px; }
     .fig + .fig { padding-inline-start: 12px; }
     .fig .v { font-size: 25px; }
@@ -777,6 +808,8 @@
   /** Questions go to the agent who reads this account, not the cabinet's general assistant. */
   var AGENT = "account-reader";
   var POLL_MS = 60000;
+  /** Under this a video is still climbing, as first-read.mjs CLIMBING_DAYS says too. */
+  var CLIMBING_DAYS = 3;
 
   /**
    * Ready-made questions, the way someone asks them about their account. Each asks for
@@ -786,9 +819,15 @@
     "What do my best videos have in common?",
     "Which day of the week do my videos do best?",
     "Do my short videos do better than my long ones?",
-    "Compare this month with last month",
+    "Compare the videos I posted this month with last month's",
     "Write a caption for my next video",
     "Plan a follow-up to my best video"
+  ];
+  /** The same for an account with no videos yet: nothing above has an answer. */
+  var FIRST_QUESTIONS = [
+    "What should my first video be?",
+    "How long should my first video be?",
+    "Write a caption for my first video"
   ];
 
   /**
@@ -806,8 +845,8 @@
       when: "Every Monday", at: "every Monday at 10 am",
       art: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAABzKADAAQAAAABAAAA8QAAAAD/wgARCADxAcwDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAwIEAQUABgcICQoL/8QAwxAAAQMDAgQDBAYEBwYECAZzAQIAAxEEEiEFMRMiEAZBUTIUYXEjB4EgkUIVoVIzsSRiMBbBctFDkjSCCOFTQCVjFzXwk3OiUESyg/EmVDZklHTCYNKEoxhw4idFN2WzVXWklcOF8tNGdoDjR1ZmtAkKGRooKSo4OTpISUpXWFlaZ2hpand4eXqGh4iJipCWl5iZmqClpqeoqaqwtba3uLm6wMTFxsfIycrQ1NXW19jZ2uDk5ebn6Onq8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAABAgADBAUGBwgJCgv/xADDEQACAgEDAwMCAwUCBQIEBIcBAAIRAxASIQQgMUETBTAiMlEUQAYzI2FCFXFSNIFQJJGhQ7EWB2I1U/DRJWDBROFy8ReCYzZwJkVUkiei0ggJChgZGigpKjc4OTpGR0hJSlVWV1hZWmRlZmdoaWpzdHV2d3h5eoCDhIWGh4iJipCTlJWWl5iZmqCjpKWmp6ipqrCys7S1tre4ubrAwsPExcbHyMnK0NPU1dbX2Nna4OLj5OXm5+jp6vLz9PX29/j5+v/bAEMABwcHBwcHDAcHDBEMDAwRFxEREREXHhcXFxcXHiQeHh4eHh4kJCQkJCQkJCsrKysrKzIyMjIyODg4ODg4ODg4OP/bAEMBCQkJDg0OGQ0NGTsoISg7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O//aAAwDAQACEQMRAAABstt53q7bVttW21bbVttW21bbVttW21bbVttWidW21bbVttW21bbVttW21bbVttW21bbVttW21bbVttW21bbVttW21bbVttW21bbVttW21bbVttW21bbVttW21bbVttW2HRIZADWupjg2WSwK2EsntbbEbbVttW21bbVttWidW21bbVttW21bbVttW21bbVttW21bbVttW21bbVttW2ipbsq5dHbSbKNSe/WVoXdniB870PPI5L7nngNzoRpkTU1oCXbEbbQmNq22rbapidHbattq22rRMQ2nVG2qYnVo2qYnVonVG2qdtUbTGNoqKXNU0ixdPGXZpVVata0oYx0OoOee6DnwdEwrv7PnzMmFfVjB875q6E7mJZNtq0TFbbQnbR22rbaG20dE6ttobbR22httW21bbVttW21bbR1S/oFdN21tyIq5qgZdPLIhu42KbbRDz3Rc4mkQu9NRpO3VnF9zVuVatej54i9NRXhWdsRttDbatto7bVttDbaO21bbVttW20Nto7bVttDbaO21baKqGmfppZAc0jI0tGd9HbYrttW21B53oudTSen5jp2WKDoGhFC8ZPk0vGT3PlzF7UnTW52z5bbVomITto7bVttW21bbVttW2ip0TW21bbVttW21bbVmrqvBqOiouiDD5y6qI3TrZs9omttq0TFB5/oKBNE9RzHTsuGTFeR6Jei2sua6RTW113QTdPIitnttWiYhOiY7bVttDbaMTtW21aJ1aJip21bbVttWjTUTtWrLKtDNbymuar2roCtcbZ84nattq0bUGg6Dn00T1HMdMyzokrCCauW6PnugVy8z1HM1euWrortoK7bVp2jttWidW21bbVonVExNaJ1RO1bbVonVttW21QwsGgNfdUHQBmDWwqKv9pZI21bIaAvoqmgN3zrhurq6fmOmdNMSV0ZFc50VB0avub6LnI35kqbOYmK22hMbRmNqmNq0xq0xNaJittq22rTE1G2rbap0atMTUJVq5noqh0uljzvRVhR4eluqyF09LShmmhQzAbaMaen5jp3y22K6vf0Cse5auiGdW5IHs9s2e21bbQ22jttW21bbVttW21bbVttW21bbVttW21bbVttTSo6GiDXuYvytDezq3N9JzYccplNJjJpcaKX01Nc6Y7aINq+6ipEWoBY9DW20dtiu21bRoaYmO21bbVtE1tE1ttW0TW21bbVtoqdE1E7VtorbTUQlmpeIaZWcpBgSsXLaq9UocqTEUtQzwtFVjhZ6pvhOVs4hYJYqIsJAd1nRJtExW21bTFTomttq22rbattq2ia22raJrbattFTE6tomtomq6ss+fDWxqPBuhnnlivIqFCtEMV05gE05S2TT0lcmrTVA6u0UiTXDavxrW8ob5k07Q0TqjbVtMVOia20VMbVO0VtpraNW06on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" },
     { id: "quiet", box: "videos", icon: "i-pen", title: "Learn from quiet videos",
-      text: "For each recent video under your usual, what to try next time: the hook, the length, the caption.",
-      ask: "Look at my TikTok videos from the last month that are doing under my usual. For each, say in one or two lines what to try differently next time (the hook, the length, the caption), from how my other videos did.",
+      text: "For each video under your usual, how its length, caption and posting time compare with your better videos.",
+      ask: "Look at my TikTok videos from the last two months with the fewest views. For each, compare its length, caption and posting time with my better videos, and say in one or two lines what to try next time. Say plainly that you cannot see the videos themselves, only their numbers and captions.",
       when: "Every Monday", at: "every Monday at 11 am",
       art: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAABzKADAAQAAAABAAAA8QAAAAD/7QA4UGhvdG9zaG9wIDMuMAA4QklNBAQAAAAAAAA4QklNBCUAAAAAABDUHYzZjwCyBOmACZjs+EJ+/8IAEQgA8QHMAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAMCBAEFAAYHCAkKC//EAMMQAAEDAwIEAwQGBAcGBAgGcwECAAMRBBIhBTETIhAGQVEyFGFxIweBIJFCFaFSM7EkYjAWwXLRQ5I0ggjhU0AlYxc18JNzolBEsoPxJlQ2ZJR0wmDShKMYcOInRTdls1V1pJXDhfLTRnaA40dWZrQJChkaKCkqODk6SElKV1hZWmdoaWp3eHl6hoeIiYqQlpeYmZqgpaanqKmqsLW2t7i5usDExcbHyMnK0NTV1tfY2drg5OXm5+jp6vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAQIAAwQFBgcICQoL/8QAwxEAAgIBAwMDAgMFAgUCBASHAQACEQMQEiEEIDFBEwUwIjJRFEAGMyNhQhVxUjSBUCSRoUOxFgdiNVPw0SVgwUThcvEXgmM2cCZFVJInotIICQoYGRooKSo3ODk6RkdISUpVVldYWVpkZWZnaGlqc3R1dnd4eXqAg4SFhoeIiYqQk5SVlpeYmZqgo6SlpqeoqaqwsrO0tba3uLm6wMLDxMXGx8jJytDT1NXW19jZ2uDi4+Tl5ufo6ery8/T19vf4+fr/2wBDAAcHBwcHBwwHBwwRDAwMERcRERERFx4XFxcXFx4kHh4eHh4eJCQkJCQkJCQrKysrKysyMjIyMjg4ODg4ODg4ODj/2wBDAQkJCQ4NDhkNDRk7KCEoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/2gAMAwEAAhEDEQAAAesnboeNtW21bbVttW21bbVttW21bbVttW21bbVttW2xO21aJ1bbVonVG2rbTUTGqdE1tE1ttWidUbattqmJilRMAbbG22rbYW21bbVtsbbYW21bbVttW21bbVtsbbatto7bVtk0pLOpje7lYm7BXG2ct9oVCNtWmNUxMVO2qNtW21TE6ttgNtjbbR22httHbaG21bbVtsLbattq22rbattjbbR22rbak1jjjZitozOp0uUm2y82e9b572WmT/bFdtqnaKnRNaJittNbbATExW2xttq22rbattq22rbatthbbVttW21bbVttW21bbE7bVzFHdUraJ6XmvQwqo0heSZ3NEuqremua6SNmy201ttW21bbVttWiYAnbVtsbbattq22jttDbattq22FttW21bbVtsTttDbaO21bbUGi6PVXWO1avmliBjsuqOuouwKRtJSJ2qJia22rbatomtExCdsLbY221bbVttW21bbVttW2wttq22rbattidtq22rbattq22rCLW1V0kkTdLyewZEr2Oe21aJ1RpipiYrbap0attqnbQ22rbattq20Vp2jttW20Ntq22rbaO21bbVttW21bbVttW2ipobqujx21jadW6EuyVthbbG0TFTo1TG1bbVttW21TtobbVttWiYqdtW21RO1bbVttW21bbR22rbattq2aVUb5tyopukZ1LkMVKspSZBTJrm7Vh0q2rlSQrTEPisHEtgepFC71U/INk6Co2rbato1L20Ntq22raNW20dtobbVO2raJrbatto7bVtmdEpGlQXcIc2BZi7VT1aN2L8QSPWqlTKUGaSR1B++GsBwqsmnDZ0qmbpo0aumrJ5Tq0oEQ6SWpwi5TNTo1E20NtFbbVttW21bbVttWmNU6Jrbattq22pvztpQNrXWTe4JmTsxUak28FOSijzjctuQ1eviA1qVt6M85dar0lYpyaveVJ42yUkNVuAiq5wHNCuqE8L1bU4QkpmixsBtMVttW21bbVttW21bbVpia22rbatExGlqLxi2lbb0tlF8E5QOYfuq8m3PWWSivadMEBi4bgJr2FwgtUPzAg9YNBQFZawNJlVALdLeyg7dhM03YlZAdS9rbGQykKEXbATo1bbVttW21bbVttW21aYmto1To1bbRrB2VK7tW922BFZUpavWzd6i1or1tGvMoBJG+SCALzTMoeJg3OMBrANWkgjZ08g2sFyxIxDVgKdMejKWL8LgBU6QCbYW21bbVttW21bbVttW21bbVttW21bbVmrrR5o9xTaOYLEoOksihwFALpuNIsNcRCJ4QGt1qkVYqwSQ0NIGnaahoRb1bVBVanvRBWV4Q4CVzI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" },
     { id: "plan", box: "next", icon: "i-bulb", title: "Plan my next video",
@@ -1380,8 +1419,8 @@
   // Titles are cut at 120 characters here and refused past 120 by first-read.mjs titleOf.
   function cleanGift(g) {
     if (!g || typeof g !== "object" || !writtenAt(g.at)) return null;
-    var kind = g.kind === "best" || g.kind === "calm" ? g.kind : null;
-    if (kind === "calm") return { kind: kind, at: g.at };
+    var kind = g.kind === "best" || g.kind === "calm" || g.kind === "early" ? g.kind : null;
+    if (kind === "calm" || kind === "early") return { kind: kind, at: g.at };
     var gift = { kind: kind, at: g.at, video: text(g.video, 120), views: count(g.views), posted: writtenAt(g.posted), link: ttLink({ url: g.link }) };
     if (!kind || !gift.video || !gift.views) return null;
     return gift;
@@ -1399,7 +1438,7 @@
   }
   /** The asks for a follow-up to a video that did well, and for what to change after a quiet one. */
   function followUpAsk(title) { return "Plan a follow-up to my TikTok video \"" + title + "\": three opening hooks, a short outline and a caption I can copy. Tell me which of its numbers backs it."; }
-  function quietAsk(title) { return "My TikTok video \"" + title + "\" is doing under my usual. From how my other videos did, tell me in a few lines what to try differently next time: the hook, the length, the caption."; }
+  function quietAsk(title) { return "My TikTok video \"" + title + "\" is doing under my usual. Compare its length, caption and posting time with my better videos and tell me in a few lines what to try next time. Say plainly that you cannot see the video itself, only its numbers and caption."; }
   var NEXT_ASK = "Give me three ideas for my next TikTok from what did well lately. For each, a working title, an opening hook and one line on which of my videos backs it.";
   function giftParts(g) {
     if (g.kind === "best") {
@@ -1410,6 +1449,14 @@
         why: "Want a follow-up planned from it?",
         button: "Plan a follow-up",
         ask: followUpAsk(g.video)
+      };
+    }
+    if (g.kind === "early") {
+      return {
+        head: "Your videos are just getting started.",
+        why: "Nothing to learn from yet. Want three ideas for your next one?",
+        button: "Give me three ideas",
+        ask: "My TikTok videos are too new to have numbers worth reading. Give me three ideas for my next one, each with a working title and an opening hook."
       };
     }
     return {
@@ -1430,7 +1477,7 @@
       '<p class="why">' + esc(p.why) + "</p>" +
       (asked
         ? '<p class="asked">' + icon("i-check") + ASKED + "</p>"
-        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do">' + icon("i-bulb") + esc(p.button) + "</button>" : "") +
+        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn ' + (where === "keep" && bandRed() ? "dark" : "primary") + '" data-act="gift-do">' + icon("i-bulb") + esc(p.button) + "</button>" : "") +
           (g.link ? '<a class="btn" href="' + esc(g.link) + '" target="_blank" rel="noopener noreferrer">' + icon("i-open") + "Open on TikTok</a>" : "") +
           (where === "keep" ? '<button type="button" class="btn quiet" data-act="gift-skip">Not now</button>' : "") + "</div>") +
       '<p class="fine">Nothing is posted. A plan or a caption is a draft for you to copy.</p></section>';
@@ -1490,10 +1537,10 @@
 
   // ── Painting ───────────────────────────────────────────────────────────
 
-  /** The example is read on its own morning; a real catch-up against today. */
+  /** The example and a past day are read on their own morning, so a past day never mixes in today; the latest against now. */
   function refDate() {
     var g = state.data ? parseTime(state.data.generatedAt) : null;
-    return state.example && g ? g : new Date();
+    return (state.example || state.day) && g ? g : new Date();
   }
   /** When the catch-up on screen was written; null for the example. */
   function shownAt() { return state.data && !state.example ? writtenAt(state.data.generatedAt) : null; }
@@ -1502,8 +1549,15 @@
   function byNewest(key) {
     return function (a, b) { var x = parseTime(a[key]), y = parseTime(b[key]); return (y ? y.getTime() : 0) - (x ? x.getTime() : 0); };
   }
-  /** The recent videos, newest first, as the routine wrote them. */
+  /** The videos on the page, newest first: the newest ones, then the best or quiet one when it is older. */
   function videos() { return (state.data ? list(state.data.videos) : []).slice().sort(byNewest("published")); }
+  /** Only the newest ones: an older best or quiet video is not part of "your last 10 videos". */
+  function recentVideos() { return videos().filter(function (v) { return v.older !== true; }); }
+  /** Under 3 days old its total says little yet: the page tints it and says so. */
+  function climbing(v) {
+    var p = parseTime(v && v.published);
+    return !!p && (refDate() - p) / DAY_MS < CLIMBING_DAYS;
+  }
   function nextIdeas() { return (state.data ? list(state.data.next) : []).slice(0, 3); }
   function findItem(id) { return byId(videos(), id); }
   function marked(mark) { return byId(videos(), mark, "mark"); }
@@ -1548,7 +1602,7 @@
   /** Followers gained (below 0 when lost) since the last catch-up; null on the first one. */
   function followersGained() { return firstCatchUp() ? null : delta(totals().followers); }
   /** A count summed over the recent videos. */
-  function recentSum(key) { return videos().reduce(function (m, v) { return m + (count(v[key]) || 0); }, 0); }
+  function recentSum(key) { return recentVideos().reduce(function (m, v) { return m + (count(v[key]) || 0); }, 0); }
 
   function paint() {
     paintStatus();
@@ -1593,9 +1647,10 @@
     }
     var picker = "";
     if (!state.example && state.days.length > 1) {
+      // The newest day file is the latest catch-up itself, so it is offered once, by that name.
       picker = '<label class="sr" for="day-pick">Which day</label><select class="day-pick" id="day-pick">' +
-        '<option value=""' + (state.day ? "" : " selected") + ">Latest</option>" +
-        state.days.map(function (name) {
+        '<option value=""' + (state.day ? "" : " selected") + ">" + (dayWords(state.days[0]) === "Today" ? "Today" : "Latest") + "</option>" +
+        state.days.slice(1).map(function (name) {
           return '<option value="' + esc(name) + '"' + (state.day === name ? " selected" : "") + ">" + esc(dayWords(name)) + "</option>";
         }).join("") + "</select>";
     }
@@ -1671,7 +1726,7 @@
       // The very first catch-up did not work: that is the news, told once, with its fixes.
       var first = failureInfo();
       card = cardHero("alert", "Your first catch-up didn’t work",
-        '<p class="lead">' + esc(first.why) + "</p>" + '<div class="actions">' + failureButtons(true, first.tiktok) + "</div>");
+        '<p class="lead">' + esc(first.why) + "</p>" + '<div class="actions">' + failureButtons(true, first.signIn) + "</div>");
       told = true;
     } else if (V2 && s === "connected" && state.example) {
       var sched = scheduleWords();
@@ -1950,20 +2005,22 @@
     if (!why || (V2 && ttState() !== "connected")) return null;
     var at = tryAt || jobFail;
     var words = at ? whenWords(at, new Date()) : "";
-    // Only a catch-up that reached the routine and could not read TikTok is a TikTok problem.
-    // A run that did not finish (no network, the computer asleep) is fixed by trying again.
-    var tiktok = !!(tryAt && (!shown || tryAt > shown));
-    return { why: why, tiktok: tiktok, head: !words ? "The last catch-up didn’t work." : "The catch-up " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work." };
+    // Only a dead sign-in is fixed by connecting again. Anything else (TikTok's limit, no
+    // network, the computer asleep) is fixed by trying again.
+    var signIn = !!(tryAt && (!shown || tryAt > shown)) && state.lastTry.kind === "signed-out";
+    return { why: why, signIn: signIn, head: !words ? "The last catch-up didn’t work." : "The catch-up " + (/^\d/.test(words) ? "at " : "") + words + " didn’t work." };
   }
-  function failureButtons(primary, tiktok) {
-    return (canRun() ? '<button class="btn' + (primary ? " primary big" : "") + '" data-act="run">' + icon("i-refresh") + "Try again</button>" : "") +
-      (tiktok && state.tt && state.tt.canConnect ? '<button class="btn' + (primary ? " big" : "") + '" data-act="connect">' + icon("i-play") + "Connect TikTok again</button>" : "");
+  function failureButtons(primary, signIn) {
+    var big = primary ? " primary big" : "";
+    var again = canRun() ? '<button class="btn' + (signIn ? "" : big) + '" data-act="run">' + icon("i-refresh") + "Try again</button>" : "";
+    if (!signIn || !state.tt || !state.tt.canConnect) return again;
+    return '<button class="btn' + big + '" data-act="connect">' + icon("i-play") + "Connect TikTok again</button>" + again;
   }
   /** A catch-up that could not read TikTok says so, with the presses that fix it. */
   function failureHtml() {
     var fail = failureInfo();
     if (!fail) return "";
-    var buttons = failureButtons(false, fail.tiktok);
+    var buttons = failureButtons(fail.signIn, fail.signIn);
     return '<div class="notice">' + icon("i-alert") + "<div><p><b>" + esc(fail.head) + "</b> " + esc(fail.why) + "</p>" +
       (buttons ? '<div class="actions">' + buttons + "</div>" : "") + "</div></div>";
   }
@@ -2005,6 +2062,8 @@
     var hi = h < 5 ? "Good evening" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
     var me = cabName();
     var day = d.toLocaleDateString([], { weekday: "long" }) + ", " + d.getDate() + " " + d.toLocaleDateString([], { month: "long" });
+    // A past day is a page from that day, with no greeting for today.
+    if (state.day) return "<b>" + esc(day) + ".</b>";
     return "<b>" + esc(hi + (me ? ", " + me.split(" ")[0] : "")) + ".</b> " + esc(day) + ".";
   }
   /**
@@ -2020,8 +2079,8 @@
       '<div class="status hl-status" aria-live="polite">' + statusHtml() + "</div></div>";
     var band = state.band || { card: "", notes: "" };
     if (band.card) return '<div class="hl">' + top + '<div class="hl-text">' + band.card + band.notes + "</div></div>";
-    if (level === "S") return '<div class="hl">' + top + '<div class="hl-text"><h2 dir="auto">' + esc(name) + "</h2>" + band.notes + "</div></div>";
-    var v = videos();
+    if (level === "S") return '<div class="hl">' + top + '<div class="hl-text"><h2 dir="auto">' + esc(name) + "</h2>" + bandPlanHtml() + band.notes + "</div></div>";
+    var v = recentVideos();
     var views = gainedOf("views");
     var likes = gainedOf("likes");
     var ex = state.example ? "Example: " : "";
@@ -2040,39 +2099,91 @@
       news = "<b>" + esc(ex) + counted(views, "view", "views") +
         (likes ? " and " + counted(likes, "like", "likes") : "") + " " + esc(sinceWords(d)) + ".</b>" +
         (best && bestGain ? ' <span dir="auto">Moved most: <span class="moved">' + bidi(videoName(best, 90)) + "</span>, " + signed(bestGain) + " views.</span>" : "");
+    } else if (!v.length) {
+      news = "<b>" + esc(ex) + "No videos on your account yet.</b>";
     } else {
-      news = "<b>" + esc(ex) + "A quiet day: nothing new on your videos since the last catch-up.</b>";
+      var sw = sinceWords(d);
+      news = "<b>" + esc(ex) + (sw === "today" ? "Nothing new on your videos since the last catch-up."
+        : sw === "since yesterday" ? "A quiet day: nothing new on your videos since yesterday."
+        : "Nothing new on your videos " + esc(sw) + ".") + "</b>";
     }
     var gainedFollowers = followersGained();
     if (gainedFollowers) news += " " + (gainedFollowers > 0 ? "You gained " + counted(gainedFollowers, "follower", "followers") + "." : "You lost " + counted(-gainedFollowers, "follower", "followers") + ".");
-    var meta = [];
-    var followers = count(acc.followers);
-    if (followers != null) meta.push(counted(followers, "follower", "followers"));
-    if (count(acc.likes) != null) meta.push(counted(count(acc.likes), "like", "likes"));
-    if (count(acc.videos) != null) meta.push(counted(count(acc.videos), "video", "videos"));
-    if (text(acc.handle, 60)) meta.push('<bdi dir="ltr">' + esc(text(acc.handle, 60)) + "</bdi>");
+    // The numbers are in Your account: the line under the news is only the way to the profile.
+    var handle = text(acc.handle, 60);
+    var profile = state.example ? "" : ttLink(acc);
+    var meta = !handle ? "" : '<p class="meta"><span>' + (profile ? '<a href="' + esc(profile) + '" target="_blank" rel="noopener noreferrer">' : "") +
+      '<bdi dir="ltr">' + esc(handle) + "</bdi>" + (profile ? "</a>" : "") + "</span></p>";
     var fine = "";
     var g = writtenAt(d.generatedAt);
     if (state.day && g) fine = "This is the catch-up from " + esc(whenWords(g, new Date())) + ".";
-    return '<div class="hl">' + top + '<div class="hl-text"><p class="hello">' + helloHtml(new Date()) + "</p>" +
-      '<h2 dir="auto">' + esc(name) + "</h2>" + '<p class="lead">' + news + "</p>" +
-      (meta.length ? '<p class="meta num">' + meta.map(function (m) { return "<span>" + m + "</span>"; }).join("") + "</p>" : "") +
-      (fine ? '<p class="fine">' + fine + "</p>" : "") + band.notes + "</div>" + sparkHtml() + "</div>";
+    return '<div class="hl">' + top + '<div class="hl-text"><p class="hello">' + helloHtml(refDate()) + "</p>" +
+      '<h2 dir="auto">' + esc(name) + "</h2>" + '<p class="lead">' + news + "</p>" + meta +
+      (fine ? '<p class="fine">' + fine + "</p>" : "") + bandPlanHtml() + band.notes + "</div>" + sparkHtml() + "</div>";
   }
-  /** Views on the last videos, oldest first, the one that moved most in the accent. TikTok has no views per day. */
+  /**
+   * The page's one red button once it shows a real account: a follow-up to the video that moved
+   * most, or on a quiet day the next video. Null while Connect or Catch up now holds the red.
+   */
+  function bandPlan() {
+    if (state.example || state.editing || !canAsk() || !state.data) return null;
+    // A dead sign-in comes first: nothing can be read until it is fixed, so Connect holds the red.
+    var fail = failureInfo();
+    if (fail && fail.signIn) return null;
+    var best = marked("best");
+    if (best) return { label: "Plan a follow-up to " + videoName(best, 44), ask: followUpAsk(videoName(best, 120)) };
+    return videos().length
+      ? { label: "Plan my next video", ask: ideaById("plan").ask }
+      : { label: "Plan my first video", ask: "I have no TikTok videos yet. Plan my first one: three opening hooks, a short outline and a caption I can copy." };
+  }
+  /** The band's button shows now, so no other button on the page is red. */
+  function bandRed() {
+    return !!bandPlan() && onPage("headline") && !(state.band && state.band.card);
+  }
+  function bandPlanHtml() {
+    var plan = bandPlan();
+    return plan ? '<div class="hl-plan"><button type="button" class="btn primary" data-act="band-plan" dir="auto">' + icon("i-bulb") + esc(plan.label) + "</button></div>" : "";
+  }
+  /** Views on the last videos, oldest first, the one that moved most in the accent, the ones under 3 days old tinted. TikTok has no views per day. */
   function sparkHtml() {
-    var v = videos().filter(function (x) { return count(x.views) != null; }).slice(0, 10).reverse();
+    var v = recentVideos().filter(function (x) { return count(x.views) != null; }).slice(0, 10).reverse();
     if (v.length < 3) return "";
     var max = Math.max.apply(null, v.map(function (x) { return count(x.views); })) || 1;
     var best = marked("best");
-    return '<div class="spark" role="img" aria-label="' + esc("Views on your last " + v.length + " videos, oldest first." + (best ? " The one that moved most: " + videoName(best, 90) + "." : "")) + '">' +
+    var young = v.some(climbing);
+    var shown = best && v.some(function (x) { return x.id === best.id; });
+    return '<div class="spark" role="img" aria-label="' + esc("Views on your last " + v.length + " videos, oldest first." + (shown ? " The one that moved most: " + videoName(best, 90) + "." : "") + (young ? " The newest are still climbing." : "")) + '">' +
       '<div class="cols">' + v.map(function (x) {
-        return '<i class="' + (best && x.id === best.id ? "wk" : "") + '" style="height:' + Math.max(2, Math.round(count(x.views) / max * 100)) + '%"></i>';
+        var cls = [best && x.id === best.id ? "wk" : "", climbing(x) ? "young" : ""].join(" ").trim();
+        return '<i class="' + cls + '" style="height:' + Math.max(2, Math.round(count(x.views) / max * 100)) + '%"></i>';
       }).join("") + "</div>" +
-      '<div class="cap"><span><b>Views</b>, your last ' + v.length + " videos</span><span>oldest to newest</span></div></div>";
+      '<div class="cap"><span><b>Views</b>, your last ' + v.length + " videos</span>" +
+      (young ? '<span class="key"><i></i>still climbing</span>' : "<span>oldest to newest</span>") + "</div></div>";
   }
 
   // How your videos did: the recent videos, newest first, the one that moved most and the quietest marked.
+  /** "0:41" for a video's length. */
+  function lengthWords(seconds) {
+    var n = count(seconds);
+    return n ? Math.floor(n / 60) + ":" + String(n % 60).padStart(2, "0") : "";
+  }
+  /** "14.1": a rate with one decimal, none when it is whole or large. */
+  function oneDecimal(n) { return String(n >= 10 ? Math.round(n) : Math.round(n * 10) / 10); }
+  function usual() { var w = worksData(); return w && w.usual && typeof w.usual === "object" ? w.usual : null; }
+  /** Shares and comments per 1,000 views against the person's own usual, and the first day when it is known. */
+  function rowFacts(item) {
+    var out = [];
+    var u = usual();
+    var views = count(item.views) || 0;
+    if (u && views >= 100) {
+      ["shares", "comments"].forEach(function (k) {
+        if (typeof u[k] === "number" && u[k] > 0) out.push(oneDecimal((count(item[k]) || 0) / views * 1000) + " " + k + " per 1,000 views, your usual is " + oneDecimal(u[k]));
+      });
+    }
+    var fd = item.firstDay;
+    if (fd && count(fd.views) != null && count(fd.usual) != null) out.push(big(fd.views) + " views after its first day, your usual is " + big(fd.usual));
+    return out.length ? '<p class="row-facts num">' + esc(out.join(". ")) + ".</p>" : "";
+  }
   function videoRow(item, index) {
     var id = text(item.id, 60) || "v" + index;
     var open = !!state.open[id];
@@ -2091,17 +2202,20 @@
     var markWords = mark === "best" ? (gainedOf("views") != null ? "Moved most" : "Best") : mark === "quiet" ? "Quietest" : "";
     var stats = ["views", "likes", "comments", "shares"].map(function (k, i) {
       var n = count(item[k]) || 0;
-      return "<span>" + counted(n, k.slice(0, -1), k) + "</span>" + (i === 0 && gv ? '<span class="up">+' + big(gv) + " since yesterday</span>" : "");
+      return "<span>" + counted(n, k.slice(0, -1), k) + "</span>" + (i === 0 && gv ? '<span class="up">+' + big(gv) + " " + esc(sinceWords(state.data)) + "</span>" : "");
     }).join("");
+    var facts = rowFacts(item);
+    var body = facts || actions.length;
+    var length = lengthWords(item.duration);
     return '<li class="chan' + (open ? " open" : "") + '">' +
-      '<button class="chan-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '"' + (actions.length ? ' aria-controls="body-' + esc(id) + '"' : "") + ">" +
+      '<button class="chan-main" data-act="toggle" data-id="' + esc(id) + '" aria-expanded="' + open + '"' + (body ? ' aria-controls="body-' + esc(id) + '"' : "") + ">" +
       '<span class="chan-name"><b dir="auto">' + esc(title) + "</b>" +
       (markWords ? '<span class="vmark ' + mark + '">' + markWords + "</span>" : "") + "</span>" +
-      '<span class="chan-count">' + esc(rowTime(item.published, refDate())) + "</span>" +
+      '<span class="chan-count num">' + esc(rowTime(item.published, refDate())) + (length ? " · " + length : "") + "</span>" +
       '<span class="vstats num">' + stats + "</span>" +
       (text(item.gist) ? '<span class="chan-gist" dir="auto">' + esc(text(item.gist, 160)) + "</span>" : "") +
       "</button>" +
-      (actions.length ? '<div class="chan-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + '><div class="row-actions">' + actions.join("") + "</div></div>" : "") +
+      (body ? '<div class="chan-body" id="body-' + esc(id) + '"' + (open ? "" : " hidden") + ">" + facts + (actions.length ? '<div class="row-actions">' + actions.join("") + "</div>" : "") + "</div>" : "") +
       "</li>";
   }
   function drawVideos(level) {
@@ -2113,8 +2227,9 @@
         gained != null ? plural(gained, "view", "views") + " " + esc(sinceWords(state.data)) : plural(v.length, "recent video", "recent videos"),
         best ? "<b>" + (gained != null ? "Moved most" : "Best") + ":</b> " + bidi(videoName(best, 100)) : "");
     }
-    return boxHead("videos", "How your videos did", "i-play", v.length ? "Your last " + counted(v.length, "video", "videos") : "", null) +
-      listBody(v.length, '<ul class="rows chans">' + v.map(function (item, i) { return videoRow(item, i); }).join("") + "</ul>", "No videos on your account yet. Each one shows here the morning after you post it, with its views, likes, comments and shares.", "i-play") +
+    var newest = recentVideos().length;
+    return boxHead("videos", "How your videos did", "i-play", newest ? "Your last " + counted(newest, "video", "videos") : "", null) +
+      listBody(v.length, '<ul class="rows chans">' + v.map(function (item, i) { return videoRow(item, i); }).join("") + "</ul>", "No videos on your account yet. Each one shows here after the next catch-up, with its views, likes, comments and shares.", "i-play") +
       nudgeHtml(boxIdea("videos"));
   }
 
@@ -2125,10 +2240,12 @@
     }
     return listBox("next", "Ideas for your next videos", "i-bulb", "", n.length,
       '<ul class="rows mini">' + n.map(function (x, i) {
+        var from = x.from ? findItem(text(x.from, 20)) : null;
         return '<li><span class="top"><b dir="auto">' + esc(text(x.title, 120)) + "</b></span><span class=\"side\"></span>" +
-          '<span class="t" dir="auto">' + esc(text(x.why, 160)) +
-          (canAsk() ? ' <button type="button" class="btn quiet small" data-act="plan" data-i="' + i + '">' + icon("i-pen") + "Plan it</button>" : "") + "</span></li>";
-      }).join("") + "</ul>", "Ideas show up once a few videos have numbers to learn from.", "i-bulb") + nudgeHtml(boxIdea("next"));
+          '<span class="t" dir="auto">' + esc(text(x.why, 200)) + "</span>" +
+          '<span class="idea-foot"><span class="from" dir="auto">' + (from ? "From: " + bidi(videoName(from, 80)) : "") + "</span>" +
+          (canAsk() ? '<button type="button" class="btn quiet small" data-act="plan" data-i="' + i + '">' + icon("i-pen") + "Plan it</button>" : "") + "</span></li>";
+      }).join("") + "</ul>", "Ideas show up once a few videos have numbers to learn from.", "i-bulb");
   }
 
   /** The numbers someone looks for first, each a small box. */
@@ -2140,7 +2257,7 @@
   function gainedKpi(key, label, iconId) {
     var g = gainedOf(key);
     return g != null ? kpi(label, iconId, big(g), sinceWords(state.data) + " on your recent videos")
-      : kpi(label, iconId, big(recentSum(key)), "across your last " + videos().length + " videos");
+      : kpi(label, iconId, big(recentSum(key)), recentVideos().length ? "across your last " + counted(recentVideos().length, "video", "videos") : "No videos yet");
   }
   function drawNumViews() { return gainedKpi("views", "Views", "i-eye"); }
   function drawNumLikes() { return gainedKpi("likes", "Likes", "i-heart"); }
@@ -2189,30 +2306,31 @@
     return '<div class="fig"><span class="k">' + esc(label) + '</span><span class="v num">' + value + "</span>" +
       (sub ? '<span class="s num">' + sub + "</span>" : "") + "</div>";
   }
-  /** A short list with a thin bar for each: its name and its count. */
+  /** A short list with a thin bar for each: its name and its count, the highest in the accent. */
   function barsHtml(rows, unit) {
     var top = rows.reduce(function (m, r) { return Math.max(m, r.n); }, 0) || 1;
+    var found = false;
     return '<ul class="bars">' + rows.map(function (r) {
-      return '<li><span class="nm" dir="auto">' + esc(r.name) + "</span>" +
-        '<span class="vl num">' + big(r.n) + (unit ? " " + plural(r.n, unit[0], unit[1]) : "") + "</span>" +
-        '<span class="tr"><i style="width:' + Math.max(2, Math.round(r.n / top * 100)) + '%"></i></span></li>';
+      var high = !found && r.n === top;
+      if (high) found = true;
+      return "<li" + (high ? ' class="top"' : "") + '><span class="nm" dir="auto">' + esc(r.name) + "</span>" +
+        '<span class="vl num">' + big(r.n) + (unit ? " " + plural(r.n, unit[0], unit[1]) : "") + (r.young ? ", still climbing" : "") + "</span>" +
+        '<span class="tr"><i' + (r.young ? ' class="young"' : "") + ' style="width:' + Math.max(2, Math.round(r.n / top * 100)) + '%"></i></span></li>';
     }).join("") + "</ul>";
   }
   /** The read before today's: what each account tile is compared with. Null on the first read. */
   function previousRead() {
     var h = history();
-    if (h.length < 2) return null;
-    var today = ymd(refDate());
-    var last = h[h.length - 1];
-    // The last entry is this catch-up's own; with no entry for today yet, it is the one before.
-    return last.day === today || last.day === ymd(writtenAt(state.data && state.data.generatedAt) || refDate()) ? h[h.length - 2] : last;
+    // Every catch-up adds its own entry, so the last one is this read.
+    return h.length < 2 ? null : h[h.length - 2];
   }
   /** "+1,240 (2.6%)" with its direction, or null when there is nothing honest to compare. */
   function moveOf(now, before) {
     if (now == null || before == null) return null;
     var n = now - before;
     var pct = before > 0 ? n / before * 100 : null;
-    var p = pct == null ? "" : Math.abs(pct) >= 10 || pct === 0 ? Math.round(Math.abs(pct)) + "%" : (Math.round(Math.abs(pct) * 10) / 10) + "%";
+    var abs = Math.abs(pct || 0);
+    var p = pct == null ? "" : abs > 0 && abs < .1 ? "under 0.1%" : abs >= 10 || abs === 0 ? Math.round(abs) + "%" : (Math.round(abs * 10) / 10) + "%";
     return { n: n, dir: n > 0 ? "up" : n < 0 ? "down" : "flat", pct: p };
   }
   function moveHtml(m, words) {
@@ -2249,6 +2367,45 @@
       '<span class="trend-cap num"><span>' + esc(shortDate(parseTime(h[0].day))) + "</span>" + moveHtml(m, "") +
       "<span>" + esc(shortDate(parseTime(h[h.length - 1].day))) + "</span></span></div>";
   }
+  /** The last morning read at or before `day`, or null. */
+  function readAtOrBefore(reads, day) {
+    var hit = null;
+    reads.forEach(function (x) { if (x.day <= day) hit = x; });
+    return hit;
+  }
+  function daysBack(day, n) { var d = parseTime(day); d.setDate(d.getDate() - n); return ymd(d); }
+  /** "+84 followers a day this week, up from +52. 3 followers per 1,000 views. You posted 2 videos." */
+  function growthHtml() {
+    var h = history().filter(function (x) { return delta(x.followers) != null; });
+    if (h.length < 2) return "";
+    var now = h[h.length - 1];
+    var weekAgo = readAtOrBefore(h, daysBack(now.day, 7));
+    var base = weekAgo || h[0];
+    var gap = daysBetween(parseTime(base.day), parseTime(now.day));
+    if (gap < 1) return "";
+    var moved = delta(now.followers) - delta(base.followers);
+    var rate = Math.round(moved / gap);
+    var when = weekAgo ? "this week" : "since " + shortDate(parseTime(base.day));
+    var parts = [];
+    var line = rate === 0 ? "About the same followers " + when : signed(rate) + " " + plural(Math.abs(rate), "follower", "followers") + " a day " + when;
+    // The week before, when the reads go back that far.
+    var before = weekAgo ? readAtOrBefore(h, daysBack(weekAgo.day, 7)) : null;
+    if (before && before !== weekAgo) {
+      var last = Math.round((delta(weekAgo.followers) - delta(before.followers)) / daysBetween(parseTime(before.day), parseTime(weekAgo.day)));
+      if (rate) line += last === rate ? ", the same as the week before" : ", " + (rate > last ? "up" : "down") + " from " + signed(last);
+    }
+    parts.push(line);
+    // New followers against the views gained in the same reads; an older read may not hold them.
+    var window = h.filter(function (x) { return x.day > base.day; });
+    var views = window.reduce(function (m, x) { return m + (count(x.viewsGained) || 0); }, 0);
+    if (moved > 0 && views >= 1000 && window.every(function (x) { return count(x.viewsGained) != null; })) {
+      var per = moved / views * 1000;
+      parts.push(oneDecimal(per) + " " + plural(Math.round(per * 10) / 10, "follower", "followers") + " per 1,000 views");
+    }
+    var week = spanOf("last7");
+    if (week) parts.push(count(week.videos) ? "You posted " + counted(count(week.videos), "video", "videos") : "You posted nothing");
+    return '<p class="growth num">' + esc(parts.join(". ")) + ".</p>";
+  }
   function drawAccount(level) {
     var acc = accountInfo();
     var days = state.span === "7" ? 7 : 28;
@@ -2276,7 +2433,7 @@
     var lines = history().filter(function (x) { return x.day >= spanStart(days); }).length;
     var trends = lines < 2
       ? '<div class="trend wide"><span class="k">Followers and likes over ' + days + ' days</span><p class="trend-wait">' +
-        esc(prev ? "Only one morning read in these " + days + " days. The lines draw from the second." : "This is your first read. From tomorrow’s, every number above shows what changed, and followers and likes draw as lines here.") + "</p></div>"
+        esc(prev ? "Only one morning read in these " + days + " days. The lines draw from the second." : "This is your first read. From the next one, every number above shows what changed, and followers and likes draw as lines here.") + "</p></div>"
       : trendHtml("followers", "Followers", days) + trendHtml("likes", "Likes", days);
     // What the videos posted in these days gathered, and how much more since the last read.
     var noVideos = count(acc.videos) === 0 && !videos().length;
@@ -2284,28 +2441,59 @@
     var period;
     if (noVideos) {
       period = '<p class="dash-empty">No videos on your account yet, so there are no views, likes, comments or shares to count. They show here from your first video.</p>';
+    } else if (!posted) {
+      period = '<p class="dash-empty">You posted nothing in these ' + days + " days.</p>";
     } else {
+      // Each number is the total so far of the videos from these days, so no arrow: what moved
+      // since the last read is about every recent video, not only these.
       period = '<div class="tiles small">' + [["Views", "i-eye", "views"], ["Likes", "i-heart", "likes"], ["Comments", "i-chat", "comments"], ["Shares", "i-share", "shares"]].map(function (t) {
-        var g = gainedOf(t[2]);
-        var base = recentSum(t[2]) - (g || 0);
-        var m = g == null ? null : { n: g, dir: g > 0 ? "up" : "flat", pct: base > 0 && g > 0 ? moveOf(base + g, base).pct : "" };
-        return tile(t[0], t[1], span ? big(span[t[2]]) : "0", moveHtml(m, m ? "on recent videos, " + sinceWords(state.data) : "First read"));
+        return tile(t[0], t[1], span ? big(span[t[2]]) : "0", "");
       }).join("") + "</div>";
     }
-    var since = spanStart(days);
-    var inSpan = videos().filter(function (x) { var p = parseTime(x.published); return p && ymd(p) >= since; });
-    var top = inSpan.slice().sort(function (x, y) { return (count(y.views) || 0) - (count(x.views) || 0); }).slice(0, 4)
-      .map(function (x) { return { name: videoName(x, 90), n: count(x.views) || 0 }; });
+    var top = span ? list(span.top).map(function (x) { return { name: videoName(x, 90), n: count(x.views) || 0, young: climbing(x) }; }) : [];
     var reads = history().length;
-    var note = "TikTok shares totals, not views per day, watch time or what comments say. Every change here is counted from Cabinet’s own morning reads" +
+    var note = "Every change here is counted from Cabinet’s own morning reads" +
       (reads && reads < days ? ", " + counted(reads, "morning", "mornings") + " so far." : ".") +
       (span && span.partial === true ? " Only your newest 40 videos are counted." : "");
     return '<div class="chn dash"><div class="lane-head"><span class="lane-icon" aria-hidden="true">' + icon("i-chart") + '</span><h3 id="h-account">Your account</h3>' + seg + "</div>" +
-      '<div class="tiles">' + tiles + "</div>" +
+      '<div class="tiles">' + tiles + "</div>" + growthHtml() +
       '<div class="trends">' + trends + "</div>" +
-      '<h4 class="dash-sub">' + (noVideos ? "Your videos" : "Videos posted in the last " + days + " days" + (span ? ", " + counted(posted, "video", "videos") : "")) + "</h4>" + period +
+      '<h4 class="dash-sub">' + (noVideos ? "Your videos" : "Videos posted in the last " + days + " days" + (posted ? ", " + counted(posted, "video", "videos") : "")) + "</h4>" + period +
       (top.length ? '<div class="splits"><div class="split"><h4>Most viewed of them</h4>' + barsHtml(top, ["view", "views"]) + "</div></div>" : "") +
       '<p class="chn-note">' + icon("i-chart") + "<span>" + esc(note) + "</span></p></div>" + nudgeHtml(boxIdea("account"));
+  }
+
+  // What works for you: counted by first-read.mjs worksOf over up to 40 videos at least 3 days
+  // old. A group under 3 videos never arrives here.
+  function worksData() { var w = state.data && state.data.works; return w && typeof w === "object" ? w : null; }
+  function worksRows(value) {
+    return list(value).filter(function (g) { return text(g.label) && (count(g.videos) || 0) >= 3 && count(g.median) != null; })
+      .map(function (g) { return { name: text(g.label, 40), n: count(g.median) }; });
+  }
+  function drawWorks(level) {
+    var w = worksData();
+    var u = usual();
+    var groups = (w ? [["Length", w.length], ["Day you posted", w.weekday], ["Time you posted", w.hour]] : [])
+      .map(function (g) { return { title: g[0], rows: worksRows(g[1]) }; }).filter(function (g) { return g.rows.length; });
+    var honest = "It shows your own posting history, not when your audience is online.";
+    if (level === "S") {
+      var firstGroup = groups[0];
+      var high = firstGroup ? firstGroup.rows.slice().sort(function (a, b) { return b.n - a.n; })[0] : null;
+      return sumBox("works", "What works for you", "i-chart", u && count(u.views) ? big(u.views) : "", "views on your usual video",
+        high ? "<b>Best:</b> " + esc(high.name) : "");
+    }
+    if (!groups.length) {
+      return '<div class="chn">' + boxHead("works", "What works for you", "i-chart", "", null) +
+        '<p class="lane-empty">' + icon("i-chart") + "<span>This fills in once 3 of your videos share a length, a day or a time, each at least 3 days old. " + esc(honest) + "</span></p></div>";
+    }
+    var nVideos = count(w.videos) || 0;
+    return '<div class="chn">' + boxHead("works", "What works for you", "i-chart", counted(nVideos, "video", "videos"), null) +
+      (u && count(u.views) ? '<p class="works-usual num">Your usual video has ' + counted(count(u.views), "view", "views") +
+        (u.shares ? ", with " + oneDecimal(u.shares) + " shares and " + oneDecimal(u.comments || 0) + " comments per 1,000 views" : "") + ".</p>" : "") +
+      '<div class="works-cols">' + groups.map(function (g) {
+        return '<div class="split"><h4>' + esc(g.title) + "</h4>" + barsHtml(g.rows, ["view", "views"]) + "</div>";
+      }).join("") + "</div>" +
+      '<p class="chn-note">' + icon("i-chart") + "<span>Median views for each group of 3 or more videos, at least 3 days old. " + esc(honest) + "</span></p></div>";
   }
 
   // Ask about your account: the idea for today on top, the usual questions under it.
@@ -2313,7 +2501,8 @@
     if (state.layoutAsk) return drawLayoutAsk(level);
     var featured = level === "S" ? null : askIdea();
     var note = state.askNote || askHint();
-    var qs = level === "S" ? [] : QUESTIONS.slice(0, level === "L" ? 6 : 3);
+    var asks = videos().length ? QUESTIONS : FIRST_QUESTIONS;
+    var qs = level === "S" ? [] : asks.slice(0, level === "L" ? 6 : 3);
     return (level === "S" ? "" : '<h2 id="ask-title">Ask about your account</h2>') +
       askForm("Your question", "A video or your next post...", "Ask") +
       (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
@@ -2424,7 +2613,8 @@
         ? { line: "It’s " + f.ref.toLocaleDateString([], { weekday: "long" }) + ". Make a page with your week on TikTok?", act: "Make the summary" }
         : null;
     },
-    caption: function () {
+    caption: function (f) {
+      if (!f.videos) return null;
       return { line: "Posting soon? Get a caption with hashtags, from what worked lately.", act: "Draft a caption" };
     }
   };
@@ -2492,8 +2682,9 @@
   function nudgeHtml(fit, lead) {
     if (!fit) return "";
     var idea = fit.idea;
-    // Before the first catch-up the band holds the page's one red button (Connect or Catch up now).
-    var red = lead && !state.example;
+    // The band holds the page's one red button: Connect or Catch up now, then the plan. Only a
+    // page without the band has a red of its own here, unless the note up top already holds one.
+    var red = lead && !state.example && !onPage("headline") && !$("hero").querySelector(".btn.primary");
     return '<div class="nudge">' + icon("i-bulb") + '<p dir="auto">' + esc((lead || "") + fit.line) + "</p>" +
       '<div class="nudge-actions">' +
       ideaButton(idea, fit, "btn small " + (red ? "primary" : "dark"), esc(fit.act)) + routineButton(idea, "btn small") +
@@ -2590,12 +2781,21 @@
   var LAYOUT_KEY = "tiktok-digest-layout@1";
   var DEFAULT_LAYOUT = [
     { id: "headline", x: 0, y: 0, w: 12, h: 3 },
-    { id: "account", x: 0, y: 3, w: 12, h: 9 },
-    { id: "videos", x: 0, y: 12, w: 7, h: 10 },
-    { id: "next", x: 7, y: 12, w: 5, h: 5 },
-    { id: "ideas", x: 7, y: 17, w: 5, h: 5 },
-    { id: "ask", x: 0, y: 22, w: 7, h: 5 },
-    { id: "keep", x: 7, y: 22, w: 5, h: 5 }
+    { id: "videos", x: 0, y: 3, w: 7, h: 12 },
+    { id: "next", x: 7, y: 3, w: 5, h: 6 },
+    { id: "ask", x: 7, y: 9, w: 5, h: 6 },
+    { id: "account", x: 0, y: 15, w: 12, h: 9 },
+    { id: "works", x: 0, y: 24, w: 12, h: 5 }
+  ];
+  /** With only a few videos the list is short, so Ask leaves its column and no hole stays beside it. */
+  var FEW_VIDEOS = 6;
+  var FEW_LAYOUT = [
+    { id: "headline", x: 0, y: 0, w: 12, h: 3 },
+    { id: "videos", x: 0, y: 3, w: 7, h: 6 },
+    { id: "next", x: 7, y: 3, w: 5, h: 6 },
+    { id: "account", x: 0, y: 9, w: 12, h: 9 },
+    { id: "works", x: 0, y: 18, w: 12, h: 5 },
+    { id: "ask", x: 0, y: 23, w: 12, h: 5 }
   ];
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
@@ -2609,6 +2809,8 @@
       title: "How your videos did", desc: "Views, likes, comments and shares for each recent video, the one that moved most and the quietest marked." },
     account: { cls: "lane account", draw: drawAccount, group: "tiktok", icon: "i-chart", w: 12, h: 9, min: [3, 3], grow: true,
       title: "Your account", desc: "Followers, following, likes and videos against the read before, how they moved over 7 or 28 days, and what your recent videos gathered." },
+    works: { cls: "lane works", draw: drawWorks, group: "tiktok", icon: "i-chart", w: 12, h: 5, min: [3, 3], grow: true,
+      title: "What works for you", desc: "Median views by length, posting day and posting time, from your own history." },
     next: { cls: "lane next", list: true, draw: drawNext, group: "tiktok", icon: "i-bulb", w: 5, h: 5, min: [3, 3],
       title: "Ideas for your next videos", desc: "Three ideas a day, each backed by a video that did well." },
     "n-views": { cls: "lane nbox", draw: drawNumViews, group: "numbers", icon: "i-eye", w: 3, h: 2, min: [2, 2],
@@ -2667,7 +2869,8 @@
   }
   function copyLayout(value) { return value.map(copyEntry); }
   /** This person's layout, or the first page while they have not changed it. */
-  function layoutNow() { return state.layout || DEFAULT_LAYOUT; }
+  function firstLayout() { return state.data && list(state.data.videos).length < FEW_VIDEOS ? FEW_LAYOUT : DEFAULT_LAYOUT; }
+  function layoutNow() { return state.layout || firstLayout(); }
   /** Whether box `a` and the w by h spot at x, y share a cell. */
   function overlaps(a, x, y, w, h) { return x < a.x + a.w && a.x < x + w && y < a.y + a.h && a.y < y + h; }
 
@@ -3290,7 +3493,7 @@
     toast(box.title + " added.");
   }
   function resetLayout() {
-    changeLayout(copyLayout(DEFAULT_LAYOUT));
+    changeLayout(copyLayout(firstLayout()));
     toast("Back to the first page. Undo brings yours back.");
   }
   function undoLayout() {
@@ -3425,7 +3628,7 @@
     el.innerHTML = "<p>" + (parts.length ? "<b>The agent suggests:</b> " + esc(parts.join(", and ")) + "." : "<b>From the agent:</b>") +
       (why ? '<span class="why" dir="auto">' + esc(why) + "</span>" : "") + "</p>" +
       '<div class="suggest-actions">' + (parts.length
-        ? '<button type="button" class="btn primary" data-act="change-apply">' + icon("i-check") + "Apply</button>" +
+        ? '<button type="button" class="btn ' + (bandRed() ? "dark" : "primary") + '" data-act="change-apply">' + icon("i-check") + "Apply</button>" +
           '<button type="button" class="btn" data-act="change-skip">No thanks</button>'
         : '<button type="button" class="btn" data-act="change-skip">OK</button>') + "</div>";
   }
@@ -3900,6 +4103,9 @@
       ask(act === "followup"
         ? followUpAsk(named)
         : quietAsk(named));
+    } else if (act === "band-plan") {
+      var plan = bandPlan();
+      if (plan) ask(plan.ask);
     } else if (act === "plan") {
       var nx = nextIdeas()[+el.getAttribute("data-i")];
       if (nx) ask("Plan a TikTok from this idea: " + text(nx.title, 120) + " (" + text(nx.why, 160) + "). Give me three opening hooks, a short outline and a caption I can copy, and tell me which of my videos backs it.");
