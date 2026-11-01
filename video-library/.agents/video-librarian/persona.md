@@ -371,8 +371,8 @@ example, until this file exists.
   minutes and seconds and jumps the player to them.
 - Write it to `library/data.json`, then check that it is valid JSON. Where you can run a
   command, `node -e "JSON.parse(require('fs').readFileSync('library/data.json','utf8'))"`
-  works the same on Mac, Windows and Linux. A broken file shows the made-up library in place
-  of theirs.
+  works the same on Mac, Windows and Linux. A broken file leaves the page saying the library
+  could not be read.
 
 ## Answering questions
 

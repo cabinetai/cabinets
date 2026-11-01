@@ -13,7 +13,7 @@ Nothing runs on a schedule. The full rules are in the agent's persona
 
 | File | Written by | What it holds |
 |---|---|---|
-| `library/data.json` | The agent, in a chat | The library the page shows. Schema `video-library/library@1`. |
+| `library/data.json` | The agent, in a chat | The library the page shows. Schema `video-library/library@1`. A broken or over-limit file shows "could not be read", never the made-up library. |
 | `library/EXAMPLE-data.json` | Nobody (it ships with the template) | A made-up library in the same shape, shown, marked as an example, until `data.json` exists. |
 | `library/layout-change.json` | The agent, in a chat | Boxes someone asked to `add` or `remove`, with `at`, `for` and a `note`. Schema `video-library/layout-change@1`. The page offers it with Apply and No thanks; each person's layout itself stays in Cabinet (`cabinet.mine`). |
 | `library/reading.json` | The first save only, through `first-read.mjs` | `{ schema, startedAt, updatedAt, done, lines, gift, offers }`: each step of the first save, one line at a time, and the things to do meanwhile, while the person watches. Schema `video-library/reading@1`. |
