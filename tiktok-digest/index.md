@@ -16,12 +16,15 @@ The cabinet opens on it: **Your TikTok**.
 
 - **How your videos did**: views, likes, comments and shares for each recent video, what
   changed since yesterday, which one moved most and which one was quietest.
-- **Your account**: followers, following, likes and videos, each with what it gained or lost
-  since the read before; followers and likes as lines over 7 and 28 days; and what your videos
-  from those days gathered between them.
 - **Ideas for your next videos**: three ideas a day, each one backed by a video that did well.
+- **Your account**: followers, following, likes and videos, each with what it gained or lost
+  since the read before; how fast you are growing; followers and likes as lines over 7 and 28
+  days; and what your videos from those days gathered between them.
+- **What works for you**: median views by length, posting day and posting time, from your own
+  history. It shows when you posted, not when your audience is online.
 - **Ask about your account**: what your best videos have in common, which day you do best,
-  how this month compares with the last. The answer comes up in the chat.
+  how the videos you posted this month compare with last month's. The answer comes up in the
+  chat.
 - **Ideas**: a follow-up to the video that moved most, what to change next time after a
   quiet one, a caption for your next video, a weekly summary. Ask once, switch one on to run on a schedule, or keep it on the page as a
   box.
@@ -36,7 +39,8 @@ never guesses.
 
 ## Getting started
 
-1. On the page, press **Connect TikTok** and sign in to TikTok. It takes about a minute, once.
+1. On the page, press **Connect TikTok** and sign in to TikTok. It comes back to Cabinet by
+   itself, about a minute, once.
 2. A few minutes later your own account is there. It updates every morning at 9.
 
 Until then, the page shows a made-up account, and says so.
@@ -52,3 +56,5 @@ ask for a caption or a plan, you get a draft in the chat to copy.
 - **Account Reader** is the one agent. Reads your account and writes the page.
 - **Morning TikTok Digest** is the one routine. Runs at 09:00 every day.
 - **Your TikTok** is the page the cabinet opens on, with earlier days in its date picker.
+- **About your TikTok** (`your-tiktok/setup.md`) is what you tell your reader: what you make, your
+  goal, how your captions sound, what to avoid. Say it in the chat and it is written there.
