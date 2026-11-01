@@ -88,8 +88,22 @@
 })
 #let label(body) = text(font: small, size: 8pt, weight: 500, fill: ink-2, body)
 
+// Powered by Cabinet: the drawer mark and the brand word, in Cabinet's brown.
+#let brand = rgb("#8a4a28")
+#let cabinet-mark(size) = box(width: size, height: size, baseline: 20%, {
+  let s = size / 24
+  let pen = (paint: brand, thickness: 1.7 * s, cap: "round")
+  place(dx: 5 * s, dy: 3 * s, rect(width: 14 * s, height: 18 * s, radius: 2 * s, stroke: pen))
+  for y in (9, 15) { place(dx: 5 * s, dy: y * s, line(length: 14 * s, stroke: pen)) }
+  for y in (6, 12, 18) { place(dx: 10.5 * s, dy: y * s, line(length: 3 * s, stroke: pen)) }
+})
+#align(center, text(font: small, size: 7.5pt, fill: ink-3)[
+  Powered by #h(2pt) #cabinet-mark(10pt) #h(1pt) #text(font: news, style: "italic", size: 11pt, fill: brand)[cabinet]
+])
+#v(2pt)
+
 // Masthead
-#align(center, text(font: "UnifrakturMaguntia", size: 44pt, fill: ink, bottom-edge: "descender")[The Morning Brief])
+#align(center,text(font: "UnifrakturMaguntia", size: 44pt, fill: ink, bottom-edge: "descender")[The Morning Brief])
 #v(6pt)
 #double
 #v(5pt)

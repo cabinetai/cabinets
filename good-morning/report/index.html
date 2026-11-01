@@ -248,8 +248,6 @@
   var cab = window.cabinet;
   var V2 = !!(cab && cab.files && typeof cab.files.list === "function" && cab.jobs);
   var DIR = "reports";
-  /* On Cloud each morning is also printed as a PDF into this folder (report/brief.typ). */
-  var PDF_DIR = "pdfs";
   var JOB = "morning-report";
   var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -261,7 +259,7 @@
   var POPULAR = ["gmail", "google-calendar", "microsoft-365", "slack", "notion", "stripe", "whatsapp"];
 
   var state = { pinned: false, morning: 0, files: [], at: 0, data: null, name: "", connectors: [], connectorsLoaded: false, jobs: [], role: "owner", running: false, jobFile: null,
-                picks: null, picking: false, draft: null, saving: false, pdf: null };
+                picks: null, picking: false, draft: null, saving: false, printing: false };
   var $ = function (id) { return document.getElementById(id); };
   var root = $("root");
 
@@ -451,8 +449,9 @@
     again.classList.toggle("spin", state.running);
     again.querySelector("span").textContent = state.running ? "Checking…" : "Check again";
     var pdf = $("pdf");
-    pdf.hidden = !state.pdf;
-    pdf.title = state.pdf ? state.pdf.name : "";
+    pdf.hidden = !canPrint();
+    pdf.disabled = state.printing;
+    pdf.querySelector("span").textContent = state.printing ? "Printing…" : "Download PDF";
     var fr = $("first-run");
     if (fr) { fr.disabled = state.running; fr.textContent = state.running ? "Writing your first morning…" : "Write my first morning now"; }
   }
@@ -683,17 +682,19 @@
 
   // ── The printed mornings ───────────────────────────────────────────────
 
-  // The newest PDF there is, for the Download PDF button. None off Cloud, so the button stays hidden.
-  function readPdf() {
-    cab.files.list(PDF_DIR).then(function (entries) {
-      var newest = null;
-      (entries || []).forEach(function (e) { if (!e.isDir && /\.pdf$/i.test(e.name) && (!newest || e.modified > newest.modified)) newest = e; });
-      state.pdf = newest; drawNav();
-    }).catch(function () { state.pdf = null; drawNav(); });
+  // Cabinet prints the newest morning with report/brief.typ and saves it. On a computer a few
+  // are free; after that Cabinet itself offers the cloud. A Cabinet without jobs.pdf hides the button.
+  function canPrint() {
+    return !!(V2 && typeof cab.jobs.pdf === "function" && state.role !== "viewer" && jobById(JOB) &&
+      state.files.some(function (n) { return !isExample(n); }));
   }
-  function downloadPdf() {
-    if (!state.pdf) return;
-    cab.files.download(state.pdf.path).catch(function (e) { toast((e && e.message) || "The PDF could not be downloaded. Try again in a moment."); });
+  function printPdf() {
+    if (state.printing) return;
+    state.printing = true; drawNav();
+    cab.jobs.pdf(JOB).then(function (res) {
+      if (res && typeof res.left === "number") toast(res.left === 0 ? "That was your last free PDF on this computer." : res.left === 1 ? "1 free PDF left on this computer." : res.left + " free PDFs left on this computer.");
+    }).catch(function (e) { toast((e && e.message) || "The PDF could not be made. Try again in a moment."); })
+      .then(function () { state.printing = false; drawNav(); });
   }
 
   // ── The folder of mornings ─────────────────────────────────────────────
@@ -789,7 +790,7 @@
   $("older").addEventListener("click", function () { if (state.at < state.files.length - 1) { state.pinned = true; show(state.at + 1); } });
   $("newer").addEventListener("click", function () { if (state.at > 0) { state.pinned = true; show(state.at - 1); } });
   $("again").addEventListener("click", runAgain);
-  $("pdf").addEventListener("click", downloadPdf);
+  $("pdf").addEventListener("click", printPdf);
   document.addEventListener("keydown", function (e) {
     if (e.target && /input|select|textarea/i.test(e.target.tagName)) return;
     if (e.key === "ArrowLeft" && !$("older").disabled && !$("daynav").hidden) $("older").click();
@@ -816,11 +817,6 @@
       cab.jobs.list().then(setJobs).catch(function () {});
       cab.jobs.onChange(setJobs);
       try { cab.files.onChange(DIR, function () { load(); }); } catch (e) { /* older bridge */ }
-      // A Cabinet without files.download cannot save the PDF, so the button never shows there.
-      if (typeof cab.files.download === "function") {
-        readPdf();
-        try { cab.files.onChange(PDF_DIR, readPdf); } catch (e) { /* older bridge */ }
-      }
     });
   } else {
     readJobFile().then(load);
