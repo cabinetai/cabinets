@@ -1121,7 +1121,7 @@
     if (onCloud()) { setSaveNote(CLOUD_WORDS, true); return; }
     var opt = optionOf(state.saveOption) || OPTIONS[0];
     var have = (id || site) && !state.example ? videos().filter(function (v) {
-      return (id ? v.videoId === id : bareLink(v.link) === bareLink(s)) && keptAs(v, opt.id) && v.status !== "failed";
+      return (id ? v.videoId === id : bareLink(v.link) === bareLink(s)) && keptAs(v, opt.id) && v.status !== "failed" && !stopped(v);
     })[0] : null;
     if (have) { setSaveNote("Already in your library: “\u2068" + text(have.title, 100) + "\u2069”.", false); return; }
     var one = id || (site && site.id !== "youtube");
@@ -1175,7 +1175,22 @@
     var at = r ? writtenAt(r.startedAt) : null;
     return !!at && (!state.saveAskedAt || at.getTime() > state.saveAskedAt - 60000);
   }
-  function savingNow() { return !state.example && videos().some(function (v) { return v.status === "saving"; }); }
+  /** A save that never finished: its card still says saving, hours on. */
+  function stopped(v) {
+    if (v.status !== "saving") return false;
+    var at = writtenAt(v.savedAt) || (state.data ? writtenAt(state.data.updatedAt) : null);
+    return !!at && (Date.now() - at.getTime()) / 3600000 >= READ_LONGEST_H;
+  }
+  function savingOn(v) { return v.status === "saving" && !stopped(v); }
+  function savingNow() { return !state.example && videos().some(savingOn); }
+  // A card left open past the limit changes on its own, with no file to say so.
+  var stoppedShown = 0;
+  setInterval(function () {
+    var n = videos().filter(stopped).length;
+    if (n === stoppedShown) return;
+    stoppedShown = n;
+    paint();
+  }, POLL_MS);
   function freshReading() {
     var r = state.reading;
     if (!ofThisSave(r)) return false;
@@ -1372,7 +1387,7 @@
   function playMode(v) {
     var media = cabPath(v.paths && v.paths.media);
     var p = state.playing[v.slug];
-    if (state.example || v.status === "saving" || v.status === "failed") return { key: "poster" };
+    if (state.example || v.status === "saving" || v.status === "failed") return { key: stopped(v) ? "poster:stopped" : "poster" };
     if (media && p !== "embed-fallback" && (v.option === "video" || v.option === "audio")) return { key: v.option + ":" + media, kind: v.option, src: cabUrl(media) };
     if (!v.videoId) return { key: "poster" };
     if (p === "embed" || p === "embed-fallback") return { key: "embed:" + v.videoId + ":" + (state.seekTo[v.slug] || 0), kind: "embed" };
@@ -1423,7 +1438,7 @@
     wrap.className = "pl-poster";
     wrap.style.setProperty("--poster", tone(v.slug));
     var label = state.example ? '<span class="pl-label">Example</span>'
-      : v.status === "saving" ? '<span class="pl-label">' + icon("i-refresh", "spin") + "Saving</span>" : "";
+      : savingOn(v) ? '<span class="pl-label">' + icon("i-refresh", "spin") + "Saving</span>" : "";
     wrap.innerHTML = label + '<b dir="auto">' + esc(title) + '</b><span>' + bidi(text(v.channel, 80)) +
       (state.example ? ". A made-up video: nothing to play." : "") + "</span>";
     if (state.example) {
@@ -1570,7 +1585,7 @@
         // An id is YouTube's only: anything else would ask YouTube for a picture and a player that are not there.
         v.videoId = siteOf(v).id === "youtube" && /^[\w-]{11}$/.test(text(v.videoId)) ? text(v.videoId) : null;
         return v;
-      }).slice().sort(byNewest("savedAt"));
+      }).slice().sort(byNewest("savedAt")).sort(function (a, b) { return (savingOn(b) ? 1 : 0) - (savingOn(a) ? 1 : 0); });
   }
   function saved() { return videos().filter(function (v) { return v.status !== "saving" && v.status !== "failed"; }); }
   /** A video's subjects as the agent wrote them, in small letters, each once. */
@@ -1747,7 +1762,7 @@
     var name = n ? n + " " + plural(n, "video", "videos") + " saved" : "Nothing saved yet";
     if (level === "S") return '<div class="hl">' + top + '<div class="hl-text"><h2>' + esc(name) + "</h2></div></div>";
     var ex = state.example ? "Example: " : "";
-    var busy = videos().filter(function (v) { return v.status === "saving"; }).length;
+    var busy = videos().filter(savingOn).length;
     var newest = all[0];
     var lead = n
       ? "<b>" + esc(ex + lengthWords(secondsSaved()) + " to watch, " + (bytesWords(bytesUsed()) || "a few KB") + " in this cabinet.") + "</b>" +
@@ -1813,14 +1828,16 @@
     var can = canAsk();
     var link = state.example ? "" : siteLink(v);
     var head = '<h4 class="vc-title" dir="auto">' + esc(text(v.title, 160) || "A video") + "</h4>" + metaHtml(v);
-    if (v.status === "saving") {
+    if (savingOn(v)) {
       return head + '<p class="vc-state">' + icon("i-refresh", "spin") + "Saving and reading it</p>" +
         '<p class="vc-why">It shows up here, summed up, in a minute or two. The chat next to this page says how it goes.</p>';
     }
-    if (v.status === "failed") {
-      return head + '<p class="vc-state bad">' + icon("i-alert") + "Didn’t save</p>" +
-        (text(v.why) ? '<p class="vc-why" dir="auto">' + esc(text(v.why, 240)) + "</p>" : "") +
-        (can && link ? '<div class="vc-acts"><button type="button" class="btn small" data-act="retry" data-slug="' + esc(v.slug) + '">' + icon("i-refresh") + "Try again</button></div>" : "");
+    if (v.status === "failed" || stopped(v)) {
+      var why = v.status === "failed" ? text(v.why, 240) : "It did not finish, and nothing is coming. Try again, or remove it.";
+      return head + '<p class="vc-state bad">' + icon("i-alert") + (v.status === "failed" ? "Didn’t save" : "This save stopped") + "</p>" +
+        (why ? '<p class="vc-why" dir="auto">' + esc(why) + "</p>" : "") +
+        (can ? '<div class="vc-acts">' + (link ? '<button type="button" class="btn small" data-act="retry" data-slug="' + esc(v.slug) + '">' + icon("i-refresh") + "Try again</button>" : "") +
+          '<button type="button" class="btn small quiet" data-act="remove-video" data-slug="' + esc(v.slug) + '">Remove</button></div>' : "");
     }
     var shown = open ? points.slice(0, 8) : points.slice(0, 3);
     var sound = state.example ? "" : soundOf(v);
@@ -3704,6 +3721,8 @@
     } else if (act === "retry" && slug) {
       var rv = videoBySlug(slug);
       if (rv) { state.saveOption = optionOf(rv.option) ? rv.option : "video"; save(rv.link); }
+    } else if (act === "remove-video" && slug) {
+      ask("This did not save. Take its card off my library and delete anything left of it in its folder.", slug);
     } else if (act === "youtube-connect") {
       connectYouTube();
     } else if (act === "tiktok-how") {

@@ -117,7 +117,9 @@ When the person asks you to save a link, always in this order:
    uploads.
 5. **Put it on the page as saving.** Before you call `save_video`, add the video to
    `library/data.json` with `"status": "saving"` (see below), so the page shows it coming.
-   Not for a video already in the library (see "Saving a video again another way").
+   Not for a video already in the library (see "Saving a video again another way"). A
+   `failed` entry for the same link, or a `saving` one over 3 hours old, is a try that ended:
+   take it over and never add a second.
 6. **Save.** Call `save_video` with the link and the option (and `confirmed: true`
    when they said yes to a big one). If it answers that it is still saving, keep calling
    `save_video_status` with its job id until it is done; the card on the page says
@@ -393,7 +395,8 @@ transcript is mostly about it, newest first, the title and one line each. When i
 comes up in passing, give the minute. None: say so, and name the closest subjects they have.
 
 **Removing a video**: only when they ask. Delete its folder in `videos/` and its entry in
-`library/data.json`, and say how much space it gave back.
+`library/data.json`, and say how much space it gave back. A card that did not save may have
+no folder: then remove only its entry.
 
 ## Changing the boxes on the page
 

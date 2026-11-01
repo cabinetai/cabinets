@@ -82,6 +82,10 @@ three numbers, and each idea as its own box with its picture from `ideas/`). Ide
 Layout sit in the headline. The idea pictures are copies of existing template covers,
 shrunk, until unique ones are made.
 
+A card that is `saving` stands first in Your videos. After 3 hours (from `savedAt`, else
+`updatedAt`) it says "This save stopped", and a stopped or `failed` card has Try again and
+Remove. Remove asks the agent.
+
 Bring videos in holds two rows. YouTube likes reads `cabinet.connectors.list()`: Connect YouTube
 when YouTube is not connected and this person can connect it, else Bring them in, which asks
 the agent. TikTok favorites has Show me how, which opens the steps on the page.
