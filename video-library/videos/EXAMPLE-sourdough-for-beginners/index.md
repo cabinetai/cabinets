@@ -1,9 +1,9 @@
 ---
 title: "Sourdough for Beginners: Your First Loaf"
-source: youtube
-youtube_id: EXAMPLE
-link: https://www.youtube.com/watch?v=EXAMPLE
-channel: "Crumb and Co"
+source: tiktok
+video_id: EXAMPLE
+link: https://www.tiktok.com/@crumbandco/video/EXAMPLE
+channel: "@crumbandco"
 duration: "12:05"
 uploaded: "2026-07-30"
 saved: "2026-10-10T15:02:00.000Z"
@@ -11,10 +11,11 @@ example: true
 ---
 # Sourdough for Beginners: Your First Loaf
 
-EXAMPLE: a made-up video from a made-up channel. Nothing was saved.
+EXAMPLE: a made-up post from a made-up account. Nothing was saved.
 
-- **Channel:** Crumb and Co
-- **Link:** https://www.youtube.com/watch?v=EXAMPLE
+- **Site:** TikTok
+- **Posted by:** @crumbandco
+- **Link:** https://www.tiktok.com/@crumbandco/video/EXAMPLE
 - **Length:** 12:05
 - **Uploaded:** 2026-07-30
 - **Transcript:** [transcript.md](./transcript.md) (English, captions written by a person)

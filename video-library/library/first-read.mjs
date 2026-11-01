@@ -99,7 +99,7 @@ function lockReading() {
 }
 
 /** A link, a file, a path or a tool's name: never in words the page shows. */
-const RAW = /https?:\/\/|www\.|youtu\.be\/|youtube\.com\/|\bvideos\/|\.(json|md|mp4|m4a|mjs)\b|\byoutube_\w+/i;
+const RAW = /https?:\/\/|www\.|youtu\.be\/|youtube\.com\/|\bvideos\/|\.(json|md|mp4|m4a|mjs)\b|\b(youtube_\w+|video_info|save_video\w*)\b/i;
 
 /** The library already holds a saved video of the person's own: this is not the first save. */
 function savedBefore() {
