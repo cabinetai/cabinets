@@ -1,453 +1,408 @@
 <!DOCTYPE html>
 <!--
-  slack-answers showcase page: the answer book.
+  Slack Team Memory: the Answer Book. The cabinet opens on this page.
 
-  Reads the team's memory as this cabinet's routine keeps it:
-    ../answers/topics/<slug>.md    one page per answered question, edited in place
-    ../answers/<stamp>-sweep.md    one add-only log per run: what that run changed
-    ../faq-canvas.md               whether the weekly Slack canvas is on, and where
-  Every topic page is opened (a few at a time) and searched here; the newest sweep log
-  supplies the headline, the "worth pinning" mark and the "changed in the last sweep" filter.
-  What each file holds and who writes it: DATA.md beside this page.
+  One real job: when someone new asks "where do I get X?", the answer is already here, with
+  its source, and nobody has to retype it. They search, find, copy.
 
-  In a Cabinet with the app bridge (window.cabinet v2) every file is read through
-  cabinet.files, with paths relative to the cabinet root, and the page repaints when a
-  routine writes. That is the only way that works in a sealed frame (anyone but the owner
-  on Cloud). The bridge also gives the Slack connection, the two routines, the ask box,
-  Ideas, the next steps under each answer, and the person's own layout (cabinet.mine).
-  Nothing here posts to Slack: every change goes through cabinet.ask, to the Answer Keeper,
-  who asks the person before anything is posted.
+  Where the words come from (full contract: DATA.md beside this page):
+    answers/topics/<slug>.md        one knowledge base page per question, edited in place
+    answers/<stamp>-sweep.md        one add-only log per run: what that run changed
+    answer-book/data/reading.json   the first sweep, told as it happens (first-read.mjs)
+  The newest sweep log gives the headline, the "worth pinning" mark and the "Changed in the
+  last sweep" filter. Every topic page is read here so search covers all of them.
 
-  Without v2 (an older Cabinet) the page reads the same files the old way: relative URLs,
-  which resolve under /api/assets/<cabinet>/<app>/ and survive the cabinet being renamed,
-  and /api/tree for the folder listing, because the assets route cannot list a directory.
+  Built for hundreds of pages. The bridge answers 20 calls a second after a burst of 40, so
+  pages are read a few at a time, newest first, and a refusal for speed is waited out. Only a
+  page whose time changed is read again, and pages already read are kept in this browser
+  where it allows it. The list draws at most a screenful of rows at a time, an answer's body
+  only when it is opened, and nothing is rewritten when nothing changed.
 
-  Zero external requests. System fonts, inline CSS, no libraries.
-  Every failure path renders something honest instead of a blank page.
+  How it talks to Cabinet: window.cabinet v2 (connection, connect, ask, run the routine, read
+  and list files, this person's own layout). That is the only way that works in a sealed
+  frame (anyone but the owner on Cloud). Without v2 it reads the same files over the page's
+  own address and /api/tree, and says to connect Slack from Integrations.
+
+  Nothing here posts to Slack. Every change goes through cabinet.ask, to the Answer Keeper,
+  who shows the exact words in the chat and acts only on a yes there.
+
+  One file on purpose: a sealed frame cannot load files next to it. Plus Jakarta Sans from
+  Google Fonts with system fallbacks, the same as Your Slack; icons are inline SVG.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Slack Answer Book</title>
+<title>Answer Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
+  /* The tokens are Your Slack's, so the three Slack pages read as one product. */
   :root {
-    --sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    --parchment: #FAF6F1; --card: #FFFFFF; --tint: #F3EDE4; --line: #EEE6DA;
-    --ink: #3B2F2F; --muted: #8B7355; --faint: #B5A58F;
-    /* Small words on the white sheet, darkened from the hues above to reach 4.5:1. */
-    --muted-ink: #7A6248; --green-ink: #4A7A39; --orange-ink: #A55A16;
-    --terracotta-ink: #B44A30; --blue-ink: #2F68B0;
-    --terracotta: #E2725B; --blue: #5B8FD6; --orange: #E08A3C; --green: #6FA45A;
-    --hair: 0 0 0 1px rgba(59,47,47,.08);
+    --page: #ffffff;
+    --panel: #f7f6f8;
+    --panel-2: #efedf1;
+    --line: #e7e4ea;
+    --line-2: #d6d1dc;
+    --ink: #1d1c1d;
+    --ink-2: #454245;
+    --ink-3: #696469;
+
+    --plum: #4a154b;
+    --plum-2: #611f69;
+    --plum-tint: #f4ecf5;
+    --red: #e01e5a;
+    --red-ink: #b3134a;
+    --red-tint: #fdeaf0;
+    --blue-ink: #116a91;
+    --green: #2eb67d;
+    --green-ink: #1a7a52;
+    --green-tint: #e7f6ef;
+    --amber: #ecb22e;
+    --amber-ink: #7d5a00;
+    --amber-tint: #fdf5e1;
+
+    --shadow-1: 0 1px 2px rgba(29, 28, 29, .06);
+    --shadow-2: 0 1px 2px rgba(29, 28, 29, .05), 0 14px 36px -18px rgba(29, 28, 29, .28);
+    --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
+
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; padding: 40px 24px 64px; background: var(--parchment); color: var(--ink);
-    font: 15px/1.55 var(--sans);
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
   }
-  .wrap { max-width: 1080px; margin: 0 auto; }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
-    white-space: nowrap; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--blue-ink); }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--plum-2) 45%, transparent); outline-offset: 2px; border-radius: 10px; }
+  .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .sprite { position: absolute; width: 0; height: 0; }
 
-  /* ---- the hero: a help desk you search, so the field is the page's main element ---- */
-  .hero { max-width: 680px; margin: 0 auto; text-align: center; }
-  h1 {
-    margin: 0; font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--muted-ink);
-    display: inline-flex; align-items: center; gap: 8px;
-  }
-  /* An inline <svg> with a viewBox and no width fills its container, so it is sized here. */
-  .mark { width: 16px; height: 16px; flex: none; }
-  .sub {
-    margin: 14px auto 0; max-width: 30em; font-size: 22px; line-height: 1.3;
-    font-weight: 600; letter-spacing: -0.015em; color: var(--ink); text-wrap: balance;
-  }
-  .find { position: relative; margin: 26px 0 0; }
-  .find svg {
-    position: absolute; left: 20px; top: 50%; width: 20px; height: 20px; margin-top: -10px;
-    color: var(--muted); pointer-events: none;
-  }
-  .find input[type="search"] {
-    width: 100%; height: 58px; padding: 0 20px 0 54px; font-size: 17px; border-radius: 14px;
-    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 2px 6px -2px rgba(59,47,47,.08);
-  }
-  .headline { margin: 14px 0 0; font-size: 14px; color: var(--muted-ink); }
-
-  /* State as one segmented control, the sweep filter as a one-button one, Sort beside them. */
-  .tools {
-    display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
-    gap: 10px 14px; margin-top: 18px;
-  }
-  .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--tint); border-radius: 10px; }
-  .seg button {
-    font: 500 13px/1 var(--sans); color: var(--muted-ink); background: transparent; border: 0;
-    height: 28px; padding: 0 12px; border-radius: 7px; cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .seg button:hover { color: var(--ink); }
-  .seg button[aria-pressed="true"] {
-    background: var(--card); color: var(--ink); box-shadow: 0 0 0 1px rgba(59,47,47,.08), 0 1px 2px rgba(59,47,47,.06);
-  }
-  .seg .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-  .seg .c { color: var(--muted-ink); font-variant-numeric: tabular-nums; font-weight: 400; }
-  .seg button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-  .seg svg { width: 13px; height: 13px; }
-  /* Three controls are wider than the search field, so on a wide window they may spill
-     past its edges rather than drop Sort onto a line of its own. */
-  @media (min-width: 900px) { .hero .tools { margin-left: -120px; margin-right: -120px; } }
-
-  .banner {
-    max-width: 680px; margin: 22px auto 0; padding: 10px 14px; background: var(--tint);
-    border-radius: 8px; font-size: 14px; color: var(--muted-ink); text-align: center;
-  }
-
-  /* ---- the book, with a rail beside it on a wide window ---- */
-  .layout { margin-top: 36px; }
-  .main { max-width: 760px; margin: 0 auto; min-width: 0; }
-  .rail { display: none; }
-  @media (min-width: 1100px) {
-    .layout.has-rail {
-      display: grid; grid-template-columns: minmax(0, 1fr) 264px; gap: 40px; align-items: start;
-    }
-    .layout.has-rail .main { max-width: none; margin: 0; }
-    .layout.has-rail .rail { display: block; position: sticky; top: 24px; }
-  }
-  .listhead {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-    margin: 0 4px 10px; font-size: 13px; color: var(--muted-ink);
-  }
-  .listhead strong { font-weight: 600; color: var(--ink); }
-  .count { font-variant-numeric: tabular-nums; }
-
-  .card { background: var(--card); border-radius: 14px; box-shadow: var(--hair); }
-  .book { overflow: hidden; }
-  details + details { border-top: 1px solid var(--line); }
-  details[open] { background: #FFFDFA; }
-  summary {
-    list-style: none; cursor: pointer; display: grid;
-    grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 4px 16px;
-    padding: 16px 20px 16px 12px;
-  }
-  summary::-webkit-details-marker { display: none; }
-  summary:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; border-radius: 14px; }
-  summary:hover .q { color: var(--blue-ink); }
-
-  /* How often it came up, read first: the reason an answer is in the book at all. */
-  .n { text-align: center; line-height: 1; color: var(--muted-ink); }
-  .n b { display: block; font-size: 20px; font-weight: 600; color: var(--ink);
-    font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-  .n small { display: block; margin-top: 4px; font-size: 11px; }
-  .n.hot b { color: var(--terracotta-ink); }
-  .txt { min-width: 0; }
-  .q { display: block; font-size: 16px; font-weight: 600; line-height: 1.4; }
-  .pv {
-    display: block; margin-top: 2px; font-size: 14px; color: var(--muted-ink);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  details[open] .pv { display: none; }
-  .side { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-  .side::after {
-    content: ""; flex: none; width: 7px; height: 7px; margin-left: 6px;
-    border-right: 2px solid var(--faint); border-bottom: 2px solid var(--faint);
-    transform: translateY(-2px) rotate(45deg); transition: transform .15s ease;
-  }
-  details[open] .side::after { transform: translateY(2px) rotate(-135deg); }
-
-  .pill {
-    display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px;
-    border-radius: 999px; font-size: 12px; font-weight: 600;
-  }
-  .state::before {
-    content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
-  }
-  .s-settled { color: var(--green-ink); } .s-shifting { color: var(--orange-ink); }
-  .s-open { color: var(--terracotta-ink); } .s-other { color: var(--muted-ink); }
-  .pill.s-settled { background: #EDF4E8; } .pill.s-shifting { background: #FBF0E3; }
-  .pill.s-open { background: #FBEDE8; } .pill.s-other { background: var(--tint); }
-  /* The answer the sweep says to pin, marked on its own row rather than in a banner. */
-  .pinned { color: var(--terracotta-ink); background: #FBEDE8; }
-  .pinned svg { width: 12px; height: 12px; }
-  /* What the last sweep did to this row: quiet, because the state pill is the main signal. */
-  .chg { color: var(--blue-ink); background: #EBF1FA; font-weight: 500; }
-
-  .a { padding: 0 24px 20px 80px; }
-  .a p { margin: 0; max-width: 64ch; font-size: 15px; line-height: 1.6; }
-  .a p + p { margin-top: 8px; }
-  .note {
-    margin-top: 12px !important; padding-left: 12px; border-left: 2px solid currentColor;
-    font-size: 14px !important;
-  }
-  .note.pin-note { color: var(--terracotta-ink); }
-  .note.pin-note span { color: var(--ink); }
-  .note.unsettled { color: var(--terracotta-ink); }
-  .sec { margin-top: 16px; max-width: 64ch; }
-  .sec h3 {
-    margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted-ink);
-    text-transform: uppercase; letter-spacing: 0.08em;
-  }
-  .sec ul { margin: 0; padding: 0; list-style: none; }
-  .sec li { position: relative; padding-left: 14px; font-size: 14px; line-height: 1.5; }
-  .sec li + li { margin-top: 3px; }
-  .sec li::before {
-    content: ""; position: absolute; left: 2px; top: 9px; width: 4px; height: 4px;
-    border-radius: 50%; background: var(--faint);
-  }
-  .sec p { font-size: 14px; }
-  .sec.was p { color: var(--muted-ink); }
-  .sec a { color: var(--blue-ink); text-decoration: none; }
-  .sec a:hover { text-decoration: underline; }
-  .foot {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 16px;
-    font-size: 13px; color: var(--muted-ink);
-  }
-  .thread {
-    display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500;
-    color: var(--blue-ink); text-decoration: none;
-  }
-  .thread svg { width: 14px; height: 14px; }
-  .thread:hover { text-decoration: underline; }
-  a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 3px; }
-  mark { background: #F9E3A8; color: inherit; border-radius: 2px; padding: 0 1px; }
-
-  /* ---- the rail ---- */
-  .rail h2 {
-    margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--muted-ink);
-    text-transform: uppercase; letter-spacing: 0.08em;
-  }
-  .rail section + section { margin-top: 28px; }
-  .rail ol { list-style: none; margin: 0; padding: 0; }
-  .rail li + li { margin-top: 2px; }
-  .jump {
-    display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; width: 100%;
-    padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer;
-    font: 500 14px/1.35 var(--sans); color: var(--ink); text-align: left;
-  }
-  .jump:hover { background: var(--tint); }
-  .jump:focus-visible { outline: 2px solid var(--blue); outline-offset: 0; }
-  .jump b { font-weight: 600; color: var(--terracotta-ink); font-variant-numeric: tabular-nums; }
-  .states { display: grid; gap: 8px; font-size: 14px; }
-  .states div { display: flex; align-items: center; gap: 8px; }
-  .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--tint); overflow: hidden; }
-  .bar i { display: block; height: 100%; border-radius: 3px; background: currentColor; opacity: .55; }
-  .states .lbl { width: 68px; color: var(--ink); }
-  .states .num { width: 18px; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
-  .rail .why { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); }
-  .rail .why span { display: block; margin-top: 6px; color: var(--muted-ink); }
-
-  #root > .card.empty { max-width: 760px; margin: 36px auto 0; }
-  .empty { padding: 22px; color: var(--muted-ink); font-size: 14px; text-align: center; }
-  .empty code { font-size: 13px; }
-  .blank {
-    max-width: 560px; margin: 36px auto 0; padding: 36px 28px; text-align: center;
-  }
-  .blank svg { width: 36px; height: 36px; color: var(--faint); }
-  .blank h2 { margin: 12px 0 6px; font-size: 18px; font-weight: 600; }
-  .blank p { margin: 0 auto; max-width: 40ch; color: var(--muted-ink); font-size: 14px; }
-  /* The quiet facts under the book: the last sweep, the next run, the Slack canvas. */
-  .history {
-    max-width: 760px; margin: 32px auto 0; padding-top: 16px; border-top: 1px solid var(--line);
-    font-size: 13px; color: var(--muted-ink);
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 20px;
-  }
-  .history a { color: var(--blue-ink); text-decoration: none; }
-  .history a:hover { text-decoration: underline; }
-
-  @media (max-width: 560px) {
-    body { padding: 28px 14px 48px; }
-    .sub { font-size: 19px; }
-    .find input[type="search"] { height: 52px; font-size: 16px; padding-left: 48px; }
-    .find svg { left: 17px; }
-    .seg button { padding: 0 9px; }
-    summary { grid-template-columns: 40px minmax(0, 1fr); align-items: start; padding: 14px 14px 14px 6px;
-      gap: 6px 10px; }
-    .n { padding-top: 2px; }
-    .n b { font-size: 18px; }
-    .side { grid-column: 2; flex-wrap: wrap; white-space: normal; }
-    .side::after { display: none; }
-    .a { padding: 0 16px 18px 56px; }
-  }
-
-  /* Cabinet's type and controls, shared by the three Slack pages. Cabinet sets its
-     headings in its UI sans, so nothing here is serif. Selects drop the browser's own
-     chrome for one quiet control: white, a hairline shadow, our chevron. */
-  body { font-family: var(--sans); -webkit-font-smoothing: antialiased; }
-  h1 { font-family: var(--sans); font-weight: 650; letter-spacing: -0.02em; }
-  label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px;
-    font-weight: 500; color: var(--muted); }
-  select {
-    -webkit-appearance: none; appearance: none; border: 0; margin: 0;
-    height: 34px; padding: 0 34px 0 12px; border-radius: 8px; cursor: pointer;
-    font: 500 14px/34px var(--sans); color: var(--ink); max-width: 100%;
-    background: #FFFFFF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B7355' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center;
-    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 1px 2px rgba(59,47,47,.06);
-    transition: box-shadow .15s ease;
-  }
-  select:hover { background-color: #FFFFFF;
-    box-shadow: 0 0 0 1px rgba(59,47,47,.18), 0 1px 3px rgba(59,47,47,.08); }
-  input[type="search"] {
-    -webkit-appearance: none; appearance: none; border: 0; font: 400 15px/1.4 var(--sans);
-    color: var(--ink); background: #FFFFFF; border-radius: 10px;
-    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 1px 2px rgba(59,47,47,.06);
-  }
-  input[type="search"]::placeholder { color: var(--faint); }
-  select:focus-visible, input[type="search"]:focus-visible { outline: none;
-    box-shadow: 0 0 0 1px rgba(91,143,214,.65), 0 0 0 4px rgba(91,143,214,.18); }
-
-  /* ---- what the app bridge adds: the bar, the notices, the asks, the menus ---- */
   /* A viewer may not ask, run or connect: those buttons are not shown at all. */
   html[data-role="viewer"] [data-viewer-off] { display: none !important; }
 
+  /* ── The band: Slack's aubergine across the top. Slack's mark, the page's name and the
+     state on its first row, and the page's headline big in white under them. ── */
+  .bar {
+    width: calc(100% - 56px); max-width: 1224px; margin: 22px auto 0; border-radius: 18px; color: #fff;
+    background: radial-gradient(620px 300px at 100% 0%, #5b1c5d, transparent 70%), var(--plum);
+  }
+  .bar-in { padding: 18px clamp(20px, 3.4vw, 36px); }
+  .bar-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark { width: 40px; height: 40px; border-radius: 11px; background: #fff; display: grid; place-items: center; flex: none; }
+  .mark .icon { width: 22px; height: 22px; stroke-width: 2.2; }
+  .page-name { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .bar :focus-visible { outline-color: #fff; }
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .status > div { position: relative; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, .14); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap; }
+  .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: #cdbdce; }
+  .pill.ok .dot { background: #4fd39b; }
+  .pill.warn .dot { background: var(--amber); }
+  .pill.off .dot { background: var(--red); }
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .updated { color: rgba(255, 255, 255, .8); font-size: 14px; }
+
   .btn {
-    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
-    border: 0; border-radius: 8px; cursor: pointer; white-space: nowrap;
-    font: 500 13px/1 var(--sans); color: var(--ink); background: #FFFFFF;
-    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 1px 2px rgba(59,47,47,.06);
-    transition: box-shadow .15s ease, background-color .15s ease;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px;
+    border-radius: 11px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink);
+    font-weight: 600; font-size: 15px; text-decoration: none; white-space: nowrap;
+    box-shadow: var(--shadow-1); transition: background .15s ease, border-color .15s ease, transform .1s ease;
   }
-  .btn:hover { box-shadow: 0 0 0 1px rgba(59,47,47,.18), 0 1px 3px rgba(59,47,47,.08); }
-  .btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-  .btn[disabled] { cursor: default; opacity: .65; }
-  .btn svg { width: 14px; height: 14px; flex: none; }
-  .btn.primary { background: var(--ink); color: #FFFFFF; box-shadow: none; }
-  .btn.primary:hover { background: #2A2121; }
-  .btn.small { height: 28px; padding: 0 10px; font-size: 13px; }
-  /* A link-like button for a quiet side action in a line of text. */
-  .btn.link { height: auto; padding: 0; background: transparent; box-shadow: none;
-    color: var(--blue-ink); font-size: inherit; }
-  .btn.link:hover { text-decoration: underline; }
-  .spin { animation: spin 1s linear infinite; }
+  .btn:hover { background: var(--panel); border-color: #c4bdcb; }
+  .btn:active { transform: translateY(1px); }
+  .btn[disabled] { cursor: default; opacity: .6; transform: none; }
+  .btn.primary { background: var(--plum); border-color: var(--plum); color: #fff; box-shadow: 0 8px 18px -10px rgba(74, 21, 75, .9); }
+  .btn.primary:hover { background: var(--plum-2); border-color: var(--plum-2); }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.dark:hover { background: #333033; }
+  .btn.big { min-height: 52px; padding: 13px 24px; font-size: 17px; border-radius: 13px; }
+  .btn.small { min-height: 38px; padding: 7px 12px; font-size: 14px; }
+  .btn.small .icon { width: 17px; height: 17px; }
+  .status .btn { min-height: 40px; padding: 8px 14px; font-size: 14px; }
+  /* On the band what can be pressed is a light pill, and a big one a white pill. */
+  .bar .btn { border: 0; border-radius: 999px; background-color: rgba(255, 255, 255, .9); color: var(--ink); box-shadow: none; }
+  .bar .btn:hover:not([disabled]) { background-color: #fff; }
+  .bar .btn.big { background-color: #fff; color: var(--plum); }
+  .bar .btn.ghost { background: transparent; color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .45); }
+  .bar .btn.ghost:hover:not([disabled]) { background: rgba(255, 255, 255, .12); }
+  .spin { animation: spin 1.2s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .spin, .live { animation: none !important; } }
 
-  /* The top bar: the Slack connection on the left, Ideas and Layout on the right. */
-  .topbar {
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-    gap: 10px 16px; margin: -16px 0 26px; min-height: 32px;
-  }
-  .conn { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
-    font-size: 13px; color: var(--muted-ink); }
-  .pillc { display: inline-flex; align-items: center; gap: 7px; font-weight: 500; color: var(--ink); }
-  .pillc i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; }
-  .pillc.ok i { background: var(--green); }
-  .pillc.warn i { background: var(--orange); }
-  .pillc.busy i { background: var(--blue); }
-  .live { animation: breathe 1.6s ease-in-out infinite; }
-  @keyframes breathe { 50% { opacity: .35; } }
-  .menus { display: inline-flex; gap: 8px; }
-  .menus > div { position: relative; }
+  /* The headline is the band. Its line a little softer: white keeps 13:1 on the aubergine,
+     the softer line more than 7:1. */
+  .lead { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: center; margin-top: 26px; padding-bottom: 10px; }
+  .lead.pictured { grid-template-columns: minmax(0, 1fr) auto; }
+  .lead h2 { margin: 0; font-size: clamp(34px, 4.6vw, 58px); line-height: 1.04; font-weight: 800; letter-spacing: -.035em; text-wrap: balance; overflow-wrap: anywhere; }
+  .lead p { margin: 12px 0 0; font-size: 18px; color: rgba(255, 255, 255, .9); max-width: 70ch; }
+  .lead .fine { font-size: 15px; color: rgba(255, 255, 255, .8); margin-top: 8px; }
+  .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .steps { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; padding: 0; list-style: none; color: rgba(255, 255, 255, .9); font-size: 15px; }
+  .steps li { display: flex; align-items: center; gap: 8px; }
+  .steps .icon { color: #4fd39b; width: 18px; height: 18px; }
+  .art { width: 132px; height: 104px; }
+
   .pop {
-    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: 340px;
-    max-width: calc(100vw - 28px); padding: 6px; background: #FFFFFF; border-radius: 12px;
-    box-shadow: 0 0 0 1px rgba(59,47,47,.08), 0 14px 34px -10px rgba(59,47,47,.30);
+    position: absolute; inset-inline-end: 0; top: calc(100% + 8px); z-index: 20; width: 340px;
+    max-width: calc(100vw - 32px); padding: 6px; border-radius: 14px; background: var(--page); color: var(--ink);
+    border: 1px solid var(--line); box-shadow: var(--shadow-2);
   }
-  .pop[hidden] { display: none; }
-  .pop h2 {
-    margin: 8px 10px 6px; font-size: 12px; font-weight: 600; color: var(--muted-ink);
-    text-transform: uppercase; letter-spacing: 0.08em;
-  }
-  .pop .item {
-    display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px;
-    background: transparent; cursor: pointer; text-align: left;
-    font: 500 14px/1.4 var(--sans); color: var(--ink);
-  }
-  .pop .item:hover { background: var(--tint); }
-  .pop .item:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
-  .pop label.check {
-    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
-    font: 400 14px/1.4 var(--sans); color: var(--ink); cursor: pointer;
-  }
-  .pop label.check:hover { background: var(--tint); }
-  .pop input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
-  .pop .fine { margin: 4px 10px 8px; font-size: 13px; color: var(--muted-ink); }
-  .pop .row-end { display: flex; justify-content: flex-end; padding: 6px 6px 4px;
-    border-top: 1px solid var(--line); margin-top: 4px; }
+  .pop h2 { margin: 8px 10px 6px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
+  .pop .item { display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px; background: transparent; text-align: start; font-size: 14.5px; font-weight: 600; line-height: 1.4; color: var(--ink); }
+  .pop .item:hover { background: var(--plum-tint); }
+  .pop .check { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; font-size: 14.5px; cursor: pointer; }
+  .pop .check:hover { background: var(--panel); }
+  .pop input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--plum); }
+  .pop .fine { margin: 4px 10px 8px; font-size: 13.5px; color: var(--ink-3); }
+  .pop .end { display: flex; justify-content: flex-end; padding: 6px 4px 2px; border-top: 1px solid var(--line); }
 
-  /* The one notice under the sentence: connect, reading, or a sweep that did not finish. */
-  .notice {
-    max-width: 680px; margin: 24px auto 0; padding: 18px 20px; background: var(--card);
-    border-radius: 14px; box-shadow: var(--hair); display: flex; gap: 14px; align-items: flex-start;
-  }
-  .notice > svg { width: 22px; height: 22px; flex: none; margin-top: 1px; color: var(--muted); }
-  .notice.alert > svg { color: var(--terracotta-ink); }
-  .notice h2 { margin: 0 0 4px; font-size: 16px; font-weight: 600; line-height: 1.35; }
-  .notice p { margin: 0; font-size: 14px; color: var(--muted-ink); }
-  .notice p + p { margin-top: 6px; }
-  .notice .do { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 14px; }
-  .notice.strip { padding: 12px 16px; align-items: center; }
-  .notice.strip p { color: var(--ink); }
-  .notice .dotl { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); flex: none; }
+  /* ── The page ────────────────────────────────────────────────────────── */
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 22px 28px 40px; }
+  #notes { display: grid; gap: 12px; }
+  #notes:not(:empty) { margin-bottom: 18px; }
+  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border-radius: 12px; background: var(--amber-tint); border: 1px solid #f3e0a8; }
+  .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; flex: 1 1 280px; }
+  .ribbon .icon { color: var(--amber-ink); }
+  .tag-example { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: var(--red-tint); color: var(--ink); border: 1px solid #f6c3d3; }
+  .notice .icon { color: var(--red-ink); margin-top: 2px; }
+  .notice p { margin: 0; }
+  .notice .actions { margin-top: 10px; gap: 10px; }
 
-  /* Next steps under an open answer: small and quiet, the answer stays the main thing. */
-  .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 14px;
-    border-top: 1px dashed var(--line); }
+  /* The search field is the page's main element: the magnifier is drawn in the background so
+     the input stays a plain input. */
+  .find { width: 100%; min-height: 56px; padding: 12px 18px 12px 50px; border-radius: 14px; border: 1px solid var(--line-2); font-size: 17px;
+    background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23696469' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 18px center / 20px; }
+  .find::placeholder { color: var(--ink-3); }
+  .find:focus { outline: none; background-color: var(--page); border-color: var(--plum-2); box-shadow: 0 0 0 3px var(--plum-tint); }
+  .find::-webkit-search-cancel-button { -webkit-appearance: none; }
 
-  /* The ask box under the book. */
-  .askbox { max-width: 760px; margin: 32px auto 0; }
-  .askbox form { display: flex; gap: 8px; }
-  .askbox input {
-    flex: 1; min-width: 0; height: 46px; padding: 0 16px; border: 0; border-radius: 12px;
-    -webkit-appearance: none; appearance: none; font: 400 15px/1.4 var(--sans);
-    color: var(--ink); background: #FFFFFF;
-    box-shadow: 0 0 0 1px rgba(59,47,47,.10), 0 1px 2px rgba(59,47,47,.06);
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 14px; min-height: 40px; }
+  .chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 6px 13px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--page); font-size: 14px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+  .chip:hover { background: var(--panel); }
+  .chip[aria-pressed="true"] { background: var(--plum-tint); border-color: var(--plum-2); color: var(--plum); }
+  .chip .c { color: var(--ink-3); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .chip[aria-pressed="true"] .c { color: var(--plum); }
+  .chip .d { width: 8px; height: 8px; border-radius: 50%; }
+  .chip .icon { width: 16px; height: 16px; }
+  .d.settled { background: var(--green); } .d.shifting { background: var(--amber); } .d.open { background: var(--red); }
+  .sorter { display: inline-flex; align-items: center; gap: 8px; margin-inline-start: auto; font-size: 14px; color: var(--ink-3); }
+  .sorter select {
+    -webkit-appearance: none; appearance: none; min-height: 38px; padding: 6px 34px 6px 14px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 14px; font-weight: 600; color: var(--ink);
+    background: var(--page) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d1c1d' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 14px;
   }
-  .askbox input::placeholder { color: var(--muted); }
-  .askbox input:focus-visible { outline: none;
-    box-shadow: 0 0 0 1px rgba(91,143,214,.65), 0 0 0 4px rgba(91,143,214,.18); }
-  .askbox .btn { height: 46px; padding: 0 18px; font-size: 14px; border-radius: 12px; }
-  .askbox .asknote { margin: 8px 4px 0; min-height: 1.4em; font-size: 13px; color: var(--muted-ink); }
-  /* Beside the rail on a wide window, the ask box lines up with the book above it. */
-  @media (min-width: 1100px) { body.railed .askbox { max-width: none; margin-right: 304px; } }
-  .history .btn.small { height: 26px; font-size: 12px; }
 
-  .toast {
-    position: fixed; left: 50%; bottom: 24px; z-index: 30; max-width: calc(100vw - 32px);
-    padding: 10px 16px; border-radius: 10px; background: var(--ink); color: #FFFFFF;
-    font-size: 14px; line-height: 1.4; opacity: 0; pointer-events: none;
-    transform: translate(-50%, 12px); transition: opacity .2s ease, transform .2s ease;
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 20px; }
+  .rail { display: none; }
+  @media (min-width: 1040px) {
+    .layout.railed { grid-template-columns: minmax(0, 1fr) 320px; }
+    .layout.railed .rail { display: grid; gap: 22px; position: sticky; top: 22px; }
   }
+
+  .lane { border: 1px solid var(--line); border-radius: 16px; background: var(--page); overflow: hidden; box-shadow: var(--shadow-1); }
+  .lane-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 12px; border-bottom: 1px solid var(--line); }
+  .lane-head h3 { margin: 0; flex: 1; min-width: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+  .lane-head .total { color: var(--ink-3); font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .lane-empty { padding: 18px; color: var(--ink-3); margin: 0; }
+  .lane-empty .btn { margin-top: 12px; display: flex; width: fit-content; }
+  button.lane-foot { display: block; width: 100%; padding: 12px 18px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--plum-2); font-size: 14.5px; font-weight: 700; text-align: center; }
+  button.lane-foot:hover { background: var(--plum-tint); }
+
+  /* The rows. Offscreen ones cost nothing to lay out, and a row's body is only drawn when
+     it is opened, so a long list stays quick to search and to scroll. */
+  .row { border-bottom: 1px solid var(--line); content-visibility: auto; contain-intrinsic-size: auto 78px; }
+  .row:last-child { border-bottom: 0; }
+  .row summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 3px 14px; align-items: center; padding: 13px 18px; }
+  .row summary::-webkit-details-marker { display: none; }
+  .row summary:hover, .row[open] summary { background: var(--panel); }
+  .row summary:focus-visible { outline-offset: -3px; }
+  .times { display: inline-grid; place-items: center; min-width: 38px; height: 30px; padding: 0 8px; border-radius: 999px; background: var(--plum-tint); color: var(--plum); font-size: 14.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .times.hot { background: var(--red-tint); color: var(--red-ink); }
+  .txt { min-width: 0; }
+  .q { display: block; font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
+  .pv { display: block; color: var(--ink-2); font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row[open] .pv { display: none; }
+  .tags { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+  .tags .chev { width: 16px; height: 16px; color: var(--ink-3); transition: transform .15s; }
+  .row[open] .tags .chev { transform: rotate(180deg); }
+  .tag { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .tag.state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .s-settled { color: var(--green-ink); background: var(--green-tint); }
+  .s-shifting { color: var(--amber-ink); background: var(--amber-tint); }
+  .s-open { color: var(--red-ink); background: var(--red-tint); }
+  .s-other { color: var(--ink-3); background: var(--panel); }
+  .tag.chg { color: var(--plum); background: var(--plum-tint); }
+  .tag.pin { color: var(--red-ink); background: var(--red-tint); }
+
+  .a { padding: 2px 18px 16px 78px; background: var(--panel); }
+  .a p { margin: 0; max-width: 68ch; font-size: 15.5px; color: var(--ink); overflow-wrap: anywhere; }
+  .a p + p { margin-top: 8px; }
+  .a .say { margin-top: 10px; padding-inline-start: 12px; border-inline-start: 2px solid currentColor; font-size: 14.5px; }
+  .say.pinned, .say.open { color: var(--red-ink); }
+  .say.shifting { color: var(--amber-ink); }
+  .sec { margin-top: 14px; max-width: 68ch; }
+  .sec h4 { margin: 0 0 4px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
+  .sec ul { margin: 0; padding-inline-start: 18px; }
+  .sec li, .sec p { font-size: 14.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .sec a { font-weight: 600; }
+  .a .facts-row { margin-top: 14px; font-size: 13.5px; color: var(--ink-3); }
+  .a .row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  mark { background: #fbe9b7; color: inherit; border-radius: 3px; padding: 0 1px; }
+
+  .jump { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; width: 100%; padding: 9px 18px; border: 0; background: transparent; text-align: start; font-size: 14.5px; font-weight: 600; line-height: 1.35; color: var(--ink); }
+  .jump:hover { background: var(--panel); }
+  .jump b { color: var(--red-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rail ol { list-style: none; margin: 0; padding: 6px 0; }
+  .bars { display: grid; gap: 8px; padding: 14px 18px; font-size: 14.5px; }
+  .bars div { display: grid; grid-template-columns: 72px minmax(0, 1fr) 32px; gap: 10px; align-items: center; }
+  .bars .num { text-align: end; }
+  .track { height: 7px; border-radius: 4px; background: var(--panel-2); overflow: hidden; }
+  .track i { display: block; height: 100%; border-radius: 4px; }
+  .track i.settled { background: var(--green); } .track i.shifting { background: var(--amber); } .track i.open { background: var(--red); }
+  .rail .why { margin: 0; padding: 14px 18px; font-size: 14.5px; font-weight: 600; }
+  .rail .why span { display: block; margin-top: 6px; color: var(--ink-3); font-weight: 400; }
+
+  .blank { padding: 36px 28px; text-align: center; }
+  .blank h3 { margin: 0 0 6px; font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+  .blank p { margin: 0 auto; max-width: 46ch; color: var(--ink-3); }
+  .loading { color: var(--ink-3); font-size: 17px; margin: 0; }
+
+  /* ── Ask ─────────────────────────────────────────────────────────────── */
+  .ask { margin-top: 22px; padding: 22px; border-radius: 18px; background: var(--plum); color: #fff; }
+  .ask h2 { margin: 0 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .ask > p { margin: 0 0 4px; color: #e3d3e4; font-size: 15px; }
+  .ask form { display: flex; gap: 10px; margin-top: 10px; }
+  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 12px; border: 1px solid #7a4a7b; background: #3a103b; color: #fff; padding: 10px 14px; font-size: 16px; }
+  .ask input::placeholder { color: #c6a9c7; }
+  .ask input:focus { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .25); }
+  .ask .btn { min-height: 50px; background: #fff; border-color: #fff; color: var(--plum); }
+  .ask .btn:hover { background: var(--plum-tint); }
+  .ask .note { margin: 10px 0 0; font-size: 14px; color: #e3d3e4; min-height: 1.5em; }
+  .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 20px; margin-top: 18px; font-size: 14px; color: var(--ink-3); }
+
+  .toast { position: fixed; inset-inline-start: 50%; bottom: 24px; z-index: 30; max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 11px; background: var(--ink); color: #fff; font-size: 14.5px; opacity: 0; pointer-events: none; transform: translate(-50%, 12px); transition: opacity .2s ease, transform .2s ease; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+  /* ── The first sweep, told as it happens: one line for each thing found ── */
+  .reading { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; padding: 26px 28px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fff, #fbfafc); box-shadow: var(--shadow-2); }
+  .reading h2 { margin: 0; font-size: clamp(26px, 3vw, 34px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
+  .reading > p { margin: 0 0 12px; color: var(--ink-3); font-size: 15.5px; }
+  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .read-lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 16.5px; color: var(--ink-2); overflow-wrap: anywhere; animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; }
+  .read-lines li b { color: var(--ink); font-weight: 700; }
+  .read-lines li .icon { width: 20px; height: 20px; margin-top: 2px; color: var(--green); stroke-width: 2.2; }
+  .read-lines li.old { animation: none; }
+  .read-lines li.now { color: var(--ink-3); }
+  .pulse-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--plum-2); animation: read-pulse 1.2s ease-in-out infinite; }
+  .read-lines li.now .pulse-dot { margin: 7px 0 0 5px; }
+  .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 14px; }
+  @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .read-strip { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 12px; background: var(--plum-tint); color: var(--ink-2); font-size: 14.5px; }
+  /* While the first sweep reads, the reading is the whole page: no made-up example under it. */
+  .first-read #root, .first-read #gift-keep, .first-read #askbox, .first-read #facts { display: none !important; }
+  .read-page { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 22px; }
+  @media (min-width: 980px) {
+    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+    .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+  }
+  .side-list { display: grid; align-content: start; gap: 14px; }
+  .side-title { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
+  .offers { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--page); overflow: hidden; }
+  .offer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .offer:last-child { border-bottom: 0; }
+  .offer b { display: block; font-size: 15.5px; overflow-wrap: anywhere; }
+  .offer .sub { display: block; color: var(--ink-3); font-size: 14px; }
+  .asked { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 700; color: var(--green-ink); }
+  .asked .icon { width: 18px; height: 18px; }
+  .gift { display: grid; align-content: center; gap: 14px; padding: 26px 28px; border: 1px solid var(--line); border-top: 4px solid var(--plum); border-radius: 18px; background: var(--page); box-shadow: var(--shadow-2); }
+  .gift .eyebrow { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
+  .gift h3 { margin: 0; max-width: 30ch; font-size: clamp(22px, 2.4vw, 28px); line-height: 1.18; font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; }
+  .gift h3 b { color: var(--plum); }
+  .gift h3 .n { white-space: nowrap; }
+  .gift .why { margin: 0; color: var(--ink-2); font-size: 16px; max-width: 56ch; }
+  .gift .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .gift .fine { margin: 0; color: var(--ink-3); font-size: 14px; }
+  .gift.looking { justify-items: start; min-height: 220px; border: 1px dashed var(--line-2); background: var(--panel); box-shadow: none; }
+  .gift.looking h3 { color: var(--ink-3); font-weight: 700; }
+  @media (max-width: 979px) { .gift.looking { display: none; } }
+  .gift-keep { display: grid; gap: 12px; margin-top: 22px; }
+
+  @media (max-width: 720px) {
+    .row summary { grid-template-columns: 40px minmax(0, 1fr); align-items: start; gap: 4px 12px; padding: 12px 14px; }
+    .tags { grid-column: 2; justify-content: flex-start; }
+    .tags .chev { display: none; }
+    .a { padding: 2px 14px 14px; }
+    .sorter { margin-inline-start: 0; }
+    .chips { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding: 2px; scrollbar-width: none; }
+    .chip { flex: none; }
+  }
   @media (max-width: 560px) {
-    .topbar { margin: -8px 0 20px; }
-    .pop { position: fixed; left: 14px; right: 14px; top: 64px; width: auto; }
-    .notice { padding: 16px; }
-    .askbox .btn { padding: 0 14px; }
+    .bar { width: calc(100% - 32px); margin-top: 16px; }
+    .bar-in { padding: 14px 18px; }
+    .lead { margin-top: 20px; }
+    .lead.pictured { grid-template-columns: minmax(0, 1fr); }
+    .lead .art { display: none; }
+    .lead h2 { font-size: 34px; }
+    .lead p { font-size: 16.5px; }
+    .actions .btn { flex: 1 1 auto; }
+    .wrap { padding: 16px 16px 32px; }
+    .ask { padding: 18px; }
+    .reading, .gift { padding: 22px 18px; }
+    .gift .acts .btn { flex: 1 1 auto; }
+    .offer { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; }
+    .offer > .btn, .offer > .asked { justify-self: start; }
+    .pop { position: fixed; inset-inline: 16px; top: 72px; width: auto; max-width: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spin, .pulse, .pulse-dot, .read-lines li { animation: none !important; }
   }
 </style>
 </head>
 <body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-slack" viewBox="0 0 24 24"><g stroke="none"><path fill="#E01E5A" d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/><path fill="#36C5F0" d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z"/><path fill="#2EB67D" d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z"/><path fill="#ECB22E" d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></g></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z" /></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2" /><rect x="13" y="3" width="8" height="6" rx="2" /><rect x="13" y="11" width="8" height="10" rx="2" /><rect x="3" y="15" width="8" height="6" rx="2" /></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V5a2 2 0 0 1 2-2h9a1 1 0 0 1 1 1v1" /></symbol>
+</svg>
+
+<header class="bar"><div class="bar-in" id="band"></div></header>
+
 <div class="wrap">
+  <div id="notes"></div>
+  <div id="reading"></div>
+  <main id="root"><p class="loading">Opening your answers...</p></main>
+  <div class="gift-keep" id="gift-keep" role="region" aria-label="Things you can do now" hidden></div>
 
-  <!-- The Slack connection, Ideas and Layout. Painted by the script. -->
-  <div class="topbar" id="bar"></div>
-
-  <header class="hero">
-    <h1>
-      <!-- The integration's own mark, inlined so the page still makes
-           zero external requests. -->
-      <svg class="mark" viewBox="0 0 127 127" aria-hidden="true"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2C6.7 93.2.8 87.3.8 80c0-7.3 5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/> <path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2C33.8 6.5 39.7.6 47 .6c7.3 0 13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H13.9C6.6 60.1.7 54.2.7 46.9c0-7.3 5.9-13.2 13.2-13.2H47z" fill="#36C5F0"/> <path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V13.8C66.9 6.5 72.8.6 80.1.6c7.3 0 13.2 5.9 13.2 13.2v33.1z" fill="#2EB67D"/> <path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2 0-7.3 5.9-13.2 13.2-13.2h33.1c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H80.1z" fill="#ECB22E"/></svg>
-      Slack Answer Book
-    </h1>
-    <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
-    <p class="sub">Every question your team has already answered in Slack, kept as a page in your knowledge base so nobody has to ask it again.</p>
-  </header>
-
-  <div id="notice"></div>
-
-  <div id="root"><div class="card empty">Loading…</div></div>
-
-  <!-- Hidden until the bridge says this person may ask. -->
-  <section class="askbox" id="askbox" hidden data-viewer-off>
+  <section class="ask" id="askbox" hidden data-viewer-off>
+    <h2>Ask about your answers</h2>
+    <p>The Answer Keeper looks in these pages first, then in the Slack channels you allowed.</p>
     <form id="ask-form" autocomplete="off">
       <label for="ask-input" class="sr">Ask the Answer Keeper</label>
-      <input id="ask-input" name="q" dir="auto" maxlength="1200" placeholder="Ask about your Slack..." />
-      <button type="submit" class="btn primary">Ask</button>
+      <input id="ask-input" name="q" dir="auto" maxlength="1200" placeholder="Where do I get..." />
+      <button type="submit" class="btn">Ask</button>
     </form>
-    <p class="asknote" id="ask-note" aria-live="polite"></p>
+    <p class="note" id="ask-note" aria-live="polite"></p>
   </section>
 
   <div id="facts"></div>
-
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -456,35 +411,42 @@
   'use strict';
 
   var cab = window.cabinet;
-  /* v2 is the app bridge with files, routines, connections and the chat. Without it the
-     page still shows the book, read the old way, and offers nothing it cannot do. */
+  /* v2 is the bridge with files, routines, connections and the chat. Without it the page
+     still shows the book, read the old way, and offers nothing it cannot do. */
   var V2 = !!(cab && cab.connectors && cab.files && cab.jobs && typeof cab.ask === 'function');
   var MODE = V2 ? 'bridge' : 'legacy';
 
   var root = document.getElementById('root');
   var DIR = 'answers';
   var TOPICS = 'answers/topics';
-  var JOB = '.jobs/nightly-answer-sweep.yaml';   /* read only without the bridge */
-  var CANVAS = 'faq-canvas.md';
+  var READING = 'answer-book/data/reading.json';
   var CONNECTOR = 'slack';
   var SWEEP = 'nightly-answer-sweep';
-  var FAQ_JOB = 'weekly-faq-canvas';
-  var POOL = 6;        /* topic pages read at once: enough to be quick, few enough to be polite */
-  /* Just after Run now, Cabinet may still say "not running" before the run has started. */
+  var AGENT = 'answer-keeper';
+  /* Just after a press, Cabinet may still say "not running" before the run has started. */
   var GRACE_MS = 45000;
   var LAYOUT_KEY = 'answer-book.layout';
 
-  var job = null;      /* without the bridge: the sweep's enabled and schedule lines */
-  var canvas = null;   /* faq-canvas.md's frontmatter, or null when the file is missing */
-  var sweep = null;    /* the newest sweep log: { name, meta, changes: { slug: change } } */
+  var POOL = 6;           /* pages read at once */
+  var FIRST_PAINT = 30;   /* the list shows once this many pages are in, not after all of them */
+  var PROGRESS_MS = 1000; /* how often the count moves while the rest come in */
+  var TOO_FAST_MS = 350;  /* six readers waiting this long ask about as fast as the bridge refills */
+  var ROWS = 60;          /* rows drawn at a time; Show more draws the next ones */
+  var LIST_LIMIT = 500;   /* Cabinet lists at most this many entries of one folder */
+  var STORE_MAX = 1500000; /* never keep more than this in the browser: the storage is shared */
+
+  var job = null;         /* the sweep's enabled and schedule lines, where the file can be read */
+  var sweep = null;       /* the newest sweep log: { name, meta, changes: { slug: change } } */
   var book = [];
+  var bySlug = {};
+  var hottest = 0;
+  var pages = {};         /* file name -> { at, text, t }: what has been read, and when it changed */
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
 
-  /* The same list as the prompts in this cabinet's .cabinet, so Ideas and Cabinet agree.
-     The canvas one sends the fuller request the canvas line sends, so both start the same
-     conversation. */
+  /* The same list as the prompts in this cabinet's .cabinet, so Ideas and Cabinet agree. */
+  var CANVAS_IDEA = 'Put the top answers in a Slack canvas';
   var IDEAS = [
     'Which questions keep coming back in Slack?',
     'Has anyone already answered this in Slack?',
@@ -493,43 +455,49 @@
     'What did the last sweep add to our team memory?',
     'What should go in the team handbook first?',
     'Which answers have not been confirmed in three months?',
-    'Turn on the weekly FAQ canvas in our questions channel'
+    CANVAS_IDEA
   ];
-  var FAQ_IDEA = 7;
+
+  var CANVAS_ASK = 'Put the top answers in Slack. Draft a Team FAQ canvas from our most asked ' +
+    'Settled answers, and ask me which channel it is for. Show me the words and the channel. ' +
+    'Create the canvas, or update the one already there, only after I say yes in this chat, ' +
+    'and only in a channel set to Write. Do not schedule anything and do not write any settings.';
 
   /* The parts of the page a person may hide for themselves. The book itself always stays. */
   var PARTS = [
-    ['headline', 'What the last sweep did, under the search'],
+    ['headline', 'What the last sweep did'],
     ['asked', 'Asked most'],
     ['states', 'By state'],
     ['pin', 'Worth pinning'],
     ['steps', 'Next steps under each answer']
   ];
 
-  var FAQ_ASK = 'Help me turn on the weekly Team FAQ canvas. List the Slack channels I ' +
-    'allowed, suggest the one where my team asks questions most, and let me choose. Check ' +
-    'that the channel I choose is set to Write, and if it is Read, tell me how to change ' +
-    'that. Then write the channel into faq-canvas.md. Do not make the canvas or post ' +
-    'anything in Slack from this chat: the weekly routine makes it.';
-
   var S = {
     loaded: false,
+    painted: false,    /* the list has been drawn at least once */
     empty: false,      /* no topic page and no sweep log at all */
     example: false,    /* only the EXAMPLE- files are there */
     failed: 0,         /* topic pages that could not be read on the last load */
+    capped: false,     /* the folder holds more pages than Cabinet lists */
+    reading: 0,        /* pages still coming in */
+    total: 0,          /* pages this load is reading towards */
     error: '',         /* the folder itself could not be read */
     role: 'owner',
-    place: 'computer',
+    cabinetPath: '',
     slack: null,       /* the slack entry of connectors.list(), once known */
     jobs: [],
-    pressed: {},       /* job id -> { at, saw } after Run now */
-    notes: {},         /* job id -> a refusal to show beside it */
-    wasRunning: {},
+    pressed: null,     /* { at, saw } after a press on the run button */
+    runNote: '',       /* a refusal to show beside it */
+    wasRunning: false,
     connecting: false,
     connectNote: '',
     hide: {},          /* this person's hidden parts, from cabinet.mine */
     menu: ''           /* 'ideas', 'layout' or '' */
   };
+
+  /* What catching up on open waits for: who is looking, the routine, Slack, the book. */
+  var known = { here: !V2, jobs: false, slack: false, files: false };
+  var catchingUp = null;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -538,9 +506,19 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  function icon(id, cls) {
+    return '<svg class="icon' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+  }
   /* A refusal from Cabinet is plain words, safe to show as is. Never a stack or a code. */
   function said(e, fallback) {
     return e && typeof e.message === 'string' && e.message ? e.message : fallback;
+  }
+  /* Writes only what changed, so a repaint never closes a row or loses the scroll. */
+  function put(id, html) {
+    var el = $(id);
+    if (!el || el.painted === html) return;
+    el.innerHTML = html;
+    el.painted = html;
   }
 
   var toastTimer = 0;
@@ -663,7 +641,7 @@
 
   /* The sweep log: frontmatter, then | Topic | Change | URL |. Columns are read by name. */
   function sweepOf(name, text) {
-    var doc = split(text), changes = {}, count = 0;
+    var doc = split(text), changes = {};
     var lines = doc.body.split('\n').filter(function (l) { return l.trim().indexOf('|') === 0; });
     function cells(l) {
       return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
@@ -673,12 +651,10 @@
       cells(lines[0]).forEach(function (c, i) { at[c.toLowerCase()] = i; });
       lines.slice(2).map(cells).forEach(function (r) {
         var slug = at.topic !== undefined ? (r[at.topic] || '').replace(/\.md$/i, '') : '';
-        if (!slug) return;
-        changes[slug] = at.change !== undefined ? r[at.change] || '' : '';
-        count++;
+        if (slug) changes[slug] = at.change !== undefined ? r[at.change] || '' : '';
       });
     }
-    return { name: name, meta: doc.meta, changes: changes, count: count };
+    return { name: name, meta: doc.meta, changes: changes };
   }
 
   /* ---- the words and marks on screen ------------------------------------------------ */
@@ -708,28 +684,6 @@
     return out + esc(text.slice(at));
   }
 
-  function svg(paths, width) {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' +
-      (width || 2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-      paths + '</svg>';
-  }
-  var ICON_SEARCH = svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>');
-  var ICON_PIN = svg('<path d="M12 17v5"/><path d="M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 ' +
-    '5 15.2V17h14v-1.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V6h1a2 2 0 0 0 0-4H8a2 2 0 0 ' +
-    '0 0 4h1z"/>', 2.2);
-  var ICON_OUT = svg('<path d="M7 17 17 7"/><path d="M8 7h9v9"/>');
-  var ICON_BOOK = svg('<path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5a2.5 2.5 0 0 0 0 5H19"/>' +
-    '<path d="M9 8h6"/>', 1.6);
-  var ICON_CLOCK = svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
-  var ICON_PLUG = svg('<path d="M9 2v6M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/>' +
-    '<path d="M12 17v5"/>', 1.8);
-  var ICON_ALERT = svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16v.5"/>', 1.8);
-  var ICON_REFRESH = svg('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>');
-  var ICON_BULB = svg('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 ' +
-    '1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>', 1.8);
-  var ICON_LAYOUT = svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>', 1.8);
-  var ICON_HASH = svg('<path d="M5 9h14M5 15h14M10 3 8 21M16 3l-2 18"/>', 1.8);
-
   var STATES = [['', 'All'], ['settled', 'Settled'], ['shifting', 'Shifting'], ['open', 'Open']];
   var STATE_NOTE = {
     shifting: 'The answer has changed before, so it may change again.',
@@ -739,7 +693,7 @@
                ['first', 'Newest'], ['az', 'A to Z']];
   /* What the person chose in the book. Kept across a repaint, so a routine that finishes
      while they read does not throw away their search or close the answer they opened. */
-  var view = { find: '', state: '', recent: false, sort: 'asked', open: {} };
+  var view = { find: '', state: '', recent: false, sort: 'asked', open: {}, rows: ROWS };
   var pinAt = '';      /* the slug the sweep says to pin */
   var pinWhy = '';
 
@@ -752,7 +706,7 @@
   }
   function findPin(meta) {
     var slug = (meta.pin || '').replace(/\.md$/i, '');
-    if (slug && book.some(function (e) { return e.slug === slug; })) return slug;
+    if (slug && bySlug[slug]) return slug;
     var want = words(meta.lead || ''), best = '', score = 0;
     if (!want.length) return '';
     book.forEach(function (e) {
@@ -792,7 +746,7 @@
   function clock(d) {
     return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
   }
-  /* "Today", "Yesterday" or the full day, for a moment in the recent past. */
+  /* "today at 02:00", "yesterday at 02:00" or the full day, for a moment in the recent past. */
   function when(d) {
     var now = new Date(), yday = new Date(now.getTime() - 86400000);
     if (sameDay(d, now)) return 'today at ' + clock(d);
@@ -804,7 +758,7 @@
     var m = String(ymd).match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? (+m[3]) + ' ' + MONTHS[+m[2] - 1] + ' ' + m[1] : '';
   }
-  /* "2026-09-15 02:00", the shape the agent writes `generated` and `updated` in. */
+  /* "2026-09-15 02:00", the shape the agent writes `generated` in. */
   function moment(v) {
     var m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
     return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) : null;
@@ -815,7 +769,7 @@
     var m = name.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})-(\d{2})-(\d{2}))?/);
     return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : null;
   }
-  function iso(v) {
+  function writtenAt(v) {
     var d = typeof v === 'string' && v ? new Date(v) : null;
     return d && !isNaN(d.getTime()) ? d : null;
   }
@@ -831,163 +785,142 @@
   function canRun() { return V2 && S.role !== 'viewer'; }
   function canConnect() { return !!(V2 && S.slack && S.slack.canConnect); }
   function slackState() { return S.slack ? S.slack.state : null; }
+  function slackOn() { return slackState() === 'connected'; }
   function problemText() {
     return S.slack && S.slack.problem && typeof S.slack.problem.text === 'string'
       ? S.slack.problem.text : '';
   }
-  function jobOf(id) {
-    for (var i = 0; i < S.jobs.length; i++) if (S.jobs[i] && S.jobs[i].id === id) return S.jobs[i];
+  function sweepJob() {
+    for (var i = 0; i < S.jobs.length; i++) if (S.jobs[i] && S.jobs[i].id === SWEEP) return S.jobs[i];
     return null;
   }
-  function running(id) {
-    var j = jobOf(id), p = S.pressed[id];
+  function running() {
+    var j = sweepJob(), p = S.pressed;
     if (j && j.running) return true;
     return !!(p && !p.saw && Date.now() - p.at < GRACE_MS);
   }
   /* "Every night at 2" -> "every night at 2"; anything else (a paused routine says so in
      its own words) is kept as Cabinet wrote it. */
-  function whenWords(id) {
-    var j = jobOf(id), w = j && typeof j.when === 'string' ? j.when.trim() : '';
+  function whenWords() {
+    var j = sweepJob(), w = j && typeof j.when === 'string' ? j.when.trim() : '';
     return /^every\b/i.test(w) ? w.charAt(0).toLowerCase() + w.slice(1) : w;
   }
 
   /* The last sweep that did not finish, when it is newer than what the book shows. */
   function failedAt() {
-    if (running(SWEEP)) return null;
-    var j = jobOf(SWEEP);
+    if (running()) return null;
+    var j = sweepJob();
     if (!j || !j.lastRun || j.lastRun.ok !== false) return null;
-    var at = iso(j.lastRun.at), shown = sweptAt();
+    var at = writtenAt(j.lastRun.at), shown = sweptAt();
     if (!at || (shown && at <= shown)) return null;
     return at;
   }
 
   /* ---- drawing the book --------------------------------------------------------------- */
 
-  /* Keep what the person has typed, pressed and opened, so a repaint changes only data. */
-  function remember() {
-    var find = $('find'), sort = $('sort');
-    if (find) view.find = find.value;
-    if (sort) view.sort = sort.value;
-    view.focus = document.activeElement && document.activeElement.id === 'find';
-    view.open = {};
-    [].forEach.call(root.querySelectorAll('details[open]'), function (d) {
-      view.open[d.getAttribute('data-i')] = true;
-    });
-  }
-
   function render() {
-    if (!S.loaded) return;
+    if (!S.loaded && !S.painted) return;
     if (S.error && !book.length) {
-      root.innerHTML = '<div class="card empty">' + esc(S.error) + '</div>';
+      S.painted = false;
+      put('root', '<div class="lane"><p class="lane-empty">' + esc(S.error) + '</p></div>');
       return;
     }
     if (S.empty) {
-      root.innerHTML = '<div class="card blank">' + ICON_BOOK + '<h2>Nothing written down yet</h2>' +
+      S.painted = false;
+      put('root', '<div class="lane blank"><h3>Nothing written down yet</h3>' +
         '<p>The book fills in after the routine reads Slack for the first time. Every ' +
-        'answered question gets its own page, and lands here, searchable.</p></div>';
+        'answered question gets its own page, and lands here, searchable.</p></div>');
       return;
     }
-    remember();
-    var meta = sweep ? sweep.meta : {}, html = '';
+    if (!book.length) {
+      S.painted = false;
+      if (S.reading) {
+        put('root', '<p class="loading">Opening your answers...</p>');
+        return;
+      }
+      put('root', '<div class="lane blank"><h3>No answers kept yet</h3>' +
+        '<p>The routine has read Slack, and nothing asked there had an answer worth writing ' +
+        'down yet. Each answered question will get its own page here.</p></div>');
+      return;
+    }
+    var meta = sweep ? sweep.meta : {};
     pinAt = findPin(meta);
     pinWhy = meta.verdict || '';
-    var recent = recentCount();
+    if (!S.painted) {
+      /* The frame is drawn once. After that each part changes on its own, so the field keeps
+         its focus and its text, and the page keeps its scroll, while a routine writes. */
+      S.painted = true;
+      root.painted = '';
+      root.innerHTML =
+        '<input class="find" id="find" type="search" autocomplete="off" aria-label="Search the answers" />' +
+        '<div class="tools" id="tools"></div>' +
+        '<div class="layout" id="layout"><div class="main"><section class="lane" aria-labelledby="shown-as">' +
+        '<div class="lane-head"><h3 id="shown-as"></h3><span class="total" id="count" aria-live="polite"></span></div>' +
+        '<div id="list"></div></section></div><aside class="rail" id="rail" aria-label="About this book"></aside></div>';
+      $('find').value = view.find;
+    }
+    paintFrame();
+    list();
+  }
+
+  function paintFrame() {
+    var find = $('find');
+    if (!find) return;
+    var n = pagesExpected();
+    find.placeholder = 'Search ' + n + (n === 1 ? ' answer' : ' answers');
+    paintTools();
+    var side = rail();
+    put('rail', side);
+    $('layout').className = 'layout' + (side ? ' railed' : '');
+  }
+
+  /* While pages come in the field already names them all. */
+  function pagesExpected() { return Math.max(book.length, S.total); }
+
+  function paintTools() {
+    var c = counts(), recent = recentCount();
     if (!recent) view.recent = false;
-
-    if (book.length) {
-      var c = counts();
-      html += '<div class="hero"><div class="find">' + ICON_SEARCH +
-              '<input type="search" id="find" placeholder="Search ' + book.length +
-              (book.length === 1 ? ' answer' : ' answers') + '" ' +
-              'aria-label="Search the answers" autocomplete="off" value="' + esc(view.find) + '" /></div>';
-      if (meta.headline && !S.hide.headline) html += '<p class="headline">' + esc(meta.headline) + '</p>';
-      html += '<div class="tools"><div class="seg" role="group" aria-label="State">' +
-              STATES.map(function (s) {
-                return '<button type="button" data-state="' + s[0] + '" aria-pressed="' +
-                  (s[0] === view.state ? 'true' : 'false') + '">' +
-                  (s[0] ? '<span class="dot s-' + s[0] + '" aria-hidden="true"></span>' : '') +
-                  s[1] +
-                  '<span class="c">' + c[s[0]] + '</span></button>';
-              }).join('') + '</div>' +
-              (recent ? '<div class="seg"><button type="button" id="recent" aria-pressed="' +
-                view.recent + '">' + ICON_CLOCK + 'Changed in the last sweep<span class="c">' +
-                recent + '</span></button></div>' : '') +
-              '<label for="sort">Sort <select id="sort">' +
-              SORTS.map(function (s) {
-                return '<option value="' + s[0] + '"' + (s[0] === view.sort ? ' selected' : '') +
-                  '>' + s[1] + '</option>';
-              }).join('') + '</select></label></div></div>';
-    } else if (meta.headline && !S.hide.headline) {
-      html += '<div class="hero"><p class="headline">' + esc(meta.headline) + '</p></div>';
-    }
-
-    /* The bundled example has no date in its name. Say so, so nobody acts on it. */
-    if (S.example) {
-      html += '<div class="banner">This is example data. Your team\'s own answers replace it ' +
-              'after the routine first reaches Slack.</div>';
-    }
-    /* The routine reached Slack but not all of it. It said so rather than guessing. */
-    if (meta.status && meta.status !== 'ok') {
-      html += '<div class="banner">The last sweep did not finish cleanly: ' + esc(meta.status) +
-              '.</div>';
-    }
-    if (S.failed) {
-      html += '<div class="banner">' + S.failed + (S.failed === 1 ? ' page' : ' pages') +
-              ' could not be read just now, so ' + (S.failed === 1 ? 'it is' : 'they are') +
-              ' missing below. Reload in a moment.</div>';
-    }
-
-    if (book.length) {
-      var side = rail(meta);
-      html += '<div class="layout' + (side ? ' has-rail' : '') + '"><div class="main">' +
-              '<div class="listhead"><strong id="shown-as">All answers</strong>' +
-              '<span class="count" id="count" aria-live="polite"></span></div>' +
-              '<div class="card book" id="book"></div></div>' + side + '</div>';
-    } else {
-      html += '<div class="card blank">' + ICON_BOOK + '<h2>No answers kept yet</h2>' +
-              '<p>The routine has read Slack, and nothing asked there had an answer worth ' +
-              'writing down yet. Each answered question will get its own page here.</p></div>';
-    }
-    root.innerHTML = html;
-    document.body.classList.toggle('railed', /has-rail/.test(html));
-    bind();
-    if (book.length) {
-      list();
-      if (view.focus) {
-        var find = $('find');
-        find.focus();
-        find.setSelectionRange(find.value.length, find.value.length);
-      }
-    }
+    put('tools', '<div class="chips" role="group" aria-label="State">' +
+      STATES.map(function (s) {
+        return '<button type="button" class="chip" data-act="state" data-state="' + s[0] + '" aria-pressed="' +
+          (s[0] === view.state) + '">' + (s[0] ? '<span class="d ' + s[0] + '" aria-hidden="true"></span>' : '') +
+          s[1] + '<span class="c">' + c[s[0]] + '</span></button>';
+      }).join('') + '</div>' +
+      (recent ? '<button type="button" class="chip" data-act="recent" aria-pressed="' + view.recent + '">' +
+        icon('i-clock') + 'Changed in the last sweep<span class="c">' + recent + '</span></button>' : '') +
+      '<label class="sorter" for="sort">Sort<select id="sort">' +
+      SORTS.map(function (s) {
+        return '<option value="' + s[0] + '"' + (s[0] === view.sort ? ' selected' : '') + '>' + s[1] + '</option>';
+      }).join('') + '</select></label>');
   }
 
   /* The wide-window rail: what comes up most, how settled the book is, and why one answer
      is worth pinning. On a narrow window it is hidden and the rows carry the same signals.
      Each part can be hidden from Layout; with all three hidden there is no rail at all. */
-  function rail(meta) {
+  function rail() {
     var top = book.filter(function (e) { return e.asked > 1; })
       .sort(function (x, y) { return y.asked - x.asked || x.q.localeCompare(y.q); }).slice(0, 5);
     var c = counts(), most = Math.max(c.settled, c.shifting, c.open, 1), html = '';
+    function lane(title, inner) {
+      return '<section class="lane"><div class="lane-head"><h3>' + title + '</h3></div>' + inner + '</section>';
+    }
     if (top.length && !S.hide.asked) {
-      html += '<section><h2>Asked most</h2><ol>' + top.map(function (e) {
-        return '<li><button type="button" class="jump" data-go="' + esc(e.slug) + '"><b>' +
-          e.asked + '&times;</b><span>' + esc(e.q) + '</span></button></li>';
-      }).join('') + '</ol></section>';
+      html += lane('Asked most', '<ol>' + top.map(function (e) {
+        return '<li><button type="button" class="jump" data-act="go" data-slug="' + esc(e.slug) + '"><b>' +
+          e.asked + '&times;</b><span dir="auto">' + esc(e.q) + '</span></button></li>';
+      }).join('') + '</ol>');
     }
     if (!S.hide.states) {
-      html += '<section><h2>By state</h2><div class="states">' +
-        STATES.slice(1).map(function (s) {
-          return '<div class="s-' + s[0] + '"><span class="lbl state" style="color:var(--ink)">' +
-            s[1] + '</span><span class="bar"><i style="width:' + Math.round(c[s[0]] / most * 100) +
-            '%"></i></span><span class="num">' + c[s[0]] + '</span></div>';
-        }).join('') + '</div></section>';
+      html += lane('By state', '<div class="bars">' + STATES.slice(1).map(function (s) {
+        return '<div><span>' + s[1] + '</span><span class="track"><i class="' + s[0] + '" style="width:' +
+          Math.round(c[s[0]] / most * 100) + '%"></i></span><span class="num">' + c[s[0]] + '</span></div>';
+      }).join('') + '</div>');
     }
-    var pinned = book.filter(function (e) { return e.slug === pinAt; })[0];
+    var pinned = bySlug[pinAt];
     if (pinned && pinWhy && !S.hide.pin) {
-      html += '<section><h2>Worth pinning</h2><p class="why">' + esc(pinned.q) +
-              '<span>' + esc(pinWhy) + '</span></p></section>';
+      html += lane('Worth pinning', '<p class="why" dir="auto">' + esc(pinned.q) + '<span>' + esc(pinWhy) + '</span></p>');
     }
-    return html ? '<aside class="rail" aria-label="About this book">' + html + '</aside>' : '';
+    return html;
   }
 
   var SORT_BY = {
@@ -999,14 +932,17 @@
   function cmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
 
   /* "2026-09-14 in #eng" reads as "14 September 2026 in #eng"; any other words stay as written. */
-  function source(words) {
-    var d = day(words);
-    return d ? dateText(d) + words.slice(d.length) : words;
+  function source(text) {
+    var d = day(text);
+    return d ? dateText(d) + text.slice(d.length) : text;
   }
 
-  function section(title, inner, cls) {
-    return '<div class="sec' + (cls ? ' ' + cls : '') + '"><h3>' + esc(title) + '</h3>' + inner + '</div>';
+  function section(title, inner) {
+    return '<div class="sec"><h4>' + esc(title) + '</h4>' + inner + '</div>';
   }
+
+  /* An address on a made-up workspace goes nowhere, so the example shows plain words. */
+  function linkable(url) { return !S.example && /^https?:\/\//i.test(url || ''); }
 
   /* What a person can hand the Answer Keeper about one answer. An Open question has no
      answer to reply with or write up, so it gets the one step that could settle it. */
@@ -1016,334 +952,341 @@
       ? [['find', 'Look for an answer']]
       : [['draft', 'Draft a reply with this answer'], ['doc', 'Turn this into a doc page'],
          ['wrong', 'This answer is wrong']];
-    return '<div class="acts" data-viewer-off>' + list.map(function (s) {
+    return list.map(function (s) {
       return '<button type="button" class="btn small" data-act="step" data-kind="' + s[0] +
         '" data-slug="' + esc(e.slug) + '">' + s[1] + '</button>';
-    }).join('') + '</div>';
+    }).join('');
   }
 
-  function row(e, needle, open, hot) {
-    var key = stateKey(e.state), pinned = e.slug === pinAt, change = changeOf(e);
-    var facts = [];
+  /* An answer's body, drawn only when it is opened. */
+  function body(e, needle) {
+    var key = stateKey(e.state), facts = [];
     if (e.first) facts.push('First asked ' + dateText(e.first));
     if (e.confirmed && e.confirmed !== e.first) facts.push('Confirmed ' + dateText(e.confirmed));
     if (e.channel) facts.push(esc(e.channel));
-    return '<details data-i="' + esc(e.slug) + '"' + (open ? ' open' : '') + '><summary>' +
-      '<span class="n' + (e.asked > 1 && e.asked === hot ? ' hot' : '') + '">' +
-      (e.asked > 0 ? '<b aria-hidden="true">' + e.asked + '</b><small aria-hidden="true">asked</small>' +
-        '<span class="sr">' + askedText(e.asked) + '</span>' : '') + '</span>' +
-      '<span class="txt"><span class="q">' + lit(e.q, needle) + '</span>' +
-      (e.a ? '<span class="pv">' + lit(e.a, needle) + '</span>' : '') + '</span>' +
-      '<span class="side">' +
-      (change ? '<span class="pill chg"><span class="sr">Last sweep: </span>' + esc(change) + '</span>' : '') +
-      (pinned ? '<span class="pill pinned">' + ICON_PIN + 'Worth pinning</span>' : '') +
-      (e.state ? '<span class="pill state s-' + key + '">' + esc(e.state) + '</span>' : '') +
-      '</span></summary><div class="a">' +
-      (e.answer.length ? e.answer.map(function (p) { return '<p>' + lit(p, needle) + '</p>'; }).join('')
-                       : '<p>No answer is written down yet.</p>') +
-      (pinned && pinWhy ? '<p class="note pin-note"><span>' + esc(pinWhy) + '</span></p>' : '') +
-      (STATE_NOTE[key] ? '<p class="note ' + (key === 'open' ? 'unsettled' : 's-' + key) + '">' +
-        STATE_NOTE[key] + '</p>' : '') +
+    return (e.answer.length ? e.answer.map(function (p) { return '<p dir="auto">' + lit(p, needle) + '</p>'; }).join('')
+                            : '<p>No answer is written down yet.</p>') +
+      (e.slug === pinAt && pinWhy ? '<p class="say pinned" dir="auto">' + esc(pinWhy) + '</p>' : '') +
+      (STATE_NOTE[key] ? '<p class="say ' + key + '">' + STATE_NOTE[key] + '</p>' : '') +
       (e.used.length ? section('It used to be', e.used.map(function (p) {
-        return '<p>' + esc(p) + '</p>';
-      }).join(''), 'was') : '') +
+        return '<p dir="auto">' + esc(p) + '</p>';
+      }).join('')) : '') +
       (e.also.length ? section('Also asked as', '<ul>' + e.also.map(function (s) {
-        return '<li>' + lit(s, needle) + '</li>';
+        return '<li dir="auto">' + lit(s, needle) + '</li>';
       }).join('') + '</ul>') : '') +
       (e.sources.length ? section('Sources', '<ul>' + e.sources.map(function (s) {
-        return '<li>' + (/^https?:\/\//i.test(s.url)
+        return '<li dir="auto">' + (linkable(s.url)
           ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(source(s.text)) + '</a>'
           : esc(source(s.text))) + '</li>';
       }).join('') + '</ul>') : '') +
       e.extra.map(function (x) {
-        return section(x.head, x.text.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join(''));
+        return section(x.head, x.text.map(function (p) { return '<p dir="auto">' + esc(p) + '</p>'; }).join(''));
       }).join('') +
-      '<div class="foot">' + (facts.length ? '<span>' + facts.join(' &middot; ') + '</span>' : '') +
-      (e.url ? '<a class="thread" href="' + esc(e.url) +
-        '" target="_blank" rel="noopener noreferrer">Open the thread in Slack' + ICON_OUT + '</a>' : '') +
-      '</div>' + steps(e) + '</div></details>';
+      (facts.length ? '<p class="facts-row">' + facts.join(' &middot; ') + '</p>' : '') +
+      '<div class="row-actions">' +
+      (e.answer.length ? '<button type="button" class="btn small dark" data-act="copy" data-slug="' + esc(e.slug) + '">' +
+        icon('i-copy') + 'Copy the answer</button>' : '') +
+      (linkable(e.url) ? '<a class="btn small" href="' + esc(e.url) + '" target="_blank" rel="noopener noreferrer">' +
+        icon('i-slack') + 'Open in Slack</a>' : '') +
+      steps(e) + '</div>';
   }
 
-  /* Search, state, the sweep filter and sort all redraw only the book; the controls keep
-     focus and text. */
+  function row(e, needle, open) {
+    var change = changeOf(e), key = stateKey(e.state);
+    return '<details class="row" data-i="' + esc(e.slug) + '"' + (open ? ' open' : '') + '><summary>' +
+      (e.asked > 0
+        ? '<span class="times' + (e.asked > 1 && e.asked === hottest ? ' hot' : '') + '"><span aria-hidden="true">' +
+          e.asked + '</span><span class="sr">' + askedText(e.asked) + '</span></span>'
+        : '<span></span>') +
+      '<span class="txt"><span class="q" dir="auto">' + lit(e.q, needle) + '</span>' +
+      (e.a ? '<span class="pv" dir="auto">' + lit(e.a, needle) + '</span>' : '') + '</span>' +
+      '<span class="tags">' +
+      (change ? '<span class="tag chg"><span class="sr">Last sweep: </span>' + esc(change) + '</span>' : '') +
+      (e.slug === pinAt ? '<span class="tag pin">Worth pinning</span>' : '') +
+      (e.state ? '<span class="tag state s-' + key + '">' + esc(e.state) + '</span>' : '') +
+      icon('i-down', 'chev') + '</span></summary>' +
+      '<div class="a">' + (open ? body(e, needle) : '') + '</div></details>';
+  }
+
+  /* Search, state, the sweep filter and sort all redraw only the rows. */
   function list() {
-    var find = $('find'), sort = $('sort'), out = $('book');
+    var find = $('find'), out = $('list');
+    if (!find || !out) return;
+    var sort = $('sort');
     var needle = find.value.trim(), low = needle.toLowerCase();
     view.find = find.value;
-    view.sort = sort.value;
+    if (sort) view.sort = sort.value;
     var shown = book.filter(function (e) {
       if (view.state && stateKey(e.state) !== view.state) return false;
       if (view.recent && !changeOf(e)) return false;
       return !low || e.hay.indexOf(low) > -1;
-    });
-    shown.sort(SORT_BY[sort.value] || SORT_BY.asked);
+    }).sort(SORT_BY[view.sort] || SORT_BY.asked);
 
-    var filtered = needle || view.state || view.recent;
-    $('count').textContent = filtered
-      ? shown.length + ' of ' + book.length + ' answers match'
-      : book.length + (book.length === 1 ? ' answer' : ' answers');
+    var total = pagesExpected(), filtered = needle || view.state || view.recent;
+    $('count').textContent = (S.reading ? 'Reading ' + book.length + ' of ' + total + '. ' : '') +
+      (filtered ? shown.length + (shown.length === 1 ? ' answer matches' : ' answers match')
+                : (S.reading ? '' : total + (total === 1 ? ' answer' : ' answers')));
     var named = STATES.filter(function (s) { return s[0] === view.state; })[0][1];
-    $('shown-as').textContent =
-      (view.state ? named : 'All answers') + (view.recent ? ', changed in the last sweep' : '');
+    $('shown-as').textContent = (view.state ? named : 'All answers') +
+      (view.recent ? ', changed in the last sweep' : '');
 
     if (!shown.length) {
-      out.innerHTML = '<div class="empty">Nothing written down for that yet.</div>';
+      put('list', '<div class="lane-empty">Nothing written down for that yet.' +
+        (needle && canAsk() ? '<button type="button" class="btn small" data-act="ask-find">' + icon('i-chat') +
+          'Ask in chat</button>' : '') + '</div>');
       return;
     }
     var only = needle && shown.length === 1;
-    var hot = Math.max.apply(null, book.map(function (e) { return e.asked; }));
-    out.innerHTML = shown.map(function (e) {
-      return row(e, needle, only || !!view.open[e.slug], hot);
-    }).join('');
+    var rest = shown.length - view.rows;
+    put('list', shown.slice(0, view.rows).map(function (e) {
+      return row(e, needle, only || !!view.open[e.slug]);
+    }).join('') + (rest > 0 ? '<button type="button" class="lane-foot" data-act="more">Show ' +
+      Math.min(rest, ROWS) + ' more of ' + rest + '</button>' : ''));
+  }
+
+  var listFrame = 0;
+  function listSoon() {
+    view.rows = ROWS;
+    if (listFrame) return;
+    listFrame = requestAnimationFrame(function () { listFrame = 0; list(); });
   }
 
   /* A rail entry opens its row: any filter that would hide it is cleared first. */
   function go(slug) {
-    var sel = 'details[data-i="' + slug.replace(/["\\]/g, '\\$&') + '"]';
-    var row = document.querySelector(sel);
-    if (!row) {
-      $('find').value = '';
-      view.recent = false;
-      var r = $('recent');
-      if (r) r.setAttribute('aria-pressed', 'false');
-      press('');
-      row = document.querySelector(sel);
-    }
-    if (!row) return;
-    row.open = true;
-    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    row.querySelector('summary').focus({ preventScroll: true });
-  }
-
-  function press(value) {
-    view.state = value;
-    [].forEach.call(document.querySelectorAll('.seg button[data-state]'), function (b) {
-      b.setAttribute('aria-pressed', b.getAttribute('data-state') === value ? 'true' : 'false');
-    });
+    var e = bySlug[slug];
+    if (!e) return;
+    $('find').value = '';
+    view.state = '';
+    view.recent = false;
+    var all = book.slice().sort(SORT_BY[view.sort] || SORT_BY.asked);
+    view.rows = Math.max(ROWS, Math.ceil((all.indexOf(e) + 1) / ROWS) * ROWS);
+    view.open[slug] = true;
+    paintTools();
     list();
+    var hit = [].filter.call($('list').querySelectorAll('details'), function (d) {
+      return d.getAttribute('data-i') === slug;
+    })[0];
+    if (!hit) return;
+    hit.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    hit.querySelector('summary').focus({ preventScroll: true });
   }
 
-  /* root.innerHTML is written once per render, so the listeners are attached after it. */
-  function bind() {
-    var find = $('find');
-    if (!find) return;
-    find.addEventListener('input', list);
-    find.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && find.value) { find.value = ''; list(); }
-    });
-    [].forEach.call(document.querySelectorAll('.seg button[data-state]'), function (b) {
-      b.addEventListener('click', function () { press(b.getAttribute('data-state')); });
-    });
-    var recent = $('recent');
-    if (recent) recent.addEventListener('click', function () {
-      view.recent = !view.recent;
-      recent.setAttribute('aria-pressed', view.recent ? 'true' : 'false');
-      list();
-    });
-    [].forEach.call(document.querySelectorAll('.jump'), function (b) {
-      b.addEventListener('click', function () { go(b.getAttribute('data-go')); });
-    });
-    $('sort').addEventListener('change', list);
+  function refocus(selector) {
+    var el = root.querySelector(selector);
+    if (el) el.focus();
   }
 
-  /* ---- the bar, the notice, the facts ------------------------------------------------ */
+  /* ---- the band ---------------------------------------------------------------------- */
 
   var BUSY_WORDS = {
     linking: 'Linking Slack', reconnecting: 'Reconnecting Slack', checking: 'Checking Slack',
     'catching-up': 'Slack is catching up', copying: 'Copying from Slack'
   };
 
-  function paintBar() {
-    var s = slackState(), left;
-    if (!V2) {
-      left = '<span>Connect Slack from Integrations in Cabinet.</span>';
-    } else if (!S.slack) {
-      left = '<span class="pillc busy"><i class="live"></i>Checking Slack</span>';
-    } else if (S.slack.busy) {
-      left = '<span class="pillc busy"><i class="live"></i>' +
-        esc(BUSY_WORDS[S.slack.busy] || 'Slack is busy') + '</span>';
-    } else if (s === 'connected') {
-      left = '<span class="pillc ok"><i></i>Slack connected</span>' +
-        (canConnect() ? '<button type="button" class="btn link" data-act="channels" data-viewer-off>' +
-          'Choose channels</button>' : '');
-    } else if (s === 'needs-sign-in' || s === 'needs-you') {
-      left = '<span class="pillc warn"><i></i>Slack needs you</span>';
-    } else if (s === 'not-available-here') {
-      left = '<span class="pillc"><i></i>Slack not available here</span>';
-    } else {
-      left = '<span class="pillc"><i></i>Slack not connected</span>';
+  function pillHtml() {
+    var s = slackState();
+    if (!V2) return '<span class="updated">Connect Slack from Integrations in Cabinet.</span>';
+    if (!S.slack) return '<span class="pill"><span class="dot pulse"></span>Checking Slack</span>';
+    if (S.slack.busy) {
+      return '<span class="pill"><span class="dot pulse"></span>' + esc(BUSY_WORDS[S.slack.busy] || 'Slack is busy') + '</span>';
     }
-    var ideas = V2
-      ? '<div data-viewer-off><button type="button" class="btn" data-act="ideas" aria-haspopup="true" ' +
-        'aria-expanded="' + (S.menu === 'ideas') + '" aria-controls="ideas-pop">' + ICON_BULB +
-        'Ideas</button>' + ideasPop() + '</div>'
-      : '';
-    var layout = '<div><button type="button" class="btn" data-act="layout" aria-haspopup="true" ' +
-      'aria-expanded="' + (S.menu === 'layout') + '" aria-controls="layout-pop">' + ICON_LAYOUT +
-      'Layout</button>' + layoutPop() + '</div>';
-    $('bar').innerHTML = '<div class="conn">' + left + '</div><div class="menus">' + ideas + layout + '</div>';
+    if (s === 'connected') return '<span class="pill ok"><span class="dot"></span>Slack connected</span>';
+    if (s === 'not-available-here') return '<span class="pill"><span class="dot"></span>Slack not available here</span>';
+    if (s === 'needs-sign-in' || s === 'needs-you') return '<span class="pill warn"><span class="dot"></span>Slack needs you</span>';
+    return '<span class="pill off"><span class="dot"></span>Slack not connected</span>';
+  }
+
+  function buttonsHtml() {
+    var html = '', page = S.loaded && !showReading();
+    if (slackOn() && canRun() && !S.example && S.loaded) {
+      html += running()
+        ? '<button class="btn" disabled>' + icon('i-refresh', 'spin') + 'Looking...</button>'
+        : '<button class="btn" data-act="run">' + icon('i-refresh') + 'Look for new answers</button>';
+    }
+    if (page && canAsk()) {
+      html += '<div><button class="btn" data-act="ideas" aria-haspopup="true" aria-expanded="' + (S.menu === 'ideas') +
+        '" aria-controls="ideas-pop">' + icon('i-bulb') + 'Ideas</button>' + ideasPop() + '</div>';
+    }
+    if (page) {
+      html += '<div><button class="btn" data-act="layout" aria-haspopup="true" aria-expanded="' + (S.menu === 'layout') +
+        '" aria-controls="layout-pop">' + icon('i-layout') + 'Layout</button>' + layoutPop() + '</div>';
+    }
+    return html;
   }
 
   function ideasPop() {
-    return '<div class="pop" id="ideas-pop" role="group" aria-label="Ideas"' +
-      (S.menu === 'ideas' ? '' : ' hidden') + '><h2>Ask the Answer Keeper</h2>' +
-      IDEAS.map(function (text, i) {
-        return '<button type="button" class="item" data-act="idea" data-i="' + i +
-          '">' + esc(text) + '</button>';
+    return '<div class="pop" id="ideas-pop" role="group" aria-label="Ideas"' + (S.menu === 'ideas' ? '' : ' hidden') +
+      '><h2>Ask the Answer Keeper</h2>' + IDEAS.map(function (text, i) {
+        return '<button type="button" class="item" data-act="idea" data-i="' + i + '">' + esc(text) + '</button>';
       }).join('') + '</div>';
   }
 
   function layoutPop() {
-    var saves = !!(cab && cab.mine && typeof cab.mine.set === 'function');
-    return '<div class="pop" id="layout-pop" role="group" aria-label="Layout"' +
-      (S.menu === 'layout' ? '' : ' hidden') + '><h2>Show on this page</h2>' +
-      PARTS.map(function (p) {
+    return '<div class="pop" id="layout-pop" role="group" aria-label="Layout"' + (S.menu === 'layout' ? '' : ' hidden') +
+      '><h2>Show on this page</h2>' + PARTS.map(function (p) {
         if (p[0] === 'steps' && !canAsk()) return '';
         return '<label class="check"><input type="checkbox" data-part="' + p[0] + '"' +
           (S.hide[p[0]] ? '' : ' checked') + ' />' + esc(p[1]) + '</label>';
-      }).join('') +
-      '<p class="fine">' + (saves ? 'Only for you. The side panel shows on a wide window.'
+      }).join('') + '<p class="fine">' + (canSave() ? 'Only for you. The side panel shows on a wide window.'
         : 'Kept until you close this page.') + '</p>' +
-      '<div class="row-end"><button type="button" class="btn small" data-act="layout-reset">Reset</button></div></div>';
+      '<div class="end"><button type="button" class="btn small" data-act="layout-reset">Reset</button></div></div>';
   }
 
-  /* The one thing that needs the person most, above the book. Nothing at all when all is well. */
-  function paintNotice() {
-    var s = slackState(), html = '';
-    var connectButton = function (label) {
-      return canConnect()
-        ? '<button type="button" class="btn primary" data-act="connect" data-viewer-off' +
-          (S.connecting ? ' disabled' : '') + '>' + (S.connecting ? 'Finish in the window Cabinet opened' : label) +
-          '</button>'
-        : '<span>The person who owns this cabinet connects Slack.</span>';
-    };
-    var note = S.connectNote ? '<p>' + esc(S.connectNote) + '</p>' : '';
-    if (!V2 || !S.slack || !S.loaded) {
-      html = '';
-    } else if (s === 'not-added') {
-      html = card('', ICON_PLUG, 'Connect Slack to start your answer book',
-        '<p>Every night the Answer Keeper reads the channels you choose and keeps one page ' +
-        'for every question your team answered. It only reads, unless you allow more. ' +
-        (S.example ? 'Below is an example from a made-up team.' : '') + '</p>' + note,
-        connectButton('Connect Slack'));
-    } else if (s === 'needs-sign-in' || s === 'needs-you') {
-      html = card('alert', ICON_ALERT, 'Slack needs you',
-        '<p>' + esc(problemText() || 'Slack stopped letting Cabinet in.') + '</p>' +
-        (sweptAt() ? '<p>The answers below are from the sweep ' + esc(when(sweptAt())) + '.</p>' : '') + note,
-        connectButton('Fix the connection'));
-    } else if (s === 'not-available-here') {
-      html = card('', ICON_PLUG, 'Slack cannot be connected here',
-        '<p>' + esc(problemText() || 'Slack is not available in this place yet.') + '</p>', '');
-    } else if (running(SWEEP)) {
-      html = '<div class="notice strip" role="status"><span class="dotl live" aria-hidden="true"></span>' +
-        '<p>Reading Slack... The book updates here when the sweep is done.</p></div>';
-    } else if (failedAt()) {
-      var shown = sweptAt();
-      html = card('alert', ICON_ALERT, 'The sweep ' + when(failedAt()) + ' did not finish',
-        '<p>' + (shown ? 'What you see is from the sweep ' + esc(when(shown)) + '.'
-          : S.example ? 'Nothing was kept from your Slack yet, so the example is still showing.'
-          : 'Nothing new was kept.') + '</p>' + runNote(SWEEP),
-        canRun() ? '<button type="button" class="btn primary" data-act="run" data-job="' + SWEEP +
-          '" data-viewer-off>' + ICON_REFRESH + 'Try again</button>'
-          : '<span>The person who owns this cabinet can run it again.</span>');
-    } else if (s === 'connected' && S.example) {
-      var every = whenWords(SWEEP);
-      html = card('', ICON_BOOK, 'Slack is connected. Your first sweep is next.',
-        '<p>The first sweep reads the last 7 days of the channels you allowed' +
-        (every && /^every\b/.test(every) ? ', and then it runs by itself, ' + esc(every) + '.' : '.') +
-        '</p>' + runNote(SWEEP),
-        canRun() ? '<button type="button" class="btn primary" data-act="run" data-job="' + SWEEP +
-          '" data-viewer-off>Run the first sweep now</button>' : '');
-    } else if (S.notes[SWEEP]) {
-      html = '<div class="notice strip alert" role="status">' + ICON_ALERT + '<p>' +
-        esc(S.notes[SWEEP]) + '</p></div>';
+  /* A chat bubble with a hash, with a badge that matches the state: Your Slack's picture. */
+  function artSlack(badge) {
+    var mark = badge === 'check'
+      ? '<circle cx="108" cy="24" r="14" fill="#2eb67d"/><path d="M101 24l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+      : badge === 'alert'
+        ? '<circle cx="108" cy="24" r="14" fill="#ecb22e"/><path d="M108 16.5v9M108 30.5v.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>'
+        : '';
+    return '<svg class="art" viewBox="0 0 132 104" aria-hidden="true">' +
+      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#f4ecf5"/>' +
+      '<path d="M26 28h80a8 8 0 0 1 8 8v34a8 8 0 0 1-8 8H52l-16 12v-12H26a8 8 0 0 1-8-8V36a8 8 0 0 1 8-8z" fill="#fff" stroke="#4a154b" stroke-width="3" stroke-linejoin="round"/>' +
+      '<path d="M58 40l-5 28M74 40l-5 28M48 49h32M46 59h32" fill="none" stroke="#4a154b" stroke-width="3" stroke-linecap="round"/>' +
+      mark + '</svg>';
+  }
+
+  function lead(title, inner, badge) {
+    return '<section class="lead' + (badge === undefined ? '' : ' pictured') + '"><div><h2 dir="auto">' + esc(title) + '</h2>' +
+      inner + '</div>' + (badge === undefined ? '' : artSlack(badge)) + '</section>';
+  }
+
+  function runButton(words) {
+    return canRun() ? '<div class="actions"><button class="btn big" data-act="run">' + icon('i-refresh') +
+      esc(words) + '</button></div>' : '';
+  }
+
+  function canvasButton() {
+    var settled = book.some(function (e) { return stateKey(e.state) === 'settled'; });
+    if (!canAsk() || !slackOn() || S.example || !settled) return '';
+    return '<div class="actions"><button class="btn ghost" data-act="canvas">' + icon('i-slack') +
+      'Put the top answers in Slack</button></div>';
+  }
+
+  /* What the band says. The first state that applies is the news; the book's own headline
+     is what is left when all is well. */
+  function leadHtml() {
+    var s = slackState(), g = S.slack, note = S.connectNote ? '<p class="fine">' + esc(S.connectNote) + '</p>' : '';
+    var every = whenWords(), first = failedAt();
+    if (showReading() || !S.loaded) return '';
+    if (V2 && s === 'not-available-here') {
+      return lead('Slack can’t be connected here yet',
+        (problemText() ? '<p>' + esc(problemText()) + '</p>' : '') +
+        (S.example ? '<p class="fine">Below is an example from a made-up team.</p>' : ''), null);
     }
-    $('notice').innerHTML = html;
+    if (V2 && (s === 'needs-sign-in' || s === 'needs-you')) {
+      return lead('Slack needs you', '<p>' + esc(problemText() || 'Slack stopped letting Cabinet in.') + '</p>' +
+        (g && g.canConnect
+          ? '<div class="actions"><button class="btn big" data-act="connect">' + icon(S.connecting ? 'i-refresh' : 'i-slack', S.connecting ? 'spin' : '') +
+            (S.connecting ? 'Fixing...' : 'Fix the connection') + '</button></div>'
+          : '<p class="fine">Ask the person who owns this cabinet to fix the Slack connection.</p>') +
+        note + (sweptAt() ? '<p class="fine">The answers below are from the sweep ' + esc(when(sweptAt())) + '.</p>' : ''), 'alert');
+    }
+    if (V2 && s === 'not-added') {
+      return lead(S.example || S.empty ? 'Answer every question once' : 'Connect Slack to keep your answers growing',
+        '<p>Connect Slack, and every night this page keeps one page for each question your team answered, with its source.</p>' +
+        (g && g.canConnect
+          ? '<div class="actions"><button class="btn big" data-act="connect"' + (S.connecting ? ' disabled' : '') + '>' +
+            icon(S.connecting ? 'i-refresh' : 'i-slack', S.connecting ? 'spin' : '') + (S.connecting ? 'Connecting...' : 'Connect Slack') + '</button>' +
+            '<span class="updated">' + (S.connecting ? 'Finish in the window Cabinet opened.' : 'Takes about two minutes. Cabinet shows you each step.') + '</span></div>'
+          : '<p class="fine"><b>Ask the person who owns this cabinet to connect Slack.</b></p>') + note +
+        '<ul class="steps"><li>' + icon('i-check') + 'Only reads, never posts on its own</li><li>' + icon('i-check') +
+        'Every night at 2</li>' + (S.example ? '<li>' + icon('i-check') + 'Below: an example from a made-up team</li>' : '') + '</ul>', null);
+    }
+    if (V2 && slackOn() && S.example && first) {
+      return lead('Your first sweep didn’t work',
+        '<p>Nothing was kept from your Slack yet, so the example is still showing.</p>' + runNoteHtml() + runButton('Try again'), 'alert');
+    }
+    if (V2 && slackOn() && S.example) {
+      return lead('Slack is connected. Let’s find your answers.',
+        '<p>Your first sweep reads the last 7 days and takes a few minutes.' +
+        (/^every\b/.test(every) ? ' After that it happens by itself, ' + esc(every) + '.' : '') + '</p>' + runNoteHtml() +
+        (running() ? '' : runButton('Look for new answers')), 'check');
+    }
+    var meta = sweep ? sweep.meta : {}, n = pagesExpected();
+    var told = String(meta.headline || '').replace(/[.\s]+$/, '');
+    var line = !S.hide.headline && told
+      ? '<p dir="auto">' + esc(told) + '.' + (sweptAt() ? ' Last sweep ' + esc(when(sweptAt())) + '.' : '') + '</p>' : '';
+    if (meta.lead && meta.verdict) {
+      return lead(meta.lead, '<p dir="auto">' + esc(meta.verdict) + '</p>' + line + canvasButton());
+    }
+    if (n) return lead(n + (n === 1 ? ' answer' : ' answers') + ' your team already gave', line + canvasButton());
+    return lead(S.empty ? 'Your answers show up here' : 'No answers yet',
+      line || '<p>When someone in a channel asks a question and gets a clear answer, it is kept here, so nobody has to ask again.</p>');
   }
 
-  function card(kind, icon, title, body, actions) {
-    return '<div class="notice' + (kind ? ' ' + kind : '') + '">' + icon + '<div><h2>' + esc(title) +
-      '</h2>' + body + (actions ? '<div class="do">' + actions + '</div>' : '') + '</div></div>';
-  }
-  function runNote(id) { return S.notes[id] ? '<p>' + esc(S.notes[id]) + '</p>' : ''; }
+  function runNoteHtml() { return S.runNote ? '<p class="fine">' + esc(S.runNote) + '</p>' : ''; }
 
-  /* The quiet line under the book: the last sweep, the next one, and the FAQ canvas. Each
-     part shows only when it has something true to say. */
+  function paintBand() {
+    var catching = running() && catchingUp ? '<span class="updated">Catching up on the ' + clock(catchingUp) + ' sweep you missed</span>' : '';
+    put('band', '<div class="bar-top"><div class="brand"><span class="mark" aria-hidden="true">' + icon('i-slack') +
+      '</span><h1 class="page-name">Answer Book</h1><span aria-live="polite">' + pillHtml() + '</span></div>' +
+      '<div class="status" aria-live="polite">' + catching + buttonsHtml() + '</div></div>' + leadHtml());
+  }
+
+  /* Under the band: the example's label and whatever went wrong. Nothing at all when all is well. */
+  function paintNotes() {
+    var html = '', meta = sweep ? sweep.meta : {}, on = showReading();
+    if (S.example && S.loaded && !on) {
+      html += '<div class="ribbon"><span class="tag-example">Example</span><p><b>Northwind</b>, a made-up team. ' +
+        'None of this is your Slack. ' + (slackOn() ? 'Your first sweep replaces it.' : 'Connect Slack and your own answers replace it.') + '</p></div>';
+    }
+    if (readingNow() && !on) {
+      var last = reading.lines[reading.lines.length - 1];
+      html += '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still reading your Slack' +
+        (last ? ': ' + lineHtml(last) : '...') + '</span></div>';
+    }
+    if (failedAt() && !(S.example && slackOn())) {
+      var shown = sweptAt();
+      html += '<div class="notice">' + icon('i-alert') + '<div><p><b>The sweep ' + esc(when(failedAt())) + ' didn’t finish.</b> ' +
+        (shown ? 'What you see is from the sweep ' + esc(when(shown)) + '.' : 'Nothing new was kept.') + '</p>' +
+        (S.runNote ? '<p>' + esc(S.runNote) + '</p>' : '') +
+        (canRun() && slackOn() ? '<div class="actions"><button class="btn small" data-act="run">' + icon('i-refresh') + 'Try again</button></div>' : '') +
+        '</div></div>';
+    } else if (S.runNote && !S.example) {
+      html += '<div class="notice">' + icon('i-alert') + '<p>' + esc(S.runNote) + '</p></div>';
+    }
+    /* The routine reached Slack but not all of it. It said so rather than guessing. */
+    if (meta.status && meta.status !== 'ok') {
+      html += '<div class="ribbon">' + icon('i-alert') + '<p dir="auto">The last sweep did not finish everything: ' + esc(meta.status) + '.</p></div>';
+    }
+    if (S.failed) {
+      html += '<div class="ribbon">' + icon('i-alert') + '<p>' + S.failed + (S.failed === 1 ? ' page' : ' pages') +
+        ' could not be read just now, so ' + (S.failed === 1 ? 'it is' : 'they are') + ' missing below. Reload in a moment.</p></div>';
+    }
+    if (S.capped) {
+      html += '<div class="ribbon">' + icon('i-alert') + '<p>This page shows the first ' + LIST_LIMIT +
+        ' answers. All of them are kept in answers/topics, and Cabinet’s search finds them there.</p></div>';
+    }
+    put('notes', on ? '' : html);
+  }
+
   function paintFacts() {
     var parts = [], at = sweptAt();
-    if (!at && V2 && !S.example) {
-      var j = jobOf(SWEEP);
-      at = j && j.lastRun && j.lastRun.ok ? iso(j.lastRun.at) : null;
-    }
-    if (at) parts.push('<span>Last sweep ' + esc(when(at)) + '</span>');
-    var next = nextText();
-    if (next) parts.push('<span>' + esc(next) + '</span>');
-    if (V2 && S.slack && slackState() === 'connected' && canRun() && !S.example) {
-      parts.push(running(SWEEP)
-        ? '<button type="button" class="btn small" disabled>' + ICON_REFRESH.replace('<svg', '<svg class="spin"') +
-          'Reading Slack...</button>'
-        : '<button type="button" class="btn small" data-act="run" data-job="' + SWEEP +
-          '" data-viewer-off>' + ICON_REFRESH + 'Run now</button>');
-    }
-    var faq = canvasHtml();
-    if (faq) parts.push('<span>' + faq + '</span>');
-    $('facts').innerHTML = parts.length ? '<div class="history">' + parts.join('') + '</div>' : '';
-  }
-
-  function nextText() {
-    if (V2 && jobOf(SWEEP)) {
-      var w = whenWords(SWEEP);
-      if (!w) return '';
-      return /^every\b/.test(w) ? 'Sweeps ' + w : 'Sweep: ' + w;
-    }
-    return nextRunText();
-  }
-
-  /* faq-canvas.md is off until a channel is written into it. Off, the line offers to set it
-     up in the chat; on, it says where and when, and offers to make or refresh it now. */
-  function canvasHtml() {
-    var on = canvas && canvas.channel;
-    if (!on) {
-      if (!canAsk() || !canvas) return '';
-      return 'FAQ canvas off. <button type="button" class="btn link" data-act="faq-on" data-viewer-off>' +
-        'Turn on the FAQ canvas</button>';
-    }
-    var where = '#' + canvas.channel.replace(/^#/, '');
-    var text = 'FAQ canvas in ' + esc(where);
-    var ready = V2 && S.slack && slackState() === 'connected' && canRun() && jobOf(FAQ_JOB);
-    if (running(FAQ_JOB)) return text + ', writing it now...';
-    if (canvas.status && canvas.status !== 'ok') {
-      text += ': ' + esc(canvas.status);
-      if (/read only|read-only/i.test(canvas.status) && canConnect()) {
-        text += ' <button type="button" class="btn link" data-act="channels" data-viewer-off>Choose channels</button>';
-      }
-      return text + (S.notes[FAQ_JOB] ? ' (' + esc(S.notes[FAQ_JOB]) + ')' : '');
-    }
-    var up = moment(canvas.updated);
-    if (!canvas.canvas || !up) {
-      text += ', first one on Monday';
-      if (ready) text += ' <button type="button" class="btn link" data-act="run" data-job="' + FAQ_JOB +
-        '" data-viewer-off>Make it now</button>';
-    } else {
-      text += ', updated ' + esc(dateText(canvas.updated));
-      if (/^https?:\/\//i.test(canvas.link || '')) {
-        text += ' (<a href="' + esc(canvas.link) + '" target="_blank" rel="noopener noreferrer">open in Slack</a>)';
-      }
-    }
-    return text + (S.notes[FAQ_JOB] ? ' (' + esc(S.notes[FAQ_JOB]) + ')' : '');
+    if (at) parts.push('Last sweep ' + when(at));
+    var w = whenWords();
+    if (w) parts.push(/^every\b/.test(w) ? 'Sweeps ' + w : 'Sweep: ' + w);
+    else if (nextRunText()) parts.push(nextRunText());
+    put('facts', parts.length ? '<div class="facts">' + parts.map(function (p) {
+      return '<span>' + esc(p) + '</span>';
+    }).join('') + '</div>' : '');
   }
 
   function paintAll() {
-    paintBar();
-    paintNotice();
+    document.documentElement.classList.toggle('first-read', showReading());
+    paintBand();
+    paintNotes();
     paintFacts();
-    $('askbox').hidden = !canAsk();
+    paintReading();
+    $('askbox').hidden = !canAsk() || !S.loaded;
   }
 
-  /* ---- when the routine next runs, without the bridge ----------------------------------
-     Read straight off this cabinet's own job file, so a user who edits the schedule or
-     pauses the routine sees the truth here. Cron is evaluated in the browser's timezone,
-     which is the same host the routine runs on. With the bridge, Cabinet says it in words. */
+  /* ---- the schedule ---------------------------------------------------------------------
+     Read straight off this cabinet's own job file, so a person who edits the schedule or
+     pauses the routine sees the truth here. A hidden folder is not readable through the
+     bridge, so this goes over the page's own address; a sealed frame simply has no schedule
+     here, and nobody in one can start a run. Cron is evaluated in the browser's timezone,
+     which is the same host the routine runs on. */
 
   /* One cron field -> the set of values it matches. Handles *, n, a-b, lists and /step. */
   function field(spec, min, max) {
@@ -1360,20 +1303,22 @@
     return set;
   }
 
-  function nextRun(cron, from) {
+  /* The nearest minute the schedule matches: forward (dir 1) for the next run, or back
+     (dir -1) for the run that should already have happened. Walks a minute at a time; a
+     scheduled routine lands within days, and the cap stops a schedule that can never match
+     (30 February) from spinning. */
+  function cronMatch(cron, from, dir, days) {
     var f = cron.trim().split(/\s+/);
     if (f.length !== 5) return null;
     var mins = field(f[0], 0, 59), hrs = field(f[1], 0, 23), doms = field(f[2], 1, 31),
         mons = field(f[3], 1, 12), dows = field(f[4], 0, 7);
     if (dows[7]) dows[0] = true;  /* cron allows 7 for Sunday */
-    var d = new Date(from.getTime() + 60000);
+    var d = new Date(from.getTime() + (dir > 0 ? 60000 : 0));
     d.setSeconds(0, 0);
-    /* Walks forward a minute at a time; a scheduled routine lands within days, and the cap
-       stops a schedule that can never match (30 February) from spinning. */
-    for (var i = 0; i < 366 * 1440; i++) {
+    for (var i = 0; i < days * 1440; i++) {
       if (mons[d.getMonth() + 1] && doms[d.getDate()] && dows[d.getDay()] &&
           hrs[d.getHours()] && mins[d.getMinutes()]) return d;
-      d = new Date(d.getTime() + 60000);
+      d = new Date(d.getTime() + dir * 60000);
     }
     return null;
   }
@@ -1382,9 +1327,44 @@
     if (!job) return '';
     if (job.enabled === 'false') return 'Routine paused';
     if (!job.schedule) return '';
-    var d = nextRun(job.schedule, new Date());
-    if (!d) return '';
-    return 'Next sweep ' + human(d) + ' at ' + clock(d);
+    var d = cronMatch(job.schedule, new Date(), 1, 366);
+    return d ? 'Next sweep ' + human(d) + ' at ' + clock(d) : '';
+  }
+
+  function readSchedule() {
+    fetch('../.jobs/' + SWEEP + '.yaml', { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; })
+      .then(function (text) {
+        var got = {};
+        text.split('\n').forEach(function (line) {
+          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
+          if (kv) got[kv[1]] = scalar(kv[2]);
+        });
+        job = got;
+        paintFacts();
+        catchUp();
+      });
+  }
+
+  /* ---- catch up on open -----------------------------------------------------------------
+     A laptop asleep at 2 misses the sweep, or starts it with no network. When the page opens
+     and the newest log is older than the last time the schedule says it should have run, the
+     page runs it once for that time. The time is remembered in this browser, so a run that
+     fails again is not retried in a loop: the button is still there. */
+  function catchUp() {
+    if (!canRun() || running() || catchingUp || S.connecting) return;
+    if (!known.here || !known.jobs || !known.slack || !known.files || !slackOn()) return;
+    if (!job || job.enabled === 'false' || !job.schedule) return;
+    var due = cronMatch(job.schedule, new Date(), -1, 8), newest = sweptAt();
+    if (!due || (newest && newest >= due)) return;
+    var key = 'catch-up:' + SWEEP + ':' + due.getTime();
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+    } catch (e) { return; }
+    catchingUp = due;
+    run();
   }
 
   /* ---- finding and reading the files ------------------------------------------------- */
@@ -1401,17 +1381,27 @@
         return r.text();
       });
   }
-  /* A file that is only a nicety (the schedule, the canvas settings) never breaks the page. */
-  function maybe(path) {
-    return readFile(path).catch(function () { return ''; });
+
+  /* The bridge answers about 20 calls a second after a burst of 40, and says so with
+     too-fast. That is a wait, never a page that failed. */
+  function patient(path, left) {
+    return readFile(path).catch(function (e) {
+      if (!e || e.code !== 'too-fast' || !left) throw e;
+      return new Promise(function (done) { setTimeout(done, TOO_FAST_MS); }).then(function () {
+        return patient(path, left - 1);
+      });
+    });
   }
 
   /* The .md files directly in one folder. A folder that is not there yet is empty. */
   function mdIn(dir) {
     return cab.files.list(dir).then(function (items) {
-      return (Array.isArray(items) ? items : []).filter(function (e) {
+      var all = Array.isArray(items) ? items : [];
+      var files = all.filter(function (e) {
         return e && !e.isDir && /\.md$/i.test(e.name || '');
-      }).map(function (e) { return e.name; });
+      }).map(function (e) { return { name: e.name, at: e.modified || '' }; });
+      files.full = all.length >= LIST_LIMIT;
+      return files;
     }, function (e) {
       if (e && e.code === 'not-found') return [];
       throw e;
@@ -1419,7 +1409,7 @@
   }
 
   /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments
-     tells the page which cabinet it is installed in, whatever the user named it. */
+     tells the page which cabinet it is installed in, whatever the person named it. */
   function cabinetDir() {
     var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
     return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
@@ -1433,17 +1423,18 @@
       if (!n || !n.path) return;
       if (n.path.indexOf(dir + '/') === 0 &&
           n.path.indexOf('/', dir.length + 1) === -1 &&
-          /\.md$/i.test(n.name || '')) out.push(n.name);
+          /\.md$/i.test(n.name || '')) out.push({ name: n.name, at: '' });
       if (n.children) listFiles(n.children, dir, out);
     });
     return out;
   }
 
-  /* What is on disk: topic page names, sweep log names, and the canvas settings. */
+  /* What is on disk: topic pages and sweep logs, each with the time it last changed. */
   function gather() {
     if (MODE === 'bridge') {
-      return Promise.all([mdIn(TOPICS), mdIn(DIR), maybe(CANVAS)]).then(function (r) {
-        return { topics: r[0], sweeps: r[1].filter(isSweep), canvas: r[2], job: '' };
+      return Promise.all([mdIn(TOPICS), mdIn(DIR)]).then(function (r) {
+        S.capped = !!r[0].full;
+        return { topics: r[0], sweeps: r[1].filter(function (f) { return isSweep(f.name); }) };
       }, function (e) {
         /* A bridge that cannot read files here: read them the old way instead. */
         if (e && (e.code === 'old-cabinet' || e.code === 'no-cabinet')) {
@@ -1454,161 +1445,420 @@
       });
     }
     /* `fresh=1` busts the tree cache so a page written minutes ago is already listed. */
-    return Promise.all([
-      fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      }),
-      maybe(JOB),
-      maybe(CANVAS)
-    ]).then(function (all) {
-      var cab = cabinetDir();
+    return fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (tree) {
+      var dir = cabinetDir();
       return {
-        topics: listFiles(all[0], cab + '/' + TOPICS, []),
-        sweeps: listFiles(all[0], cab + '/' + DIR, []).filter(isSweep),
-        job: all[1],
-        canvas: all[2]
+        topics: listFiles(tree, dir + '/' + TOPICS, []),
+        sweeps: listFiles(tree, dir + '/' + DIR, []).filter(function (f) { return isSweep(f.name); })
       };
     });
   }
 
-  /* Every topic page, POOL at a time. A page that fails is counted, not fatal. */
-  function readAll(names) {
+  /* Pages already read stay in this browser where it allows it, so opening the page again
+     reads only what changed. A sealed frame has no storage and reads them all. */
+  function storeKey() { return S.cabinetPath ? 'answer-book.pages@1:' + S.cabinetPath : ''; }
+  function restore() {
+    var key = storeKey();
+    if (!key) return;
+    try {
+      var kept = JSON.parse(localStorage.getItem(key) || '{}');
+      Object.keys(kept).forEach(function (name) {
+        if (!pages[name]) pages[name] = { at: kept[name][0], text: kept[name][1], t: topic(name, kept[name][1]) };
+      });
+    } catch (e) { /* nothing kept; the pages are read */ }
+  }
+  function store() {
+    var key = storeKey(), out = {};
+    if (!key) return;
+    Object.keys(pages).forEach(function (name) { out[name] = [pages[name].at, pages[name].text]; });
+    try {
+      var text = JSON.stringify(out);
+      if (text.length > STORE_MAX) localStorage.removeItem(key);
+      else localStorage.setItem(key, text);
+    } catch (e) { /* the browser's storage is full: the pages are read next time */ }
+  }
+
+  function setBook(list) {
+    book = list;
+    bySlug = {};
+    hottest = 0;
+    book.forEach(function (e) {
+      bySlug[e.slug] = e;
+      if (e.asked > hottest) hottest = e.asked;
+    });
+  }
+
+  /* The pages on disk, in the order they were listed, as far as they have been read. */
+  function collect(names) {
+    setBook(names.map(function (f) { return pages[f.name] ? pages[f.name].t : null; }).filter(Boolean));
+  }
+
+  /* Everything that changed, POOL at a time, newest first. A page that fails is counted, not
+     fatal. The list shows after the first pages; until the last one is in only the count
+     moves, unless a search is on, so nothing shifts under the person's eyes. */
+  function readAll(names, todo) {
     return new Promise(function (done) {
-      var out = [], failed = 0, next = 0, live = 0;
-      if (!names.length) { done({ pages: out, failed: 0 }); return; }
+      var failed = 0, next = 0, live = 0, got = 0;
+      var tick = 0;
+      S.reading = todo.length;
+      function finish() {
+        clearInterval(tick);
+        S.reading = 0;
+        S.failed = failed;
+        done();
+      }
+      if (!todo.length) { finish(); return; }
+      function first() {
+        collect(names);
+        S.loaded = true;
+        render();
+        paintAll();
+      }
+      tick = setInterval(function () {
+        if (!S.painted) return;
+        collect(names);
+        if (view.find.trim() || view.state || view.recent) list();
+        else $('count').textContent = 'Reading ' + book.length + ' of ' + S.total;
+      }, PROGRESS_MS);
       function pump() {
-        while (live < POOL && next < names.length) {
-          (function (name) {
+        while (live < POOL && next < todo.length) {
+          (function (f) {
             live++;
-            readFile(TOPICS + '/' + name)
-              .then(function (t) { out.push(topic(name, t)); })
+            patient(TOPICS + '/' + f.name, 40)
+              .then(function (text) {
+                pages[f.name] = { at: f.at, text: text, t: topic(f.name, text) };
+              })
               .catch(function () { failed++; })
               .then(function () {
                 live--;
-                if (next < names.length) pump();
-                else if (!live) done({ pages: out, failed: failed });
+                got++;
+                S.reading = todo.length - got;
+                if (!S.painted && got === FIRST_PAINT) first();
+                if (next < todo.length) pump();
+                else if (!live) finish();
               });
-          })(names[next++]);
+          })(todo[next++]);
         }
       }
       pump();
     });
   }
 
-  var loading = false, again = false;
+  var loading = false, again = false, restored = false;
   function load() {
     if (loading) { again = true; return; }
     loading = true;
     gather().then(function (got) {
-      if (got.job) {
-        job = {};
-        got.job.split('\n').forEach(function (line) {
-          var kv = line.match(/^(enabled|schedule):\s*(.*)$/);
-          if (kv) job[kv[1]] = scalar(kv[2]);
-        });
-      }
-      canvas = got.canvas ? split(got.canvas).meta : null;
       var topics = got.topics, sweeps = got.sweeps;
       /* The example only shows while nothing real exists. Once the routine has written
          anything of its own, a left-over EXAMPLE file is never mixed in with it. */
-      var real = topics.concat(sweeps).some(function (n) { return !isExample(n); });
+      var real = topics.concat(sweeps).some(function (f) { return !isExample(f.name); });
       if (real) {
-        topics = topics.filter(function (n) { return !isExample(n); });
-        sweeps = sweeps.filter(function (n) { return !isExample(n); });
+        topics = topics.filter(function (f) { return !isExample(f.name); });
+        sweeps = sweeps.filter(function (f) { return !isExample(f.name); });
       }
-      S.example = !real;
+      S.example = !real && topics.length + sweeps.length > 0;
       S.error = '';
       if (!topics.length && !sweeps.length) {
         S.empty = true;
-        book = [];
+        pages = {};
+        setBook([]);
         sweep = null;
         return null;
       }
       S.empty = false;
       /* Newest first; the example, having no date, sits last. */
       sweeps.sort(function (a, b) {
-        var da = stamp(a), db = stamp(b);
+        var da = stamp(a.name), db = stamp(b.name);
         if (da && db) return db - da;
         return da ? -1 : db ? 1 : 0;
       });
       var log = sweeps[0]
-        ? readFile(DIR + '/' + sweeps[0]).then(function (t) { return sweepOf(sweeps[0], t); },
-                                               function () { return null; })
+        ? patient(DIR + '/' + sweeps[0].name, 8).then(function (t) { return sweepOf(sweeps[0].name, t); },
+                                                     function () { return null; })
         : Promise.resolve(null);
-      return Promise.all([log, readAll(topics)]).then(function (r) {
-        sweep = r[0];
-        book = r[1].pages;
-        S.failed = r[1].failed;
+      if (!restored) { restored = true; restore(); }
+      var live = {};
+      topics.forEach(function (f) { live[f.name] = true; });
+      Object.keys(pages).forEach(function (name) { if (!live[name]) delete pages[name]; });
+      /* The ones people touched last come first, so the first rows are the ones that matter. */
+      var todo = topics.filter(function (f) {
+        return !pages[f.name] || !f.at || pages[f.name].at !== f.at;
+      }).sort(function (a, b) { return cmp(b.at, a.at); });
+      S.total = topics.length;
+      return log.then(function (l) {
+        sweep = l;
+        return readAll(topics, todo);
+      }).then(function () {
+        collect(topics);
+        S.total = 0;
+        if (todo.length && MODE === 'bridge') store();
       });
     }).catch(function (err) {
       /* What is already on screen stays; only a first load with nothing to show says so. */
+      S.reading = 0;
       S.error = 'Could not read ' + DIR + '/ just now (' + said(err, 'no answer') + '). Reload in a moment.';
     }).then(function () {
       S.loaded = true;
+      known.files = true;
       loading = false;
       render();
       paintAll();
+      catchUp();
       if (again) { again = false; load(); }
     });
   }
+
+  /* ---- the first sweep, told as it happens ----------------------------------------------
+     On the first sweep the agent adds a line to data/reading.json (through first-read.mjs)
+     after each look at Slack, and the things the person can do right now (the gift, then the
+     offers). The page shows them as they come, under the band. Later sweeps write no reading.
+     A press asks the Answer Keeper in the chat beside the page; nothing is posted from here. */
+  var READ_FRESH_MIN = 20, REVEAL_MS = 1200, GIFT_KEEP_DAYS = 3, GIFT_KEY = 'answer-book-gift@1';
+  var reading = null, readShown = 0, readStartedAt = '', sawReading = false, giftAsked = '';
+  /* What this browser already used or put away: { done: gift's at or 'all:<startedAt>', asked: { offer key: true } }. */
+  var kept = {};
+  try { kept = JSON.parse(localStorage.getItem(GIFT_KEY) || '{}') || {}; } catch (e) { kept = {}; }
+  kept.asked = kept.asked || {};
+
+  function text(v, max) { return typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : ''; }
+  function slackLink(v) { v = text(v, 400); return /^https:\/\/[a-z0-9-]+\.slack\.com\//i.test(v) ? v : ''; }
+
+  function cleanReading(d) {
+    if (!d || typeof d !== 'object' || !Array.isArray(d.lines) || !writtenAt(d.startedAt)) return null;
+    var g = d.gift && typeof d.gift === 'object' && writtenAt(d.gift.at) ? d.gift : null, gift = null;
+    if (g && g.kind === 'calm') gift = { kind: 'calm', at: g.at };
+    else if (g && g.kind === 'repeat' && text(g.question, 140) && /^#/.test(text(g.channel, 80)) && +g.asked >= 2) {
+      gift = { kind: 'repeat', at: g.at, question: text(g.question, 140), channel: text(g.channel, 80),
+               asked: Math.floor(+g.asked), link: slackLink(g.link) };
+    }
+    var offers = (Array.isArray(d.offers) ? d.offers : []).filter(function (o) {
+      return o && o.kind === 'open' && text(o.question, 140) && text(o.at, 40);
+    }).slice(0, 3).map(function (o) {
+      return { kind: 'open', at: o.at, question: text(o.question, 140), link: slackLink(o.link) };
+    });
+    return { startedAt: d.startedAt, done: d.done === true, gift: gift, offers: offers,
+             lines: d.lines.map(function (l) { return text(l, 200); }).filter(Boolean).slice(-14) };
+  }
+  function readingSig(r) {
+    return r ? [r.startedAt, r.done, r.lines.join('\n'), r.gift && r.gift.at, r.offers.length].join('|') : '';
+  }
+  /* A reading that started over 20 minutes ago is not this one's. */
+  function freshReading() {
+    var at = reading ? writtenAt(reading.startedAt) : null;
+    return !!at && (Date.now() - at.getTime()) / 60000 < READ_FRESH_MIN;
+  }
+  function freshLines() { return freshReading() ? reading.lines : []; }
+  /* The agent is still reading: the file says so, it is fresh, and the run is on. */
+  function readingNow() { return !!(reading && !reading.done && running() && freshReading()); }
+  /* Lines that arrive together are still told one by one, and once done there is one more beat
+     on "Putting your book together" before the page. Only once this page has shown the reading. */
+  function revealing() { return !!(sawReading && reading && readShown < freshLines().length + (reading.done ? 1 : 0)); }
+  /* The reading fills the page under the band from the moment the first sweep starts. */
+  function showReading() { return (V2 && S.loaded && running() && !sweptAt()) || revealing(); }
+  function lineHtml(line) { return esc(line).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>'); }
+
+  function readingHtml() {
+    sawReading = true;
+    var r = reading || { lines: [], offers: [], gift: null, done: false };
+    var all = freshLines();
+    var lines = all.slice(0, Math.min(readShown, all.length));
+    var done = r.done && lines.length === all.length;
+    var gift = freshReading() ? r.gift : null;
+    var offers = freshReading() ? r.offers : [];
+    var side = gift || offers.length
+      ? '<div class="side-list"><p class="side-title">While I read, you can...</p>' + (gift ? giftHtml(gift, 'reading') : '') + offersHtml(offers) + '</div>'
+      : done ? ''
+      : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for the question your team asks most.</h3></section>';
+    return '<div class="read-page' + (side ? '' : ' solo') + '"><div class="reading" aria-live="polite"><h2>Reading your Slack</h2>' +
+      '<p>Your first sweep. A few minutes. You don’t need to do anything.</p><ul class="read-lines">' +
+      lines.map(function (l, i) {
+        return '<li' + (i < lines.length - 1 ? ' class="old"' : '') + '>' + icon('i-check') + '<span dir="auto">' + lineHtml(l) + '</span></li>';
+      }).join('') +
+      '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' +
+      (done ? 'Putting your book together' : lines.length ? 'Reading on' : 'Opening your Slack') + '...</span></li></ul>' +
+      '<p class="fine">Only reads. Nothing is posted, and it all stays in your cabinet.</p></div>' + side + '</div>';
+  }
+
+  /* The gift: the question asked most, written up where people read; or, when nothing repeats
+     yet, a page for the next person who joins. Either way a page in this cabinet. */
+  function giftParts(g) {
+    if (g.kind === 'repeat') {
+      return {
+        head: '<b>' + esc(g.question) + '</b> has been asked <b class="n">' + g.asked + ' times</b> in <b>' + esc(g.channel) + '</b>.',
+        why: 'Written up once, in the handbook, so the next person finds it without asking.',
+        button: 'Turn this into a doc page',
+        ask: 'Turn the team\'s answer to "' + g.question + '" into a doc page in handbook/' + (g.link ? ' (it was answered here: ' + g.link + ')' : '') +
+          '. Read the Slack thread first. Say the answer in plain words, who to ask, and where it came from. ' +
+          'Tell me where the page is. Do not post anything in Slack.'
+      };
+    }
+    return {
+      head: 'No question has come up twice yet. A good place to be.',
+      why: 'Want a short page for the next person who joins, with what to know first and who to ask?',
+      button: 'Write the welcome page',
+      ask: 'Write a short welcome page in handbook/ for someone new on the team, from the answers in the Answer Book: ' +
+        'what to know first, and who to ask for what. Tell me where the page is. Do not post anything in Slack.'
+    };
+  }
+  function giftHtml(g, where) {
+    var p = giftParts(g);
+    return '<section class="gift" aria-live="polite"><p class="eyebrow">' +
+      (where !== 'reading' ? 'Found in your first sweep' : g.kind === 'repeat' ? 'First, the one worth writing down' : 'First, the good news') + '</p>' +
+      '<h3 dir="auto">' + p.head + '</h3><p class="why">' + esc(p.why) + '</p>' +
+      (giftAsked === g.at
+        ? '<p class="asked">' + icon('i-check') + 'Asked. It is coming in the chat.</p>'
+        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do">' + esc(p.button) + '</button>' : '') +
+          (g.link ? '<a class="btn" href="' + esc(g.link) + '" target="_blank" rel="noopener noreferrer">' + icon('i-slack') + 'Open in Slack</a>' : '') +
+          (where === 'keep' ? '<button type="button" class="btn" data-act="gift-skip">Not now</button>' : '') + '</div>') +
+      '<p class="fine">Nothing is posted in Slack.</p></section>';
+  }
+  /* An offer: a question asked and never really answered, as a draft for the right person. */
+  function offerKey(o) { return o.at + '|' + o.question; }
+  function offerParts(o) {
+    return {
+      title: o.question,
+      sub: 'Asked and never really answered. A draft for the right person to check.',
+      button: 'Draft an answer',
+      ask: 'Read the Slack threads where people asked "' + o.question + '"' + (o.link ? ' (' + o.link + ')' : '') +
+        ' and write a draft answer from what was said there, with [brackets] around anything nobody has settled, ' +
+        'and who should confirm it. Show it to me here as a draft. Do not post anything in Slack.'
+    };
+  }
+  function offersHtml(offers) {
+    if (!offers.length) return '';
+    return '<ul class="offers">' + offers.map(function (o) {
+      var p = offerParts(o), key = offerKey(o);
+      return '<li class="offer"><div><b dir="auto">' + esc(p.title) + '</b><span class="sub">' + esc(p.sub) + '</span></div>' +
+        (kept.asked[key] ? '<span class="asked">' + icon('i-check') + 'Asked</span>'
+          : canAsk() ? '<button type="button" class="btn" data-act="offer-do" data-key="' + esc(key) + '">' + esc(p.button) + '</button>' : '') +
+        '</li>';
+    }).join('') + '</ul>';
+  }
+
+  /* After the reading the gift and the offers stay under the book for a few days, until used or put away. */
+  function paintGiftKeep() {
+    var el = $('gift-keep');
+    var r = reading, at = r ? writtenAt(r.startedAt) : null;
+    var g = r && r.gift && kept.done !== r.gift.at ? r.gift : null;
+    var offers = r ? r.offers.filter(function (o) { return !kept.asked[offerKey(o)]; }) : [];
+    var show = !!(r && at && (g || offers.length) && kept.done !== 'all:' + r.startedAt && sweptAt() &&
+      Date.now() - at.getTime() < GIFT_KEEP_DAYS * 86400000 && !readingNow() && !revealing());
+    el.hidden = !show;
+    put('gift-keep', !show ? '' : (g ? giftHtml(g, 'keep') : '<p class="side-title">Found in your first sweep</p>') + offersHtml(offers) +
+      (g ? '' : '<p><button type="button" class="btn" data-act="gift-skip">Not now</button></p>'));
+  }
+  function keep(done) {
+    kept.done = done;
+    try { localStorage.setItem(GIFT_KEY, JSON.stringify(kept)); } catch (e) { /* this browser keeps nothing */ }
+  }
+
+  function paintReading() {
+    put('reading', showReading() ? readingHtml() : '');
+    paintGiftKeep();
+  }
+
+  function readReading() {
+    readFile(READING)
+      .then(function (t) { return JSON.parse(t); })
+      .catch(function () { return null; })
+      .then(function (d) {
+        var r = cleanReading(d), was = reading;
+        if (!r || readingSig(r) === readingSig(was)) return;
+        if (r.startedAt !== readStartedAt) { readShown = 0; readStartedAt = r.startedAt; }
+        reading = r;
+        paintAll();
+        /* Done: the new book is there, so the folder is read again. */
+        if (r.done && was && !was.done) load();
+      });
+  }
+  /* While the first sweep runs, its lines are looked at every few seconds. */
+  setInterval(function () { if (running() && !sweptAt()) readReading(); }, 2500);
+  setInterval(function () {
+    if (!revealing()) return;
+    readShown++;
+    paintAll();
+  }, REVEAL_MS);
 
   /* ---- talking to Cabinet ------------------------------------------------------------ */
 
   function setConnectors(items) {
     if (!Array.isArray(items)) return;
+    S.slack = null;
     for (var i = 0; i < items.length; i++) {
       if (items[i] && items[i].id === CONNECTOR) { S.slack = items[i]; break; }
     }
     if (!S.slack) S.slack = { id: CONNECTOR, state: 'not-available-here', busy: null, problem: null, canConnect: false };
+    known.slack = true;
     paintAll();
+    catchUp();
   }
 
   function setJobs(items) {
     if (!Array.isArray(items)) return;
     S.jobs = items;
-    var ended = false;
-    [SWEEP, FAQ_JOB].forEach(function (id) {
-      var j = jobOf(id), p = S.pressed[id];
-      if (j && j.running && p) p.saw = true;
-      var now = running(id);
-      if (S.wasRunning[id] && !now) ended = true;
-      S.wasRunning[id] = now;
-    });
-    /* files.onChange also fires when a routine finishes; this is for a write it missed. */
-    if (ended) load();
+    var j = sweepJob();
+    if (j && j.running && S.pressed) S.pressed.saw = true;
+    var now = running(), ended = S.wasRunning && !now;
+    S.wasRunning = now;
+    known.jobs = true;
+    /* The run just wrote: catching up waits for the folder, or it would see the old newest
+       log and run a second time. files.onChange also fires; this is for a write it missed. */
+    if (ended) {
+      catchingUp = null;
+      known.files = false;
+      load();
+      readReading();
+    }
     paintAll();
+    catchUp();
   }
 
-  function run(id) {
-    if (!canRun() || running(id)) return;
-    S.pressed[id] = { at: Date.now(), saw: false };
-    S.notes[id] = '';
-    S.wasRunning[id] = true;
+  /* jobs.onChange says when the run ends; this is the fallback if a change is ever missed. */
+  var runTimer = 0;
+  function watchRun() {
+    clearInterval(runTimer);
+    runTimer = setInterval(function () {
+      if (!running()) { clearInterval(runTimer); return; }
+      cab.jobs.list().then(setJobs).catch(function () {});
+    }, 8000);
+  }
+
+  function run() {
+    if (!canRun() || running()) return;
+    S.pressed = { at: Date.now(), saw: false };
+    S.runNote = '';
+    S.wasRunning = true;
     paintAll();
+    readReading();
     /* If the run never shows up, the grace ends and the page comes back. */
-    setTimeout(function () { S.wasRunning[id] = running(id); paintAll(); }, GRACE_MS + 500);
-    cab.jobs.run(id).catch(function (e) {
-      if (e && e.code === 'busy') return;
-      delete S.pressed[id];
-      S.wasRunning[id] = running(id);
-      S.notes[id] = said(e, 'The routine did not start. Try again.');
+    setTimeout(function () { S.wasRunning = running(); paintAll(); }, GRACE_MS + 500);
+    cab.jobs.run(SWEEP).then(watchRun).catch(function (e) {
+      if (e && e.code === 'busy') { watchRun(); return; }
+      S.pressed = null;
+      S.wasRunning = false;
+      catchingUp = null;
+      S.runNote = said(e, 'The sweep did not start. Try again.');
       paintAll();
     });
   }
 
-  function connect(step) {
+  function connect() {
     if (!canConnect() || S.connecting) return;
     S.connecting = true;
     S.connectNote = '';
     paintAll();
-    cab.connectors.connect(CONNECTOR, step ? { step: step } : undefined).then(function (result) {
+    cab.connectors.connect(CONNECTOR).then(function (result) {
       S.connecting = false;
       return cab.connectors.list().then(function (items) {
-        setConnectors(items);
         /* Just connected and nothing of theirs here yet: the first sweep starts at once, so
-           the next thing they see is their own team's answers. */
-        if (!step && result === 'connected' && S.example) run(SWEEP);
+           the next thing they see is their own team's answers. Started before the new state
+           lands, so it runs as the first sweep, not as a catch-up. */
+        if (result === 'connected' && (S.example || S.empty)) run();
+        setConnectors(items);
       });
     }).catch(function (e) {
       S.connecting = false;
@@ -1619,26 +1869,26 @@
 
   function setAskNote(words) { $('ask-note').textContent = words; }
 
-  function ask(text, fromBox) {
-    var q = String(text || '').trim().slice(0, 3900);
+  function ask(question, fromBox) {
+    var q = String(question || '').trim().slice(0, 3900);
     if (!q) return;
     if (!V2) { toast('Open this page in Cabinet to ask the Answer Keeper.'); return; }
     if (!canAsk()) return;
     if (fromBox) setAskNote('Asking...');
-    cab.ask(q, { send: true }).then(function (r) {
+    cab.ask(q, { agent: AGENT, send: true }).then(function (r) {
       /* Without a fresh press Cabinet only fills the chat's box; the person sends it. */
-      var words = r && r.conversationId
+      var reply = r && r.conversationId
         ? 'Asked. The answer is coming in the chat beside this page.'
         : 'It is in the chat beside this page. Press Send there to ask.';
       if (fromBox) {
         $('ask-input').value = '';
-        setAskNote(words);
+        setAskNote(reply);
       } else {
-        toast(words);
+        toast(reply);
       }
     }).catch(function (e) {
-      var words = said(e, 'That did not go through. Try again.');
-      if (fromBox) setAskNote(words); else toast(words);
+      var why = said(e, 'That did not go through. Try again.');
+      if (fromBox) setAskNote(why); else toast(why);
     });
   }
 
@@ -1672,6 +1922,29 @@
       'tell me what it says. If not, tell me who seems most likely to know.';
   }
 
+  /* The answer alone, ready to paste. The clipboard call needs a frame that may use it, so a
+     sealed frame falls back to the older copy command. */
+  function copyAnswer(e) {
+    var words = e.answer.join('\n\n') + (linkable(e.url) ? '\n\n' + e.url : '');
+    function old() {
+      var box = document.createElement('textarea');
+      box.value = words;
+      box.style.position = 'fixed';
+      box.style.opacity = '0';
+      document.body.appendChild(box);
+      box.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+      box.remove();
+      toast(ok ? 'Copied.' : 'This browser would not copy it. Select the words instead.');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(words).then(function () { toast('Copied.'); }, old);
+    } else {
+      old();
+    }
+  }
+
   /* ---- the person's own layout -------------------------------------------------------- */
 
   function canSave() { return !!(cab && cab.mine && typeof cab.mine.set === 'function'); }
@@ -1703,16 +1976,16 @@
 
   function openMenu(name) {
     S.menu = S.menu === name ? '' : name;
-    paintBar();
+    paintBand();
     var first = S.menu ? document.querySelector('#' + S.menu + '-pop .item, #' + S.menu + '-pop input') : null;
     if (first) first.focus();
   }
-  function closeMenu(refocus) {
+  function closeMenu(back) {
     if (!S.menu) return;
     var was = S.menu;
     S.menu = '';
-    paintBar();
-    if (refocus) {
+    paintBand();
+    if (back) {
       var b = document.querySelector('[data-act="' + was + '"]');
       if (b) b.focus();
     }
@@ -1724,46 +1997,107 @@
     closeMenu(false);
   });
   document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && S.menu) closeMenu(true);
+    if (event.key === 'Escape' && S.menu) { closeMenu(true); return; }
+    if (event.key === 'Escape' && event.target.id === 'find' && event.target.value) {
+      event.target.value = '';
+      listSoon();
+    }
+  });
+
+  document.addEventListener('input', function (event) {
+    if (event.target.id === 'find') listSoon();
   });
 
   document.addEventListener('change', function (event) {
-    var part = event.target && event.target.getAttribute && event.target.getAttribute('data-part');
+    if (event.target.id === 'sort') { view.rows = ROWS; list(); return; }
+    var part = event.target.getAttribute && event.target.getAttribute('data-part');
     if (!part) return;
     if (event.target.checked) delete S.hide[part]; else S.hide[part] = true;
     saveLayout();
     render();
+    paintBand();
+    var box = document.querySelector('[data-part="' + part + '"]');
+    if (box) box.focus();
   });
+
+  /* A row's body is drawn the first time it opens. toggle does not bubble, so this listens
+     on the way down. */
+  document.addEventListener('toggle', function (event) {
+    var d = event.target;
+    if (!d.getAttribute || !d.hasAttribute('data-i')) return;
+    var slug = d.getAttribute('data-i'), e = bySlug[slug];
+    if (!d.open) { delete view.open[slug]; return; }
+    view.open[slug] = true;
+    var a = d.querySelector('.a'), find = $('find');
+    if (e && a && !a.firstChild) a.innerHTML = body(e, find ? find.value.trim() : '');
+  }, true);
 
   document.addEventListener('click', function (event) {
     var el = event.target.closest ? event.target.closest('[data-act]') : null;
     if (!el || el.disabled) return;
-    var act = el.getAttribute('data-act');
+    var act = el.getAttribute('data-act'), slug = el.getAttribute('data-slug');
     if (act === 'ideas' || act === 'layout') openMenu(act);
     else if (act === 'idea') {
       var idea = IDEAS[+el.getAttribute('data-i')];
       closeMenu(false);
-      if (idea) ask(+el.getAttribute('data-i') === FAQ_IDEA ? FAQ_ASK : idea, false);
+      if (idea) ask(idea === CANVAS_IDEA ? CANVAS_ASK : idea, false);
     }
     else if (act === 'layout-reset') {
       S.hide = {};
       saveLayout();
-      paintBar();
       render();
+      paintBand();
     }
-    else if (act === 'connect') connect('');
-    else if (act === 'channels') connect('choose-chats');
-    else if (act === 'run') run(el.getAttribute('data-job'));
-    else if (act === 'faq-on') ask(FAQ_ASK, false);
+    else if (act === 'connect') connect();
+    else if (act === 'run') run();
+    else if (act === 'canvas') ask(CANVAS_ASK, false);
+    else if (act === 'state') {
+      view.state = el.getAttribute('data-state');
+      view.rows = ROWS;
+      paintTools();
+      list();
+      refocus('[data-state="' + view.state + '"]');
+    }
+    else if (act === 'recent') {
+      view.recent = !view.recent;
+      view.rows = ROWS;
+      paintTools();
+      list();
+      refocus('[data-act="recent"]');
+    }
+    else if (act === 'more') { view.rows += ROWS; list(); }
+    else if (act === 'go') go(slug);
+    else if (act === 'copy') { if (bySlug[slug]) copyAnswer(bySlug[slug]); }
+    else if (act === 'ask-find') {
+      ask('Look in Slack for the answer to this question, and tell me who answered it and where: ' +
+        $('find').value.trim(), false);
+    }
     else if (act === 'step') {
-      var slug = el.getAttribute('data-slug');
-      var e = book.filter(function (x) { return x.slug === slug; })[0];
-      if (!e) return;
+      if (!bySlug[slug]) return;
       if (S.example) {
         toast('This answer is an example. Once the sweep reads your Slack, this works on your own answers.');
         return;
       }
-      ask(stepAsk(el.getAttribute('data-kind'), e), false);
+      ask(stepAsk(el.getAttribute('data-kind'), bySlug[slug]), false);
+    }
+    else if (reading && act === 'gift-do' && reading.gift && canAsk()) {
+      ask(giftParts(reading.gift).ask, false);
+      giftAsked = reading.gift.at;
+      if (!showReading()) keep(reading.gift.at);
+      paintReading();
+    }
+    else if (reading && act === 'gift-skip') {
+      keep('all:' + reading.startedAt);
+      paintReading();
+    }
+    else if (reading && act === 'offer-do') {
+      var key = el.getAttribute('data-key');
+      var o = reading.offers.filter(function (x) { return offerKey(x) === key; })[0];
+      if (!o || !canAsk()) return;
+      ask(offerParts(o).ask, false);
+      kept.asked[key] = true;
+      keep(kept.done);
+      paintReading();
     }
   });
 
@@ -1775,37 +2109,39 @@
   /* ---- start ------------------------------------------------------------------------- */
 
   paintAll();
+  readSchedule();
+  readReading();
 
   if (V2) {
     if (cab.ready) {
       Promise.resolve(cab.ready).then(function () {
         readLayout();
-        paintBar();
         render();
+        paintBand();
       }).catch(function () {});
     }
+    /* The cabinet's path names what this browser kept, so the book waits for it. */
     Promise.resolve(cab.here()).then(function (here) {
       if (here && typeof here.role === 'string') S.role = here.role;
-      if (here && typeof here.place === 'string') S.place = here.place;
+      if (here && typeof here.cabinetPath === 'string') S.cabinetPath = here.cabinetPath;
     }).catch(function () {}).then(function () {
       document.documentElement.setAttribute('data-role', S.role);
-      paintAll();
-      render();
+      known.here = true;
+      load();
     });
-    load();
-    /* The sweep logs, the topic pages and faq-canvas.md: everything the page shows. */
-    /* The whole cabinet, because faq-canvas.md sits at its root beside answers/. A burst of
-       writes during a sweep collapses into one more load at most. */
-    try { cab.files.onChange('', function () { load(); }); } catch (e) { /* an older bridge */ }
-    cab.connectors.list().then(setConnectors).catch(function () {
-      setConnectors([]);
-    });
+    /* A burst of writes during a sweep collapses into one more load at most, and a load only
+       reads the pages whose time changed. */
+    try {
+      cab.files.onChange(DIR, function () { load(); });
+      cab.files.onChange('answer-book/data', readReading);
+    } catch (e) { /* an older bridge */ }
+    cab.connectors.list().then(setConnectors).catch(function () { setConnectors([]); });
     cab.connectors.onChange(setConnectors);
     cab.jobs.list().then(setJobs).catch(function () {});
     cab.jobs.onChange(setJobs);
   } else {
     if (cab && cab.ready && cab.mine) {
-      Promise.resolve(cab.ready).then(function () { readLayout(); paintBar(); render(); }).catch(function () {});
+      Promise.resolve(cab.ready).then(function () { readLayout(); render(); paintBand(); }).catch(function () {});
     }
     load();
   }
