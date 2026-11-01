@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { accountCalls, callsFor, cleanText, commentsFrom, computeRead, giftOf, insightsFrom, latestOf, postNumbers, postsToRead, threadsToRead, titleFrom, troubleOf, wordsOn } from "../../../instagram-digest/your-instagram/first-read.mjs";
+import { accountCalls, callsFor, profileOf, cleanText, commentsFrom, computeRead, giftOf, insightsFrom, latestOf, postNumbers, postsToRead, threadsToRead, titleFrom, troubleOf, wordsOn } from "../../../instagram-digest/your-instagram/first-read.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../../instagram-digest/your-instagram/first-read.mjs", import.meta.url));
 const NOW = new Date("2026-10-15T09:00:00");
@@ -249,10 +249,10 @@ test("only recent posts with comments get a comments call, and none at the read 
 
 test("follower numbers are asked for only from 100 followers", () => {
   const small = accountCalls(99, NOW).map((c) => c.file);
-  assert.equal(small.includes("acc-online.json"), false);
+  assert.equal(small.includes("acc-countries.json"), false);
   assert.equal(small.some((f) => f.endsWith("-f.json")), false);
   assert.equal(accountCalls(100, NOW).some((c) => c.file === "acc-countries.json"), true);
-  assert.equal(accountCalls(100, NOW).some((c) => /follower_count|impressions/.test(c.path)), false, "metrics Meta's page does not list");
+  assert.equal(accountCalls(100, NOW).some((c) => /follower_count|online_followers|impressions/.test(c.path)), false, "metrics Meta's page does not list");
 });
 
 test("a group Instagram turns down by name is asked one metric at a time", () => {
@@ -281,6 +281,23 @@ test("a post's numbers and the account's are read from Instagram's own shapes", 
   assert.equal(a.last28.linkTaps, 5);
   assert.equal(a.last28.follows, 40);
   assert.equal(a.last28.unfollows, 7);
+});
+
+test("a missing count stays empty, and /me may arrive wrapped", () => {
+  const { latest } = computeRead({ me: me({ followers_count: undefined }), now: NOW, prev: prior(), media: [post("a", 100, undefined, { like_count: undefined })] });
+  assert.equal(latest.account.followers, null);
+  assert.equal(latest.totals.followers, undefined);
+  assert.equal(latest.posts[0].likes, null);
+  assert.doesNotThrow(() => latestOf(latest));
+  assert.equal(profileOf({ data: [{ username: "juno" }] }).username, "juno");
+  assert.equal(profileOf({ username: "juno" }).username, "juno");
+});
+
+test("a call turned down by name has a fallback", () => {
+  const get = (f) => (f === "media.json" || f === "post-a.json" ? { error: { code: 100 } } : null);
+  const out = callsFor("retry", { me: me(), media: [post("a", 24, 1)], now: NOW, get });
+  assert.equal(out[0].path.includes("caption"), false);
+  assert.deepEqual(out.at(-1), { file: "post-a--b.json", path: "a/insights?metric=reach,saved,shares" });
 });
 
 test("no account numbers at all says why, and never stops the catch-up", () => {

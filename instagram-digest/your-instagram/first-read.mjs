@@ -101,6 +101,8 @@ function workJson(arg, what) {
 }
 /** One of Instagram's answers as curl saved it, or null. */
 const answer = (name) => tryJson(path.join(workDir, name));
+/** /me may arrive as the profile itself or as {data:[profile]}. */
+export const profileOf = (raw) => (Array.isArray(raw?.data) && raw.data[0] ? raw.data[0] : raw);
 
 // ── The reading the person watches ──
 function readReading() {
@@ -288,14 +290,11 @@ export function accountCalls(followers, now) {
   const groups = [[7, "7"], [28, "28"]].flatMap(([days, tag]) => [
     [`acc-${tag}-a.json`, "views,reach,accounts_engaged,total_interactions", `metric_type=total_value&${range(days)}`],
     [`acc-${tag}-b.json`, "likes,comments,saves,shares", `metric_type=total_value&${range(days)}`],
-    [`acc-${tag}-c.json`, "profile_links_taps", `metric_type=total_value&breakdown=contact_button_type&${range(days)}`],
+    [`acc-${tag}-c.json`, "profile_links_taps", `metric_type=total_value&${range(days)}`],
     ...(followers >= 100 ? [[`acc-${tag}-f.json`, "follows_and_unfollows", `metric_type=total_value&breakdown=follow_type&${range(days)}`]] : [])
   ]);
   groups.unshift(["acc-daily.json", "reach", `metric_type=time_series&${range(28)}`]);
-  if (followers >= 100) {
-    groups.push(["acc-online.json", "online_followers", `period=lifetime&since=${secs(dayStart(-8, now))}&until=${end}`]);
-    groups.push(["acc-countries.json", "follower_demographics", "period=lifetime&metric_type=total_value&breakdown=country&timeframe=this_month"]);
-  }
+  if (followers >= 100) groups.push(["acc-countries.json", "follower_demographics", "period=lifetime&metric_type=total_value&breakdown=country&timeframe=this_month"]);
   return groups.map(([file, metrics, rest]) => ({ file, path: `me/insights?metric=${metrics}&${rest}`, metrics: metrics.split(","), rest }));
 }
 const commentsPath = (id, after) => `${id}/comments?fields=${COMMENT_FIELDS}&limit=50${after ? "&after=" + after : ""}`;
@@ -317,7 +316,10 @@ export function callsFor(which, { me, media, known, access, now, get = () => nul
     const limited = [...posts(), ...account(), ...comments()].filter((c) => troubleOf(get(c.file)) === "rate-limited");
     const singles = account().filter((c) => c.metrics.length > 1 && badMetric(get(c.file)))
       .flatMap((c) => c.metrics.map((m) => ({ file: c.file.replace(/\.json$/, `--${m}.json`), path: `me/insights?metric=${m}&${c.rest}` })));
-    return [...limited, ...singles];
+    // One bad name fails a whole call. Instagram's docs differ on views for some posts and on caption for this token.
+    const posted = posts().filter((c) => badMetric(get(c.file))).map((c) => ({ file: c.file.replace(/\.json$/, "--b.json"), path: c.path.replace("views,", "") }));
+    const media_ = badMetric(get("media.json")) ? [{ file: "media.json", path: `me/media?fields=${POST_FIELDS.replace("caption,", "")}&limit=25` }] : [];
+    return [...media_, ...limited, ...singles, ...posted];
   }
   return fail("calls takes posts, account, comments, more or retry");
 }
@@ -343,20 +345,6 @@ function spanFrom(get, tag, from) {
   }
   return out;
 }
-/** Instagram counts online_followers in Pacific time: the hours move to the person's own clock. */
-function pacificShift(now) {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", hourCycle: "h23", day: "numeric" }).formatToParts(now);
-  const v = (t) => Number(parts.find((p) => p.type === t).value);
-  const dayGap = v("day") === now.getDate() ? 0 : v("day") > now.getDate() ? (v("day") - now.getDate() > 1 ? -1 : 1) : (now.getDate() - v("day") > 1 ? 1 : -1);
-  return now.getHours() - v("hour") - dayGap * 24;
-}
-function onlineFrom(raw, now) {
-  const values = (Array.isArray(raw?.data) ? raw.data : []).find((m) => m?.name === "online_followers")?.values;
-  const day = (Array.isArray(values) ? values : []).slice().reverse().find((x) => x?.value && Object.keys(x.value).length);
-  if (!day) return null;
-  const shift = pacificShift(now);
-  return Object.entries(day.value).map(([h, n]) => ({ hour: (Number(h) + shift + 48) % 24, followers: whole(n) })).sort((a, b) => a.hour - b.hour);
-}
 function countriesFrom(raw) {
   const parts = (Array.isArray(raw?.data) ? raw.data : []).find((m) => m?.name === "follower_demographics")?.total_value?.breakdowns?.[0]?.results;
   if (!Array.isArray(parts) || !parts.length) return null;
@@ -381,7 +369,7 @@ export function insightsFrom(get, now) {
   }
   return {
     ok: true, until: daily.length ? daily[daily.length - 1].day : ymd(dayStart(-2, now)),
-    last7, last28, daily, online: onlineFrom(get("acc-online.json"), now), countries: countriesFrom(get("acc-countries.json"))
+    last7, last28, daily, countries: countriesFrom(get("acc-countries.json"))
   };
 }
 
@@ -431,7 +419,7 @@ function readPost(m, numbers, was, now) {
   const pick = (k) => (n[k] !== undefined && n[k] !== null ? n[k] : orNull(was?.[k]));
   const out = {
     mediaId: String(m.id), kind: postKind(m), title: titleFrom(m.caption), published: iso(at),
-    views: pick("views"), reach: pick("reach"), likes: whole(m.like_count), comments: whole(m.comments_count),
+    views: pick("views"), reach: pick("reach"), likes: orNull(m.like_count), comments: orNull(m.comments_count),
     saves: pick("saves"), shares: pick("shares"), url: linkOr(m.permalink)
   };
   Object.defineProperty(out, "ageHours", { value: (now - at) / 3600000 });
@@ -444,7 +432,9 @@ function linkOr(value) {
 /** Number of a post's four insights the answer gave, or {} for an answer that failed. */
 export function postNumbers(raw) {
   if (!raw || troubleOf(raw)) return {};
-  return { views: metricOf(raw, "views"), reach: metricOf(raw, "reach"), saves: metricOf(raw, "saved"), shares: metricOf(raw, "shares") };
+  const out = {};
+  for (const [key, name] of [["views", "views"], ["reach", "reach"], ["saves", "saved"], ["shares", "shares"]]) out[key] = metricOf(raw, name);
+  return out;
 }
 /**
  * The read this one is compared with. The last catch-up, unless that was today: then a second
@@ -466,7 +456,7 @@ function worksOf(read) {
   // Without Instagram's numbers likes are all there is; the page says which it counts.
   const byRate = rated.length >= WORKS_MIN_GROUP;
   const pool = byRate ? rated : old;
-  const value = byRate ? (p) => ((p.saves + p.shares) / p.reach) * 1000 : (p) => p.likes;
+  const value = byRate ? (p) => ((p.saves + p.shares) / p.reach) * 1000 : (p) => whole(p.likes);
   const group = (buckets, pick) => buckets.map((label, i) => {
     const vals = pool.filter((p) => pick(p) === i).map(value);
     return { label, posts: vals.length, median: oneDecimal(median(vals)) };
@@ -474,7 +464,7 @@ function worksOf(read) {
   const rate = (k) => oneDecimal(median(rated.map((p) => (p[k] / p.reach) * 1000)));
   return {
     posts: pool.length, measure: byRate ? "kept" : "likes",
-    usual: { reach: Math.round(median(rated.map((p) => p.reach))), saves: rate("saves"), shares: rate("shares"), likes: Math.round(median(old.map((p) => p.likes))) },
+    usual: { reach: Math.round(median(rated.map((p) => p.reach))), saves: rate("saves"), shares: rate("shares"), likes: Math.round(median(old.map((p) => whole(p.likes)))) },
     format: group(["Reels", "Carousels", "Photos", "Videos"], (p) => ["reel", "carousel", "photo", "video"].indexOf(p.kind)),
     // Monday first, as a week reads.
     weekday: group(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], (p) => (new Date(p.published).getDay() + 6) % 7),
@@ -510,7 +500,7 @@ export function computeRead({ me, media, numbers = {}, threads = {}, missed = []
   const owner = username.toLowerCase();
   const account = {
     name: cleanText(me.name, 80) || username, username, userId: String(me.user_id || me.id || ""),
-    followers: whole(me.followers_count), following: whole(me.follows_count), posts: whole(me.media_count),
+    followers: orNull(me.followers_count), following: orNull(me.follows_count), posts: orNull(me.media_count),
     url: username ? `https://www.instagram.com/${username}/` : ""
   };
   const same = usable(prev) && sameAccount(prev, me) ? prev : null;
@@ -545,7 +535,7 @@ export function computeRead({ me, media, numbers = {}, threads = {}, missed = []
     const held = whole(lastKnown.get(p.mediaId)?.own);
     if (own[p.mediaId] !== undefined) {
       own[p.mediaId] = Math.max(own[p.mediaId], held);
-      p.viewerComments = Math.max(0, p.comments - own[p.mediaId]);
+      if (p.comments !== null) p.viewerComments = Math.max(0, p.comments - own[p.mediaId]);
     } else if (held) own[p.mediaId] = held;
   }
 
@@ -577,7 +567,8 @@ export function computeRead({ me, media, numbers = {}, threads = {}, missed = []
   const gainedSum = (k) => read.reduce((m, p) => m + (p.gained?.[k] || 0), 0);
   if (!first) {
     for (const k of COUNTS) totals[k] = gainedSum(k);
-    totals.followers = account.followers - whole(base.account?.followers);
+    const before = orNull(base.account?.followers);
+    if (account.followers !== null && before !== null) totals.followers = account.followers - before;
   }
   if (readComments) totals.comments = comments.filter((c) => timeOf(c.at) >= since).length;
 
@@ -587,7 +578,7 @@ export function computeRead({ me, media, numbers = {}, threads = {}, missed = []
     const out = { from, posts: inSpan.length };
     for (const k of COUNTS) out[k] = inSpan.reduce((m, p) => m + whole(p[k]), 0);
     const kept = (p) => whole(p.saves) + whole(p.shares);
-    out.top = inSpan.slice().sort((a, b) => kept(b) - kept(a) || b.likes - a.likes).slice(0, 4).map((p) => {
+    out.top = inSpan.slice().sort((a, b) => kept(b) - kept(a) || whole(b.likes) - whole(a.likes)).slice(0, 4).map((p) => {
       const t = { mediaId: p.mediaId, kind: p.kind, title: p.title, published: p.published, kept: kept(p), likes: p.likes };
       if (p.url) t.url = p.url;
       return t;
@@ -631,8 +622,8 @@ function sheetOf(l, read, first) {
   const per = (n, of) => (of ? oneDecimal((n / of) * 1000) : 0);
   const t = l.totals;
   const lines = [
-    `Account: ${a.name}, @${a.username}, ${words(a.followers)} followers, ${words(a.following)} following, ${words(a.posts)} posts.`,
-    first ? "First catch-up: nothing to compare with yet." : `Since the last read: ${words(t.views)} views, ${words(t.likes)} likes, ${words(t.saves)} saves, ${words(t.shares)} shares, ${t.followers} followers.`,
+    `Account: ${a.name}, @${a.username}, ` + [[a.followers, "followers"], [a.following, "following"], [a.posts, "posts"]].filter(([n]) => n !== null).map(([n, k]) => `${words(n)} ${k}`).join(", ") + ".",
+    first ? "First catch-up: nothing to compare with yet." : `Since the last read: ${words(t.views)} views, ${words(t.likes)} likes, ${words(t.saves)} saves, ${words(t.shares)} shares` + (t.followers !== undefined ? `, ${t.followers} followers.` : "."),
     `Posts read: ${read.length}. Posted in the window: ${t.newPosts}.` + (t.comments !== undefined ? ` Comments from others in the window: ${t.comments}.` : "")
   ];
   const u = l.works.usual;
@@ -745,7 +736,7 @@ export function latestOf(l) {
   l.posts.forEach((p, i) => {
     if (!p || typeof p !== "object") fail(`posts[${i}] must be an object`);
     if (typeof p.title !== "string") fail(`posts[${i}].title is a string ("" when the post has no caption)`);
-    if (!Number.isInteger(p.likes) || p.likes < 0) fail(`posts[${i}].likes is a whole number`);
+    if (p.likes !== null && (!Number.isInteger(p.likes) || p.likes < 0)) fail(`posts[${i}].likes is a whole number, or null when Instagram sent none`);
   });
   for (const mark of ["best", "quiet"]) if (l.posts.filter((p) => p.mark === mark).length > 1) fail(`only one post is ${mark}`);
   for (const key of ["last7", "last28"]) {
@@ -817,7 +808,7 @@ function computed() {
   return c || fail("run compute first");
 }
 function compute() {
-  const me = answer("me.json");
+  const me = profileOf(answer("me.json"));
   const stop = troubleOf(me);
   if (stop) return failRun(stop);
   if (!me.username && !me.user_id && !me.id) return failRun("other");
@@ -839,7 +830,7 @@ function compute() {
   const numbers = {};
   for (const f of fs.readdirSync(workDir)) {
     const hit = /^post-(\w+)\.json$/.exec(f);
-    if (hit) numbers[hit[1]] = postNumbers(answer(f));
+    if (hit) numbers[hit[1]] = { ...postNumbers(answer(f)), ...postNumbers(answer(`post-${hit[1]}--b.json`)) };
   }
   const access = process.env.CABINET_INSTAGRAM_ACCESS;
   const threads = {};
@@ -879,7 +870,7 @@ function main(argv) {
   } else if (cmd === "calls") {
     const media = readableMedia([answer("media.json"), answer("media-2.json")]);
     const prev = tryJson(latestFile);
-    const lines = callsFor(args[0], { me: answer("me.json"), media, known: prev?.known, access: process.env.CABINET_INSTAGRAM_ACCESS, now: new Date(), get: answer });
+    const lines = callsFor(args[0], { me: profileOf(answer("me.json")), media, known: prev?.known, access: process.env.CABINET_INSTAGRAM_ACCESS, now: new Date(), get: answer });
     for (const c of lines) console.log(c.file + " " + c.path);
   } else if (cmd === "compute") {
     compute();
