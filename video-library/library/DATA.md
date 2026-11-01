@@ -83,6 +83,9 @@ video, at }` ("Yes, sum it up" asks for its 5-line summary), then the `offers`: 
 habit, explained only). Every press asks the agent in the chat; nothing is saved, posted or
 set up to run on its own. Until the first line, the screen says it is opening the link, for
 90 seconds at most. A reading quiet for 20 minutes is ignored, unless its video is still
-saving (up to 3 hours). After the save the gift and the offers not yet used stand under the
+saving (up to 3 hours). "Back to my page" leaves the screen for that save, remembered per
+`startedAt` in `cabinet.mine` (`video-library-read-left@1`); the chat goes on telling it. While
+the last line says "say yes", the subtitle says the save waits for that yes and the side
+offers step aside. After the save the gift and the offers not yet used stand under the
 band, where the Example ribbon was, for 3 days or until "Not now". Later saves are told on
 their own card.

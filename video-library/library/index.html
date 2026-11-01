@@ -513,6 +513,7 @@
   .pulse-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--brand); animation: read-pulse 1.2s ease-in-out infinite; }
   .read-lines li .pulse-dot { margin: 7px 0 0 5px; }
   .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 14px; }
+  .reading .read-back { margin: 8px 0 0; }
   @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
   /* While the first save goes on, it is the whole page: no made-up example under it. */
   .first-read #ribbon, .first-read #grid, .first-read #grid-empty, .first-read #editbar, .first-read #suggest, .first-read #topbar { display: none !important; }
@@ -793,6 +794,9 @@
     readStartedAt: "",
     /** When this page asked for the first save, so the screen shows before the first line. */
     saveAskedAt: 0,
+    /** The person pressed Back to my page: that reading's startedAt, and the press it came from if no reading had started. */
+    readLeft: "",
+    leftAsked: 0,
     giftShownAt: null,
     giftDone: null,
     offersShown: {},
@@ -1094,6 +1098,7 @@
   // always was.
 
   var READ_FRESH_MIN = 20;
+  var READ_LEFT_KEY = "video-library-read-left@1";
   /** A long download writes nothing for a while; while its card says Saving, the reading waits this long at most. */
   var READ_LONGEST_H = 3;
   /** From the press until the agent's first write, the screen says it is opening the link; this long at most. */
@@ -1139,10 +1144,22 @@
   // Once done, one more beat on "Putting it on your page" before the page, unless the video is there already.
   // A reading from an earlier try, or one that went quiet, has nothing left to tell.
   function revealing() { return !!(state.sawReading && freshReading() && state.readShown < state.reading.lines.length + (state.reading.done && firstSave() ? 1 : 0)); }
+  /** The person went back to their page while this save goes on; the chat keeps telling it. */
+  function leftReading() {
+    return (!!state.saveAskedAt && state.leftAsked === state.saveAskedAt) || (!!state.reading && state.reading.startedAt === state.readLeft);
+  }
+  function leaveReading() {
+    state.leftAsked = state.saveAskedAt;
+    if (state.reading && ofThisSave(state.reading)) {
+      state.readLeft = state.reading.startedAt;
+      if (V2 && cab.mine && typeof cab.mine.set === "function") cab.mine.set(READ_LEFT_KEY, state.readLeft).catch(function () {});
+    }
+    paint();
+  }
   /** The reading fills the page from the moment the first save starts. Later saves never show it. */
-  function showReading() { return ((askedNow() || readingNow()) && firstSave()) || revealing(); }
+  function showReading() { return !leftReading() && (((askedNow() || readingNow()) && firstSave()) || revealing()); }
   setInterval(function () {
-    if (!revealing()) return;
+    if (!revealing() || leftReading()) return;
     state.readShown++;
     if (revealing()) paintHero(); else paint();
   }, REVEAL_MS);
@@ -1160,20 +1177,24 @@
     var done = fresh && r.done && lines.length === all.length;
     var gift = fresh ? r.gift : null;
     var offers = fresh ? r.offers : [];
-    var side = gift || offers.length
+    // A big video waits for the person's yes in the chat: nothing else on the screen competes with that.
+    var waiting = !done && !!lines.length && /say yes/i.test(lines[lines.length - 1]);
+    var side = waiting ? ""
+      : gift || offers.length
       ? '<div class="side-list"><p class="side-title">While I save it, you can...</p>' + (gift ? giftHtml(gift, "reading") : "") + offersHtml(offers, "reading") + "</div>"
       : done ? ""
       : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Getting one thing ready for you to do with it.</h3></section>';
     // The newest step pulses while it goes on; before the first one, and after the last, the page says what is next.
     var next = done ? "Putting it on your page..." : lines.length ? "" : "Opening the link...";
     return '<div class="read-page' + (!side ? " solo" : "") + '"><div class="reading" aria-live="polite"><h2>Saving your first video</h2>' +
-      "<p>A minute or two, longer for a big video. You don’t need to do anything.</p>" +
+      "<p>" + (waiting ? "This one waits for your yes in the chat. Nothing downloads until you say so." : "A minute or two, longer for a big video. You don’t need to do anything.") + "</p>" +
       '<ul class="read-lines">' + lines.map(function (l, i) {
         var last = i === lines.length - 1;
         return "<li" + (last ? "" : ' class="old"') + ">" + (last && !next ? '<i class="pulse-dot" aria-hidden="true"></i>' : icon("i-check")) + '<span dir="auto">' + lineHtml(l) + "</span></li>";
       }).join("") +
       (next ? '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' + next + "</span></li>" : "") + "</ul>" +
-      '<p class="fine">Nothing is posted anywhere. The video stays in your cabinet, for your own use.</p></div>' + side + "</div>";
+      '<p class="fine">Nothing is posted anywhere. The video stays in your cabinet, for your own use.</p>' +
+      '<p class="read-back"><button type="button" class="btn small" data-act="read-leave">Back to my page</button></p></div>' + side + "</div>";
   }
 
   // ── The gift and the offers ────────────────────────────────────────────
@@ -3443,6 +3464,8 @@
     } else if (act === "retry" && slug) {
       var rv = videoBySlug(slug);
       if (rv) { state.saveOption = optionOf(rv.option) ? rv.option : "video"; save(rv.link); }
+    } else if (act === "read-leave") {
+      leaveReading();
     } else if (act === "gift-do") {
       var gift = state.reading && state.reading.gift;
       if (gift) {
@@ -3599,6 +3622,8 @@
       if (typeof subject === "string") state.subject = subject;
       var hidden = mine ? mine.get(HIDDEN_IDEAS_KEY) : null;
       if (Array.isArray(hidden)) hidden.forEach(function (id) { if (ideaById(id)) state.hiddenIdeas[id] = true; });
+      var left = mine ? mine.get(READ_LEFT_KEY) : null;
+      if (typeof left === "string") state.readLeft = left;
       var giftSeen = mine ? mine.get(GIFT_KEY) : null;
       if (typeof giftSeen === "string") state.giftDone = giftSeen;
       var offersSeen = mine ? mine.get(OFFERS_KEY) : null;
