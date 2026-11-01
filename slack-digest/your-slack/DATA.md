@@ -36,11 +36,12 @@ directly next time so nothing search misses is lost) are for the routine; the pa
 them. A `url` on Slack's own address becomes an "Open in Slack" link.
 
 The page is a 12-column grid of boxes, like the Gmail front desk: Headline, Waiting on you,
-Latest messages, Catch up by channel, Decisions made, Files shared, Ask about your Slack and
-Ideas for your Slack to start with, and more to add (You promised, three numbers, and each
+Latest messages, Catch up by channel, Decisions made, Files shared, Ideas for your Slack and
+Ask about your Slack to start with, and more to add (You promised, three numbers, and each
 idea as its own box with its picture from `ideas/`). Each person moves, resizes, adds and
 removes them (mouse, finger or keyboard, with Undo), or asks the agent through Layout, which
-answers with `layout-change.json`. An idea offers itself at the foot of its box when the
+answers with `layout-change.json`. Any layout shows as rows: boxes side by side share a top
+and a bottom, a row is as tall as its boxes need, and each row fills the page's width. An idea offers itself at the foot of its box when the
 day's Slack says it would help. The weekly-summary idea takes nothing from the file: it
 asks the agent when pressed.
 
@@ -55,8 +56,8 @@ The first catch-up (no `latest.json` yet) is told as it happens. The agent runs
 helper writes `reading.json` atomically under a lock, refuses an empty, broken or repeated
 line, and checks every name, channel, `ts` and link (no raw ids, no em-dash, no direct
 message). The page shows the lines one by one under "Reading your Slack", the latest messages
-(`recent`: `{ who, channel, ts, at, gist, link }`, up to 5) at once under them as "Just now in
-your Slack", and beside them "While I read, you can...": the gift `{ kind: "waiting", who,
+(`recent`: `{ who, channel, ts, at, gist, link }`, up to 5) at once as "Latest messages", and
+beside the lines the things to do now: the gift `{ kind: "waiting", who,
 channel, channelId, ts, since, gist, link, at }` (the question that waited longest in a
 channel set to Write; "Write my reply" asks the agent for a draft in the chat, never posted)
 or `{ kind: "calm" }` ("Find what I promised"), then the `offers`: `{ kind: "catchup",

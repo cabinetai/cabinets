@@ -36,10 +36,18 @@
 <title>Triage Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --page: #ffffff;
+    /* One system across the Slack pages. */
+    --pad: 20px;
+    --gap: 16px;
+    --r: 14px;
+    --r-c: 10px;
+    /* The page's one grid: the board, the filters and Weekly patterns all stand on it. */
+    --cols: 4;
+
+    --card: #ffffff;
     --panel: #f7f6f8;
     --panel-2: #efedf1;
     --line: #e7e4ea;
@@ -51,20 +59,14 @@
     --plum: #4a154b;
     --plum-2: #611f69;
     --plum-tint: #f4ecf5;
-    --red: #e01e5a;
     --red-ink: #b3134a;
-    --red-tint: #fdeaf0;
-    --blue: #36a3d9;
-    --blue-ink: #116a91;
+    --red-on-plum: #ff9dbc;
     --green: #2eb67d;
-    --green-ink: #1a7a52;
-    --green-tint: #e7f6ef;
-    --amber: #ecb22e;
-    --amber-ink: #7d5a00;
-    --amber-tint: #fdf5e1;
+    --soft-on-plum: rgb(255 255 255 / .82);
+    --fill-on-plum: rgb(255 255 255 / .14);
 
-    --shadow-1: 0 1px 2px rgba(29, 28, 29, .06);
-    --shadow-2: 0 1px 2px rgba(29, 28, 29, .05), 0 14px 36px -18px rgba(29, 28, 29, .28);
+    --shadow: 0 1px 2px rgb(29 28 29 / .06), 0 4px 16px -6px rgb(29 28 29 / .08);
+    --shadow-2: 0 1px 2px rgb(29 28 29 / .05), 0 14px 36px -18px rgb(29 28 29 / .28);
     --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
@@ -72,299 +74,259 @@
   [hidden] { display: none !important; }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; background: var(--page); color: var(--ink);
-    font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+    margin: 0; background: var(--panel); color: var(--ink);
+    font: 14.5px/1.45 var(--font); -webkit-font-smoothing: antialiased;
     font-feature-settings: "cv11", "ss01";
   }
   button, input, select { font: inherit; color: inherit; }
   button { cursor: pointer; }
-  a { color: var(--blue-ink); }
-  :focus-visible { outline: 3px solid color-mix(in srgb, var(--plum-2) 45%, transparent); outline-offset: 2px; border-radius: 10px; }
-  .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  a { color: var(--plum-2); }
+  b { font-weight: 700; }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--plum-2) 45%, transparent); outline-offset: 2px; border-radius: var(--r-c); }
+  .icon { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   /* A viewer sees the board and nothing that asks, runs or connects. Rendering checks the
      role too; this rule is the second lock. */
   html[data-role="viewer"] [data-viewer-off] { display: none !important; }
 
+  /* ── The page: band, notices, filters and cards all share these two edges ── */
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 28px; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+  .main > :empty { display: none; }
+  #root, #gift-keep, .lane { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+  .grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: var(--gap); }
+
   /* ── The band: Slack's aubergine across the top. Slack's mark, the page's name and the
      state on its first row, and the page's headline big in white under them. ── */
-  .bar {
-    width: calc(100% - 56px); max-width: 1224px; margin: 22px auto 0; border-radius: 18px; color: #fff;
-    background: radial-gradient(620px 300px at 100% 0%, #5b1c5d, transparent 70%), var(--plum);
-  }
-  .bar-in { padding: 18px clamp(20px, 3.4vw, 36px); }
-  .bar-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+  .bar { padding: var(--pad); border-radius: var(--r); color: #fff; background: var(--plum); }
+  .bar-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px var(--gap); }
   .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .mark { width: 40px; height: 40px; border-radius: 11px; background: #fff; display: grid; place-items: center; flex: none; }
-  .mark .icon { width: 22px; height: 22px; stroke-width: 2.2; }
-  .page-name { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
-  .bar :focus-visible { outline-color: #fff; }
-  .status { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: 14px; background: rgba(255, 255, 255, .14); color: #fff; white-space: nowrap; }
-  .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: #c9c3cf; }
-  .pill.ok .dot { background: #4fd39b; }
-  .pill.warn .dot { background: var(--amber); }
-  .pill.off .dot { background: #ff7da6; }
-  .updated { color: rgba(255, 255, 255, .8); font-size: 14px; }
-  .sel { min-height: 40px; padding: 6px 34px 6px 12px; border-radius: 10px; border: 1px solid var(--line-2); font-size: 14px; font-weight: 600; max-width: 100%; }
-  .sel, .band-top .sel {
-    -webkit-appearance: none; appearance: none; background-color: var(--page);
+  .mark { width: 40px; height: 40px; border-radius: var(--r-c); background: var(--card); display: grid; place-items: center; flex: none; }
+  .mark .icon { width: 22px; height: 22px; }
+  .page-name { margin: 0; font-size: 16px; font-weight: 700; }
+  .bar :focus-visible, .ask :focus-visible { outline-color: #fff; }
+  .status { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: 13px; background: var(--fill-on-plum); white-space: nowrap; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--soft-on-plum); }
+  .pill.warn .dot { background: var(--red-on-plum); }
+  .updated { color: var(--soft-on-plum); font-size: 13px; }
+
+  .sel {
+    -webkit-appearance: none; appearance: none; height: 40px; padding: 0 34px 0 12px; max-width: 100%; min-width: 0;
+    border-radius: var(--r-c); border: 1px solid var(--line-2); background-color: var(--card); font-weight: 600;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d1c1d' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 12px center; background-size: 14px;
   }
-  .band-top .btn, .band-top .sel { border: 0; border-radius: 999px; background-color: rgba(255, 255, 255, .9); color: var(--ink); box-shadow: none; }
-  .band-top .btn:hover:not([disabled]), .band-top .sel:hover { background-color: #fff; }
-  .band-top .sel { min-height: 40px; padding-inline: 16px 36px; font-size: 14px; }
-
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px;
-    border-radius: 11px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink);
-    font-weight: 600; font-size: 15px; text-decoration: none; white-space: nowrap;
-    box-shadow: var(--shadow-1); transition: background .15s ease, border-color .15s ease, transform .1s ease;
+  .sel option { color: var(--ink); }
+  .bar .sel {
+    border: 0; background-color: var(--fill-on-plum); color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   }
-  .btn:hover { background: var(--panel); border-color: #c4bdcb; }
-  .btn:active { transform: translateY(1px); }
-  .btn[disabled] { cursor: default; opacity: .6; transform: none; }
-  .btn.primary { background: var(--plum); border-color: var(--plum); color: #fff; box-shadow: 0 8px 18px -10px rgba(74, 21, 75, .9); }
-  .btn.primary:hover { background: var(--plum-2); border-color: var(--plum-2); }
-  .btn.big { min-height: 52px; padding: 13px 24px; font-size: 17px; border-radius: 13px; }
-  .btn.small { min-height: 38px; padding: 7px 12px; font-size: 14px; }
-  .btn.small .icon { width: 17px; height: 17px; }
-  .status .btn { min-height: 40px; padding: 8px 14px; font-size: 14px; }
+
+  /* One primary per view. Everything else is a muted fill. */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px;
+    border-radius: var(--r-c); border: 0; background: var(--panel-2); color: var(--ink);
+    font-weight: 600; text-decoration: none; white-space: nowrap;
+  }
+  .btn:hover { background: var(--line); }
+  .btn[disabled] { cursor: default; opacity: .6; }
+  .btn.primary { background: var(--plum); color: #fff; }
+  .btn.primary:hover { background: var(--plum-2); }
+  .bar .btn, .ask .btn { background: var(--fill-on-plum); color: #fff; }
+  .bar .btn:hover:not([disabled]), .ask .btn:hover { background: rgb(255 255 255 / .22); }
+  .bar .btn.primary { background: var(--card); color: var(--plum); }
+  .bar .btn.primary:hover:not([disabled]) { background: var(--plum-tint); }
   .spin { animation: spin 1.2s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-  /* The headline: the page's one answer, big and white in the band, its lines a little softer
-     (white keeps 13:1 on the aubergine, the softer line more than 7:1). */
-  .band-body { margin-top: 26px; padding-bottom: 10px; }
+  /* The headline: the page's one answer, white in the band, its lines a little softer. */
+  .band-body { margin-top: var(--gap); }
   .band-body:empty { display: none; }
-  .band-body h2 { margin: 0; font-size: clamp(32px, 4.2vw, 52px); line-height: 1.06; font-weight: 800; letter-spacing: -.035em; text-wrap: balance; overflow-wrap: anywhere; }
-  .band-body .lead { margin: 12px 0 0; font-size: 18px; color: rgba(255, 255, 255, .9); max-width: 75ch; }
-  .band-body .lead b { color: #fff; font-weight: 700; }
-  .band-body .fine { margin: 10px 0 0; font-size: 15px; color: rgba(255, 255, 255, .8); }
-  .band-body .actions { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .band-body h2 { margin: 0; font-size: 34px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; overflow-wrap: anywhere; }
+  .band-body .lead { margin: 8px 0 0; max-width: 75ch; color: var(--soft-on-plum); }
+  .band-body .lead b { color: #fff; }
+  .band-body .fine { margin: 8px 0 0; font-size: 13px; color: var(--soft-on-plum); }
+  .band-body .actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
   .band-body .actions .fine { margin: 0; }
-  .band-body .btn { border: 0; border-radius: 999px; background: rgba(255, 255, 255, .9); color: var(--ink); box-shadow: none; }
-  .band-body .btn:hover:not([disabled]) { background: #fff; }
-  .band-body .btn.primary { background: #fff; color: var(--plum); }
-  .band-body .btn.primary:hover:not([disabled]) { background: var(--plum-tint); }
-  .band-body .link { padding: 0; border: 0; background: none; color: #fff; font: inherit; text-decoration: underline; text-underline-offset: 2px; margin-inline-end: 8px; }
-  .skeleton { color: rgba(255, 255, 255, .8); font-size: 17px; margin: 0; }
-  .pulse { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-inline-end: 8px; background: #fff; animation: read-pulse 1.2s ease-in-out infinite; }
+  .band-body .link { padding: 0; border: 0; background: none; color: #fff; text-decoration: underline; text-underline-offset: 2px; margin-inline-end: 8px; }
+  .skeleton { margin: 0; color: var(--soft-on-plum); }
+  .read-strip { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--soft-on-plum); }
+  .bar .pulse-dot { background: #fff; }
+  .band-body .pulse-dot { display: inline-block; margin-inline-end: 8px; vertical-align: 1px; }
 
-  /* Before the first update, or when Slack needs the person, the band says so in place of its headline. */
-  .card-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; }
-  .art { width: 132px; height: 104px; }
-  .card-hero h2 { font-size: clamp(30px, 3.4vw, 44px); }
-  .steps { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; padding: 0; list-style: none; color: rgba(255, 255, 255, .9); font-size: 15px; }
-  .steps li { display: flex; align-items: center; gap: 8px; }
-  .steps .icon { color: #fff; width: 18px; height: 18px; }
+  /* ── Blocks: white on the page, lifted by shadow, never a border ──────── */
+  .notice, .ribbon, .empty, .col, .lane-head, .kind, .reading, .gift, .offers {
+    border-radius: var(--r); background: var(--card); box-shadow: var(--shadow);
+  }
+  .notice, .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: var(--pad); }
+  .notice p, .ribbon p { margin: 0; flex: 1 1 260px; min-width: 0; }
+  .notice { color: var(--red-ink); }
+  .notice.soft { color: var(--ink); }
+  .tag-example { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; background: var(--panel-2); color: var(--ink-2); font-size: 13px; font-weight: 600; }
+  .ribbon p { color: var(--ink-2); }
 
-  .read-strip { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 16px; border-radius: 12px; background: var(--plum-tint); color: var(--ink-2); font-size: 14.5px; }
+  .filters label { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; font-size: 13px; font-weight: 600; color: var(--ink-3); min-width: 0; }
+  .filters .sel { width: 100%; font-size: 14.5px; color: var(--ink); }
 
-  /* ── The page ────────────────────────────────────────────────────────── */
-  .wrap { max-width: 1280px; margin: 0 auto; padding: 22px 28px 40px; }
-  .main { display: flex; flex-direction: column; gap: 22px; }
-  .main > :empty { display: none; }
+  .empty { margin: 0; padding: var(--pad); color: var(--ink-3); }
+  .empty code { font-size: 13px; }
 
-  .notice { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; padding: 14px 16px; border-radius: 12px; background: var(--red-tint); color: var(--ink); border: 1px solid #f6c3d3; }
-  .notice .icon { color: var(--red-ink); }
-  .notice p { margin: 0; flex: 1 1 260px; min-width: 0; }
-  .notice.soft { background: var(--amber-tint); border-color: #f3e0a8; }
-  .notice.soft .icon { color: var(--amber-ink); }
-  #root .notice { margin-bottom: 16px; }
+  /* ── The board: four equal columns, each a white card, stretched to the row. Requests are
+     rows inside a column, on rows shared across the board, so the owner line of every card
+     in a row sits on one line. ── */
+  .board.n1 { --cols: 1; }
+  .col { display: flex; flex-direction: column; min-width: 0; padding: var(--pad) var(--pad) 4px; }
+  .col-head { display: flex; align-items: center; gap: 8px; min-height: 24px; padding-bottom: var(--gap); }
+  .col-head h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .count { font-size: 13px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .unfold { margin-inline-start: auto; border: 0; background: none; padding: 0; font-size: 13px; font-weight: 600; color: var(--plum-2); }
+  .unfold:hover { text-decoration: underline; }
+  .cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; min-width: 0; }
+  .slot { padding: var(--gap) 0; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); }
 
-  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border-radius: 12px; background: var(--amber-tint); border: 1px solid #f3e0a8; }
-  .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; }
-  .tag-example { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-
-  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
-  .filters label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink-3); }
-
-  .empty { margin: 0; padding: 28px 20px; border-radius: 16px; background: var(--panel); color: var(--ink-3); text-align: center; }
-  .empty code { font-size: 14px; }
-
-  /* ── The board ───────────────────────────────────────────────────────── */
-  .board { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
-  .col { flex: 1 1 0; min-width: 258px; background: var(--panel); border-radius: 16px; padding: 12px 10px 10px; scroll-snap-align: start; }
-  .col-head { display: flex; align-items: center; gap: 8px; padding: 2px 6px 10px; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
-  .col-head h3 { margin: 0; font: inherit; letter-spacing: inherit; }
-  .count { margin-inline-start: auto; min-width: 26px; padding: 1px 8px; border-radius: 999px; background: var(--panel-2); color: var(--ink-2); font-size: 13.5px; font-weight: 800; text-align: center; }
-  .s-new .count.on { background: var(--red-tint); color: var(--red-ink); }
-  .state-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--line-2); display: inline-block; }
-  .s-new .state-dot { background: var(--red); }
-  .s-owned .state-dot { background: var(--blue); }
-  .s-waiting .state-dot { background: var(--amber); }
-  .s-done .state-dot { background: var(--green); }
-  .cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  .slot { padding: 16px 10px; text-align: center; font-size: 14px; color: var(--ink-3); }
-
-  .card { background: var(--page); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow-1); }
-  .card .head { display: flex; align-items: flex-start; gap: 10px; }
-  .card .item { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
-  .age { flex: none; margin-top: 1px; font-size: 13.5px; font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-  .card .needs { margin: 3px 0 0; font-size: 14.5px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
-  .card .word { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 13px; color: var(--ink-3); }
+  /* Every card, top to bottom: title and age, what it needs, the next steps, then the owner
+     line pinned to the bottom. The pick-first card adds its label and its reason. */
+  .card { display: flex; flex-direction: column; min-width: 0; padding: var(--gap) 0; border-top: 1px solid var(--line); }
+  .card .head { display: flex; align-items: flex-start; gap: 8px; }
+  .card .item { flex: 1; min-width: 0; margin: 0; font-size: 16px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+  .age { flex: none; margin-top: 2px; font-size: 13px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .card .needs { margin: 4px 0 0; color: var(--ink-2); overflow-wrap: anywhere; }
+  .card .word { margin-top: 4px; font-size: 13px; color: var(--ink-3); }
   /* A New item nobody took, older than the team's limit: calm, but impossible to miss. */
-  .overdue { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 999px; background: var(--red-tint); color: var(--red-ink); font-size: 13px; font-weight: 700; }
-  .overdue .icon { width: 14px; height: 14px; stroke-width: 2.3; }
-  .card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin-top: 10px; }
-  .who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; font-weight: 600; }
+  .overdue { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--red-ink) 10%, var(--card)); color: var(--red-ink); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin-top: auto; padding-top: 12px; }
+  .asks + .card-foot { margin-top: 0; padding-top: 8px; }
+  .who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 24px; font-size: 13px; font-weight: 600; }
   .who span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .who.nobody { color: var(--ink-3); font-weight: 500; }
-  .av { width: 24px; height: 24px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 800; letter-spacing: .02em; background: var(--plum-tint); color: var(--plum-2); }
-  .av.none { background: transparent; border: 1.5px dashed var(--line-2); }
-  .open { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px; margin-inline-end: -6px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
+  .av { width: 24px; height: 24px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: var(--plum-tint); color: var(--plum-2); }
+  .av.none { background: none; box-shadow: inset 0 0 0 1px var(--line-2); }
+  .open { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
   .open .icon { width: 13px; height: 13px; }
-  .open:hover { background: var(--plum-tint); color: var(--plum-2); }
+  .open:hover { color: var(--plum-2); text-decoration: underline; }
   /* The next step on a card: quiet, one press into the chat. */
-  .asks { display: flex; flex-wrap: wrap; gap: 2px 4px; margin: 8px 0 0 -6px; }
-  .next-step { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 4px 6px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--plum-2); }
-  .next-step .icon { width: 14px; height: 14px; }
-  .next-step:hover { background: var(--plum-tint); }
+  .asks { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: auto; padding-top: 12px; }
+  .next-step { border: 0; background: none; padding: 0; font-size: 13px; font-weight: 600; color: var(--plum-2); text-align: start; }
+  .next-step:hover { text-decoration: underline; }
 
   /* The one item that most needs a person: first in New, with the reason on the card. */
-  .card.lead { border-top: 4px solid var(--plum); }
-  .eyebrow { display: block; margin: 0 0 5px; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
-  .verdict { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.45; color: var(--ink-2); }
+  .eyebrow { display: block; margin: 0 0 4px; font-size: 13px; font-weight: 700; color: var(--plum-2); }
 
-  /* Done: quieter cards, and folded to a narrow rail when only open items are shown. */
-  .col.s-done .card { background: transparent; box-shadow: none; }
-  .col.s-done .item { color: var(--ink-2); font-weight: 600; }
-  .col.s-done .age { color: var(--ink-3); font-weight: 600; }
-  .col.folded { flex: 0 0 52px; min-width: 52px; padding: 0; background: transparent; }
-  .fold { width: 100%; min-height: 168px; border: 0; border-radius: 16px; background: var(--panel); color: var(--ink-2); font-size: 14px; font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; }
-  .fold:hover { background: var(--panel-2); }
-  .fold .label { writing-mode: vertical-rl; }
-  .fold .n { font-size: 13.5px; font-weight: 800; }
-  .unfold { margin-inline-start: 0; border: 0; background: none; padding: 2px 6px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink-3); }
-  .unfold:hover { background: var(--panel-2); color: var(--ink); }
+  /* Done: quieter titles. With only open items shown, the column keeps its count and folds
+     its cards down to their titles. */
+  .col.s-done .item { color: var(--ink-2); }
+  .folded-title { padding: 8px 0; border-top: 1px solid var(--line); color: var(--ink-2); overflow-wrap: anywhere; }
+  .folded-title:first-child { padding-top: var(--gap); }
 
-  /* ── Weekly patterns: a box like Your Slack's lists ──────────────────── */
-  .lane { border: 1px solid var(--line); border-radius: 16px; background: var(--page); overflow: hidden; box-shadow: var(--shadow-1); }
-  .lane-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 14px 18px 12px; border-bottom: 1px solid var(--line); }
-  .lane-head > .icon { color: var(--plum-2); }
-  .lane-head h3 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
-  .lane-head .total { margin-inline-start: auto; color: var(--ink-3); font-size: 14px; font-weight: 600; }
-  .lane-line { margin: 0; padding: 12px 18px 0; font-size: 15.5px; font-weight: 600; }
-  .lane-note { margin: 0; padding: 12px 18px; color: var(--ink-3); font-size: 14.5px; }
-  .kinds { list-style: none; margin: 0; padding: 12px 18px 16px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
-  .kind { display: flex; flex-direction: column; padding: 12px 14px; border-radius: 12px; background: var(--panel); }
-  .kind .name { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
-  .kind .stats { margin: 2px 0 0; font-size: 13.5px; color: var(--ink-3); }
-  .kind .tip { margin: 6px 0 0; font-size: 14.5px; line-height: 1.45; color: var(--ink-2); flex: 1; }
-  .kind .card-foot { margin-top: 8px; }
-  .kind .next-step { margin-inline-start: -6px; }
+  /* ── Weekly patterns: its summary across the page, its kinds on the board's columns ── */
+  .lane-head { padding: var(--pad); }
+  .lane-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+  .lane-top h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .lane-top .total { margin-inline-start: auto; color: var(--ink-3); font-size: 13px; }
+  .lane-line, .lane-note { margin: 4px 0 0; }
+  .lane-note { color: var(--ink-3); }
+  .kinds { list-style: none; margin: 0; padding: 0; }
+  .kind { display: flex; flex-direction: column; min-width: 0; padding: var(--pad); }
+  .kind .name { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+  .kind .stats { margin: 4px 0 0; font-size: 13px; color: var(--ink-3); }
+  .kind .tip { margin: 8px 0 0; color: var(--ink-2); }
   .kind .open { margin-inline-start: auto; }
 
   /* ── Ask ─────────────────────────────────────────────────────────────── */
-  .ask { padding: 22px; border-radius: 18px; background: var(--plum); color: #fff; }
-  .ask h2 { margin: 0 0 10px; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
-  .ask .field { display: flex; gap: 10px; }
-  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 12px; border: 1px solid #7a4a7b; background: #3a103b; color: #fff; padding: 10px 14px; font-size: 16px; }
+  .ask { display: grid; gap: 8px; padding: var(--pad); border-radius: var(--r); background: var(--plum); color: #fff; }
+  .ask h2 { margin: 0; font-size: 16px; font-weight: 700; }
+  .ask .field { display: flex; gap: 8px; }
+  .ask input { flex: 1; min-width: 0; height: 40px; border-radius: var(--r-c); border: 1px solid #7a4a7b; background: #3a103b; color: #fff; padding: 0 12px; }
   .ask input::placeholder { color: #c6a9c7; }
-  .ask input:focus { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .25); }
-  .ask .btn { min-height: 50px; background: #fff; border-color: #fff; color: var(--plum); }
-  .ask .btn:hover { background: var(--plum-tint); }
-  .ask .note { margin: 10px 0 0; font-size: 14px; color: #e3d3e4; min-height: 1.5em; }
+  .ask input:focus { outline: none; border-color: #fff; }
+  .ask .note { margin: 0; font-size: 13px; color: var(--soft-on-plum); }
+  .ask .note:empty { display: none; }
 
-  .foot { display: flex; gap: 10px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
-  .foot .icon { color: var(--green); }
+  .foot { padding-inline: var(--pad); color: var(--ink-3); font-size: 13px; }
   .foot p { margin: 0; }
 
   /* Ideas and Layout open a small menu under their button. */
-  .menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; width: min(340px, calc(100vw - 32px)); padding: 6px; display: grid; gap: 2px; background: var(--page); color: var(--ink); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: var(--shadow-2); }
-  .menu h3 { margin: 6px 10px 4px; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
-  .menu .row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 0; border-radius: 10px; background: none; color: var(--ink); font-size: 14.5px; font-weight: 500; line-height: 1.35; text-align: start; cursor: pointer; }
+  .menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; width: min(340px, calc(100vw - 32px)); padding: 8px; display: grid; gap: 2px; background: var(--card); color: var(--ink); border-radius: var(--r); box-shadow: var(--shadow-2); }
+  .menu h3 { margin: 4px 12px; font-size: 13px; font-weight: 600; color: var(--ink-3); }
+  .menu .row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: 0; border-radius: var(--r-c); background: none; color: var(--ink); text-align: start; cursor: pointer; }
   .menu .row:hover, .menu .row:focus-visible { background: var(--plum-tint); outline: none; }
   .menu input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--plum); flex: none; }
-  .menu .rule { height: 1px; margin: 4px 6px; background: var(--line); }
+  .menu .rule { height: 1px; margin: 4px 8px; background: var(--line); }
   .menu .row.quiet { color: var(--ink-3); font-weight: 600; }
 
-  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0; max-width: calc(100vw - 32px); background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 15px; box-shadow: var(--shadow-2); transition: opacity .2s ease, transform .2s ease; z-index: 60; pointer-events: none; }
-  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); opacity: 0; max-width: calc(100vw - 32px); background: var(--ink); color: #fff; padding: 8px 16px; border-radius: var(--r-c); font-weight: 600; box-shadow: var(--shadow-2); transition: opacity .2s ease; z-index: 60; pointer-events: none; }
+  .toast.show { opacity: 1; }
 
   /* ── The first update, told as it happens: one line for each thing found ── */
-  .reading { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; padding: 26px 28px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fff, #fbfafc); box-shadow: var(--shadow-2); }
-  .reading h2 { margin: 0; font-size: clamp(26px, 3vw, 34px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
-  .reading > p { margin: 0 0 12px; color: var(--ink-3); font-size: 15.5px; }
-  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-  .read-lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 16.5px; color: var(--ink-2); overflow-wrap: anywhere; animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; }
-  .read-lines li b { color: var(--ink); font-weight: 700; }
-  .read-lines li .icon { width: 20px; height: 20px; margin-top: 2px; color: var(--green); stroke-width: 2.2; }
-  .read-lines li.old { animation: none; }
+  .reading { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 4px; padding: var(--pad); }
+  .reading h2 { margin: 0; font-size: 16px; font-weight: 700; }
+  .reading > p { margin: 0 0 8px; color: var(--ink-3); }
+  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .read-lines li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--ink-2); overflow-wrap: anywhere; }
+  .read-lines li b { color: var(--ink); }
+  .read-lines li .icon { margin-top: 1px; color: var(--green); stroke-width: 2.2; }
   .read-lines li.now { color: var(--ink-3); }
-  .pulse-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--plum-2); animation: read-pulse 1.2s ease-in-out infinite; }
-  .read-lines li.now .pulse-dot { margin: 7px 0 0 5px; }
-  .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 14px; }
+  .pulse-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--plum-2); animation: read-pulse 1.2s ease-in-out infinite; }
+  .read-lines li.now .pulse-dot { margin: 6px 0 0 5px; }
   @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
   /* While the first update reads, the reading is the whole page: no made-up example under it. */
   .first-read #ribbon, .first-read #fail, .first-read #filters, .first-read #root, .first-read #gift-keep, .first-read #patterns { display: none !important; }
-  .read-page { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 22px; }
-  @media (min-width: 980px) {
-    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
-    .read-page.solo { grid-template-columns: minmax(0, 1fr); }
-  }
-  /* While I read, you can...: the gift first, then a few more things to ask for. */
-  .side-list { display: grid; align-content: start; gap: 14px; }
-  .side-title { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
-  .offers { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--page); box-shadow: var(--shadow-1); overflow: hidden; }
-  .offer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
-  .offer:last-child { border-bottom: 0; }
-  .offer b { display: block; font-size: 15.5px; overflow-wrap: anywhere; }
-  .offer .sub { display: block; color: var(--ink-3); font-size: 14px; }
-  .asked { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; font-weight: 700; color: var(--green-ink); white-space: nowrap; }
-  .asked .icon { width: 17px; height: 17px; color: var(--green); }
+  .read-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+  .side-list { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+  .side-list > .gift { flex: 1; }
+  .offers { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+  .offer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px var(--gap); align-items: center; padding: var(--gap) var(--pad); border-top: 1px solid var(--line); }
+  .offer:first-child { border-top: 0; }
+  .offer b { display: block; font-size: 16px; overflow-wrap: anywhere; }
+  .offer .sub { display: block; color: var(--ink-3); font-size: 13px; }
+  .asked { margin: 0; font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
   /* The gift: one thing the person can do now, found while the agent reads. */
-  .gift { display: grid; align-content: center; gap: 14px; padding: 26px 28px; border: 1px solid var(--line); border-top: 4px solid var(--plum); border-radius: 18px; background: var(--page); box-shadow: var(--shadow-2); }
-  .gift .eyebrow { margin: 0; font-size: 13px; }
-  .gift h3 { margin: 0; max-width: 30ch; font-size: clamp(22px, 2.4vw, 28px); line-height: 1.18; font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; }
-  .gift h3 b { color: var(--plum); }
+  .gift { display: flex; flex-direction: column; gap: 4px; padding: var(--pad); }
+  .gift .eyebrow { margin: 0; }
+  .gift h3 { margin: 0; font-size: 16px; line-height: 1.35; font-weight: 700; overflow-wrap: anywhere; }
   .gift h3 .n { white-space: nowrap; }
-  .gift .why { margin: 0; color: var(--ink-2); font-size: 16px; max-width: 56ch; }
-  .gift .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  .gift .fine { margin: 0; color: var(--ink-3); font-size: 14px; }
-  .gift.looking { justify-items: start; min-height: 220px; border: 1px dashed var(--line-2); background: var(--panel); box-shadow: none; }
-  .gift.looking h3 { color: var(--ink-3); font-weight: 700; }
-  @media (max-width: 979px) { .gift.looking { display: none; } }
-  /* After the reading, the gift and the offers wait under the board until used or put away. */
-  .gift-keep { display: grid; gap: 12px; }
+  .gift .why { margin: 0; color: var(--ink-2); }
+  .gift .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding-top: 12px; }
+  .gift.looking { flex-direction: row; align-items: center; gap: 12px; }
+  .gift.looking h3 { color: var(--ink-3); font-weight: 600; }
 
   @media (prefers-reduced-motion: reduce) {
-    .spin, .pulse, .pulse-dot, .read-lines li { animation: none; }
+    .spin, .pulse-dot { animation: none; }
   }
 
-  /* ── Narrow screens: the columns stack, Done folds to a single bar ───── */
+  @media (min-width: 961px) {
+    .board.n3 { --cols: 3; }
+    .read-page { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .read-page.solo { grid-template-columns: minmax(0, 1fr); }
+    /* A short last row of kinds widens to the right edge and stays on the column edges. */
+    .kind:nth-child(4n + 1):last-child { grid-column: 1 / -1; }
+    .kind:nth-child(4n + 1):nth-last-child(2), .kind:nth-child(4n + 2):last-child, .kind:nth-child(4n + 3):last-child { grid-column: span 2; }
+  }
+  /* Cards in a row of the board share their height, so a card's bottom is the row's bottom.
+     The last row takes what is left, so a short column simply ends in empty space. */
+  @supports (grid-template-rows: subgrid) {
+    @media (min-width: 961px) {
+      .board { row-gap: 0; grid-template-rows: auto repeat(var(--rows), auto) 1fr; }
+      .col { display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; row-gap: 0; }
+      .cards { display: grid; grid-row: 2 / -1; grid-template-rows: subgrid; row-gap: 0; }
+      .folded .cards { display: block; }
+    }
+  }
+
+  /* ── Narrower: two columns, then one. Same edges, same gaps ──────────── */
+  @media (max-width: 960px) {
+    :root { --cols: 2; }
+    .grid > :nth-child(odd):last-child { grid-column: 1 / -1; }
+    .gift.looking { display: none; }
+  }
   @media (max-width: 640px) {
-    .bar { width: calc(100% - 32px); margin-top: 16px; }
-    .bar-in { padding: 14px 18px; }
-    .band-body { margin-top: 20px; padding-bottom: 6px; }
-    .band-body h2 { font-size: 32px; }
-    .band-body .lead { font-size: 16.5px; }
-    .wrap { padding: 18px 16px 32px; }
-    .main { gap: 18px; }
+    :root { --cols: 1; }
     .status { width: 100%; }
     .menu { left: 0; right: auto; }
-    .card-hero { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-    .art { display: none; }
-    .card-hero .btn.big { width: 100%; }
-    .filters { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; }
-    .filters label { display: contents; }
-    .board { flex-direction: column; align-items: stretch; overflow: visible; }
-    .col { min-width: 0; flex: none; }
-    .col.folded { flex: none; min-width: 0; }
-    .fold { min-height: 0; flex-direction: row; justify-content: flex-start; padding: 12px 16px; }
-    .fold .label { writing-mode: horizontal-tb; }
-    .fold .n { margin-inline-start: auto; }
-    .reading, .gift { padding: 22px 18px; }
-    .gift .acts .btn { flex: 1 1 auto; }
-    .offer { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; }
+    .offer { grid-template-columns: minmax(0, 1fr); }
     .offer > .btn, .offer > .asked { justify-self: start; }
-    .ask { padding: 18px 16px; }
-    .ask .field { flex-direction: column; }
-    .foot { font-size: 13.5px; }
   }
 </style>
 </head>
@@ -372,22 +334,12 @@
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <symbol id="i-slack" viewBox="0 0 24 24"><g stroke="none"><path fill="#E01E5A" d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/><path fill="#36C5F0" d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z"/><path fill="#2EB67D" d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z"/><path fill="#ECB22E" d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></g></symbol>
-  <symbol id="i-reply" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5A5.5 5.5 0 0 1 20 14.5V19" /></symbol>
-  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10.5 13.5" /><path d="M21 3l-6.5 18-4-7.5L3 9.5z" /></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
-  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></symbol>
-  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></symbol>
-  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></symbol>
-  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></symbol>
-  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z" /></symbol>
-  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2" /><rect x="13" y="3" width="8" height="6" rx="2" /><rect x="13" y="11" width="8" height="10" rx="2" /><rect x="3" y="15" width="8" height="6" rx="2" /></symbol>
-  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></symbol>
-  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></symbol>
 </svg>
 
-<header class="bar" id="band">
-  <div class="bar-in">
+<div class="wrap">
+  <header class="bar" id="band">
     <div class="bar-top band-top">
       <div class="brand">
         <span class="mark" aria-hidden="true"><svg class="icon"><use href="#i-slack" /></svg></span>
@@ -398,10 +350,7 @@
     </div>
     <div class="band-body" id="band-body" aria-live="polite"><p class="skeleton">Opening your board...</p></div>
     <div class="read-strip" id="read-strip" aria-live="polite" hidden></div>
-  </div>
-</header>
-
-<div class="wrap">
+  </header>
   <main class="main">
     <!-- The one sentence. Identical to .cabinet description and index.md's first line. -->
     <p class="sr">Every request in your team's Slack support channel on one board, what is still owed, by whom, and how long it has waited.</p>
@@ -421,8 +370,7 @@
       <p class="note" id="ask-note" aria-live="polite"></p>
     </form>
     <footer class="foot">
-      <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
-      <p>The routines only read. Nothing is written in Slack unless you say yes to the exact words in the chat, in a channel you set to Write. Everything else is a draft for you to copy.</p>
+      <p>The routines only read. Nothing is written in Slack unless you say yes to the exact words in the chat, in a channel you set to Write.</p>
     </footer>
   </main>
 </div>
@@ -466,11 +414,11 @@
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
   /* The board's columns, left to right. Anything else the agent writes gets its own
-     column after Waiting, so it still shows. */
+     block under the four, so it still shows and the grid stays four across. */
   var COLS = ['new', 'owned', 'waiting', 'other', 'done'];
   var WORD = { 'new': 'New', owned: 'Owned', waiting: 'Waiting', done: 'Done' };
   /* Filters survive a change of pass, so picking yesterday keeps "Nobody yet" on.
-     doneOpen is the Done rail unfolded by hand while only open items are shown. */
+     doneOpen is the Done column unfolded by hand while only open items are shown. */
   var view = { show: 'open', owner: '', doneOpen: false };
 
   /* The cabinet's own prompts, the same list as its .cabinet, so Ideas matches the
@@ -613,7 +561,7 @@
        where quietly widening to Anyone would show other people's items. */
     if (view.owner && view.owner !== '-' && owners.indexOf(view.owner) < 0) owners.push(view.owner);
     owners.sort();
-    return '<div class="filters"><label for="show">Show<select class="sel" id="show">' + shows.map(function (s) {
+    return '<div class="grid filters"><label for="show">Show<select class="sel" id="show">' + shows.map(function (s) {
       return opt(s[0], s[1], view.show === s[0]);
     }).join('') + '</select></label><label for="owner">Owner<select class="sel" id="owner">' +
       opt('', 'Anyone', !view.owner) + opt('-', 'Nobody yet', view.owner === '-') + owners.map(function (o) {
@@ -707,37 +655,36 @@
     ' they are now, in plain words, and ask me what I want to change. Change the file only' +
     ' after I tell you the new value.';
 
-  function askButton(id, text, q) {
+  function askButton(text, q) {
     return '<button type="button" class="next-step" data-act="ask" data-viewer-off data-q="' + esc(q) + '">' +
-           icon(id) + esc(text) + '</button>';
+           esc(text) + '</button>';
   }
 
   /* Next steps show on real requests only: an invented example has no thread to read. */
   function stepsOn(example) { return canAsk() && !example && !st.hidden.asks; }
 
-  /* One card. `lead` carries the reason line when this is the item to pick up first. */
-  function card(it, lead, example) {
-    var html = '<li class="card' + (lead ? ' lead' : '') + '">';
-    if (lead) html += '<span class="eyebrow">Pick this up first</span>';
+  /* One card. */
+  function card(it, example) {
+    var html = '<li class="card">';
     html += '<div class="head"><p class="item" dir="auto">' + esc(it.item || 'Untitled item') + '</p>';
-    if (it.age !== null) {
+    /* The overdue flag says the age itself. */
+    if (it.age !== null && !overdue(it)) {
       html += '<span class="age" title="Opened ' + esc(human(it.opened) + ' at ' + clock(it.opened)) +
               '"><span class="sr">Opened </span>' + ago(it.age) + '<span class="sr"> ago</span></span>';
     }
     html += '</div>';
     if (it.needs) html += '<p class="needs" dir="auto">' + esc(it.needs) + '</p>';
     if (it.key === 'other' && it.word) {
-      html += '<span class="word"><span class="state-dot"></span>' + esc(it.word) + '</span>';
+      html += '<span class="word">' + esc(it.word) + '</span>';
     }
-    if (lead) html += '<p class="verdict" dir="auto">' + esc(lead) + '</p>';
     if (it.key !== 'done' && it.item && stepsOn(example)) {
-      html += '<div class="asks">' + askButton('i-pen', 'Draft an answer', draftAsk(it)) +
-              (it.key === 'new' && !it.owner ? askButton('i-users', 'Who could take this?', whoAsk(it)) : '') +
+      html += '<div class="asks">' + askButton('Draft an answer', draftAsk(it)) +
+              (it.key === 'new' && !it.owner ? askButton('Who could take this?', whoAsk(it)) : '') +
               '</div>';
     }
     /* Overdue says who has it, or rather that nobody does, so it takes the owner's place. */
     html += '<div class="card-foot">' + (overdue(it)
-      ? '<span class="overdue">' + icon('i-clock') + 'No owner for ' + ago(it.age) + '</span>' : who(it));
+      ? '<span class="overdue">No owner for ' + ago(it.age) + '</span>' : who(it));
     if (!example && slackUrl(it.url)) html += openLink(it.url, 'Open ' + it.item + ' in Slack');
     return html + '</div></li>';
   }
@@ -756,8 +703,8 @@
 
   function board(list, meta, example) {
     var shown = list.filter(matches);
-    /* Show = Open items hides Done from the filter but keeps it on the board as a folded
-       rail, so its cards come from the owner filter alone. */
+    /* Show = Open items hides Done from the filter but keeps it as a column folded to its
+       titles, so its cards come from the owner filter alone. */
     var done = view.show === 'open' && !st.hidden.done ? list.filter(function (it) {
       return it.key === 'done' && ownerMatches(it);
     }) : [];
@@ -766,37 +713,52 @@
     if (!shown.length && !leadShown && !done.length) {
       return '<p class="empty">Nothing matches these filters.</p>';
     }
-    var html = '<div class="board">';
-    columnsFor(list).forEach(function (k) {
+
+    function pile(k) {
       var pool = k === 'done' && view.show === 'open' ? done : shown;
       var cards = pool.filter(function (it) { return it.key === k && !(lead && it === lead.it); });
       /* New is worked oldest first, so it is ordered by age whatever the file says.
          An item with no Opened time keeps its place after the dated ones. */
       if (k === 'new') cards = byAge(cards);
       var top = leadShown && lead.it.key === k;
-      var n = cards.length + (top ? 1 : 0);
-      var name = k === 'other' ? 'Other' : WORD[k];
-      var cls = 'col s-' + k;
-      /* Showing open items, Done folds to a rail with its count; a click unfolds it. */
-      if (k === 'done' && view.show === 'open' && !view.doneOpen) {
-        html += '<section class="' + cls + ' folded"><button type="button" class="fold" id="fold" data-act="fold" ' +
-                'aria-expanded="false" aria-label="Show ' + n + ' done">' +
-                '<span class="state-dot"></span><span class="label">Done</span>' +
-                '<span class="n">' + n + '</span></button></section>';
-        return;
+      return { cards: cards, top: top, n: cards.length + (top ? 1 : 0) };
+    }
+
+    function folded(k) { return k === 'done' && view.show === 'open' && !view.doneOpen; }
+
+    function column(k) {
+      var p = pile(k), n = p.n, name = k === 'other' ? 'Other' : WORD[k];
+      var html = '<section class="col s-' + k + (folded(k) ? ' folded' : '') + '" aria-label="' + name + '"><div class="col-head">' +
+                 '<h3>' + name + '</h3><span class="count">' + n + '</span>';
+      /* Showing open items, Done keeps its count and titles; a press shows its cards. */
+      if (folded(k)) {
+        if (n) html += '<button type="button" class="unfold" id="fold" data-act="fold" aria-expanded="false" aria-label="Show ' + n + ' done">Show</button>';
+        html += '</div><ul class="cards">' + (p.top ? [lead.it] : []).concat(p.cards).map(function (it) {
+          return '<li class="folded-title" dir="auto">' + esc(it.item || 'Untitled item') + '</li>';
+        }).join('');
+      } else {
+        if (k === 'done' && view.show === 'open') {
+          html += '<button type="button" class="unfold" id="fold" data-act="fold" aria-expanded="true">Hide</button>';
+        }
+        html += '</div><ul class="cards">';
+        if (p.top) html += card(lead.it, example);
+        html += p.cards.map(function (it) { return card(it, example); }).join('');
       }
-      html += '<section class="' + cls + '" aria-label="' + name + '"><div class="col-head">' +
-              '<span class="state-dot"></span><h3>' + name + '</h3>' +
-              (k === 'done' && view.show === 'open'
-                ? '<button type="button" class="unfold" id="fold" data-act="fold" aria-expanded="true">Hide</button>' : '') +
-              '<span class="count' + (n ? ' on' : '') + '">' + n + '</span></div><ul class="cards">';
-      if (top) html += card(lead.it, meta.verdict, example);
-      html += cards.map(function (it) { return card(it, '', example); }).join('');
       if (!n) html += '<li class="slot">Nothing here</li>';
-      html += '</ul></section>';
-    });
-    return html + '</div>';
+      return html + '</ul></section>';
+    }
+
+    /* One row of columns. --rows lets the cards of every column share the board's rows. */
+    function row(keys) {
+      var rows = keys.reduce(function (most, k) { return folded(k) ? most : Math.max(most, pile(k).n); }, 1);
+      return '<div class="grid board n' + keys.length + '" style="--rows:' + rows + '">' + keys.map(column).join('') + '</div>';
+    }
+
+    var keys = columnsFor(list);
+    var four = keys.filter(function (k) { return k !== 'other'; });
+    return (four.length ? row(four) : '') + (keys.length > four.length ? row(['other']) : '');
   }
+
 
   function byAge(list) {
     return list.map(function (it, i) { return { it: it, i: i }; }).sort(function (a, b) {
@@ -832,8 +794,14 @@
     /* The routine stopped short and said so: the rows below may lag the channel. */
     var left = String(c.meta.status || '').replace(/^ok\b[,:;.\s]*/i, '').replace(/\.$/, '');
     if (left) {
-      html += '<div class="notice soft">' + icon('i-alert') + '<p dir="auto">This update is not complete: ' +
+      html += '<div class="notice soft"><p dir="auto">This update is not complete: ' +
               esc(left) + '.</p></div>';
+    }
+    /* The reason sits above the board, so one long card never stretches every row. */
+    var first = leadOf(c.meta, c.list);
+    if (first) {
+      html += '<div class="ribbon"><p dir="auto"><b>Pick this up first: ' + esc(first.it.item) + '.</b> ' +
+              esc(c.meta.verdict) + '</p></div>';
     }
     html += c.list.length || (c.meta.lead && c.meta.verdict) ? board(c.list, c.meta, c.example)
             : '<p class="empty">Nothing on the board in this update.</p>';
@@ -1079,7 +1047,7 @@
     if (meta.week) sub.push(weekText(meta.week));
     var n = parseInt(meta.requests, 10);
     if (n >= 0) sub.push(plural(n, 'request', 'requests'));
-    var html = '<div class="lane"><div class="lane-head">' + icon('i-chart') + '<h3>Weekly patterns</h3>' +
+    var html = '<div class="lane"><div class="lane-head"><div class="lane-top"><h3>Weekly patterns</h3>' +
       (example ? '<span class="tag-example">Example</span>' : '') +
       (sub.length ? '<span class="total">' + esc(sub.join(', ')) + '</span>' : '') + '</div>';
     if (meta.headline) html += '<p class="lane-line" dir="auto">' + esc(meta.headline) + '</p>';
@@ -1088,8 +1056,10 @@
     }
     if (!data.rows.length) {
       html += '<p class="lane-note">No kind of request came in twice that week.</p>';
-    } else {
-      html += '<ul class="kinds">' + data.rows.map(function (r) {
+    }
+    html += '</div>';
+    if (data.rows.length) {
+      html += '<ul class="grid kinds">' + data.rows.map(function (r) {
         var k = { kind: get(r, 'kind'), count: parseInt(get(r, 'count'), 10),
                   url: get(r, 'example'), tip: get(r, 'suggestion') };
         var wait = get(r, 'typical wait');
@@ -1102,7 +1072,7 @@
         if (stats.length) li += '<p class="stats">' + esc(stats.join(', ')) + '</p>';
         if (k.tip) li += '<p class="tip" dir="auto">' + esc(k.tip) + '</p>';
         var step = k.kind && stepsOn(example) && kindWantsReply(k.tip)
-          ? askButton('i-reply', 'Write the saved reply', replyAsk(k, weekText(meta.week))) : '';
+          ? askButton('Write the saved reply', replyAsk(k, weekText(meta.week))) : '';
         var link = !example && slackUrl(k.url) ? openLink(k.url, 'Open an example of ' + k.kind + ' in Slack') : '';
         if (step || link) li += '<div class="card-foot">' + step + link + '</div>';
         return li + '</li>';
@@ -1141,7 +1111,7 @@
         if (!files.length) {
           st.current = null;
           filtersEl.innerHTML = '';
-          root.innerHTML = '<p class="empty">Nothing yet. The board fills in after the first update reads Slack.</p>';
+          root.innerHTML = '<p class="empty">The first update fills this board.</p>';
           return null;
         }
         var name = st.picked && files.indexOf(st.picked) >= 0 ? st.picked : files[0];
@@ -1351,17 +1321,17 @@
     var gift = freshReading() ? st.reading.gift : null;
     var offers = freshReading() ? st.reading.offers : [];
     var side = gift || offers.length
-      ? '<div class="side-list"><p class="side-title">While I read, you can...</p>' + (gift ? giftHtml(gift, 'reading') : '') + offersHtml(offers) + '</div>'
+      ? '<div class="side-list">' + (gift ? giftHtml(gift, 'reading') : '') + offersHtml(offers) + '</div>'
       : done ? ''
       : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for the request that has waited longest.</h3></section>';
     return '<div class="read-page' + (side ? '' : ' solo') + '"><div class="reading" aria-live="polite"><h2>Reading your Slack</h2>' +
-      '<p>Your first update. A few minutes. You don’t need to do anything.</p><ul class="read-lines">' +
+      '<p>Your first update takes a few minutes.</p><ul class="read-lines">' +
       lines.map(function (l, i) {
         return '<li' + (i < lines.length - 1 ? ' class="old"' : '') + '>' + icon('i-check') + '<span dir="auto">' + lineHtml(l) + '</span></li>';
       }).join('') +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' +
       (done ? 'Putting your board together' : lines.length ? 'Reading on' : 'Opening your Slack') + '...</span></li></ul>' +
-      '<p class="fine">Only reads. Nothing is posted, and it all stays in your cabinet.</p></div>' + side + '</div>';
+      '</div>' + side + '</div>';
   }
 
   /* The gift: the request that has waited longest for a person, with an answer drafted in the
@@ -1393,15 +1363,15 @@
 
   function giftHtml(g, where) {
     var p = giftParts(g);
-    return '<section class="gift"><p class="eyebrow">' +
-      (where !== 'reading' ? 'Found in your first update' : g.kind === 'oldest' ? 'First, the one waiting longest' : 'First, the good news') + '</p>' +
+    var eyebrow = where !== 'reading' ? 'Found in your first update' : g.kind === 'oldest' ? 'Waiting longest' : '';
+    return '<section class="gift">' + (eyebrow ? '<p class="eyebrow">' + eyebrow + '</p>' : '') +
       '<h3 dir="auto">' + p.head + '</h3><p class="why" dir="auto">' + esc(p.why) + '</p>' +
       (st.giftAsked === g.at
-        ? '<p class="asked">' + icon('i-check') + 'Asked. It is coming in the chat.</p>'
-        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do" data-viewer-off>' + esc(p.button) + '</button>' : '') +
+        ? '<p class="asked">Asked. It is coming in the chat.</p>'
+        : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn' + (where === 'reading' ? ' primary' : '') + '" data-act="gift-do" data-viewer-off>' + esc(p.button) + '</button>' : '') +
           (g.link ? '<a class="btn" href="' + esc(g.link) + '" target="_blank" rel="noopener noreferrer">' + icon('i-slack') + 'Open in Slack</a>' : '') +
           (where === 'keep' ? '<button type="button" class="btn" data-act="gift-skip">Not now</button>' : '') + '</div>') +
-      '<p class="fine">Nothing is posted in Slack.</p></section>';
+      '</section>';
   }
 
   /* The offers: a New request to find a person for, a Waiting one to check in on. */
@@ -1410,13 +1380,13 @@
   function offerParts(o) {
     if (o.kind === 'take') {
       return {
-        sub: 'Nobody has it yet. See who handled requests like it.',
+        sub: 'Nobody has it yet.',
         button: 'Who could take this?',
         ask: whoAsk({ item: o.item, url: o.link })
       };
     }
     return {
-      sub: 'Waiting on someone outside the team. A short check-in, ready to copy.',
+      sub: 'Waiting on someone outside the team.',
       button: 'Draft a check-in',
       ask: 'Draft a short, friendly check-in for "' + o.item + '" on the triage board' + linkWords(o.link) +
         ', which is waiting on the customer or someone outside the team. Read its Slack thread first. ' +
@@ -1424,13 +1394,13 @@
     };
   }
 
-  function offersHtml(offers) {
+  function offersHtml(offers, top) {
     if (!offers.length) return '';
-    return '<ul class="offers">' + offers.map(function (o) {
+    return '<ul class="offers">' + (top || '') + offers.map(function (o) {
       var p = offerParts(o), key = offerKey(o);
       return '<li class="offer"><div><b dir="auto">' + esc(o.item) + '</b><span class="sub">' + esc(p.sub) + '</span></div>' +
-        (st.kept.asked[key] ? '<span class="asked">' + icon('i-check') + 'Asked</span>'
-          : canAsk() ? '<button type="button" class="btn small" data-act="offer-do" data-viewer-off data-key="' + esc(key) + '">' + esc(p.button) + '</button>' : '') +
+        (st.kept.asked[key] ? '<span class="asked">Asked</span>'
+          : canAsk() ? '<button type="button" class="btn" data-act="offer-do" data-viewer-off data-key="' + esc(key) + '">' + esc(p.button) + '</button>' : '') +
         '</li>';
     }).join('') + '</ul>';
   }
@@ -1444,8 +1414,8 @@
     var on = !!(r && at && canAsk() && (g || offers.length) && kept.done !== 'all:' + r.startedAt &&
       newestPass() && Date.now() - at.getTime() < GIFT_KEEP_DAYS * 86400000 && !readingNow() && !revealing());
     el.hidden = !on;
-    el.innerHTML = !on ? '' : (g ? giftHtml(g, 'keep') : '<p class="side-title">Found in your first update</p>') + offersHtml(offers) +
-      (g ? '' : '<p><button type="button" class="btn" data-act="gift-skip">Not now</button></p>');
+    el.innerHTML = !on ? '' : g ? giftHtml(g, 'keep') + offersHtml(offers)
+      : offersHtml(offers, '<li class="offer"><b>Found in your first update</b><button type="button" class="btn" data-act="gift-skip">Not now</button></li>');
   }
 
   function keep(done) {
@@ -1511,7 +1481,7 @@
   function runButton(cls, label) {
     return st.running
       ? '<button type="button" class="btn' + cls + '" disabled data-viewer-off>' + icon('i-refresh', 'spin') + 'Updating...</button>'
-      : '<button type="button" class="btn' + cls + '" data-act="run" data-viewer-off>' + icon('i-refresh') + esc(label) + '</button>';
+      : '<button type="button" class="btn' + cls + '" data-act="run" data-viewer-off>' + esc(label) + '</button>';
   }
 
   /* The band's first row: the pass picker, the run, Ideas and Layout. */
@@ -1526,11 +1496,11 @@
     if (connected() && canRun() && newestPass()) html += runButton('', 'Update the board');
     if (canAsk()) {
       html += '<button type="button" class="btn" data-act="menu" data-menu="ideas" data-viewer-off aria-haspopup="true" aria-expanded="' +
-              (st.menu === 'ideas') + '">' + icon('i-bulb') + 'Ideas</button>';
+              (st.menu === 'ideas') + '">Ideas</button>';
     }
     if (V2) {
       html += '<button type="button" class="btn" data-act="menu" data-menu="layout" aria-haspopup="true" aria-expanded="' +
-              (st.menu === 'layout') + '">' + icon('i-layout') + 'Layout</button>';
+              (st.menu === 'layout') + '">Layout</button>';
     }
     if (st.menu === 'ideas' && canAsk()) {
       html += '<div class="menu" id="menu" role="menu" aria-label="Ideas"><h3>Ask the desk</h3>' +
@@ -1548,24 +1518,6 @@
     return html;
   }
 
-  /* A chat bubble with a hash, with a badge that matches the state. The same as Your Slack's. */
-  function artSlack(badge) {
-    var mark = badge === 'check'
-      ? '<circle cx="108" cy="24" r="14" fill="#2eb67d"/><path d="M101 24l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
-      : badge === 'alert'
-        ? '<circle cx="108" cy="24" r="14" fill="#ecb22e"/><path d="M108 16.5v9M108 30.5v.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>'
-        : '';
-    return '<svg class="art" viewBox="0 0 132 104" aria-hidden="true">' +
-      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#f4ecf5"/>' +
-      '<path d="M26 28h80a8 8 0 0 1 8 8v34a8 8 0 0 1-8 8H52l-16 12v-12H26a8 8 0 0 1-8-8V36a8 8 0 0 1 8-8z" fill="#fff" stroke="#4a154b" stroke-width="3" stroke-linejoin="round"/>' +
-      '<path d="M58 40l-5 28M74 40l-5 28M48 49h32M46 59h32" fill="none" stroke="#4a154b" stroke-width="3" stroke-linecap="round"/>' +
-      mark + '</svg>';
-  }
-
-  function cardHero(badge, title, inner) {
-    return '<div class="card-hero"><div><h2>' + esc(title) + '</h2>' + inner + '</div>' + artSlack(badge) + '</div>';
-  }
-
   function scheduleWords() {
     var j = findJob(PASS_JOB);
     return j && j.when && !paused(j) ? String(j.when) : '';
@@ -1573,9 +1525,9 @@
 
   function connectButton(title) {
     if (st.connecting) {
-      return '<button type="button" class="btn primary big" disabled>' + icon('i-refresh', 'spin') + 'Connecting...</button>';
+      return '<button type="button" class="btn primary" disabled>' + icon('i-refresh', 'spin') + 'Connecting...</button>';
     }
-    return '<button type="button" class="btn primary big" data-act="connect" data-viewer-off>' + icon('i-slack') + esc(title) + '</button>';
+    return '<button type="button" class="btn primary" data-act="connect" data-viewer-off>' + icon('i-slack') + esc(title) + '</button>';
   }
 
   function ownerNote() {
@@ -1591,7 +1543,7 @@
     var html = '';
     if (!V2) return esc(nextRunText());
     if (st.running) {
-      html = '<span class="pulse" aria-hidden="true"></span>' + (st.catchingUp
+      html = '<i class="pulse-dot" aria-hidden="true"></i>' + (st.catchingUp
         ? 'Catching up on the ' + clock(st.catchingUp) + ' update you missed'
         : 'Reading Slack') + '... ';
     } else {
@@ -1616,9 +1568,8 @@
     if (!c || c.example || !canAsk() || c.name !== c.files[0]) return '';
     var list = c.list.filter(function (it) { return overdue(it) && it.item && it.opened; });
     if (!list.length) return '';
-    return '<div class="actions"><button type="button" class="btn primary" data-act="nudge" data-viewer-off>' + icon('i-send') +
-      'Draft a nudge</button><p class="fine">' + esc(plural(list.length, 'request', 'requests')) + ' past your ' + esc(limitHours) +
-      ' hour limit. You see the words first, and nothing posts unless you say yes.</p></div>';
+    return '<div class="actions"><button type="button" class="btn primary" data-act="nudge" data-viewer-off>Draft a nudge</button>' +
+      '<p class="fine">Past your ' + esc(limitHours) + ' hour limit.</p></div>';
   }
 
   /* What the band says under its first row. */
@@ -1628,37 +1579,30 @@
     var s = slackState(), g = st.slack, problem = g && g.problem && g.problem.text ? g.problem.text : '';
     var first = failInfo();
     if (V2 && s === 'not-available-here') {
-      return cardHero('', 'Slack can’t be connected here yet',
-        (problem ? '<p class="lead">' + esc(problem) + '</p>' : '') + '<p class="fine">Below is an example from a made-up team.</p>');
+      return '<h2>Slack can’t be connected here yet</h2>' + (problem ? '<p class="lead">' + esc(problem) + '</p>' : '');
     }
     if (V2 && (s === 'needs-sign-in' || s === 'needs-you')) {
-      return cardHero('alert', 'Slack needs you',
-        '<p class="lead">' + esc(problem || 'Slack stopped letting Cabinet in.') + '</p>' +
-        (canConnect() ? '<div class="actions">' + connectButton('Fix the connection') + '</div>' : ownerNote()) + connectNoteHtml());
+      return '<h2>Slack needs you</h2><p class="lead">' + esc(problem || 'Slack stopped letting Cabinet in.') + '</p>' +
+        (canConnect() ? '<div class="actions">' + connectButton('Fix the connection') + '</div>' : ownerNote()) + connectNoteHtml();
     }
     if (V2 && s === 'not-added') {
-      return cardHero('', 'See what your support channel still owes',
-        '<p class="lead">Connect Slack and this board shows every open request, who has it, and how long it has waited.</p>' +
+      return '<h2>See what your support channel still owes</h2>' +
         (canConnect() ? '<div class="actions">' + connectButton('Connect Slack') + '<p class="fine">' +
-          (st.connecting ? 'Finish in the window Cabinet opened.' : 'Cabinet signs in as you and reads only the channels you choose.') + '</p></div>' : ownerNote()) +
-        connectNoteHtml() +
-        '<ul class="steps"><li>' + icon('i-check') + 'Only reads, never posts on its own</li><li>' + icon('i-check') +
-        'Private channels work too</li><li>' + icon('i-check') + 'Below: an example from a made-up team</li></ul>');
+          (st.connecting ? 'Finish in the window Cabinet opened.' : 'Cabinet signs in as you and reads only the channels you choose, private ones too.') + '</p></div>' : ownerNote()) +
+        connectNoteHtml();
     }
     if (V2 && connected() && !newestPass()) {
       if (first && !st.running) {
-        return cardHero('alert', 'Your first update didn’t work',
-          '<p class="lead">The update ' + esc(dayAtMid(first.at)) + ' did not finish.</p>' +
-          (canRun() ? '<div class="actions">' + runButton(' primary big', 'Try again') + '</div>' : ''));
+        return '<h2>Your first update didn’t work</h2><p class="lead">The update ' + esc(dayAtMid(first.at)) + ' did not finish.</p>' +
+          (canRun() ? '<div class="actions">' + runButton(' primary', 'Try again') + '</div>' : '');
       }
       var sched = scheduleWords();
-      return cardHero('check', 'Slack is connected. Let’s fill your board.',
-        '<p class="lead">Your first update takes a few minutes.' +
-        (sched ? ' After that it happens by itself: ' + esc(sched) + '.' : ' After that it happens by itself.') + '</p>' +
-        (canRun() ? '<div class="actions">' + runButton(' primary big', 'Update the board') + '</div>' : ''));
+      return '<h2>Slack is connected</h2><p class="lead">Your first update takes a few minutes.' +
+        (sched ? ' Then ' + esc(sched.charAt(0).toLowerCase() + sched.slice(1)) + '.' : '') + '</p>' +
+        (canRun() ? '<div class="actions">' + runButton(' primary', 'Update the board') + '</div>' : '');
     }
     var c = st.current;
-    if (!c) return '<h2>Your support board shows up here</h2>';
+    if (!c) return '<h2>No updates yet</h2>';
     var open = c.list.filter(function (it) { return it.key !== 'done'; }).length;
     var head = c.meta.headline || (open ? plural(open, 'open request', 'open requests') : c.list.length ? 'Everything is done' : 'Nothing on the board');
     var line = routineLine();
@@ -1672,8 +1616,7 @@
       : st.running ? 'Reading your Slack now. Your own board replaces it when this first update is done.'
       : connected() ? 'Your first update replaces it.'
       : 'Connect Slack and your own board replaces it.';
-    ribbonEl.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p><b>Northwind</b>, a made-up team. ' +
-      'None of this is your Slack. ' + rest + '</p></div>';
+    ribbonEl.innerHTML = '<div class="ribbon"><p><b>Example.</b> Northwind is a made-up team. ' + rest + '</p></div>';
   }
 
   /* An update that failed after the newest pass was written, or null. */
@@ -1690,12 +1633,12 @@
   /* Says so, with Try again, instead of letting the board look fresh. */
   function failHtml() {
     if (!V2) return '';
-    if (st.runNote) return '<div class="notice">' + icon('i-alert') + '<p dir="auto">' + esc(st.runNote) + '</p></div>';
+    if (st.runNote) return '<div class="notice"><p dir="auto">' + esc(st.runNote) + '</p></div>';
     var f = st.running ? null : failInfo();
     /* With no pass yet, the band says it. */
     if (!f || !f.shown) return '';
-    return '<div class="notice">' + icon('i-alert') + '<p>The update ' + esc(dayAtMid(f.at)) + ' did not finish. The board below is from ' +
-      esc(dayAtMid(f.shown).replace(/^on /, '')) + '.</p>' + (canRun() ? runButton(' small', 'Try again') : '') + '</div>';
+    return '<div class="notice"><p>The update ' + esc(dayAtMid(f.at)) + ' did not finish. The board below is from ' +
+      esc(dayAtMid(f.shown).replace(/^on /, '')) + '.</p>' + (canRun() ? runButton('', 'Try again') : '') + '</div>';
   }
 
   /* Everything outside the board, from state. Cheap, so it runs on every change. */

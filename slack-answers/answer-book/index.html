@@ -36,15 +36,20 @@
 <title>Answer Book</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
-  /* The tokens are Your Slack's, so the three Slack pages read as one product. */
+  /* One system across the three Slack pages. A block is a band, card, notice or ask band. */
   :root {
+    --pad: 20px;  /* inner padding of every block */
+    --gap: 16px;  /* every gap between blocks */
+    --r: 14px;    /* every block */
+    --r-c: 10px;  /* every control */
+    --h-c: 40px;  /* every button, field and filter */
+
     --page: #ffffff;
     --panel: #f7f6f8;
     --panel-2: #efedf1;
     --line: #e7e4ea;
-    --line-2: #d6d1dc;
     --ink: #1d1c1d;
     --ink-2: #454245;
     --ink-3: #696469;
@@ -52,340 +57,306 @@
     --plum: #4a154b;
     --plum-2: #611f69;
     --plum-tint: #f4ecf5;
-    --red: #e01e5a;
     --red-ink: #b3134a;
-    --red-tint: #fdeaf0;
-    --blue-ink: #116a91;
     --green: #2eb67d;
     --green-ink: #1a7a52;
     --green-tint: #e7f6ef;
-    --amber: #ecb22e;
-    --amber-ink: #7d5a00;
-    --amber-tint: #fdf5e1;
 
-    --shadow-1: 0 1px 2px rgba(29, 28, 29, .06);
-    --shadow-2: 0 1px 2px rgba(29, 28, 29, .05), 0 14px 36px -18px rgba(29, 28, 29, .28);
+    --shadow: 0 1px 2px rgb(29 28 29 / .06), 0 4px 16px -6px rgb(29 28 29 / .08);
+    --shadow-pop: 0 2px 6px rgb(29 28 29 / .1), 0 14px 36px -12px rgb(29 28 29 / .3);
     --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    /* The rows' fixed columns. Each row is its own grid, so these are widths, not auto. */
+    --col-count: 46px;
+    --col-change: 100px;
+    --col-state: 80px;
+    --col-chev: 16px;
+    --col-gap: 12px;
   }
 
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; background: var(--page); color: var(--ink);
-    font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+    margin: 0; background: var(--panel); color: var(--ink);
+    font: 14.5px/1.45 var(--font); -webkit-font-smoothing: antialiased;
     font-feature-settings: "cv11", "ss01";
   }
   button, input, select { font: inherit; color: inherit; }
   button { cursor: pointer; }
-  a { color: var(--blue-ink); }
-  :focus-visible { outline: 3px solid color-mix(in srgb, var(--plum-2) 45%, transparent); outline-offset: 2px; border-radius: 10px; }
-  .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-  .num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  a { color: var(--plum-2); }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--plum-2) 45%, transparent); outline-offset: 2px; }
+  .icon { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .sprite { position: absolute; width: 0; height: 0; }
 
   /* A viewer may not ask, run or connect: those buttons are not shown at all. */
   html[data-role="viewer"] [data-viewer-off] { display: none !important; }
 
-  /* ── The band: Slack's aubergine across the top. Slack's mark, the page's name and the
-     state on its first row, and the page's headline big in white under them. ── */
-  .bar {
-    width: calc(100% - 56px); max-width: 1224px; margin: 22px auto 0; border-radius: 18px; color: #fff;
-    background: radial-gradient(620px 300px at 100% 0%, #5b1c5d, transparent 70%), var(--plum);
-  }
-  .bar-in { padding: 18px clamp(20px, 3.4vw, 36px); }
-  .bar-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
-  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .mark { width: 40px; height: 40px; border-radius: 11px; background: #fff; display: grid; place-items: center; flex: none; }
-  .mark .icon { width: 22px; height: 22px; stroke-width: 2.2; }
-  .page-name { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
-  .bar :focus-visible { outline-color: #fff; }
-  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  .status > div { position: relative; }
-  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, .14); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap; }
-  .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: #cdbdce; }
-  .pill.ok .dot { background: #4fd39b; }
-  .pill.warn .dot { background: var(--amber); }
-  .pill.off .dot { background: var(--red); }
-  .pulse { animation: pulse 1.6s ease-in-out infinite; }
-  @keyframes pulse { 50% { opacity: .35; } }
-  .updated { color: rgba(255, 255, 255, .8); font-size: 14px; }
+  /* The page is one column of blocks. Anything with nothing to say takes no gap. */
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); max-width: 1280px; margin: 0 auto; padding: 28px; }
+  #notes:empty, #reading:empty, #facts:empty { display: none; }
+  #notes, #root, .gift-keep { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 
+  .lane, .notice, .reading, .gift, .offers, .loading { border-radius: var(--r); background: var(--page); box-shadow: var(--shadow); }
+
+  /* ── Buttons ─────────────────────────────────────────────────────────── */
   .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px;
-    border-radius: 11px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink);
-    font-weight: 600; font-size: 15px; text-decoration: none; white-space: nowrap;
-    box-shadow: var(--shadow-1); transition: background .15s ease, border-color .15s ease, transform .1s ease;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: var(--h-c); padding: 0 14px;
+    border: 0; border-radius: var(--r-c); background: var(--panel-2); color: var(--ink);
+    font-weight: 600; text-decoration: none; white-space: nowrap;
   }
-  .btn:hover { background: var(--panel); border-color: #c4bdcb; }
-  .btn:active { transform: translateY(1px); }
-  .btn[disabled] { cursor: default; opacity: .6; transform: none; }
-  .btn.primary { background: var(--plum); border-color: var(--plum); color: #fff; box-shadow: 0 8px 18px -10px rgba(74, 21, 75, .9); }
-  .btn.primary:hover { background: var(--plum-2); border-color: var(--plum-2); }
-  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .btn.dark:hover { background: #333033; }
-  .btn.big { min-height: 52px; padding: 13px 24px; font-size: 17px; border-radius: 13px; }
-  .btn.small { min-height: 38px; padding: 7px 12px; font-size: 14px; }
-  .btn.small .icon { width: 17px; height: 17px; }
-  .status .btn { min-height: 40px; padding: 8px 14px; font-size: 14px; }
-  /* On the band what can be pressed is a light pill, and a big one a white pill. */
-  .bar .btn { border: 0; border-radius: 999px; background-color: rgba(255, 255, 255, .9); color: var(--ink); box-shadow: none; }
-  .bar .btn:hover:not([disabled]) { background-color: #fff; }
-  .bar .btn.big { background-color: #fff; color: var(--plum); }
-  .bar .btn.ghost { background: transparent; color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .45); }
-  .bar .btn.ghost:hover:not([disabled]) { background: rgba(255, 255, 255, .12); }
+  .btn:hover { background: var(--line); }
+  .btn[disabled] { cursor: default; opacity: .6; }
+  .btn.primary { background: var(--plum); color: #fff; }
+  .btn.primary:hover { background: var(--plum-2); }
+  .btn.text { padding: 0 10px; background: transparent; color: var(--ink-2); }
+  .btn.text:hover { background: var(--panel); }
+  /* On aubergine the quiet button is a muted fill and the primary is white. */
+  .bar .btn, .ask .btn { background: rgb(255 255 255 / .14); color: #fff; }
+  .bar .btn:hover:not([disabled]), .ask .btn:hover:not([disabled]) { background: rgb(255 255 255 / .22); }
+  .bar .btn.primary { background: #fff; color: var(--plum); }
+  .bar .btn.primary:hover:not([disabled]) { background: var(--plum-tint); }
   .spin { animation: spin 1.2s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* The headline is the band. Its line a little softer: white keeps 13:1 on the aubergine,
-     the softer line more than 7:1. */
-  .lead { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: center; margin-top: 26px; padding-bottom: 10px; }
-  .lead.pictured { grid-template-columns: minmax(0, 1fr) auto; }
-  .lead h2 { margin: 0; font-size: clamp(34px, 4.6vw, 58px); line-height: 1.04; font-weight: 800; letter-spacing: -.035em; text-wrap: balance; overflow-wrap: anywhere; }
-  .lead p { margin: 12px 0 0; font-size: 18px; color: rgba(255, 255, 255, .9); max-width: 70ch; }
-  .lead .fine { font-size: 15px; color: rgba(255, 255, 255, .8); margin-top: 8px; }
-  .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-  .steps { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; padding: 0; list-style: none; color: rgba(255, 255, 255, .9); font-size: 15px; }
-  .steps li { display: flex; align-items: center; gap: 8px; }
-  .steps .icon { color: #4fd39b; width: 18px; height: 18px; }
-  .art { width: 132px; height: 104px; }
+  /* ── The band: flat aubergine. Slack's mark, the page's name and the state on its first
+     row, and the page's headline under them. White keeps 13:1 on it, the softer line 7:1. ── */
+  .bar { padding: var(--pad); border-radius: var(--r); background: var(--plum); color: #fff; }
+  .bar :focus-visible { outline-color: #fff; }
+  .bar-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px var(--gap); }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark { display: grid; place-items: center; flex: none; width: var(--h-c); height: var(--h-c); border-radius: var(--r-c); background: #fff; }
+  .mark .icon { width: 22px; height: 22px; stroke-width: 2.2; }
+  .page-name { margin: 0; font-size: 16px; font-weight: 700; }
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .status > div { position: relative; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border-radius: 999px; background: rgb(255 255 255 / .14); color: #fff; font-weight: 600; font-size: 13px; white-space: nowrap; }
+  /* A dot only where it means something: white for connected, red for needs you. */
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+  .pill.warn .dot { background: #ff7da6; }
+  .updated { color: rgb(255 255 255 / .8); font-size: 13px; }
+
+  .lead { margin-top: var(--gap); }
+  .lead h2 { margin: 0; font-size: 34px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; overflow-wrap: anywhere; }
+  .lead p { margin: 8px 0 0; max-width: 70ch; color: rgb(255 255 255 / .9); }
+  .lead .fine { font-size: 13px; color: rgb(255 255 255 / .8); }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: var(--gap); }
 
   .pop {
     position: absolute; inset-inline-end: 0; top: calc(100% + 8px); z-index: 20; width: 340px;
-    max-width: calc(100vw - 32px); padding: 6px; border-radius: 14px; background: var(--page); color: var(--ink);
-    border: 1px solid var(--line); box-shadow: var(--shadow-2);
+    max-width: calc(100vw - 32px); padding: 8px; border-radius: var(--r); background: var(--page); color: var(--ink);
+    box-shadow: var(--shadow-pop);
   }
-  .pop h2 { margin: 8px 10px 6px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
-  .pop .item { display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px; background: transparent; text-align: start; font-size: 14.5px; font-weight: 600; line-height: 1.4; color: var(--ink); }
-  .pop .item:hover { background: var(--plum-tint); }
-  .pop .check { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; font-size: 14.5px; cursor: pointer; }
+  .pop h2 { margin: 6px 10px; font-size: 13px; font-weight: 700; color: var(--ink-3); }
+  .pop .item { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: var(--r-c); background: transparent; text-align: start; font-weight: 500; color: var(--ink); }
+  .pop .item:hover { background: var(--panel); }
+  .pop .check { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-c); cursor: pointer; }
   .pop .check:hover { background: var(--panel); }
   .pop input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--plum); }
-  .pop .fine { margin: 4px 10px 8px; font-size: 13.5px; color: var(--ink-3); }
-  .pop .end { display: flex; justify-content: flex-end; padding: 6px 4px 2px; border-top: 1px solid var(--line); }
+  .pop .fine { margin: 6px 10px; font-size: 13px; color: var(--ink-3); }
+  .pop .end { display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid var(--line); }
 
-  /* ── The page ────────────────────────────────────────────────────────── */
-  .wrap { max-width: 1280px; margin: 0 auto; padding: 22px 28px 40px; }
-  #notes { display: grid; gap: 12px; }
-  #notes:not(:empty) { margin-bottom: 18px; }
-  .ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border-radius: 12px; background: var(--amber-tint); border: 1px solid #f3e0a8; }
-  .ribbon p { margin: 0; color: var(--ink-2); font-size: 15px; flex: 1 1 280px; }
-  .ribbon .icon { color: var(--amber-ink); }
-  .tag-example { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: var(--red-tint); color: var(--ink); border: 1px solid #f6c3d3; }
-  .notice .icon { color: var(--red-ink); margin-top: 2px; }
-  .notice p { margin: 0; }
-  .notice .actions { margin-top: 10px; gap: 10px; }
+  /* ── Notices ─────────────────────────────────────────────────────────── */
+  .notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px var(--gap); padding: var(--pad); color: var(--ink-2); }
+  .notice p { flex: 1 1 280px; margin: 0; min-width: 0; }
+  .notice b { color: var(--ink); }
+  .notice.bad b { color: var(--red-ink); }
+  .notice .actions { margin-top: 0; }
+  .notice .pulse-dot { order: 1; }
 
-  /* The search field is the page's main element: the magnifier is drawn in the background so
-     the input stays a plain input. */
-  .find { width: 100%; min-height: 56px; padding: 12px 18px 12px 50px; border-radius: 14px; border: 1px solid var(--line-2); font-size: 17px;
-    background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23696469' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 18px center / 20px; }
+  /* ── The book ────────────────────────────────────────────────────────── */
+  .loading { margin: 0; padding: var(--pad); color: var(--ink-3); }
+
+  /* The magnifier is drawn in the background so the input stays a plain input. */
+  .find { width: 100%; height: var(--h-c); padding: 0 var(--pad) 0 40px; border-radius: var(--r-c); border: 1px solid var(--line);
+    background: var(--page) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23696469' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 13px center / 18px; }
   .find::placeholder { color: var(--ink-3); }
-  .find:focus { outline: none; background-color: var(--page); border-color: var(--plum-2); box-shadow: 0 0 0 3px var(--plum-tint); }
+  .find:focus { outline: none; border-color: var(--plum-2); box-shadow: 0 0 0 3px var(--plum-tint); }
   .find::-webkit-search-cancel-button { -webkit-appearance: none; }
 
-  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 14px; min-height: 40px; }
-  .chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-  .chip { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 6px 13px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--page); font-size: 14px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+  /* #tools is redrawn on its own, so the count beside it keeps its place and its live region. */
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: var(--h-c); }
+  #tools { display: contents; }
+  .total { order: 1; color: var(--ink-3); font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; height: var(--h-c); padding: 0 12px; border-radius: var(--r-c); border: 1px solid var(--line); background: var(--page); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
   .chip:hover { background: var(--panel); }
   .chip[aria-pressed="true"] { background: var(--plum-tint); border-color: var(--plum-2); color: var(--plum); }
-  .chip .c { color: var(--ink-3); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .chip .c { color: var(--ink-3); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
   .chip[aria-pressed="true"] .c { color: var(--plum); }
-  .chip .d { width: 8px; height: 8px; border-radius: 50%; }
-  .chip .icon { width: 16px; height: 16px; }
-  .d.settled { background: var(--green); } .d.shifting { background: var(--amber); } .d.open { background: var(--red); }
-  .sorter { display: inline-flex; align-items: center; gap: 8px; margin-inline-start: auto; font-size: 14px; color: var(--ink-3); }
+  .sorter { order: 2; display: flex; align-items: center; gap: 8px; margin-inline-start: auto; color: var(--ink-3); }
   .sorter select {
-    -webkit-appearance: none; appearance: none; min-height: 38px; padding: 6px 34px 6px 14px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 14px; font-weight: 600; color: var(--ink);
+    -webkit-appearance: none; appearance: none; height: var(--h-c); padding: 0 34px 0 12px; border-radius: var(--r-c); border: 1px solid var(--line); font-weight: 600; color: var(--ink);
     background: var(--page) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d1c1d' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 14px;
   }
 
-  .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 20px; }
+  /* The list and the side column are one row with one top and one bottom. On a long list
+     the last card's words stay in view while the card itself runs to the bottom. */
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+  .main { display: grid; min-width: 0; }
   .rail { display: none; }
   @media (min-width: 1040px) {
     .layout.railed { grid-template-columns: minmax(0, 1fr) 320px; }
-    .layout.railed .rail { display: grid; gap: 22px; position: sticky; top: 22px; }
+    .layout.railed .rail { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+    .rail .lane:last-child { flex: 1; }
+    .rail .lane:last-child .lane-in { position: sticky; top: var(--gap); }
   }
 
-  .lane { border: 1px solid var(--line); border-radius: 16px; background: var(--page); overflow: hidden; box-shadow: var(--shadow-1); }
-  .lane-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 12px; border-bottom: 1px solid var(--line); }
-  .lane-head h3 { margin: 0; flex: 1; min-width: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
-  .lane-head .total { color: var(--ink-3); font-size: 14px; font-weight: 600; white-space: nowrap; }
-  .lane-empty { padding: 18px; color: var(--ink-3); margin: 0; }
-  .lane-empty .btn { margin-top: 12px; display: flex; width: fit-content; }
-  button.lane-foot { display: block; width: 100%; padding: 12px 18px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--plum-2); font-size: 14.5px; font-weight: 700; text-align: center; }
-  button.lane-foot:hover { background: var(--plum-tint); }
+  .lane { min-width: 0; overflow: clip; }
+  .lane-head { padding: var(--pad) var(--pad) 8px; }
+  .lane-head h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .lane-empty { margin: 0; padding: var(--pad); color: var(--ink-3); }
+  .lane-empty .btn { display: flex; width: fit-content; margin-top: 12px; }
+  .lane-foot { display: block; width: 100%; padding: 12px var(--pad); border: 0; background: transparent; color: var(--plum-2); font-weight: 600; text-align: start; }
+  .lane-foot:hover { background: var(--panel); }
 
   /* The rows. Offscreen ones cost nothing to lay out, and a row's body is only drawn when
-     it is opened, so a long list stays quick to search and to scroll. */
-  .row { border-bottom: 1px solid var(--line); content-visibility: auto; contain-intrinsic-size: auto 78px; }
+     it is opened, so a long list stays quick to search and to scroll. Every cell names its
+     own column, so a row without a change tag leaves that column empty and nothing moves. */
+  .row { border-bottom: 1px solid var(--line); content-visibility: auto; contain-intrinsic-size: auto 67px; }
   .row:last-child { border-bottom: 0; }
-  .row summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 3px 14px; align-items: center; padding: 13px 18px; }
+  .row summary {
+    display: grid; align-items: center; gap: 4px var(--col-gap); padding: 12px var(--pad); list-style: none; cursor: pointer;
+    grid-template-columns: var(--col-count) minmax(0, 1fr) var(--col-change) var(--col-state) var(--col-chev);
+  }
   .row summary::-webkit-details-marker { display: none; }
-  .row summary:hover, .row[open] summary { background: var(--panel); }
+  .row summary:hover { background: var(--panel); }
   .row summary:focus-visible { outline-offset: -3px; }
-  .times { display: inline-grid; place-items: center; min-width: 38px; height: 30px; padding: 0 8px; border-radius: 999px; background: var(--plum-tint); color: var(--plum); font-size: 14.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .times.hot { background: var(--red-tint); color: var(--red-ink); }
-  .txt { min-width: 0; }
-  .q { display: block; font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
-  .pv { display: block; color: var(--ink-2); font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .times { grid-column: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .txt { grid-column: 2; min-width: 0; }
+  .q { display: block; font-weight: 700; overflow-wrap: anywhere; }
+  .pv { display: block; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row[open] .pv { display: none; }
-  .tags { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
-  .tags .chev { width: 16px; height: 16px; color: var(--ink-3); transition: transform .15s; }
-  .row[open] .tags .chev { transform: rotate(180deg); }
-  .tag { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
-  .tag.state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .row .chg { grid-column: 3; }
+  .row .state { grid-column: 4; }
+  .chev { grid-column: 5; width: 16px; height: 16px; color: var(--ink-3); transition: transform .15s; }
+  .row[open] .chev { transform: rotate(180deg); }
+  /* A status, never a button. */
+  .tag { justify-self: start; max-width: 100%; padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .s-settled { color: var(--green-ink); background: var(--green-tint); }
-  .s-shifting { color: var(--amber-ink); background: var(--amber-tint); }
-  .s-open { color: var(--red-ink); background: var(--red-tint); }
-  .s-other { color: var(--ink-3); background: var(--panel); }
-  .tag.chg { color: var(--plum); background: var(--plum-tint); }
-  .tag.pin { color: var(--red-ink); background: var(--red-tint); }
+  /* Green is for done. Every other state is a plain word, on the same text edge. */
+  .s-shifting, .s-open, .s-other { color: var(--ink-2); }
+  .tag.chg { color: var(--ink-2); background: var(--panel-2); }
+  .tag.pin { margin-inline-start: 8px; color: var(--plum); background: var(--plum-tint); }
 
-  .a { padding: 2px 18px 16px 78px; background: var(--panel); }
-  .a p { margin: 0; max-width: 68ch; font-size: 15.5px; color: var(--ink); overflow-wrap: anywhere; }
+  /* An opened answer starts under the question. */
+  .a { padding: 0 var(--pad) var(--pad) calc(var(--pad) + var(--col-count) + var(--col-gap)); }
+  .a p { margin: 0; max-width: 68ch; overflow-wrap: anywhere; }
   .a p + p { margin-top: 8px; }
-  .a .say { margin-top: 10px; padding-inline-start: 12px; border-inline-start: 2px solid currentColor; font-size: 14.5px; }
-  .say.pinned, .say.open { color: var(--red-ink); }
-  .say.shifting { color: var(--amber-ink); }
-  .sec { margin-top: 14px; max-width: 68ch; }
-  .sec h4 { margin: 0 0 4px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
+  .a .say { margin-top: 8px; padding-inline-start: 12px; border-inline-start: 2px solid currentColor; }
+  .say { color: var(--plum); }
+  .sec { margin-top: 12px; max-width: 68ch; }
+  .sec h4 { margin: 0 0 2px; font-size: 13px; font-weight: 700; color: var(--ink-3); }
   .sec ul { margin: 0; padding-inline-start: 18px; }
-  .sec li, .sec p { font-size: 14.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .sec li, .sec p { color: var(--ink-2); overflow-wrap: anywhere; }
   .sec a { font-weight: 600; }
-  .a .facts-row { margin-top: 14px; font-size: 13.5px; color: var(--ink-3); }
-  .a .row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  mark { background: #fbe9b7; color: inherit; border-radius: 3px; padding: 0 1px; }
+  .a .facts-row { margin-top: 12px; font-size: 13px; color: var(--ink-3); }
+  .row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  mark { background: var(--plum-tint); color: inherit; border-radius: 3px; padding: 0 1px; }
 
-  .jump { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; width: 100%; padding: 9px 18px; border: 0; background: transparent; text-align: start; font-size: 14.5px; font-weight: 600; line-height: 1.35; color: var(--ink); }
+  .jump { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; width: 100%; padding: 8px var(--pad); border: 0; background: transparent; text-align: start; font-weight: 600; color: var(--ink); }
   .jump:hover { background: var(--panel); }
-  .jump b { color: var(--red-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
-  .rail ol { list-style: none; margin: 0; padding: 6px 0; }
-  .bars { display: grid; gap: 8px; padding: 14px 18px; font-size: 14.5px; }
-  .bars div { display: grid; grid-template-columns: 72px minmax(0, 1fr) 32px; gap: 10px; align-items: center; }
-  .bars .num { text-align: end; }
-  .track { height: 7px; border-radius: 4px; background: var(--panel-2); overflow: hidden; }
-  .track i { display: block; height: 100%; border-radius: 4px; }
-  .track i.settled { background: var(--green); } .track i.shifting { background: var(--amber); } .track i.open { background: var(--red); }
-  .rail .why { margin: 0; padding: 14px 18px; font-size: 14.5px; font-weight: 600; }
-  .rail .why span { display: block; margin-top: 6px; color: var(--ink-3); font-weight: 400; }
+  .jump b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rail ol { list-style: none; margin: 0; padding: 0 0 12px; }
+  .why { margin: 0; padding: 0 var(--pad) var(--pad); font-weight: 600; }
+  .why span { display: block; margin-top: 4px; color: var(--ink-3); font-weight: 400; }
 
-  .blank { padding: 36px 28px; text-align: center; }
-  .blank h3 { margin: 0 0 6px; font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
-  .blank p { margin: 0 auto; max-width: 46ch; color: var(--ink-3); }
-  .loading { color: var(--ink-3); font-size: 17px; margin: 0; }
+  .blank { padding: var(--pad); }
+  .blank p { margin: 0; max-width: 60ch; color: var(--ink-2); }
 
   /* ── Ask ─────────────────────────────────────────────────────────────── */
-  .ask { margin-top: 22px; padding: 22px; border-radius: 18px; background: var(--plum); color: #fff; }
-  .ask h2 { margin: 0 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
-  .ask > p { margin: 0 0 4px; color: #e3d3e4; font-size: 15px; }
-  .ask form { display: flex; gap: 10px; margin-top: 10px; }
-  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 12px; border: 1px solid #7a4a7b; background: #3a103b; color: #fff; padding: 10px 14px; font-size: 16px; }
+  .ask { padding: var(--pad); border-radius: var(--r); background: var(--plum); color: #fff; }
+  .ask :focus-visible { outline-color: #fff; }
+  .ask h2 { margin: 0; font-size: 16px; font-weight: 700; }
+  .ask > p { margin: 4px 0 0; color: rgb(255 255 255 / .9); }
+  .ask form { display: flex; gap: 8px; margin-top: 12px; }
+  .ask input { flex: 1; min-width: 0; height: var(--h-c); padding: 0 12px; border-radius: var(--r-c); border: 1px solid #7a4a7b; background: #3a103b; color: #fff; }
   .ask input::placeholder { color: #c6a9c7; }
-  .ask input:focus { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .25); }
-  .ask .btn { min-height: 50px; background: #fff; border-color: #fff; color: var(--plum); }
-  .ask .btn:hover { background: var(--plum-tint); }
-  .ask .note { margin: 10px 0 0; font-size: 14px; color: #e3d3e4; min-height: 1.5em; }
-  .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 20px; margin-top: 18px; font-size: 14px; color: var(--ink-3); }
+  .ask input:focus { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgb(255 255 255 / .25); }
+  .ask .note { margin-top: 8px; font-size: 13px; }
+  .ask .note:empty { display: none; }
+  .facts { display: flex; flex-wrap: wrap; gap: 4px var(--gap); padding-inline: var(--pad); font-size: 13px; color: var(--ink-3); }
 
-  .toast { position: fixed; inset-inline-start: 50%; bottom: 24px; z-index: 30; max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 11px; background: var(--ink); color: #fff; font-size: 14.5px; opacity: 0; pointer-events: none; transform: translate(-50%, 12px); transition: opacity .2s ease, transform .2s ease; }
-  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast { position: fixed; inset-inline-start: 50%; bottom: 24px; z-index: 30; max-width: calc(100vw - 32px); padding: 8px 14px; border-radius: var(--r-c); background: var(--ink); color: #fff; opacity: 0; pointer-events: none; transform: translateX(-50%); transition: opacity .2s ease; }
+  .toast.show { opacity: 1; }
 
   /* ── The first sweep, told as it happens: one line for each thing found ── */
-  .reading { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; padding: 26px 28px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fff, #fbfafc); box-shadow: var(--shadow-2); }
-  .reading h2 { margin: 0; font-size: clamp(26px, 3vw, 34px); line-height: 1.1; font-weight: 800; letter-spacing: -.03em; }
-  .reading > p { margin: 0 0 12px; color: var(--ink-3); font-size: 15.5px; }
-  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-  .read-lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 16.5px; color: var(--ink-2); overflow-wrap: anywhere; animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; }
+  .read-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+  .reading { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 4px; padding: var(--pad); }
+  .reading h2 { margin: 0; font-size: 16px; font-weight: 700; }
+  .reading > p { margin: 0 0 12px; color: var(--ink-2); }
+  .read-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .read-lines li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--ink-2); overflow-wrap: anywhere; }
   .read-lines li b { color: var(--ink); font-weight: 700; }
-  .read-lines li .icon { width: 20px; height: 20px; margin-top: 2px; color: var(--green); stroke-width: 2.2; }
-  .read-lines li.old { animation: none; }
+  .read-lines li .icon { margin-top: 2px; color: var(--green); stroke-width: 2.2; }
   .read-lines li.now { color: var(--ink-3); }
-  .pulse-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--plum-2); animation: read-pulse 1.2s ease-in-out infinite; }
-  .read-lines li.now .pulse-dot { margin: 7px 0 0 5px; }
-  .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 14px; }
-  @keyframes read-pulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
-  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  .read-strip { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 12px; background: var(--plum-tint); color: var(--ink-2); font-size: 14.5px; }
+  .read-lines li.now .pulse-dot { margin: 6px 0 0 5px; }
+  /* The live state: the one thing on the page that moves by itself. */
+  .pulse-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--plum-2); animation: read-pulse 1.2s ease-in-out infinite; }
+  @keyframes read-pulse { 50% { opacity: .3; } }
+  .reading .fine { margin: 12px 0 0; color: var(--ink-3); font-size: 13px; }
   /* While the first sweep reads, the reading is the whole page: no made-up example under it. */
   .first-read #root, .first-read #gift-keep, .first-read #askbox, .first-read #facts { display: none !important; }
-  .read-page { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 22px; }
   @media (min-width: 980px) {
-    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+    .read-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .read-page.solo { grid-template-columns: minmax(0, 1fr); }
   }
-  .side-list { display: grid; align-content: start; gap: 14px; }
-  .side-title { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
-  .offers { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--page); overflow: hidden; }
-  .offer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .side-list { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+  .side-list > :last-child { flex: 1; }
+  .offers { overflow: clip; }
+  .offer-list { list-style: none; margin: 0; padding: 0; }
+  .offers-title { padding: var(--pad) var(--pad) 8px; font-size: 16px; font-weight: 700; }
+  .offer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px var(--gap); align-items: center; padding: 12px var(--pad); border-bottom: 1px solid var(--line); }
   .offer:last-child { border-bottom: 0; }
-  .offer b { display: block; font-size: 15.5px; overflow-wrap: anywhere; }
-  .offer .sub { display: block; color: var(--ink-3); font-size: 14px; }
-  .asked { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 700; color: var(--green-ink); }
-  .asked .icon { width: 18px; height: 18px; }
-  .gift { display: grid; align-content: center; gap: 14px; padding: 26px 28px; border: 1px solid var(--line); border-top: 4px solid var(--plum); border-radius: 18px; background: var(--page); box-shadow: var(--shadow-2); }
-  .gift .eyebrow { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--plum-2); }
-  .gift h3 { margin: 0; max-width: 30ch; font-size: clamp(22px, 2.4vw, 28px); line-height: 1.18; font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; }
-  .gift h3 b { color: var(--plum); }
+  .offer b { overflow-wrap: anywhere; }
+  .offers-foot { padding: 12px var(--pad); }
+  .asked { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 700; color: var(--green-ink); }
+  .gift { display: grid; align-content: start; gap: 8px; padding: var(--pad); }
+  .gift .eyebrow { margin: 0; font-size: 13px; color: var(--ink-3); }
+  .gift h3 { margin: 0; font-size: 16px; line-height: 1.3; font-weight: 700; overflow-wrap: anywhere; }
   .gift h3 .n { white-space: nowrap; }
-  .gift .why { margin: 0; color: var(--ink-2); font-size: 16px; max-width: 56ch; }
-  .gift .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  .gift .fine { margin: 0; color: var(--ink-3); font-size: 14px; }
-  .gift.looking { justify-items: start; min-height: 220px; border: 1px dashed var(--line-2); background: var(--panel); box-shadow: none; }
-  .gift.looking h3 { color: var(--ink-3); font-weight: 700; }
+  .gift .why-line { margin: 0; color: var(--ink-2); }
+  .gift .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+  .gift.looking { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--gap); }
+  .gift.looking .pulse-dot { order: 1; margin-top: 6px; }
+  .gift.looking h3 { color: var(--ink-3); font-size: 14.5px; font-weight: 600; }
   @media (max-width: 979px) { .gift.looking { display: none; } }
-  .gift-keep { display: grid; gap: 12px; margin-top: 22px; }
 
   @media (max-width: 720px) {
-    .row summary { grid-template-columns: 40px minmax(0, 1fr); align-items: start; gap: 4px 12px; padding: 12px 14px; }
-    .tags { grid-column: 2; justify-content: flex-start; }
-    .tags .chev { display: none; }
-    .a { padding: 2px 14px 14px; }
-    .sorter { margin-inline-start: 0; }
-    .chips { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding: 2px; scrollbar-width: none; }
-    .chip { flex: none; }
+    /* The same columns, stacked: the question takes the first line, the tags sit under it. */
+    .row summary { grid-template-columns: var(--col-count) var(--col-change) minmax(0, 1fr) var(--col-chev); }
+    .times { grid-row: 1; align-self: start; }
+    .txt { grid-column: 2 / 4; grid-row: 1; }
+    .chev { grid-column: 4; grid-row: 1; }
+    .row .chg { grid-column: 2; grid-row: 2; }
+    .row .state { grid-column: 3; grid-row: 2; }
+    .tag.pin { display: block; width: fit-content; margin: 2px 0; }
+    .a { padding-inline-start: var(--pad); }
+    .sorter { width: 100%; margin-inline-start: 0; }
+    .sorter select { flex: 1; min-width: 0; }
   }
   @media (max-width: 560px) {
-    .bar { width: calc(100% - 32px); margin-top: 16px; }
-    .bar-in { padding: 14px 18px; }
-    .lead { margin-top: 20px; }
-    .lead.pictured { grid-template-columns: minmax(0, 1fr); }
-    .lead .art { display: none; }
-    .lead h2 { font-size: 34px; }
-    .lead p { font-size: 16.5px; }
-    .actions .btn { flex: 1 1 auto; }
-    .wrap { padding: 16px 16px 32px; }
-    .ask { padding: 18px; }
-    .reading, .gift { padding: 22px 18px; }
-    .gift .acts .btn { flex: 1 1 auto; }
-    .offer { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; }
+    .actions .btn, .gift .acts .btn { flex: 1 1 auto; }
+    .offer { grid-template-columns: minmax(0, 1fr); }
     .offer > .btn, .offer > .asked { justify-self: start; }
-    .pop { position: fixed; inset-inline: 16px; top: 72px; width: auto; max-width: none; }
+    .pop { position: fixed; inset-inline: 28px; top: 96px; width: auto; max-width: none; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .spin, .pulse, .pulse-dot, .read-lines li { animation: none !important; }
+    .spin, .pulse-dot { animation: none !important; }
   }
 </style>
 </head>
 <body>
 <svg class="sprite" aria-hidden="true">
   <symbol id="i-slack" viewBox="0 0 24 24"><g stroke="none"><path fill="#E01E5A" d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/><path fill="#36C5F0" d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z"/><path fill="#2EB67D" d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z"/><path fill="#ECB22E" d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></g></symbol>
-  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" /></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.3L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.7 4.3L21 15" /><path d="M21 20v-5h-5" /></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
-  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
-  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z" /></symbol>
-  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2" /><rect x="13" y="3" width="8" height="6" rx="2" /><rect x="13" y="11" width="8" height="10" rx="2" /><rect x="3" y="15" width="8" height="6" rx="2" /></symbol>
-  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V5a2 2 0 0 1 2-2h9a1 1 0 0 1 1 1v1" /></symbol>
 </svg>
 
-<header class="bar"><div class="bar-in" id="band"></div></header>
-
 <div class="wrap">
+  <header class="bar" id="band"></header>
   <div id="notes"></div>
   <div id="reading"></div>
   <main id="root"><p class="loading">Opening your answers...</p></main>
@@ -393,7 +364,7 @@
 
   <section class="ask" id="askbox" hidden data-viewer-off>
     <h2>Ask about your answers</h2>
-    <p>The Answer Keeper looks in these pages first, then in the Slack channels you allowed.</p>
+    <p>The Answer Keeper looks here first, then in the Slack channels you allowed.</p>
     <form id="ask-form" autocomplete="off">
       <label for="ask-input" class="sr">Ask the Answer Keeper</label>
       <input id="ask-input" name="q" dir="auto" maxlength="1200" placeholder="Where do I get..." />
@@ -439,7 +410,6 @@
   var sweep = null;       /* the newest sweep log: { name, meta, changes: { slug: change } } */
   var book = [];
   var bySlug = {};
-  var hottest = 0;
   var pages = {};         /* file name -> { at, text, t }: what has been read, and when it changed */
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
@@ -467,7 +437,6 @@
   var PARTS = [
     ['headline', 'What the last sweep did'],
     ['asked', 'Asked most'],
-    ['states', 'By state'],
     ['pin', 'Worth pinning'],
     ['steps', 'Next steps under each answer']
   ];
@@ -827,9 +796,8 @@
     }
     if (S.empty) {
       S.painted = false;
-      put('root', '<div class="lane blank"><h3>Nothing written down yet</h3>' +
-        '<p>The book fills in after the routine reads Slack for the first time. Every ' +
-        'answered question gets its own page, and lands here, searchable.</p></div>');
+      put('root', '<div class="lane blank"><p>The first sweep fills this in. Each answered ' +
+        'question gets its own page here.</p></div>');
       return;
     }
     if (!book.length) {
@@ -838,10 +806,8 @@
         put('root', '<p class="loading">Opening your answers...</p>');
         return;
       }
-      put('root', '<div class="lane blank"><h3>No answers kept yet</h3>' +
-        '<p>The routine read your channels and found no question with an answer worth keeping. ' +
-        'Questions asked in direct messages are never read, so this fills up from channels ' +
-        'where people ask out loud. Each answered question gets its own page here.</p></div>');
+      put('root', '<div class="lane blank"><p>The sweep found no question with a clear answer. ' +
+        'It reads channels, never direct messages.</p></div>');
       return;
     }
     var meta = sweep ? sweep.meta : {};
@@ -853,10 +819,10 @@
       S.painted = true;
       root.painted = '';
       root.innerHTML =
-        '<input class="find" id="find" type="search" autocomplete="off" aria-label="Search the answers" />' +
-        '<div class="tools" id="tools"></div>' +
+        '<input class="find" id="find" type="search" autocomplete="off" aria-label="Search the answers" placeholder="Search answers" />' +
+        '<div class="tools" id="tools-row"><div id="tools"></div><span class="total" id="count" aria-live="polite"></span></div>' +
         '<div class="layout" id="layout"><div class="main"><section class="lane" aria-labelledby="shown-as">' +
-        '<div class="lane-head"><h3 id="shown-as"></h3><span class="total" id="count" aria-live="polite"></span></div>' +
+        '<h3 class="sr" id="shown-as"></h3>' +
         '<div id="list"></div></section></div><aside class="rail" id="rail" aria-label="About this book"></aside></div>';
       $('find').value = view.find;
     }
@@ -867,8 +833,6 @@
   function paintFrame() {
     var find = $('find');
     if (!find) return;
-    var n = pagesExpected();
-    find.placeholder = 'Search ' + n + (n === 1 ? ' answer' : ' answers');
     paintTools();
     var side = rail();
     put('rail', side);
@@ -884,42 +848,35 @@
     put('tools', '<div class="chips" role="group" aria-label="State">' +
       STATES.map(function (s) {
         return '<button type="button" class="chip" data-act="state" data-state="' + s[0] + '" aria-pressed="' +
-          (s[0] === view.state) + '">' + (s[0] ? '<span class="d ' + s[0] + '" aria-hidden="true"></span>' : '') +
-          s[1] + '<span class="c">' + c[s[0]] + '</span></button>';
+          (s[0] === view.state) + '">' + s[1] + '<span class="c">' + c[s[0]] + '</span></button>';
       }).join('') + '</div>' +
       (recent ? '<button type="button" class="chip" data-act="recent" aria-pressed="' + view.recent + '">' +
-        icon('i-clock') + 'Changed in the last sweep<span class="c">' + recent + '</span></button>' : '') +
+        'Changed in the last sweep<span class="c">' + recent + '</span></button>' : '') +
       '<label class="sorter" for="sort">Sort<select id="sort">' +
       SORTS.map(function (s) {
         return '<option value="' + s[0] + '"' + (s[0] === view.sort ? ' selected' : '') + '>' + s[1] + '</option>';
       }).join('') + '</select></label>');
   }
 
-  /* The wide-window rail: what comes up most, how settled the book is, and why one answer
-     is worth pinning. On a narrow window it is hidden and the rows carry the same signals.
-     Each part can be hidden from Layout; with all three hidden there is no rail at all. */
+  /* The wide-window rail: why one answer is worth pinning, and what comes up most. On a
+     narrow window it is hidden and the rows carry the same signals. Each part can be hidden
+     from Layout; with both hidden there is no rail at all. The band already says why when
+     the sweep made that answer its headline, so the card is only for a pin it did not. */
   function rail() {
     var top = book.filter(function (e) { return e.asked > 1; })
       .sort(function (x, y) { return y.asked - x.asked || x.q.localeCompare(y.q); }).slice(0, 5);
-    var c = counts(), most = Math.max(c.settled, c.shifting, c.open, 1), html = '';
+    var html = '', pinned = bySlug[pinAt];
     function lane(title, inner) {
-      return '<section class="lane"><div class="lane-head"><h3>' + title + '</h3></div>' + inner + '</section>';
+      return '<section class="lane"><div class="lane-in"><div class="lane-head"><h3>' + title + '</h3></div>' + inner + '</div></section>';
+    }
+    if (pinned && pinWhy && !S.hide.pin && !(sweep && sweep.meta.lead)) {
+      html += lane('Worth pinning', '<p class="why" dir="auto">' + esc(pinned.q) + '<span>' + esc(pinWhy) + '</span></p>');
     }
     if (top.length && !S.hide.asked) {
       html += lane('Asked most', '<ol>' + top.map(function (e) {
         return '<li><button type="button" class="jump" data-act="go" data-slug="' + esc(e.slug) + '"><b>' +
           e.asked + '&times;</b><span dir="auto">' + esc(e.q) + '</span></button></li>';
       }).join('') + '</ol>');
-    }
-    if (!S.hide.states) {
-      html += lane('By state', '<div class="bars">' + STATES.slice(1).map(function (s) {
-        return '<div><span>' + s[1] + '</span><span class="track"><i class="' + s[0] + '" style="width:' +
-          Math.round(c[s[0]] / most * 100) + '%"></i></span><span class="num">' + c[s[0]] + '</span></div>';
-      }).join('') + '</div>');
-    }
-    var pinned = bySlug[pinAt];
-    if (pinned && pinWhy && !S.hide.pin) {
-      html += lane('Worth pinning', '<p class="why" dir="auto">' + esc(pinned.q) + '<span>' + esc(pinWhy) + '</span></p>');
     }
     return html;
   }
@@ -954,7 +911,7 @@
       : [['draft', 'Draft a reply with this answer'], ['doc', 'Turn this into a doc page'],
          ['wrong', 'This answer is wrong']];
     return list.map(function (s) {
-      return '<button type="button" class="btn small" data-act="step" data-kind="' + s[0] +
+      return '<button type="button" class="btn text" data-act="step" data-kind="' + s[0] +
         '" data-slug="' + esc(e.slug) + '">' + s[1] + '</button>';
     }).join('');
   }
@@ -985,9 +942,9 @@
       }).join('') +
       (facts.length ? '<p class="facts-row">' + facts.join(' &middot; ') + '</p>' : '') +
       '<div class="row-actions">' +
-      (e.answer.length ? '<button type="button" class="btn small dark" data-act="copy" data-slug="' + esc(e.slug) + '">' +
-        icon('i-copy') + 'Copy the answer</button>' : '') +
-      (linkable(e.url) ? '<a class="btn small" href="' + esc(e.url) + '" target="_blank" rel="noopener noreferrer">' +
+      (e.answer.length ? '<button type="button" class="btn" data-act="copy" data-slug="' + esc(e.slug) + '">' +
+        'Copy the answer</button>' : '') +
+      (linkable(e.url) ? '<a class="btn text" href="' + esc(e.url) + '" target="_blank" rel="noopener noreferrer">' +
         icon('i-slack') + 'Open in Slack</a>' : '') +
       steps(e) + '</div>';
   }
@@ -996,16 +953,15 @@
     var change = changeOf(e), key = stateKey(e.state);
     return '<details class="row" data-i="' + esc(e.slug) + '"' + (open ? ' open' : '') + '><summary>' +
       (e.asked > 0
-        ? '<span class="times' + (e.asked > 1 && e.asked === hottest ? ' hot' : '') + '"><span aria-hidden="true">' +
-          e.asked + '</span><span class="sr">' + askedText(e.asked) + '</span></span>'
-        : '<span></span>') +
-      '<span class="txt"><span class="q" dir="auto">' + lit(e.q, needle) + '</span>' +
+        ? '<span class="times"><span aria-hidden="true">' + e.asked + '&times;</span><span class="sr">' +
+          askedText(e.asked) + '</span></span>'
+        : '') +
+      '<span class="txt"><span class="q" dir="auto">' + lit(e.q, needle) +
+      (e.slug === pinAt && !S.hide.pin ? '<span class="tag pin">Worth pinning</span>' : '') + '</span>' +
       (e.a ? '<span class="pv" dir="auto">' + lit(e.a, needle) + '</span>' : '') + '</span>' +
-      '<span class="tags">' +
       (change ? '<span class="tag chg"><span class="sr">Last sweep: </span>' + esc(change) + '</span>' : '') +
-      (e.slug === pinAt ? '<span class="tag pin">Worth pinning</span>' : '') +
       (e.state ? '<span class="tag state s-' + key + '">' + esc(e.state) + '</span>' : '') +
-      icon('i-down', 'chev') + '</span></summary>' +
+      icon('i-down', 'chev') + '</summary>' +
       '<div class="a">' + (open ? body(e, needle) : '') + '</div></details>';
   }
 
@@ -1023,18 +979,17 @@
       return !low || e.hay.indexOf(low) > -1;
     }).sort(SORT_BY[view.sort] || SORT_BY.asked);
 
-    var total = pagesExpected(), filtered = needle || view.state || view.recent;
-    $('count').textContent = (S.reading ? 'Reading ' + book.length + ' of ' + total + '. ' : '') +
-      (filtered ? shown.length + (shown.length === 1 ? ' answer matches' : ' answers match')
-                : (S.reading ? '' : total + (total === 1 ? ' answer' : ' answers')));
+    /* The chips already count the book and each state, so this only says what they cannot:
+       how far the reading got, and what a search found. */
+    $('count').textContent = (S.reading ? 'Reading ' + book.length + ' of ' + pagesExpected() + '. ' : '') +
+      (needle ? shown.length + (shown.length === 1 ? ' answer matches' : ' answers match') : '');
     var named = STATES.filter(function (s) { return s[0] === view.state; })[0][1];
     $('shown-as').textContent = (view.state ? named : 'All answers') +
       (view.recent ? ', changed in the last sweep' : '');
 
     if (!shown.length) {
       put('list', '<div class="lane-empty">Nothing written down for that yet.' +
-        (needle && canAsk() ? '<button type="button" class="btn small" data-act="ask-find">' + icon('i-chat') +
-          'Ask in chat</button>' : '') + '</div>');
+        (needle && canAsk() ? '<button type="button" class="btn" data-act="ask-find">Ask in chat</button>' : '') + '</div>');
       return;
     }
     var only = needle && shown.length === 1;
@@ -1087,14 +1042,14 @@
   function pillHtml() {
     var s = slackState();
     if (!V2) return '<span class="updated">Connect Slack from Integrations in Cabinet.</span>';
-    if (!S.slack) return '<span class="pill"><span class="dot pulse"></span>Checking Slack</span>';
+    if (!S.slack) return '<span class="pill">Checking Slack</span>';
     if (S.slack.busy) {
-      return '<span class="pill"><span class="dot pulse"></span>' + esc(BUSY_WORDS[S.slack.busy] || 'Slack is busy') + '</span>';
+      return '<span class="pill">' + esc(BUSY_WORDS[S.slack.busy] || 'Slack is busy') + '</span>';
     }
     if (s === 'connected') return '<span class="pill ok"><span class="dot"></span>Slack connected</span>';
-    if (s === 'not-available-here') return '<span class="pill"><span class="dot"></span>Slack not available here</span>';
+    if (s === 'not-available-here') return '<span class="pill">Slack not available here</span>';
     if (s === 'needs-sign-in' || s === 'needs-you') return '<span class="pill warn"><span class="dot"></span>Slack needs you</span>';
-    return '<span class="pill off"><span class="dot"></span>Slack not connected</span>';
+    return '<span class="pill">Slack not connected</span>';
   }
 
   function buttonsHtml() {
@@ -1102,15 +1057,15 @@
     if (slackOn() && canRun() && !S.example && S.loaded) {
       html += running()
         ? '<button class="btn" disabled>' + icon('i-refresh', 'spin') + 'Looking...</button>'
-        : '<button class="btn" data-act="run">' + icon('i-refresh') + 'Look for new answers</button>';
+        : '<button class="btn" data-act="run">Look for new answers</button>';
     }
     if (page && canAsk()) {
       html += '<div><button class="btn" data-act="ideas" aria-haspopup="true" aria-expanded="' + (S.menu === 'ideas') +
-        '" aria-controls="ideas-pop">' + icon('i-bulb') + 'Ideas</button>' + ideasPop() + '</div>';
+        '" aria-controls="ideas-pop">Ideas</button>' + ideasPop() + '</div>';
     }
     if (page) {
       html += '<div><button class="btn" data-act="layout" aria-haspopup="true" aria-expanded="' + (S.menu === 'layout') +
-        '" aria-controls="layout-pop">' + icon('i-layout') + 'Layout</button>' + layoutPop() + '</div>';
+        '" aria-controls="layout-pop">Layout</button>' + layoutPop() + '</div>';
     }
     return html;
   }
@@ -1130,38 +1085,21 @@
           (S.hide[p[0]] ? '' : ' checked') + ' />' + esc(p[1]) + '</label>';
       }).join('') + '<p class="fine">' + (canSave() ? 'Only for you. The side panel shows on a wide window.'
         : 'Kept until you close this page.') + '</p>' +
-      '<div class="end"><button type="button" class="btn small" data-act="layout-reset">Reset</button></div></div>';
+      '<div class="end"><button type="button" class="btn text" data-act="layout-reset">Reset</button></div></div>';
   }
 
-  /* A chat bubble with a hash, with a badge that matches the state: Your Slack's picture. */
-  function artSlack(badge) {
-    var mark = badge === 'check'
-      ? '<circle cx="108" cy="24" r="14" fill="#2eb67d"/><path d="M101 24l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
-      : badge === 'alert'
-        ? '<circle cx="108" cy="24" r="14" fill="#ecb22e"/><path d="M108 16.5v9M108 30.5v.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>'
-        : '';
-    return '<svg class="art" viewBox="0 0 132 104" aria-hidden="true">' +
-      '<rect x="8" y="14" width="116" height="82" rx="14" fill="#f4ecf5"/>' +
-      '<path d="M26 28h80a8 8 0 0 1 8 8v34a8 8 0 0 1-8 8H52l-16 12v-12H26a8 8 0 0 1-8-8V36a8 8 0 0 1 8-8z" fill="#fff" stroke="#4a154b" stroke-width="3" stroke-linejoin="round"/>' +
-      '<path d="M58 40l-5 28M74 40l-5 28M48 49h32M46 59h32" fill="none" stroke="#4a154b" stroke-width="3" stroke-linecap="round"/>' +
-      mark + '</svg>';
-  }
-
-  function lead(title, inner, badge) {
-    return '<section class="lead' + (badge === undefined ? '' : ' pictured') + '"><div><h2 dir="auto">' + esc(title) + '</h2>' +
-      inner + '</div>' + (badge === undefined ? '' : artSlack(badge)) + '</section>';
+  function lead(title, inner) {
+    return '<section class="lead"><h2 dir="auto">' + esc(title) + '</h2>' + inner + '</section>';
   }
 
   function runButton(words) {
-    return canRun() ? '<div class="actions"><button class="btn big" data-act="run">' + icon('i-refresh') +
-      esc(words) + '</button></div>' : '';
+    return canRun() ? '<div class="actions"><button class="btn primary" data-act="run">' + esc(words) + '</button></div>' : '';
   }
 
   function canvasButton() {
     var settled = book.some(function (e) { return stateKey(e.state) === 'settled'; });
     if (!canAsk() || !slackOn() || S.example || !settled) return '';
-    return '<div class="actions"><button class="btn ghost" data-act="canvas">' + icon('i-slack') +
-      'Put the top answers in Slack</button></div>';
+    return '<div class="actions"><button class="btn" data-act="canvas">Put the top answers in Slack</button></div>';
   }
 
   /* What the band says. The first state that applies is the news; the book's own headline
@@ -1171,49 +1109,41 @@
     var every = whenWords(), first = failedAt();
     if (showReading() || !S.loaded) return '';
     if (V2 && s === 'not-available-here') {
-      return lead('Slack can’t be connected here yet',
-        (problemText() ? '<p>' + esc(problemText()) + '</p>' : '') +
-        (S.example ? '<p class="fine">Below is an example from a made-up team.</p>' : ''), null);
+      return lead('Slack can’t be connected here yet', problemText() ? '<p>' + esc(problemText()) + '</p>' : '');
     }
     if (V2 && (s === 'needs-sign-in' || s === 'needs-you')) {
       return lead('Slack needs you', '<p>' + esc(problemText() || 'Slack stopped letting Cabinet in.') + '</p>' +
         (g && g.canConnect
-          ? '<div class="actions"><button class="btn big" data-act="connect">' + icon(S.connecting ? 'i-refresh' : 'i-slack', S.connecting ? 'spin' : '') +
+          ? '<div class="actions"><button class="btn primary" data-act="connect">' + (S.connecting ? icon('i-refresh', 'spin') : icon('i-slack')) +
             (S.connecting ? 'Fixing...' : 'Fix the connection') + '</button></div>'
           : '<p class="fine">Ask the person who owns this cabinet to fix the Slack connection.</p>') +
-        note + (sweptAt() ? '<p class="fine">The answers below are from the sweep ' + esc(when(sweptAt())) + '.</p>' : ''), 'alert');
+        note + (sweptAt() ? '<p class="fine">The answers below are from the sweep ' + esc(when(sweptAt())) + '.</p>' : ''));
     }
     if (V2 && s === 'not-added') {
       return lead(S.example || S.empty ? 'Answer every question once' : 'Connect Slack to keep your answers growing',
-        '<p>Connect Slack, and every night this page keeps one page for each question your team answered, with its source.</p>' +
+        '<p>Every night at 2, one page for each question your team answered, with its source. It only reads Slack.</p>' +
         (g && g.canConnect
-          ? '<div class="actions"><button class="btn big" data-act="connect"' + (S.connecting ? ' disabled' : '') + '>' +
-            icon(S.connecting ? 'i-refresh' : 'i-slack', S.connecting ? 'spin' : '') + (S.connecting ? 'Connecting...' : 'Connect Slack') + '</button>' +
-            '<span class="updated">' + (S.connecting ? 'Finish in the window Cabinet opened.' : 'Takes about two minutes. Cabinet shows you each step.') + '</span></div>'
-          : '<p class="fine"><b>Ask the person who owns this cabinet to connect Slack.</b></p>') + note +
-        '<ul class="steps"><li>' + icon('i-check') + 'Only reads, never posts on its own</li><li>' + icon('i-check') +
-        'Every night at 2</li>' + (S.example ? '<li>' + icon('i-check') + 'Below: an example from a made-up team</li>' : '') + '</ul>', null);
+          ? '<div class="actions"><button class="btn primary" data-act="connect"' + (S.connecting ? ' disabled' : '') + '>' +
+            (S.connecting ? icon('i-refresh', 'spin') : icon('i-slack')) + (S.connecting ? 'Connecting...' : 'Connect Slack') + '</button>' +
+            '<span class="updated">' + (S.connecting ? 'Finish in the window Cabinet opened.' : 'About two minutes.') + '</span></div>'
+          : '<p class="fine"><b>Ask the person who owns this cabinet to connect Slack.</b></p>') + note);
     }
     if (V2 && slackOn() && S.example && first) {
       return lead('Your first sweep didn’t work',
-        '<p>Nothing was kept from your Slack yet, so the example is still showing.</p>' + runNoteHtml() + runButton('Try again'), 'alert');
+        '<p>Nothing was kept from your Slack yet, so the example is still showing.</p>' + runNoteHtml() + runButton('Try again'));
     }
     if (V2 && slackOn() && S.example) {
-      return lead('Slack is connected. Let’s find your answers.',
-        '<p>Your first sweep reads the last 90 days and takes a few minutes.' +
-        (/^every\b/.test(every) ? ' After that it happens by itself, ' + esc(every) + '.' : '') + '</p>' + runNoteHtml() +
-        (running() ? '' : runButton('Look for new answers')), 'check');
+      return lead('Slack is connected',
+        '<p>Your first sweep takes a few minutes and reads the last 90 days.' + (/^every\b/.test(every) ? ' After that it runs ' + esc(every) + '.' : '') + '</p>' + runNoteHtml() +
+        (running() ? '' : runButton('Look for new answers')));
     }
     var meta = sweep ? sweep.meta : {}, n = pagesExpected();
-    var told = String(meta.headline || '').replace(/[.\s]+$/, '');
-    var line = !S.hide.headline && told
-      ? '<p dir="auto">' + esc(told) + '.' + (sweptAt() ? ' Last sweep ' + esc(when(sweptAt())) + '.' : '') + '</p>' : '';
+    var told = S.hide.headline ? '' : String(meta.headline || '').replace(/[.\s]+$/, '');
     if (meta.lead && meta.verdict) {
-      return lead(meta.lead, '<p dir="auto">' + esc(meta.verdict) + '</p>' + line + canvasButton());
+      return lead(meta.lead, '<p dir="auto">' + esc(meta.verdict) + '</p>' + (told ? '<p dir="auto">' + esc(told) + '.</p>' : '') + canvasButton());
     }
-    if (n) return lead(n + (n === 1 ? ' answer' : ' answers') + ' your team already gave', line + canvasButton());
-    return lead(S.empty ? 'Your answers show up here' : 'No answers yet',
-      line || '<p>When someone in a channel asks a question and gets a clear answer, it is kept here, so nobody has to ask again.</p>');
+    if (told) return lead(told, canvasButton());
+    return lead(n ? n + (n === 1 ? ' answer' : ' answers') + ' your team already gave' : 'No answers yet', canvasButton());
   }
 
   function runNoteHtml() { return S.runNote ? '<p class="fine">' + esc(S.runNote) + '</p>' : ''; }
@@ -1229,35 +1159,35 @@
   function paintNotes() {
     var html = '', meta = sweep ? sweep.meta : {}, on = showReading();
     if (S.example && S.loaded && !on) {
-      html += '<div class="ribbon"><span class="tag-example">Example</span><p><b>Northwind</b>, a made-up team. ' +
-        'None of this is your Slack. ' + (slackOn() ? 'Your first sweep replaces it.' : 'Connect Slack and your own answers replace it.') + '</p></div>';
+      html += '<div class="notice"><p><b>Example.</b> Northwind is a made-up team. ' +
+        (slackOn() ? 'Your first sweep replaces it.' : 'Connect Slack and your own answers replace it.') + '</p></div>';
     }
     if (readingNow() && !on) {
       var last = reading.lines[reading.lines.length - 1];
-      html += '<div class="read-strip"><i class="pulse-dot" aria-hidden="true"></i><span>Still reading your Slack' +
-        (last ? ': ' + lineHtml(last) : '...') + '</span></div>';
+      html += '<div class="notice"><i class="pulse-dot" aria-hidden="true"></i><p>Still reading your Slack' +
+        (last ? ': ' + lineHtml(last) : '...') + '</p></div>';
     }
     if (failedAt() && !(S.example && slackOn())) {
       var shown = sweptAt();
-      html += '<div class="notice">' + icon('i-alert') + '<div><p><b>The sweep ' + esc(when(failedAt())) + ' didn’t finish.</b> ' +
+      html += '<div class="notice bad"><p><b>The sweep ' + esc(when(failedAt())) + ' didn’t finish.</b> ' +
         (shown ? 'What you see is from the sweep ' + esc(when(shown)) + '.' : 'Nothing new was kept.') + '</p>' +
         (S.runNote ? '<p>' + esc(S.runNote) + '</p>' : '') +
-        (canRun() && slackOn() ? '<div class="actions"><button class="btn small" data-act="run">' + icon('i-refresh') + 'Try again</button></div>' : '') +
-        '</div></div>';
+        (canRun() && slackOn() ? '<div class="actions"><button class="btn" data-act="run">Try again</button></div>' : '') +
+        '</div>';
     } else if (S.runNote && !S.example) {
-      html += '<div class="notice">' + icon('i-alert') + '<p>' + esc(S.runNote) + '</p></div>';
+      html += '<div class="notice bad"><p>' + esc(S.runNote) + '</p></div>';
     }
     /* The routine reached Slack but not all of it. It said so rather than guessing. */
     var left = String(meta.status || '').replace(/^ok\b[,:;.\s]*(but\s+)?/i, '').replace(/\.$/, '');
     if (left) {
-      html += '<div class="ribbon">' + icon('i-alert') + '<p dir="auto">The last sweep did not finish everything: ' + esc(left) + '.</p></div>';
+      html += '<div class="notice"><p dir="auto">The last sweep did not finish everything: ' + esc(left) + '.</p></div>';
     }
     if (S.failed) {
-      html += '<div class="ribbon">' + icon('i-alert') + '<p>' + S.failed + (S.failed === 1 ? ' page' : ' pages') +
+      html += '<div class="notice"><p>' + S.failed + (S.failed === 1 ? ' page' : ' pages') +
         ' could not be read just now, so ' + (S.failed === 1 ? 'it is' : 'they are') + ' missing below. Reload in a moment.</p></div>';
     }
     if (S.capped) {
-      html += '<div class="ribbon">' + icon('i-alert') + '<p>This page shows the first ' + LIST_LIMIT +
+      html += '<div class="notice"><p>This page shows the first ' + LIST_LIMIT +
         ' answers. All of them are kept in answers/topics, and Cabinet’s search finds them there.</p></div>';
     }
     put('notes', on ? '' : html);
@@ -1486,10 +1416,8 @@
   function setBook(list) {
     book = list;
     bySlug = {};
-    hottest = 0;
     book.forEach(function (e) {
       bySlug[e.slug] = e;
-      if (e.asked > hottest) hottest = e.asked;
     });
   }
 
@@ -1672,17 +1600,17 @@
     var gift = freshReading() ? r.gift : null;
     var offers = freshReading() ? r.offers : [];
     var side = gift || offers.length
-      ? '<div class="side-list"><p class="side-title">While I read, you can...</p>' + (gift ? giftHtml(gift, 'reading') : '') + offersHtml(offers) + '</div>'
+      ? '<div class="side-list">' + (gift ? giftHtml(gift, 'reading') : '') + offersHtml(offers) + '</div>'
       : done ? ''
       : '<section class="gift looking"><i class="pulse-dot" aria-hidden="true"></i><h3>Looking for the question your team asks most.</h3></section>';
     return '<div class="read-page' + (side ? '' : ' solo') + '"><div class="reading" aria-live="polite"><h2>Reading your Slack</h2>' +
-      '<p>Your first sweep. A few minutes. You don’t need to do anything.</p><ul class="read-lines">' +
+      '<p>Your first sweep takes a few minutes.</p><ul class="read-lines">' +
       lines.map(function (l, i) {
         return '<li' + (i < lines.length - 1 ? ' class="old"' : '') + '>' + icon('i-check') + '<span dir="auto">' + lineHtml(l) + '</span></li>';
       }).join('') +
       '<li class="now"><i class="pulse-dot" aria-hidden="true"></i><span>' +
       (done ? 'Putting your book together' : lines.length ? 'Reading on' : 'Opening your Slack') + '...</span></li></ul>' +
-      '<p class="fine">Only reads. Nothing is posted, and it all stays in your cabinet.</p></div>' + side + '</div>';
+      '<p class="fine">It only reads. Nothing is posted.</p></div>' + side + '</div>';
   }
 
   /* The gift: the question asked most, written up where people read; or, when nothing repeats
@@ -1699,8 +1627,8 @@
       };
     }
     return {
-      head: 'No question has come up twice yet. A good place to be.',
-      why: 'Want a short page for the next person who joins, with what to know first and who to ask?',
+      head: 'No question has come up twice yet.',
+      why: 'A short page for the next person who joins: what to know first, and who to ask.',
       button: 'Write the welcome page',
       ask: 'Write a short welcome page in handbook/ for someone new on the team, from the answers in the Answer Book: ' +
         'what to know first, and who to ask for what. Tell me where the page is. Do not post anything in Slack.'
@@ -1708,37 +1636,36 @@
   }
   function giftHtml(g, where) {
     var p = giftParts(g);
-    return '<section class="gift" aria-live="polite"><p class="eyebrow">' +
-      (where !== 'reading' ? 'Found in your first sweep' : g.kind === 'repeat' ? 'First, the one worth writing down' : 'First, the good news') + '</p>' +
-      '<h3 dir="auto">' + p.head + '</h3><p class="why">' + esc(p.why) + '</p>' +
+    return '<section class="gift" aria-live="polite">' +
+      (where === 'keep' ? '<p class="eyebrow">Found in your first sweep</p>' : '') +
+      '<h3 dir="auto">' + p.head + '</h3><p class="why-line">' + esc(p.why) + '</p>' +
       (giftAsked === g.at
         ? '<p class="asked">' + icon('i-check') + 'Asked. It is coming in the chat.</p>'
         : '<div class="acts">' + (canAsk() ? '<button type="button" class="btn primary" data-act="gift-do">' + esc(p.button) + '</button>' : '') +
           (g.link ? '<a class="btn" href="' + esc(g.link) + '" target="_blank" rel="noopener noreferrer">' + icon('i-slack') + 'Open in Slack</a>' : '') +
-          (where === 'keep' ? '<button type="button" class="btn" data-act="gift-skip">Not now</button>' : '') + '</div>') +
-      '<p class="fine">Nothing is posted in Slack.</p></section>';
+          (where === 'keep' ? '<button type="button" class="btn text" data-act="gift-skip">Not now</button>' : '') + '</div>') +
+      '</section>';
   }
   /* An offer: a question asked and never really answered, as a draft for the right person. */
   function offerKey(o) { return o.at + '|' + o.question; }
   function offerParts(o) {
     return {
       title: o.question,
-      sub: 'Asked and never really answered. A draft for the right person to check.',
       button: 'Draft an answer',
       ask: 'Read the Slack threads where people asked "' + o.question + '"' + (o.link ? ' (' + o.link + ')' : '') +
         ' and write a draft answer from what was said there, with [brackets] around anything nobody has settled, ' +
         'and who should confirm it. Show it to me here as a draft. Do not post anything in Slack.'
     };
   }
-  function offersHtml(offers) {
+  function offersHtml(offers, foot) {
     if (!offers.length) return '';
-    return '<ul class="offers">' + offers.map(function (o) {
+    return '<div class="offers"><div class="offers-title">Asked and never answered</div><ul class="offer-list">' + offers.map(function (o) {
       var p = offerParts(o), key = offerKey(o);
-      return '<li class="offer"><div><b dir="auto">' + esc(p.title) + '</b><span class="sub">' + esc(p.sub) + '</span></div>' +
+      return '<li class="offer"><b dir="auto">' + esc(p.title) + '</b>' +
         (kept.asked[key] ? '<span class="asked">' + icon('i-check') + 'Asked</span>'
           : canAsk() ? '<button type="button" class="btn" data-act="offer-do" data-key="' + esc(key) + '">' + esc(p.button) + '</button>' : '') +
         '</li>';
-    }).join('') + '</ul>';
+    }).join('') + '</ul>' + (foot || '') + '</div>';
   }
 
   /* After the reading the gift and the offers stay under the book for a few days, until used or put away. */
@@ -1750,8 +1677,8 @@
     var show = !!(r && at && (g || offers.length) && kept.done !== 'all:' + r.startedAt && sweptAt() &&
       Date.now() - at.getTime() < GIFT_KEEP_DAYS * 86400000 && !readingNow() && !revealing());
     el.hidden = !show;
-    put('gift-keep', !show ? '' : (g ? giftHtml(g, 'keep') : '<p class="side-title">Found in your first sweep</p>') + offersHtml(offers) +
-      (g ? '' : '<p><button type="button" class="btn" data-act="gift-skip">Not now</button></p>'));
+    put('gift-keep', !show ? '' : (g ? giftHtml(g, 'keep') : '') + offersHtml(offers,
+      g ? '' : '<div class="offers-foot"><button type="button" class="btn text" data-act="gift-skip">Not now</button></div>'));
   }
   function keep(done) {
     kept.done = done;

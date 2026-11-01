@@ -346,7 +346,7 @@ file or give `calm`; never skip the gift. You never draft or post the reply on t
 the person presses the gift, the page asks you for a draft in the chat.
 
 **Then two or three more offers**, one `offer @offer.json` each, as you find what backs them,
-under the gift on the page ("While I read, you can..."):
+under the gift on the page:
 - `{"kind":"catchup","channel":"#random","count":63}` for the busiest channel, `count` the
   messages your search returned for it.
 - `{"kind":"promised"}` when someone mentioned the person in the last day.

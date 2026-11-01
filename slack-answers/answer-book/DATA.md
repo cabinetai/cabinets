@@ -37,7 +37,7 @@ The first sweep (no dated log yet) is told as it happens. The agent runs
 to three times, and `done` after the log is written. The helper writes `reading.json`
 atomically under a lock, refuses an empty, broken or repeated line, and checks every
 question, channel and link (no raw ids, no em-dash, no direct message). The page shows the
-lines one by one under "Reading your Slack", and beside them "While I read, you can...":
+lines one by one under "Reading your Slack", and beside them:
 
 - the gift: `{ kind: "repeat", question, asked, channel, link, at }`, the question asked most
   (at least twice), with Turn this into a doc page, or `{ kind: "calm", at }` when nothing
