@@ -1,57 +1,95 @@
 id: organize-feedback
 name: Organize Feedback
 enabled: true
-schedule: "*/30 * * * *"
+schedule: 0 9,13,17 * * *
 provider: claude-code
 adapterType: claude_local
+adapterConfig:
+  model: sonnet
 ownerAgent: feedback-analyst
 agentSlug: feedback-analyst
-timeout: 600
+timeout: 900
 prompt: |-
-  Update the Feedback Board with what is new in #feedback and every message marked with 📌.
+  Bring the Feedback Board up to date. Read only what is new.
 
-  Your working directory is the cabinet root. The board lives in `board/data.json`, and it
-  is the only file you write (on the first run, also the reading below).
+  Your working directory is the cabinet root. Every change to the board goes through
+  `node board/update-board.mjs`, which stamps the time from the clock, keeps each message
+  and each person once, and prunes the board so the file stops growing: requests one
+  person made leave after 90 days with no new ask, and shipped or declined ones after 180
+  days. Never write `board/data.json` yourself, and never guess a time.
 
-  1. Read your persona before anything else. It holds the file shape, what counts as
-     feedback, how to match a message to an existing request, and the exact type and
-     priority words. This prompt does not repeat them.
-  2. Read `board/data.json`. If it does not exist yet, this is the first run: you will
-     create it with an empty `requests` list before adding to it. The person is likely
-     watching: tell it as you go through `board/first-read.mjs`, as "The first check" in
-     your persona says.
-  3. If you have no Discord tools (none named `discord_list_channels`), Discord is not
-     connected: set `status` to "Discord isn't connected yet", write the file, and stop.
-  4. Call `discord_list_channels` once. Find the channel named `feedback`. If there is none
-     (it is missing, or the person did not allow it), set `status` to "No #feedback channel
-     found" and skip step 5, but still do step 6.
-  5. Read #feedback with `discord_read_channel`, `limit` 100:
-     - With a `cursor`, read with `after` the cursor; if 100 come back, read again with
-       `after` the newest id you got, until fewer than 100 come back.
-     - On the first run, read the newest 100 and page back with `before` the oldest id you
-       got, at most 10 pages.
-     Then read any thread started in #feedback (a message with a `thread` field) that has
-     replies newer than the cursor, the same way.
-  6. Find the messages marked with 📌. Read the newest 100 messages of every other allowed
-     text and announcement channel once, and of each thread and forum post that
-     `discord_list_threads` lists there (skip archived ones), and keep each message whose
-     `reactions` include `📌`. In #feedback every message you read already shows its
-     reactions. For each new marked message, call `discord_who_reacted` with emoji `📌`:
-     the people who reacted (not bots) are the ones asking. If that call fails, the
-     message's author is the one asking.
-  7. Skip any message whose id is already in a request's `messages` (but when that entry
-     has no `link` yet, add the one you just read). Sort each new one: leave
-     it out, add it to a request already on the board, or start a new request. A message
-     marked with 📌 counts as feedback unless it plainly is not (a joke, a greeting). Store
-     each message's `link` exactly as the tool gave it. Then
-     update counts, people, dates and priorities.
-  8. Set `cursor` to the id of the newest #feedback message you read (keep the old one if
-     there was nothing new), `previousGenerated` to the `generated` the file had when you
-     read it (leave it out on the first run), `generated` to now, `status` to "ok" unless
-     step 4 set it, and write the whole file back as valid JSON (check it parses).
-  9. This run is read only in Discord. Do not post, reply, react, pin or start a thread.
-  10. If a Discord call fails, retry it once. If Discord can't be reached at all, set
-      `status` to a short phrase naming the problem, keep everything else in the file as it
-      was, and stop. If only one channel fails, finish with the rest.
+  This run has 900 seconds. These numbers are limits, not targets:
+  - Run `date` at the start. When 10 minutes have gone, stop reading, apply what you have
+    and finish. Sorting costs more of this time than Discord does.
+  - One page is one `discord_read_channel` with `limit` 100. The first run reads at most 6
+    pages in all and 3 per channel. A later run reads at most 5 pages in all.
+  - A thread or forum post counts as a read too: at most 15 of them in a run, `limit` 50.
+  - Read at most 8 channels. The other tools cost nothing worth counting.
+  - Apply after each channel, so a run that is cut off keeps what it found.
+  - Discord's calls are limited. If a call says to slow down, wait 5 seconds and try that
+    call once more, up to three times. Any other failure gets one more try.
+  If a limit stops you, the cursors keep your place and the next run carries on: say what is
+  left in `status`, for example "#bugs has more, the next update carries on".
+
+  1. Read your persona before anything else. It holds what counts as feedback, how to match
+     a message to a request, the file shapes and the type words. This prompt does not
+     repeat them.
+  2. If `board/data.json` does not exist yet, this is the first run and the person is likely
+     watching: run `node board/first-read.mjs start` now and tell it as you go, as "The first
+     check" in your persona says. Then run `node board/update-board.mjs begin`, always. It
+     prints the cursors, the threads, the channels the person always or never wants read,
+     and every request on the board in one line each.
+  3. If you have no tool named `discord_list_channels`, or it still fails after its retries,
+     run `node board/update-board.mjs problem unreachable`, and on a first run also
+     `node board/first-read.mjs done`. Touch nothing else. Report: "Discord is not reachable.
+     I would have read your feedback channels and updated the board." Then stop.
+  4. Call `discord_list_channels` once. If it lists no channel at all, nothing was chosen:
+     run `node board/update-board.mjs problem no-channels`, and on a first run also
+     `first-read.mjs done`, and stop. Do not write a board.
+  5. Choose the feedback channels. Do this on every run, because channels change.
+     - A channel in `watch.skip` is never read. A channel in `watch.add` always is.
+     - Take a channel whose name holds any of: feedback, suggestion, idea, request, feature,
+       wishlist, bug, issue, or the same word in the server's language. Ignore decoration: a
+       name like `💡│suggestions` counts. Then take one whose topic or category plainly says
+       it collects those.
+     - Leave out announcement channels, and names about releases rather than requests:
+       updates, changelog, announcements, releases, patch notes. `feature-updates` is news.
+     - Up to 8 channels: forums first, then the names above in that order. Put each other
+       allowed channel in `left`.
+     - If nothing matched, take up to 3 text channels named general, chat, community, help,
+       support or lounge, or the 3 first text channels if none are, and set `setup` to
+       "fallback" in every apply of this run. Otherwise set `setup` to "". Never stop here: a
+       normal server must get a result on its first run.
+  6. Read each chosen text channel.
+     - With a cursor for it, read with `after` the cursor. Discord gives the messages right
+       after that id. If 100 come back, read again with `after` the highest id you got. Use
+       the id, not the order on the page.
+     - With no cursor, read the newest 100 and page back with `before` the lowest id you got,
+       until you reach the limit above, 90 days, or the start of the channel. Note the `at`
+       of the oldest message you read: that is `back` for the channel.
+     - Skip a message with `bot` true or with `notice`.
+  7. Read threads and forum posts: one `discord_list_threads` per chosen channel. A forum is
+     only its posts: never read the forum itself with `discord_read_channel`, and its `back`
+     is the oldest post you read. A thread is new to you when it is not in `threads`. Read it
+     from the start. It has more to read when its `messages` is above the number in `threads`.
+     Read it with `after` its `cursor`. Skip a thread whose `messages` did not change. Most
+     messages first when there are more than the limit. The post's name is part of what the
+     person asked for. A reply in a thread already in `threads` belongs to that thread's
+     `request`, unless it plainly asks for something else.
+  8. Sort what you read, as your persona says: leave a message out, add it to a request on
+     the board, or start a new one. When two rows on the board are plainly one request,
+     merge them, at most 5 in a run. Write `board/data/.work/run.json` in the shape your
+     persona gives, then run `node board/update-board.mjs apply @run.json`. Send the highest
+     id you read per channel in `cursors` and each thread you read in `threads`, including
+     when nothing in it was feedback. If it prints "not applied", fix those and apply again.
+     Set `status` to "ok" unless something is left to say.
+  9. If a channel refuses you, give it a short `problem` on its entry in `channels`, such as
+     "Cabinet's bot can't see this channel", and go on with the rest. If nothing new came in
+     anywhere, still run apply once with `read` 0: that is how the page knows you checked.
+  10. On the first run, once the last apply is done, run `node board/first-read.mjs done`.
+      The first apply removes the made-up example by itself. That is part of the job and
+      already approved. Do it only through apply.
+  11. This run only reads Discord. Do not post, reply, react, pin or start a thread, however
+      clear the answer looks. Nothing reaches Discord on a schedule.
 createdAt: '2026-10-07T00:00:00.000Z'
-updatedAt: '2026-10-12T00:00:00.000Z'
+updatedAt: '2026-11-01T00:00:00.000Z'
