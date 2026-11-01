@@ -64,6 +64,10 @@ three numbers, and each idea as its own box with its picture from `ideas/`). Ide
 Layout sit in the headline. The idea pictures are copies of existing template covers,
 shrunk, until unique ones are made.
 
+The first save needs yt-dlp on the person's computer, and the tools say how to add it when it
+is missing. Until the first video lands, a line under Save says so. On Cabinet Cloud
+(`here.place` is `cloud`) Save is off and the page says saving needs Cabinet on a computer.
+
 The first save (no video in `data.json` is `saved` yet) is told as it happens. The agent
 runs `node library/first-read.mjs start` before it looks the video up, then `push '<line>'`
 at each step ("Found the video: **How Tiny Houses Are Built**, from Small Space Studio, 18

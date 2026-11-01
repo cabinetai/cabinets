@@ -44,8 +44,12 @@ The cabinet opens on it: **Your Video Library**.
 
 1. Copy a video link from YouTube, Instagram, TikTok, X, LinkedIn or Facebook.
 2. On the page, paste it, pick Video, Sound only or Transcript only, and press **Save**.
-3. The chat opens next to the page. A minute or two later the video is on your page,
-   summed up. The first time, the page tells you each step as it happens.
+3. The chat opens next to the page. The first save needs a free tool called yt-dlp: if it
+   is missing, the chat shows you how to add it, and you press Save again. With it in place,
+   a short video is on your page, summed up, in a minute or two. The first time, the page
+   tells you each step as it happens.
+
+Saving from a link needs Cabinet on a computer. On Cabinet Cloud the page says so.
 
 No account and no sign-in on any of these sites. Vimeo and Reddit links do not work: both
 ask for a sign-in to download. Until you save your first video, the page shows a

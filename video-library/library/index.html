@@ -971,6 +971,9 @@
 
   function role() { return state.here && state.here.role ? state.here.role : "owner"; }
   function canAsk() { return V2 && role() !== "viewer"; }
+  /** Saving from a link runs on the person's own computer: Cabinet Cloud's servers have no download tool. */
+  function onCloud() { return !!(state.here && state.here.place === "cloud"); }
+  var CLOUD_WORDS = "Saving from a link needs Cabinet on a computer.";
 
   function ask(question, about) {
     var q = text(question, 3900);
@@ -1063,6 +1066,7 @@
       setSaveNote(V2 ? "Only people who can ask in this cabinet can save a video." : "Open this cabinet in Cabinet to save a video.", true);
       return;
     }
+    if (onCloud()) { setSaveNote(CLOUD_WORDS, true); return; }
     var opt = optionOf(state.saveOption) || OPTIONS[0];
     var have = (id || site) && !state.example ? videos().filter(function (v) {
       return (id ? v.videoId === id : bareLink(v.link) === bareLink(s)) && keptAs(v, opt.id) && v.status !== "failed";
@@ -1559,7 +1563,7 @@
     // Under the band: the Example line, or, after the first save, the gift kept for a few days.
     if (!state.example) { el.innerHTML = giftKeepHtml(); return; }
     el.innerHTML = '<div class="ribbon"><span class="tag-example">Example</span><p>' +
-      "A made-up library. None of these videos were saved. Paste a video link below and your own videos replace them.</p></div>";
+      "A made-up library. None of these videos were saved. " + (onCloud() ? CLOUD_WORDS : "Paste a video link below and your own videos replace them.") + "</p></div>";
   }
 
   // ── The boxes ──────────────────────────────────────────────────────────
@@ -1611,7 +1615,8 @@
     var lead = n
       ? "<b>" + esc(ex + lengthWords(secondsSaved()) + " to watch, " + (bytesWords(bytesUsed()) || "a few KB") + " in this cabinet.") + "</b>" +
         (newest ? ' <span dir="auto">The newest: ' + bidi(text(newest.title, 90)) + ".</span>" : "")
-      : "<b>Paste a video link below to save your first video.</b> A talk, a lesson, a post, or one of your own uploads.";
+      : onCloud() ? "<b>" + esc(CLOUD_WORDS) + "</b>"
+      : "<b>Paste a video link below to save your first video.</b> From " + esc(SITE_WORDS) + ".";
     if (busy) lead += " " + busy + " " + plural(busy, "video is", "videos are") + " being saved now.";
     var meta = [];
     var free = diskWords();
@@ -1629,6 +1634,7 @@
   // Save a video: the link, how to keep it, and Save, which asks the agent in the chat.
   function drawSave(level) {
     var can = canAsk();
+    var cloud = onCloud();
     var note = state.saveNote;
     return '<div class="save-in"><div class="save-head"><span class="lane-icon" aria-hidden="true">' + icon("i-save") + "</span>" +
       '<h2 id="h-save">Save a video</h2></div>' +
@@ -1637,8 +1643,10 @@
       '<span class="opts" role="group" aria-label="What to keep">' + OPTIONS.map(function (o) {
         return '<button type="button" data-act="save-option" data-option="' + o.id + '" aria-pressed="' + (state.saveOption === o.id) + '">' + icon(o.icon) + esc(o.label) + "</button>";
       }).join("") + "</span>" +
-      '<button type="submit" class="btn primary"' + (can || !V2 ? "" : " disabled") + ">" + icon("i-save") + "Save</button></form>" +
+      '<button type="submit" class="btn primary"' + ((can || !V2) && !cloud ? "" : " disabled") + ">" + icon("i-save") + "Save</button></form>" +
       '<p class="save-note' + (state.saveBad ? " bad" : "") + '" id="save-note" aria-live="polite"' + (note ? "" : " hidden") + ">" + (note ? icon(state.saveBad ? "i-alert" : "i-check") + "<span>" + esc(note) + "</span>" : "") + "</p>" +
+      (cloud ? '<p class="save-fine">' + esc(CLOUD_WORDS) + "</p>"
+        : can && firstSave() ? '<p class="save-fine">The first save needs a free tool called yt-dlp. The chat shows you how.</p>' : "") +
       (level === "S" ? "" : '<p class="save-fine">Links from ' + esc(SITE_WORDS.replace(" or ", " and ")) + '. Video plays here, sound only is much smaller, transcript is the words with their times. You see the size first, and anything over ' + BIG_MB + " MB waits for your yes. Someone else's video is for your own use; the rights stay with the creator.</p>") +
       "</div>";
   }
@@ -1740,7 +1748,7 @@
     }
     return listBox("library", "Your videos", "i-library", subject ? "About " + subject : n ? lengthWords(secondsSaved()) + " in all" : "", all.length,
       '<ul class="rows vcards">' + all.map(function (v) { return cardHtml(v, level); }).join("") + "</ul>",
-      "No videos yet. Paste a video link above to save your first one.") + nudgeHtml(boxIdea("library"));
+      onCloud() ? "No videos yet. " + CLOUD_WORDS : "No videos yet. Paste a video link above to save your first one.") + nudgeHtml(boxIdea("library"));
   }
 
   // Subjects: what the videos are about, each with how many. A press shows only those in Your videos.
