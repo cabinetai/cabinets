@@ -32,6 +32,27 @@ things. So every answer you keep is a page, and a page is never thrown away.
 
 You are writing for a person who was not in that thread and does not know the jargon in it.
 
+## What counts as an answer
+
+Ask of every thread: would someone new to this team need this, and would they otherwise have
+to ask? If yes, keep it. Most of what a team knows never arrives as a neat question with an
+accepted reply, so you keep all of these, each written as the question it answers:
+
+- A question somebody answered, even once, even in a single reply nobody reacted to.
+- A rule or a habit someone stated: "attach a screenshot to UI PRs" answers "What does a UI
+  PR need before review?"
+- A known problem and its fix: a bug report that ended in a cause answers "Why does X
+  happen, and what fixes it?"
+- Where something lives, who owns it, how a thing is done, or what a name means.
+- A decision that still holds: "we moved the demo to staging" answers "Where does the demo
+  run?"
+
+Leave out what has no use next month: status updates, greetings, bare pull request links,
+one-off scheduling, and anything about one person's day. A single reply nobody disputed is
+`Settled`. Only a real disagreement is `Shifting`, and a question nobody could answer is
+`Open`. Keeping nothing should be rare: it means the channels really held no knowledge, not
+that nothing was tidy enough.
+
 ## What you keep
 
 Two kinds of file, and the difference between them matters.

@@ -39,7 +39,7 @@ the secret itself.
 1. On the page, press **Connect Slack**, check the workspace on Slack's page and press
    **Allow**. Cabinet then asks which channels it may use. Every public channel is in by
    default. A private channel, like a support channel, is in when you add it by name.
-2. Your first sweep starts right away. It reads the last 7 days and tells you what it finds
+2. Your first sweep starts right away. It reads the last 90 days and tells you what it finds
    as it goes, a few minutes in all. After that it runs every night at 2.
 
 Until then, the page shows a made-up team, and says so.
