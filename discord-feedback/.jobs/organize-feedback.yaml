@@ -1,0 +1,57 @@
+id: organize-feedback
+name: Organize Feedback
+enabled: true
+schedule: "*/30 * * * *"
+provider: claude-code
+adapterType: claude_local
+ownerAgent: feedback-analyst
+agentSlug: feedback-analyst
+timeout: 600
+prompt: |-
+  Update the Feedback Board with what is new in #feedback and every message marked with 📌.
+
+  Your working directory is the cabinet root. The board lives in `board/data.json`, and it
+  is the only file you write (on the first run, also the reading below).
+
+  1. Read your persona before anything else. It holds the file shape, what counts as
+     feedback, how to match a message to an existing request, and the exact type and
+     priority words. This prompt does not repeat them.
+  2. Read `board/data.json`. If it does not exist yet, this is the first run: you will
+     create it with an empty `requests` list before adding to it. The person is likely
+     watching: tell it as you go through `board/first-read.mjs`, as "The first check" in
+     your persona says.
+  3. If you have no Discord tools (none named `discord_list_channels`), Discord is not
+     connected: set `status` to "Discord isn't connected yet", write the file, and stop.
+  4. Call `discord_list_channels` once. Find the channel named `feedback`. If there is none
+     (it is missing, or the person did not allow it), set `status` to "No #feedback channel
+     found" and skip step 5, but still do step 6.
+  5. Read #feedback with `discord_read_channel`, `limit` 100:
+     - With a `cursor`, read with `after` the cursor; if 100 come back, read again with
+       `after` the newest id you got, until fewer than 100 come back.
+     - On the first run, read the newest 100 and page back with `before` the oldest id you
+       got, at most 10 pages.
+     Then read any thread started in #feedback (a message with a `thread` field) that has
+     replies newer than the cursor, the same way.
+  6. Find the messages marked with 📌. Read the newest 100 messages of every other allowed
+     text and announcement channel once, and of each thread and forum post that
+     `discord_list_threads` lists there (skip archived ones), and keep each message whose
+     `reactions` include `📌`. In #feedback every message you read already shows its
+     reactions. For each new marked message, call `discord_who_reacted` with emoji `📌`:
+     the people who reacted (not bots) are the ones asking. If that call fails, the
+     message's author is the one asking.
+  7. Skip any message whose id is already in a request's `messages` (but when that entry
+     has no `link` yet, add the one you just read). Sort each new one: leave
+     it out, add it to a request already on the board, or start a new request. A message
+     marked with 📌 counts as feedback unless it plainly is not (a joke, a greeting). Store
+     each message's `link` exactly as the tool gave it. Then
+     update counts, people, dates and priorities.
+  8. Set `cursor` to the id of the newest #feedback message you read (keep the old one if
+     there was nothing new), `previousGenerated` to the `generated` the file had when you
+     read it (leave it out on the first run), `generated` to now, `status` to "ok" unless
+     step 4 set it, and write the whole file back as valid JSON (check it parses).
+  9. This run is read only in Discord. Do not post, reply, react, pin or start a thread.
+  10. If a Discord call fails, retry it once. If Discord can't be reached at all, set
+      `status` to a short phrase naming the problem, keep everything else in the file as it
+      was, and stop. If only one channel fails, finish with the rest.
+createdAt: '2026-10-07T00:00:00.000Z'
+updatedAt: '2026-10-12T00:00:00.000Z'
