@@ -91,7 +91,7 @@ most or the quiet one when it is older than those.
 
 - `gist`: what stands out about that video, at most about twelve words, compared only with
   their own videos, from what compute printed: "Most comments per view of your recent videos",
-  "Fewer shares per view than your usual", "Your most liked video under 30 seconds". Leave a
+  "Fewer shares per view than your usual", "Your most liked video under half a minute". Leave a
   video out when nothing stands out. Say "first day" or "on pace" only for a video compute
   printed a first-day number for. Never a trend you cannot count ("picked up again", "shared
   every day"): TikTok has no daily numbers.
@@ -125,7 +125,7 @@ cabinet root, never `cd`.
    `NEEDS_CONNECTION: tiktok | TikTok needs a new sign-in` line it printed inside your cabinet
    block, run `done`, and stop. If its second page failed it carries on with the first.
 6. Write `words.json` and run `latest @words.json`. Fix what it refuses and run it again. Then
-   `done`.
+   `done`. If it refuses the second try too, run `fail other` and stop.
 
 Finish in one or two plain sentences about the person's account and nothing else: how their
 videos did, and which one moved most.
@@ -146,8 +146,8 @@ catch-up is done. `compute` writes the files below for you in `.work/`.
 - `latest @words.json`, then `done` last. `compute` or `fail` close the reading on a failed run.
 
 **The lines.** One short sentence about their account, the finding in `**bold**`: "Found your
-account: **Juno Bakes**, 48,200 followers", "**Your last 10 videos**: 612,400 views between
-them", "**Brown butter cookies** has your most views this month". Four to seven lines, the
+account: **Juno Bakes**, 48,200 followers", "**Sourdough starter in 5
+days**: 412,600 views", "**Brown butter cookies** has your most views this month". Four to seven lines, the
 first within a minute of `start`. Every number is one TikTok answered or compute printed.
 Never a line about yourself, a request, a raw id or a link. The helper refuses a broken line;
 fix it or push nothing.

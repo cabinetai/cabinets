@@ -230,3 +230,24 @@ test("a first catch-up with videos but no views gets the early gift, and a faile
   assert.equal(c.data("status.json").kind, "unreachable");
   assert.equal(c.has("latest.json"), false);
 });
+
+test("before compute, a line may carry a video's number from the saved page", () => {
+  const c = cabinet();
+  c.run("start");
+  c.put("user.json", profile(1));
+  assert.equal(c.run("push", "**Video a**: 412,600 views").status, 1, "not answered yet");
+  c.put("videos.json", page([fresh("a", 412600)]));
+  assert.equal(c.run("push", "**Video a**: 412,600 views").status, 0);
+  assert.equal(c.run("push", "**Video a**: 999,999 views").status, 1, "a number TikTok never gave");
+});
+
+test("a lock that cannot be made fails at once instead of waiting", () => {
+  const c = cabinet();
+  c.run("start");
+  fs.rmSync(path.join(c.dir, "data"), { recursive: true, force: true });
+  fs.writeFileSync(path.join(c.dir, "data"), "");
+  const started = Date.now();
+  const r = c.run("push", "**Juno**: 10 followers");
+  assert.equal(r.status, 1);
+  assert.ok(Date.now() - started < 4000, "it did not wait for the lock");
+});

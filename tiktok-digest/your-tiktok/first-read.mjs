@@ -33,7 +33,7 @@
 //   node <app>/first-read.mjs offer @offer-next.json  one more thing they can do now, at most 2
 //                                                   (@offer-quiet.json is there on a day with a quiet video)
 // A line is one short sentence about their account, the finding in **bold**:
-//   "**Your last 10 videos**: 612,400 views between them"
+//   "**Sourdough starter in 5 days**: 412,600 views"
 // Every number in it is one TikTok answered or compute printed, never a guess.
 // Nothing here writes to TikTok: Cabinet's TikTok only reads.
 import fs from "node:fs";
@@ -123,7 +123,9 @@ function lockReading() {
   const until = Date.now() + 8000;
   const nap = new Int32Array(new SharedArrayBuffer(4));
   for (;;) {
-    try { fs.mkdirSync(lock); break; } catch {
+    try { fs.mkdirSync(lock); break; } catch (e) {
+      // Only a lock already there is worth waiting for: a missing or read-only folder never clears.
+      if (e?.code !== "EEXIST") fail(`cannot write in ${path.relative(process.cwd(), dataDir)}: ${e?.code || e}`);
       try { if (Date.now() - fs.statSync(lock).mtimeMs > 5000) { fs.rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
       if (Date.now() > until) fail("another push is still running: push one line at a time");
       Atomics.wait(nap, 0, 0, 100);
@@ -143,7 +145,7 @@ function checkLine(line) {
   if (/\bundefined\b|\bNaN\b|\bnull\b|\[object|\{|\}/.test(line) || RAW_ID.test(line)) fail(`refused, the line is broken or carries a raw id or link: ${line}`);
   if (line.length > 200) fail("refused, the line is longer than 200 characters");
   if (/[—–]/.test(line)) fail("refused, a long dash: use a comma or a period");
-  if (!/\*\*[^*]+\*\*/.test(line)) fail("refused, mark the finding in **bold**, like '**Your last 10 videos**: 612,400 views between them'");
+  if (!/\*\*[^*]+\*\*/.test(line)) fail("refused, mark the finding in **bold**, like '**48,200 followers**, up from last month'");
   if (/^(I|I'm|I've|Searching|Reading|Looking|Checking|Opening|Trying)\b/i.test(line.replace(/\*/g, ""))) fail("refused, a line about the reading: say what you found on their account");
   // "**0 views**" is not a finding: a line whose numbers are all 0 says nothing.
   const bold = (line.match(/\*\*[^*]+\*\*/g) || []).join(" ");
@@ -164,10 +166,12 @@ function checkNumbers(words, allowed, what, floor = 0) {
 }
 /** The numbers of this run so far: all of compute's, or before it the profile's. Null before any call. */
 function numbersSoFar() {
-  for (const [name, read] of [["computed.json", (t) => JSON.parse(t).sheet], ["user.json", (t) => t]]) {
-    try { return new Set(numbersIn(read(fs.readFileSync(path.join(workDir, name), "utf8")))); } catch { /* not there yet */ }
-  }
-  return null;
+  const read = (name) => { try { return fs.readFileSync(path.join(workDir, name), "utf8"); } catch { return null; } };
+  const computed = read("computed.json");
+  if (computed) return new Set(numbersIn(JSON.parse(computed).sheet));
+  // Before compute, a line may carry any number TikTok answered: the profile and the saved video pages.
+  const answers = ["user.json", "videos.json", "videos-2.json"].map(read).filter((t) => t !== null);
+  return answers.length ? new Set(answers.flatMap((t) => numbersIn(t))) : null;
 }
 
 // ── What the page shows beside the lines: copied from TikTok's answers, checked here ──

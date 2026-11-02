@@ -104,10 +104,11 @@ Nothing on the page writes on TikTok, and Cabinet's TikTok cannot: it only reads
 button asks the agent in the chat for a plan, a caption or a page in the cabinet.
 
 The first catch-up (no `latest.json` yet) is told as it happens. The agent runs
-`node your-tiktok/first-read.mjs start`, `push '<line>'` after each look at TikTok ("**Your last
-10 videos**: 612,400 views between them"), `compute`, then `recent @recent.json`, `gift
+`node your-tiktok/first-read.mjs start`, `push '<line>'` after each look at TikTok ("**Sourdough
+starter in 5 days**: 412,600 views"), `compute @user.json @videos.json` (with
+`@videos-2.json` when there is a second page), then `recent @recent.json`, `gift
 @gift.json`, `offer @offer-next.json`, `latest @words.json` and `done`. Later catch-ups run
-`start --morning`, `compute`, `latest` and `done`, with no reading.
+`start --morning`, the same `compute`, `latest` and `done`, with no reading.
 The helper writes `reading.json` atomically under a lock, refuses an empty, broken or
 repeated line and any large number in it that neither TikTok nor compute gave, and checks every
 title, time, count and link. The
