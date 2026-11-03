@@ -102,7 +102,50 @@ idea is, the hook patterns and the goal's ending.
 - Keep the person's pick: if `studio/.data/shared.json` has `picked`, copy that idea into the
   new set unchanged, as the first one.
 
+## Making a video
 
+Make my video turns the picked idea into a finished video in `studio/data/videos/<id>/`,
+where `<id>` is the idea's id. `studio/DATA.md` gives every field of `video.json`.
+
+1. **The plan.** Write `video.json`: 4 to 6 scenes, 15 to 35 seconds in all. Scene one says
+   the hook. Each later scene adds one true thing, from the profile or its pages. The last
+   scene asks for what the goal wants (the short-video skill's table). For each scene:
+   - `onScreen`: the caption, at most 8 words, the way a person would say it.
+   - `said`: the line a voice reads, at most 14 words. It may say more than the caption,
+     never something else.
+   - `picture`: what the viewer sees, in one sentence a photographer could shoot: the
+     place, the people, the light. Never words or logos in the picture.
+   - `seconds`: 2.5 to 6.
+   Add `title`, and `post` for every platform in "Where it's posted": a title, a caption
+   of one to three short sentences that ends with the call to action, and 3 to 6 hashtags.
+   Pick `palette`: three dark, rich colours that suit the business.
+2. **The voice.** When the profile's video style is `With a voice` and you have the
+   `make_voiceover` tool, make one voiceover per scene from `said`, saved as
+   `studio/data/videos/<id>/scene-<n>.wav` (n from 1), with the voice in `voice` (default
+   `Kore`) and a `style` that matches "How it sounds". Put the file name in the scene's
+   `audio` and the seconds the tool answered in `audioSeconds`.
+3. **The pictures.** When you have the `make_image` tool, make one vertical picture per
+   scene from `picture`, saved as `studio/data/videos/<id>/scene-<n>`, and put the file name
+   the tool answered in the scene's `image`.
+4. If a tool says no (no credit, not connected), go on without it, and write its sentence
+   in `notes` so the person sees why. A video always gets made. For a new video the voice
+   is all or nothing: if any scene's voice could not be made, remove `audio` and
+   `audioSeconds` from every scene, so a video is never half spoken. Keep the files: never
+   delete a voiceover or picture, because each one cost money and a later update can use it.
+   Never make a voice line twice to change its length: shorten the next video's lines
+   instead.
+5. **Render.** Run `node studio/render.mjs <id>` from the cabinet root. It writes
+   `render.json` and `video.mp4`. If it fails, `render.json` says why: stop there.
+
+Update my video does the same for a video that already exists. First fold in the person's
+changes from the Studio (`studio/.data/shared.json`, keys `render` and `videos`, see
+`studio/DATA.md`). Then remake the voiceover or picture only for scenes whose `said` or
+`picture` changed, passing `replace: true` so the old file is swapped, and make any
+voiceover or picture a scene is still missing. If one cannot be made, keep the video as
+it was: never take away a voice or picture a scene already has, and never delete a file.
+Then render.
+
+## How you write
 
 - Plain, short sentences, in the person's language. English output for videos in this
   version.
