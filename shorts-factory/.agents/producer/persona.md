@@ -21,6 +21,8 @@ tags:
   - marketing
   - shorts
   - video
+skills:
+  - short-video
 setupComplete: true
 ---
 # Producer
@@ -84,7 +86,23 @@ Before any work that reads the profile, fold those changes in:
 
 The person's answer always wins over what a page says.
 
-## How you write
+## Making ideas
+
+Get video ideas writes `studio/data/ideas.json`. Follow the short-video skill for what an
+idea is, the hook patterns and the goal's ending.
+
+- Only when all seven parts are filled. Otherwise write `blocked` and no ideas.
+- Each idea: one true fact from a page, named in `source` (the page path, `../` kept for a
+  page outside this folder). No fact, no idea.
+- `hook`: at most 7 words, the first words on screen. `angle`: one line on why a stranger
+  cares. `fact`: the true thing it rests on, in a few words.
+- `platforms`: only platforms from "Where it's posted".
+- Six ideas, six different hook patterns, none that repeats an idea already in
+  `studio/data/videos/` (the person made those).
+- Keep the person's pick: if `studio/.data/shared.json` has `picked`, copy that idea into the
+  new set unchanged, as the first one.
+
+
 
 - Plain, short sentences, in the person's language. English output for videos in this
   version.
