@@ -212,7 +212,10 @@
 
   var EXAMPLE = "## What you offer\nA neighbourhood bakery in Florentin. Croissants, sourdough and Friday challah, baked every morning.\nSource: about.md\n\n## Who it's for\nPeople who live and work within a short walk. Weekday regulars and Friday families.\nSource: customer-stories.md\n\n## Why you\nA 2:30am start, 36-hour sourdough, and regulars who have come for years.\nSource: about.md\n\n## The goal\nMore sales\n\n## How it sounds\nWarm\nWords to avoid: artisanal, crafted\n\n## Where it's posted\nTikTok, Instagram Reels, YouTube Shorts\n\n## What never to say\nNot filled yet\n\n## Video style\nWords on screen\n";
 
-  var profile = {}, open = null, editing = null, saving = {}, running = false, loaded = false;
+  // `file` is profile.md as the team wrote it; `edits` are the person's changes, saved in the
+  // Studio's store at once and copied into profile.md by the Producer before its next work.
+  var file = {}, edits = {}, profile = {}, open = null, editing = null, saving = {}, running = false, loaded = false;
+  var canSave = !!(inCabinet && c.store && c.store.set);
 
   function icon(name, extra) { return '<svg class="i' + (extra ? " " + extra : "") + '"><use href="#i-' + name + '"/></svg>'; }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (ch) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]; }); }
@@ -234,19 +237,36 @@
     });
     return out;
   }
+  function merge() {
+    profile = {};
+    Object.keys(file).forEach(function (k) { profile[k] = file[k]; });
+    Object.keys(edits).forEach(function (k) {
+      var v = String(edits[k] || "").trim();
+      profile[k] = { value: v, source: "", missing: !v || v === EMPTY };
+    });
+  }
   function part(name) { return profile[name] || { value: "", source: "", missing: true }; }
   function firstLine(name) { return (part(name).value.split("\n")[0] || "").trim(); }
   function restLines(name) { return part(name).missing ? "" : part(name).value.split("\n").slice(1).join("\n").trim(); }
   function picked(p) { var f = firstLine(p.name); return p.many ? f.split(",").map(function (s) { return s.trim(); }) : [f]; }
 
-  /* ---------- the Producer ---------- */
+  /* ---------- saving: straight to the Studio's store, no chat ---------- */
   function tell(name, value) {
-    if (!inCabinet || !c.ask) return;
-    var text = value.indexOf("\n") >= 0 || value.length > 60
-      ? 'In profile.md, set "' + name + '" to:\n' + value
-      : 'In profile.md, set "' + name + '" to "' + value + '".';
-    saving[name] = true; paint();
-    c.ask(text, { send: true }).catch(function (e) { saving[name] = false; say(e && e.message ? e.message : "That change did not reach the Producer. Try again."); paint(); });
+    if (!canSave) { if (!inCabinet) { edits[name] = value; merge(); paint(); } return; }
+    var next = {};
+    Object.keys(edits).forEach(function (k) { next[k] = edits[k]; });
+    next[name] = value;
+    edits = next; merge(); saving[name] = true; paint();
+    c.store.set("profile", next).then(function () { saving[name] = false; paint(); }, function (e) {
+      saving[name] = false;
+      say(e && e.message ? e.message : "That change was not saved. Try again.");
+      readEdits(); paint();
+    });
+  }
+  function readEdits() {
+    var v = canSave && c.store.get ? c.store.get("profile") : null;
+    edits = v && typeof v === "object" ? v : {};
+    merge();
   }
   function say(text) { $("status").textContent = text || ""; $("status").hidden = !text; }
   function spinner() { return '<span class="saving">' + icon("loader", "spin") + "Saving</span>"; }
@@ -320,6 +340,9 @@
   }
 
   function wire() {
+    if (inCabinet && c.canWrite && !c.canWrite()) {
+      document.querySelectorAll("[data-choice],[data-style],[data-edit],[data-save]").forEach(function (b) { b.disabled = true; });
+    }
     document.querySelectorAll("[data-toggle]").forEach(function (b) {
       b.onclick = function () {
         var name = PARTS[+b.dataset.toggle].name;
@@ -380,12 +403,18 @@
   }
 
   function load() {
-    if (!inCabinet) { profile = parse(EXAMPLE); loaded = true; $("example").hidden = false; paint(); return; }
-    c.files.read("profile.md").then(function (t) { profile = parse(t); saving = {}; loaded = true; paint(); },
-      function () { profile = {}; loaded = true; say("profile.md is missing. Fill from my pages makes a new one."); paint(); });
+    if (!inCabinet) { file = parse(EXAMPLE); merge(); loaded = true; $("example").hidden = false; paint(); return; }
+    c.files.read("profile.md").then(function (t) { file = parse(t); readEdits(); loaded = true; paint(); },
+      function () { file = {}; readEdits(); loaded = true; say("profile.md is missing. Fill from my pages makes a new one."); paint(); });
   }
-  if (inCabinet) { c.files.onChange("", load); c.jobs.list().then(watchJobs, function () {}); c.jobs.onChange(watchJobs); }
-  load();
+  if (inCabinet) {
+    c.files.onChange("", load);
+    c.jobs.list().then(watchJobs, function () {});
+    c.jobs.onChange(watchJobs);
+    if (c.store && c.store.onChange) c.store.onChange(function () { readEdits(); paint(); });
+  }
+  // The store's first values arrive with Cabinet's hello.
+  (inCabinet && c.ready ? c.ready : Promise.resolve()).then(load, load);
 })();
 </script>
 </body>

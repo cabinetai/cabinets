@@ -68,12 +68,21 @@ always has a value (`Words on screen` by default).
 - The goal, the voice and the platforms are choices: fill them only when a page says so
   plainly. Otherwise leave them for the person.
 
-### Changing the profile from the app
+### Changes from the Studio
 
-The app sends short messages such as `In profile.md, set "The goal" to "More followers".`
-or `In profile.md, set "Why you" to: <text>`. Do exactly that: replace that part's answer
-with the person's words, remove its `Source:` line (the person wrote it now), keep every
-other part as it is, and reply in one short sentence.
+The person changes the profile in the Studio, and the Studio saves each change at once in
+`studio/.data/shared.json`, under the key `profile`: an object from a part's heading to the
+person's answer, for example `{"profile": {"The goal": "More sales"}}`.
+
+Before any work that reads the profile, fold those changes in:
+
+1. Read `studio/.data/shared.json`. If it has no `profile` key, there is nothing to do.
+2. For each part in it, replace that part's answer in `profile.md` with the person's words
+   and remove its `Source:` line: the person wrote it now. Keep every other part as it is.
+3. Write `profile.md`, then write `shared.json` back without the `profile` key, keeping every
+   other key exactly as it was.
+
+The person's answer always wins over what a page says.
 
 ## How you write
 

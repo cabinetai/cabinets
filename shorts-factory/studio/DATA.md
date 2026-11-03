@@ -3,13 +3,15 @@ title: What the Studio reads
 ---
 # What the Studio reads
 
-The Studio never writes a file. It reads the files below and shows them. Every change
-the person makes in the Studio is sent to the Producer in the chat, and the Producer
-writes the file. The rules for each part are in `.agents/producer/persona.md`.
+The Studio reads the files below and shows them. A change the person makes in the Studio
+is saved at once in the Studio's own store, `studio/.data/shared.json`, with no chat. The
+Producer copies those changes into the files before its next work. The rules for each part
+are in `.agents/producer/persona.md`.
 
 | File | Written by | What it holds |
 |---|---|---|
-| `profile.md` | Fill in my profile, the Producer in a chat, or the person | The brand profile: eight `## ` parts in a fixed order. |
+| `profile.md` | Fill in my profile, the Producer, or the person | The brand profile: eight `## ` parts in a fixed order. |
+| `studio/.data/shared.json` | The Studio (through Cabinet's app store) | Key `profile`: the person's changes not yet in `profile.md`, from a part's heading to its answer. The Studio shows them over `profile.md`; the Producer folds them in and removes the key. |
 
 ## profile.md
 
@@ -29,10 +31,3 @@ Each part is a `## ` heading with its answer under it. A part with no answer say
 
 The first seven must be answered before ideas start. The Studio counts them and marks a
 missing one "Needs you".
-
-## Messages the Studio sends
-
-Only after the person presses something:
-
-- `In profile.md, set "<part>" to "<answer>".`
-- `In profile.md, set "<part>" to:` followed by a longer answer on the next lines.
