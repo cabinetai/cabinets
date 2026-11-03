@@ -124,8 +124,6 @@ const CABINET_ICONS = {
   'meta-ads-brief':           { object: 'an infinity-loop ribbon standing upright with one coin balanced on top', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'microsoft-365-brief':      { object: 'a four-pane window tile leaning against a small stack of documents', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'monday-tasks':             { object: 'a neat row of five rounded beads in a shallow tray, one bead lifted out', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'notion-library':           { object: 'a small bookshelf of cube compartments, each holding one tiny book', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'notion-project-status':    { object: 'a small easel holding a page with three progress bars of different lengths', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'obsidian-kb':              { object: 'a faceted gemstone on a stand with three small notes linked to it by thin threads', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'openai-image-studio':      { object: 'an artist easel holding a canvas with a rising sun carved in relief', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'playwright-site-check':    { object: 'a theater comedy mask resting beside a small browser-window tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },

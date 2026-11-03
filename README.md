@@ -90,8 +90,8 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [newborn](./newborn) | Lifestyle | 1 | 2 | 0 | The survival cabinet for weeks 0–12 with a brand-new baby |
 | [news-desk](./news-desk) | Media | 1 | 1 | 0 | Your news sites, read every morning — and analyzed the way you would, not the way a wire feed would |
 | [newsletter-factory](./newsletter-factory) | Media | 1 | 2 | 0 | A complete newsletter OS in a directory |
-| [notion-library](./notion-library) | Operations | 1 | 1 | 0 | Every morning, a list of the Notion pages you shared, with what each one is actually about |
-| [notion-project-status](./notion-project-status) | Operations | 1 | 1 | 0 | Every morning, which of your Notion projects are on track and which need a look |
+| [notion-knowledge-hub](./notion-knowledge-hub) | Operations | 1 | 1 | 0 | Your Notion wiki, kept fresh. What changed, what went stale, which links broke, and an assistant who answers from your pages |
+| [notion-project-sync](./notion-project-sync) | Operations | 1 | 1 | 0 | Your Notion task databases on one page. What is overdue, what is due this week, who carries what, and what moved since yesterday |
 | [obsidian-kb](./obsidian-kb) | Knowledge | 1 | 1 | 0 | Turns the vault you already wrote into a knowledge base you can ask questions of |
 | [openai-image-studio](./openai-image-studio) | Creative | 1 | 1 | 0 | Describe a picture and get a real image file in your cabinet |
 | [personal-os](./personal-os) | Operations | 1 | 1 | 6 | Your life has departments |
