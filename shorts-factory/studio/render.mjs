@@ -90,13 +90,15 @@ function build(plan) {
     return { ...scene, i, start, seconds, words, key: keyIndex(words), audio };
   });
   const total = Math.round(t * 100) / 100;
+  // The business name, small at the foot of every frame, when the plan names it.
+  const brand = typeof plan.brand === "string" ? plan.brand.trim().slice(0, 40) : "";
 
   const sceneHtml = scenes
     .map((s) => {
       const image = s.image && fs.existsSync(path.join(dir, s.image)) ? s.image : null;
       const bg = image
         ? `<img class="photo" id="photo-${s.i}" src="../${esc(image)}" alt="" />`
-        : `<div class="field" style="background: radial-gradient(120% 75% at ${30 + ((s.i * 23) % 40)}% ${18 + ((s.i * 17) % 30)}%, ${palette[s.i % palette.length]}, ${palette[(s.i + 1) % palette.length]} 72%, #0b0807);"></div><div class="orb" id="orb-${s.i}"></div>`;
+        : `<div class="field" style="background: radial-gradient(120% 75% at ${30 + ((s.i * 23) % 40)}% ${18 + ((s.i * 17) % 30)}%, ${palette[s.i % palette.length]}, ${palette[(s.i + 1) % palette.length]} 72%, #0b0807);"></div><div class="orb" id="orb-${s.i}"></div><div class="orb two" id="orb2-${s.i}" style="background: radial-gradient(circle, ${palette[(s.i + 2) % palette.length]}cc, transparent 62%);"></div>`;
       const caption = pages(s.words)
         .map((page, k) => `<p class="cap${s.i === 0 ? " hook" : ""}" id="p-${s.i}-${k}">` + page
           .map((j) => `<span class="w${j === s.key ? " key" : ""}" id="w-${s.i}-${j}">${esc(s.words[j].word)}</span>`)
@@ -118,6 +120,7 @@ function build(plan) {
         lines.push(`tl.fromTo("#photo-${s.i}", { scale: 1.04 }, { scale: 1.14, duration: ${s.seconds}, ease: "none" }, ${s.start});`);
       } else {
         lines.push(`tl.fromTo("#orb-${s.i}", { x: -60, y: 40, scale: 0.9 }, { x: 80, y: -60, scale: 1.15, duration: ${s.seconds}, ease: "sine.inOut" }, ${s.start});`);
+        lines.push(`tl.fromTo("#orb2-${s.i}", { x: 70, y: -30, scale: 1.1 }, { x: -90, y: 70, scale: 0.92, duration: ${s.seconds}, ease: "sine.inOut" }, ${s.start});`);
       }
       const pg = pages(s.words);
       pg.forEach((page, k) => {
@@ -142,7 +145,7 @@ function build(plan) {
     .map((s) => `<audio id="voice-${s.i}" class="clip" src="../${esc(s.audio)}" data-start="${s.start}" data-duration="${s.seconds}" data-track-index="2"></audio>`)
     .join("\n");
 
-  return `<!doctype html>
+  const html = `<!doctype html>
 <html lang="en" data-resolution="portrait">
   <head>
     <meta charset="UTF-8" />
@@ -159,12 +162,16 @@ function build(plan) {
       .photo { object-fit: cover; transform-origin: 50% 45%; }
       .orb { position: absolute; width: 900px; height: 900px; left: 90px; top: 380px; border-radius: 50%;
         background: radial-gradient(circle, rgba(255,255,255,0.14), rgba(255,255,255,0) 65%); }
+      .orb.two { width: 1100px; height: 1100px; left: -260px; top: 1050px; mix-blend-mode: screen; opacity: 0.55; }
+      .chrome { pointer-events: none; }
+      .bar { position: absolute; left: 60px; right: 60px; top: 64px; height: 8px; border-radius: 8px; background: rgba(255,255,255,0.22); overflow: hidden; }
+      .bar i { position: absolute; inset: 0; background: #fff; transform-origin: 0 50%; transform: scaleX(0); }
+      .brand { position: absolute; left: 0; right: 0; bottom: 150px; text-align: center; color: rgba(255,255,255,0.82); font-weight: 800; font-size: 40px; letter-spacing: -0.01em; }
       .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.35)); }
       .cap { position: absolute; left: 90px; right: 90px; top: 50%; transform: translateY(-50%);
         text-align: center; color: #fff; font-weight: 900; font-size: 92px; line-height: 1.1; letter-spacing: -0.03em;
         text-shadow: 0 6px 28px rgba(0,0,0,0.45); text-wrap: balance; font-size: 100px; }
       .cap.hook { font-size: 120px; }
-      .grain { position: absolute; inset: -50%; opacity: 0.07; background-image: radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1.4px); background-size: 7px 7px; }
       .cap { opacity: 0; }
       .w { display: inline-block; padding: 0 0.1em; border-radius: 0.16em; }
       .w.on { background: ${accent}; }
@@ -174,18 +181,21 @@ function build(plan) {
   <body>
     <div id="root" data-composition-id="main" data-start="0" data-duration="${total}" data-width="${W}" data-height="${H}">
 ${sceneHtml}
+<div class="clip chrome" id="chrome" data-start="0" data-duration="${total}" data-track-index="3"><div class="bar"><i id="bar"></i></div>${brand ? `<div class="brand">${esc(brand)}</div>` : ""}</div>
 ${audio}
     </div>
     <script>
       window.__timelines = window.__timelines || {};
       const tl = gsap.timeline({ paused: true });
       ${timeline}
+      tl.fromTo("#bar", { scaleX: 0 }, { scaleX: 1, duration: ${total}, ease: "none" }, 0);
       window.__timelines["main"] = tl;
       tl.seek(0);
     </script>
   </body>
 </html>
 `;
+  return { html, total };
 }
 
 function run(cmd, args, cwd) {
@@ -211,7 +221,8 @@ async function main() {
   }
   const work = path.join(dir, ".render");
   fs.mkdirSync(work, { recursive: true });
-  fs.writeFileSync(path.join(work, "index.html"), build(plan));
+  const built = build(plan);
+  fs.writeFileSync(path.join(work, "index.html"), built.html);
   fs.writeFileSync(path.join(work, "meta.json"), JSON.stringify({ id: `shorts-${id}`, name: plan.title || id }, null, 2));
   fs.writeFileSync(path.join(work, "hyperframes.json"), JSON.stringify({ paths: { assets: "assets" }, media: { autoProxy: false } }, null, 2));
 
@@ -228,7 +239,8 @@ async function main() {
   }
   fs.renameSync(out, path.join(dir, "video.mp4"));
   const bytes = fs.statSync(path.join(dir, "video.mp4")).size;
-  status("ready", { seconds: Math.round((Date.now() - started) / 1000), bytes, file: "video.mp4" });
+  // `seconds` is how long the video runs; `tookSeconds` is how long making it took.
+  status("ready", { seconds: Math.round(built.total), tookSeconds: Math.round((Date.now() - started) / 1000), bytes, file: "video.mp4" });
   console.log(`Rendered studio/data/videos/${id}/video.mp4 (${Math.round(bytes / 1024)} KB)`);
 }
 

@@ -13,7 +13,7 @@ are in `.agents/producer/persona.md`.
 | `profile.md` | Fill in my profile, the Producer, or the person | The brand profile: eight `## ` parts in a fixed order. |
 | `studio/data/ideas.json` | Get video ideas | The latest set of ideas. |
 | `studio/data/videos/<id>/video.json` | Make my video, Update my video | One video's plan. |
-| `studio/data/videos/<id>/render.json` | `studio/render.mjs` | `{ state: "rendering" \| "ready" \| "failed", at, why?, seconds?, bytes? }` |
+| `studio/data/videos/<id>/render.json` | `studio/render.mjs` | `{ state: "rendering" \| "ready" \| "failed", at, why?, seconds?, tookSeconds?, bytes? }`: `seconds` is the video's length, `tookSeconds` how long the render took. |
 | `studio/data/videos/<id>/video.mp4` | `studio/render.mjs` | The finished video, 1080 by 1920. |
 | `studio/data/videos/<id>/scene-<n>.wav`, `scene-<n>.png` | The Producer, through Cabinet | One scene's voice line and picture. |
 | `studio/.data/shared.json` | The Studio (through Cabinet's app store) | Key `profile`: the person's changes not yet in `profile.md`, from a part's heading to its answer. The Studio shows them over `profile.md`; the Producer folds them in and removes the key. Key `picked`: the id of the idea the person picked. Key `videos`: the person's changes to a video, `{ "<id>": { "scenes": [ { "onScreen", "said", "picture" } ], "post": { … } } }`, scenes in order. Key `render`: the id of the video Update my video makes again. |
@@ -72,6 +72,7 @@ missing one "Needs you".
   "ideaId": "price-beaten",
   "title": "Price beaten in 7 days or it's free",
   "createdAt": "2026-11-03T18:00:00Z",
+  "brand": "Wayfare",
   "palette": ["#2f4f63", "#132433", "#1d3a4a"],
   "voice": "Kore",
   "scenes": [

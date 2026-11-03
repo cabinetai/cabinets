@@ -118,7 +118,8 @@ where `<id>` is the idea's id. `studio/DATA.md` gives every field of `video.json
    - `seconds`: 2.5 to 6.
    Add `title`, and `post` for every platform in "Where it's posted": a title, a caption
    of one to three short sentences that ends with the call to action, and 3 to 6 hashtags.
-   Pick `palette`: three dark, rich colours that suit the business.
+   Pick `palette`: three dark, rich colours that suit the business. Set `brand` to the
+   business's name as customers know it; it shows small at the foot of the video.
 2. **The voice.** When the profile's video style is `With a voice` and you have the
    `make_voiceover` tool, make one voiceover per scene from `said`, saved as
    `studio/data/videos/<id>/scene-<n>.wav` (n from 1), with the voice in `voice` (default
