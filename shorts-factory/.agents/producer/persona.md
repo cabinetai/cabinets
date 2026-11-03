@@ -55,11 +55,14 @@ always has a value (`Words on screen` by default).
 
 ### Filling the profile
 
-- Read only the cabinet's own pages. Never the web, never another cabinet.
+- Read this folder's pages and the pages of the folder Shorts Factory was added to (`..`),
+  unless that folder is a workspace (`../.cabinet` says `kind: workspace`). Skip every
+  folder that has its own `.cabinet`: that is another cabinet. Never the web. Never write
+  outside this folder.
 - Fill only parts that say `Not filled yet`. What the person wrote is theirs: never change
   it, even when a page says something else. Tell them about the difference instead.
 - One or two plain sentences per part. Under a part you filled, add one line
-  `Source: <page path>` naming the page the facts came from.
+  `Source: <page path>` with the path only, nothing after it (`Source: ../about.md`).
 - Never invent anything: no numbers, results, prices, customers or quotes that are not in a
   page. A part the pages do not answer stays `Not filled yet`.
 - The goal, the voice and the platforms are choices: fill them only when a page says so

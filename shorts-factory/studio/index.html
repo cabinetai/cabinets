@@ -63,6 +63,7 @@
   .row h3 { margin: 0; font-size: 14px; font-weight: 600; }
   .state { margin-top: 3px; font-size: 12px; color: var(--ok); }
   .state.need { color: var(--need); }
+  .state.quiet { color: var(--muted); }
   .value { margin: 0; max-width: 60ch; white-space: pre-line; }
   .src { margin-top: 4px; font-size: 12px; color: var(--muted); }
   .row.needs { background: var(--need-wash); margin: 0 -16px; padding: 18px 16px; border-radius: var(--radius-m); border-bottom-color: transparent; }
@@ -227,8 +228,8 @@
       var heading = /^##\s+(.+?)\s*$/.exec(line);
       if (heading) { current = { lines: [], source: "" }; out[heading[1]] = current; return; }
       if (!current) return;
-      var source = /^Source:\s*(.+?)\s*$/i.exec(line);
-      if (source) { current.source = source[1]; return; }
+      var source = /^Source:\s*(\S+)/i.exec(line);
+      if (source) { current.source = source[1].replace(/^(\.\.\/)+/, "").replace(/[,;.)]+$/, ""); return; }
       current.lines.push(line);
     });
     Object.keys(out).forEach(function (key) {
@@ -273,15 +274,17 @@
     var cur = part(p.name);
     var missing = cur.missing;
     var waiting = waitingFor[p.name];
-    var stateText = waiting ? "Saving" : missing ? "Needs you" : p.choices ? "You picked" : cur.source ? "From your cabinet" : "You wrote";
+    var stateText = waiting ? "Saving" : missing ? (filledOnce ? "Needs you" : "Not filled yet") : p.choices ? "You picked" : cur.source ? "From your cabinet" : "You wrote";
     var body;
     if (p.choices) {
       var on = picked(p);
       body = '<div><div class="chips" role="group" aria-label="' + esc(p.name) + '">' + p.choices.map(function (choice) {
         return '<button class="chip" type="button" data-part="' + i + '" data-choice="' + esc(choice) + '" aria-pressed="' + (!missing && on.indexOf(choice) >= 0) + '">' + esc(choice) + '</button>';
       }).join("") + "</div>" + (!missing && cur.value.split("\n").slice(1).join(" ").trim() ? '<div class="src">' + esc(cur.value.split("\n").slice(1).join(" ").trim()) + "</div>" : "") + "</div>";
+    } else if (missing && editing !== p.name) {
+      body = '<div><p class="value">' + (filledOnce ? "Your cabinet does not say this yet." : "Not filled yet.") + '</p></div>';
     } else if (missing || editing === p.name) {
-      body = '<div class="edit">' + (missing ? '<p class="value" style="margin-bottom:6px">Your cabinet does not say this yet. One or two lines is enough.</p>' : "") +
+      body = '<div class="edit">' + (missing ? '<p class="value" style="margin-bottom:6px">One or two lines in your own words is enough.</p>' : "") +
         '<textarea id="ta' + i + '" aria-label="' + esc(p.name) + '" placeholder="' + esc(p.hint || "Write it in your own words") + '">' + esc(missing ? "" : cur.value) + "</textarea>" +
         (p.quick ? '<div class="chips" style="margin-top:10px">' + p.quick.map(function (q) { return '<button class="chip" type="button" data-quick="' + i + '" aria-pressed="false">' + esc(q) + "</button>"; }).join("") + "</div>" : "") +
         '<div class="actions"><button class="btn primary small" type="button" data-save="' + i + '"' + (waiting ? " disabled" : "") + ">Save</button>" +
@@ -290,12 +293,16 @@
     } else {
       body = '<div><p class="value">' + esc(cur.value) + "</p>" + (cur.source ? '<div class="src">From ' + esc(cur.source) + "</div>" : "") + "</div>";
     }
-    var action = !p.choices && !missing && editing !== p.name ? '<button class="btn ghost small" type="button" data-edit="' + i + '">Edit</button>' : "";
-    return '<div class="row' + (missing && !p.choices ? " needs" : "") + '"><div><h3>' + esc(p.name) + '</h3><div class="state' + (missing ? " need" : "") + '">' + stateText + "</div></div>" + body + "<div>" + action + "</div></div>";
+    var action = p.choices || editing === p.name ? "" :
+      missing ? '<button class="btn small" type="button" data-edit="' + i + '">Answer</button>' :
+      '<button class="btn ghost small" type="button" data-edit="' + i + '">Edit</button>';
+    return '<div class="row' + (missing && filledOnce ? " needs" : "") + '"><div><h3>' + esc(p.name) + '</h3><div class="state' + (missing && filledOnce ? " need" : missing ? " quiet" : "") + '">' + stateText + "</div></div>" + body + "<div>" + action + "</div></div>";
   }
 
+  var filledOnce = false;
   function paint() {
     var ready = PARTS.filter(function (p) { return !part(p.name).missing; }).length;
+    filledOnce = ready > 0;
     var all = ready === PARTS.length;
     var none = ready === 0;
     $("rows").innerHTML = PARTS.map(rowHTML).join("");
@@ -316,7 +323,8 @@
 
     var fill = $("fillBtn");
     fill.disabled = fillRunning || !inCabinet;
-    fill.querySelector("span").textContent = fillRunning ? "Reading your cabinet" : none ? "Fill in my profile" : "Fill in what is missing";
+    fill.querySelector("span").textContent = fillRunning ? "Reading your cabinet" : none ? "Fill in my profile" : "Read my cabinet again";
+    fill.className = "btn" + (none || fillRunning ? " primary" : "");
     fill.hidden = all && !fillRunning;
     $("nextTitle").textContent = all ? "Ready for ideas" : fillRunning ? "Reading your cabinet" : none ? "Start here" : "Almost there";
     $("nextText").textContent = all ? "Your profile is complete. New ideas use it straight away."
