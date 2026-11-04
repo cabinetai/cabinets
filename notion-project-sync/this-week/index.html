@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<!--
+  Project Sync: This week. The cabinet opens on this page.
+
+  The team's Notion task databases on one page: how many tasks are open, late and due this
+  week, the late ones oldest first, what is due in the next seven days, the status of every
+  task, who carries the most, and the databases it found.
+
+  Where the numbers come from: the morning routine runs this-week/read-notion.mjs over the
+  Notion copy, which writes data/latest.json. Until it exists the page shows
+  data/EXAMPLE-latest.json, a made-up team, marked as an example. A run that could not read
+  Notion writes data/status.json with ok:false and why.
+
+  How it talks to Cabinet: window.cabinet v2 (read files, connection state, connect, run the
+  routine). One file on purpose: a sealed frame cannot load files next to it. Notion's ink
+  #191919 is the one accent; icons are Lucide, inline. English or Hebrew, from Cabinet's locale.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>This week</title>
+<style>
+  :root {
+    --ink: #191919; --ink-2: #37352f; --ink-3: #787774; --line: rgba(55, 53, 47, .09); --line-2: rgba(55, 53, 47, .16);
+    --paper: #f7f6f3; --page: #ffffff; --late: #c4554d;
+    --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji";
+    --serif: "Lyon-Text", Georgia, ui-serif, serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--page); color: var(--ink-2); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; cursor: pointer; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 28px 40px; }
+  .icon { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
+  .brand { min-width: 0; }
+  .word { font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+  .brand h1 { margin: 0; font-size: 20px; font-weight: 700; color: var(--ink); }
+  .brand p { margin: 0; color: var(--ink-3); font-size: 13.5px; }
+  .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--paper); font-size: 13px; color: var(--ink-3); }
+  .pill.warn { color: var(--late); }
+  .btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink); font-weight: 500; font-size: 14px; }
+  .btn:hover { background: var(--paper); }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn[disabled] { opacity: .55; cursor: default; }
+  .spin .icon { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin .icon { animation: none; } }
+
+  .sheet { margin-top: 20px; padding: 28px 32px; border-radius: 20px; color: #f7f6f3;
+    background: radial-gradient(rgba(247, 246, 243, .07) 1px, transparent 1.2px) 0 0 / 18px 18px, linear-gradient(168deg, #191919 0%, #2f2f2f 100%); }
+  .sheet .eyebrow { margin: 0; font-size: 13.5px; color: rgba(247, 246, 243, .7); }
+  .sheet h2 { margin: 10px 0 0; font: 400 clamp(26px, 4vw, 40px)/1.1 var(--serif); text-wrap: balance; }
+  .sheet .line { margin: 10px 0 0; color: rgba(247, 246, 243, .7); }
+  .tag { display: inline-block; margin-inline-start: 8px; padding: 1px 8px; border-radius: 6px; background: rgba(247, 246, 243, .14); font-size: 12px; font-family: var(--font); vertical-align: middle; }
+
+  .tiles { margin-top: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .tile { padding: 14px 16px; border-radius: 12px; background: var(--paper); }
+  .tile b { display: block; font-size: 28px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+  .tile.warn b { color: var(--late); }
+  .tile span { font-size: 13.5px; color: var(--ink-3); }
+  .note { margin: 8px 0 0; font-size: 13px; color: var(--ink-3); }
+
+  .grid { margin-top: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .box { border: 1px solid var(--line-2); border-radius: 14px; overflow: hidden; }
+  .box header { display: flex; gap: 10px; padding: 14px 18px 10px; color: var(--ink); }
+  .box h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .box header p { margin: 2px 0 0; font-size: 13px; color: var(--ink-3); }
+  .box header .count { margin-inline-start: auto; font-size: 13px; color: var(--ink-3); }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 18px; border-top: 1px solid var(--line); }
+  .row b { font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row small { grid-column: 1 / -1; font-size: 13px; color: var(--ink-3); }
+  .row .aside { font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+  .row .late { color: var(--late); }
+  .meter { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--paper); overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 3px; background: var(--ink); }
+  .meter.warn i { background: var(--late); }
+  .meter.done i { opacity: .35; }
+  .empty { padding: 12px 18px 16px; border-top: 1px solid var(--line); color: var(--ink-3); }
+
+  footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); }
+  footer p { margin: 2px 0; }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 16px 16px 32px; }
+    .sheet { padding: 22px 20px; border-radius: 16px; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-todo" viewBox="0 0 24 24"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="bar">
+    <div class="brand">
+      <h1><span class="word">Notion</span> · <span id="title"></span></h1>
+      <p id="sub" dir="auto"></p>
+    </div>
+    <div class="acts" id="acts"></div>
+  </header>
+  <main id="main"></main>
+  <footer>
+    <p id="foot"></p>
+    <p dir="ltr">Notion is a trademark of Notion Labs, Inc.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var JOB = "morning-projects";
+  var CONNECTOR = "notion";
+  var ROWS = 6;
+
+  var WORDS = {
+    en: {
+      title: "This week", sub: "Your Notion task databases", example: "Example",
+      exampleLine: "A made-up team, shown until the first reading of your Notion.",
+      updated: "Updated {ago}", connect: "Connect Notion", update: "Update now", updating: "Updating",
+      eyebrow: "Your Notion projects this week",
+      open: ["{n} open task", "{n} open tasks"], overdue: ["{n} overdue", "{n} overdue"], dueWeek: ["{n} due this week", "{n} due this week"],
+      quiet: ["{n} open task, nothing late or due this week.", "{n} open tasks, nothing late or due this week."],
+      noDatabase: "No task database in your Notion copy yet.",
+      noDatabaseLine: "Pick a Notion page that holds a task list or a board, and its tasks show here.",
+      line: ["From {n} task database in your Notion.", "From {n} task databases in your Notion."],
+      tOpen: "Open", tDue: "Due this week", tLate: "Overdue", tDone: "Done",
+      sDue: "Due this week", sDueLine: "Open tasks due in the next seven days, soonest first.", sDueEmpty: "Nothing due in the next seven days.",
+      sLate: "Overdue", sLateLine: "Open tasks past their date, oldest first.", sLateEmpty: "Nothing is late.",
+      sStatus: "Status", sStatusLine: "Every task, by its status in Notion.", sStatusEmpty: "No task has a status yet.",
+      sOwner: "Who carries what", sOwnerLine: "Open tasks per person, with what is late.", sOwnerEmpty: "No open task has an owner yet.",
+      sDb: "Databases", sDbLine: "The Notion databases this page reads.", sDbEmpty: "No database in the pages you picked.",
+      today: "Due today", due: "Due {day}", late: ["{n} day late", "{n} days late"], noOwner: "No owner",
+      tasks: ["{n} task", "{n} tasks"], openTasks: ["{n} open", "{n} open"], ownerLate: "{open}, {n} late", noStatus: "{tasks}, no status column",
+      foot: "This page only reads the copy Cabinet keeps of your Notion. The Project Tracker changes a task only when you ask in the chat."
+    },
+    he: {
+      title: "השבוע", sub: "מאגרי המשימות שלך ב-Notion", example: "דוגמה",
+      exampleLine: "צוות לדוגמה, עד הקריאה הראשונה של ה-Notion שלך.",
+      updated: "עודכן {ago}", connect: "חיבור Notion", update: "עדכון עכשיו", updating: "מתעדכן",
+      eyebrow: "הפרויקטים שלך ב-Notion השבוע",
+      open: ["משימה פתוחה אחת", "{n} משימות פתוחות"], overdue: ["{n} באיחור", "{n} באיחור"], dueWeek: ["{n} להשבוע", "{n} להשבוע"],
+      quiet: ["משימה פתוחה אחת, שום דבר לא באיחור או להשבוע.", "{n} משימות פתוחות, שום דבר לא באיחור או להשבוע."],
+      noDatabase: "עדיין אין מאגר משימות בעותק ה-Notion שלך.",
+      noDatabaseLine: "בוחרים עמוד Notion שיש בו רשימת משימות או לוח, והמשימות יופיעו כאן.",
+      line: ["מתוך מאגר משימות אחד ב-Notion שלך.", "מתוך {n} מאגרי משימות ב-Notion שלך."],
+      tOpen: "פתוחות", tDue: "להשבוע", tLate: "באיחור", tDone: "הושלמו",
+      sDue: "להשבוע", sDueLine: "משימות פתוחות לשבעת הימים הקרובים, מהקרובה ביותר.", sDueEmpty: "אין משימות לשבעת הימים הקרובים.",
+      sLate: "באיחור", sLateLine: "משימות פתוחות שהתאריך שלהן עבר, מהישנה ביותר.", sLateEmpty: "שום דבר לא באיחור.",
+      sStatus: "סטטוס", sStatusLine: "כל המשימות, לפי הסטטוס שלהן ב-Notion.", sStatusEmpty: "לאף משימה אין עדיין סטטוס.",
+      sOwner: "מי נושא מה", sOwnerLine: "משימות פתוחות לכל אדם, כולל מה באיחור.", sOwnerEmpty: "לאף משימה פתוחה אין עדיין אחראי.",
+      sDb: "מאגרי נתונים", sDbLine: "מאגרי ה-Notion שהעמוד הזה קורא.", sDbEmpty: "אין מאגר נתונים בעמודים שבחרת.",
+      today: "להיום", due: "עד {day}", late: ["יום אחד באיחור", "{n} ימים באיחור"], noOwner: "בלי אחראי",
+      tasks: ["משימה אחת", "{n} משימות"], openTasks: ["אחת פתוחה", "{n} פתוחות"], ownerLate: "{open}, {n} באיחור", noStatus: "{tasks}, בלי עמודת סטטוס",
+      foot: "העמוד הזה רק קורא את העותק ש-Cabinet שומר מה-Notion שלך. עוקב הפרויקטים משנה משימה רק כשמבקשים בצ'אט."
+    }
+  };
+
+  var S = { data: null, example: true, status: null, conn: null, running: false, appPath: "this-week", role: "owner", locale: navigator.language || "en" };
+  var W = WORDS.en;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function fill(s, vars) { return s.replace(/\{(\w+)\}/g, function (_, k) { return vars[k]; }); }
+  function plural(pair, n, vars) { return fill(pair[n === 1 ? 0 : 1], Object.assign({ n: n }, vars)); }
+  function icon(id) { return '<svg class="icon" aria-hidden="true"><use href="#' + id + '"/></svg>'; }
+  function list(v) { return Array.isArray(v) ? v : []; }
+
+  function setLocale(locale) {
+    S.locale = locale || S.locale;
+    var he = /^he\b/i.test(S.locale);
+    W = he ? WORDS.he : WORDS.en;
+    document.documentElement.lang = he ? "he" : "en";
+    document.documentElement.dir = he ? "rtl" : "ltr";
+  }
+  function dayWords(iso) {
+    var p = iso.split("-");
+    return new Date(+p[0], p[1] - 1, +p[2]).toLocaleDateString(S.locale, { weekday: "short", month: "short", day: "numeric" });
+  }
+  function ago(iso) {
+    var mins = Math.round((Date.parse(iso) - Date.now()) / 60000);
+    var f = new Intl.RelativeTimeFormat(S.locale, { numeric: "auto" });
+    if (Math.abs(mins) < 60) return f.format(mins, "minute");
+    if (Math.abs(mins) < 1440) return f.format(Math.round(mins / 60), "hour");
+    return f.format(Math.round(mins / 1440), "day");
+  }
+
+  // ── Reading the files the routine writes ──
+  function read(rel) {
+    if (V2) return cab.files.read(S.appPath + "/" + rel).then(JSON.parse);
+    return fetch(rel, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  function maybe(p) { return p.catch(function () { return null; }); }
+  function usable(d) { return d && d.totals && Array.isArray(d.overdue); }
+
+  function load() {
+    return Promise.all([maybe(read("data/latest.json")), maybe(read("data/status.json"))]).then(function (got) {
+      S.status = got[1];
+      if (usable(got[0]) && got[0].example !== true) { S.data = got[0]; S.example = false; return; }
+      return maybe(read("data/EXAMPLE-latest.json")).then(function (ex) { S.data = usable(ex) ? ex : null; S.example = true; });
+    }).then(paint);
+  }
+
+  // ── Talking to Cabinet ──
+  function connected() { return !S.conn || S.conn.state === "connected"; }
+  function setJobs(items) {
+    var job = list(items).filter(function (j) { return j.id === JOB; })[0];
+    var was = S.running;
+    S.running = !!(job && job.running);
+    if (was && !S.running) load(); else paint();
+  }
+  function connect() {
+    cab.connectors.connect(CONNECTOR).then(function (result) {
+      if (result === "connected") runNow();
+    }).catch(function () {});
+  }
+  function runNow() {
+    S.running = true;
+    paint();
+    cab.jobs.run(JOB).catch(function () { S.running = false; paint(); });
+  }
+
+  // ── Drawing ──
+  function box(id, title, line, count, rows, empty) {
+    return '<section class="box"><header>' + icon(id) + "<div><h3>" + esc(title) + "</h3><p>" + esc(line) + "</p></div>" +
+      (count != null ? '<span class="count num">' + count + "</span>" : "") + "</header>" +
+      (rows.length ? rows.join("") : '<p class="empty">' + esc(empty) + "</p>") + "</section>";
+  }
+  function row(title, small, aside, lateAside) {
+    return '<div class="row"><b dir="auto">' + esc(title) + "</b>" +
+      (aside ? '<span class="aside' + (lateAside ? " late" : "") + '">' + esc(aside) + "</span>" : "") +
+      (small ? '<small dir="auto">' + esc(small) + "</small>" : "") + "</div>";
+  }
+  function meter(title, aside, value, max, cls, lateAside) {
+    return '<div class="row"><b dir="auto">' + esc(title) + '</b><span class="aside num' + (lateAside ? " late" : "") + '">' + esc(aside) + "</span>" +
+      '<span class="meter ' + cls + '"><i style="width:' + Math.round((value / Math.max(max, 1)) * 100) + '%"></i></span></div>';
+  }
+  function task(t, today) {
+    var when = t.late ? null : t.due === today ? W.today : fill(W.due, { day: dayWords(t.due) });
+    var small = [t.late ? fill(W.due, { day: dayWords(t.due) }) : null, t.owner || W.noOwner, t.status, t.database].filter(Boolean).join(" · ");
+    return row(t.title, small, t.late ? plural(W.late, t.late) : when, !!t.late);
+  }
+
+  function paintBar() {
+    $("title").textContent = W.title;
+    $("foot").textContent = W.foot;
+    var d = S.data;
+    $("sub").textContent = d && !S.example && list(d.folders).length ? d.folders.join(", ") : W.sub;
+    var html = "";
+    if (S.status && S.status.ok === false) html += '<span class="pill warn" dir="auto">' + esc(S.status.why) + "</span>";
+    else if (S.example) html += '<span class="pill">' + esc(W.example) + "</span>";
+    else if (d) html += '<span class="pill">' + esc(fill(W.updated, { ago: ago(d.generatedAt) })) + "</span>";
+    var editor = V2 && S.role !== "viewer";
+    if (editor && !connected() && S.conn.canConnect) html += '<button class="btn dark" data-act="connect">' + icon("i-plug") + esc(W.connect) + "</button>";
+    else if (editor) html += '<button class="btn' + (S.running ? " spin" : "") + '" data-act="run"' + (S.running ? " disabled" : "") + ">" +
+      icon("i-refresh") + esc(S.running ? W.updating : W.update) + "</button>";
+    $("acts").innerHTML = html;
+  }
+
+  function paint() {
+    paintBar();
+    var d = S.data;
+    if (!d) { $("main").innerHTML = ""; return; }
+    var t = d.totals;
+    var tracked = list(d.databases).filter(function (db) { return db.hasStatus; }).length;
+    var headline = !tracked ? W.noDatabase
+      : !t.overdue && !t.dueWeek ? plural(W.quiet, t.open)
+      : [plural(W.open, t.open), plural(W.overdue, t.overdue), plural(W.dueWeek, t.dueWeek)].join(", ");
+    var topOwner = Math.max.apply(null, [1].concat(list(d.byOwner).map(function (o) { return o.open; })));
+    var topStatus = Math.max.apply(null, [1].concat(list(d.byStatus).map(function (b) { return b.count; })));
+
+    $("main").innerHTML =
+      '<section class="sheet"><p class="eyebrow">' + esc(W.eyebrow) + (S.example ? '<span class="tag">' + esc(W.example) + "</span>" : "") + "</p>" +
+        '<h2 dir="auto">' + esc(headline) + "</h2>" +
+        '<p class="line">' + esc(tracked ? plural(W.line, tracked) : W.noDatabaseLine) + "</p></section>" +
+      '<div class="tiles">' +
+        '<div class="tile"><b class="num">' + t.open + "</b><span>" + esc(W.tOpen) + "</span></div>" +
+        '<div class="tile"><b class="num">' + t.dueWeek + "</b><span>" + esc(W.tDue) + "</span></div>" +
+        '<div class="tile warn"><b class="num">' + t.overdue + "</b><span>" + esc(W.tLate) + "</span></div>" +
+        '<div class="tile"><b class="num">' + t.done + "</b><span>" + esc(W.tDone) + "</span></div></div>" +
+      (S.example ? '<p class="note">' + esc(W.exampleLine) + "</p>" : "") +
+      '<div class="grid">' +
+        box("i-alert", W.sLate, W.sLateLine, t.overdue, list(d.overdue).slice(0, ROWS).map(function (x) { return task(x, d.today); }), W.sLateEmpty) +
+        box("i-calendar", W.sDue, W.sDueLine, t.dueWeek, list(d.dueWeek).slice(0, ROWS).map(function (x) { return task(x, d.today); }), W.sDueEmpty) +
+        box("i-todo", W.sStatus, W.sStatusLine, null, list(d.byStatus).map(function (b) {
+          return meter(b.status, plural(W.tasks, b.count), b.count, topStatus, b.done ? "done" : "");
+        }), W.sStatusEmpty) +
+        box("i-users", W.sOwner, W.sOwnerLine, null, list(d.byOwner).slice(0, ROWS).map(function (o) {
+          var open = plural(W.openTasks, o.open);
+          return meter(o.owner, o.overdue ? fill(W.ownerLate, { open: open, n: o.overdue }) : open, o.open, topOwner, o.overdue ? "warn" : "", o.overdue > 0);
+        }), W.sOwnerEmpty) +
+        box("i-table", W.sDb, W.sDbLine, list(d.databases).length, list(d.databases).map(function (db) {
+          var n = plural(W.tasks, db.rows);
+          return row(db.name, null, db.hasStatus ? n : fill(W.noStatus, { tasks: n }));
+        }), W.sDbEmpty) +
+      "</div>";
+  }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]");
+    if (!b) return;
+    if (b.dataset.act === "connect") connect();
+    if (b.dataset.act === "run") runNow();
+  });
+
+  setLocale();
+  if (V2) {
+    Promise.resolve(cab.here()).then(function (here) {
+      if (here) {
+        if (here.appPath) S.appPath = here.appPath;
+        if (here.role) S.role = here.role;
+        setLocale(here.locale);
+      }
+    }).catch(function () {}).then(function () {
+      load();
+      cab.files.onChange(S.appPath, load);
+    });
+    cab.connectors.list().then(function (items) {
+      S.conn = list(items).filter(function (c) { return c.id === CONNECTOR; })[0] || null;
+      paint();
+    }).catch(function () {});
+    cab.connectors.onChange(function (items) {
+      S.conn = list(items).filter(function (c) { return c.id === CONNECTOR; })[0] || S.conn;
+      paint();
+    });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    load();
+  }
+})();
+</script>
+</body>
+</html>
