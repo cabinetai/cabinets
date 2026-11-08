@@ -14,7 +14,6 @@ import path from "node:path";
 const HYPERFRAMES = "hyperframes@0.9.9";
 const W = 1080;
 const H = 1920;
-const WORDS_PER_SECOND = 2.6;
 
 const id = process.argv[2];
 if (!id || !/^[a-z0-9-]+$/.test(id)) {
@@ -34,73 +33,62 @@ function esc(text) {
   return String(text ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 }
 
-/** The words of a caption, and the moment each one shows, spread over the scene. */
-function timedWords(text, start, seconds) {
-  const words = String(text).split(/\s+/).filter(Boolean);
-  const weights = words.map((w) => 1 + w.replace(/\W/g, "").length / 6);
-  const total = weights.reduce((a, b) => a + b, 0);
-  const span = Math.min(seconds * 0.82, words.length / WORDS_PER_SECOND + 0.4);
-  let t = start + 0.15;
-  return words.map((word, i) => {
-    const at = t;
-    t += (weights[i] / total) * span;
-    return { word, at };
-  });
-}
+const Compose = new Function(
+  "self",
+  `${fs.readFileSync(new URL("./compose.js", import.meta.url), "utf8")}\nreturn self.Compose;`,
+)({});
 
-/** Captions show a few words at a time, the way short videos do: a page ends at punctuation or after three words. */
-function pages(words) {
-  const out = [];
-  let page = [];
-  words.forEach((w, j) => {
-    page.push(j);
-    const short = page.length === 3 && words.slice(page[0], j + 1).every((x) => x.word.length <= 3);
-    if ((page.length >= 3 && !short) || page.length >= 4 || /[.,!?;:]$/.test(w.word)) {
-      out.push(page);
-      page = [];
+/** Where a scene's voiceover speaks, read from its WAV file, so captions land on the voice. */
+function spansOf(file) {
+  try {
+    const b = fs.readFileSync(file);
+    let rate = 24000;
+    for (let at = 12; at + 8 <= b.length; ) {
+      const id = b.toString("ascii", at, at + 4);
+      const size = b.readUInt32LE(at + 4);
+      if (id === "fmt ") rate = b.readUInt32LE(at + 12);
+      if (id === "data") {
+        const data = b.subarray(at + 8, at + 8 + Math.min(size, b.length - at - 8));
+        return Compose.speechSpans(new Int16Array(data.buffer, data.byteOffset, Math.floor(data.length / 2)), rate);
+      }
+      at += 8 + size + (size % 2);
     }
-  });
-  if (page.length) out.push(page);
-  return out;
-}
-
-/** The word that carries the caption: one with a number, else the longest. */
-function keyIndex(words) {
-  const n = words.findIndex((w) => /\d/.test(w.word));
-  if (n >= 0) return n;
-  let best = 0;
-  words.forEach((w, i) => {
-    if (w.word.replace(/\W/g, "").length > words[best].word.replace(/\W/g, "").length) best = i;
-  });
-  return best;
+  } catch {}
+  return [];
 }
 
 function build(plan) {
+  const look = Compose.resolveLook(plan.look);
   const palette = Array.isArray(plan.palette) && plan.palette.length >= 2 ? plan.palette : ["#7a4a2e", "#1c120d"];
-  const accent = /^#[0-9a-f]{6}$/i.test(plan.accent || "") ? plan.accent : "#e0336f";
   let t = 0;
   const scenes = plan.scenes.map((scene, i) => {
-    const audio = scene.audio && fs.existsSync(path.join(dir, scene.audio)) ? scene.audio : null;
-    // A scene with its own voice lasts as long as the line, with a breath after it.
-    const voiced = audio ? Number(scene.audioSeconds) || 0 : 0;
-    const seconds = Math.max(1.5, Math.min(14, voiced ? voiced + 0.35 : Number(scene.seconds) || 3.5));
+    // A voice made earlier stays on disk while the voice is off, so turning it back on is free.
+    const audio = plan.speak !== false && scene.audio && fs.existsSync(path.join(dir, scene.audio)) ? scene.audio : null;
+    const seconds = Compose.sceneSeconds(scene, !!audio);
     const start = t;
     t += seconds;
-    const words = timedWords(scene.onScreen, start, voiced ? Math.max(1.2, voiced) / 0.82 : seconds);
-    return { ...scene, i, start, seconds, words, key: keyIndex(words), audio };
+    // The captions are the spoken line itself, each word shown as it is said.
+    const words = Compose.syncedWords(Compose.lineOf(scene, !!audio), start, seconds, audio ? spansOf(path.join(dir, audio)) : null);
+    const key = Number.isInteger(scene.key) && scene.key >= 0 && scene.key < words.length ? scene.key : Compose.keyIndex(words);
+    return { ...scene, i, start, seconds, words, key, audio, spot: Compose.captionSpot(scene, look) };
   });
   const total = Math.round(t * 100) / 100;
-  // The business name, small at the foot of every frame, when the plan names it.
-  const brand = typeof plan.brand === "string" ? plan.brand.trim().slice(0, 40) : "";
+
+  // Moving scenes play their clip, muted under the voice; the rest show their picture.
+  const motion = plan.motion === "hook" || plan.motion === "all" ? plan.motion : "still";
+  const clipOf = (s) => (motion === "all" || (motion === "hook" && s.i === 0)) && s.clip && fs.existsSync(path.join(dir, s.clip)) ? s.clip : null;
 
   const sceneHtml = scenes
     .map((s) => {
       const image = s.image && fs.existsSync(path.join(dir, s.image)) ? s.image : null;
-      const bg = image
+      const clip = clipOf(s);
+      const bg = clip
+        ? `<video class="photo" id="vid-${s.i}" src="../${esc(clip)}" muted playsinline data-start="${s.start}" data-duration="${s.seconds}" data-track-index="1"></video>`
+        : image
         ? `<img class="photo" id="photo-${s.i}" src="../${esc(image)}" alt="" />`
         : `<div class="field" style="background: radial-gradient(120% 75% at ${30 + ((s.i * 23) % 40)}% ${18 + ((s.i * 17) % 30)}%, ${palette[s.i % palette.length]}, ${palette[(s.i + 1) % palette.length]} 72%, #0b0807);"></div><div class="orb" id="orb-${s.i}"></div><div class="orb two" id="orb2-${s.i}" style="background: radial-gradient(circle, ${palette[(s.i + 2) % palette.length]}cc, transparent 62%);"></div>`;
-      const caption = pages(s.words)
-        .map((page, k) => `<p class="cap${s.i === 0 ? " hook" : ""}" id="p-${s.i}-${k}">` + page
+      const caption = Compose.pages(s.words)
+        .map((page, k) => `<p class="cap" id="p-${s.i}-${k}" style="left:${s.spot.x}%;top:${s.spot.y}%;max-width:${s.spot.w}%">` + page
           .map((j) => `<span class="w${j === s.key ? " key" : ""}" id="w-${s.i}-${j}">${esc(s.words[j].word)}</span>`)
           .join(" ") + "</p>")
         .join("\n  ");
@@ -116,13 +104,15 @@ function build(plan) {
     .map((s) => {
       const lines = [];
       lines.push(`tl.fromTo("#scene-${s.i}", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, ${s.start});`);
-      if (s.image && fs.existsSync(path.join(dir, s.image))) {
-        lines.push(`tl.fromTo("#photo-${s.i}", { scale: 1.04 }, { scale: 1.14, duration: ${s.seconds}, ease: "none" }, ${s.start});`);
-      } else {
+      if (clipOf(s)) {
+        // A clip already moves.
+      } else if (s.image && fs.existsSync(path.join(dir, s.image))) {
+        if (look.motion) lines.push(`tl.fromTo("#photo-${s.i}", { scale: 1.04 }, { scale: 1.14, duration: ${s.seconds}, ease: "none" }, ${s.start});`);
+      } else if (look.motion) {
         lines.push(`tl.fromTo("#orb-${s.i}", { x: -60, y: 40, scale: 0.9 }, { x: 80, y: -60, scale: 1.15, duration: ${s.seconds}, ease: "sine.inOut" }, ${s.start});`);
         lines.push(`tl.fromTo("#orb2-${s.i}", { x: 70, y: -30, scale: 1.1 }, { x: -90, y: 70, scale: 0.92, duration: ${s.seconds}, ease: "sine.inOut" }, ${s.start});`);
       }
-      const pg = pages(s.words);
+      const pg = Compose.pages(s.words);
       pg.forEach((page, k) => {
         const from = s.words[page[0]].at;
         const nextPage = pg[k + 1];
@@ -150,7 +140,7 @@ function build(plan) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=${W}, height=${H}" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@800;900&display=block" rel="stylesheet" />
+    <link href="${Compose.fontsUrl(look)}" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -163,32 +153,20 @@ function build(plan) {
       .orb { position: absolute; width: 900px; height: 900px; left: 90px; top: 380px; border-radius: 50%;
         background: radial-gradient(circle, rgba(255,255,255,0.14), rgba(255,255,255,0) 65%); }
       .orb.two { width: 1100px; height: 1100px; left: -260px; top: 1050px; mix-blend-mode: screen; opacity: 0.55; }
-      .chrome { pointer-events: none; }
-      .bar { position: absolute; left: 60px; right: 60px; top: 64px; height: 8px; border-radius: 8px; background: rgba(255,255,255,0.22); overflow: hidden; }
-      .bar i { position: absolute; inset: 0; background: #fff; transform-origin: 0 50%; transform: scaleX(0); }
-      .brand { position: absolute; left: 0; right: 0; bottom: 150px; text-align: center; color: rgba(255,255,255,0.82); font-weight: 800; font-size: 40px; letter-spacing: -0.01em; }
       .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.35)); }
-      .cap { position: absolute; left: 90px; right: 90px; top: 50%; transform: translateY(-50%);
-        text-align: center; color: #fff; font-weight: 900; font-size: 92px; line-height: 1.1; letter-spacing: -0.03em;
-        text-shadow: 0 6px 28px rgba(0,0,0,0.45); text-wrap: balance; font-size: 100px; }
-      .cap.hook { font-size: 120px; }
-      .cap { opacity: 0; }
-      .w { display: inline-block; padding: 0 0.1em; border-radius: 0.16em; }
-      .w.on { background: ${accent}; }
-      .w.key:not(.on) { color: #ffe6ef; }
+      .cap { transform: translate(-50%, -50%); opacity: 0; }
+${Compose.captionCss(look, (px) => `${Math.round(px * 100) / 100}px`)}
     </style>
   </head>
   <body>
     <div id="root" data-composition-id="main" data-start="0" data-duration="${total}" data-width="${W}" data-height="${H}">
 ${sceneHtml}
-<div class="clip chrome" id="chrome" data-start="0" data-duration="${total}" data-track-index="3"><div class="bar"><i id="bar"></i></div>${brand ? `<div class="brand">${esc(brand)}</div>` : ""}</div>
 ${audio}
     </div>
     <script>
       window.__timelines = window.__timelines || {};
       const tl = gsap.timeline({ paused: true });
       ${timeline}
-      tl.fromTo("#bar", { scaleX: 0 }, { scaleX: 1, duration: ${total}, ease: "none" }, 0);
       window.__timelines["main"] = tl;
       tl.seek(0);
     </script>
@@ -214,6 +192,7 @@ async function main() {
     console.error(`No plan at ${planPath}`);
     process.exit(2);
   }
+  // The person's changes from the Studio go in first, so a render is never behind them.
   const plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
   if (!Array.isArray(plan.scenes) || !plan.scenes.length) {
     status("failed", { why: "The video has no scenes yet." });
@@ -229,8 +208,16 @@ async function main() {
   status("rendering");
   const started = Date.now();
   const out = path.join(dir, "video.next.mp4");
-  const result = await run("npx", ["-y", HYPERFRAMES, "render", "-o", out], work);
+  // Made for the apps it is posted to: 1080 by 1920 at about 5 Mbps, what TikTok and Reels
+  // ask for, so the file stays light. The computer's video encoder is tried first (much
+  // faster); a computer without one encodes on the processor instead.
+  let result = await run("npx", ["-y", HYPERFRAMES, "render", "--gpu", "--video-bitrate", "5M", "-o", out], work);
   if (result.code !== 0 || !fs.existsSync(out)) {
+    fs.rmSync(out, { force: true });
+    result = await run("npx", ["-y", HYPERFRAMES, "render", "--crf", "23", "--max-bitrate", "5M", "-o", out], work);
+  }
+  if (result.code !== 0 || !fs.existsSync(out)) {
+    fs.rmSync(out, { force: true });
     fs.writeFileSync(path.join(work, "render.log"), result.out);
     const why = /ffmpeg/i.test(result.out) ? "FFmpeg is missing on this computer." : /chrome|browser/i.test(result.out) ? "The browser used to draw the video did not start." : "The video could not be made.";
     status("failed", { why });
@@ -238,6 +225,12 @@ async function main() {
     process.exit(1);
   }
   fs.renameSync(out, path.join(dir, "video.mp4"));
+  // A video's folder keeps only what the video plays: voice and picture files that no scene
+  // uses any more (their words or picture changed, so they got a new name) are removed.
+  const used = new Set(plan.scenes.flatMap((s) => [s.audio, s.image, s.clip]).filter(Boolean));
+  for (const f of fs.readdirSync(dir)) {
+    if (/^scene-/.test(f) && !used.has(f)) fs.rmSync(path.join(dir, f), { force: true });
+  }
   const bytes = fs.statSync(path.join(dir, "video.mp4")).size;
   // `seconds` is how long the video runs; `tookSeconds` is how long making it took.
   status("ready", { seconds: Math.round(built.total), tookSeconds: Math.round((Date.now() - started) / 1000), bytes, file: "video.mp4" });

@@ -74,6 +74,7 @@ const CABINET_ICONS = {
   'text-your-mom':            { object: 'a single tin-can telephone with two cans connected by a gently curving string',                                           bgHex: '#EFC5CC', bgName: 'soft rose quartz' },
   'usa-travel-planner':       { object: 'a single small vintage suitcase with one helium balloon tied to its handle by a thin string',                             bgHex: '#F2BFB1', bgName: 'soft salmon pink' },
   'wedding-planner':          { object: 'a single delicate satin ribbon tied in a perfect bow with two soft trailing ends',                                        bgHex: '#E8C9C9', bgName: 'soft misty rose' },
+  'shorts-factory':           { object: 'a single upright smartphone with a short ribbon of film strip curling out of its screen like a playful wave',          bgHex: '#F6C9BE', bgName: 'soft coral' },
   'youtube-channel-factory':  { object: 'a single film clapper board, partially open at a slight playful angle',                                                   bgHex: '#D5E5C8', bgName: 'soft honeydew green' },
   'email':                    { object: 'a single small open envelope with a neatly folded letter half-emerging from the top',                                      bgHex: '#B8D8C5', bgName: 'soft seafoam' },
 

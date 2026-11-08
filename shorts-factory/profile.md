@@ -27,6 +27,3 @@ Not filled yet
 
 ## What never to say
 Not filled yet
-
-## Video style
-Words on screen
