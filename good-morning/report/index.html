@@ -664,7 +664,15 @@
     var j = jobById(JOB);
     var was = state.running;
     state.running = !!(j && j.running);
-    if (was && !state.running) { toast("This morning's page is updated."); load(); }
+    if (was && !state.running) {
+      var had = realCount();
+      load().then(function () {
+        if (realCount() > had) { toast("This morning's page is updated."); return; }
+        var names = state.picks ? state.picks.apps.map(function (a) { return a.name; }) : [];
+        toast("No morning was written. Cabinet could not read " + (names.length ? names.join(" or ") : "your apps") +
+          ". Check that " + (names.length === 1 ? "it is" : "they are") + " signed in under Integrations.");
+      });
+    }
     drawMast();
   }
   function runAgain() {
@@ -684,6 +692,7 @@
 
   // Cabinet prints the newest morning with report/brief.typ and saves it. On a computer a few
   // are free; after that Cabinet itself offers the cloud. A Cabinet without jobs.pdf hides the button.
+  function realCount() { return state.files.filter(function (n) { return !isExample(n); }).length; }
   function canPrint() {
     return !!(V2 && typeof cab.jobs.pdf === "function" && state.role !== "viewer" && jobById(JOB) &&
       state.files.some(function (n) { return !isExample(n); }));
