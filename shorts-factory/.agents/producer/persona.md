@@ -208,7 +208,9 @@ is the `render` key in `studio/.data/shared.json`.
    words or picture changed loses its old voice or picture link. Never change the plan by
    hand for this. Then set `notes` to `[]`: notes are about this make only.
 2. **The voice and the pictures, all at once.** Ask for every file the plan still needs in
-   one turn, each with its own tool call, so they are made together:
+   one `make_many` call, so they are made in parallel. Each item names its tool and takes
+   that tool's arguments. Without `make_many` (an older Cabinet), ask for them in one turn,
+   each with its own tool call:
    - when `speak` is true, a `make_voiceover` for each scene that has `said` and no `audio`:
      the text is the scene's `said` exactly, with nothing added (every word sent is read
      aloud), the plan's `voice` (default `Kore`), the path
@@ -236,7 +238,8 @@ is the `render` key in `studio/.data/shared.json`.
    scene's `audio` and its seconds in `audioSeconds`, each picture's file name in `image`.
    Cabinet starts Make my video only once Images and Voiceovers are connected.
 3. **The moving scenes, all at once.** `motion` says which scenes move: `hook` the first
-   scene only, `all` every scene, `still` or none no scene. In one turn, ask for
+   scene only, `all` every scene, `still` or none no scene. In one `make_many` call (it
+   takes at most 8 clips), or one call each without it, ask for
    a `make_video` for each scene that moves, has `image`, and has no `clip` or a
    `clipSeconds` shorter than the scene (its `audioSeconds`, else its `seconds`): the picture
    is `studio/data/videos/<id>/<the scene's image>`, the seconds are the scene's length, the
