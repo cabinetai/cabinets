@@ -70,6 +70,8 @@
   .ear-r { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
   .greet { margin: 0; font-family: var(--news); font-style: italic; font-size: 19px; line-height: 1.25; color: var(--ink); }
   .eyebrow { margin: 3px 0 0; max-width: 30ch; }
+  .auto { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; cursor: pointer; }
+  .auto input { margin: 0; accent-color: var(--ink); }
   .nameplate {
     margin: 0; font-family: var(--nameplate); font-weight: 400; text-align: center; white-space: nowrap;
     font-size: clamp(44px, 7.4vw, 96px); line-height: 1; letter-spacing: -.005em; padding: 2px 0 10px;
@@ -222,6 +224,7 @@
       <div class="ear ear-l">
         <p class="greet" id="greet">Good morning.</p>
         <p class="eyebrow" id="eyebrow">&nbsp;</p>
+        <label class="auto" id="auto" hidden><input type="checkbox" id="autobox">Auto download</label>
       </div>
       <p class="nameplate">The Morning Brief</p>
       <div class="ear ear-r">
@@ -448,6 +451,8 @@
     again.disabled = state.running;
     again.classList.toggle("spin", state.running);
     again.querySelector("span").textContent = state.running ? "Checking…" : "Check again";
+    $("auto").hidden = !canAutoDownload();
+    if (canAutoDownload()) $("autobox").checked = jobById(JOB).autoDownload;
     var pdf = $("pdf");
     pdf.hidden = !canPrint();
     pdf.disabled = state.printing;
@@ -697,6 +702,16 @@
     return !!(V2 && typeof cab.jobs.pdf === "function" && state.role !== "viewer" && jobById(JOB) &&
       state.files.some(function (n) { return !isExample(n); }));
   }
+  // On Cloud each new PDF downloads by itself when Cabinet is open; this switch turns that off.
+  function canAutoDownload() {
+    return !!(V2 && typeof cab.jobs.autoDownload === "function" && state.place === "cloud" && state.role !== "viewer" && typeof (jobById(JOB) || {}).autoDownload === "boolean");
+  }
+  function setAutoDownload() {
+    var box = $("autobox"), on = box.checked;
+    box.disabled = true;
+    cab.jobs.autoDownload(JOB, on).then(function () { jobById(JOB).autoDownload = on; }).catch(function (e) { box.checked = !on; toast((e && e.message) || "That could not be saved. Try again in a moment."); })
+      .then(function () { box.disabled = false; });
+  }
   function printPdf() {
     if (state.printing) return;
     state.printing = true; drawNav();
@@ -800,6 +815,7 @@
   $("newer").addEventListener("click", function () { if (state.at > 0) { state.pinned = true; show(state.at - 1); } });
   $("again").addEventListener("click", runAgain);
   $("pdf").addEventListener("click", printPdf);
+  $("autobox").addEventListener("change", setAutoDownload);
   document.addEventListener("keydown", function (e) {
     if (e.target && /input|select|textarea/i.test(e.target.tagName)) return;
     if (e.key === "ArrowLeft" && !$("older").disabled && !$("daynav").hidden) $("older").click();
@@ -815,7 +831,7 @@
   if (V2) {
     Promise.resolve(cab.ready).catch(function () {}).then(function () {
       readJobFile().then(load);
-      if (typeof cab.here === "function") Promise.resolve(cab.here()).then(function (h) { if (h && h.role) state.role = h.role; drawMast(); drawBody(); }).catch(function () {});
+      if (typeof cab.here === "function") Promise.resolve(cab.here()).then(function (h) { if (h && h.role) state.role = h.role; if (h && h.place) state.place = h.place; drawMast(); drawBody(); }).catch(function () {});
       state.picks = readPicks();
       if (storeOk()) cab.store.onChange(function () { state.picks = readPicks(); drawMast(); drawBody(); });
       if (cab.connectors) {
