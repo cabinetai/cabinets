@@ -47,10 +47,13 @@ Rules for every hook:
 
 The pictures decide if a video looks real or looks made by a machine.
 
-- **One shoot.** Every picture shares one visual line: the same people, dressed the same,
-  the same place, the same light and colours. A viewer should believe one person filmed it
-  on one day.
-- **Real first.** The business's own photos beat any made picture: use them where they fit.
+- **One shoot.** Every picture shares one look: the same light and colours. A person the
+  video follows looks the same in every scene they are in: same face, same clothes. A
+  viewer should believe one person filmed it on one day.
+- **Real where it fits.** The business's own pictures beat any made picture, in the scene
+  whose line is about what they show, and nowhere else. A pop-out is a punchline: one or
+  two in a video, on the product, a result or the name. Every video the same way is a
+  template, and viewers scroll past templates: change which pictures you use and where.
 - **The line decides the shot.** Show what the line means, not only its nouns: "we answer
   in 15 minutes" is a phone lighting up in a hand, not a clock.
 - **Change the shot.** Close-up, wide, detail, medium. A new picture every 2 to 4 seconds.

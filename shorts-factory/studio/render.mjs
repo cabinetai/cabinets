@@ -44,23 +44,50 @@ const Compose = new Function(
   `${fs.readFileSync(new URL("./compose.js", import.meta.url), "utf8")}\nreturn self.Compose;`,
 )({});
 
-/** Where a scene's voiceover speaks, read from its WAV file, so captions land on the voice. */
-function spansOf(file) {
+const work = path.join(dir, ".render");
+
+/**
+ * A scene's voice, cut to the line it says: a copy in the work folder that starts just before
+ * the first word and ends just after the last, with where it speaks, so captions land on the
+ * voice and every scene is as long as its line. The file the voice tool made is never changed.
+ * A file that cannot be read this way (not 16-bit sound, no speech found) plays whole.
+ */
+function voiceOf(name, text, i) {
   try {
-    const b = fs.readFileSync(file);
-    let rate = 24000;
+    const b = fs.readFileSync(path.join(dir, name));
+    let rate = 24000, channels = 1, bits = 16, kind = 1;
     for (let at = 12; at + 8 <= b.length; ) {
-      const id = b.toString("ascii", at, at + 4);
+      const tag = b.toString("ascii", at, at + 4);
       const size = b.readUInt32LE(at + 4);
-      if (id === "fmt ") rate = b.readUInt32LE(at + 12);
-      if (id === "data") {
+      if (tag === "fmt ") {
+        kind = b.readUInt16LE(at + 8);
+        channels = b.readUInt16LE(at + 10);
+        rate = b.readUInt32LE(at + 12);
+        bits = b.readUInt16LE(at + 22);
+      }
+      if (tag === "data") {
+        if (kind !== 1 || bits !== 16 || channels !== 1) return null;
         const data = b.subarray(at + 8, at + 8 + Math.min(size, b.length - at - 8));
-        return Compose.speechSpans(new Int16Array(data.buffer, data.byteOffset, Math.floor(data.length / 2)), rate);
+        const samples = Math.floor(data.length / 2);
+        // A copy, so the samples sit on an even address whatever the file's layout.
+        const pcm = new Int16Array(samples);
+        for (let n = 0; n < samples; n++) pcm[n] = data.readInt16LE(n * 2);
+        const cut = Compose.voiceCut(Compose.speechSpans(pcm, rate), text, samples / rate);
+        if (!cut) return null;
+        const first = Math.round(cut.from * rate), last = Math.min(samples, Math.round(cut.to * rate));
+        const body = data.subarray(first * 2, last * 2);
+        const head = Buffer.alloc(44);
+        head.write("RIFF", 0); head.writeUInt32LE(36 + body.length, 4); head.write("WAVEfmt ", 8);
+        head.writeUInt32LE(16, 16); head.writeUInt16LE(1, 20); head.writeUInt16LE(1, 22);
+        head.writeUInt32LE(rate, 24); head.writeUInt32LE(rate * 2, 28); head.writeUInt16LE(2, 32);
+        head.writeUInt16LE(16, 34); head.write("data", 36); head.writeUInt32LE(body.length, 40);
+        fs.writeFileSync(path.join(work, `voice-${i}.wav`), Buffer.concat([head, body]));
+        return { src: `voice-${i}.wav`, seconds: (last - first) / rate, spans: cut.spans, long: cut.long };
       }
       at += 8 + size + (size % 2);
     }
   } catch {}
-  return [];
+  return null;
 }
 
 function build(plan) {
@@ -70,19 +97,25 @@ function build(plan) {
   const scenes = plan.scenes.map((scene, i) => {
     // A voice made earlier stays on disk while the voice is off, so turning it back on is free.
     const audio = plan.speak !== false && scene.audio && fs.existsSync(path.join(dir, scene.audio)) ? scene.audio : null;
-    const seconds = Compose.sceneSeconds(scene, !!audio);
+    const line = Compose.lineOf(scene, !!audio);
+    const voice = audio ? voiceOf(audio, line, i) : null;
+    // A voiced scene is as long as its line is said, measured from the file itself.
+    const seconds = Compose.sceneSeconds(voice ? { ...scene, audioSeconds: voice.seconds } : scene, !!audio);
     const start = t;
     t += seconds;
     // The captions are the spoken line itself, each word shown as it is said.
-    const words = Compose.syncedWords(Compose.lineOf(scene, !!audio), start, seconds, audio ? spansOf(path.join(dir, audio)) : null);
+    const words = Compose.syncedWords(line, start, seconds, voice ? voice.spans : null);
     const key = Number.isInteger(scene.key) && scene.key >= 0 && scene.key < words.length ? scene.key : Compose.keyIndex(words);
-    return { ...scene, i, start, seconds, words, key, audio, spot: Compose.captionSpot(scene, look) };
+    return { ...scene, i, start, seconds, words, key, audio, voice, spot: Compose.captionSpot(scene, look) };
   });
   const total = Math.round(t * 100) / 100;
 
   // Moving scenes play their clip, muted under the voice; the rest show their picture.
   const motion = plan.motion === "hook" || plan.motion === "all" ? plan.motion : "still";
   const clipOf = (s) => (motion === "all" || (motion === "hook" && s.i === 0)) && s.clip && fs.existsSync(path.join(dir, s.clip)) ? s.clip : null;
+
+  // One of the business's own pictures, popping out over the scene.
+  const popOf = (s) => (s.popImage && fs.existsSync(path.join(dir, s.popImage)) ? s.popImage : null);
 
   const sceneHtml = scenes
     .map((s) => {
@@ -98,9 +131,12 @@ function build(plan) {
           .map((j) => `<span class="w${j === s.key ? " key" : ""}" id="w-${s.i}-${j}">${esc(s.words[j].word)}</span>`)
           .join(" ") + "</p>")
         .join("\n  ");
+      const at = Compose.popSpot(s.spot);
+      const pop = popOf(s) ? `<div class="popw" style="left:${at.x}%;top:${at.y}%"><div class="pop" id="pop-${s.i}"><img src="../${esc(popOf(s))}" alt="" /></div></div>` : "";
       return `<section class="clip scene" id="scene-${s.i}" data-start="${s.start}" data-duration="${s.seconds}" data-track-index="0">
   ${bg}
   <div class="shade"></div>
+  ${pop}
   ${caption}
 </section>`;
     })
@@ -119,6 +155,11 @@ function build(plan) {
       } else if (look.motion) {
         lines.push(`tl.fromTo("#orb-${s.i}", { x: -60, y: 40, scale: 0.9 }, { x: 80, y: -60, scale: 1.15, duration: ${s.seconds}, ease: "sine.inOut" }, ${s.start});`);
         lines.push(`tl.fromTo("#orb2-${s.i}", { x: 70, y: -30, scale: 1.1 }, { x: -90, y: 70, scale: 0.92, duration: ${s.seconds}, ease: "sine.inOut" }, ${s.start});`);
+      }
+      if (popOf(s) && look.motion) {
+        // It pops in just after the cut and, unless the video ends on it, leaves before the next.
+        lines.push(`tl.fromTo("#pop-${s.i}", { opacity: 0, scale: 0.4, rotation: -10 }, { opacity: 1, scale: 1, rotation: ${s.i % 2 ? 2 : -2}, duration: 0.4, ease: "back.out(1.9)" }, ${(s.start + 0.3).toFixed(2)});`);
+        if (s.i < scenes.length - 1 && s.seconds > 1.6) lines.push(`tl.to("#pop-${s.i}", { opacity: 0, scale: 0.8, duration: 0.2, ease: "power2.in" }, ${(s.start + s.seconds - 0.22).toFixed(2)});`);
       }
       const pg = Compose.pages(s.words);
       pg.forEach((page, k) => {
@@ -140,7 +181,7 @@ function build(plan) {
 
   const audio = scenes
     .filter((s) => s.audio)
-    .map((s) => `<audio id="voice-${s.i}" class="clip" src="../${esc(s.audio)}" data-start="${s.start}" data-duration="${s.seconds}" data-track-index="2"></audio>`)
+    .map((s) => `<audio id="voice-${s.i}" class="clip" src="${s.voice ? esc(s.voice.src) : `../${esc(s.audio)}`}" data-start="${s.start}" data-duration="${s.seconds}" data-track-index="2"></audio>`)
     .join("\n");
 
   const html = `<!doctype html>
@@ -164,6 +205,7 @@ function build(plan) {
       .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.35)); }
       .cap { transform: translate(-50%, -50%); opacity: 0; }
 ${Compose.captionCss(look, (px) => `${Math.round(px * 100) / 100}px`)}
+${Compose.popCss((px) => `${px}px`)}
     </style>
   </head>
   <body>
@@ -181,7 +223,10 @@ ${audio}
   </body>
 </html>
 `;
-  return { html, total };
+  // What each voiced scene really runs, and the scenes whose voice says more than their line.
+  const heard = scenes.map((s) => (s.voice ? Math.round(s.voice.seconds * 100) / 100 : null));
+  const long = scenes.filter((s) => s.voice && s.voice.long).map((s) => s.i + 1);
+  return { html, total, heard, long };
 }
 
 function run(cmd, args, cwd) {
@@ -206,7 +251,6 @@ async function main() {
     status("failed", { why: "The video has no scenes yet." });
     process.exit(2);
   }
-  const work = path.join(dir, ".render");
   fs.mkdirSync(work, { recursive: true });
   const built = build(plan);
   fs.writeFileSync(path.join(work, "index.html"), built.html);
@@ -235,14 +279,36 @@ async function main() {
   fs.renameSync(out, path.join(dir, "video.mp4"));
   // A video's folder keeps only what the video plays: voice and picture files that no scene
   // uses any more (their words or picture changed, so they got a new name) are removed.
-  const used = new Set(plan.scenes.flatMap((s) => [s.audio, s.image, s.clip]).filter(Boolean));
+  // The copies sent to the image tool (`ref-`) have done their work.
+  const used = new Set(plan.scenes.flatMap((s) => [s.audio, s.image, s.clip, s.popImage]).filter(Boolean));
   for (const f of fs.readdirSync(dir)) {
-    if (/^scene-/.test(f) && !used.has(f)) fs.rmSync(path.join(dir, f), { force: true });
+    if (/^(scene|pop|ref)-/.test(f) && !used.has(f)) fs.rmSync(path.join(dir, f), { force: true });
+  }
+  // The plan learns how long each voice really runs, so the Studio shows the same lengths.
+  // It is read again here: the plan may have changed while the video was drawn.
+  try {
+    const now = JSON.parse(fs.readFileSync(planPath, "utf8"));
+    let changed = false;
+    (now.scenes || []).forEach((scene, i) => {
+      const before = plan.scenes[i];
+      if (built.heard[i] && before && scene.audio && scene.audio === before.audio && scene.audioSeconds !== built.heard[i]) {
+        scene.audioSeconds = built.heard[i];
+        changed = true;
+      }
+    });
+    if (changed) {
+      const temp = `${planPath}.${process.pid}.tmp`;
+      fs.writeFileSync(temp, `${JSON.stringify(now, null, 2)}\n`);
+      fs.renameSync(temp, planPath);
+    }
+  } catch (err) {
+    console.log(`The plan keeps its old voice lengths: ${err.message}`);
   }
   const bytes = fs.statSync(path.join(dir, "video.mp4")).size;
   // `seconds` is how long the video runs; `tookSeconds` is how long making it took.
   status("ready", { seconds: Math.round(built.total), tookSeconds: Math.round((Date.now() - started) / 1000), bytes, file: "video.mp4" });
   console.log(`Rendered studio/data/videos/${id}/video.mp4 (${Math.round(bytes / 1024)} KB)`);
+  for (const n of built.long) console.log(`Scene ${n}: the voice says more than its line.`);
 }
 
 main().catch((err) => {

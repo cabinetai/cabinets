@@ -147,6 +147,46 @@
     return spans.filter(function (s) { return s[1] - s[0] >= 0.08; });
   }
 
+  /**
+   * The part of a voice file that says the line, so every scene is timed the same way: a short
+   * breath, the line, a short breath. `spans` is where the file speaks and `length` how long
+   * it runs. An older Cabinet's voice reads its own instruction before the line, with a pause
+   * between them: when the whole speech is too long for the words, the cut starts after the
+   * longest pause. `long` means no cut fits, so the file plays whole.
+   */
+  function voiceCut(spans, text, length) {
+    if (!spans || !spans.length) return null;
+    var n = words(text).length || 1;
+    var end = spans[spans.length - 1][1];
+    // The slowest a line is read: one and a half words a second, plus its pauses.
+    var most = n / 1.5 + 0.8;
+    var k = end - spans[0][0] <= most ? 0 : -1;
+    if (k < 0) {
+      // The pause before the line is the longest one, so the cut starts after it when what
+      // follows can be the line: not too long for the words, not too short to say them.
+      var widest = 0;
+      for (var i = 1; i < spans.length; i++) {
+        if (spans[i][0] - spans[i - 1][1] > (widest ? spans[widest][0] - spans[widest - 1][1] : 0.3)) widest = i;
+      }
+      var rest = widest ? end - spans[widest][0] : 0;
+      // Only a long lead-in is cut away (the instruction runs for seconds): a slow voice
+      // that pauses inside its own line keeps the whole line.
+      var lead = widest ? spans[widest - 1][1] - spans[0][0] : 0;
+      if (widest && lead >= 3 && rest <= most && rest >= n / 6) k = widest;
+    }
+    var long = k < 0;
+    if (long) k = 0;
+    var from = Math.max(0, spans[k][0] - 0.12);
+    var to = Math.min(length > 0 ? length : end + 0.25, end + 0.25);
+    return {
+      from: from,
+      to: to,
+      seconds: Math.round((to - from) * 100) / 100,
+      long: long,
+      spans: spans.slice(k).map(function (s) { return [s[0] - from, s[1] - from]; }),
+    };
+  }
+
   /** How long a word takes to say, roughly: its letters, more for a number read out loud. */
   function wordWeight(w) {
     var letters = w.replace(/[^\p{L}\p{N}]/gu, "");
@@ -267,6 +307,23 @@
     return "https://fonts.googleapis.com/css2?family=" + f.google + "&display=block";
   }
 
+  /** Where a pop-out sits: the half of the frame the caption is not in. */
+  function popSpot(spot) {
+    return { x: 50, y: spot.y >= 46 ? 25 : 76 };
+  }
+
+  /**
+   * A pop-out: one of the business's own pictures on a white card over the scene. `u` as in
+   * captionCss. `.popw` places it; `.pop` is the card, which the video animates.
+   */
+  function popCss(u) {
+    return [
+      ".popw{position:absolute;transform:translate(-50%,-50%)}",
+      ".pop{background:#fff;padding:" + u(14) + ";border-radius:" + u(46) + ";box-shadow:0 " + u(26) + " " + u(70) + " rgba(0,0,0,0.5);transform:rotate(-2deg)}",
+      ".pop img{display:block;max-width:" + u(620) + ";max-height:" + u(600) + ";min-width:" + u(260) + ";border-radius:" + u(34) + "}",
+    ].join("\n");
+  }
+
   /** The scene kinds, in the words the person sees. */
   var KIND_LABEL = { hook: "Hook", point: "Point", proof: "Proof", cta: "Call to action" };
 
@@ -282,12 +339,15 @@
     timedWords: timedWords,
     syncedWords: syncedWords,
     speechSpans: speechSpans,
+    voiceCut: voiceCut,
     lineOf: lineOf,
     pages: pages,
     keyIndex: keyIndex,
     sceneSeconds: sceneSeconds,
     captionSpot: captionSpot,
     captionCss: captionCss,
+    popSpot: popSpot,
+    popCss: popCss,
     fontsUrl: fontsUrl,
     clamp: clamp,
   };

@@ -27,13 +27,14 @@ connect flow over itself. It never asks for a key.
 |---|---|---|
 | `profile.md` | Fill in my profile, the Producer, or the person | The brand profile: seven `## ` parts in a fixed order. |
 | `studio/data/ideas.json` | Get video ideas | The latest set of ideas. |
+| `studio/data/assets.json` | `studio/assets.mjs`, the Producer | The business's own pictures: `{ "schema": "shorts/assets@1", "assets": [ { "path", "bytes", "kind", "shows", "uses", "last"? } ] }`. The script lists the files and counts how past videos used each one (`uses`: in how many videos; `last`: how the newest video used it, `photo`, `pop` or `refs`). The Producer writes `kind` (`photo`, `product`, `logo`, `screen`, `proof` or `skip`) and `shows`, once per picture. |
 | `studio/data/videos/<id>/video.json` | Write my script, `studio/apply.mjs` | One video's plan. |
 | `studio/data/videos/<id>/render.json` | `studio/render.mjs` | `{ state: "rendering" \| "ready" \| "failed", at, why?, seconds?, tookSeconds?, bytes? }`: `seconds` is the video's length, `tookSeconds` how long the render took. |
 | `studio/data/videos/<id>/video.mp4` | `studio/render.mjs` | The finished video, 1080 by 1920 at about 5 Mbps, light enough to post to every app. |
 | `studio/voices/<voice>.m4a` | Shorts Factory | A short sample of each voice, so the person hears it before choosing. |
 | `studio/compose.js` | Shorts Factory | How a caption and a look are drawn. The Studio's preview and `render.mjs` both use it, so they match. |
 | `studio/data/videos/<id>/scene-<uid>.wav`, `scene-<uid>.jpg`, `scene-<uid>.mp4` | The Producer, with Cabinet's Voiceovers, Images and Video | One scene's voice line, picture (a picture may be `.png` or `.webp`, as the tool answers) and, when it moves, its clip. |
-| `studio/.data/shared.json` | The Studio (through Cabinet's app store) | Key `profile`: the person's changes not yet in `profile.md`, from a part's heading to its answer. The Studio shows them over `profile.md`; the Producer folds them in and removes the key. Key `picked`: the id of the idea the person picked. Key `videos`: the person's changes to a video, `{ "<id>": { "scenes": [ { "from", "kind", "onScreen", "said", "picture", "seconds", "key", "pos" } ], "look": { … }, "speak", "motion", "voice", "palette", "post": { … } } }`. `scenes` is the whole list in order; `from` is the scene's place in the plan, `null` for a new one. `apply.mjs` takes an entry out once it is applied. Key `render`: the id of the video Make my video makes. |
+| `studio/.data/shared.json` | The Studio (through Cabinet's app store) | Key `profile`: the person's changes not yet in `profile.md`, from a part's heading to its answer. The Studio shows them over `profile.md`; the Producer folds them in and removes the key. Key `picked`: the id of the idea the person picked. Key `videos`: the person's changes to a video, `{ "<id>": { "scenes": [ { "from", "kind", "onScreen", "said", "picture", "seconds", "key", "pos", "pop"? } ], "look": { … }, "speak", "motion", "voice", "palette", "post": { … } } }`. `scenes` is the whole list in order; `from` is the scene's place in the plan, `null` for a new one. `apply.mjs` takes an entry out once it is applied. Key `render`: the id of the video Make my video makes. |
 
 ## profile.md
 
@@ -92,7 +93,8 @@ missing one "Needs you".
   "voice": "Kore",
   "speak": false,
   "stage": "script",
-  "visual": "The same woman in her thirties, dark curly hair, olive sweater, in a sunny Lisbon flat; real phone photo, soft window light, warm muted colours",
+  "visual": "Real phone photo, soft window light, warm muted colours, a little grain",
+  "cast": "The planner: a woman in her thirties, dark curly hair, an olive sweater",
   "look": { "preset": "karaoke", "style": "outline", "font": "montserrat", "upper": true, "size": 96, "accent": "#ffe14d", "x": 50, "y": 64 },
   "scenes": [
     {
@@ -126,15 +128,30 @@ missing one "Needs you".
   its limits (`preset`: `karaoke`, `box`, `classic`, `label`, `hype` or `minimal`; `style`: `highlight`,
   `color`, `outline`, `pill`, `label` or `dim`; `font`: `tiktok`, `montserrat`, `comic`, `inter`,
   `serif`, `grotesk` or `condensed`; `upper`: every word in capitals).
-- `visual`: one sentence every picture prompt ends with, so all the scenes look like one
-  shoot: the same people, the same place, the same light and colours.
+- `visual`: one sentence on the look, which every picture prompt gets, so all the scenes
+  look like one shoot: the light, the colours, the feel. No person and no place.
+- `cast`: one sentence on the one person the video follows, starting with a role ("The
+  planner: …"). Only a scene whose `picture` names that role gets it in its prompt.
+- `castFrom`: the business's photo that shows that person, a path like `photo`. `apply.mjs`
+  copies it into the video's folder and names the copy in `castImage`; it goes to
+  `make_image` with each made picture that names the role, so the person stays the same.
 - `photo`: a real photo from the cabinet for this scene, a path from the cabinet root
   (`../` for the folder it was added to). `apply.mjs` copies it into the video's folder as
   the scene's `image`, so it costs nothing. The Studio shows it before the video is made. A
   scene whose picture the person rewrites loses its `photo` and gets a made picture.
+- `pop`: one of the business's own pictures that pops out on a white card over the scene,
+  a path like `photo`. `apply.mjs` copies it into the video's folder and names the copy in
+  `popImage`. The person can take it off in the Studio (`"pop": false` in their changes).
+- `refs`: up to 2 of the business's own pictures that the made picture keeps true (the real
+  product or place). `apply.mjs` copies them into the video's folder and names the copies in
+  `refImages`; the Producer sends those to `make_image` as `pictures`. A Cabinet whose
+  `make_image` does not take `pictures` makes the picture from the words alone. A scene
+  whose picture the person rewrites loses its `refs`.
 - `motion`: `still` (default), `hook` (the first scene moves) or `all` (every scene moves).
   A scene that moves gets `clip`, a short MP4 made from its picture, and `clipSeconds`.
-- `audio`, `audioSeconds`, `image`, `clip` and `clipSeconds` are there only when they were made. File names are
+- `audio`, `audioSeconds`, `image`, `clip` and `clipSeconds` are there only when they were made. `audioSeconds`
+  starts as the voice file's length; making the video sets it to how long the line is said
+  (the video plays only that part of the file, and the file itself is never changed). File names are
   relative to the video's folder.
 - `post` has one entry per platform in "Where it's posted", named the same way.
 - `notes`: plain sentences on anything that could not be made, shown in the Studio.
