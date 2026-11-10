@@ -1,7 +1,7 @@
 ---
 title: Slack Triage
 created: '2026-09-16T00:00:00Z'
-modified: '2026-09-16T00:00:00Z'
+modified: '2026-10-29T00:00:00Z'
 tags: [slack, support, triage, tracking, showcase]
 order: 1
 ---
@@ -29,14 +29,14 @@ invented. Your first real pass takes its place.
 
 ## Before it can read your real Slack
 
-Connect Slack on Cabinet's integrations screen. Slack has no one press sign in, so the
-screen walks you through making a small Slack app of your own: it shows you the five things
-you will press in Slack's own console, hands you the two values to paste there, and then
-asks for the app's two keys. Set aside about two minutes once.
+Connect Slack on Cabinet's integrations screen. Press **Connect Slack**, check the
+workspace on Slack's own page and press **Allow**. There is no app to make and no key to
+paste.
 
-When you connect, Cabinet asks which channels your team may read. Point it at your support
-or incident channel and leave the rest out. Until Slack is connected the board keeps showing
-the example.
+Cabinet then asks which channels your team may use. Point it at your support or incident
+channel with **Read** and leave the rest out: this cabinet only reads. A private support
+channel works too. Add it by name, because private channels are never included on their own. Until Slack is
+connected the board keeps showing the example.
 
 ## How the owner gets there
 

@@ -1,7 +1,7 @@
 ---
 title: Slack Answers
 created: '2026-09-16T00:00:00Z'
-modified: '2026-09-16T00:00:00Z'
+modified: '2026-10-29T00:00:00Z'
 tags: [slack, questions, knowledge, search, showcase]
 order: 1
 ---
@@ -28,14 +28,14 @@ says clearly that those questions are invented. Your first real sweep takes its 
 
 ## Before it can read your real Slack
 
-Connect Slack on Cabinet's integrations screen. Slack has no one press sign in, so the
-screen walks you through making a small Slack app of your own: it shows you the five things
-you will press in Slack's own console, hands you the two values to paste there, and then
-asks for the app's two keys. Set aside about two minutes once.
+Connect Slack on Cabinet's integrations screen. Press **Connect Slack**, check the
+workspace on Slack's own page and press **Allow**. There is no app to make and no key to
+paste.
 
-Cabinet keeps both keys in a locked file on your own machine, and writes them down only
-after the sign-in has actually worked. Until Slack is connected the page keeps showing the
-example.
+Cabinet then asks which channels your team may use. Pick the channels where questions get
+answered and give them **Read**: this cabinet only reads. Direct messages are never read,
+so a question answered in private stays private. Until Slack is connected the page
+keeps showing the example.
 
 ## What's inside
 
