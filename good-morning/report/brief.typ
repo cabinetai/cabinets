@@ -1,6 +1,6 @@
 // The Morning Brief as a printed page. Cabinet fills it after each morning run
 // (the `pdf` step in .jobs/morning-report.yaml): `sys.inputs.source` is the
-// report the run just wrote, and the fonts sit beside this file in fonts/.
+// text of the report the run just wrote, and the fonts sit beside this file in fonts/.
 // It reads the same shape the Report page reads: frontmatter, `## Section`
 // bullets, `## Checked` last.
 
@@ -16,7 +16,7 @@
 
 // ---- Reading the report ----------------------------------------------------
 
-#let lines = read(sys.inputs.source).split("\n").map(l => l.trim("\r", at: end))
+#let lines = sys.inputs.source.split("\n").map(l => l.trim("\r", at: end))
 
 #let unquote(v) = {
   let v = v.trim()
