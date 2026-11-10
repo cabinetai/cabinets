@@ -882,9 +882,12 @@
   function imageOf(v, i) {
     if (!v) return "";
     const s = scenesOf(v)[i], base = s && Number.isInteger(s.from) ? (v.plan.scenes || [])[s.from] : null;
-    if (!base || !base.image || (s.picture || "") !== (base.picture || "")) return "";
-    // Unquoted: it sits inside a style attribute, and the names are only letters, digits and dashes.
-    return "url(data/videos/" + encodeURIComponent(v.id) + "/" + encodeURIComponent(base.image) + ") center / cover";
+    if (!base || (!base.image && !base.photo) || (s.picture || "") !== (base.picture || "")) return "";
+    // Unquoted: it sits inside a style attribute, so every part is encoded, brackets too.
+    const enc = (x) => encodeURIComponent(x).replace(/[()']/g, (ch) => "%" + ch.charCodeAt(0).toString(16));
+    // A real photo from the cabinet shows before the video is made; its path is from the cabinet root.
+    const src = base.image ? "data/videos/" + enc(v.id) + "/" + enc(base.image) : "../" + base.photo.split("/").map((x) => (x === ".." ? x : enc(x))).join("/");
+    return "url(" + src + ") center / cover";
   }
   const bgOf = (v) => { const p = paletteOf(v); return imageOf(v, 0) || shadeOf(p[0], p[1]); };
 

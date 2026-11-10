@@ -13,6 +13,12 @@ import path from "node:path";
 
 const HYPERFRAMES = "hyperframes@0.9.9";
 const W = 1080;
+const PHOTO_MOVES = [
+  ["{ scale: 1.02 }", "{ scale: 1.14 }"],
+  ["{ scale: 1.16 }", "{ scale: 1.05 }"],
+  ["{ scale: 1.12, xPercent: -3 }", "{ scale: 1.12, xPercent: 3 }"],
+  ["{ scale: 1.12, xPercent: 3 }", "{ scale: 1.12, xPercent: -3 }"],
+];
 const H = 1920;
 
 const id = process.argv[2];
@@ -107,7 +113,9 @@ function build(plan) {
       if (clipOf(s)) {
         // A clip already moves.
       } else if (s.image && fs.existsSync(path.join(dir, s.image))) {
-        if (look.motion) lines.push(`tl.fromTo("#photo-${s.i}", { scale: 1.04 }, { scale: 1.14, duration: ${s.seconds}, ease: "none" }, ${s.start});`);
+        // The camera moves a different way in each scene: in, out, then a slow pan each side.
+        const [from, to] = PHOTO_MOVES[s.i % PHOTO_MOVES.length];
+        if (look.motion) lines.push(`tl.fromTo("#photo-${s.i}", ${from}, { ...${to}, duration: ${s.seconds}, ease: "sine.inOut" }, ${s.start});`);
       } else if (look.motion) {
         lines.push(`tl.fromTo("#orb-${s.i}", { x: -60, y: 40, scale: 0.9 }, { x: 80, y: -60, scale: 1.15, duration: ${s.seconds}, ease: "sine.inOut" }, ${s.start});`);
         lines.push(`tl.fromTo("#orb2-${s.i}", { x: 70, y: -30, scale: 1.1 }, { x: -90, y: 70, scale: 0.92, duration: ${s.seconds}, ease: "sine.inOut" }, ${s.start});`);

@@ -92,6 +92,7 @@ missing one "Needs you".
   "voice": "Kore",
   "speak": false,
   "stage": "script",
+  "visual": "The same woman in her thirties, dark curly hair, olive sweater, in a sunny Lisbon flat; real phone photo, soft window light, warm muted colours",
   "look": { "preset": "karaoke", "style": "outline", "font": "montserrat", "upper": true, "size": 96, "accent": "#ffe14d", "x": 50, "y": 64 },
   "scenes": [
     {
@@ -125,6 +126,12 @@ missing one "Needs you".
   its limits (`preset`: `karaoke`, `box`, `classic`, `label`, `hype` or `minimal`; `style`: `highlight`,
   `color`, `outline`, `pill`, `label` or `dim`; `font`: `tiktok`, `montserrat`, `comic`, `inter`,
   `serif`, `grotesk` or `condensed`; `upper`: every word in capitals).
+- `visual`: one sentence every picture prompt ends with, so all the scenes look like one
+  shoot: the same people, the same place, the same light and colours.
+- `photo`: a real photo from the cabinet for this scene, a path from the cabinet root
+  (`../` for the folder it was added to). `apply.mjs` copies it into the video's folder as
+  the scene's `image`, so it costs nothing. The Studio shows it before the video is made. A
+  scene whose picture the person rewrites loses its `photo` and gets a made picture.
 - `motion`: `still` (default), `hook` (the first scene moves) or `all` (every scene moves).
   A scene that moves gets `clip`, a short MP4 made from its picture, and `clipSeconds`.
 - `audio`, `audioSeconds`, `image`, `clip` and `clipSeconds` are there only when they were made. File names are

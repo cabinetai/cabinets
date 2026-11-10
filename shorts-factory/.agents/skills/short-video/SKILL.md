@@ -33,6 +33,7 @@ Pick the pattern that fits the fact. Use a different pattern for each idea in a 
 | How it works | A process in steps | "Your trip, planned in 3 calls" |
 | The mistake | A common mistake the business fixes | "You're booking flights too early" |
 | The question | A question the audience already asks | "Is a travel planner worth it?" |
+| The callout | Name the viewer, so the right people stop | "Planning a honeymoon? Watch this first" |
 
 Rules for every hook:
 
@@ -41,6 +42,21 @@ Rules for every hook:
   five seconds.
 - No question that can be answered "no" and scrolled past.
 - Sentence case. No hashtags, emoji or exclamation marks in the hook.
+
+## Pictures
+
+The pictures decide if a video looks real or looks made by a machine.
+
+- **One shoot.** Every picture shares one visual line: the same people, dressed the same,
+  the same place, the same light and colours. A viewer should believe one person filmed it
+  on one day.
+- **Real first.** The business's own photos beat any made picture: use them where they fit.
+- **The line decides the shot.** Show what the line means, not only its nouns: "we answer
+  in 15 minutes" is a phone lighting up in a hand, not a clock.
+- **Change the shot.** Close-up, wide, detail, medium. A new picture every 2 to 4 seconds.
+- **Open close.** The first frame is a face, a hand or the product, close and bright.
+- **Real, not stock.** Natural light, real places, people doing something, nobody posing.
+- **Room for captions.** The subject in the top half; the lower middle stays simple.
 
 ## Matching the goal
 

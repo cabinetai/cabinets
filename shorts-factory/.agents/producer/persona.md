@@ -108,22 +108,44 @@ anything costly is made. It writes only `studio/data/videos/<id>/video.json` (`<
 idea's id, the `picked` key in `studio/.data/shared.json`). It makes no voice, no picture
 and no video. `studio/DATA.md` gives every field.
 
-- 4 to 6 scenes, 15 to 35 seconds in all. Each scene has a `kind`: `hook` for the first
+- 5 to 8 scenes, 15 to 30 seconds in all: a new picture every 2 to 4 seconds keeps people
+  watching. Each scene has a `kind`: `hook` for the first
   scene, `point` or `proof` in the middle, `cta` for the last. Scene one says the hook.
   Each later scene adds one true thing, from the profile or its pages. The last scene asks
   for what the goal wants (the short-video skill's table). For each scene:
-  - `said`: the line, at most 14 words, the way a person would say it. The voice reads it
+  - `said`: the line, at most 10 words, the way a person would say it. The voice reads it
     and the captions show exactly these words, each one as it is said. `onScreen`: the same
     words as `said`.
-  - `picture`: what the viewer sees, in one sentence a photographer could shoot: the place,
-    the people, the light. No screens, signs, books or packaging that would show words.
-  - `seconds`: 2.5 to 6.
+  - `picture`: what the viewer sees, in one sentence a photographer could shoot. Start with
+    the shot: close-up, medium, wide or detail, and never the same shot twice in a row. Then
+    the people and what they do, and the place. The hook's picture is the most striking one:
+    close, with a face, a hand or the product, and one strong colour. Keep the main subject
+    in the top half of the frame: the captions sit lower. Real moments, not posed stock
+    photos: nobody smiles at the camera. No screens, signs, books or packaging that would
+    show words. Follow the short-video skill, "Pictures".
+  - `photo`: a real photo from the cabinet, when one shows what the scene says. Real photos
+    come first: they are true and free. See "Real photos" below.
+  - `seconds`: 2 to 4.
 - `title`; `post` for every platform in "Where it's posted": a title, a caption of one to
   three short sentences that ends with the call to action, and 3 to 6 hashtags.
+- `visual`: one sentence that every picture shares, so the video looks like one shoot: the
+  people (age, hair, clothes, the same in every scene), the place, the light, the colours,
+  and "a real phone photo". Take it from the cabinet's own photos when there are some.
 - `palette`: three dark, rich colours that suit the business. `speak`: true, every video has a voice unless the
   person turns it off in the Studio. `voice`: the one that suits "How it sounds"
   (Warm `Kore`, Funny `Puck`, Expert `Charon`, Bold `Fenrir`). `stage`: `"script"`.
 - Fold in the person's profile changes first, as "Changes from the Studio" says.
+
+### Real photos
+
+Before you write the scenes, look for the business's own photos. In one Bash call, list the
+image files (`.jpg`, `.jpeg`, `.png`, `.webp`) in this folder and in `..`, with the same
+limits as "Filling the profile", and leave out `studio/` and files under 50 KB (icons and
+logos). Open the ones whose names or folders suggest the place, the team, the product or
+the customers (the Read tool shows a picture), at most 12. Use a photo only for a scene it
+truly shows, write its path in `photo` and describe it in `picture`. Never use a
+screenshot, a document, a logo or a photo of a person the pages do not connect to the
+business. Every other scene gets a made picture in the same `visual`.
 
 ## Making a video
 
@@ -140,10 +162,13 @@ is the `render` key in `studio/.data/shared.json`.
      the text is the scene's `said` exactly, with nothing added (every word sent is read
      aloud), the plan's `voice` (default `Kore`), the path
      `studio/data/videos/<id>/scene-<uid>.wav` (the scene's `uid`);
-   - a `make_image` for each scene that has `picture` and no `image`: the prompt is the
-     scene's `picture` followed by "Vertical photo. Nothing written anywhere: no text,
-     letters, numbers, signs, labels, brochures, book covers, menus or logos.", the aspect
-     `9:16`, the path `studio/data/videos/<id>/scene-<uid>`.
+   - a `make_image` for each scene that has `picture` and no `image` (`apply.mjs` already
+     gave a scene with a `photo` its `image`): the prompt is the scene's `picture`, then the
+     plan's `visual`, then "Vertical 9:16 photo that looks like a real phone photo: natural
+     light, real skin and textures, a little imperfect, not an ad, not 3D, not glossy. The
+     main subject in the top half; the lower middle calm and simple. Nothing written
+     anywhere: no text, letters, numbers, signs, labels, brochures, book covers, menus or
+     logos.", the aspect `9:16`, the path `studio/data/videos/<id>/scene-<uid>`.
    Then write all the answers into `video.json` in one edit: each voice's file name in the
    scene's `audio` and its seconds in `audioSeconds`, each picture's file name in `image`.
    Cabinet starts Make my video only once Images and Voiceovers are connected.

@@ -23,6 +23,13 @@ function readJson(file) {
   }
 }
 
+/** Writes JSON through a temp file and a rename, so a stopped write never leaves half a file. */
+function writeJson(file, value) {
+  const temp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(temp, `${JSON.stringify(value, null, 2)}\n`);
+  fs.renameSync(temp, file);
+}
+
 function uid() {
   return crypto.randomBytes(3).toString("hex");
 }
@@ -35,7 +42,7 @@ function applyEdits(id) {
   if (!plan) throw new Error(`No plan at ${planPath}`);
   const shared = readJson(SHARED) || {};
   const edit = shared.videos && typeof shared.videos === "object" ? shared.videos[id] : null;
-  const result = { scenes: 0, voice: 0, picture: 0, look: false, post: false };
+  const result = { scenes: 0, voice: 0, picture: 0, photos: 0, look: false, post: false };
 
   // Every scene has a name for its files that never changes or repeats, whatever its place.
   const before = Array.isArray(plan.scenes) ? plan.scenes : [];
@@ -65,6 +72,7 @@ function applyEdits(id) {
       if (!base || next.picture !== (base.picture || "")) {
         if (next.image) result.picture += 1;
         delete next.image;
+        delete next.photo;
         delete next.clip;
         delete next.clipSeconds;
       }
@@ -92,11 +100,26 @@ function applyEdits(id) {
     }
   }
 
-  fs.writeFileSync(planPath, `${JSON.stringify(plan, null, 2)}\n`);
+  // A scene with a real photo from the cabinet uses a copy of it as its picture, at no cost.
+  for (const s of plan.scenes || []) {
+    if (!s.photo || s.image) continue;
+    const from = path.resolve(s.photo);
+    const ext = path.extname(from).toLowerCase();
+    const inside = from.startsWith(path.resolve("..") + path.sep) && !from.startsWith(path.resolve("studio") + path.sep);
+    if (!inside || ![".jpg", ".jpeg", ".png", ".webp"].includes(ext) || !fs.existsSync(from)) {
+      delete s.photo;
+      continue;
+    }
+    s.image = `scene-${s.uid}${ext}`;
+    fs.copyFileSync(from, path.join(dir, s.image));
+    result.photos += 1;
+  }
+
+  writeJson(planPath, plan);
   if (edit) {
     delete shared.videos[id];
     if (!Object.keys(shared.videos).length) delete shared.videos;
-    fs.writeFileSync(SHARED, `${JSON.stringify(shared, null, 2)}\n`);
+    writeJson(SHARED, shared);
   }
   return result;
 }
@@ -109,7 +132,7 @@ if (process.argv[1] && path.basename(process.argv[1]) === "apply.mjs") {
   }
   try {
     const r = applyEdits(id);
-    console.log(`Applied: ${r.scenes} scenes, ${r.voice} voices and ${r.picture} pictures to remake.`);
+    console.log(`Applied: ${r.scenes} scenes, ${r.voice} voices and ${r.picture} pictures to remake, ${r.photos} real photos used.`);
   } catch (err) {
     console.error(String(err.message || err));
     process.exit(1);
