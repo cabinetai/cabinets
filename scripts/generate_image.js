@@ -76,118 +76,8 @@ const CABINET_ICONS = {
   'wedding-planner':          { object: 'a single delicate satin ribbon tied in a perfect bow with two soft trailing ends',                                        bgHex: '#E8C9C9', bgName: 'soft misty rose' },
   'youtube-channel-factory':  { object: 'a single film clapper board, partially open at a slight playful angle',                                                   bgHex: '#D5E5C8', bgName: 'soft honeydew green' },
   'email':                    { object: 'a single small open envelope with a neatly folded letter half-emerging from the top',                                      bgHex: '#B8D8C5', bgName: 'soft seafoam' },
-  'venture-capital':          { object: 'a single small upward-pointing rocket with a tiny coin balanced at its nose cone',                                         bgHex: '#F5E6A8', bgName: 'soft butter yellow' },
 
-  // ─── Enterprise department templates (76) ────────────────────────────────────
-  // Flagship
   'competitive-intelligence': { object: 'a single elegant antique brass spyglass, slightly extended, with a soft beam of light fanning gently from its lens', bgHex: '#C9D2DB', bgName: 'soft slate gray' },
-
-  // Executive / CEO Office
-  'ceo-operating':            { object: 'a single elegant lighthouse on a small rock with three soft beams of light rotating slowly from the top', bgHex: '#C4D4DE', bgName: 'soft pale blue-gray' },
-  'board-memo':               { object: 'a single folded leather portfolio with a thin silk ribbon bookmark hanging out the bottom edge', bgHex: '#D9CDB8', bgName: 'soft warm taupe' },
-  'investor-update':          { object: 'a single delicate quill pen mid-stroke leaving one elegant signature flourish curling beneath it', bgHex: '#EDDFC4', bgName: 'soft champagne' },
-  'leadership-meeting':       { object: 'a single round table viewed from a soft three-quarter angle with five empty wooden chairs evenly placed around it', bgHex: '#DCD4CC', bgName: 'soft warm dove gray' },
-
-  // Strategy / Operations
-  'okr-command':              { object: 'a single slender arrow striking the exact center of three concentric target rings', bgHex: '#E5D6B0', bgName: 'soft pale ochre' },
-  'weekly-business-review':   { object: 'a single elegant sundial with the gnomon casting one soft diagonal shadow line across its face', bgHex: '#E0D2B8', bgName: 'soft warm beige' },
-  'decision-log':             { object: 'a single forked path in a quiet landscape drawn in minimal lines, with one tiny dotted arrow indicating the chosen branch', bgHex: '#C8D5B9', bgName: 'soft sage green' },
-  'strategic-initiative':     { object: 'a single tall slender mountain peak drawn in clean lines with a small flag planted at the summit', bgHex: '#BACFE0', bgName: 'soft pale denim' },
-
-  // Sales
-  'account-room':             { object: 'a single ornate brass key resting at a gentle angle on a small round velvet cushion', bgHex: '#F0CFC9', bgName: 'soft champagne pink' },
-  'pipeline-risk':            { object: 'a single small balanced two-pan scale with one side tilting gently downward', bgHex: '#E0B69E', bgName: 'soft dusty terracotta' },
-  'sales-battlecard':         { object: 'a single ornamental shield with a soft diagonal band of light across its face', bgHex: '#B7C5D8', bgName: 'soft slate blue' },
-  'proposal-rfp':             { object: 'a single elegant rolled scroll tied with one thin ribbon, the bottom edge gently unfurled', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'ae-csm-handoff':           { object: 'a single relay baton mid-pass between two soft outstretched hand silhouettes, just barely touching', bgHex: '#FAD6B7', bgName: 'soft peach' },
-  'sales-call-prep':          { object: 'a single elegant rotary telephone receiver lifted off its cradle with a gently curling cord', bgHex: '#F5E6A8', bgName: 'soft butter yellow' },
-
-  // Customer Success
-  'customer-health':          { object: 'a single delicate heartbeat line curving across a soft pulse circle, drawn in one continuous stroke', bgHex: '#BFDDC4', bgName: 'soft mint green' },
-  'qbr-generator':            { object: 'a single elegant trophy cup with two thin laurel leaves rising symmetrically on each side', bgHex: '#E8D49E', bgName: 'soft pale gold' },
-  'renewal-risk':             { object: 'a single tall hourglass with warm sand mid-pour at the narrow waist, suspended motion', bgHex: '#E8C99A', bgName: 'soft amber sand' },
-  'customer-escalation':      { object: 'a single elegant flare gun firing one soft glowing trail upward, ending in a small starburst', bgHex: '#F4B9A8', bgName: 'soft sunset coral' },
-
-  // Customer Support
-  'support-intelligence':     { object: 'a single elegant magnifying glass hovering over a small cluster of three faint dotted constellation points', bgHex: '#B4DBD8', bgName: 'soft pale aqua' },
-  'bug-escalation':           { object: 'a single delicate origami beetle with clean folded wings raised, mid-emerging from its paper folds', bgHex: '#D0CDC4', bgName: 'soft warm gray' },
-  'help-center':              { object: 'a single open book floating with a soft halo of light glowing around its pages', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'support-macro':            { object: 'a single perfectly tied bow knot with two symmetric loops and two trailing ribbon ends', bgHex: '#B8D8C5', bgName: 'soft seafoam' },
-
-  // Product
-  'voice-of-customer':        { object: 'a single elegant tuning fork with three concentric sound-wave arcs radiating gently from its tines', bgHex: '#D6C3E5', bgName: 'soft lilac' },
-  'feature-request':          { object: 'a single classic light bulb with three small dotted spark lines fanning above the filament', bgHex: '#F5E6A8', bgName: 'soft butter yellow' },
-  'roadmap':                  { object: 'a single forking road drawn in clean parallel lines with a tiny marker dot resting on one branch', bgHex: '#C8DBB8', bgName: 'soft pistachio' },
-  'prd-builder':              { object: 'a single architectural drafting compass with one leg planted firmly and the other arcing one small circle', bgHex: '#BACFE0', bgName: 'soft pale denim' },
-  'product-launch':           { object: 'a single elegant rocket mid-launch with three small soft puff clouds beneath, drawn minimally', bgHex: '#F5C9C6', bgName: 'soft pale coral' },
-  'experiment-review':        { object: 'a single laboratory beaker with three small round bubbles rising from the liquid surface', bgHex: '#C8DBB8', bgName: 'soft pistachio' },
-
-  // Engineering
-  'sprint-planning':          { object: 'a single elegant runner captured mid-stride in one clean continuous flowing line', bgHex: '#B8D8C5', bgName: 'soft seafoam' },
-  'engineering-status':       { object: 'a single small flag planted firmly at the very top of a short three-step staircase', bgHex: '#C8D5B9', bgName: 'soft warm sage' },
-  'release-notes':            { object: 'a single small confetti cannon mid-burst with five soft paper streamers fanning outward', bgHex: '#BFDDC4', bgName: 'soft pale mint' },
-  'incident-postmortem':      { object: 'a single elegant phoenix feather drifting slowly downward, drawn in clean minimal lines', bgHex: '#F5C9C6', bgName: 'soft dusty rose' },
-  'architecture-decision':    { object: 'a single small isometric cube with three visible faces, drawn cleanly in minimal lines', bgHex: '#D8C9E0', bgName: 'soft lavender' },
-  'bug-triage':               { object: 'a single small ladybug walking along one thin curving leaf line, very minimal', bgHex: '#F5C9C6', bgName: 'soft pale coral' },
-
-  // IT
-  'it-request':               { object: 'a single ornate ticket stub with one corner gently torn, slightly tilted', bgHex: '#B4DBD8', bgName: 'soft pale aqua' },
-  'access-approval':          { object: 'a single elegant skeleton key threaded through a small ring, suspended in soft balance', bgHex: '#D8C9E0', bgName: 'soft lavender' },
-  'app-directory':            { object: 'a single grid of nine small rounded squares laid out evenly in three rows of three', bgHex: '#DCD4CC', bgName: 'soft warm dove' },
-  'employee-offboarding':     { object: 'a single neatly folded paper map with one fold gently opened partway', bgHex: '#FAD6B7', bgName: 'soft peach' },
-  'change-management':        { object: 'a single domino tipping forward at the moment of impact with a second domino standing patiently behind', bgHex: '#B4DBD8', bgName: 'soft pale teal' },
-
-  // HR / People
-  'new-hire-onboarding':      { object: 'a single small potted sapling with two soft leaves just unfurling, in clean minimal lines', bgHex: '#BFDDC4', bgName: 'soft mint' },
-  'hr-policy-assistant':      { object: 'a single elegant ribbon spool with one ribbon trailing gracefully downward', bgHex: '#F5C9C6', bgName: 'soft dusty rose' },
-  'performance-review':       { object: 'a single small bonsai tree with three trimmed branches in elegant balanced composition', bgHex: '#C8D5B9', bgName: 'soft sage' },
-  'candidate-packet':         { object: 'a single neat manila folder tied with a thin ribbon, the top edge slightly ajar', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'hiring-pipeline':          { object: 'a single tall slender funnel with three soft sparkles falling gently into its narrow opening', bgHex: '#F5C9A8', bgName: 'soft pale apricot' },
-  'manager-one-on-one':       { object: 'a pair of empty teacups stacked carefully, with one soft wisp of steam rising from the top cup', bgHex: '#F2D2D5', bgName: 'soft blush' },
-
-  // Finance
-  'finance-memo':             { object: 'a single elegant fountain pen resting at a slight angle across one folded letter', bgHex: '#EDDFC4', bgName: 'soft champagne' },
-  'budget-variance':          { object: 'a set of three vertical bar shapes of slightly different heights, in clean minimal balance', bgHex: '#C9D2DB', bgName: 'soft pale slate' },
-  'vendor-renewal':           { object: 'a single calendar page with one date circled gently in soft ink', bgHex: '#E5D6B0', bgName: 'soft pale ochre' },
-  'spend-policy':             { object: 'a single small piggy bank with one coin paused mid-air just above the coin slot', bgHex: '#F2D2D5', bgName: 'soft blush pink' },
-  'board-finance':            { object: 'a single elegant ledger book with one thin silk ribbon bookmark trailing out the bottom', bgHex: '#D9CDB8', bgName: 'soft warm taupe' },
-
-  // Procurement / Operations
-  'procurement-intake':       { object: 'a single open shipping crate with one small wrapped parcel resting inside, soft top-down angle', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'vendor-asset':             { object: 'a single small open toolbox with one wrench resting at an angle across its lid', bgHex: '#B7C5D8', bgName: 'soft pale slate blue' },
-  'universal-request':        { object: 'a single elegant envelope with one ornate wax seal pressed at the center', bgHex: '#D8C9E0', bgName: 'soft lavender' },
-  'office-ops':               { object: 'a single small potted desk plant beside a neatly stacked pair of folders', bgHex: '#B8D8C5', bgName: 'soft seafoam' },
-
-  // Legal
-  'contract-intelligence':    { object: 'a single elegant magnifying glass hovering over a single folded document, soft top-down angle', bgHex: '#EAE0CB', bgName: 'soft pale parchment' },
-  'legal-request':            { object: 'a single small brass service bell on a counter, mid-ring, with one soft sound arc curling out', bgHex: '#D9CDB8', bgName: 'soft warm taupe' },
-  'contract-renewal':         { object: 'a single calendar page with one corner gently folded down like a small bookmark', bgHex: '#EDDFC4', bgName: 'soft champagne' },
-  'clause-library':           { object: 'a single open ornate book with three thin ribbon bookmarks fanning outward across its pages', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-
-  // Security / Compliance
-  'security-questionnaire':   { object: 'a single neat clipboard with three small ticks running cleanly down the page', bgHex: '#C8D5B9', bgName: 'soft pale sage' },
-  'compliance-evidence':      { object: 'a single elegant fingerprint loop drawn in one clean continuous spiraling line', bgHex: '#C9D2DB', bgName: 'soft pale slate' },
-  'risk-register':            { object: 'a single small fire extinguisher with one soft spark hovering motionlessly above its nozzle', bgHex: '#F5C9C6', bgName: 'soft dusty rose' },
-  'vendor-security-review':   { object: 'a single elegant padlock with one delicate skeleton key floating gently beside it', bgHex: '#B4DBD8', bgName: 'soft pale teal' },
-
-  // Marketing
-  'campaign-launch':          { object: 'a single elegant party popper mid-burst with a soft trail of confetti curling outward', bgHex: '#FAD6B7', bgName: 'soft warm peach' },
-  'content-calendar':         { object: 'a single small calendar page with one date highlighted by a soft ink dot, slightly tilted', bgHex: '#D8C9E0', bgName: 'soft pale lilac' },
-  'seo-content':              { object: 'a single elegant compass needle pointing precisely north with one soft glow at the tip', bgHex: '#B4DBD8', bgName: 'soft pale teal' },
-  'ad-performance':           { object: 'a single elegant target with one arrow planted dead center, surrounded by two soft impact ripples', bgHex: '#F4B9A8', bgName: 'soft warm coral' },
-  'brand-hub':                { object: 'a single delicate fan of three overlapping paint swatches in graduated warm tones', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'competitive-marketing':    { object: 'a single elegant chess knight piece standing on one soft empty board square', bgHex: '#C9D2DB', bgName: 'soft pale slate' },
-
-  // Data / Analytics
-  'kpi-narrative':            { object: 'a single elegant rising line graph drawn in one clean continuous flowing stroke', bgHex: '#D8C9E0', bgName: 'soft pale lavender' },
-  'metrics-definition':       { object: 'a single small open dictionary with one ribbon bookmark trailing across its pages', bgHex: '#EDDFC4', bgName: 'soft champagne' },
-  'data-request':             { object: 'a single small mailbox with one envelope half inserted into the slot', bgHex: '#B4DBD8', bgName: 'soft pale aqua' },
-
-  // General Company Knowledge
-  'company-brain':            { object: 'a single elegant brain rendered as one clean continuous looping line with one soft glow node', bgHex: '#C4D4DE', bgName: 'soft pale blue-gray' },
-  'meeting-memory':           { object: 'a string of three connected polaroid frames hanging from one thin clothesline', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'internal-faq':             { object: 'a single delicate question mark suspended above three soft concentric ripples', bgHex: '#D8C9E0', bgName: 'soft pale lavender' },
-  'team-wiki':                { object: 'a single small open notebook with one elegant ribbon bookmark trailing out the bottom', bgHex: '#C8D5B9', bgName: 'soft sage' },
 
   'audits':                   { object: 'a magnifying glass resting on a clipboard with three ticked checkboxes', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'competitor-watch':         { object: 'a pair of chunky binoculars standing upright on a small lookout post', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
@@ -271,7 +161,6 @@ const CABINET_ICONS = {
 const VIVID_COLOR_OVERRIDES = {
   'gmail-inbox':      { hex: '#e4634b', name: 'warm coral-red' },
   'telegram-digest':  { hex: '#165db8', name: 'vivid sky blue' },
-  'hiring-pipeline':  { hex: '#e13c5a', name: 'vivid rose pink' },
   'phone-line':       { hex: '#ff6a2b', name: 'vivid tangerine orange' },
 };
 
