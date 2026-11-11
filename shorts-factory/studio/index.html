@@ -539,11 +539,6 @@
   .premake .btn.quiet { color: var(--ink); height: 34px; font-size: 14px; }
   .premake .btn.quiet:hover { background: var(--hover); }
 
-  /* the party: paper bits fall once, when a video has just been made */
-  .party { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
-  .party i { position: absolute; top: -24px; width: var(--w); height: var(--h); background: var(--c); border-radius: var(--br); animation: fall var(--t) cubic-bezier(0.3, 0, 0.7, 0.6) var(--d) both; }
-  @keyframes fall { from { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 1; } 85% { opacity: 1; } to { transform: translate3d(var(--x), 108vh, 0) rotate(var(--rot)); opacity: 0; } }
-
   /* Cabinet shows the team beside the page, so the Studio is often about 800px wide. */
   @media (max-width: 800px) {
     .st:not(.here) { padding-inline-end: 5px; }
@@ -580,7 +575,7 @@
     .dock { border-radius: 26px; flex-wrap: wrap; padding: 8px; }
     .dock .msg { flex: 1 1 100%; margin: 4px 10px; }
   }
-  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .party { display: none; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
@@ -1356,23 +1351,6 @@
       (acts ? '<div class="acts2">' + acts + "</div>" : "") + "</div></div>";
   }
 
-  /* ---- the party: paper bits fall once, when a video has just been made ---- */
-  function cheer() {
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const old = document.querySelector(".party"); if (old) old.remove();
-    const box = document.createElement("div"), colours = ["lemon", "gum", "sky", "lilac", "tang", "hot"];
-    box.className = "party"; box.setAttribute("aria-hidden", "true");
-    let html = "";
-    for (let k = 0; k < 44; k += 1) {
-      // A fixed spread, so the fall looks the same every time and needs no random numbers.
-      const a = (k * 61) % 100, b = (k * 37) % 100, round = k % 3 === 0, long = k % 3 === 1;
-      html += '<i style="left:' + a + "%;--c:var(--" + colours[k % colours.length] + ");--w:" + (round ? 12 : long ? 8 : 14) + "px;--h:" + (round ? 12 : long ? 22 : 10) + "px;--br:" + (round ? "50%" : "3px") +
-        ";--x:" + (b - 50) * 2.4 + "px;--rot:" + (b * 9 - 300) + "deg;--t:" + (1500 + b * 11) + "ms;--d:" + (k % 11) * 45 + 'ms"></i>';
-    }
-    box.innerHTML = html; document.body.appendChild(box);
-    setTimeout(() => box.remove(), 3400);
-  }
-
   /* ---- the player: one vertical video, tap to play, with sound ---- */
   /** The made video's first picture: shown at once, before any of the video loads. */
   const posterOf = (v) => { const s = (v.plan.scenes || [])[0]; return s && s.image ? "data/videos/" + encodeURIComponent(v.id) + "/" + encodeURIComponent(s.image) : ""; };
@@ -1763,7 +1741,6 @@
             const v = id ? videoById(id) : cur();
             if (v && stateOf(v) === "ready" && vEdits[v.id]) { delete vEdits[v.id]; if (canSave) c.store.set("videos", vEdits).catch(() => {}); }
             if (v && stateOf(v) === "ready" && view === "make") view = "post";
-            if (v && stateOf(v) === "ready" && job.lastRun && job.lastRun.ok !== false) cheer();
             paint();
           });
         }

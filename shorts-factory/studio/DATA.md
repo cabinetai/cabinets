@@ -25,7 +25,7 @@ connect flow over itself. It never asks for a key.
 
 | File | Written by | What it holds |
 |---|---|---|
-| `profile.md` | Fill in my profile, the Producer, or the person | The brand profile: seven `## ` parts in a fixed order. |
+| `profile.md` | Fill in my profile, the Producer, or the person | The brand profile: six `## ` parts in a fixed order. |
 | `studio/data/ideas.json` | Get video ideas | The latest set of ideas. |
 | `studio/data/assets.json` | `studio/assets.mjs`, the Producer | The business's own pictures: `{ "schema": "shorts/assets@1", "assets": [ { "path", "bytes", "kind", "shows", "uses", "last"? } ] }`. The script lists the files and counts how past videos used each one (`uses`: in how many videos; `last`: how the newest video used it, `photo`, `pop` or `refs`). The Producer writes `kind` (`photo`, `product`, `logo`, `screen`, `proof` or `skip`) and `shows`, once per picture. |
 | `studio/data/videos/<id>/video.json` | Write my script, `studio/apply.mjs` | One video's plan. |

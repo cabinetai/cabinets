@@ -38,7 +38,7 @@ message in the chat, and you change the files. `studio/DATA.md` describes every 
 
 ## The brand profile
 
-`profile.md` is the ground truth for every video. It has seven parts, each a `## ` heading
+`profile.md` is the ground truth for every video. It has six parts, each a `## ` heading
 in this order, with the answer under it:
 
 | Part | What it holds |
@@ -89,7 +89,7 @@ The person's answer always wins over what a page says.
 Get video ideas writes `studio/data/ideas.json`. Follow the short-video skill for what an
 idea is, the hook patterns and the goal's ending.
 
-- Only when all seven parts are filled. Otherwise write `blocked` and no ideas.
+- Only when all six parts are filled. Otherwise write `blocked` and no ideas.
 - Each idea: one true fact from a page, named in `source` (the page path, `../` kept for a
   page outside this folder). No fact, no idea.
 - `hook`: at most 7 words, the first words on screen. `angle`: one line on why a stranger
