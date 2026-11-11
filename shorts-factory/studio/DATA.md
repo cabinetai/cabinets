@@ -48,10 +48,9 @@ Each part is a `## ` heading with its answer under it. A part with no answer say
 | Why you | Free text |
 | The goal | `More sales`, `More leads`, `More followers` or `More visits` |
 | How it sounds | `Warm`, `Funny`, `Expert` or `Bold`; a second line may start `Words to avoid:` |
-| Where it's posted | Any of `TikTok`, `Instagram Reels`, `YouTube Shorts`, `X`, `Facebook`, comma separated |
 | What never to say | Free text, or `Nothing to avoid` |
 
-All seven must be answered before ideas start. The Studio counts them and marks a
+All six must be answered before ideas start. The Studio counts them and marks a
 missing one "Needs you".
 
 ## studio/data/ideas.json
@@ -68,8 +67,7 @@ missing one "Needs you".
       "pattern": "The rule",
       "angle": "The guarantee nobody else in travel gives",
       "fact": "Price-match within 7 days or the planning fee is refunded",
-      "source": "../strategy/index.md",
-      "platforms": ["TikTok", "Instagram Reels"]
+      "source": "../strategy/index.md"
     }
   ]
 }
@@ -77,7 +75,6 @@ missing one "Needs you".
 
 - `id`: short, lowercase, words joined by `-`, unique in the set.
 - `hook`: at most 7 words. `pattern`: one of the hook patterns in the short-video skill.
-- `platforms`: only those in "Where it's posted".
 - `blocked`: the parts still "Not filled yet" when the run stopped; then `ideas` is empty.
 
 ## studio/data/videos/<id>/video.json
@@ -153,5 +150,5 @@ missing one "Needs you".
   starts as the voice file's length; making the video sets it to how long the line is said
   (the video plays only that part of the file, and the file itself is never changed). File names are
   relative to the video's folder.
-- `post` has one entry per platform in "Where it's posted", named the same way.
+- `post` has one entry for each of `TikTok`, `Instagram Reels`, `YouTube Shorts` and `X`, named exactly so.
 - `notes`: plain sentences on anything that could not be made, shown in the Studio.

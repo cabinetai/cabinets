@@ -22,8 +22,5 @@ Not filled yet
 ## How it sounds
 Not filled yet
 
-## Where it's posted
-Not filled yet
-
 ## What never to say
 Not filled yet
