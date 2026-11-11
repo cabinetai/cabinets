@@ -121,7 +121,7 @@
   block(width: 88%, {
     set text(size: 27pt, weight: "bold", tracking: -0.01em, hyphenate: false)
     set par(leading: 0.32em)
-    money(front.headline)
+    money(front.headline.replace(regex("(?i)\\s*This page is a made-up example\\.?$"), ""))
   })
   v(10pt)
 }

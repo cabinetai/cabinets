@@ -145,7 +145,8 @@ The tone setup.md asks for shapes the wording; these rules still hold.
 ## Lead and verdict
 
 The one thing across every source that most deserves action today, or nothing. Skip
-both keys on a morning when nothing rises to it. Most mornings should. When you write
+both keys on a morning when nothing rises to it. Most mornings should. Write both keys
+or neither, never one alone: the page and the PDF show the block only with both. When you write
 them, `lead` names it in a few words ("Mail: Dana's contract") and `verdict` says
 exactly what to do and by when, or what it costs to wait, in one sentence that does
 not repeat the headline.
