@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<!--
+  local-marketing-team dashboard, in the Cabinet Kit "wooden" theme
+  (tokens inlined because an installed cabinet is one copied directory and links nothing outside it).
+
+  Reads the cabinet's own knowledge files, never a hard-coded business:
+    ../.cabinet                      display name
+    ../business.md                   frontmatter + first paragraph
+    ../locations.md                  `locations` frontmatter list
+    ../promotions.md                 `promotions` frontmatter list (to name matched promotions)
+    ../events/*.md                   rolling calendar; ../events/index.md carries last_refreshed
+    ../opportunities/*.md            matched_promotions with score + reasoning
+    ../campaigns/<slug>/index.md     brief; sibling .md files become deliverable chips
+    ../.agents/<slug>/persona.md     the team (slugs listed in TEAM below)
+    ../.jobs/<id>.yaml               job status (ids listed in JOBS below)
+
+  Relative URLs on purpose: they resolve under /api/assets/<cabinet>/<app>/ at any depth and
+  survive the user renaming the cabinet. Folder listings come from /api/tree because the
+  assets route cannot list a directory. Dot-folders are not in the tree, so TEAM and JOBS
+  name their files directly; a missing one is skipped, never an error.
+
+  Zero external requests. System fonts, inline CSS, no libraries.
+  Every failure path renders something honest instead of a blank page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Marketing Dashboard</title>
+<style>
+  /* ---- Cabinet Kit · wooden ------------------------------------------------------- */
+  :root {
+    --cabinet-bg: #FAF6F1; --cabinet-surface: #FFFFFF; --cabinet-surface-muted: #FAF0E9;
+    --cabinet-ink: #221716; --cabinet-ink-muted: #99887F;
+    --cabinet-wood: #834A2B; --cabinet-wood-deep: #5C2603;
+    --cabinet-border: #E1D6CE; --cabinet-border-soft: rgba(225,214,206,.45);
+    --cabinet-border-card: rgba(225,214,206,.75);
+    --cabinet-danger: #D40924; --cabinet-success: #14823E; --cabinet-warning: #9A6722;
+    --cabinet-radius: 10px;
+    --cabinet-shadow-2: 0 1px 2px rgba(59,47,47,.05), 0 10px 28px -14px rgba(59,47,47,.14);
+    --cabinet-font-sans: Geist, "Geist Fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --cabinet-font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --cabinet-font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    --cabinet-focus-ring: 0 0 0 3px rgba(92,38,3,.35);
+    --tint-sports: #1F6F8B; --tint-concert: #8A3FA0; --tint-festival: #B4521E;
+    --tint-holiday: #9A6722; --tint-community: #14823E; --tint-weather: #4A6FA5;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --cabinet-bg: #1A1412; --cabinet-surface: #241C19; --cabinet-surface-muted: #2C221E;
+      --cabinet-ink: #F3E9E1; --cabinet-ink-muted: #A8968B;
+      --cabinet-wood: #D9976C; --cabinet-wood-deep: #F0B48A;
+      --cabinet-border: #3D302A; --cabinet-border-soft: rgba(61,48,42,.6);
+      --cabinet-border-card: rgba(78,62,54,.8);
+      --cabinet-danger: #FF6B7A; --cabinet-success: #5FD08A; --cabinet-warning: #E2B062;
+      --cabinet-shadow-2: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+      --cabinet-focus-ring: 0 0 0 3px rgba(240,180,138,.35);
+      --tint-sports: #5DB4D3; --tint-concert: #C98ADB; --tint-festival: #F08C55;
+      --tint-holiday: #E2B062; --tint-community: #5FD08A; --tint-weather: #8FB0E0;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--cabinet-bg); color: var(--cabinet-ink);
+    font-family: var(--cabinet-font-sans); font-size: 14px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 48px; }
+
+  header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+  .eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--cabinet-ink-muted); font-weight: 600; }
+  h1 { font-family: var(--cabinet-font-heading); font-weight: 600; font-size: 32px; letter-spacing: -0.02em; margin: 4px 0 2px; }
+  .tagline { color: var(--cabinet-ink-muted); margin: 0; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; }
+  .stat { background: var(--cabinet-surface); border: 1px solid var(--cabinet-border-card); border-radius: 999px; padding: 6px 12px; font-size: 12px; color: var(--cabinet-ink-muted); }
+  .stat b { color: var(--cabinet-ink); font-weight: 600; margin-right: 3px; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+  .span-4 { grid-column: span 4; } .span-5 { grid-column: span 5; } .span-7 { grid-column: span 7; }
+  .span-8 { grid-column: span 8; } .span-12 { grid-column: span 12; }
+  @media (max-width: 900px) { .span-4, .span-5, .span-7, .span-8 { grid-column: span 12; } }
+
+  .card { background: var(--cabinet-surface); border: 1px solid var(--cabinet-border-card); border-radius: var(--cabinet-radius); box-shadow: var(--cabinet-shadow-2); padding: 18px 18px 16px; min-width: 0; }
+  .card h2 { font-family: var(--cabinet-font-heading); font-weight: 600; font-size: 18px; letter-spacing: -0.01em; margin: 0; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .meta { font-size: 12px; color: var(--cabinet-ink-muted); }
+  .empty { color: var(--cabinet-ink-muted); font-size: 13px; padding: 8px 0; }
+  .muted { color: var(--cabinet-ink-muted); }
+
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13px; margin-top: 12px; }
+  .kv dt { color: var(--cabinet-ink-muted); } .kv dd { margin: 0; }
+
+  .locs { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .loc { border: 1px solid var(--cabinet-border); border-radius: 8px; padding: 12px; background: var(--cabinet-surface-muted); }
+  .loc h3 { margin: 0 0 2px; font-size: 14px; }
+  .loc p { margin: 2px 0; font-size: 12px; color: var(--cabinet-ink-muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--cabinet-border); color: var(--cabinet-ink-muted); background: var(--cabinet-surface); white-space: nowrap; }
+  .chip.on { border-color: var(--cabinet-wood); color: var(--cabinet-wood-deep); }
+  .chip.missing { border-style: dashed; opacity: .7; }
+  .chip.ok { border-color: var(--cabinet-success); color: var(--cabinet-success); }
+  .chip.warn { border-color: var(--cabinet-warning); color: var(--cabinet-warning); }
+
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .timeline li { display: grid; grid-template-columns: 58px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--cabinet-border-soft); }
+  .timeline li:first-child { border-top: 0; }
+  .timeline li.past { opacity: .5; }
+  .date { text-align: center; border-radius: 8px; background: var(--cabinet-surface-muted); padding: 4px 0; align-self: start; }
+  .date .m { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--cabinet-ink-muted); }
+  .date .d { font-family: var(--cabinet-font-heading); font-size: 20px; font-weight: 600; line-height: 1.1; }
+  .ev-title { font-weight: 600; }
+  .cat { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-right: 6px; }
+
+  .opp { border-top: 1px solid var(--cabinet-border-soft); padding: 12px 0; }
+  .opp:first-of-type { border-top: 0; padding-top: 0; }
+  .opp-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .opp-title { font-weight: 600; }
+  .score { font-family: var(--cabinet-font-mono); font-size: 12px; color: var(--cabinet-wood-deep); white-space: nowrap; }
+  .match { display: grid; grid-template-columns: 150px 64px 1fr; gap: 10px; align-items: start; font-size: 12px; margin-top: 8px; }
+  @media (max-width: 640px) { .match { grid-template-columns: 1fr 64px; } .match .why { grid-column: span 2; } }
+  .bar { height: 6px; border-radius: 3px; background: var(--cabinet-border); margin-top: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--cabinet-wood); border-radius: 3px; }
+  .why { color: var(--cabinet-ink-muted); }
+
+  .camps { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .camp { border: 1px solid var(--cabinet-border); border-radius: 8px; padding: 14px; }
+  .camp h3 { margin: 6px 0 4px; font-size: 15px; }
+  .status { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--cabinet-surface-muted); color: var(--cabinet-wood-deep); }
+  .status.live, .status.approved { color: var(--cabinet-success); }
+  .status.done, .status.passed, .status.expired, .status.cancelled { color: var(--cabinet-ink-muted); }
+
+  .team { display: grid; gap: 10px; }
+  .agent { display: grid; grid-template-columns: 36px 1fr; gap: 10px; align-items: start; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--cabinet-surface-muted); border: 1px solid var(--cabinet-border); display: grid; place-items: center; font-size: 18px; }
+  .agent b { font-size: 13px; } .agent p { margin: 1px 0 0; font-size: 12px; color: var(--cabinet-ink-muted); }
+
+  .jobs { list-style: none; margin: 0; padding: 0; }
+  .jobs li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--cabinet-border-soft); font-size: 13px; }
+  .jobs li:first-child { border-top: 0; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--cabinet-ink-muted); vertical-align: 1px; }
+  .dot.on { background: var(--cabinet-success); }
+
+  .notice { font-size: 12px; color: var(--cabinet-warning); margin-top: 18px; }
+  .error { color: var(--cabinet-danger); }
+</style>
+</head>
+<body>
+<div class="wrap" id="root"><p class="empty">Loading the marketing team…</p></div>
+<script>
+(function () {
+  'use strict';
+
+  /* Agents and jobs live in dot-folders, which /api/tree does not list. Keep these in step
+     with .agents/ and .jobs/; anything missing is skipped. */
+  var TEAM = ['marketing-lead', 'local-researcher', 'social-content-creator'];
+  var JOBS = ['weekly-local-opportunity-scan', 'daily-sports-check', 'campaign-performance-notes'];
+  var DELIVERABLES = ['feed-post', 'reel', 'stories', 'captions'];
+
+  var root = document.getElementById('root');
+
+  /* ---- helpers ------------------------------------------------------------------- */
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function get(url) {
+    return fetch(url, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; });
+  }
+  /* /api/assets/<cabinet path>/<app folder>/index.html: dropping the last two segments gives the
+     cabinet's path in the tree, whatever the user named it. Empty when the cabinet is the data dir. */
+  function cabinetDir() {
+    var p = location.pathname.replace(/^\/+/, '').replace(/^api\/assets\//, '');
+    return p.split('/').slice(0, -2).map(decodeURIComponent).join('/');
+  }
+  function treePrefix(dir) { var c = cabinetDir(); return (c ? c + '/' : '') + dir; }
+
+  /* Find a node by its tree path. */
+  function findNode(nodes, p) {
+    for (var i = 0; i < (nodes || []).length; i++) {
+      var n = nodes[i];
+      if (!n) continue;
+      if (n.path === p) return n;
+      if (n.children && p.indexOf(n.path + '/') === 0) {
+        var hit = findNode(n.children, p);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  }
+  /* Direct .md children of a folder, excluding its index. `path` drops `.md`, `name` keeps it. */
+  function mdFiles(node) {
+    return ((node && node.children) || []).filter(function (n) {
+      return /\.md$/i.test(n.name || '') && n.name.toLowerCase() !== 'index.md';
+    }).map(function (n) { return n.name; });
+  }
+  function subDirs(node) {
+    return ((node && node.children) || []).filter(function (n) { return n.children; });
+  }
+
+  /* ---- a small YAML reader: enough for this cabinet's frontmatter ---------------------
+     Scalars, quoted strings (with \U escapes), [flow, lists], block lists of scalars or of
+     maps, and folded/literal block scalars. Anything fancier is kept as a raw string. */
+  function scalar(v) {
+    v = v.trim();
+    if (v === '') return '';
+    if (v[0] === '[' && v[v.length - 1] === ']') {
+      var inner = v.slice(1, -1).trim();
+      return inner ? splitFlow(inner).map(scalar) : [];
+    }
+    if (v[0] === '"' && v[v.length - 1] === '"') {
+      return v.slice(1, -1)
+        .replace(/\\U([0-9a-fA-F]{8})/g, function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
+        .replace(/\\u([0-9a-fA-F]{4})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); })
+        .replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    }
+    if (v[0] === "'" && v[v.length - 1] === "'") return v.slice(1, -1).replace(/''/g, "'");
+    if (/^(true|false)$/.test(v)) return v === 'true';
+    if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+    return v.replace(/\s+#.*$/, '');
+  }
+  function splitFlow(s) {
+    var out = [], cur = '', q = null;
+    for (var i = 0; i < s.length; i++) {
+      var c = s[i];
+      if (q) { cur += c; if (c === q) q = null; continue; }
+      if (c === '"' || c === "'") { q = c; cur += c; continue; }
+      if (c === ',') { out.push(cur); cur = ''; continue; }
+      cur += c;
+    }
+    if (cur.trim()) out.push(cur);
+    return out;
+  }
+  function indentOf(l) { return l.match(/^ */)[0].length; }
+  function parseYaml(text) {
+    var lines = text.replace(/\r\n/g, '\n').split('\n');
+    var i = 0;
+    function block(minIndent) {
+      var obj = {};
+      while (i < lines.length) {
+        var line = lines[i];
+        if (!line.trim() || /^\s*#/.test(line)) { i++; continue; }
+        var ind = indentOf(line);
+        if (ind < minIndent) break;
+        var m = line.match(/^\s*([A-Za-z0-9_\-]+):\s?(.*)$/);
+        if (!m) { i++; continue; }
+        var key = m[1], rest = m[2];
+        i++;
+        if (/^[>|]-?$/.test(rest.trim())) {
+          var parts = [];
+          while (i < lines.length && (!lines[i].trim() || indentOf(lines[i]) > ind)) { parts.push(lines[i].trim()); i++; }
+          obj[key] = rest.trim()[0] === '>' ? parts.join(' ').trim() : parts.join('\n').trim();
+        } else if (rest.trim() === '') {
+          while (i < lines.length && !lines[i].trim()) i++;
+          if (i < lines.length && /^\s*- /.test(lines[i]) && indentOf(lines[i]) >= ind) obj[key] = list(indentOf(lines[i]));
+          else if (i < lines.length && indentOf(lines[i]) > ind) obj[key] = block(indentOf(lines[i]));
+          else obj[key] = '';
+        } else {
+          obj[key] = scalar(rest);
+        }
+      }
+      return obj;
+    }
+    function list(ind) {
+      var arr = [];
+      while (i < lines.length) {
+        var line = lines[i];
+        if (!line.trim()) { i++; continue; }
+        if (indentOf(line) !== ind || !/^\s*- /.test(line)) break;
+        var item = line.replace(/^\s*- /, '');
+        var km = item.match(/^([A-Za-z0-9_\-]+):\s?(.*)$/);
+        if (km) {
+          /* A map item: rewrite "- key: v" as "  key: v" and read the block at the new indent. */
+          lines[i] = new Array(ind + 3).join(' ') + item;
+          arr.push(block(ind + 2));
+        } else {
+          arr.push(scalar(item));
+          i++;
+        }
+      }
+      return arr;
+    }
+    return block(0);
+  }
+  function frontmatter(text) {
+    var m = (text || '').match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
+    if (!m) return { data: {}, body: text || '' };
+    try { return { data: parseYaml(m[1]), body: m[2] }; }
+    catch (e) { return { data: {}, body: m[2] }; }
+  }
+  function firstParagraph(body) {
+    var paras = body.split(/\n\s*\n/).map(function (p) { return p.trim(); });
+    for (var i = 0; i < paras.length; i++) {
+      var p = paras[i];
+      if (!p || /^(#|>|\||-|\*|\d+\.)/.test(p)) continue;
+      return p.replace(/\*\*|__|`/g, '').replace(/\[\[([^\]]+)\]\]/g, function (_, x) { return x.split('/').pop(); });
+    }
+    return '';
+  }
+  function list(v) { return Array.isArray(v) ? v : (v === '' || v == null ? [] : [v]); }
+
+  /* ---- dates --------------------------------------------------------------------- */
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function toDate(v) {
+    if (!v) return null;
+    var s = String(v);
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s);
+    return isNaN(d) ? null : d;
+  }
+  function shortDate(v) { var d = toDate(v); return d ? MONTHS[d.getMonth()] + ' ' + d.getDate() : String(v || ''); }
+  function range(a, b) { return b && String(b) !== String(a) ? shortDate(a) + ' to ' + shortDate(b) : shortDate(a); }
+  function ago(v) {
+    var d = toDate(v); if (!d) return 'never';
+    var mins = Math.round((Date.now() - d.getTime()) / 60000);
+    if (mins < 0) return shortDate(v);
+    if (mins < 60) return mins + ' min ago';
+    if (mins < 60 * 24) return Math.round(mins / 60) + ' h ago';
+    var days = Math.round(mins / 1440);
+    return days + (days === 1 ? ' day ago' : ' days ago');
+  }
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+
+  /* "0 7 * * 1-5" → "Weekdays at 07:00". Falls back to the raw cron. */
+  function cronText(c) {
+    var p = String(c || '').trim().split(/\s+/);
+    if (p.length !== 5 || !/^\d+$/.test(p[0]) || !/^\d+$/.test(p[1]) || p[2] !== '*' || p[3] !== '*') return c || '';
+    var t = ('0' + p[1]).slice(-2) + ':' + ('0' + p[0]).slice(-2);
+    var days = { '*': 'Daily', '1-5': 'Weekdays', '0': 'Sundays', '1': 'Mondays', '2': 'Tuesdays', '3': 'Wednesdays', '4': 'Thursdays', '5': 'Fridays', '6': 'Saturdays' };
+    return (days[p[4]] || 'Days ' + p[4]) + ' at ' + t;
+  }
+
+  /* ---- load ---------------------------------------------------------------------- */
+  Promise.all([
+    fetch('/api/tree?fresh=1', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    get('../.cabinet'), get('../business.md'), get('../locations.md'),
+    get('../promotions.md'), get('../events/index.md')
+  ]).then(function (res) {
+    var tree = res[0];
+    var cab = parseYaml(res[1] || '');
+    var biz = frontmatter(res[2]);
+    var locs = list(frontmatter(res[3]).data.locations);
+    var promos = list(frontmatter(res[4]).data.promotions);
+    var evIndex = frontmatter(res[5]).data;
+
+    var evNode = findNode(tree, treePrefix('events'));
+    var oppNode = findNode(tree, treePrefix('opportunities'));
+    var campNode = findNode(tree, treePrefix('campaigns'));
+
+    var evFiles = mdFiles(evNode), oppFiles = mdFiles(oppNode), camps = subDirs(campNode);
+
+    return Promise.all([
+      Promise.all(evFiles.map(function (f) { return get('../events/' + encodeURIComponent(f)).then(frontmatter); })),
+      Promise.all(oppFiles.map(function (f) { return get('../opportunities/' + encodeURIComponent(f)).then(function (t) { var fm = frontmatter(t); fm.file = f; return fm; }); })),
+      Promise.all(camps.map(function (c) {
+        return get('../campaigns/' + encodeURIComponent(c.name) + '/index.md').then(function (t) {
+          var fm = frontmatter(t); fm.slug = c.name;
+          fm.files = mdFiles(c).map(function (n) { return n.replace(/\.md$/i, ''); });
+          return fm;
+        });
+      })),
+      Promise.all(TEAM.map(function (s) { return get('../.agents/' + s + '/persona.md').then(function (t) { return t ? frontmatter(t).data : null; }); })),
+      Promise.all(JOBS.map(function (j) { return get('../.jobs/' + j + '.yaml').then(function (t) { return t ? parseYaml(t) : null; }); }))
+    ]).then(function (more) {
+      render({
+        cab: cab, biz: biz, locs: locs, promos: promos, evIndex: evIndex,
+        events: more[0].filter(function (e) { return e.data.title; }).map(function (e) { return e.data; }),
+        opps: more[1].filter(function (o) { return o.data.title; }),
+        camps: more[2].filter(function (c) { return c.data.title; }),
+        team: more[3].filter(Boolean), jobs: more[4].filter(Boolean),
+        folders: { events: !!evNode, opportunities: !!oppNode, campaigns: !!campNode }
+      });
+    });
+  }).catch(function (err) {
+    root.innerHTML = '<div class="card"><h2>Could not load this cabinet</h2><p class="error">' + esc(err.message) +
+      '</p><p class="muted">The dashboard reads the cabinet through the Cabinet app. Open it from the sidebar inside Cabinet rather than as a local file.</p></div>';
+  });
+
+  /* ---- render -------------------------------------------------------------------- */
+  function render(d) {
+    var name = d.cab.name || d.biz.data.name || 'Marketing';
+    var promoName = {};
+    d.promos.forEach(function (p) { if (p && p.id) promoName[p.id] = p.name || p.id; });
+    var locName = {};
+    d.locs.forEach(function (l) { if (l && l.id) locName[l.id] = l.name || l.id; });
+    function loc(id) { return locName[id] || id || ''; }
+
+    var upcoming = d.events.slice().sort(function (a, b) {
+      return (toDate(a.start) || 0) - (toDate(b.start) || 0);
+    });
+    var openOpps = d.opps.filter(function (o) { return ['new', 'shortlisted', 'campaign'].indexOf(o.data.status) !== -1; });
+    var statusRank = { campaign: 0, shortlisted: 1, new: 2 };
+    var opps = d.opps.slice().sort(function (a, b) {
+      var ra = statusRank[a.data.status] != null ? statusRank[a.data.status] : 9;
+      var rb = statusRank[b.data.status] != null ? statusRank[b.data.status] : 9;
+      return ra - rb || (b.data.fit_score || 0) - (a.data.fit_score || 0);
+    });
+
+    var html = '';
+
+    /* Header */
+    html += '<header class="top"><div><div class="eyebrow">AI marketing team</div>' +
+      '<h1>' + esc(name) + '</h1>' +
+      (d.biz.data.tagline ? '<p class="tagline">' + esc(d.biz.data.tagline) + '</p>' : '') + '</div>' +
+      '<div class="stats">' +
+      '<span class="stat"><b>' + d.locs.length + '</b>locations</span>' +
+      '<span class="stat"><b>' + upcoming.length + '</b>events tracked</span>' +
+      '<span class="stat"><b>' + openOpps.length + '</b>open opportunities</span>' +
+      '<span class="stat"><b>' + d.camps.length + '</b>campaigns</span>' +
+      '</div></header>';
+
+    html += '<div class="grid">';
+
+    /* Business */
+    var b = d.biz.data;
+    html += '<section class="card span-5"><div class="card-head"><h2>Business</h2></div>';
+    var para = firstParagraph(d.biz.body);
+    html += para ? '<p style="margin:0">' + esc(para) + '</p>' : '<p class="empty">Add a short description to business.md.</p>';
+    var kv = [['Category', b.category], ['Founded', b.founded], ['Price', b.price_range], ['Instagram', b.instagram_handle]]
+      .filter(function (r) { return r[1] !== undefined && r[1] !== ''; });
+    if (kv.length) html += '<dl class="kv">' + kv.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('') + '</dl>';
+    html += '</section>';
+
+    /* Locations */
+    html += '<section class="card span-7"><div class="card-head"><h2>Locations</h2><span class="meta">from locations.md</span></div>';
+    if (!d.locs.length) html += '<p class="empty">No locations yet. Add a <code>locations</code> list to the frontmatter of locations.md.</p>';
+    else html += '<div class="locs">' + d.locs.map(function (l) {
+      return '<div class="loc"><h3>' + esc(l.name || l.id) + '</h3>' +
+        (l.neighborhood ? '<p>' + esc(l.neighborhood) + '</p>' : '') +
+        (l.hours ? '<p>' + esc(l.hours) + '</p>' : '') +
+        (list(l.strengths).length ? '<div class="chips">' + list(l.strengths).map(function (s) { return '<span class="chip on">' + esc(s) + '</span>'; }).join('') + '</div>' : '') +
+        '</div>';
+    }).join('') + '</div>';
+    html += '</section>';
+
+    /* Events timeline */
+    html += '<section class="card span-5"><div class="card-head"><h2>Upcoming events</h2>' +
+      '<span class="meta" title="' + esc(d.evIndex.last_refreshed || '') + '">Last refreshed ' + esc(ago(d.evIndex.last_refreshed)) + '</span></div>';
+    if (!upcoming.length) {
+      html += '<p class="empty">' + (d.folders.events ? 'No events yet. The calendar fills in when the Local Researcher runs the weekly scan or the daily sports check.' : 'There is no events/ folder in this cabinet.') + '</p>';
+    } else {
+      html += '<ul class="timeline">' + upcoming.map(function (e) {
+        var sd = toDate(e.start), ed = toDate(e.end) || sd;
+        var past = e.status === 'past' || (ed && ed < today);
+        var tint = 'var(--tint-' + esc(e.category || 'community') + ', var(--cabinet-wood))';
+        return '<li class="' + (past ? 'past' : '') + '"><div class="date"><div class="m">' + (sd ? MONTHS[sd.getMonth()] : '') + '</div><div class="d">' + (sd ? sd.getDate() : '?') + '</div></div>' +
+          '<div><div><span class="cat" style="color:' + tint + '">' + esc(e.category || '') + '</span><span class="ev-title">' + esc(e.title) + '</span></div>' +
+          '<div class="meta">' + esc(range(e.start, e.end)) + (e.venue ? ' · ' + esc(e.venue) : '') + '</div>' +
+          '<div class="chips">' + list(e.near_locations).map(function (id) { return '<span class="chip on">' + esc(loc(id)) + '</span>'; }).join('') +
+          (e.dates_verified === true ? '<span class="chip ok">verified</span>' : '<span class="chip warn">verify dates</span>') +
+          (e.time_status === 'tba' ? '<span class="chip">time TBA</span>' : '') +
+          (e.status === 'cancelled' ? '<span class="chip warn">cancelled</span>' : '') +
+          '</div></div></li>';
+      }).join('') + '</ul>';
+    }
+    html += '</section>';
+
+    /* Opportunities */
+    html += '<section class="card span-7"><div class="card-head"><h2>Opportunities</h2><span class="meta">events matched to your promotions</span></div>';
+    if (!opps.length) {
+      html += '<p class="empty">' + (d.folders.opportunities ? 'No opportunities yet. They appear after the Local Researcher scores upcoming events against promotions.md.' : 'There is no opportunities/ folder in this cabinet.') + '</p>';
+    } else {
+      html += opps.map(function (o) {
+        var od = o.data;
+        var matches = list(od.matched_promotions).filter(function (m) { return m && typeof m === 'object'; });
+        return '<div class="opp"><div class="opp-head"><div><span class="opp-title">' + esc(od.title) + '</span></div>' +
+          '<span class="status ' + esc(od.status) + '">' + esc(od.status || 'new') + '</span></div>' +
+          '<div class="meta">' + esc(loc(od.location)) + ' · live ' + esc(range(od.window_start, od.window_end)) +
+          (od.campaign ? ' · campaign: ' + esc(od.campaign) : '') + '</div>' +
+          matches.slice(0, 3).map(function (m) {
+            var s = Math.max(0, Math.min(5, Number(m.score) || 0));
+            return '<div class="match"><div><b>' + esc(promoName[m.promotion] || m.promotion) + '</b></div>' +
+              '<div><span class="score">' + s + ' / 5</span><div class="bar"><i style="width:' + (s * 20) + '%"></i></div></div>' +
+              '<div class="why">' + esc(m.reasoning || '') + '</div></div>';
+          }).join('') +
+          (matches.length ? '' : '<p class="empty">No promotions matched yet.</p>') +
+          '</div>';
+      }).join('');
+    }
+    html += '</section>';
+
+    /* Campaigns */
+    html += '<section class="card span-12"><div class="card-head"><h2>Campaigns</h2><span class="meta">one folder per campaign in campaigns/</span></div>';
+    if (!d.camps.length) {
+      html += '<p class="empty">' + (d.folders.campaigns ? 'No campaigns yet. Ask the Marketing Lead to turn an opportunity into a campaign.' : 'There is no campaigns/ folder in this cabinet.') + '</p>';
+    } else {
+      html += '<div class="camps">' + d.camps.map(function (c) {
+        var cd = c.data;
+        var expected = list(cd.deliverables).length ? list(cd.deliverables) : DELIVERABLES;
+        var extra = c.files.filter(function (f) { return expected.indexOf(f) === -1; });
+        return '<div class="camp"><span class="status ' + esc(cd.status) + '">' + esc(cd.status || 'draft') + '</span>' +
+          '<h3>' + esc(cd.title) + '</h3>' +
+          '<div class="meta">' + esc(loc(cd.location)) + (cd.launch ? ' · ' + esc(range(cd.launch, cd.end)) : '') + '</div>' +
+          (cd.promotion ? '<div class="meta">Promotion: ' + esc(promoName[cd.promotion] || cd.promotion) + '</div>' : '') +
+          '<div class="chips">' + expected.map(function (f) {
+            var have = c.files.indexOf(f) !== -1;
+            return '<span class="chip ' + (have ? 'on' : 'missing') + '" title="' + (have ? 'written' : 'not written yet') + '">' + esc(f) + '</span>';
+          }).join('') + extra.map(function (f) { return '<span class="chip on">' + esc(f) + '</span>'; }).join('') + '</div></div>';
+      }).join('') + '</div>';
+    }
+    html += '</section>';
+
+    /* Team */
+    html += '<section class="card span-7"><div class="card-head"><h2>AI marketing team</h2><span class="meta">.agents/</span></div>';
+    if (!d.team.length) html += '<p class="empty">No agents found in .agents/.</p>';
+    else html += '<div class="team">' + d.team.map(function (a) {
+      return '<div class="agent"><div class="avatar">' + esc(a.emoji || '•') + '</div><div>' +
+        '<b>' + esc(a.name) + '</b> <span class="meta">' + (a.type === 'lead' ? 'lead · ' : '') + (a.active === true ? 'active' : 'off') + '</span>' +
+        '<p>' + esc(a.role || '') + '</p>' +
+        (list(a.skills).length ? '<div class="chips">' + list(a.skills).map(function (s) { return '<span class="chip">' + esc(s) + '</span>'; }).join('') + '</div>' : '') +
+        '</div></div>';
+    }).join('') + '</div>';
+    html += '</section>';
+
+    /* Jobs */
+    html += '<section class="card span-5"><div class="card-head"><h2>Jobs</h2><span class="meta">.jobs/</span></div>';
+    if (!d.jobs.length) html += '<p class="empty">No jobs found in .jobs/.</p>';
+    else {
+      html += '<ul class="jobs">' + d.jobs.map(function (j) {
+        var on = j.enabled === true;
+        return '<li><span><span class="dot ' + (on ? 'on' : '') + '"></span>' + esc(j.name || j.id) + '</span>' +
+          '<span class="meta">' + (on ? esc(cronText(j.schedule)) : 'Off · ' + esc(cronText(j.schedule))) + '</span></li>';
+      }).join('') + '</ul>';
+      if (!d.jobs.some(function (j) { return j.enabled === true; })) {
+        html += '<p class="meta" style="margin:10px 0 0">All jobs are off, so nothing runs on its own. Turn one on from the Jobs page when you are ready.</p>';
+      }
+    }
+    html += '</section>';
+
+    html += '</div>';
+    html += '<p class="notice">Example data: event dates are illustrative until an event shows "verified". Nothing here is posted automatically.</p>';
+    root.innerHTML = html;
+  }
+})();
+</script>
+</body>
+</html>
