@@ -130,7 +130,7 @@ cabinets/
 }
 ```
 
-The same CI run copies the manifest, `details/`, each cover and one `archives/<slug>.zip` per cabinet to the public bucket `runcabinet-templates` (`.github/scripts/stage-bucket.mjs` builds that layout). The Cabinet app reads the bucket through `cdn.runcabinet.com/templates` (a Cloudflare Worker, `cdn/` in `cabinet-backend`). App versions from before the bucket read GitHub, so this repo stays the source and stays public.
+The same CI run copies the manifest, `details/`, each cover and one `archives/<slug>.zip` per cabinet to the private bucket `runcabinet-templates` (`.github/scripts/stage-bucket.mjs` builds that layout). The Cabinet app reads the bucket through `cdn.runcabinet.com/templates` (a Cloudflare Worker, `cdn/` in `cabinet-backend`). App versions from before the bucket read GitHub, so this repo stays the source and stays public.
 
 Clients build the cover URL as `https://cdn.runcabinet.com/templates/<slug>/<cover>`.
 
