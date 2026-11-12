@@ -80,7 +80,6 @@ The profile's goal decides how a video ends.
   the first line of the hook.
 - **YouTube Shorts:** up to 40 seconds; a clear title matters because Shorts are searched.
 - **X:** under 30 seconds, captions always, the post text says the hook.
-- **Facebook:** captions always (most watch muted), slightly slower, warmer.
 
 ## Never
 
