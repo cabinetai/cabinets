@@ -1,0 +1,165 @@
+name: Claude review
+
+# Code review by Claude, billed to a Claude subscription through
+# CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`), not per API token.
+#
+# Two ways in, sized to keep the subscription's usage windows free for people:
+#   - automatic: Sonnet reviews a PR once, when it opens or leaves draft.
+#     Later pushes are not re-reviewed on their own.
+#   - on demand: a comment starting with "@claude review" runs Claude Code's
+#     built-in /code-review at high effort on Opus, the same review as
+#     `/code-review high <n>` run locally. Deeper and several times the usage.
+#
+# This repo is public: fork PRs get no secrets and are skipped, and only
+# owners, members and collaborators can ask for a review by comment.
+# Comments are posted as claude[bot] through the Claude GitHub app.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    if: |
+      (github.event_name == 'pull_request' &&
+        !github.event.pull_request.draft &&
+        github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        startsWith(github.event.comment.body, '@claude review') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Job-level, so an unrelated PR comment (which starts the workflow but
+    # skips this job) does not count. A second review waits for the running
+    # one; cancelling it could leave findings posted without the summary.
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      # Check out the PR's own head, not the default branch, so Claude can
+      # read the changed cabinet in full. Nothing from the PR is executed:
+      # the allowed tools only read files and post comments.
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number || github.event.issue.number }}/head
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      # A comment can come from a maintainer on a fork's PR. Fork content is
+      # not trusted, and this run holds the subscription token and a token
+      # that can write PR comments, so a fork PR is not reviewed here. The
+      # comment event carries neither the head repo nor the base branch, so
+      # both are looked up.
+      - name: Look up the PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr view ${{ github.event.pull_request.number || github.event.issue.number }} -R ${{ github.repository }} \
+            --json isCrossRepository,baseRefName \
+            -q '"fork=\(.isCrossRepository)\nbase=\(.baseRefName)"' >> "$GITHUB_OUTPUT"
+          if grep -q '^fork=true$' "$GITHUB_OUTPUT"; then echo "::notice::PR is from a fork; review it locally with /code-review."; fi
+
+      # The working tree is the PR, so its AGENTS.md and CLAUDE.md files are
+      # whatever the PR says they are, and Claude follows them. Put every one
+      # the PR changed, added or removed back to the base branch's version,
+      # so a PR cannot rewrite the rules it is reviewed against. The action
+      # does this itself for the root CLAUDE.md and .claude/, not for
+      # AGENTS.md or nested files.
+      - name: Use the base branch's rule files
+        # `shell: bash` adds pipefail; the default `bash -e` does not, so a
+        # failed git diff would feed the loop nothing and the step would
+        # pass with the PR's own rule files still in place.
+        shell: bash
+        env:
+          BASE: origin/${{ steps.pr.outputs.base }}
+        run: |
+          git diff -z --name-only --no-renames "$BASE" HEAD -- ':(glob)**/AGENTS.md' ':(glob)**/CLAUDE.md' |
+            while IFS= read -r -d '' f; do
+              if git cat-file -e "$BASE:$f" 2>/dev/null; then
+                git checkout -q "$BASE" -- "$f"
+              else
+                rm -f -- "$f"
+              fi
+              echo "rule file from $BASE: $f"
+            done
+
+      - name: Deep review (on demand)
+        if: github.event_name == 'issue_comment' && steps.pr.outputs.fork == 'false'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Read-only tools plus inline comments through the action's own
+          # MCP tool, which is what --comment posts with. No gh api: the job
+          # token can write issues and PRs, so raw API access could close,
+          # label or edit them. No Bash sed or grep: GNU sed can run shell
+          # commands, and the Read and Grep tools cover both.
+          claude_args: |
+            --model opus
+            --max-turns 120
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*)"
+          prompt: /code-review high ${{ github.event.issue.number }} --comment
+
+      - name: Quick review (automatic)
+        if: github.event_name == 'pull_request'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --model sonnet
+            --max-turns 80
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*)"
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request to the public Cabinet template registry.
+            The working tree is the PR's head commit. Use
+            `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD` for the change and `git log origin/${{ github.event.pull_request.base.ref }}..HEAD`
+            for its commits; `gh pr view` has the description. Run each
+            command on its own: command substitution and pipes are refused. Read every changed file in full, and for a changed
+            cabinet read its .cabinet, index.md, personas and jobs together,
+            since most problems are one file disagreeing with another.
+
+            Before reviewing, read CLAUDE.md. Its conventions, the .cabinet
+            schema and the connectors rules are the standard; a violation is
+            a finding. The build-manifest workflow already runs
+            `build-manifest.mjs --check` on PRs, so do not repeat what it
+            validates mechanically.
+
+            Report only:
+            - a cabinet that would not work for the person installing it:
+              a missing required file, a job or persona that refers to an
+              agent, job, connector or tool the cabinet does not have, a job
+              prompt whose steps contradict its schedule or its declared
+              connector access
+            - real secrets, credentials or personal data where a placeholder
+              belongs (this repo is public)
+            - em-dashes or en-dashes in text a user reads (index.md, prompts,
+              connector `why`, persona and job copy shown in the app)
+            - a connectors or prompts change without a patch version bump
+            - manifest.json or details/ edited by hand
+            - correctness bugs in .github/scripts
+
+            Do not report style, tone, wording preferences or formatting.
+            Ignore cover images. Do not review what manifest.json or details/
+            contain; only report that the PR edits them by hand.
+
+            Each finding is one inline comment on the line it concerns: what
+            is wrong, what goes wrong for the user because of it, and the fix
+            in a sentence. Report every finding you can back with a concrete
+            scenario; leave out only speculation you could not trace in the
+            files.
+
+            Finish with one short top-level comment via `gh pr comment`:
+            the number of findings, or "No issues found." when there are none.
+            Do not summarize the PR or praise it.
