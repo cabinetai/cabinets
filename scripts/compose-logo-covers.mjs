@@ -56,7 +56,6 @@ const LOGOS = {
   'sharepoint-bid-room': app('logos/sharepoint.svg'),
   'sharepoint-policy-desk': app('logos/sharepoint.svg'),
   'sharepoint-week': app('logos/sharepoint.svg'),
-  'slack-digest': app('logos/slack.svg'),
   'stackadapt-brief': app('logos/stackadapt.svg'),
   'snowflake-brief': app('logos/snowflake.webp'),
   'stripe-daily': app('logos/stripe.svg'),

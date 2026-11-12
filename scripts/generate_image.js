@@ -131,7 +131,6 @@ const CABINET_ICONS = {
   'playwright-site-check':    { object: 'a theater comedy mask resting beside a small browser-window tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'safari-site-check':        { object: 'a navigation compass with its needle mid-swing, resting on a small map tile', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'sharepoint-week':          { object: 'a round table with four document tiles arranged evenly around its center', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'slack-digest':             { object: 'a hashtag symbol carved as a chunky tile, with one small speech bubble leaning on it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'snowflake-brief':          { object: 'a single ornate snowflake ornament on a small display stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'stackadapt-brief':         { object: 'three stacked stepped layers forming a small pyramid with a flag on top', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'stripe-daily':             { object: 'a payment card standing in a small card holder with two coins beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
@@ -148,8 +147,6 @@ const CABINET_ICONS = {
   'gemini-image-studio':        { object: 'an artist easel holding a canvas with a four-pointed star carved in relief', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'sharepoint-bid-room':        { object: 'a single rolled proposal scroll tied with a ribbon, leaning against a small folder', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'sharepoint-policy-desk':     { object: 'a single open rulebook with one ribbon bookmark trailing out the bottom', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'slack-answers':              { object: 'a single speech bubble with a small question mark nested inside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'slack-triage':                { object: 'a small inbox tray with three speech-bubble tags sorted into it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'whatsapp-catch-up':          { object: 'a vintage telephone handset resting inside a rounded speech bubble, with a small clock face beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'phone-line':                 { object: 'a sturdy desk telephone with its handset on the cradle and a coiled cord, beside a short stack of pink while-you-were-out message slips on a spike', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
 };

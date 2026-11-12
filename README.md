@@ -29,7 +29,7 @@ A cabinet is just a directory. Copy it, version it, share it — it works anywhe
 
 ## Browse the Registry
 
-Each top-level directory in this repo is a complete cabinet template you can install and customize — **100 templates**: the original personal & creator cabinets, per-integration showcases (Gmail, Asana, Stripe, Notion, …), and the wooden lifestyle templates. Install any of them with `npx cabinets add <name>`.
+Each top-level directory in this repo is a complete cabinet template you can install and customize — **99 templates**: the original personal & creator cabinets, per-integration showcases (Gmail, Asana, Stripe, Notion, …), and the wooden lifestyle templates. Install any of them with `npx cabinets add <name>`.
 
 ### All templates
 
@@ -104,7 +104,6 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 | [saas-startup](./saas-startup) | Software | 2 | 2 | 0 | B2B SaaS startup with product-led growth, engineering, and customer success teams |
 | [safari-site-check](./safari-site-check) | Engineering | 1 | 1 | 0 | Every morning, opens your site in Safari and tells you if anything broke |
 | [sharepoint-digest](./sharepoint-digest) | Operations | 1 | 1 | 0 | SharePoint keeps every file. This shows the few that changed for you, and which copy is the real one |
-| [slack-digest](./slack-digest) | Operations | 1 | 1 | 0 | Every morning, what moved in all your Slack channels in the last 24 hours, and which of it wants you |
 | [snowflake-brief](./snowflake-brief) | Marketing | 1 | 1 | 0 | Every Monday, the numbers out of your warehouse, in plain words |
 | [stackadapt-brief](./stackadapt-brief) | Marketing | 1 | 1 | 0 | Every Monday, where last week's programmatic spend went and what it bought |
 | [stripe-daily](./stripe-daily) | Operations | 1 | 1 | 0 | Every morning, yesterday's money: what came in, what failed, and what needs you |
