@@ -25,7 +25,7 @@
  *   - `domain` is read from `.cabinet` if present; otherwise falls back
  *     to the SLUG_DOMAIN map below. Add new cabinets there.
  *   - `cover` is the filename of the first cover.{jpg,png,webp} found in
- *     the cabinet root. Clients build a URL via raw.githubusercontent.com.
+ *     the cabinet root. Clients build a URL from it (see stage-bucket.mjs).
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";

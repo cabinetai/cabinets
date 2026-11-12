@@ -65,6 +65,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # The login to Google Cloud for the bucket copy below.
+      id-token: write
     concurrency:
       group: build-manifest
       cancel-in-progress: false
@@ -99,3 +101,25 @@ jobs:
           git config user.email "bot@runcabinet.com"
           git commit -m "chore: rebuild manifest.json and details [skip ci]"
           git push
+
+      # The Cabinet app reads templates from this bucket, not from GitHub. No
+      # key is stored: Google Cloud accepts this repo's main branch directly.
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/267613298535/locations/global/workloadIdentityPools/github/providers/cabinets
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Stage the bucket contents
+        run: node .github/scripts/stage-bucket.mjs "$RUNNER_TEMP/bucket"
+
+      # The list goes up after the files it names, and the files of a removed
+      # template go away last, so the list never names a file that is missing.
+      - name: Copy to the templates bucket
+        env:
+          BUCKET: gs://runcabinet-templates
+          CACHE: public, max-age=300
+        run: |
+          gcloud storage rsync --recursive --cache-control="$CACHE" --exclude='^manifest\.json$' "$RUNNER_TEMP/bucket" "$BUCKET"
+          gcloud storage cp --cache-control="$CACHE" "$RUNNER_TEMP/bucket/manifest.json" "$BUCKET/manifest.json"
+          gcloud storage rsync --recursive --cache-control="$CACHE" --delete-unmatched-destination-objects "$RUNNER_TEMP/bucket" "$BUCKET"
