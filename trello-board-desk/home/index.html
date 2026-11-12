@@ -1,0 +1,983 @@
+<!doctype html>
+<!-- A sealed Cabinet app uses one file because it cannot load sibling assets. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Board Desk</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --blue: #0079bf;
+        --blue-deep: #075581;
+        --navy: #102c46;
+        --canvas: #f7f5f0;
+        --paper: #fffdfa;
+        --ink: #1d303e;
+        --muted: #6e7d83;
+        --line: #e5e2da;
+        --soft: #eaf3f7;
+        --warn: #9a4934;
+        --shadow: 0 10px 28px -18px rgba(16, 44, 70, 0.2);
+        font:
+          15px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --canvas: #111b24;
+        --paper: #1b2935;
+        --ink: #e9f1f6;
+        --muted: #afbdc7;
+        --line: #334654;
+        --soft: #18374b;
+        --warn: #ffab91;
+        --shadow: 0 10px 28px -18px rgba(0, 0, 0, 0.7);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+      }
+      button,
+      input,
+      a {
+        font: inherit;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      button {
+        cursor: pointer;
+      }
+      :focus-visible {
+        outline: 3px solid #52b7e5;
+        outline-offset: 3px;
+        border-radius: 8px;
+      }
+      .shell {
+        container-type: inline-size;
+      }
+      .wrap {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 0 clamp(18px, 4vw, 48px);
+      }
+      .band {
+        color: #fff;
+        background:
+          repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 34px),
+          linear-gradient(125deg, #102c46 0%, #075581 56%, #0079bf 100%);
+        padding: 20px 0 32px;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        flex-wrap: wrap;
+        padding-bottom: 17px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .brand {
+        min-width: 0;
+      }
+      .brand h1 {
+        margin: 0;
+        font:
+          400 25px/1.15 Georgia,
+          "Times New Roman",
+          serif;
+        letter-spacing: 0.01em;
+      }
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 6px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .brand #account {
+        margin: 4px 0 0;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 14px;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+        padding: 7px 12px;
+        background: rgba(255, 255, 255, 0.1);
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .pill.connected {
+        color: #d4f6e5;
+      }
+      .pill.problem {
+        color: #ffd4c6;
+      }
+      button,
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 10px;
+        padding: 8px 14px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        font-weight: 600;
+        white-space: nowrap;
+        transition:
+          background-color 120ms ease,
+          border-color 120ms ease;
+      }
+      button:hover,
+      .button:hover {
+        background: rgba(255, 255, 255, 0.19);
+        border-color: rgba(255, 255, 255, 0.55);
+      }
+      button.primary {
+        background: #fff;
+        border-color: #fff;
+        color: var(--navy);
+      }
+      button.primary:hover {
+        background: #eaf3f7;
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+      .hero {
+        padding: 30px 0 0;
+        max-width: 850px;
+      }
+      .hero h2 {
+        margin: 0;
+        font:
+          400 clamp(34px, 5vw, 54px)/1.04 Georgia,
+          "Times New Roman",
+          serif;
+        letter-spacing: -0.025em;
+      }
+      .hero p {
+        max-width: 740px;
+        margin: 13px 0 0;
+        color: rgba(255, 255, 255, 0.83);
+        font-size: 16px;
+      }
+      .example[hidden] {
+        display: none;
+      }
+      .example {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 3px 9px;
+        background: #f6e6c8;
+        color: #72501d;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 22px;
+      }
+      .tile,
+      .box {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+      .tile {
+        padding: 17px 18px 16px;
+        border-top: 3px solid var(--blue);
+      }
+      .tile strong {
+        display: block;
+        color: var(--ink);
+        font:
+          400 34px/1.05 Georgia,
+          "Times New Roman",
+          serif;
+        font-variant-numeric: tabular-nums;
+      }
+      .tile span {
+        display: block;
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .content {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 14px;
+      }
+      .box {
+        padding: 18px;
+      }
+      .box h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+        font-weight: 650;
+        letter-spacing: 0.005em;
+      }
+      .span-two {
+        grid-column: 1/-1;
+      }
+      .rows {
+        display: grid;
+      }
+      .row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        min-width: 0;
+        padding: 11px 0;
+        border-top: 1px solid var(--line);
+      }
+      .row:first-child {
+        padding-top: 0;
+        border-top: 0;
+      }
+      .row > div {
+        min-width: 0;
+      }
+      .row a {
+        font-weight: 620;
+        overflow-wrap: anywhere;
+      }
+      .row a:hover {
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: #9bc9df;
+        text-underline-offset: 3px;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+      .row > .meta {
+        flex: none;
+        text-align: end;
+        font-variant-numeric: tabular-nums;
+      }
+      .board-strip {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+      }
+      .board {
+        min-width: 0;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: var(--canvas);
+      }
+      .board-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .board-head a {
+        font-weight: 650;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .board-head a:hover {
+        color: var(--ink);
+      }
+      .distribution { display: flex; height: 6px; gap: 2px; margin-bottom: 8px; overflow: hidden; border-radius: 3px; }
+      .distribution span { background: var(--ink); flex-basis: 0; }
+      .list-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .lists {
+        display: flex;
+        gap: 6px;
+        align-items: stretch;
+      }
+      .list {
+        min-width: 0;
+        flex: 1;
+        border-radius: 7px;
+        padding: 8px;
+        background: var(--soft);
+        color: var(--muted);
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+      .list b {
+        display: block;
+        margin-top: 3px;
+        color: var(--ink);
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+      }
+      .ask {
+        margin-top: 14px;
+        border-top: 3px solid var(--blue);
+      }
+      .prompts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .prompts button {
+        min-height: 40px;
+        border: 1px solid #cbdfe9;
+        border-radius: 999px;
+        padding: 8px 13px;
+        background: var(--soft);
+        color: var(--ink);
+        font-size: 13px;
+        white-space: normal;
+        text-align: start;
+      }
+      .prompts button:hover {
+        background: #d9edf6;
+        border-color: #9bc9df;
+      }
+      .askform {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .askform input {
+        min-width: 0;
+        flex: 1;
+        min-height: 44px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 12px;
+        background: var(--canvas);
+        color: var(--ink);
+      }
+      .askform input::placeholder {
+        color: var(--muted);
+      }
+      .askform .primary {
+        border-color: var(--blue);
+        background: var(--blue);
+        color: #fff;
+      }
+      .askform .primary:hover {
+        background: var(--blue-deep);
+      }
+      .notice {
+        min-height: 1.5em;
+        margin: 9px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .footer {
+        margin-top: 20px;
+        padding: 16px 2px 26px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .empty {
+        padding: 8px 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      @container (max-width:760px) {
+        .tiles {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .content {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .span-two {
+          grid-column: auto;
+        }
+        .board-strip {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .band {
+          padding-top: 16px;
+        }
+        .hero {
+          padding-top: 24px;
+        }
+        .hero h2 {
+          font-size: clamp(32px, 8vw, 46px);
+        }
+        .actions {
+          width: 100%;
+        }
+        .actions button,
+        .actions a {
+          flex: 1;
+        }
+        .actions .pill {
+          flex: none;
+        }
+        .box {
+          padding: 15px;
+        }
+        .tile {
+          padding: 14px;
+        }
+        .tile strong {
+          font-size: 30px;
+        }
+      }
+      @container (max-width:390px) {
+        .wrap {
+          padding-inline: 16px;
+        }
+        .top {
+          align-items: flex-start;
+        }
+        .actions {
+          gap: 6px;
+        }
+        .actions button,
+        .actions a {
+          padding-inline: 9px;
+          font-size: 13px;
+        }
+        .actions .pill {
+          width: 100%;
+          justify-content: center;
+        }
+        .row {
+          gap: 8px;
+        }
+        .lists {
+          gap: 4px;
+        }
+        .list {
+          padding: 6px 5px;
+          font-size: 10px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell" id="app">
+      <header class="band">
+        <div class="wrap">
+          <div class="top">
+            <div class="brand">
+              <p class="eyebrow">
+                <span class="eyebrow-label">Your Trello workspace</span
+                ><span class="example" id="example" hidden>Example rows</span>
+              </p>
+              <h1>Board Desk</h1>
+              <p id="account">Trello account</p>
+            </div>
+            <div class="actions">
+              <span class="pill" id="status">Checking Trello</span
+              ><button id="refresh" class="primary">Update now</button
+              ><a class="button" href="https://trello.com" target="_blank" rel="noreferrer"
+                >Open in Trello</a
+              >
+            </div>
+          </div>
+          <section class="hero">
+            <h2>Your boards as pages your agents can read.</h2>
+            <p>
+              They ask before they change a card. Cabinet reads your boards, lists, cards,
+              checklists and comments. It writes comments, new cards, moves and archives only after
+              you say yes.
+            </p>
+          </section>
+        </div>
+      </header>
+      <div class="wrap">
+        <section class="tiles" id="tiles" aria-label="Trello overview"></section>
+        <section class="content">
+          <section class="box">
+            <h3>My cards today</h3>
+            <div class="rows" id="mine"></div>
+          </section>
+          <section class="box">
+            <h3>Due soon</h3>
+            <div class="rows" id="due"></div>
+          </section>
+          <section class="box">
+            <h3>Overdue</h3>
+            <div class="rows" id="overdue"></div>
+          </section>
+          <section class="box span-two">
+            <h3>Boards</h3>
+            <div class="board-strip" id="boards"></div>
+          </section>
+          <section class="box">
+            <h3>Moved this week</h3>
+            <div class="rows" id="moved"></div>
+          </section>
+          <section class="box">
+            <h3>Stalled</h3>
+            <div class="rows" id="stalled"></div>
+          </section>
+          <section class="box span-two">
+            <h3>Recent comments and mentions</h3>
+            <div class="rows" id="comments"></div>
+          </section>
+        </section>
+        <section class="box tools">
+          <h3 id="tools-heading">Tools in chat</h3>
+          <div class="prompts" id="tools"></div>
+        </section>
+        <section class="box ask">
+          <h3>Ask about your Trello</h3>
+          <div class="prompts">
+            <button data-question="What is due for me this week?">
+              What is due for me this week?</button
+            ><button data-question="What moved on the Launch board?">
+              What moved on the Launch board?</button
+            ><button data-question="Which cards are stuck?">Which cards are stuck?</button>
+          </div>
+          <form class="askform" id="askform">
+            <input
+              id="question"
+              aria-label="Ask about Trello"
+              placeholder="Ask about your boards"
+            /><button class="primary">Ask in chat</button>
+          </form>
+          <div class="notice" id="notice" aria-live="polite"></div>
+        </section>
+        <footer class="footer">
+          Reads your boards, lists, cards, checklists and comments. Writes only comments, new cards,
+          moves and archives, after you say yes. Trello is a trademark of Atlassian. Cabinet is not
+          affiliated with Atlassian.
+        </footer>
+      </div>
+    </main>
+    <script>
+      (function () {
+        var cab = window.cabinet,
+          state = { data: null, example: true, connector: null, running: false };
+        document.documentElement.dataset.theme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
+          ? "dark"
+          : "light";
+        var he = !!(navigator.language && navigator.language.toLowerCase().indexOf("he") === 0);
+        var heWords = {
+          eyebrow: "לוח Trello שלך",
+          account: "מחובר/ת בתור",
+          checking: "בודק את Trello",
+          connected: "מחובר",
+          updating: "מתעדכן",
+          failed: "לא ניתן להגיע",
+          signin: "נדרשת התחברות מחדש",
+          update: "עדכון עכשיו",
+          open: "פתיחה ב-Trello",
+          hero: "הלוחות שלך כדפים שהסוכנים יכולים לקרוא.",
+          sub: "הם מבקשים רשות לפני שינוי כרטיס. Cabinet קורא לוחות, רשימות, כרטיסים, רשימות בדיקה ותגובות. כתיבה, יצירה, העברה וארכוב נעשים רק אחרי אישורך.",
+          mine: "הכרטיסים שלי היום",
+          openCards: "הכרטיסים הפתוחים שלי",
+          dueThisWeek: "לסיום השבוע",
+          due: "בקרוב",
+          overdue: "באיחור",
+          boards: "לוחות",
+          moved: "עברו השבוע",
+          stalled: "ללא פעילות",
+          comments: "תגובות ואזכורים אחרונים",
+          tools: "כלים בצ׳אט",
+          toolPrompts: ["סכם לוח ב-Trello", "מה אני צריך לעשות השבוע?", "הכן טיוטת סיכום שבועי", "הוסף תגובה לכרטיס ב-Trello", "צור כרטיס ברשימה ב-Trello", "העבר כרטיס ב-Trello לרשימה אחרת", "העבר כרטיס ב-Trello לארכיון"],
+          routineFailed: "העדכון לא הושלם. נסה שוב.",
+          ask: "שאל על Trello",
+          q1: "מה אני צריך לעשות השבוע?",
+          q2: "מה השתנה בלוח Launch?",
+          q3: "אילו כרטיסים תקועים?",
+          askButton: "לשאול בצ׳אט",
+          placeholder: "שאל על הלוחות שלך",
+          example: "אלה דוגמאות. הכרטיסים שלך יחליפו אותן.",
+          cards: "כרטיסים",
+          mention: "אזכור",
+          stalledDetail: "14 ימים ללא פעילות",
+          footer:
+            "קורא את הלוחות, הרשימות, הכרטיסים, רשימות הבדיקה והתגובות שלך. כותב תגובות, כרטיסים חדשים, העברות וארכובים רק אחרי אישורך. Trello הוא סימן מסחרי של Atlassian. Cabinet אינה קשורה ל-Atlassian.",
+          notice: "פותח שיחה בצ׳אט…",
+          empty: "אין פריטים להצגה.",
+        };
+        var enWords = {
+          eyebrow: "Your Trello workspace",
+          account: "Signed in as",
+          checking: "Checking Trello",
+          connected: "Connected",
+          updating: "Updating",
+          failed: "Could not be reached",
+          signin: "Needs a fresh sign-in",
+          update: "Update now",
+          open: "Open in Trello",
+          hero: "Your boards as pages your agents can read.",
+          sub: "They ask before they change a card. Cabinet reads your boards, lists, cards, checklists and comments. Writes, creates, moves and archives happen only after you say yes.",
+          mine: "My cards today",
+          openCards: "My open cards",
+          dueThisWeek: "Due this week",
+          due: "Due soon",
+          overdue: "Overdue",
+          boards: "Boards",
+          moved: "Moved this week",
+          stalled: "Stalled",
+          comments: "Recent comments and mentions",
+          tools: "Tools in chat",
+          toolPrompts: ["Summarize a Trello board", "What is due for me this week?", "Draft a weekly recap", "Add a comment to a Trello card", "Create a card in a Trello list", "Move a Trello card to another list", "Archive a Trello card"],
+          routineFailed: "The update did not finish. Try again.",
+          ask: "Ask about your Trello",
+          q1: "What is due for me this week?",
+          q2: "What moved on the Launch board?",
+          q3: "Which cards are stuck?",
+          askButton: "Ask in chat",
+          placeholder: "Ask about your boards",
+          example: "These rows are examples. Your own cards replace them.",
+          cards: "cards",
+          mention: "mention",
+          stalledDetail: "14 days without activity",
+          footer:
+            "Reads your boards, lists, cards, checklists and comments. Writes only comments, new cards, moves and archives, after you say yes. Trello is a trademark of Atlassian. Cabinet is not affiliated with Atlassian.",
+          notice: "Opening chat…",
+          empty: "Nothing to show.",
+        };
+        var words = he ? heWords : enWords;
+        function applyLanguage() {
+          document.querySelector(".eyebrow-label").textContent = words.eyebrow;
+          document.documentElement.lang = he ? "he" : "en";
+          document.documentElement.dir = he ? "rtl" : "ltr";
+          document.querySelector(".hero h2").textContent = words.hero;
+          document.querySelector(".hero p").textContent = words.sub;
+          document.getElementById("account").textContent = words.account;
+          document.getElementById("refresh").textContent = words.update;
+          document.querySelector(".actions .button").textContent = words.open;
+          document.querySelectorAll(".content h3").forEach(function (h, i) {
+            h.textContent = [
+              words.mine,
+              words.due,
+              words.overdue,
+              words.boards,
+              words.moved,
+              words.stalled,
+              words.comments,
+            ][i];
+          });
+          document.querySelector(".ask h3").textContent = words.ask;
+          document.getElementById("tiles").setAttribute("aria-label", he ? "סקירת Trello" : "Trello overview");
+          document.getElementById("question").setAttribute("aria-label", words.ask);
+          document.getElementById("tools-heading").textContent = words.tools;
+          var tools = document.getElementById("tools");
+          tools.replaceChildren();
+          words.toolPrompts.forEach(function (prompt) {
+            var button = document.createElement("button");
+            button.textContent = prompt;
+            button.onclick = function () { ask(prompt); };
+            tools.appendChild(button);
+          });
+          document.querySelectorAll("[data-question]").forEach(function (b, i) {
+            b.textContent = [words.q1, words.q2, words.q3][i];
+            b.dataset.question = b.textContent;
+          });
+          document.getElementById("question").placeholder = words.placeholder;
+          document.querySelector("#askform button").textContent = words.askButton;
+          document.getElementById("example").textContent = words.example;
+          document.querySelector(".footer").textContent = words.footer;
+        }
+        applyLanguage();
+        function esc(v) {
+          return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+          });
+        }
+        function date(v) {
+          if (!v) return "";
+          var d = new Date(v);
+          return isNaN(d)
+            ? esc(v)
+            : new Intl.DateTimeFormat(he ? "he-IL" : "en", {
+                month: "short",
+                day: "numeric",
+              }).format(d);
+        }
+        function setStatus(text, kind) {
+          var el = document.getElementById("status");
+          el.textContent = text;
+          el.className = "pill " + (kind || "");
+        }
+        function row(item, extra) {
+          if (!item) return "";
+          var title = esc(item.name || item.card || "Trello card"),
+            url = /^https:\/\/trello\.com\//.test(item.url || "") ? item.url : "https://trello.com";
+          return (
+            '<div class="row"><div><a href="' +
+            esc(url) +
+            '" target="_blank" rel="noreferrer">' +
+            title +
+            '</a><div class="meta">' +
+            [item.board, item.list, extra].filter(Boolean).map(esc).join(" · ") +
+            '</div></div><span class="meta">' +
+            date(item.due || item.date) +
+            "</span></div>"
+          );
+        }
+        function rows(id, items, extra) {
+          document.getElementById(id).innerHTML =
+            items && items.length
+              ? items
+                  .map(function (x) {
+                    return row(x, extra ? extra(x) : "");
+                  })
+                  .join("")
+              : '<div class="empty">' + words.empty + "</div>";
+        }
+        function paint() {
+          var d = state.data;
+          if (!d) return;
+          document.getElementById("account").textContent = d.account
+            ? words.account + " " + d.account
+            : words.account;
+          document.getElementById("example").hidden = !state.example;
+          var c = d.counts || {};
+          document.getElementById("tiles").innerHTML = [
+            [c.openCards, words.openCards],
+            [c.dueThisWeek, words.dueThisWeek],
+            [c.overdue, words.overdue],
+            [c.movedThisWeek, words.moved],
+          ]
+            .map(function (x) {
+              return (
+                '<div class="tile"><strong>' +
+                Number(x[0] || 0) +
+                "</strong><span>" +
+                esc(words.cards) +
+                " · " +
+                esc(x[1]) +
+                "</span></div>"
+              );
+            })
+            .join("");
+          rows("mine", d.mine);
+          rows("due", d.dueSoon);
+          rows("overdue", d.overdue, function () {
+            return words.overdue;
+          });
+          rows("moved", d.moved, function (x) {
+            return (x.from ? x.from + " → " : "") + (x.to || "");
+          });
+          rows("stalled", d.stalled, function () {
+            return words.stalledDetail;
+          });
+          rows("comments", d.comments, function (x) {
+            return (
+              (x.author || "") + (x.mentionsMe ? " · " + words.mention : "") + ": " + (x.text || "")
+            );
+          });
+          document.getElementById("boards").innerHTML =
+            (d.boards || [])
+              .map(function (b) {
+                var url = /^https:\/\/trello\.com\//.test(b.url || "")
+                  ? b.url
+                  : "https://trello.com";
+                var distribution = (b.lists || []).map(function (l) {
+                  var count = Math.max(0, Number(l.count || l.cards || 0));
+                  return '<span style="flex-grow:' + count + '" title="' + esc(l.name) + ': ' + count + ' ' + esc(words.cards) + '"></span>';
+                }).join("");
+                var lists = (b.lists || [])
+                  .map(function (l) {
+                    return (
+                      '<div class="list"><span class="list-name" title="' + esc(l.name) + '">' +
+                      esc(l.name) + '</span>' +
+                      "<b>" +
+                      Number(l.count || l.cards || 0) +
+                      " " +
+                      esc(words.cards) +
+                      "</b></div>"
+                    );
+                  })
+                  .join("");
+                return (
+                  '<div class="board"><div class="board-head"><a href="' +
+                  esc(url) +
+                  '" target="_blank" rel="noreferrer">' +
+                  esc(b.name) +
+                  '</a></div><div class="distribution" aria-hidden="true">' + distribution + '</div><div class="lists">' +
+                  lists +
+                  "</div></div>"
+                );
+              })
+              .join("") || '<div class="meta">' + words.empty + "</div>";
+        }
+        function updateConnector(list) {
+          state.connector =
+            (list || []).filter(function (c) {
+              return c.id === "trello";
+            })[0] || null;
+          var c = state.connector,
+            s = c && c.state;
+          var labels = {
+            connected: words.connected,
+            "needs-sign-in": words.signin,
+            "needs-you": he ? "נדרשת תשומת לב" : "Needs attention",
+            "not-available-here": words.failed,
+          };
+          setStatus(
+            c && c.busy ? words.updating : labels[s] || words.checking,
+            s === "connected" ? "connected" : s ? "problem" : "",
+          );
+          if (c && c.problem) setStatus(c.problem.text, "problem");
+        }
+        function showData(text, isExample) {
+          var data = JSON.parse(text);
+          if (!data || !data.counts || !Array.isArray(data.mine) || !Array.isArray(data.boards))
+            throw new Error("Board summary data is incomplete.");
+          state.data = data;
+          state.example = isExample;
+          paint();
+        }
+        function load() {
+          if (!cab || !cab.files) return;
+          cab.files.read("home/data/latest.json").then(
+            function (text) {
+              try {
+                showData(text, false);
+              } catch (error) {
+                setStatus(error.message || words.failed, "problem");
+              }
+            },
+            function (error) {
+              if (!error || error.code !== "not-found") {
+                setStatus(error && error.message ? error.message : words.failed, "problem");
+                return;
+              }
+              cab.files.read("home/data/EXAMPLE-latest.json").then(
+                function (text) {
+                  try {
+                    showData(text, true);
+                  } catch (exampleError) {
+                    setStatus(exampleError.message || words.failed, "problem");
+                  }
+                },
+                function () {
+                  setStatus(words.failed, "problem");
+                },
+              );
+            },
+          );
+        }
+        function refresh() {
+          if (!cab || state.running) return;
+          state.running = true;
+          var b = document.getElementById("refresh");
+          b.disabled = true;
+          setStatus(words.updating, "");
+          cab.jobs.run("morning-board-desk").then(
+            function () {
+              setStatus(words.updating, "");
+            },
+            function (e) {
+              state.running = false;
+              b.disabled = false;
+              setStatus(e && e.message ? e.message : words.failed, "problem");
+            },
+          );
+        }
+        function ask(q) {
+          if (!cab) return;
+          document.getElementById("notice").textContent = words.notice;
+          cab.ask(q, { send: true }).then(
+            function () {
+              document.getElementById("notice").textContent = he
+                ? "השיחה נפתחה בצ׳אט."
+                : "The question is in chat.";
+            },
+            function (e) {
+              document.getElementById("notice").textContent =
+                e && e.message ? e.message : "Could not open chat.";
+            },
+          );
+        }
+        document.getElementById("refresh").onclick = refresh;
+        document.querySelectorAll("[data-question]").forEach(function (b) {
+          b.onclick = function () {
+            ask(b.dataset.question);
+          };
+        });
+        document.getElementById("askform").onsubmit = function (e) {
+          e.preventDefault();
+          var q = document.getElementById("question").value.trim();
+          if (q) ask(q);
+        };
+        if (cab && cab.connectors) {
+          cab.here().then(function (info) {
+            if (!info) return;
+            if (info.theme) document.documentElement.dataset.theme = info.theme;
+            if (info.locale) {
+              he = String(info.locale).toLowerCase().indexOf("he") === 0;
+              words = he ? heWords : enWords;
+              applyLanguage();
+              paint();
+            }
+          });
+          cab.connectors.list().then(updateConnector);
+          cab.connectors.onChange(updateConnector);
+          cab.jobs.onChange(function (list) {
+            var job = (list || []).filter(function (j) {
+              return j.id === "morning-board-desk";
+            })[0];
+            if (job && !job.running && state.running) {
+              state.running = false;
+              document.getElementById("refresh").disabled = false;
+              if (job.lastRun && job.lastRun.ok === false) {
+                setStatus(words.routineFailed, "problem");
+              } else {
+                updateConnector(state.connector ? [state.connector] : []);
+                load();
+              }
+            }
+          });
+          cab.files.onChange("home/data", load);
+          load();
+        } else {
+          setStatus(words.checking, "");
+        }
+      })();
+    </script>
+  </body>
+</html>
