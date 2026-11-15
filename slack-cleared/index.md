@@ -1,7 +1,7 @@
 ---
 title: Slack, cleared
 created: '2026-11-12T00:00:00Z'
-modified: '2026-11-12T00:00:00Z'
+modified: '2026-11-15T00:00:00Z'
 tags: [slack, channels, mentions, threads, catch-up, replies, work]
 order: 1
 ---
@@ -12,16 +12,20 @@ Slack shows you everything. This shows what needs you, and what you can safely s
 Every weekday at 8, your catch-up reads your DMs, threads and the channels you allow, and
 opens on one page:
 
-- **Since yesterday**: every message as a small light, and the few that need you glowing.
-  "387 messages since yesterday. 4 need you." Every number is counted from Slack.
-- **Waiting on you**: people who asked you, @mentioned you, wrote to you or answered in your
-  thread, longest wait first, each with a reply in your voice. Press **Send in Slack** and
-  Cabinet shows you the message in the chat; it goes only after you approve it.
+- **Since the last morning**: how many people need you, and one line on what matters most.
+- **Waiting on you**: people who asked you, @mentioned you or wrote to you, longest wait
+  first, each with a reply in your voice. Press **Send in Slack** and Cabinet shows you the
+  message in the chat; it goes only after you approve it.
+- **Waiting on others**: questions you asked that nobody answered yet, with a nudge ready.
+- **Your week**: who you talk with most, when you are in Slack, and how fast you answer.
+- **Files**: the newest files people shared with you, one tap to open in Slack.
+- **Links**: links people shared lately, one each, with where they lead.
 - **You said you would**: what you told people you would do, found in your own messages.
-  Slack never reminds you; this does.
 - **Decided while you were away**: one line each, from DMs, threads and channels.
 - **Channels**: each channel that moved, how much, and whether it wants you.
-- **Safe to skip**: the loud channels that never needed you, counted, so you can trust the rest.
+- **Safe to skip**: the loud channels that never needed you, so you can trust the rest.
+
+Every number is counted from Slack.
 
 Ask anything about your Slack in the box at the bottom, try an idea ("Catch me up after time
 off", "What did I promise this week?"), and arrange the page your way with **Layout**.

@@ -3,9 +3,9 @@ title: How Catch up gets your Slack
 ---
 # How Catch up gets your Slack
 
-The page never talks to Slack. The morning routine reads Slack with Cabinet's own Slack tools,
-only where you allowed it, and hands every answer to `slack-sort.mjs`, which writes the files
-here; the page shows them. The rules for each field are in the agent's persona
+The page never talks to Slack. In the morning routine, `slack-sort.mjs` reads Slack through
+Cabinet's own Slack tools (the address Cabinet gives the run in `CABINET_SLACK_URL`), only
+where you allowed it, and writes the files here; the page shows them. The rules for each field are in the agent's persona
 (`.agents/slack-reader/persona.md`).
 
 | File | Written by | What it holds |
@@ -18,7 +18,7 @@ here; the page shows them. The rules for each field are in the agent's persona
 | `data/layout-change.json` | The agent, when asked to change the page | `{ at, for, add[], remove[], note }`: box ids, shown with Apply. |
 | `setup.md` | You, or the agent in a chat | Who matters, what to skip, hours, how replies sound. |
 
-The run has no Slack token. `slack-sort.mjs` keeps every tool answer exactly as it came,
+The run has no Slack token. `slack-sort.mjs` keeps every Slack answer exactly as it came,
 counts every number from them and copies every name, quote, time and link, so nothing on the
 page is typed by the agent except its own short words (gists, replies, the headline), and
 those may hold no numbers.

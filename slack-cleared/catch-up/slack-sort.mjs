@@ -1,24 +1,19 @@
 #!/usr/bin/env node
 // Every reading of a person's Slack goes through here. The run has no Slack token on purpose:
-// Cabinet serves Slack to agents only through its own read tools, which keep to the channels
-// the person allowed. So the agent asks the tools and hands each answer to this helper as it
-// came (`save`). Every number on the page is counted from those saved answers, and every
-// name, quote, time and link is copied from them, never typed. The agent only picks (by ref)
-// and writes its own words.
+// Cabinet serves Slack only through its own read tools, which keep to the channels the person
+// allowed. Cabinet gives the run their address in CABINET_SLACK_URL, and `start` asks them
+// itself and keeps every answer as it came. Every number on the page is counted from those
+// answers, and every name, quote, time and link is copied from them, never typed. The agent
+// only picks (by ref) and writes its own words.
 // Run it from the cabinet root:
 //   node catch-up/slack-sort.mjs window            shell lines to eval: NOW TODAY SINCE AFTER TZ_NAME
 //   node catch-up/slack-sort.mjs start             the first reading: new data/reading.json, data/.work/,
-//                                                  reads the last 7 days; prints the searches to run
-//   node catch-up/slack-sort.mjs start --morning   a morning: data/.work/ only, reads since the last
-//                                                  morning (at most 7 days)
+//                                                  reads the last 7 days of Slack
+//   node catch-up/slack-sort.mjs start --morning   a morning: data/.work/ only, the window since the last
+//                                                  morning (at most 7 days; the searches reach 7 days back)
 //   node catch-up/slack-sort.mjs start --chat      a question in the chat: like a morning, never while one runs,
 //                                                  and it writes nothing the page shows
-//   node catch-up/slack-sort.mjs take              keep every Slack tool answer of this run, read from the
-//                                                  run's own transcript exactly as Slack gave it; says what is missing
-//   node catch-up/slack-sort.mjs save <name> @<file> [--in <channel id>]
-//   node catch-up/slack-sort.mjs save <name> - [--in <channel id>]   (the answer on stdin, from a heredoc)
-//                                                  keep one Slack tool answer, exactly as it came
-//   node catch-up/slack-sort.mjs people            the people to look up with slack_get_user
+//   node catch-up/slack-sort.mjs people            the people the page shows, with their names
 //   node catch-up/slack-sort.mjs list [ref]        the conversations, then their messages, with refs
 //                                                  (c1 a direct or group message, h1 a channel, m1 a message)
 //   node catch-up/slack-sort.mjs needs             messages that may need an answer from you, oldest first
@@ -31,11 +26,12 @@
 //   node catch-up/slack-sort.mjs latest @<file>    write data/latest.json and data/status.json
 //   node catch-up/slack-sort.mjs fail '<why>'      Slack could not be read: data/status.json with ok:false, then done
 //   node catch-up/slack-sort.mjs done              finish, delete data/.work/
-// Save names: a name starting with "mine" is a from:me search. Others: dms, groups, mentions,
-// threads, everything (and -2, -3 for more pages), in-<channel>, thread-<n> and channel-<n>
-// (a slack_read_thread or slack_read_channel answer: give --in <channel id>), channels
-// (slack_list_channels), dm-list (slack_list_dms), people (slack_get_user answers, one or a
-// JSON array of several).
+// What start asks (slack_search_messages, sort timestamp, count 100, next pages while Slack has
+// more): from:me (mine), is:dm (dms), is:mpim (groups), <@you> -from:me (mentions),
+// is:thread -from:me (threads), -from:me (everything; when empty, in:#channel for at most six
+// channels from slack_list_channels), then slack_list_files (count 50, only the list) and
+// slack_get_user for the people with no name yet. It never reads a whole channel or thread:
+// Slack allows that about once a minute.
 // Placeholders in a line or the headline (the helper counts; the word after | follows the number):
 //   {messages:|message|messages}   messages in the window          {dms:|conversation|conversations}
 //   {channels:|channel|channels}   channels that moved              direct and group messages that moved
@@ -45,7 +41,6 @@
 // in a saved answer.
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const SCHEMA = "slack/catch-up";
@@ -175,147 +170,183 @@ function saveAnswer(name, raw, inChannel) {
   return info;
 }
 
-// ── take: every Slack answer of this run, read from the run's own transcript ──
-// Retyping a long answer is slow and invites cutting it short. Claude Code keeps every tool
-// answer of the run in its session file; the helper reads them from there, exactly as Slack
-// gave them, and names each one by what was asked.
-function transcriptFile() {
-  const sid = String(process.env.CLAUDE_CODE_SESSION_ID || "").trim();
-  if (!/^[0-9a-f-]{8,}$/i.test(sid)) return "";
-  const roots = [process.env.CLAUDE_CONFIG_DIR, path.join(os.homedir(), ".claude")].filter(Boolean);
-  for (const root of roots) {
-    const dir = path.join(root, "projects");
-    let subs = [];
-    try { subs = fs.readdirSync(dir); } catch { continue; }
-    for (const d of subs) {
-      const f = path.join(dir, d, sid + ".jsonl");
-      if (fs.existsSync(f)) return f;
-    }
+// ── Reading Slack: the helper asks Cabinet's Slack tools itself ──
+// CABINET_SLACK_URL is this run's address of Cabinet's own Slack tools: Slack's token stays in
+// Cabinet, which keeps every call to the channels the person allowed and only reads. One POST of
+// MCP JSON-RPC per call, no session. Never print the address.
+const slackUrl = () => String(process.env.CABINET_SLACK_URL || "").trim();
+/** status.json with ok:false and the reading closed, as the fail command does. True in a chat. */
+function failRun(why) {
+  let chat = false;
+  try { chat = readJson(modeFile).chat === true; } catch { /* no run started */ }
+  if (!chat) {
+    fs.mkdirSync(dataDir, { recursive: true });
+    writeJson(path.join(dataDir, "status.json"), { at: iso(new Date()), ok: false, why });
   }
-  return "";
+  finish();
+  return chat;
 }
-/** What a Slack tool call was, as a save name, from its tool and query. */
-function nameFor(tool, input) {
-  const t = tool.replace(/^.*__/, "");
-  const q = String(input.query || "");
-  const page = Number(input.page) > 1 ? Number(input.page) : 1;
-  const paged = (n) => (page > 1 ? n + "-" + page : n);
-  if (t === "slack_search_messages") {
-    if (/(^|\s)from:me\b/.test(q)) return paged("mine");
-    if (/<@[UW][A-Z0-9]+>/.test(q)) return paged("mentions");
-    if (/\bis:dm\b/.test(q)) return paged("dms");
-    if (/\bis:mpim\b/.test(q)) return paged("groups");
-    if (/\bis:thread\b/.test(q)) return paged("threads");
-    const inCh = /\bin:#?([a-z0-9_-]{1,40})/i.exec(q);
-    if (inCh) return paged("in-" + inCh[1].toLowerCase());
-    return paged("everything");
-  }
-  if (t === "slack_get_user") return "person";
-  if (t === "slack_read_thread") return "thread";
-  if (t === "slack_read_channel") return "channel";
-  if (t === "slack_list_channels") return "channels";
-  if (t === "slack_list_dms") return "dm-list";
-  if (t === "slack_list_files" && !(input || {}).channel_id) return "files";
-  return "";
+/** Slack could not be read: the page says why, and the agent is told what to add and to stop. */
+function stopRun(why, needs) {
+  const page = failRun(why) ? "" : " The page says so.";
+  fail(why + page + (needs ? ` Add NEEDS_CONNECTION: slack | ${needs} inside your cabinet block, and stop.` : " Stop here."), 3);
 }
-function take() {
-  const file = transcriptFile();
-  if (!file) return fail("this run's answers can't be read here: hand each answer over with save <name> - and the answer on stdin", 6);
-  const startedAt = new Date(mode().startedAt || 0).getTime() - 5000;
-  const uses = new Map();
-  const answers = [];
-  for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
-    if (!line.trim()) continue;
-    let o;
-    try { o = JSON.parse(line); } catch { continue; }
-    const at = new Date(o.timestamp || 0).getTime();
-    const content = o.message && Array.isArray(o.message.content) ? o.message.content : [];
-    for (const b of content) {
-      if (b && b.type === "tool_use" && /slack_/.test(String(b.name))) uses.set(b.id, b);
-      if (b && b.type === "tool_result" && uses.has(b.tool_use_id) && at >= startedAt) {
-        const text = Array.isArray(b.content) ? b.content.filter((x) => x && x.type === "text").map((x) => x.text).join("") : String(b.content || "");
-        answers.push({ id: b.tool_use_id, use: uses.get(b.tool_use_id), text, error: b.is_error === true });
-      }
-    }
-  }
-  let taken = {};
-  try { taken = readJson(path.join(workDir, ".taken.json")); } catch { /* none yet */ }
-  const out = [];
-  for (const a of answers) {
-    if (taken[a.id]) continue;
-    const base = nameFor(a.use.name, a.use.input || {});
-    if (!base) { taken[a.id] = "-"; continue; }
-    let v;
-    try { v = JSON.parse(a.text); } catch { v = null; }
-    if (a.error || !v || typeof v !== "object") {
-      taken[a.id] = "refused:" + base;
-      out.push(`${base}: Slack did not answer it: "${a.text.replace(/\s+/g, " ").slice(0, 200)}"`);
-      continue;
-    }
-    // A name already saved gets the next number (a second person, a second thread).
-    let n = base;
-    const names = savedNames();
-    if (/^(person|thread|channel)$/.test(base) || names.includes(n)) {
-      let i = /^(person|thread|channel)$/.test(base) ? 1 : 2;
-      const stem = base.replace(/-\d+$/, "");
-      while (names.includes(stem + "-" + i)) i++;
-      n = stem + "-" + i;
-    }
-    const ch = /^(thread|channel)/.test(n) ? String((a.use.input || {}).channel_id || "") : "";
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+/** One tool call: { ok, text } with the tool's JSON answer as text, or its refusal in words. */
+async function slackTool(name, args) {
+  for (let attempt = 0; ; attempt++) {
+    let res;
     try {
-      const info = saveAnswer(n, a.text, ch);
-      taken[a.id] = n;
-      out.push(`${n}: ${describe(n, info)}`);
-    } catch (e) {
-      if (!(e instanceof Exit)) throw e;
-      process.exitCode = 0;
-      taken[a.id] = "bad";
-      out.push(`${n}: not kept (${e.message})`);
+      res = await fetch(slackUrl(), {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
+        signal: AbortSignal.timeout(90000),
+      });
+    } catch {
+      return stopRun("Couldn't reach Slack. Try again in a moment.");
+    }
+    if (res.status === 401) stopRun("Slack needs you to sign in again. Press Connect Slack again.", "Slack needs a new sign-in");
+    if (res.status === 404) stopRun("Slack is not connected. Press Connect Slack.", "Connect Slack so I can read who is waiting on you");
+    let body = null;
+    try { body = await res.json(); } catch { /* not JSON */ }
+    const result = body && body.result;
+    const text = result && Array.isArray(result.content) ? result.content.filter((x) => x && x.type === "text").map((x) => x.text).join("") : "";
+    if (!res.ok || !result) return stopRun("Slack gave an answer Cabinet couldn't read. Try again in a moment.");
+    if (result.isError !== true) return { ok: true, text };
+    // Slack asks Cabinet to slow down: wait what it says (at most a minute), then once more.
+    const slow = /slowing Cabinet down.*?(?:in (\d+) seconds|in a minute)/i.exec(text);
+    if (slow && attempt === 0) { await sleep(Math.min(Number(slow[1]) || 60, 65) * 1000); continue; }
+    return { ok: false, text };
+  }
+}
+/** Ask, and keep the answer under this name exactly as Slack gave it. Null when refused. */
+async function ask(saveAs, tool, args, inChannel) {
+  const got = await slackTool(tool, args);
+  if (!got.ok) { refuse(saveAs, got.text); return null; }
+  let info;
+  try { info = saveAnswer(saveAs, got.text, inChannel); } catch (e) {
+    if (!(e instanceof Exit)) throw e;
+    process.exitCode = 0;
+    refuse(saveAs, e.message);
+    return null;
+  }
+  console.log(`${saveAs}: ${describe(saveAs, info)}`);
+  return { info, value: answerOf(saveAs) };
+}
+function refusedList() { try { return readJson(path.join(workDir, ".refused.json")); } catch { return {}; } }
+function refuse(n, why) {
+  writeJson(path.join(workDir, ".refused.json"), { ...refusedList(), [n]: why });
+  console.log(`${n}: Slack did not answer it: "${String(why).replace(/\s+/g, " ").slice(0, 200)}"`);
+}
+const SEARCH = { sort: "timestamp", count: 100 };
+/** One search and its next pages while Slack has more, up to `pages`. */
+async function searchAll(n, query, pages) {
+  for (let page = 1; page <= pages; page++) {
+    const name = page > 1 ? `${n}-${page}` : n;
+    const got = await ask(name, "slack_search_messages", page > 1 ? { query, ...SEARCH, page } : { query, ...SEARCH });
+    if (!got) {
+      // A search the page needs must come back: its refusal is the run's reason to stop.
+      if (page === 1 && NEEDED.includes(n)) stopRun(String(refusedList()[n]).replace(/\s+/g, " ").slice(0, 240));
+      return;
+    }
+    if (!got.info.more) return;
+  }
+}
+/** True when the person allowed Cabinet no channel and no direct messages. Keeps the list. */
+async function nothingAllowed() {
+  const got = await ask("channels", "slack_list_channels", {});
+  if (!got) return false;
+  const dms = got.value.direct_messages || {};
+  return got.value.channels.length === 0 && dms.read !== true;
+}
+/** Every Slack call a reading needs, each answer kept as it came. Reads no channel or thread. */
+async function readSlack() {
+  const after = mode().after;
+  // Your own messages first: they say which person you are, for the mentions search.
+  await searchAll("mine", `from:me after:${after}`, 3);
+  let meId = ownId();
+  if (!meId) {
+    // Nothing of yours in the window: one older message of yours says who you are.
+    const got = await ask("mine", "slack_search_messages", { query: "from:me", ...SEARCH, count: 1 });
+    if (got) meId = ownId();
+  }
+  if (!meId) {
+    if (await nothingAllowed()) stopRun("Cabinet may not read any of your Slack yet. Press Connect Slack again and pick the channels.");
+    stopRun("Slack shows no message of yours, so Cabinet can't tell who you are in Slack yet. Write one message in Slack, then try again.");
+  }
+  await searchAll("dms", `is:dm after:${after}`, 3);
+  await searchAll("groups", `is:mpim after:${after}`, 3);
+  await searchAll("mentions", `<@${meId}> -from:me after:${after}`, 3);
+  await searchAll("threads", `is:thread -from:me after:${after}`, 3);
+  await searchAll("everything", `-from:me after:${after}`, 2);
+  let everything = null;
+  try { everything = answerOf("everything"); } catch { /* refused */ }
+  if (!everything || !everything.messages.length) {
+    // The channel search came back empty: search a few channels by name, never read them.
+    if (await nothingAllowed()) stopRun("Cabinet may not read any of your Slack yet. Press Connect Slack again and pick the channels.");
+    let channels = [];
+    try { channels = answerOf("channels").channels; } catch { /* refused */ }
+    for (const c of channels.filter((x) => x && /^[a-z0-9_-]{1,40}$/i.test(x.name || "")).slice(0, 6)) {
+      await searchAll(`in-${c.name.toLowerCase()}`, `in:#${c.name} after:${after}`, 1);
     }
   }
-  writeJson(path.join(workDir, ".taken.json"), taken);
-  return out;
+  // The files people shared: only the list, never a file's bytes.
+  await ask("files", "slack_list_files", { count: 50 });
+  // The names of the people the page shows, yours first: a question that names you needs it.
+  // A second round for anyone who shows up once the names are in.
+  const people = [];
+  const tried = new Set();
+  for (let round = 0; round < 2; round++) {
+    const ids = [...new Set([ownId(), ...unnamed()])].filter((id) => !tried.has(id) && !model().people[id]).slice(0, 20 - tried.size);
+    if (!ids.length) break;
+    for (const id of ids) {
+      tried.add(id);
+      const got = await slackTool("slack_get_user", { user_id: id });
+      let user = null;
+      try { user = got.ok ? JSON.parse(got.text) : null; } catch { /* not a person */ }
+      if (isUser(user)) people.push(user);
+    }
+    if (!people.length) break;
+    saveAnswer("people", JSON.stringify(people));
+  }
+  if (people.length) console.log(`people: ${describe("people", { users: people.length })}`);
+}
+/** Your own id: the one person in your from:me searches. */
+function ownId() {
+  const ids = {};
+  for (const n of savedNames().filter((x) => /^mine(-\d+)?$/.test(x))) for (const m of answerOf(n).messages) if (m.user) ids[m.user] = (ids[m.user] || 0) + 1;
+  return Object.keys(ids).sort((a, b) => ids[b] - ids[a])[0] || "";
 }
 function describe(n, info) {
-  const stem = n.replace(/-\d+$/, "");
-  const page = Number((/-(\d+)$/.exec(n) || [])[1] || 1);
-  if (info.messages !== undefined) return `${info.messages} messages` + (info.more ? `; Slack has more: ask page ${page + 1} of the same search${NEEDED.includes(stem) && page < 3 ? " (needed)" : ""}` : "");
+  if (info.messages !== undefined) return `${info.messages} messages`;
   if (info.users !== undefined) return `${info.users} ${info.users === 1 ? "person" : "people"}`;
   if (info.channels !== undefined) return `${info.channels} channels`;
   if (info.files !== undefined) return `${info.files} files`;
   return `${info.conversations} conversations`;
 }
-/** What is still missing before the page can be written: a search, a next page, a name. */
+/** The people the page shows who have no name yet, at most 20. */
+function unnamed() {
+  const md = model();
+  return [...new Set(needs().map((x) => x.m.fromId).concat(md.convs.filter((c) => c.kind === "dm").map((c) => c.peer),
+    askedCandidates().map((x) => x.whoId), topPeople().map((x) => x.id), fileList().slice(0, 12).map((f) => f.user),
+    md.msgs.filter((m) => md.inLook(m) && !m.mine && !m.bot && /https?:\/\//.test(m.raw)).map((m) => m.fromId)))]
+    .filter((id) => /^[UW]/.test(id) && !md.people[id]).slice(0, 20);
+}
+/** What is still missing before the page can be written: a search, or the files list. */
 function missing() {
   const names = savedNames();
+  const refused = refusedList();
   const out = [];
   for (const n of NEEDED) if (!names.includes(n)) out.push(`the ${n} search`);
   if (!names.some((n) => /^(everything|in-)/.test(n))) out.push("the everything search (or in:#channel searches)");
   // The files list: kept, or Slack refused it (then the page has no Files box, and that is fine).
-  let tried = {};
-  try { tried = readJson(path.join(workDir, ".taken.json")); } catch { /* none */ }
-  if (!names.includes("files") && !Object.values(tried).includes("refused:files")) out.push("the files list (slack_list_files, no channel_id, count 50)");
-  for (const n of names) {
-    const stem = n.replace(/-\d+$/, "");
-    const page = /^(mine|dms|groups|mentions|threads)$/.test(stem) ? Number((/-(\d+)$/.exec(n) || [])[1] || 1) : 0;
-    if (!page || page >= 3) continue;
-    let v;
-    try { v = answerOf(n); } catch { continue; }
-    if (v && v.more === true && !names.includes(stem + "-" + (page + 1))) out.push(`page ${page + 1} of ${stem}`);
-  }
-  if (!out.length) {
-    const md = model();
-    const unnamed = [...new Set(needs().map((x) => x.m.fromId).concat(md.convs.filter((c) => c.kind === "dm").map((c) => c.peer),
-      askedCandidates().map((x) => x.whoId), topPeople().map((x) => x.id), fileList().slice(0, 12).map((f) => f.user),
-      md.msgs.filter((m) => md.inLook(m) && !m.mine && !m.bot && /https?:\/\//.test(m.raw)).map((m) => m.fromId)))]
-      .filter((id) => /^[UW]/.test(id) && !md.people[id]).slice(0, 20);
-    if (unnamed.length) out.push(`names: slack_get_user for ${unnamed.join(" ")}`);
-  }
+  if (!names.includes("files") && !refused.files) out.push("the files list");
   return out;
 }
 function mustBeComplete(what) {
   const m = missing();
-  if (m.length) fail(`refused, ${what} needs ${m.join(", ")} first. Then run take`);
+  if (m.length) fail(`refused, ${what} needs ${m.join(", ")} first. Run start again`);
 }
 
 // ── The model: conversations and messages, from the saved answers only ──
@@ -960,19 +991,6 @@ function convLine(c) {
   const kind = c.kind === "dm" ? "direct" : c.kind;
   return `${c.ref} | ${kind} | ${c.name} | ${countIn(c)} in the window`;
 }
-function searches(s, meId) {
-  const after = afterDay(s);
-  const me = meId ? `<@${meId}>` : "<@YOUR_ID>";
-  return [
-    `mine        from:me after:${after}                (count 100; the user on these is your id)`,
-    `dms         is:dm after:${after}`,
-    `groups      is:mpim after:${after}`,
-    `mentions    ${me} -from:me after:${after}`,
-    `threads     is:thread -from:me after:${after}`,
-    `everything  -from:me after:${after}            (every channel; when it comes back empty, search in:#channel after:${after} for at most six channels from slack_list_channels)`
-  ].join("\n  ");
-}
-
 const [cmd, ...args] = process.argv.slice(2);
 try {
 if (cmd === "window") {
@@ -998,42 +1016,12 @@ if (cmd === "window") {
   // "Your week" counts the last seven days on every run, so the searches always reach that far.
   const week = new Date(Math.min(back.getTime(), Date.now() - 7 * DAY));
   writeJson(modeFile, { morning, chat, since: utc(s), lookback: utc(back), week: utc(week), after: afterDay(week), startedAt: new Date().toISOString() });
+  if (!slackUrl()) stopRun("Slack is not connected. Press Connect Slack.", "Connect Slack so I can read who is waiting on you");
   if (!morning) writeJson(readingFile, { schema: SCHEMA + "/reading@1", startedAt: iso(new Date()), done: false, lines: [] });
-  console.log(`${morning ? "morning" : "first reading"} started; the window is from ${iso(s)}.\n` +
-    `Search with slack_search_messages (sort timestamp, count 100):\n  ${searches(week, "")}\n` +
-    `  files       slack_list_files with no channel_id, count 50 (the files people shared; never fetch a file)\n` +
-    `Run the mine search first, then take: it keeps the answer and tells you your own id for the mentions search. ` +
-    `After each round of searches, run take; never copy an answer by hand.`);
-} else if (cmd === "take") {
-  mode();
-  const got = take();
-  console.log(got.length ? got.join("\n") : "nothing new: ask Slack first, then take");
-  try {
-    const md = model();
-    if (!savedNames().includes("mentions")) console.log(`you are ${md.me.id}${md.me.name ? " (" + md.me.name + ")" : ""}: search mentions with <@${md.me.id}>`);
-    const m = missing();
-    console.log(m.length ? "still to do: " + m.join("; ") : "all searches and names are in. Next: list, needs, mine, loud");
-  } catch (e) { if (!(e instanceof Exit)) throw e; process.exitCode = 0; console.log("still to do: the mine search (from:me)"); }
-} else if (cmd === "save") {
-  mode();
-  const [name, src, ...rest] = args;
-  const at = rest.indexOf("--in");
-  const inChannel = at >= 0 ? String(rest[at + 1] || "") : "";
-  let raw;
-  if (src === "-" || src === undefined) raw = fs.readFileSync(0, "utf8");
-  else if (String(src).startsWith("@")) {
-    const file = path.join(workDir, path.basename(src.slice(1)));
-    try { raw = fs.readFileSync(file, "utf8"); } catch { fail(`${src.slice(1)} is not in catch-up/data/.work/`); }
-    if (path.basename(file) === cleanName(name) + ".json") fail("give the file another name than the save, like dms.raw.json");
-  } else fail("give the answer as @<file> in catch-up/data/.work/, or - and the answer on stdin");
-  if (!String(raw || "").trim()) fail("the answer is empty: copy what the tool answered");
-  const info = saveAnswer(name, raw, inChannel);
-  if (String(src).startsWith("@")) { try { fs.rmSync(path.join(workDir, path.basename(src.slice(1)))); } catch { /* gone */ } }
-  const n = cleanName(name);
-  const msg = info.messages !== undefined ? `${info.messages} messages${info.more ? "; Slack has more: search page 2 and save it as " + n.replace(/-\d+$/, "") + "-2" : ""}` : info.users !== undefined ? `${info.users} people` : info.channels !== undefined ? `${info.channels} channels` : `${info.conversations} conversations`;
-  let you = "";
-  if (/^mine/.test(n)) { try { const md = model(); you = `. You are ${md.me.id}${md.me.name ? " (" + md.me.name + ")" : ""}: search mentions with <@${md.me.id}>`; } catch (e) { if (!(e instanceof Exit)) throw e; } }
-  console.log(`saved ${n}: ${msg}${you}`);
+  console.log(`${morning ? "morning" : "first reading"} started; the window is from ${iso(s)}. Reading Slack:`);
+  await readSlack();
+  const m = missing();
+  console.log(m.length ? "still missing: " + m.join("; ") + ". Run start again in a minute." : "all of Slack is in. Next: list, needs, asked, mine, loud");
 } else if (cmd === "people") {
   const md = model();
   const w = md.msgs.filter(md.inWindow);
@@ -1048,7 +1036,7 @@ if (cmd === "window") {
   console.log(`you: ${md.me.id}${md.people[md.me.id] ? " = " + md.people[md.me.id].name : ""}`);
   const missing = ids.filter((id) => !md.people[id]).slice(0, 12);
   for (const id of ids.slice(0, 20)) console.log(`${id} | ${md.people[id] ? md.people[id].name : "not looked up"} | ${(md.msgs.find((m) => m.fromId === id) || {}).handle || ""}${nd.some((x) => x.m.fromId === id) ? " | may wait for you" : ""}`);
-  console.log(missing.length ? `Look up with slack_get_user: ${missing.join(" ")}. Save the answers together: save people - with a JSON array of them.` : "everyone who matters has a name.");
+  console.log(missing.length ? `no name yet: ${missing.join(" ")}` : "everyone who matters has a name.");
 } else if (cmd === "list") {
   const md = model();
   const only = args[0] ? convFor(args[0]) : null;
@@ -1152,19 +1140,13 @@ if (cmd === "window") {
 } else if (cmd === "fail") {
   const why = String(args.join(" ") || "").replace(/\s+/g, " ").trim().slice(0, 240);
   if (!why) fail("say why in plain words: fail 'Slack is not connected. Press Connect Slack.'");
-  let chat = false;
-  try { chat = readJson(modeFile).chat === true; } catch { /* no run started */ }
-  if (!chat) {
-    fs.mkdirSync(dataDir, { recursive: true });
-    writeJson(path.join(dataDir, "status.json"), { at: iso(new Date()), ok: false, why });
-  }
-  finish();
+  const chat = failRun(why);
   console.log(chat ? "done (a chat writes no status)" : "status.json written: ok false. Done");
 } else if (cmd === "done") {
   calmIfNoGift();
   finish();
   console.log("done");
 } else {
-  fail("use window, start, take, save, people, list, needs, asked, mine, loud, push, gift, profile, latest, fail or done");
+  fail("use window, start, people, list, needs, asked, mine, loud, push, gift, profile, latest, fail or done");
 }
 } catch (e) { if (!(e instanceof Exit)) throw e; }
