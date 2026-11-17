@@ -70,8 +70,6 @@
   .ear-r { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
   .greet { margin: 0; font-family: var(--news); font-style: italic; font-size: 19px; line-height: 1.25; color: var(--ink); }
   .eyebrow { margin: 3px 0 0; max-width: 30ch; }
-  .auto { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; cursor: pointer; }
-  .auto input { margin: 0; accent-color: var(--ink); }
   .nameplate {
     margin: 0; font-family: var(--nameplate); font-weight: 400; text-align: center; white-space: nowrap;
     font-size: clamp(44px, 7.4vw, 96px); line-height: 1; letter-spacing: -.005em; padding: 2px 0 10px;
@@ -126,7 +124,7 @@
   .first .label { grid-row: 1 / span 2; font-style: italic; font-size: 24px; line-height: 1.15; color: var(--red); padding-top: 2px; }
   .first .what { font-family: var(--small); font-size: 13px; font-weight: 600; color: var(--ink-2); }
   .first .verdict { margin: 4px 0 0; font-size: clamp(24px, 2.5vw, 32px); line-height: 1.28; max-width: 36ch; }
-  .first .verdict::first-letter {
+  .first .verdict .cap {
     float: left; font-weight: 700; font-size: 2.72em; line-height: .78; margin: .07em .08em 0 0; color: var(--red);
   }
 
@@ -224,17 +222,16 @@
       <div class="ear ear-l">
         <p class="greet" id="greet">Good morning.</p>
         <p class="eyebrow" id="eyebrow">&nbsp;</p>
-        <label class="auto" id="auto" hidden><input type="checkbox" id="autobox">Auto download</label>
       </div>
       <p class="nameplate">The Morning Brief</p>
       <div class="ear ear-r">
-        <div class="daynav" id="daynav" hidden>
+        <div class="daynav" id="daynav" data-cabinet-pdf="skip" hidden>
           <button type="button" id="older" aria-label="Earlier morning"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
           <span id="daylabel" aria-live="polite">Today</span>
           <button type="button" id="newer" aria-label="Later morning"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
         </div>
-        <button type="button" class="btn" id="again" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/></svg><span>Check again</span></button>
-        <button type="button" class="btn" id="pdf" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg><span>Download PDF</span></button>
+        <button type="button" class="btn" id="again" data-cabinet-pdf="skip" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/></svg><span>Check again</span></button>
+        <button type="button" class="btn" id="pdf" data-cabinet-pdf="skip" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg><span>Download PDF</span></button>
       </div>
     </div>
     <div class="dateline double" id="when"></div>
@@ -451,12 +448,10 @@
     again.disabled = state.running;
     again.classList.toggle("spin", state.running);
     again.querySelector("span").textContent = state.running ? "Checking…" : "Check again";
-    $("auto").hidden = !canAutoDownload();
-    if (canAutoDownload()) $("autobox").checked = jobById(JOB).autoDownload;
     var pdf = $("pdf");
     pdf.hidden = !canPrint();
     pdf.disabled = state.printing;
-    pdf.querySelector("span").textContent = state.printing ? "Printing…" : "Download PDF";
+    pdf.querySelector("span").textContent = state.printing ? "Saving…" : "Download PDF";
     var fr = $("first-run");
     if (fr) { fr.disabled = state.running; fr.textContent = state.running ? "Writing your first morning…" : "Write my first morning now"; }
   }
@@ -480,7 +475,7 @@
     if (meta.lead && meta.verdict) {
       html += '<section class="first" aria-label="First, this"><div class="label">First, this</div>' +
         '<div class="what">' + esc(meta.lead.replace(/\s+[—–-]\s+/, ": ")) + "</div>" +
-        '<p class="verdict">' + esc(meta.verdict) + "</p></section>";
+        '<p class="verdict">' + dropCap(meta.verdict) + "</p></section>";
     }
 
     var sources = data.sections.filter(function (s) { return !/^checked$/i.test(s.title) && s.items.length; });
@@ -696,28 +691,25 @@
 
   // ── The printed mornings ───────────────────────────────────────────────
 
-  // Cabinet prints the newest morning with report/brief.typ and saves it. On a computer a few
-  // are free; after that Cabinet itself offers the cloud. A Cabinet without jobs.pdf hides the button.
+  // Cabinet saves this page as a PDF, exactly as it looks, in the person's own browser. The
+  // buttons marked data-cabinet-pdf="skip" stay out of it. A Cabinet without page.pdf hides the button.
   function realCount() { return state.files.filter(function (n) { return !isExample(n); }).length; }
   function canPrint() {
-    return !!(V2 && typeof cab.jobs.pdf === "function" && state.role !== "viewer" && jobById(JOB) &&
-      state.files.some(function (n) { return !isExample(n); }));
+    return !!(V2 && cab.page && typeof cab.page.pdf === "function" && state.files.length);
   }
-  // On Cloud each new PDF downloads by itself when Cabinet is open; this switch turns that off.
-  function canAutoDownload() {
-    return !!(V2 && typeof cab.jobs.autoDownload === "function" && state.place === "cloud" && state.role !== "viewer" && typeof (jobById(JOB) || {}).autoDownload === "boolean");
+  // The first letter as a real element: a picture of the page does not carry ::first-letter.
+  function dropCap(text) {
+    var m = /^(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|[\s\S])/.exec(text || "");
+    return m ? '<span class="cap">' + esc(m[0]) + "</span>" + esc(text.slice(m[0].length)) : "";
   }
-  function setAutoDownload() {
-    var box = $("autobox"), on = box.checked;
-    box.disabled = true;
-    cab.jobs.autoDownload(JOB, on).then(function () { jobById(JOB).autoDownload = on; }).catch(function (e) { box.checked = !on; toast((e && e.message) || "That could not be saved. Try again in a moment."); })
-      .then(function () { box.disabled = false; });
+  function pdfName() {
+    var d = new Date(), two = function (n) { return (n < 10 ? "0" : "") + n; };
+    return "Morning Brief " + two(d.getMonth() + 1) + "-" + two(d.getDate()) + "-" + d.getFullYear();
   }
   function printPdf() {
     if (state.printing) return;
     state.printing = true; drawNav();
-    cab.jobs.pdf(JOB).then(function (res) {
-    }).catch(function (e) { toast((e && e.message) || "The PDF could not be made. Try again in a moment."); })
+    cab.page.pdf({ name: pdfName() }).catch(function (e) { toast((e && e.message) || "The PDF could not be made. Try again in a moment."); })
       .then(function () { state.printing = false; drawNav(); });
   }
 
@@ -815,7 +807,6 @@
   $("newer").addEventListener("click", function () { if (state.at > 0) { state.pinned = true; show(state.at - 1); } });
   $("again").addEventListener("click", runAgain);
   $("pdf").addEventListener("click", printPdf);
-  $("autobox").addEventListener("change", setAutoDownload);
   document.addEventListener("keydown", function (e) {
     if (e.target && /input|select|textarea/i.test(e.target.tagName)) return;
     if (e.key === "ArrowLeft" && !$("older").disabled && !$("daynav").hidden) $("older").click();
