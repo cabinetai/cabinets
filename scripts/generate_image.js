@@ -69,7 +69,7 @@ const CABINET_ICONS = {
   'physics-experiments':      { object: 'a single horseshoe magnet with delicate curving magnetic field lines arcing around it',                                   bgHex: '#B5DBD5', bgName: 'soft pale turquoise' },
   'podcast-factory':          { object: 'a single pair of headphones with a softly curved band, almost forming an infinity loop',                                  bgHex: '#D8B7C5', bgName: 'soft mauve' },
   'reading-room':             { object: 'a single paper boat sailing on one gentle curving wave',                                                                  bgHex: '#B5C5E2', bgName: 'soft cornflower blue' },
-  'real-estate':              { object: 'a single rolled architectural blueprint tied with a delicate ribbon',                                                     bgHex: '#F5C9A8', bgName: 'soft apricot' },
+  'real-estate':              { object: 'a small cheerful house sitting on an unfolded paper map, with one tall teardrop map pin standing beside it', bgHex: '#F5C9A8', bgName: 'soft apricot' },
   'saas-startup':             { object: 'a single domino mid-tip falling forward, with a soft motion ghost behind it',                                             bgHex: '#B4DBD8', bgName: 'soft pale aqua' },
   'text-your-mom':            { object: 'a single tin-can telephone with two cans connected by a gently curving string',                                           bgHex: '#EFC5CC', bgName: 'soft rose quartz' },
   'usa-travel-planner':       { object: 'a single small vintage suitcase with one helium balloon tied to its handle by a thin string',                             bgHex: '#F2BFB1', bgName: 'soft salmon pink' },
