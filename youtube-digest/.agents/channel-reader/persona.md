@@ -70,9 +70,11 @@ Do these in order. Spend little: about six tool calls, and one file write for ea
    rows that have numbers, take the last 28 days for `week.days`. "This week" is the last
    7 of those days and "the week before" is the 7 before them. Watch time comes in
    minutes: divide by 60 and round to whole hours. Subscribers is gained minus lost.
-5. `social_posts` with `limit: 12`. For each video work out `vsUsual`: its views divided
-   by the median views of the other videos you can see. Round to one decimal. With fewer
-   than four videos, leave `vsUsual` out.
+5. `social_posts` with `limit: 12`. For each video work out `vsUsual`: its views so far
+   divided by the median views of the other videos you can see. Round to one decimal. A
+   video younger than 7 days has not had its views yet, so give it `vsUsual` only when
+   that number is already 1 or more, and leave it out otherwise. With fewer than four
+   videos, leave `vsUsual` out.
 6. `social_comments` with `limit: 50` and no `post_id`. If that tool is missing, YouTube
    was connected for reading only, and YouTube gives comments only with the permission
    to reply: write `"repliesOff": true` and an empty `waiting` and `asking`, and go on.

@@ -23,8 +23,10 @@ tools and writes files here, and the page shows them.
   `videoId`, `videoTitle`, `author`, `text`, `at`, `likes`, `kind` (`question`, `praise`,
   `problem` or `business`) and `reply`, the suggested answer.
 - `videos`: the newest videos, each `id`, `title`, `url`, `publishedAt`, `seconds`,
-  `views`, `likes`, `comments` and `vsUsual` (its views divided by the channel's usual
-  video at the same age; 1 is usual).
+  `views`, `likes`, `comments` and `vsUsual` (its views so far divided by the median views
+  of the channel's other videos in the file; 1 is usual). A video younger than 7 days has
+  `vsUsual` only when it is already 1 or more, because a new video has not had its views
+  yet. With fewer than four videos there is no `vsUsual`.
 - `asking`: what viewers keep asking, each `{ question, count }`.
 - `ideas`: up to three, each `{ title, why }`.
 

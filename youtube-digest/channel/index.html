@@ -187,7 +187,7 @@
     <div class="meta" id="meta"></div>
   </div>
   <button class="btn quiet" id="again" hidden>
-    <svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
     <span id="againLabel"></span>
   </button>
 </header>
@@ -211,6 +211,7 @@
       readAt: "Read {when}", subs: "{n} subscribers",
       exampleNote: "<b>This is an example channel.</b> Connect YouTube to see your own videos and comments.",
       exampleNoConnect: "<b>This is an example channel.</b> Connect YouTube from Integrations in Cabinet to see your own.",
+      exampleStill: "The numbers below are still the example channel.",
       connect: "Connect YouTube",
       readingNote: "<b>Reading your channel.</b> Your videos, numbers and comments show up here in about a minute.",
       failed: "The last read did not work.", tryAgain: "Try again",
@@ -220,6 +221,7 @@
       ago4: "4 weeks ago", through: "Last 7 days, through {day}",
       waiting: "Waiting for your answer",
       waitingNone: "Nobody is waiting. Every comment has an answer.",
+      waitingUnread: "Comments could not be read this time. They come back with the next read.",
       repliesOff: "YouTube shows comments only when replies are allowed. Connect again and allow replies to see who is waiting.",
       connectAgain: "Connect again",
       on: "on", yourReply: "Reply ready for you",
@@ -227,6 +229,7 @@
       showMore: "Show {n} more",
       question: "Question", problem: "Problem", business: "Business", praise: "Kind words",
       videos: "Your latest videos", videosNone: "No videos yet. Your next upload shows up here.",
+      videosUnread: "Your videos could not be read this time. They come back with the next read.",
       usualUp: "{x}× your usual", usualDown: "{x}× your usual", usualSame: "About your usual", usualMark: "Your usual video",
       asking: "Viewers keep asking", askingNone: "No question came up twice yet.",
       times: "{n} times",
@@ -243,6 +246,7 @@
       again: "לקרוא שוב", reading: "קורא",
       readAt: "נקרא {when}", subs: "{n} מנויים",
       exampleNote: "<b>זה ערוץ לדוגמה.</b> חברו את YouTube כדי לראות את הסרטונים והתגובות שלכם.",
+      exampleStill: "המספרים למטה הם עדיין של ערוץ הדוגמה.",
       exampleNoConnect: "<b>זה ערוץ לדוגמה.</b> חברו את YouTube מעמוד החיבורים ב-Cabinet כדי לראות את שלכם.",
       connect: "לחבר את YouTube",
       readingNote: "<b>קורא את הערוץ שלך.</b> הסרטונים, המספרים והתגובות יופיעו כאן בעוד כדקה.",
@@ -253,6 +257,7 @@
       ago4: "לפני 4 שבועות", through: "7 הימים האחרונים, עד {day}",
       waiting: "מחכים לתשובה שלך",
       waitingNone: "אף אחד לא מחכה. לכל תגובה יש תשובה.",
+      waitingUnread: "לא הצלחנו לקרוא את התגובות הפעם. הן יחזרו בקריאה הבאה.",
       repliesOff: "YouTube מציג תגובות רק כשמותר להשיב. חברו שוב ואשרו תשובות כדי לראות מי מחכה.",
       connectAgain: "לחבר שוב",
       on: "על", yourReply: "תשובה מוכנה בשבילך",
@@ -260,6 +265,7 @@
       showMore: "להציג עוד {n}",
       question: "שאלה", problem: "בעיה", business: "עסקי", praise: "מילים טובות",
       videos: "הסרטונים האחרונים שלך", videosNone: "אין עדיין סרטונים. הסרטון הבא יופיע כאן.",
+      videosUnread: "לא הצלחנו לקרוא את הסרטונים שלך הפעם. הם יחזרו בקריאה הבאה.",
       usualUp: "פי {x} מהרגיל שלך", usualDown: "פי {x} מהרגיל שלך", usualSame: "בערך כרגיל", usualMark: "הסרטון הרגיל שלך",
       asking: "הצופים שואלים שוב ושוב", askingNone: "עדיין אין שאלה שחזרה פעמיים.",
       times: "{n} פעמים",
@@ -353,16 +359,20 @@
     again.disabled = st.running;
     again.firstElementChild.classList.toggle("spin", st.running);
     $("againLabel").textContent = st.running ? t("reading") : t("again");
+    // A phone hides the label, so the button keeps its name for screen readers.
+    again.setAttribute("aria-label", st.running ? t("reading") : t("again"));
   }
 
   function paintNotice() {
     var html = "";
     var failed = st.status && st.status.ok === false;
+    // While the first read runs, or after it failed, the example is still on the page.
+    var stillExample = st.example ? '<div class="note example"><p>' + esc(t("exampleStill")) + "</p></div>" : "";
     if (st.running) {
-      html = '<div class="note reading" role="status"><p>' + t("readingNote") + "</p></div>";
+      html = '<div class="note reading" role="status"><p>' + t("readingNote") + "</p></div>" + stillExample;
     } else if (failed && connected()) {
       html = '<div class="note problem" role="alert"><p><b>' + esc(t("failed")) + "</b> " + esc(st.status.why || "") + "</p>" +
-        (canAct() ? '<button class="btn fill" data-act="read">' + esc(t("tryAgain")) + "</button>" : "") + "</div>";
+        (canAct() ? '<button class="btn fill" data-act="read">' + esc(t("tryAgain")) + "</button>" : "") + "</div>" + stillExample;
     } else if (st.conn && st.conn.problem && !connected()) {
       html = '<div class="note problem" role="alert"><p>' + esc(st.conn.problem.text) + "</p>" +
         (st.conn.canConnect ? '<button class="btn fill" data-act="connect">' + esc(t("connect")) + "</button>" : "") + "</div>";
@@ -402,6 +412,8 @@
       return head + '<div class="note quiet" style="margin-top:0"><p>' + esc(t("repliesOff")) + "</p>" +
         (st.conn && st.conn.canConnect ? '<button class="btn fill" data-act="connect">' + esc(t("connectAgain")) + "</button>" : "") + "</div>";
     }
+    // No `waiting` at all means the comments could not be read, not that nobody waits.
+    if (!Array.isArray(d.waiting)) return head + '<div class="note quiet" style="margin-top:0"><p>' + esc(t("waitingUnread")) + "</p></div>";
     if (!items.length) return head + '<div class="empty"><span class="tile k-praise">' + ic("check") + "</span>" + esc(t("waitingNone")) + "</div>";
     var shown = st.expanded ? items : items.slice(0, FIRST_SHOWN);
     var rows = shown.map(function (m, i) {
@@ -426,6 +438,7 @@
   function videosHtml(d) {
     var items = list(d.videos).slice(0, 6);
     var head = "<h2>" + esc(t("videos")) + "</h2>";
+    if (!Array.isArray(d.videos)) return head + '<div class="note quiet" style="margin-top:0"><p>' + esc(t("videosUnread")) + "</p></div>";
     if (!items.length) return head + '<div class="empty"><span class="tile k-question">' + ic("film") + "</span>" + esc(t("videosNone")) + "</div>";
     var hues = ["k-problem", "k-question", "k-business", "k-praise"];
     return head + items.map(function (v, i) {
@@ -450,7 +463,7 @@
     var asking = list(d.asking).slice(0, 5), ideas = list(d.ideas).slice(0, 3);
     var a = "<div><h2>" + esc(t("asking")) + "</h2>" + (asking.length ? asking.map(function (q, i) {
       return '<button class="row" data-act="pin" data-i="' + i + '"><span class="t"><b dir="auto">' + esc(q.question) + '</b></span><span class="times">' + esc(t("times", { n: n(q.count) })) + '</span><span class="go">' + ic("go") + "</span></button>";
-    }).join("") : '<p style="color:var(--soft)">' + esc(t("askingNone")) + "</p>") + "</div>";
+    }).join("") : '<p style="color:var(--soft)">' + esc(t(Array.isArray(d.asking) ? "askingNone" : "waitingUnread")) + "</p>") + "</div>";
     var b = "<div><h2>" + esc(t("ideas")) + "</h2>" + (ideas.length ? ideas.map(function (x, i) {
       return '<button class="row" data-act="idea" data-i="' + i + '"><span class="tile k-business" aria-hidden="true">' + ic("bulb") + '</span><span class="t"><b dir="auto">' + esc(x.title) + '</b><span dir="auto">' + esc(x.why) + '</span></span><span class="go">' + ic("go") + "</span></button>";
     }).join("") : '<p style="color:var(--soft)">' + esc(t("ideasNone")) + "</p>") + "</div>";
@@ -532,11 +545,17 @@
     return c.files.read(st.appPath + "/" + path).then(function (text) { return JSON.parse(text); });
   }
   function load() {
-    return readJson("data/latest.json").then(function (d) { st.data = d; st.example = false; }, function () {
-      return readJson("data/EXAMPLE-latest.json").then(function (d) { st.data = d; st.example = true; }, function () { st.data = { waiting: [], videos: [] }; st.example = true; });
+    // Read into `next` and switch over in one step, so a click never acts on data that
+    // is not on the page yet.
+    var next = { data: null, example: true, status: null };
+    return readJson("data/latest.json").then(function (d) { next.data = d; next.example = false; }, function () {
+      return readJson("data/EXAMPLE-latest.json").then(function (d) { next.data = d; }, function () { next.data = { waiting: [], videos: [] }; });
     }).then(function () {
-      return readJson("data/status.json").then(function (s) { st.status = s; }, function () { st.status = null; });
-    }).then(function () { st.loaded = true; paint(); maybeRead(); });
+      return readJson("data/status.json").then(function (s) { next.status = s; }, function () { next.status = null; });
+    }).then(function () {
+      st.data = next.data; st.example = next.example; st.status = next.status; st.loaded = true;
+      paint(); maybeRead();
+    });
   }
   function maybeRead() {
     if (st.tried || !canAct() || !connected() || st.running) return;
