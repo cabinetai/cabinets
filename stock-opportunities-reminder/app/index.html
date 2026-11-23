@@ -3,13 +3,13 @@
   Stock Opportunities Reminder: the page this cabinet opens on.
 
   Two screens: Opportunities (what the Stock Scout found on its last run, and how its
-  earlier reminders did) and My stocks (the person's list, with a chart of each).
+  earlier opportunities did) and My stocks (the person's list, with a chart of each).
 
   Where things come from:
     1. opportunities/YYYY-MM-DD.json at the cabinet's root, written by the Stock Scout,
        one file per day it ran.
     2. app/data/*.json, written by app/engine/refresh.mjs: prices, daily candles, signals,
-       headlines, each rule's record, and what became of every reminder (outcomes.json).
+       headlines, each rule's record, and what became of every opportunity (outcomes.json).
        DATA.md is the map of those files.
     3. The app's small server (app/engine/server.mjs), once the person allowed it:
        a chart for any symbol at any size, a search, a refresh now.
@@ -43,7 +43,6 @@
     --font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
     --serif: Fraunces, Georgia, "Times New Roman", serif;
-    --ring: 0 0 0 3px rgba(59, 47, 47, .22);
     --ease-out: cubic-bezier(.23, 1, .32, 1);
     color-scheme: light;
   }
@@ -57,14 +56,13 @@
     --grid: rgba(255, 240, 215, .06); --ma20: #E0A63C; --ma50: #6AA5E8; --ma200: #B58CE8;
     --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px -14px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 240, 215, .04);
     --shadow-up: 0 2px 6px rgba(0, 0, 0, .4), 0 24px 60px -20px rgba(0, 0, 0, .9);
-    --ring: 0 0 0 3px rgba(234, 223, 203, .28);
     color-scheme: dark;
   }
 
   * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
   html, body { height: 100%; }
   body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 var(--font); letter-spacing: -.006em; -webkit-font-smoothing: antialiased; overflow: hidden; }
-  button, input { font: inherit; color: inherit; letter-spacing: inherit; }
+  button, input, select { font: inherit; color: inherit; letter-spacing: inherit; }
   button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; cursor: pointer; border: 0; background: none; padding: 0; }
   [hidden] { display: none !important; }
   ::selection { background: var(--brand-soft); color: var(--ink); }
@@ -72,7 +70,9 @@
   h1, h2, h3, h4, p, ul, dl, dd { margin: 0; }
   a { color: inherit; }
   svg.i { width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  :focus-visible { outline: none; box-shadow: var(--ring); }
+  /* Focus is an outline, so no later box-shadow can hide it. Inside a box that clips, it is drawn inward. */
+  :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .tick:focus-visible, .wrow:focus-visible, .seg button:focus-visible, .tog:focus-visible, .found button:focus-visible, .find input:focus-visible { outline-offset: -2px; }
   .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
   .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
   .grow { flex: 1; min-width: 0; }
@@ -131,9 +131,12 @@
   .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--press); gap: 2px; }
   .seg button { height: 26px; padding: 0 10px; border-radius: 7px; font-size: 12.5px; font-weight: 500; color: var(--muted); white-space: nowrap; transition: transform 140ms var(--ease-out); }
   .seg button[aria-pressed="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .1); }
-  .term { border-bottom: 1px dotted var(--faint); cursor: help; }
+  /* A word that explains itself: a button that reads as text, or as a chip. */
+  .term { position: relative; border-bottom: 1px dotted var(--faint); cursor: help; text-align: inherit; }
+  .term.chip { border-bottom: 0; }
   .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .foot { margin: 18px auto 0; max-width: 78ch; text-align: center; color: var(--muted); font-size: 12px; }
+  .foot a { position: relative; }
 
   /* ── Opportunities ─────────────────────────────────────────────────────── */
   .opps { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(290px, 1fr); gap: 14px; align-items: start; }
@@ -145,6 +148,8 @@
   .market h2 { font-size: 17px; }
   .read { font: 400 16px/1.55 var(--serif); max-width: 74ch; }
   .market .acts { margin-top: 12px; }
+  .whenrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13.5px; }
+  .whenrow select, .whenrow input { height: 34px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--sheet-2); }
   .daytitle { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 2px 4px 0; }
 
   .opp .sym { font: 600 17px/1.2 var(--mono); letter-spacing: -.02em; }
@@ -152,8 +157,9 @@
   .opp .body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: center; margin: 12px 0 14px; }
   .opp canvas { display: block; width: 100%; height: 190px; border-radius: 12px; background: var(--sheet-2); }
   .opp h4 { font: 600 13px/1.2 var(--font); margin: 12px 0 4px; }
-  .opp ul { padding-left: 18px; } .opp li { margin-bottom: 3px; }
-  .opp ul, .opp .say { color: var(--ink-2); font-size: 13.5px; max-width: 76ch; }
+  .opp ul, .because { padding-left: 18px; } .opp li, .because li { margin-bottom: 3px; }
+  .opp ul, .opp .say, .because { color: var(--ink-2); font-size: 13.5px; max-width: 76ch; }
+  .opp .note { margin-top: 10px; }
   .opp .acts { margin-top: 14px; }
   /* The numbers of one opportunity, as label and value. The swatch matches the chart. */
   .nums { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7px 14px; align-items: baseline; }
@@ -174,13 +180,11 @@
   .score b { display: block; font: 500 22px/1.2 var(--mono); letter-spacing: -.03em; } .score span { font-size: 12.5px; color: var(--muted); }
 
   /* ── My stocks ─────────────────────────────────────────────────────────── */
-  .view[data-tab="stocks"] { overflow: hidden; }
+  .view[data-screen="stocks"] { overflow: hidden; }
   .stocks { display: grid; grid-template-columns: 272px minmax(0, 1fr) 300px; gap: 14px; height: 100%; }
   .stocks > * { min-height: 0; }
   .watch { display: flex; flex-direction: column; padding: 12px 10px; }
   .find { position: relative; margin: 0 2px 8px; }
-  .whenrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13.5px; }
-  .whenrow select, .whenrow input { height: 34px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--sheet-2); color: var(--ink); font: inherit; }
   .find input { width: 100%; height: 36px; padding: 0 10px 0 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--sheet-2); caret-color: var(--brand); }
   .find > svg { position: absolute; left: 9px; top: 50%; margin-top: -8.5px; color: var(--muted); }
   .found { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); padding: 5px; border-radius: 12px; background: var(--sheet); box-shadow: var(--shadow-up); transform-origin: top center; animation: pop 150ms var(--ease-out); }
@@ -235,7 +239,7 @@
     .opps { grid-template-columns: minmax(0, 1fr); }
     .top { flex-wrap: wrap; row-gap: 8px; } .top h1 { flex: 1 1 auto; }
     .tabs { order: 3; flex: 1 1 calc(100% - 140px); } .tab { flex: 1; } #refresh { order: 4; }
-    .view[data-tab="stocks"] { overflow: auto; }
+    .view[data-screen="stocks"] { overflow: auto; }
     .stocks { display: flex; flex-direction: column; height: auto; }
     .watch { padding: 10px; } .find { margin-bottom: 10px; }
     .wlist { flex: none; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
@@ -249,11 +253,14 @@
     body { overflow: auto; } #app { height: auto; min-height: 100%; padding-bottom: 76px; }
     .top { padding: 12px 12px 10px; gap: 8px 10px; } .top h1 { font-size: 17px; }
     .clock { order: 2; padding: 8px 12px; } #refresh { order: 1; }
-    .view, .view[data-tab="stocks"] { padding: 0 12px 12px; overflow: visible; } .strip { padding: 0 12px 10px; }
+    .view, .view[data-screen="stocks"] { padding: 0 12px 12px; overflow: visible; } .strip { padding: 0 12px 10px; }
     .card { padding: 14px; }
     .tabs { position: fixed; z-index: 15; left: 8px; right: 8px; bottom: 8px; padding: 5px; border-radius: 16px; background: var(--sheet); box-shadow: var(--shadow-up); }
     .tab { flex-direction: column; gap: 2px; height: 52px; font-size: 12px; } .tab[aria-selected="true"] { background: var(--press); box-shadow: none; }
-    .btn, .btn.small, .find input, .whenrow select, .whenrow input { min-height: 44px; } .seg button, .tog { height: 38px; } .found button { padding: 12px 9px; }
+    .btn, .btn.small, .find input, .whenrow select, .whenrow input, .tick, .row, .seg button, .tog, .found button { min-height: 44px; }
+    /* A word in a sentence stays the size of the sentence. Its pressable area is what grows. */
+    .term::after, .foot a::after { content: ""; position: absolute; inset: -15px -6px; }
+    .heads li { padding: 0; } .heads a { display: flex; align-items: center; min-height: 44px; }
     .ctools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 14px 10px; } .ctools > * { flex: none; } .chead { padding: 14px 14px 8px; }
     .wrow { padding: 10px 11px; } .plot { height: 340px; }
     .toast { bottom: 84px; }
@@ -272,7 +279,7 @@
     <nav class="tabs" id="tabs" role="tablist" aria-label="Screens"></nav>
     <button class="btn quiet" id="refresh" title="Refresh prices (R)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6.3M20 4v7h-7"/></svg><span>Refresh</span></button>
   </header>
-  <div class="strip" id="strip" aria-label="The market right now"></div>
+  <div class="strip" id="strip" role="group" aria-label="The market right now"></div>
   <main class="view" id="view" role="tabpanel" tabindex="-1"></main>
 </div>
 <div class="tip" id="tip" role="tooltip"></div>
@@ -332,7 +339,7 @@
     "Days to cover": "Short interest divided by a normal day's volume: how many days short sellers would need to buy back.",
     "Buy zone": "The price range where buying makes sense for this idea. Above it you are chasing the price. Below it the idea is getting weaker.",
     "Stop": "The price where the idea was wrong. Someone who bought would get out here, so it decides how much can be lost.",
-    "Reward to risk": "How far the target is above the middle of the buy zone, against how far the stop is below it. 2 to 1 means the possible gain is twice the possible loss.",
+    "Reward to risk": "How far the target is above the top of the buy zone, against how far the stop is below it. 2 to 1 means the possible gain is twice the possible loss.",
     "Conviction": "How sure the Stock Scout is, in three steps: Worth a look, Good, Strong.",
     "Rule record": "Each day in the saved candles when this rule would have fired on your list, and where the price was 10 trading days later. Any day is the same measure over every day of the same charts, so a rule only counts when it beats it.",
     "Pre-market": "Trading outside the main session, which runs 9:30 to 16:00 in New York. Prices move on thin volume, so they can mislead.",
@@ -340,8 +347,9 @@
     "50-day": "The average close of the last 50 days. A medium-term trend line.",
     "200-day": "The average close of the last 200 days. Above it, most call the trend up.",
   };
-  const tip = (word) => ` data-tip="${esc(GLOSS[word])}"`;
-  const term = (word, shown) => `<span class="term"${tip(word)}>${esc(shown || word)}</span>`;
+  // Something that explains itself: a real button, so a key or a tap opens it as well as the pointer. `said` is the explanation, `cls` makes it a chip.
+  const explain = (said, html, cls) => `<button type="button" class="term${cls ? " " + cls : ""}" data-tip="${esc(said)}">${html}</button>`;
+  const term = (word, shown) => explain(GLOSS[word], esc(shown || word));
 
   // What each rule in app/engine/lib/signals.mjs is called, and what it means in plain words.
   const RULES = {
@@ -367,7 +375,7 @@
   };
   const DEFAULT_WATCH = [["SPY", "S&P 500 fund"], ["QQQ", "Nasdaq 100 fund"], ["NVDA", "NVIDIA"], ["AMD", "AMD"], ["TSLA", "Tesla"], ["AAPL", "Apple"], ["MSFT", "Microsoft"], ["AMZN", "Amazon"], ["GOOGL", "Alphabet"], ["META", "Meta"], ["MU", "Micron"], ["PLTR", "Palantir"], ["BTC-USD", "Bitcoin"], ["ETH-USD", "Ethereum"]].map(([sym, name]) => ({ sym, name }));
   const STRIP_NAMES = { "ES=F": "S&P futures", "NQ=F": "Nasdaq futures", "^VIX": "Fear gauge", "^TNX": "10-year yield", "DX-Y.NYB": "US dollar", "GC=F": "Gold", "CL=F": "Oil", "BTC-USD": "Bitcoin" };
-  const STRIP_TIPS = { "^VIX": "The VIX: how much movement option prices expect in the S&P 500. Under 15 is calm, over 25 is nervous.", "^TNX": "What the US government pays to borrow for 10 years. When it jumps, growth stocks often fall.", "DX-Y.NYB": "The dollar against other major currencies. A strong dollar tends to weigh on gold, crypto and foreign earnings.", "ES=F": "Futures on the S&P 500 trade almost all night, so they show where stocks may open." };
+  const STRIP_TIPS = { "^VIX": "The VIX: how much movement option prices expect in the S&P 500. Under 18 is calm, 18 to 25 is uneasy, over 25 is frightened.", "^TNX": "What the US government pays to borrow for 10 years. When it jumps, growth stocks often fall.", "DX-Y.NYB": "The dollar against other major currencies. A strong dollar tends to weigh on gold, crypto and foreign earnings.", "ES=F": "Futures on the S&P 500 trade almost all night, so they show where stocks may open." };
   const SCOUT = "stock-scout", FIND_JOB = "find-opportunities";
 
   // ── Talking to Cabinet ──────────────────────────────────────────────────
@@ -492,23 +500,26 @@
   // ── Opportunities: the Scout's files, read with care ────────────────────
   // A model writes these files, so nothing in them is trusted to be there or to be the right type.
   const OPP_FILE = /^(EXAMPLE-)?(\d{4}-\d{2}-\d{2})\.json$/, OPP_DAYS = 30;
-  const STANCE = { "with-you": ["The market is with you", "check"], "mixed": ["The market is mixed", "info"], "against-you": ["The market is against you", "warn"] };
+  // Each stance: said of now, its icon, and said of a day gone by.
+  const STANCE = { "with-you": ["The market is with you", "check", "with you"], "mixed": ["The market is mixed", "info", "mixed"], "against-you": ["The market is against you", "warn", "against you"] };
   const CONVICTION = ["Worth a look", "Good", "Strong"];
   const text = (v) => (typeof v === "string" ? v.trim() : "");
+  const arr = (v) => (Array.isArray(v) ? v : []);
   const price = (v) => (typeof v === "number" && isFinite(v) && v > 0 ? v : null);
-  // One opportunity, or null when it lacks what a buy idea needs: a symbol, a zone of two prices, a stop under the zone and a target above it.
+  // One opportunity, or null when it breaks the rule the engine also keeps (app/engine/lib/calls.mjs): a symbol,
+  // a zone of two prices with the lower first, a stop under the zone and a target above it. Nothing is repaired.
   function tidyItem(x, day, path, example) {
-    const sym = text(x && x.sym).toUpperCase(), buy = x && Array.isArray(x.buy) && x.buy.length === 2 ? x.buy.map(price).sort((a, b) => a - b) : [], stop = price(x && x.stop), target = price(x && x.target);
-    if (!sym || !buy[0] || !stop || !target || stop >= buy[0] || target <= buy[1]) return null;
+    const sym = text(x && x.sym).toUpperCase(), buy = x && Array.isArray(x.buy) && x.buy.length === 2 ? x.buy.map(price) : [], stop = price(x && x.stop), target = price(x && x.target);
+    if (!sym || !buy[0] || !buy[1] || buy[0] > buy[1] || !stop || !target || stop >= buy[0] || target <= buy[1]) return null;
     return { id: day + ":" + sym, day, path, example, sym, name: text(x.name) || nameOf(sym), setup: text(x.setup), headline: text(x.headline), buy, stop, target, horizon: text(x.horizon),
       why: (Array.isArray(x.why) ? x.why : [x.why]).map(text).filter(Boolean), conviction: clamp(Math.round(+x.conviction) || 1, 1, 3), risks: text(x.risks), evidence: text(x.evidence) };
   }
   function tidyOpps(j, file) {
     if (!j || typeof j !== "object") return null;
-    const m = OPP_FILE.exec(file.name), day = m[2], example = !!m[1], list = (v) => (Array.isArray(v) ? v : []);
+    const m = OPP_FILE.exec(file.name), day = m[2], example = !!m[1];
     return { day, example, at: isNaN(Date.parse(j.at)) ? null : j.at, stance: STANCE[j.market && j.market.stance] ? j.market.stance : null, read: text(j.market && j.market.read),
-      items: list(j.items).map((x) => tidyItem(x, day, file.path, example)).filter(Boolean),
-      passed: list(j.passed).map((x) => ({ sym: text(x && x.sym).toUpperCase(), why: text(x && x.why) })).filter((x) => x.sym),
+      items: arr(j.items).map((x) => tidyItem(x, day, file.path, example)).filter(Boolean),
+      passed: arr(j.passed).map((x) => ({ sym: text(x && x.sym).toUpperCase(), why: text(x && x.why) })).filter((x) => x.sym),
       nothing: text(j.nothing) };
   }
   // The person's own files of the last month, newest first. Before the first one exists, the newest example.
@@ -521,24 +532,28 @@
       return Promise.all(pick.map((f) => readJson(f.path).then((j) => tidyOpps(j, f))));
     }).then((r) => { D.opps = r.filter(Boolean); }, () => {});
   }
-  // What became of a reminder, from the engine's outcomes file. An example has no outcome.
-  const callOf = (o) => (!o.example && D.outcomes && D.outcomes.calls.find((c) => c && c.id === o.id)) || null;
+  // What became of an opportunity, from the engine's outcomes file. An example has no outcome.
+  const outcomeOf = (o) => (!o.example && D.outcomes && D.outcomes.calls.find((c) => c && c.id === o.id)) || null;
+  // What the engine's check found wrong with an opportunity, as plain sentences.
+  const problemsOf = (o) => { const p = !o.example && D.outcomes && arr(D.outcomes.problems).find((x) => x && x.id === o.id); return p ? arr(p.why).map(text).filter(Boolean) : []; };
   const OUTCOME = {
     "waiting": ["Waiting for the price", "", "clock"], "in-zone": ["In the buy zone now", "now", "bell"], "open": ["Entered", "now", "check"],
     "target": ["Reached its target", "good", "check"], "stopped": ["Fell through its stop", "bad", "x"], "timed-out": ["Ran out of time", "", "clock"], "expired": ["Never reached the zone", "", "x"],
   };
   const stillOn = (c) => c.state === "waiting" || c.state === "in-zone" || c.state === "open";
-  function outcomeChip(o) {
-    const c = callOf(o), s = c && OUTCOME[c.state];
+  // `plain` is for a chip that sits inside a button: it says the outcome and explains nothing.
+  function outcomeChip(o, plain) {
+    const c = outcomeOf(o), s = c && OUTCOME[c.state];
     if (!s) return "";
-    const r = typeof c.r === "number" && isFinite(c.r) ? c.r : null;
+    const r = typeof c.r === "number" && isFinite(c.r) ? c.r : null, cls = "chip " + s[1];
     const how = (c.entry != null ? `Entered at ${fp(+c.entry)}${c.enteredOn ? " " + onDay(c.enteredOn) : ""}. ` : "") + (c.closedOn ? `Closed ${onDay(c.closedOn)}. ` : "") + (r != null ? GLOSS.R : "");
-    return `<span class="chip ${s[1]}"${how ? ` data-tip="${esc(how)}"` : ""}>${icon(s[2])}${s[0]}${r != null ? `, ${rr(r)}${c.state === "open" ? " so far" : ""}` : ""}</span>`;
+    const html = `${icon(s[2])}${s[0]}${r != null ? `, ${rr(r)}${c.state === "open" ? " so far" : ""}` : ""}`;
+    return plain || !how ? `<span class="${cls}">${html}</span>` : explain(how, html, cls);
   }
-  // The opportunity to draw on a stock's chart: the one from the newest run, or an earlier one that is still being followed.
+  // The opportunity to draw on a stock's chart: the one from the newest run, or an earlier one that is still being followed. Never the example's.
   function oppOn(sym) {
     for (let i = 0; i < D.opps.length; i++) {
-      const o = D.opps[i].items.find((x) => x.sym === sym), c = o && callOf(o);
+      const o = !D.opps[i].example && D.opps[i].items.find((x) => x.sym === sym), c = o && outcomeOf(o);
       if (o && (i === 0 || (c && stillOn(c)))) return o;
     }
     return null;
@@ -549,12 +564,13 @@
     const off = (edge, side) => (far(px, edge) === "0.0%" ? "at the edge of the buy zone" : far(px, edge) + " " + side + " the zone");
     return px > o.target ? "above the target" : px > o.buy[1] ? off(o.buy[1], "above") : px >= o.buy[0] ? "inside the buy zone" : px > o.stop ? off(o.buy[0], "below") : "under the stop";
   }
-  const rewardToRisk = (o) => { const mid = (o.buy[0] + o.buy[1]) / 2; return (o.target - mid) / (mid - o.stop); };
+  // Measured from the top of the buy zone, the worst price a buyer in the zone pays: the engine and the method count the same way.
+  const rewardToRisk = (o) => (o.target - o.buy[1]) / (o.buy[1] - o.stop);
   function oppNums(o) {
     const px = lastPrice(o.sym), row = (label, value, small) => `<dt>${label}</dt><dd><b>${value}</b>${small ? `<small>${small}</small>` : ""}</dd>`;
-    return `<dl class="nums">${row(`<i></i><span class="term"${tip("Buy zone")}>Buy between</span>`, `${lv(o.buy[0])} and ${lv(o.buy[1])}`)}
-      ${row(`<i class="stop"></i><span class="term"${tip("Stop")}>Wrong below</span>`, lv(o.stop), far(o.stop, o.buy[0]) + " under the zone")}
-      ${row('<i class="aim"></i>Aim for', lv(o.target), far(o.target, o.buy[1]) + " above the zone")}
+    return `<dl class="nums">${row(`<i></i>${term("Buy zone", "Buy between")}`, `${lv(o.buy[0])} and ${lv(o.buy[1])}`)}
+      ${row(`<i class="stop"></i>${term("Stop", "Wrong below")}`, lv(o.stop), far(o.stop, o.buy[1]) + " under the top of the zone")}
+      ${row('<i class="aim"></i>Aim for', lv(o.target), far(o.target, o.buy[1]) + " above the top of the zone")}
       ${row(term("Reward to risk"), rewardToRisk(o).toFixed(1) + " to 1")}
       ${px != null ? row("Price now", fp(px), whereNow(o, px)) : ""}${o.horizon ? row("Give it", esc(o.horizon)) : ""}</dl>`;
   }
@@ -570,23 +586,26 @@
   const WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const HOW_OFTEN = [["weekdays", "every weekday"], ["daily", "every day"]].concat(WEEK.map((d, i) => [String(i), "every " + d]));
   // When the Scout looks, and the two controls that change it. Without the engine, or with
-  // a schedule the controls cannot show, it says the time in Cabinet's own words.
+  // a schedule the controls cannot show, it says the time in Cabinet's own words, and where a
+  // schedule set in Cabinet is changed.
   function whenHtml() {
     if (sched && sched.days && canWrite()) {
       const mine = Intl.DateTimeFormat().resolvedOptions().timeZone;
       return `<div class="whenrow"><label for="sdays">The Stock Scout looks</label><select id="sdays">${HOW_OFTEN.map((x) => `<option value="${x[0]}"${x[0] === sched.days ? " selected" : ""}>${x[1]}</option>`).join("")}</select><label for="stime">at</label><input type="time" id="stime" value="${esc(sched.time)}" required />${sched.zone && sched.zone !== mine ? `<span class="sub">${esc(sched.zone.replace(/_/g, " "))} time</span>` : ""}</div>`;
     }
     const j = D.jobs.find((x) => x.id === FIND_JOB);
-    return `<p class="sub">${j && j.when ? "The Stock Scout looks: " + esc(j.when.toLowerCase()) + "." : ""}${needsAllow ? " Press Allow in the bar above this page to choose the days and the time here." : ""}</p>`;
+    return `<p class="sub">${j && j.when ? "The Stock Scout looks: " + esc(j.when.toLowerCase()) + "." : ""}${needsAllow ? " Press Allow in the bar above this page to choose the days and the time here." : ""}${sched && !sched.days && canWrite() ? " To change it, open this routine's own settings in Cabinet." : ""}</p>`;
   }
+  // Saves the picker's choice when it is a whole time and not the one already saved. It never
+  // takes the focus away: the person may still be typing.
   function saveWhen() {
-    const days = $("sdays").value, time = $("stime").value;
-    if (!time) return;
-    engine("/schedule", { days, time }).then((x) => { sched = x; document.activeElement.blur(); toast(`Saved. The Stock Scout now looks ${HOW_OFTEN.find((o) => o[0] === days)[1]} at ${time}.`); return loadJobs(); }, (e) => toast(e.message));
+    const days = $("sdays") && $("sdays").value, time = $("stime") && $("stime").value;
+    if (!days || !/^\d\d:\d\d$/.test(time) || (days === sched.days && time === sched.time)) return;
+    engine("/schedule", { days, time }).then((x) => { sched = x; toast(`Saved. The Stock Scout now looks ${HOW_OFTEN.find((o) => o[0] === days)[1]} at ${time}.`); return loadJobs(); }, (e) => toast(e.message));
   }
   function runScout() {
     if (!cab.jobs.run) return toast("Open this in Cabinet to run it.");
-    cab.jobs.run(FIND_JOB).then(() => { toast("The Stock Scout is looking at your list. New reminders appear here in a few minutes."); loadJobs().then(() => paint(true)); }, (e) => toast((e && e.message) || "That did not start. Try again."));
+    cab.jobs.run(FIND_JOB).then(() => { toast("The Stock Scout is looking at your list. Its reminder appears here in a few minutes."); loadJobs().then(() => paint(true)); }, (e) => toast((e && e.message) || "That did not start. Try again."));
   }
   function refreshNow(quiet) {
     if (state.busy) return;
@@ -652,7 +671,7 @@
   function liveNote() {
     if (live || !D.market) return "";
     const saved = esc(ago(D.market.at));
-    if (needsAllow) return `<div class="note info wide">${icon("info")}<div class="grow"><b>Turn on live prices.</b> Press Allow in the bar above this page. Prices then update every five minutes, for free, and every reminder is checked against them. Until then you see the prices saved ${saved}.</div></div>`;
+    if (needsAllow) return `<div class="note info wide">${icon("info")}<div class="grow"><b>Turn on live prices.</b> Press Allow in the bar above this page. Prices then update every five minutes, for free, and every opportunity is followed with them. Until then you see the prices saved ${saved}.</div></div>`;
     return Date.now() - Date.parse(D.market.at) > 36e5 ? `<div class="note wide">${icon("warn")}<div class="grow">These prices were saved ${saved}.</div></div>` : "";
   }
   function footer() {
@@ -662,10 +681,11 @@
 
   // ── Opportunities ───────────────────────────────────────────────────────
   function oppCard(o) {
-    const q = quote(o.sym), z = `${lv(o.buy[0])} to ${lv(o.buy[1])}`;
-    return `<article class="sheet card opp"><header><span class="sym">${esc(o.sym)}</span><span class="sub grow">${esc(o.name)}</span>${o.example ? '<span class="chip ex">Example</span>' : ""}${outcomeChip(o)}<span class="chip"${tip("Conviction")}>${CONVICTION[o.conviction - 1]}</span></header>
+    const q = quote(o.sym), z = `${lv(o.buy[0])} to ${lv(o.buy[1])}`, wrong = problemsOf(o);
+    return `<article class="sheet card opp"><header><span class="sym">${esc(o.sym)}</span><span class="sub grow">${esc(o.name)}</span>${o.example ? '<span class="chip ex">Example</span>' : ""}${outcomeChip(o)}${explain(GLOSS.Conviction, CONVICTION[o.conviction - 1], "chip")}</header>
       ${o.headline ? `<h3 class="headline">${esc(o.headline)}</h3>` : ""}${o.setup ? `<div class="sub">${esc(o.setup)}</div>` : ""}
-      ${q && q.earnings ? `<div class="note" style="margin-top:10px">${icon("warn")}<div class="grow">${earningsWords(q.earnings)}</div></div>` : ""}
+      ${wrong.length ? `<div class="note">${icon("warn")}<div class="grow"><b>The engine's check found a problem with this one.</b> ${wrong.map(esc).join(" ")}</div></div>` : ""}
+      ${q && q.earnings ? `<div class="note">${icon("warn")}<div class="grow">${earningsWords(q.earnings)}</div></div>` : ""}
       <div class="body"><canvas data-mini="${esc(o.id)}" role="img" aria-label="Daily chart of ${esc(o.sym)} over three months, with the buy zone ${z}, the stop at ${lv(o.stop)} and the target at ${lv(o.target)}"></canvas>${oppNums(o)}</div>
       ${o.why.length ? `<h4>Why it is worth a look</h4><ul>${o.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
       ${o.risks ? `<h4>What could go wrong</h4><p class="say">${esc(o.risks)}</p>` : ""}${o.evidence ? `<h4>What this rests on</h4><p class="say">${esc(o.evidence)}</p>` : ""}
@@ -673,21 +693,33 @@
   }
   function boxScore() {
     const s = D.outcomes && D.outcomes.score, n = s ? +s.closed || 0 : 0, since = s && s.since ? " since " + esc(niceDay(s.since)) : "";
-    return `<section class="sheet card"><header><h2>How the reminders did</h2></header>${n ? `<div class="score"><div><b>${n}</b><span>finished${since}</span></div><div><b>${+(s.target != null ? s.target : s.won) || 0}</b><span>reached their target</span></div><div><b class="${cls(s.avgR)}">${typeof s.avgR === "number" ? rr(s.avgR) : "-"}</b><span>average result, in ${term("R")}</span></div></div>
-      ${n < 20 ? `<div class="note">${icon("warn")}<div class="grow">${plural(n, "reminder has", "reminders have")} finished so far. That is too few to trust. Wait for 20 or more before you read much into these numbers.</div></div>` : ""}` : '<p class="sub">No reminder has finished yet. Each one is followed until it reaches its target, falls through its stop or runs out of time, and the count appears here.</p>'}</section>`;
+    return `<section class="sheet card"><header><h2>How the opportunities did</h2></header>${n ? `<div class="score"><div><b>${n}</b><span>finished${since}</span></div>${typeof s.target === "number" ? `<div><b>${s.target}</b><span>reached their target</span></div>` : ""}<div><b class="${cls(s.avgR)}">${typeof s.avgR === "number" ? rr(s.avgR) : "-"}</b><span>average result, in ${term("R")}</span></div></div>
+      ${n < 20 ? `<div class="note">${icon("warn")}<div class="grow">${plural(n, "opportunity has", "opportunities have")} finished so far. That is too few to trust. Wait for 20 or more before you read much into these numbers.</div></div>` : ""}` : '<p class="sub">No opportunity has finished yet. Each one is followed until it reaches its target, falls through its stop or runs out of time, and the count appears here.</p>'}</section>`;
+  }
+  const written = (f) => onDay(f.at || f.day) + (f.at ? " at " + hm(f.at) : "");
+  // The market card. A reminder written today speaks for now: pass it as `f`. On any other day, and
+  // beside the example, the engine's own count speaks, and the Scout's read stays with its day (dayRead).
+  function marketCard(f) {
+    const g = !f && D.market && D.market.regime, stance = f ? f.stance : g && STANCE[g.stance] ? g.stance : null, s = STANCE[stance];
+    return `<section class="sheet card market wide" data-s="${stance || "mixed"}"><div class="stance">${s ? `<span class="lamp">${icon(s[1])}</span>` : ""}<h2>${s ? s[0] : "The market is not counted yet"}</h2></div>
+      <p class="sub">${f ? "The Stock Scout's read, written " + written(f) + "." : s ? "Counted by this page's engine from the prices saved " + esc(ago(D.market.at)) + "." : "The count arrives with the next refresh of prices."}</p>
+      ${f ? (f.read ? `<p class="read">${esc(f.read)}</p>` : "") : s ? `<ul class="because">${arr(g.because).map(text).filter(Boolean).map((b) => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}<div class="acts">${runBtn()}</div>${whenHtml()}</section>`;
+  }
+  // What the Scout said of the market in a reminder that is not today's, kept under that day's title.
+  function dayRead(f) {
+    const s = STANCE[f.stance];
+    return s || f.read ? `<section class="sheet card"><header><h2>${s ? "That day the market was " + s[2] : "The market that day"}</h2><span class="sub">The Stock Scout's read, written ${written(f)}</span></header>${f.read ? `<p class="read">${esc(f.read)}</p>` : ""}</section>` : "";
   }
   function viewOpps() {
     const f = D.opps[0];
-    if (!f) return `<div class="opps">${liveNote()}<section class="sheet card wide"><div class="empty"><b>No reminders yet.</b>The Stock Scout looks at your list on the days you choose and writes down where buying looks interesting.</div><div class="acts" style="justify-content:center">${runBtn()}</div>${whenHtml()}</section>${footer()}</div>`;
-    const s = STANCE[f.stance], earlier = D.opps.slice(1).flatMap((x) => x.items), dayName = niceDay(f.day);
+    if (!f) return `<div class="opps">${liveNote()}${marketCard(null)}<section class="sheet card wide"><div class="empty"><b>No reminders yet.</b>The Stock Scout looks at your list on the days you choose and writes down where buying looks interesting.</div></section>${footer()}</div>`;
+    const dayName = niceDay(f.day), now = !f.example && dayName === "Today" && f.stance ? f : null, earlier = D.opps.slice(1).flatMap((x) => x.items);
     return `<div class="opps">${liveNote()}
-      <section class="sheet card market wide" data-s="${f.stance || "mixed"}">${s ? `<div class="stance"><span class="lamp">${icon(s[1])}</span><h2>${s[0]}</h2></div>` : ""}
-        ${f.read ? `<p class="read">${esc(f.read)}</p>` : ""}<div class="acts">${runBtn()}<span class="sub">Written ${onDay(f.at || f.day)}${f.at ? " at " + hm(f.at) : ""}.</span></div>${whenHtml()}</section>
-      <div class="col">${f.example ? `<div class="note info">${icon("info")}<div class="grow"><b>This is an example.</b> It shows what a reminder looks like. Your own replace it after the Stock Scout's first run.</div></div>` : ""}
-        <h2 class="daytitle">${dayName === "Today" ? "Today's opportunities" : "Opportunities from " + dayName}<span class="sub">${f.items.length ? plural(f.items.length, "place", "places") + " to look at" : ""}</span></h2>
-        ${f.items.map(oppCard).join("") || `<section class="sheet card"><div class="empty"><b>Nothing worth buying ${dayName === "Today" ? "today" : "that day"}.</b>${esc(f.nothing || "The Stock Scout looked at every stock on your list and none of them is at a good place to buy.")}<br>A day with no opportunity is a normal answer. Waiting is part of the plan.</div></section>`}</div>
+      ${f.example ? `<div class="note info wide">${icon("info")}<div class="grow"><b>This is an example.</b> It shows what a reminder looks like. Your own replace it after the Stock Scout's first run.</div></div>` : ""}${marketCard(now)}
+      <div class="col"><h2 class="daytitle">${dayName === "Today" ? "Today's opportunities" : "Opportunities from " + dayName}<span class="sub">${f.items.length ? plural(f.items.length, "place", "places") + " to look at" : ""}</span></h2>
+        ${now ? "" : dayRead(f)}${f.items.map(oppCard).join("") || `<section class="sheet card"><div class="empty"><b>Nothing worth buying ${dayName === "Today" ? "today" : "that day"}.</b>${esc(f.nothing || "The Stock Scout looked at every stock on your list and none of them is at a good place to buy.")}<br>A day with no opportunity is a normal answer. Waiting is part of the plan.</div></section>`}</div>
       <div class="col">${f.passed.length ? `<section class="sheet card"><header><h2>Looked at and passed</h2></header>${f.passed.map((x) => `<div class="passed"><b>${esc(x.sym)}</b><p>${esc(x.why)}</p></div>`).join("")}</section>` : ""}
-        ${earlier.length ? `<section class="sheet card"><header><h2>Earlier reminders</h2><span class="sub">The last ${OPP_DAYS} days</span></header>${earlier.map((o) => `<button class="row" data-open="${esc(o.sym)}"><span class="when">${esc(niceDay(o.day))}</span><span class="grow"><span class="s">${esc(o.sym)}</span><small>${esc(o.headline || o.setup || oppWords(o))}</small></span>${outcomeChip(o)}</button>`).join("")}</section>` : ""}
+        ${earlier.length ? `<section class="sheet card"><header><h2>Earlier opportunities</h2><span class="sub">The last ${OPP_DAYS} days</span></header>${earlier.map((o) => `<button class="row" data-open="${esc(o.sym)}"><span class="when">${esc(niceDay(o.day))}</span><span class="grow"><span class="s">${esc(o.sym)}</span><small>${esc(o.headline || o.setup || oppWords(o))}</small></span>${outcomeChip(o, true)}</button>`).join("")}</section>` : ""}
         ${boxScore()}</div>${footer()}</div>`;
   }
 
@@ -711,10 +743,10 @@
     const span = recSpan(), h = x.h && x.h[REC_H];
     if (!x.fired) return `<div class="rec">Never fired on your list in ${span}.</div>`;
     if (!h || h.n < REC_FEW) return `<div class="rec">Fired ${plural(x.fired, "time", "times")} on your list in ${span}. Too few to judge.</div>`;
-    if (h.read === "size") return `<div class="rec"><span class="chip"${tip("Rule record")}>Record</span>Fired ${x.fired} times in ${span}. ${REC_H} days later the price had moved <b class="num">${h.size}%</b> either way on average. Any day: <b class="num">${h.anySize}%</b>.</div>`;
+    if (h.read === "size") return `<div class="rec">${explain(GLOSS["Rule record"], "Record", "chip")}Fired ${x.fired} times in ${span}. ${REC_H} days later the price had moved <b class="num">${h.size}%</b> either way on average. Any day: <b class="num">${h.anySize}%</b>.</div>`;
     if (h.read !== "way" || h.won == null || h.anyWon == null) return "";
     const v = recVerdict(h);
-    return `<div class="rec"><span class="chip ${v[0]}"${tip("Rule record")}>${v[1]}</span>Fired ${x.fired} times in ${span}. ${REC_H} days later it had gone its way <b class="num">${Math.round(h.won)}%</b> of the time, by <b class="num">${pc(h.avg, 1)}</b> on average. Any day: <b class="num">${Math.round(h.anyWon)}%</b>, <b class="num">${pc(h.anyAvg, 1)}</b>.</div>`;
+    return `<div class="rec">${explain(GLOSS["Rule record"], v[1], "chip " + v[0])}Fired ${x.fired} times in ${span}. ${REC_H} days later it had gone its way <b class="num">${Math.round(h.won)}%</b> of the time, by <b class="num">${pc(h.avg, 1)}</b> on average. Any day: <b class="num">${Math.round(h.anyWon)}%</b>, <b class="num">${pc(h.anyAvg, 1)}</b>.</div>`;
   }
   // How the same rule did on this one stock.
   function recordOn(id, sym) {
@@ -728,30 +760,34 @@
   const ema = (v, n) => { const o = new Array(v.length).fill(null); if (v.length < n) return o; const k = 2 / (n + 1); let p = 0; for (let i = 0; i < n; i++) p += v[i]; p /= n; o[n - 1] = p; for (let i = n; i < v.length; i++) { p = v[i] * k + p * (1 - k); o[i] = p; } return o; };
   // The newest RSI of a list of closes.
   function rsiNow(c, n) { let g = 0, l = 0; for (let i = 1; i <= n; i++) { const d = c[i] - c[i - 1]; if (d >= 0) g += d; else l -= d; } g /= n; l /= n; for (let i = n + 1; i < c.length; i++) { const d = c[i] - c[i - 1]; g = (g * (n - 1) + Math.max(d, 0)) / n; l = (l * (n - 1) + Math.max(-d, 0)) / n; } return l === 0 ? 100 : 100 - 100 / (1 + g / l); }
-  // The facts of a chart, from its daily candles: computed here so they exist for any symbol, on the list or not.
+  // The newest usual daily move of a list of candles, smoothed as `atr` in app/engine/lib/indicators.mjs smooths it.
+  function atrNow(list, n) { const tr = (i) => Math.max(list[i].h - list[i].l, Math.abs(list[i].h - list[i - 1].c), Math.abs(list[i].l - list[i - 1].c)); let a = 0; for (let i = 1; i <= n; i++) a += tr(i); a /= n; for (let i = n + 1; i < list.length; i++) a = (a * (n - 1) + tr(i)) / n; return a; }
+  // The facts of a chart, from its daily candles, in the shape of `facts` in market.json. Only for a
+  // symbol the engine saved no facts for, such as one looked up and not on the list.
   function factsOf(list) {
     const n = list.length; if (n < 30) return null;
     const c = list.map((x) => x.c), i = n - 1, year = list.slice(-252);
-    let tr = 0; for (let j = n - 14; j < n; j++) tr += Math.max(list[j].h - list[j].l, Math.abs(list[j].h - list[j - 1].c), Math.abs(list[j].l - list[j - 1].c));
     let av = 0; for (let j = n - 21; j < n - 1; j++) av += list[j].v;
     const s50 = sma(c, 50)[i], s200 = sma(c, 200)[i];
-    return { close: c[i], sma50: s50, sma200: s200, rsi: rsiNow(c, 14), atr: tr / 14, rvol: av ? list[i].v / (av / 20) : null, hi: Math.max(...year.map((x) => x.h)), lo: Math.min(...year.map((x) => x.l)),
+    return { close: c[i], sma50: s50, sma200: s200, rsi: rsiNow(c, 14), atr: atrNow(list, 14), rvol: av ? list[i].v / (av / 20) : null, high52: Math.max(...year.map((x) => x.h)), low52: Math.min(...year.map((x) => x.l)),
       trend: s50 && s200 ? (c[i] > s50 && s50 > s200 ? "up" : c[i] < s50 && s50 < s200 ? "down" : "mixed") : null };
   }
+  // The engine's saved facts whenever it has them, so the page and the Scout quote one number.
+  const factsFor = (sym) => { const q = quote(sym); return (q && q.facts) || (shown && shown.sym === sym ? shown.facts : null); };
   const FRAMES = [["5m", "5 min"], ["15m", "15 min"], ["1h", "1 hour"], ["1d", "Day"], ["1w", "Week"]];
   // What can be laid over the candles: key, label, colour, glossary word.
   const OVER = [["ma20", "20", "--ma20", "20-day"], ["ma50", "50", "--ma50", "50-day"], ["ma200", "200", "--ma200", "200-day"], ["vol", "Volume", "--faint", ""]];
   const overOn = (k) => (prefs.over && k in prefs.over ? !!prefs.over[k] : k !== "ma20");
-  // `shown` is what the chart on screen was drawn from: the symbol, its facts, its last candle.
+  // `shown` is what the chart on screen was drawn from: the symbol, its last candle, and its facts when the engine saved none.
   let chart = null, main = null, chartToken = 0, shown = null;
   function viewStocks() {
-    return `<div class="stocks"><aside class="sheet watch"><div class="find" data-write>${icon("search")}<input id="find" placeholder="Add a stock" autocomplete="off" spellcheck="false" aria-label="Add a stock to your list" /><div class="found" id="found" hidden></div></div><div class="wlist" id="wlist" aria-label="Your stocks"></div></aside>
+    return `<div class="stocks"><aside class="sheet watch"><div class="find" data-write>${icon("search")}<input id="find" placeholder="Add a stock" autocomplete="off" spellcheck="false" aria-label="Add a stock to your list" /><div class="found" id="found" hidden></div></div><div class="wlist" id="wlist" role="group" aria-label="Your stocks"></div></aside>
       <section class="sheet stage"><div class="chead" id="chead"></div><div class="ctools" id="ctools"></div><div class="plot"><div class="legend" id="legend"></div><div id="lw" role="img"></div><div class="msg" id="plotmsg" hidden></div></div></section>
       <aside class="sheet side" id="side"></aside></div>`;
   }
   function paintWatch() {
     const list = watch().slice(); if (!onList(state.sym)) list.unshift({ sym: state.sym, name: nameOf(state.sym) });
-    $("wlist").innerHTML = list.map((w) => { const q = quote(w.sym); return `<button class="wrow" data-sym="${esc(w.sym)}" aria-current="${w.sym === state.sym}"><span><span class="s">${esc(w.sym)}${oppOn(w.sym) ? '<span class="chip now">Opportunity</span>' : ""}</span><small>${esc(w.name || (q && q.name) || "")}</small></span>${q ? sparkSvg(q.spark, (q.change || 0) >= 0) : "<span></span>"}<span class="r">${q ? fp(lastPrice(w.sym)) : ""}<br><span class="${cls(q && q.change)}">${q ? pc(q.change) : ""}</span></span></button>`; }).join("");
+    $("wlist").innerHTML = list.map((w) => { const q = quote(w.sym); return `<button class="wrow" data-open="${esc(w.sym)}" aria-current="${w.sym === state.sym}"><span><span class="s">${esc(w.sym)}${oppOn(w.sym) ? '<span class="chip now">Opportunity</span>' : ""}</span><small>${esc(w.name || (q && q.name) || "")}</small></span>${q ? sparkSvg(q.spark, (q.change || 0) >= 0) : "<span></span>"}<span class="r">${q ? fp(lastPrice(w.sym)) : ""}<br><span class="${cls(q && q.change)}">${q ? pc(q.change) : ""}</span></span></button>`; }).join("");
     // Where the list is a row that scrolls sideways, the chosen stock is brought into it.
     const el = $("wlist"), cur = el.querySelector('[aria-current="true"]'), x = cur.offsetLeft - el.offsetLeft;
     if (x < el.scrollLeft || x + cur.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = x - 8;
@@ -759,21 +795,21 @@
   function paintChartHead() {
     const sym = state.sym, q = quote(sym), mine = shown && shown.sym === sym ? shown : null, m = mine && mine.meta;
     const px = q ? q.price : m ? m.price : mine && mine.day ? mine.day[1] : null, prev = q ? q.prev : mine && mine.day ? mine.day[0] : null, ch = q ? q.change : px && prev ? ((px - prev) / prev) * 100 : null;
-    $("chead").innerHTML = `<div class="name"><b>${esc(sym)}</b><small>${esc((m && m.name) || nameOf(sym))}</small></div><div><span class="px">${fp(px)}</span> <span class="ch ${cls(ch)}">${pc(ch)}</span>${outsideHours(q) ? `<div class="ext"${tip("Pre-market")}>Outside hours ${fp(q.ext.price)} <span class="${cls(q.ext.change)}">${pc(q.ext.change)}</span></div>` : ""}</div>
+    $("chead").innerHTML = `<div class="name"><b>${esc(sym)}</b><small>${esc((m && m.name) || nameOf(sym))}</small></div><div><span class="px">${fp(px)}</span> <span class="ch ${cls(ch)}">${pc(ch)}</span>${outsideHours(q) ? `<div class="ext">${term("Pre-market", "Outside hours")} ${fp(q.ext.price)} <span class="${cls(q.ext.change)}">${pc(q.ext.change)}</span></div>` : ""}</div>
       <span class="grow"></span><button class="btn small" data-write id="listbtn">${icon(onList(sym) ? "x" : "plus")}${onList(sym) ? "Remove from my list" : "Add to my list"}</button><button class="btn small" id="askchart">${icon("chat")}Ask the Scout</button>`;
     $("ctools").innerHTML = `<div class="seg" role="group" aria-label="Candle size">${FRAMES.map((f) => `<button data-frame="${f[0]}" aria-pressed="${state.frame === f[0]}">${f[1]}</button>`).join("")}</div>
-      ${OVER.map((o) => `<button class="tog" data-over="${o[0]}" aria-pressed="${overOn(o[0])}"${o[3] ? tip(o[3]) : ""}><i style="background:var(${o[2]})"></i>${o[1]}</button>`).join("")}`;
+      ${OVER.map((o) => `<button class="tog" data-over="${o[0]}" aria-pressed="${overOn(o[0])}"${o[3] ? ` data-tip="${esc(GLOSS[o[3]])}"` : ""}><i style="background:var(${o[2]})"></i>${o[1]}</button>`).join("")}`;
   }
   function paintSide() {
-    const sym = state.sym, q = quote(sym) || {}, f = shown && shown.sym === sym ? shown.facts : null, o = oppOn(sym);
+    const sym = state.sym, q = quote(sym) || {}, f = factsFor(sym), o = oppOn(sym);
     const sig = signalsOn(sym).slice(0, 5), heads = (D.news && D.news.bySym && D.news.bySym[sym]) || [];
     const trendText = f && f.trend ? { up: "Uptrend. The price is above its 50-day average, and that is above the 200-day.", down: "Downtrend. The price is below its 50-day average, and that is below the 200-day.", mixed: "No clear trend. The averages disagree." }[f.trend] : "";
-    const pos = f ? clamp(((f.close - f.lo) / (f.hi - f.lo || 1)) * 100, 0, 100) : 0;
+    const pos = f ? clamp(((f.close - f.low52) / (f.high52 - f.low52 || 1)) * 100, 0, 100) : 0;
     $("side").innerHTML = (o ? `<div><h3>The Scout's opportunity</h3><p>${esc(o.headline || o.setup)}</p>${oppNums(o)}<div class="acts">${outcomeChip(o)}<button class="btn small" data-tab="opps">${icon("bell")}Read the reminder</button></div></div>` : "") +
       (f ? `<div><h3>The picture</h3><p>${trendText}</p><div class="facts">
-        <div class="fact"><span>${term("RSI")}</span><b>${f.rsi.toFixed(0)}</b></div><div class="fact"><span>${term("Relative volume")}</span><b>${f.rvol == null ? "-" : f.rvol.toFixed(1) + "x"}</b></div>
-        <div class="fact"><span>${term("ATR", "Usual daily move")}</span><b>${fp(f.atr)} <small class="muted">${((f.atr / f.close) * 100).toFixed(1)}%</small></b></div><div class="fact"><span>${term("50-day")}</span><b>${fp(f.sma50)}</b></div>
-        <div class="fact range"><span>Where it is in its 52-week range</span><div class="bar"><i style="left:${pos.toFixed(1)}%"></i></div><div class="ends"><span>${fp(f.lo)}</span><span>${fp(f.hi)}</span></div></div></div></div>` : "") +
+        <div class="fact"><span>${term("RSI")}</span><b>${f.rsi == null ? "-" : f.rsi.toFixed(0)}</b></div><div class="fact"><span>${term("Relative volume")}</span><b>${f.rvol == null ? "-" : f.rvol.toFixed(1) + "x"}</b></div>
+        <div class="fact"><span>${term("ATR", "Usual daily move")}</span><b>${fp(f.atr)}${f.atr ? ` <small class="muted">${((f.atr / f.close) * 100).toFixed(1)}%</small>` : ""}</b></div><div class="fact"><span>${term("50-day")}</span><b>${fp(f.sma50)}</b></div>
+        <div class="fact range"><span>Where it is in its 52-week range</span><div class="bar"><i style="left:${pos.toFixed(1)}%"></i></div><div class="ends"><span>${fp(f.low52)}</span><span>${fp(f.high52)}</span></div></div></div></div>` : "") +
       (q.earnings || q.short ? `<div><h3>Good to know</h3>${q.earnings ? `<div class="note">${icon("warn")}<div class="grow">${earningsWords(q.earnings)}</div></div>` : ""}${q.short ? `<div class="facts"><div class="fact"><span>${term("Short interest", "Shares sold short")}</span><b>${big(q.short.shares)}</b></div><div class="fact"><span>${term("Days to cover")}</span><b>${(+q.short.daysToCover).toFixed(1)}</b></div></div>${q.short.source === "FINRA" ? '<small class="sub">Short interest: FINRA</small>' : ""}` : ""}</div>` : "") +
       // Each signal says what happened and what it means, then how that rule has done before.
       (sig.length ? `<div><h3>What the rules found</h3><ul class="heads">${sig.map((x) => { const r = RULES[x.rule] || [x.rule, ""]; return `<li><b>${esc(r[0])}</b> <small>${esc(niceDay(x.day))}</small><div class="say">${esc(x.text)}${r[1] ? " " + esc(r[1]) : ""}</div>${recordLine(x.rule)}${recordOn(x.rule, sym)}</li>`; }).join("")}</ul></div>` : "") +
@@ -798,7 +834,7 @@
       if (token !== chartToken || state.tab !== "stocks") return;
       plotMsg(""); drawChart(sym, frame, res.candles);
       const dl = (day || res).candles, c = res.candles[res.candles.length - 1];
-      shown = { sym, meta: res.meta, facts: factsOf(dl), day: frame !== "1w" && dl.length > 1 ? [dl[dl.length - 2].c, dl[dl.length - 1].c] : null, last: c ? { open: c.o, high: c.h, low: c.l, close: c.c } : null };
+      shown = { sym, meta: res.meta, facts: quote(sym) && quote(sym).facts ? null : factsOf(dl), day: frame !== "1w" && dl.length > 1 ? [dl[dl.length - 2].c, dl[dl.length - 1].c] : null, last: c ? { open: c.o, high: c.h, low: c.l, close: c.c } : null };
       legend(shown.last); paintChartHead(); paintSide();
     }, (e) => {
       if (token !== chartToken || state.tab !== "stocks") return;
@@ -830,7 +866,6 @@
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - span), to: n + 4 });
     $("lw").setAttribute("aria-label", `${FRAMES.find((f) => f[0] === frame)[1]} candles of ${sym}${o ? `, with the buy zone ${lv(o.buy[0])} to ${lv(o.buy[1])}, the stop at ${lv(o.stop)} and the target at ${lv(o.target)}` : ""}`);
   }
-  function pickSym(sym) { state.sym = sym; pref("sym", sym); loadChart(); }
   function openSym(sym) { state.sym = String(sym).toUpperCase(); pref("sym", state.sym); if (state.tab === "stocks") loadChart(); else setTab("stocks"); }
   function setWatch(list, said) { save("watch", list); toast(said); paint(true); }
   const addToList = (sym, name) => setWatch(watch().concat([{ sym, name: name || nameOf(sym) }]), sym + " is on your list. The Stock Scout looks at it from its next run.");
@@ -853,19 +888,19 @@
     findClose(); $("find").value = ""; $("find").blur();
     if (name) guestName[sym] = name;
     if (!onList(sym)) addToList(sym, name);
-    pickSym(sym);
+    openSym(sym);
   }
 
   // ── Painting ────────────────────────────────────────────────────────────
   const VIEWS = { opps: viewOpps, stocks: viewStocks };
-  // `soft` is a repaint nobody asked for (new prices arrived): it keeps the scroll position, and on My stocks it leaves the chart and the search box alone.
-  // `soft` is a repaint nobody asked for (new prices arrived): it waits while the person is choosing a day or a time.
+  // `soft` is a repaint nobody asked for (new prices arrived): it keeps the scroll position, on My stocks it leaves
+  // the chart and the search box alone, and it waits while the person is choosing a day or a time.
   function paint(soft) {
     paintTop();
     if (soft && document.activeElement && document.activeElement.closest(".whenrow")) return;
     if (state.tab === "stocks" && $("lw")) { paintWatch(); paintChartHead(); paintSide(); return; }
     const view = $("view"), top = view.scrollTop;
-    view.dataset.tab = state.tab; view.setAttribute("aria-label", TABS.find((t) => t[0] === state.tab)[1]);
+    view.dataset.screen = state.tab; view.setAttribute("aria-label", TABS.find((t) => t[0] === state.tab)[1]);
     view.innerHTML = VIEWS[state.tab]();
     view.scrollTop = soft ? top : 0;
     if (state.tab === "stocks") loadChart(); else paintMinis();
@@ -882,51 +917,72 @@
 
   // ── Presses, typing, keys ───────────────────────────────────────────────
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-tab],[data-open],[data-ask],[data-sym],[data-frame],[data-over],[data-pick],#refresh,#run,#listbtn,#askchart");
+    const t = e.target.closest(".term,[data-tab],[data-open],[data-ask],[data-frame],[data-over],[data-pick],#refresh,#run,#listbtn,#askchart");
     if (!t) { if (!e.target.closest(".find")) findClose(); return; }
+    if (t.matches(".term")) return tipShow(t, true);
     const d = t.dataset;
     if (t.id === "refresh") return refreshNow(false);
     if (t.id === "run") return runScout();
     if (t.id === "listbtn") return onList(state.sym) ? removeFromList(state.sym) : addToList(state.sym);
-    if (t.id === "askchart") { const f = shown && shown.facts, px = lastPrice(state.sym), o = oppOn(state.sym); return ask(`Look at the chart of ${state.sym} (${nameOf(state.sym)}). Price ${px != null ? fp(px) : f ? fp(f.close) : "unknown"}${f ? `, RSI ${f.rsi.toFixed(0)}, 50-day average ${fp(f.sma50)}, 200-day average ${fp(f.sma200)}, usual daily move ${fp(f.atr)}, 52-week range ${fp(f.lo)} to ${fp(f.hi)}` : ""}.${o ? ` Your reminder from ${o.day} says: ${oppWords(o)}.` : ""} Read ${candleFile(state.sym)}. Tell me in plain words what the chart is doing, the prices that matter, and what would make it a good place to buy. If it is not one now, say what you would wait for.`); }
+    if (t.id === "askchart") { const f = factsFor(state.sym), px = lastPrice(state.sym), o = oppOn(state.sym); return ask(`Look at the chart of ${state.sym} (${nameOf(state.sym)}). Price ${px != null ? fp(px) : f ? fp(f.close) : "unknown"}${f ? `, RSI ${f.rsi == null ? "unknown" : f.rsi.toFixed(0)}, 50-day average ${fp(f.sma50)}, 200-day average ${fp(f.sma200)}, usual daily move ${fp(f.atr)}, 52-week range ${fp(f.low52)} to ${fp(f.high52)}` : ""}.${o ? ` Your reminder of ${o.day} has an opportunity on it: ${oppWords(o)}.` : ""} Read ${candleFile(state.sym)}. Tell me in plain words what the chart is doing, the prices that matter, and what would make it a good place to buy. If it is not one now, say what you would wait for.`); }
     if (d.tab) return setTab(d.tab);
     if (d.open) return openSym(d.open);
-    if (d.ask) { const o = findOpp(d.ask), px = o && lastPrice(o.sym); if (o) ask(`About your ${o.sym} reminder from ${o.day}${o.headline ? `, "${o.headline}"` : ""}. ${oppWords(o)}.${px != null ? ` The price is now ${fp(px)}, ${whereNow(o, px)}.` : ""} Read ${o.path} and ${candleFile(o.sym)}. Is it still worth a look today? Say what I should wait to see before buying, and what would spoil the idea.`); return; }
-    if (d.sym) return pickSym(d.sym);
+    if (d.ask) { const o = findOpp(d.ask), px = o && lastPrice(o.sym); if (o) ask(`About the ${o.sym} opportunity in your reminder of ${o.day}${o.headline ? `, "${o.headline}"` : ""}. ${oppWords(o)}.${px != null ? ` The price is now ${fp(px)}, ${whereNow(o, px)}.` : ""} Read ${o.path} and ${candleFile(o.sym)}. Is it still worth a look today? Say what I should wait to see before buying, and what would spoil the idea.`); return; }
     if (d.frame) { state.frame = d.frame; pref("frame", d.frame); return loadChart(); }
     if (d.over) { const o = Object.assign({}, prefs.over || {}); o[d.over] = !overOn(d.over); pref("over", o); return loadChart(); }
     if (d.pick) return findPick(d.pick, d.name);
   });
   document.addEventListener("input", (e) => { if (e.target.id === "find") findType(e.target.value); });
-  document.addEventListener("change", (e) => { if (e.target.id === "sdays" || e.target.id === "stime") saveWhen(); });
+  // A time field reports a change after each part typed, so the time is saved once the typing rests or the field is left.
+  let whenTimer = null;
+  document.addEventListener("change", (e) => { if (e.target.id === "sdays") saveWhen(); else if (e.target.id === "stime") { clearTimeout(whenTimer); whenTimer = setTimeout(saveWhen, 900); } });
+  document.addEventListener("focusout", (e) => { if (e.target.id === "stime") { clearTimeout(whenTimer); saveWhen(); } else if (e.target === tipFor) tipHide(); });
   document.addEventListener("keydown", (e) => {
     const el = e.target;
+    if (e.key === "Escape") tipHide();
     if (el.id === "find") {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); if (findList.length) { findAt = (findAt + (e.key === "ArrowDown" ? 1 : -1) + findList.length) % findList.length; findPaint(); } }
       else if (e.key === "Enter") { const r = findList[findAt]; if (r) findPick(r.sym, r.name); }
       else if (e.key === "Escape") { findClose(); el.blur(); }
       return;
     }
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    // A key typed into a field is that field's, never a shortcut.
+    if (el.closest("input, select, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toLowerCase();
     if (k === "1" || k === "2") return setTab(TABS[+k - 1][0]);
     if (k === "r") return refreshNow(false);
-    if ((k === "j" || k === "k") && state.tab === "stocks") { const list = watch(), at = list.findIndex((w) => w.sym === state.sym), next = list[(at + (k === "j" ? 1 : -1) + list.length) % list.length]; pickSym(next.sym); }
+    if ((k === "j" || k === "k") && state.tab === "stocks") { const list = watch(), at = list.findIndex((w) => w.sym === state.sym), next = list[(at + (k === "j" ? 1 : -1) + list.length) % list.length]; openSym(next.sym); }
   });
   // The pictures on the cards are drawn to the pixel, so a new width means a new drawing.
   let resizeTimer = null;
   addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(paintMinis, 150); });
-  // Words explained on hover. The first waits a moment; the next ones do not.
-  let tipTimer = null, tipLast = 0;
-  document.addEventListener("mouseover", (e) => {
-    const el = e.target.closest("[data-tip]"), box = $("tip");
-    if (!el) return;
-    const show = () => { box.textContent = el.dataset.tip; const r = el.getBoundingClientRect(); box.style.left = "0px"; box.style.top = "0px"; const w = box.offsetWidth, h = box.offsetHeight; const x = clamp(r.left + r.width / 2 - w / 2, 8, innerWidth - w - 8), below = r.bottom + 8 + h < innerHeight; box.style.left = x + "px"; box.style.top = (below ? r.bottom + 8 : r.top - h - 8) + "px"; box.style.transformOrigin = (below ? "top" : "bottom") + " center"; box.classList.add("show"); };
+  // Explanations open under the pointer, on keyboard focus and on a tap of a word that only explains.
+  // Escape, a press elsewhere, a scroll by hand or a repaint closes them. Under the pointer the first waits a moment; the next ones do not.
+  let tipTimer = null, tipLast = 0, tipFor = null;
+  function tipHide() {
     clearTimeout(tipTimer);
-    if (Date.now() - tipLast < 400) { box.classList.add("instant"); show(); } else { box.classList.remove("instant"); tipTimer = setTimeout(show, 350); }
-  });
-  document.addEventListener("mouseout", (e) => { if (!e.target.closest || !e.target.closest("[data-tip]")) return; clearTimeout(tipTimer); const box = $("tip"); if (box.classList.contains("show")) tipLast = Date.now(); box.classList.remove("show"); });
-  document.addEventListener("scroll", () => $("tip").classList.remove("show"), true);
+    if (!tipFor) return;
+    tipFor.removeAttribute("aria-describedby"); tipFor = null; tipLast = Date.now(); $("tip").classList.remove("show");
+  }
+  function tipPlace() {
+    const box = $("tip"), r = tipFor.getBoundingClientRect(); box.style.left = "0px"; box.style.top = "0px";
+    const w = box.offsetWidth, h = box.offsetHeight, below = r.bottom + 8 + h < innerHeight;
+    box.style.left = clamp(r.left + r.width / 2 - w / 2, 8, innerWidth - w - 8) + "px"; box.style.top = (below ? r.bottom + 8 : r.top - h - 8) + "px"; box.style.transformOrigin = (below ? "top" : "bottom") + " center";
+  }
+  function tipShow(el, atOnce) {
+    const box = $("tip");
+    const show = () => { tipHide(); tipFor = el; el.setAttribute("aria-describedby", "tip"); box.textContent = el.dataset.tip; tipPlace(); box.classList.toggle("instant", atOnce); box.classList.add("show"); };
+    clearTimeout(tipTimer);
+    if (el === tipFor) return;
+    if (atOnce) show(); else tipTimer = setTimeout(show, 350);
+  }
+  document.addEventListener("mouseover", (e) => { const el = e.target.closest("[data-tip]"); if (el) tipShow(el, Date.now() - tipLast < 400); });
+  document.addEventListener("mouseout", (e) => { const el = e.target.closest && e.target.closest("[data-tip]"); if (el && !el.contains(e.relatedTarget)) tipHide(); });
+  document.addEventListener("focusin", (e) => { const el = e.target.closest("[data-tip]"); if (el && el.matches(":focus-visible")) tipShow(el, true); });
+  document.addEventListener("pointerdown", (e) => { if (tipFor && !tipFor.contains(e.target)) tipHide(); });
+  // Moving to a word by key can scroll the page: its explanation follows it. Any other scroll closes the explanation.
+  document.addEventListener("scroll", () => { if (tipFor && tipFor === document.activeElement) tipPlace(); else tipHide(); }, true);
+  new MutationObserver(() => { if (tipFor && !tipFor.isConnected) tipHide(); }).observe($("app"), { childList: true, subtree: true });
 
   // ── Start ───────────────────────────────────────────────────────────────
   function start() {

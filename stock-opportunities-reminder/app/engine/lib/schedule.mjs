@@ -9,7 +9,9 @@ import { APP_DIR } from "./io.mjs";
 const ROUTINE = path.join(APP_DIR, "..", ".jobs", "find-opportunities.yaml");
 // How often, as the page names it, and as cron writes the day of the week (0 is Sunday).
 const DAYS = { weekdays: "1-5", daily: "*", 0: "0", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" };
-const LINE = /^schedule:[ \t]*(.*)$/m;
+// The routine's schedule line: `schedule:` at the start of a line, the value (in quotes or
+// bare), and a trailing `# comment`, each kept apart so only the value is ever rewritten.
+const LINE = /^(schedule:[ \t]*)(["']?)(.*?)\2((?:[ \t]+#.*)?[ \t]*)$/m;
 
 /** `{ days, time }` as a cron line, or null when either is not one the page offers. `time` is "HH:MM". */
 export function toCron({ days, time } = {}) {
@@ -27,7 +29,7 @@ export function fromCron(cron) {
 /** When the routine runs now: `{ days, time, zone }`, or `{ custom, zone }` for a schedule the page does not offer. */
 export async function readSchedule(file = ROUTINE) {
   const found = LINE.exec(await fs.readFile(file, "utf8"));
-  const cron = found ? found[1].trim().replace(/^["']|["']$/g, "") : "";
+  const cron = found ? found[3].trim() : "";
   return { ...(fromCron(cron) || { custom: cron }), zone: Intl.DateTimeFormat().resolvedOptions().timeZone };
 }
 
@@ -38,6 +40,6 @@ export async function writeSchedule(choice, file = ROUTINE) {
   const text = await fs.readFile(file, "utf8");
   if (!LINE.test(text)) throw new Error("The routine has no schedule line");
   const tmp = `${file}.${process.pid}.tmp`;
-  await fs.writeFile(tmp, text.replace(LINE, `schedule: ${cron}`));
+  await fs.writeFile(tmp, text.replace(LINE, (_line, head, quote, _value, tail) => head + quote + cron + quote + tail));
   await fs.rename(tmp, file);
 }

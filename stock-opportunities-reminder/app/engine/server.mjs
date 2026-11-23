@@ -4,7 +4,7 @@
 // and choosing when the Scout looks.
 
 import http from "node:http";
-import { candles, search, FRAMES } from "./lib/sources.mjs";
+import { candles, search, cleanSym, FRAMES } from "./lib/sources.mjs";
 import { refresh } from "./refresh.mjs";
 import { readSchedule, writeSchedule } from "./lib/schedule.mjs";
 
@@ -19,7 +19,6 @@ const keep = (key, ms, make) => {
   if (cache.size > 200) cache.delete(cache.keys().next().value);
   return value;
 };
-const cleanSym = (s) => (/^[A-Za-z0-9.^=\-]{1,15}$/.test(s || "") ? s.toUpperCase() : null);
 /** An error whose message is written for the person and is safe to show them. */
 const refuse = (status, message) => Object.assign(new Error(message), { status });
 // The refresh in flight, if any: `{ full, done }`.
@@ -57,9 +56,11 @@ const routes = {
     return { results: text ? await keep(`s:${text.toLowerCase()}`, 600000, () => search(text)) : [] };
   },
   // One refresh at a time: a second press joins the first. A full one never settles for a
-  // lighter one that is already running: it waits for it, then runs.
-  "/refresh": async (q) => {
+  // lighter one that is already running: it waits for it, then runs. A full one asks every
+  // source for everything, so only the owner may start it.
+  "/refresh": async (q, req) => {
     const full = q.get("full") === "1";
+    if (full && !isOwner(req)) throw refuse(403, "Only the owner of this cabinet can ask for a full refresh.");
     while (running && full && !running.full) await running.done.catch(() => {});
     return running ? running.done : startRefresh(full);
   },
@@ -74,9 +75,11 @@ const routes = {
 };
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, "http://app");
   const send = (code, body) => { res.writeHead(code, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(body)); };
   if (TOKEN && req.headers["x-cabinet-app-token"] !== TOKEN) return send(403, { error: "Not allowed." });
+  // An address is parsed only for a caller with the token: a malformed one (`//[`) throws.
+  if (!URL.canParse(req.url, "http://app")) return send(400, { error: "That address does not look right." });
+  const url = new URL(req.url, "http://app");
   const route = routes[url.pathname.replace(/\/+$/, "") || "/health"];
   if (!route) return send(404, { error: "Not found." });
   try { send(200, await route(url.searchParams, req)); }

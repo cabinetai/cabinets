@@ -3,7 +3,7 @@
 // each candidate then followed as a call of the Scout is (setups.json), so a person can see
 // whether a setup has earned their trust. It costs no AI.
 
-import { avgVolume, nyDay } from "./indicators.mjs";
+import { avgVolume, nyDay, nyMinute, NY_CLOSE } from "./indicators.mjs";
 import { series, factsAt } from "./signals.mjs";
 import { STANCES, regime } from "./market.mjs";
 import { SETUPS, WARMUP, detect, anyDay } from "./setups.mjs";
@@ -16,9 +16,23 @@ const MIN_PRICE = 5, MIN_VOLUME = 500000;
 const BEST_FIRST = ["pays", "unproven", "fails"];
 
 /**
+ * The full days of a saved chart, `fetchedAt` being when it was fetched. A newest candle
+ * fetched before 16:00 in New York on its own day is part of a day, with part of a day's
+ * range and volume, and a setup must not judge it as a whole one. With `upTo` (a New York
+ * day) anything newer is left out too, so every chart of one scan ends on the same day.
+ */
+export function fullDays(candles, fetchedAt, upTo = null) {
+  const at = Date.parse(fetchedAt) / 1000;
+  let n = candles.length;
+  if (n && nyDay(candles[n - 1].t) === nyDay(at) && nyMinute(at) < NY_CLOSE) n--;
+  while (upTo && n && nyDay(candles[n - 1].t) > upTo) n--;
+  return candles.slice(0, n);
+}
+
+/**
  * Today's candidates. `pool` is `[{ sym, name, from, candles }]` in the order of the
  * method's step 2; a symbol met twice counts where it was met first. `skip` holds the
- * symbols with an open call. `fund` is the S&P 500 fund's candles, `stance` the market's,
+ * symbols still held from a call of an earlier day. `fund` is the S&P 500 fund's candles, `stance` the market's,
  * `reports` the earnings days by symbol (null when no calendar is known), `day` today in
  * New York, `record` what `setupRecord` returns. Each candidate carries its setup's verdict
  * under today's stance. Candidates with no reason to pass come first, then the better

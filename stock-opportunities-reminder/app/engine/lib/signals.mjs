@@ -3,7 +3,7 @@
 // A rule with `on: false` is too noisy to flag a chart with, but its record is still kept.
 // The page names the same ids; keep RULES and the page in step.
 
-import { sma, ema, rsi, atr, macd, bandWidth, priorHigh, priorLow, avgVolume, nyDay } from "./indicators.mjs";
+import { sma, ema, rsi, atr, macd, bandWidth, priorHigh, priorLow, avgVolume, nyDay, r1, r2 } from "./indicators.mjs";
 
 export const RULES = [
   { id: "breakout", name: "Breakout", side: "long", on: true, days: 20, volume: 1.5 },
@@ -27,8 +27,8 @@ export const RULES = [
 ];
 
 const pct = (a, b) => (b ? ((a - b) / b) * 100 : 0);
-const r2 = (n) => Math.round(n * 100) / 100;
-const r1 = (n) => Math.round(n * 10) / 10;
+/** A rule reads the 20 days before today and the averages behind them: a chart shorter than this is not judged. */
+export const SCAN_WARMUP = 30;
 
 /**
  * Everything the facts are read from, worked out once for a chart: its averages, RSI and
@@ -76,13 +76,21 @@ export function factsAt(s, i) {
 export const facts = (candles, fund) => factsAt(series(candles, fund), candles.length - 1);
 
 /**
+ * A rule's hit as signals.json lists it. `day` is the New York day of the candle it was
+ * read from, and the id carries it, so one hit is listed once on whatever day it is read.
+ */
+export const signalOf = (sym, name, hit, day, price, at) => ({
+  id: `${sym}:${hit.rule}:${day}`, sym, name, kind: "chart", rule: hit.rule, side: hit.side, text: hit.text, level: hit.level ?? null, price, day, at,
+});
+
+/**
  * Daily rules, judged on the newest candle. `candles` are daily, oldest first; during
  * the session the last one is today so far.
  */
 export function scanDaily(candles, rules) {
   const hits = [];
   const n = candles.length;
-  if (n < 30) return hits;
+  if (n < SCAN_WARMUP) return hits;
   const on = Object.fromEntries(rules.filter((r) => r.on).map((r) => [r.id, r]));
   const closes = candles.map((c) => c.c);
   const i = n - 1, c = candles[i], p = candles[i - 1];

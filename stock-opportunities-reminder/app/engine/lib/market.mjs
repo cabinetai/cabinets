@@ -3,15 +3,21 @@
 // starts from this and may only make it stricter.
 
 import { factsAt } from "./signals.mjs";
+import { HEAVY_VOLUME, r2 } from "./indicators.mjs";
 
 /** The three stances, from the kindest market to the harshest. */
 export const STANCES = ["with-you", "mixed", "against-you"];
+/** The harsher of two stances. One that is not known (null) leaves the other. */
+export const harsher = (a, b) => STANCES[Math.max(STANCES.indexOf(a), STANCES.indexOf(b))] ?? null;
+/** How many calls a day each stance allows. */
+export const MOST_CALLS = { "with-you": 3, mixed: 2, "against-you": 1 };
 
-// The method's own numbers.
+// The method's own numbers. The stance turns on 20 and 25; the word for the fear gauge
+// (`fear.read`) on 18 and 25, so "uneasy" starts a little before the stance changes.
 const CALM_UNDER = 18, FRIGHTENED_OVER = 25, WITH_YOU_UNDER = 20;
 const BROAD_STRENGTH = 60, BROAD_WEAKNESS = 40;
-// "Heavy volume" is not given a number in step 1: this is the one the breakout setup uses.
-const HEAVY_VOLUME = 1.5;
+// A hard fall is more than this many usual daily moves down in one day, on heavy volume.
+const HARD_FALL_MOVES = 2;
 
 /**
  * How many of `list` (the facts of the person's US stocks) close above their 50-day and
@@ -36,7 +42,7 @@ export function regime(fund, i, vix = null, spread = null) {
   const prev = fund.candles[i - 1].c, change = ((fund.candles[i].c - prev) / prev) * 100;
   // The usual daily move as it stood before today, so a hard fall is not measured against itself.
   const usual = fund.atr[i - 1] ? (fund.atr[i - 1] / prev) * 100 : null;
-  const hardFall = usual != null && change < -2 * usual && f.rvol >= HEAVY_VOLUME;
+  const hardFall = usual != null && change < -HARD_FALL_MOVES * usual && f.rvol >= HEAVY_VOLUME;
   const under200 = f.sma200 != null && f.close < f.sma200;
   const stance = under200 || vix > FRIGHTENED_OVER || hardFall ? "against-you"
     : f.trend === "up" && (vix == null || vix < WITH_YOU_UNDER) ? "with-you" : "mixed";
@@ -55,7 +61,7 @@ export function regime(fund, i, vix = null, spread = null) {
 
   return {
     stance, because,
-    fund: { close: f.close, sma50: f.sma50, sma200: f.sma200, trend: f.trend, change: Math.round(change * 100) / 100, usualMove: usual == null ? null : Math.round(usual * 100) / 100, rvol: f.rvol, hardFall },
+    fund: { close: f.close, sma50: f.sma50, sma200: f.sma200, trend: f.trend, change: r2(change), usualMove: r2(usual), rvol: f.rvol, hardFall },
     fear, breadth: spread,
   };
 }

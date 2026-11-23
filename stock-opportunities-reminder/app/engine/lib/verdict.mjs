@@ -24,8 +24,9 @@ export function verdictOf(own, base) {
  * that is not a setup.
  */
 export function verdictFor(record, setup, stance) {
+  // A model writes the name: "constructor" is on every object, so only an own key counts.
+  if (!Object.hasOwn(record.setups, setup)) return null;
   const own = record.setups[setup];
-  if (!own) return null;
   const at = own.byStance[stance];
   const [slice, base, verdictFrom] = at && at.verdict !== "unproven" ? [at, record.any.byStance[stance], "stance"] : [own, record.any, "overall"];
   return { verdict: slice.verdict, verdictFrom, closed: slice.closed, avgR: slice.avgR, anyAvgR: base.avgR };

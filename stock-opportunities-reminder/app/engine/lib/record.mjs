@@ -6,13 +6,11 @@
 // Every number is set beside "any day": the same measure over every day of the same charts.
 // A rule that is up 58% of the time is no edge when any day was up 56% of the time.
 
-import { scanDaily } from "./signals.mjs";
+import { scanDaily, SCAN_WARMUP as WARMUP } from "./signals.mjs";
+import { r1 } from "./indicators.mjs";
 
 const HORIZONS = [5, 10, 20];
-// scanDaily needs this many candles before it judges anything.
-const WARMUP = 30;
 
-const r1 = (n) => (n == null || !isFinite(n) ? null : Math.round(n * 10) / 10);
 const median = (a) => {
   if (!a.length) return null;
   const s = [...a].sort((x, y) => x - y), m = s.length >> 1;
@@ -35,22 +33,22 @@ function sum(moves, way) {
  * The record of every daily rule over `bySym` ({ SYMBOL: daily candles, oldest first }).
  * Every rule is judged, the ones too noisy to flag a chart with too.
  */
-export function ruleRecord(bySym, rules, horizons = HORIZONS) {
+export function ruleRecord(bySym, rules) {
   const daily = rules.map((r) => ({ ...r, on: true }));
   const fired = Object.fromEntries(daily.map((r) => [r.id, []]));
-  const any = Object.fromEntries(horizons.map((h) => [h, []]));
+  const any = Object.fromEntries(HORIZONS.map((h) => [h, []]));
   let from = null, to = null;
 
   for (const [sym, candles] of Object.entries(bySym)) {
-    if (!Array.isArray(candles) || candles.length <= WARMUP) continue;
+    if (candles.length <= WARMUP) continue;
     const n = candles.length;
     if (from == null || candles[WARMUP].t < from) from = candles[WARMUP].t;
     if (to == null || candles[n - 1].t > to) to = candles[n - 1].t;
     for (let i = WARMUP; i < n; i++) {
-      for (const h of horizons) if (i + h < n) any[h].push(move(candles, i, h));
+      for (const h of HORIZONS) if (i + h < n) any[h].push(move(candles, i, h));
       for (const hit of scanDaily(candles.slice(0, i + 1), daily)) {
         const later = {};
-        for (const h of horizons) if (i + h < n) later[h] = move(candles, i, h);
+        for (const h of HORIZONS) if (i + h < n) later[h] = move(candles, i, h);
         fired[hit.rule].push({ sym, i, side: hit.side, later });
       }
     }
@@ -58,7 +56,7 @@ export function ruleRecord(bySym, rules, horizons = HORIZONS) {
 
   // "Any day", for each way of reading: up, down, and the size of the move.
   const base = {};
-  for (const hz of horizons) {
+  for (const hz of HORIZONS) {
     const list = any[hz], up = sum(list, 1), size = sum(list, 0);
     const down = list.length ? r1((list.filter((m) => m < 0).length / list.length) * 100) : null;
     base[hz] = { n: up.n, up: up.won, down, avg: up.avg, size: size.size };
@@ -69,7 +67,7 @@ export function ruleRecord(bySym, rules, horizons = HORIZONS) {
     const hits = fired[r.id];
     const way = (x) => (x.side === "long" ? 1 : x.side === "short" ? -1 : 0);
     const h = {};
-    for (const hz of horizons) {
+    for (const hz of HORIZONS) {
       const done = hits.filter((x) => x.later[hz] != null);
       // A rule that reads either way ("both") can still name a side on one day (a gap up is long).
       // Each day is judged by the side it named that day; a day with no side is judged by size.
@@ -96,8 +94,8 @@ export function ruleRecord(bySym, rules, horizons = HORIZONS) {
   return {
     from: from == null ? null : new Date(from * 1000).toISOString().slice(0, 10),
     to: to == null ? null : new Date(to * 1000).toISOString().slice(0, 10),
-    symbols: Object.keys(bySym).filter((s) => Array.isArray(bySym[s]) && bySym[s].length > WARMUP),
-    horizons,
+    symbols: Object.keys(bySym).filter((s) => bySym[s].length > WARMUP),
+    horizons: HORIZONS,
     rules: out,
     any: base,
   };

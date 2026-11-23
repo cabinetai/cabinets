@@ -28,11 +28,23 @@ Read `regime` in `market.json`. The engine has counted it:
 How the engine decides: `with-you` when the fund is in an uptrend (above its 50-day
 average, and that above the 200-day) and the fear gauge is under 20. `against-you` when the
 fund is under its 200-day average, or the fear gauge is over 25, or the fund fell more than
-twice its usual daily move today on heavy volume. `mixed` otherwise.
+twice its usual daily move today on at least one and a half times its usual volume. `mixed`
+otherwise.
+
+The stance turns on a fear gauge of 20 and of 25. The word in `fear.read` describes the
+level alone, and its lower step comes a little earlier: `calm` under 18, `uneasy` from 18
+to 25, `frightened` over 25. So "uneasy" at 19 is still a market that can be with you.
 
 You may make the stance stricter when you know something the numbers do not show yet, for
-example a central bank decision later today. You never make it kinder. Write the stance
-and two sentences on why, with the numbers from `because`.
+example a central bank decision later today. You never make it kinder: the check in step 8
+judges every call by the harsher of your stance and the engine's, and reports a file that
+names a kinder one. Write the stance and two sentences on why, with the numbers from
+`because`.
+
+When you make it stricter, the `verdict` on each candidate no longer applies: it was
+counted for the engine's stance. Read the setup's verdict again in `setups.json`, under
+`setups.<name>.byStance.<your stance>.verdict`. When that one is `unproven`, the setup's
+overall `verdict` decides. The check does the same.
 
 How many calls the stance allows: `with-you` up to three, `mixed` up to two,
 `against-you` at most one. None is always allowed, and in a market that is against you it
@@ -88,30 +100,36 @@ You do not detect these yourself. You need to know them to explain a call and to
 whether the chart really looks the way the numbers say. For each candidate you consider,
 read the last 60 rows of `candles/<SYMBOL>.1d.json` and check that the picture matches.
 
-1. **Pullback in an uptrend.** A stock in an uptrend made a high in the last 20 days, then
-   fell back to its 20-day or 50-day average on lighter volume. Zone: from that average to
-   half a usual daily move above it. Stop: one and a half usual daily moves under the top
-   of the zone. Target: the high it fell from.
+1. **Pullback in an uptrend.** A stock in an uptrend made a high in the last 20 days, at
+   least two days ago, then fell back to its 20-day or 50-day average on lighter volume
+   than it rose on. Its RSI is between 40 and 60, and the fall went no deeper than one and
+   a half usual daily moves under that average: deeper is more than a rest. Zone: from
+   that average to half a usual daily move above it. Stop: one and a half usual daily
+   moves under the top of the zone. Target: the high it fell from.
 2. **Breakout from a base.** At least three weeks sideways in a range no wider than about
    15%, within 10% of its 52-week high, then a close above the range on at least one and a
    half times usual volume. Zone: from the top of the old range to half a usual daily move
    above it. Stop: one and a half usual daily moves under the top of the zone. Target:
    three times the stop's distance above the top of the zone.
-3. **A leader holding up in a weak market.** The market fell over the last 10 days and
-   this stock fell less than half as much, or rose, and is still above its 50-day average.
+3. **A leader holding up in a weak market.** Looked for only when the stance is `mixed`
+   or `against-you`. The market fell over the last 10 days and this stock fell less than
+   half as much, or rose, and is still above its 50-day average.
    Zone: from the 50-day average or the low of the last week, whichever is higher, to half
    a usual daily move above it. Stop: one and a half usual daily moves under the top of
    the zone. Target: its 52-week high.
 4. **A gap up on results that holds.** Within the last five days it opened at least 4%
    above the prior close on its earnings report, on at least twice usual volume, and has
-   not closed under the low of that day since. Zone: the upper half of that day's range.
-   Stop: the low of that day. Target: twice the stop's distance above the zone, or the
-   52-week high if nearer. The engine cannot always tell that results caused the gap:
+   not closed under the low of that day since. Zone: the upper half of that day's range,
+   and no more than one usual daily move up from the middle of it. Stop: the low of that
+   day, moved down when needed so it sits at least one usual daily move under the top of
+   the zone. Target: twice the stop's distance above the zone, or the 52-week high if
+   nearer. The engine cannot always tell that results caused the gap:
    when a note says so, confirm it in the headlines before you call it.
 5. **A turn after a washout.** RSI was under 30 within the last five days, then one day
    closed above its open and above the previous day's high on at least one and a half
-   times usual volume. Zone: the upper half of that day's range. Stop: one and a half
-   usual daily moves under the top of the zone. Target: twice the stop's distance above
+   times usual volume. Zone: the upper half of that day's range, and no more than one
+   usual daily move up from the middle of it. Stop: one and a half usual daily moves
+   under the top of the zone. Target: twice the stop's distance above
    the top of the zone. It is a bounce, not a new trend.
 
 ## Step 5. Choose, then argue against yourself
@@ -136,9 +154,11 @@ trade**:
   `calendar.json` or the headlines when it matters, and say when the company reports.
 - **Does the chart agree with the numbers?** Look at the candles. A "breakout" that has
   already given back half its move, a "turn" on a day that closed near its low: pass.
-- **What does the rule record say?** If a chart rule flagged the stock (`signals.json`)
-  and `record.json` shows that rule doing worse than any day on this stock with 20 or more
-  cases, count it against the call.
+- **What does the rule record say?** If a chart rule flagged the stock (`signals.json`),
+  read that rule in `record.json` under `rules.<id>.h["10"]`. With 20 or more cases (`n`)
+  and an average move (`avg`) under the same measure for any day (`anyAvg`), count it
+  against the call. `bySym.<SYMBOL>` says how the rule did on this one stock (`n` and
+  `avg` only): under 20 cases it is a hint, not a finding.
 - **Crowded short.** `short.daysToCover` of five or more cuts both ways. It helps only
   after the stock has already turned up.
 
@@ -166,9 +186,11 @@ person learns the most.
 ## Step 8. Check before you finish
 
 After you write the file, run `node app/engine/refresh.mjs`, then
-`node app/engine/check-calls.mjs`. It prints `OK` for each call or the problem in a plain
-sentence. A call with a problem is fixed or removed, and the check is run again, until it
-ends with "All in order."
+`node app/engine/check-calls.mjs`. It holds the file against everything above that can be
+counted: each call is a candidate with its numbers copied and no spoiler, the number of
+calls fits the stance, no setup fails, conviction fits the verdict. It prints `OK` for each
+call or the problem in a plain sentence. A call with a problem is fixed or removed, and the
+check is run again, until it ends with "All in order."
 
 ## If the person asks how much to buy
 

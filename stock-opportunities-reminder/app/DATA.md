@@ -19,33 +19,55 @@ Symbols are written the way Yahoo Finance writes them: `NVDA`, `BTC-USD`, `ES=F`
 | `data/calendar.json` | refresh | Earnings and US economic news |
 | `data/news.json` | refresh | Headlines by symbol. Each has `title`, `link`, `at` and `site`, the host the link leads to |
 | `data/short.json` | refresh | Short interest by symbol, each with the `source` that reported it |
-| `data/status.json` | refresh | The last run: when, how long, which sources answered, what failed |
+| `data/status.json` | refresh | The last run: when, how long, what failed, and what each source last did |
+| `data/refresh.lock` | refresh | Present while a refresh runs, so two never run at once. Not kept in git |
 | `../opportunities/YYYY-MM-DD.json` | The Stock Scout | One day's calls. At the cabinet's root, outside this folder |
 | `.data/shared.json` | The page, through Cabinet's app store | The person's list |
 
 The engine's small server (`engine/server.mjs`, started by Cabinet once the app is allowed)
 answers what a file cannot: `/candles?sym=&frame=` (`5m`, `15m`, `1h`, `1d`, `1w`),
-`/search?q=`, `/refresh` (add `full=1` for everything) and `/health`. `/schedule` says when
+`/search?q=`, `/refresh` (add `full=1` for everything, which only the cabinet's owner may ask
+for) and `/health`. `/refresh` answers with `status.json`, and with `busy: true` beside it
+when a refresh in another process was already running and this one gave way. `/schedule` says when
 the Scout looks (`{ days, time, zone }`, `days` being `weekdays`, `daily` or a day of the week
 from `0` for Sunday), and a POST of `{ days, time }` from the cabinet's owner changes it by
 rewriting the schedule line of `.jobs/find-opportunities.yaml`, which Cabinet re-reads.
 
 `node app/engine/check-calls.mjs [YYYY-MM-DD]` (default: today in New York) checks one day
-of the Scout's calls with the same code the refresh uses. It prints one line for each call:
+of the Scout's calls. It follows them with the same code the refresh uses, and holds the
+day's file against `data/candidates.json`. It prints one line for each call:
 
 ```
 Calls of 2026-11-23
+FILE  PROBLEM  It holds 3 calls. A market that is mixed allows 2 at most.
 AAPL  OK
-NVDA  PROBLEM  From the top of the buy zone the target is 5 away and the stop 11 away. That pays 0.45 to 1, under 2 to 1.
-MU  DROPPED  The stop (340) is not a price under the buy zone (338 to 344). The engine ignores this call until it is fixed.
+NVDA  PROBLEM  Its numbers are not the candidate's. candidates.json gives buy 338 to 344, stop 332, target 370. Copy them exactly.
+TSLA  PROBLEM  TSLA is not in candidates.json. A call is always one of its items: remove this one.
+MU  DROPPED  The stop ("332") is not a price under the buy zone (338 to 344). A price in quotes is text: write the bare number. The engine ignores this call until it is fixed.
 SOFI  NOT FOLLOWED  No saved candles for it yet. Run node app/engine/refresh.mjs, then check again.
 Fix what is listed above, then run this again.
 ```
 
 `PROBLEM` is a hard rule of the method broken (one line for each), `DROPPED` a malformed
-item, `NOT FOLLOWED` a symbol the refresh has not charted yet. The last line is `All in
-order.` and the exit code 0 when every call is `OK` or the file has no calls. Otherwise the
-exit code is 2, also when the day's file is missing or unreadable.
+item, `NOT FOLLOWED` a symbol the refresh has not charted yet. A line that starts with
+`FILE` is about the file as a whole. The last line is `All in order.` and the exit code 0
+when every call is `OK` or the file has no calls. Otherwise the exit code is 2, also when
+the day's file is missing or unreadable.
+
+What it checks, beyond the `problems` of `data/outcomes.json` (below):
+
+- Each call is an item of `candidates.json` with the same `sym` and `setup`, its `buy`,
+  `stop` and `target` copied exactly, and no `spoilers`. Only this check compares the two,
+  and only when `candidates.json` is of the same day: the candidates are scanned again
+  later in the day, so a call that was right when it was written is never told off for it
+  in `outcomes.json`. Candidates of an earlier day, or none, are a `FILE` problem. With
+  candidates of a later day, an older file is checked without them.
+- The file names a stance, and holds no more calls than the stance allows: three when it is
+  `with-you`, two when `mixed`, one when `against-you`. The stance is the harsher of the
+  file's and the engine's `regime.stance` in `market.json`, when that is of the same day.
+- `conviction` is 1 or 2. It is 1 for a setup whose verdict under that stance is
+  `unproven`, and a day holds at most one such call. 3 is accepted once `score.bySetup`
+  in `outcomes.json` has 20 finished calls of the setup with an `avgR` above zero.
 
 ## data/market.json
 
@@ -90,8 +112,9 @@ The values below show the shape. They are not today's prices.
   - `fund`: the fund's facts. `change` is today's move in percent, `usualMove` its usual
     daily move in percent as it stood yesterday. `hardFall`: it fell more than twice
     `usualMove` today on at least 1.5 times its usual volume (`rvol`).
-  - `fear`: the fear gauge's level and its reading: `calm` under 18, `uneasy` up to 25,
-    `frightened` over 25. Null when it has no price.
+  - `fear`: the fear gauge's level and a word for the level alone: `calm` under 18,
+    `uneasy` from 18 to 25, `frightened` over 25. The stance turns on 20 and 25, so
+    `uneasy` at 19 can still be `with-you`. Null when it has no price.
   - `breadth`: of the list's US stocks (no fund, coin or future), the percent closing above
     their 50-day and their 200-day average. It is reported and does not change `stance`.
 - `price`: the last price of the regular session. `change`: percent against `prev`.
@@ -138,7 +161,8 @@ candidate's file is removed once it leaves the lists.
 - `kind`: `chart` (a rule fired) or `earnings` (a report is due within a week).
 - `rule`: a rule id from `engine/lib/signals.mjs`, or `earnings`.
 - `side`: `long`, `short` or `both`. `at` is when it was first seen.
-- An id never repeats, so a signal is listed once however many times the refresh runs.
+- An id is the symbol, the rule and `day`. It never repeats, so a signal is listed once
+  however many times, and on however many days, the refresh reads that candle.
 
 ## data/candidates.json
 
@@ -157,13 +181,16 @@ refresh, when older than six hours, and whenever `setups.json` is rebuilt.
                "facts": { "close": 220.84, "atr": 6.61 } } ] }
 ```
 
-- `asOf`: the New York day of the candles the setups were judged on. It is the last full
-  day: during the session today's candle is left out, so `facts` here can differ from the
-  live `facts` in `market.json`. `stance` is the market's stance the scan used.
+- `asOf`: the New York day of the candles the setups were judged on: the last full day of
+  the S&P 500 fund. A chart's newest candle is a full day only when the chart was fetched
+  at or after 16:00 in New York on that candle's day, so today's candle is left out during
+  the session, and a chart saved mid-session is never read as a whole day later. No chart
+  is read past `asOf`. So `facts` here can differ from the live `facts` in `market.json`.
+  `stance` is the market's stance the scan used.
 - `from`: `list`, `movers` or `universe`, the first of the three places the stock was found.
 - `setup`: one of the method's five names. A stock that fits two setups is listed twice.
-- `buy`, `stop`, `target`: built by the method's step 5. `pay` is the target's distance from
-  the top of the zone divided by the stop's distance from it. The stop is one and a half
+- `buy`, `stop`, `target`: built as the method's step 4 describes for each setup. `pay` is
+  the target's distance from the top of the zone divided by the stop's distance from it. The stop is one and a half
   usual daily moves under the top of the zone, except for a gap on results, whose stop is
   the low of the gap day, at least one usual daily move under the top of the zone. The
   target is the high it fell from (pullback), three times the stop's distance above the
@@ -185,7 +212,9 @@ refresh, when older than six hours, and whenever `setups.json` is rebuilt.
 - Items with no spoilers come first. Among those, `pays` comes before `unproven` before
   `fails`, then the higher `pay`.
 - Left out: funds, coins, futures, currencies, a price under 5 dollars, fewer than 500,000
-  shares on a usual day, a chart younger than 200 days, and any stock with an open call.
+  shares on a usual day, a chart younger than 200 days, and any stock still waiting or open
+  from a call of an earlier day. A stock called today stays in, so today's file can be
+  checked against this one and written again.
 
 ## data/setups.json
 
@@ -249,8 +278,10 @@ Rebuilt on a full refresh, at least every 12 hours, and when the saved file is o
 For every US company in Nasdaq's earnings calendar from seven weekdays back to eight ahead:
 the first session that trades on its report. That is the day of the report, or the next
 weekday when the company reports after the close. A stock the Scout has called keeps its
-older days. The setups and the checks of the Scout's calls read it; `calendar.json` stays
-the short list a person reads.
+older days. When Nasdaq does not answer for a day, what was saved for that day is kept,
+`status.json` lists the days, and `sources.Nasdaq` is false. The setups and the checks of
+the Scout's calls read it; `calendar.json` stays the short list a person reads, and keeps
+its saved rows for such a day the same way.
 
 ## data/universe.json
 
@@ -259,8 +290,9 @@ the short list a person reads.
 ```
 
 One candle file, in the shape above, for each stock of the wider list. Fetched when it is
-missing, and on a full refresh when older than 12 hours: never on the other five-minute
-runs. About 2.4 MB, and left out of git (`data/.gitignore`), so the first refresh of a new
+missing, and when its newest full day is behind the S&P 500 fund's, on a run that scans
+for candidates (a full one, or the first after six hours): once a trading day as a rule.
+About 2.4 MB, and left out of git (`data/.gitignore`), so the first refresh of a new
 cabinet builds it, which takes about 20 seconds. The page and the Scout do not read it: a
 stock from it that becomes a candidate gets its own file in `candles/`.
 
@@ -309,7 +341,8 @@ noisy to flag a chart with included. Rebuilt when the list changes, and at least
 ```json
 { "schema": "reminder/outcomes@1", "at": "2026-11-25T14:40:00Z",
   "calls": [ { "id": "2026-11-23:AAPL", "day": "2026-11-23", "sym": "AAPL", "setup": "Pullback in an uptrend", "state": "open",
-               "entry": 341.2, "enteredOn": "2026-11-24", "closedOn": null, "r": 0.6, "price": 346.1 } ],
+               "entry": 341.2, "enteredOn": "2026-11-24", "closedOn": null, "r": 0.6, "price": 346.1,
+               "at": "2026-11-23T13:30:00Z", "stance": "mixed" } ],
   "score": { "closed": 12, "won": 7, "target": 5, "avgR": 0.4, "since": "2026-10-20",
              "bySetup": { "Pullback in an uptrend": { "closed": 8, "won": 5, "target": 4, "avgR": 0.6 } } },
   "problems": [ { "id": "2026-11-23:AAPL", "why": ["The stop is 4 under the top of the buy zone, nearer than one usual daily move (8.11). An ordinary day would hit it: 335 or lower gives it room."] } ] }
@@ -320,7 +353,10 @@ from the daily candles since the call's `day` (`engine/lib/calls.mjs`). A call i
 from the first session that opens after the file's `at`: the call's own day when `at` is
 before 9:30 in New York, the next trading day when it is later, because that day's candle
 already holds moves made before the call. A file with no `at`, or one that is not a time
-on the file's own day in New York, is followed from its own day.
+on the file's own day in New York, is followed from its own day. On the day of the entry
+a high over the target does not count when the price opened above the zone (it came before
+the entry), and a stop is filled at the stop. A call that reaches neither is closed on its
+thirtieth trading day, the day of the entry being the first.
 
 - `state`: `waiting`, `in-zone`, `open`, `target`, `stopped`, `timed-out` or `expired`.
   `playbooks/how-it-works.md` says what each means and how it is decided.
@@ -329,31 +365,48 @@ on the file's own day in New York, is followed from its own day.
 - `r` is the result in units of the risk taken (entry to stop is 1). Null before an entry.
 - `score` counts finished calls only (`target`, `stopped`, `timed-out`): how many, how many
   finished above zero (`won`), how many reached their target, the average `r`, and the day
-  of the oldest one. `bySetup` is the same count for each `setup` name the Scout wrote
-  (null for a setup with nothing finished yet).
+  of the oldest one. `bySetup` is the same count for each `setup` name the Scout wrote. A
+  setup with nothing finished yet is there too, with `closed: 0` and `avgR: null`.
 - `setup`: the name the Scout gave the call, or null.
+- `at`: the `at` of the Scout's file, or null when the file gave none the engine can use.
+- `stance`: the engine's `regime.stance` when it first followed the call as written at
+  `at`. It is kept from then on, so a market that turns later does not rewrite the verdict
+  on a call already made. Null for a call first seen on a later day than its own.
 - `problems`: the well-formed calls that break a hard rule of the method, each with the
   reasons as plain sentences. Such a call is still followed and scored. The rules: the stop
   is nearer than one usual daily move to the top of the zone, the zone is wider than one
   usual daily move, the pay from the top of the zone is under 2 to 1, the stop is more than
   8% under the zone, an earnings report trades within five trading days of the call's day
   (`reports.json`), the setup is not one of the five names, an earlier call on the same
-  stock was still open, or the setup's `verdict` in `setups.json` is `fails`. That verdict
-  is the setup's under the stance the Scout's file names in `market.stance`, and its
-  overall verdict when that one is `unproven` or the file names no stance. Its sentence
+  stock was still open, the file names a kinder stance than the engine counted, or the
+  setup's `verdict` in `setups.json` is `fails`. That verdict is the setup's under the
+  harsher of two stances (`with-you`, then `mixed`, then `against-you`): the one the
+  Scout's file names in `market.stance` and the row's `stance`. It is the setup's overall
+  verdict when that one is `unproven` or neither stance is known. Its sentence
   carries the numbers: "The record says no. "A leader holding up in a weak market"
   finished 32 times in a market that was against you and averaged -0.14 of the risk taken,
-  under the 0.06 of a call made for no reason on any day (setups.json)." The usual daily move is the one on the last full day before the
-  call's day, and the first two rules allow a tenth of slack, because it drifts from day to
-  day. `node app/engine/check-calls.mjs` prints the same verdicts for one day.
+  under the 0.06 of a call made for no reason on any day (setups.json)." The usual daily
+  move is the one of the last full day when the file was written, the day the candidates
+  were built on: the call's own day when `at` is 16:00 in New York or later, the day
+  before it otherwise. So a call copied from a candidate is measured as the candidate
+  was. A file with no usable `at` is measured by both days, and one of these rules counts
+  only when both break it. The first two rules allow a tenth of slack, because the usual daily move drifts
+  from day to day. `node app/engine/check-calls.mjs` prints the same verdicts for one
+  day, and adds what only the day's candidates can decide.
 
 ## ../opportunities/YYYY-MM-DD.json
 
 Written by the Stock Scout, one file for each day it ran, named for the date in New York.
 `playbooks/how-it-works.md` holds the shape and its rules. A file whose name starts with
 `EXAMPLE-` ships with the cabinet: the page shows it, labelled, until a real one exists, and
-the engine never scores it. A call without a two-number `buy`, a `stop` under it and a
-`target` over it is ignored by the engine and by the page.
+the engine never scores it.
+
+A well-formed call, for the engine and for the page alike: `sym` is 1 to 15 letters,
+digits, dots, hyphens, `^` or `=`; `buy` is exactly two numbers above zero, the lower
+first; `stop` is a number above zero and under `buy[0]`; `target` is a number above
+`buy[1]`. A number is a JSON number: `"332"` in quotes is text and fails the rule. Of two
+items with the same symbol in one file, the first counts. Any other item is ignored by the
+engine and by the page.
 
 ## data/movers.json
 
@@ -378,8 +431,11 @@ candle file. Fetched on a full refresh and when older than six hours.
 `engine/lib/sources.mjs` holds the order. "No licence" means a public endpoint that needs no
 key and whose owner has not published terms that allow this use: it works, it can change or
 stop without notice, and it is for one person's own use. All of those answer only while
-`UNLICENSED_FALLBACK` in `sources.mjs` is true. `data/status.json` says which sources
-answered on the last run and what failed.
+`UNLICENSED_FALLBACK` in `sources.mjs` is true. `data/status.json` lists what failed on the
+last run in `errors`. Its `sources` holds, for each source, what it did the last time it
+was asked: `true` when it answered, `false` when it failed (one failure in a run outweighs
+its answers in that run). A source that was not asked on the last run keeps its older
+value, so `sources` covers more than the last run.
 
 | Data | Source | Key | Licence |
 |---|---|---|---|

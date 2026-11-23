@@ -13,7 +13,7 @@ The library's own notice:
 > TradingView Lightweight Charts™
 > Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/
 
-The page keeps the library's TradingView mark on the chart of the Charts screen and links to
+The page keeps the library's TradingView mark on the chart of the My stocks screen and links to
 TradingView at the foot of each screen, as the library's licence notice asks.
 
 # Third-party data in the app

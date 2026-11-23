@@ -12,8 +12,17 @@ export function nyMinute(t) {
   const p = Object.fromEntries(newYorkClock.formatToParts(new Date(t * 1000)).map((x) => [x.type, +x.value]));
   return p.hour * 60 + p.minute;
 }
-/** When the US stock session opens, in minutes after midnight in New York: 9:30. */
-export const NY_OPEN = 570;
+/** When the US stock session opens and closes, in minutes after midnight in New York: 9:30 and 16:00. */
+export const NY_OPEN = 570, NY_CLOSE = 960;
+
+/** One day, in milliseconds. */
+export const DAY_MS = 86400000;
+/** "Heavy volume", wherever the method says it: this many times the usual. */
+export const HEAVY_VOLUME = 1.5;
+
+/** To two decimals, and to one. Null for what is not a number. */
+export const r2 = (n) => (n == null || !isFinite(n) ? null : Math.round(n * 100) / 100);
+export const r1 = (n) => (n == null || !isFinite(n) ? null : Math.round(n * 10) / 10);
 
 export function sma(values, n) {
   const out = new Array(values.length).fill(null);

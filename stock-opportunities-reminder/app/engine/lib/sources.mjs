@@ -4,6 +4,7 @@
 
 import { get, eachLimited } from "./net.mjs";
 import * as yahoo from "./yahoo.mjs";
+import { DAY_MS } from "./indicators.mjs";
 
 /**
  * The unofficial sources: public endpoints with no key and no licence for this use. Every
@@ -17,6 +18,11 @@ const unlicensed = (fn) => (...args) => (UNLICENSED_FALLBACK ? fn(...args) : Pro
 const isCrypto = (sym) => /-USD[TC]?$/i.test(sym);
 /** Trades around the clock or nearly: crypto, currencies, futures. */
 export const alwaysOpen = (sym) => isCrypto(sym) || /=X$|=F$/i.test(sym);
+/**
+ * A symbol as the sources write it, in upper case, or null for anything else. The one rule
+ * for what is a symbol: the server's requests and the Scout's files both pass through it.
+ */
+export const cleanSym = (s) => (typeof s === "string" && /^[A-Z0-9.^=-]{1,15}$/i.test(s) ? s.toUpperCase() : null);
 /** Written like a US stock or fund: what Nasdaq and FINRA cover. */
 export const isUsStock = (sym) => /^[A-Z.]{1,6}$/.test(sym);
 
@@ -50,12 +56,13 @@ const coinbaseCandles = unlicensed(async (sym, frame) => {
   return fromCandles(sym, candles, { kind: "CRYPTOCURRENCY", exchange: "Coinbase", zone: "UTC" });
 });
 
-const isoDay = (d) => d.toISOString().slice(0, 10);
+/** A date as YYYY-MM-DD, in UTC. */
+export const isoDay = (d) => d.toISOString().slice(0, 10);
 const plainNumber = (s) => parseFloat(String(s).replace(/[$,]/g, ""));
 
 /** Nasdaq's own history, for US stocks and funds when Yahoo will not answer. Daily only. */
 const nasdaqDaily = unlicensed(async (sym) => {
-  const to = new Date(), from = new Date(Date.now() - 730 * 86400000);
+  const to = new Date(), from = new Date(Date.now() - 730 * DAY_MS);
   for (const kind of ["stocks", "etf"]) {
     const j = await get(`https://api.nasdaq.com/api/quote/${encodeURIComponent(sym)}/historical?assetclass=${kind}&fromdate=${isoDay(from)}&todate=${isoDay(to)}&limit=9999`);
     const rows = j && j.data && j.data.tradesTable && j.data.tradesTable.rows;
@@ -115,7 +122,7 @@ async function finraShort(sym) {
     method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
       limit: 10, compareFilters: [{ compareType: "EQUAL", fieldName: "symbolCode", fieldValue: sym }],
-      dateRangeFilters: [{ fieldName: "settlementDate", startDate: isoDay(new Date(Date.now() - 60 * 86400000)), endDate: isoDay(new Date()) }],
+      dateRangeFilters: [{ fieldName: "settlementDate", startDate: isoDay(new Date(Date.now() - 60 * DAY_MS)), endDate: isoDay(new Date()) }],
     }),
   });
   const row = rows.sort((a, b) => (a.settlementDate < b.settlementDate ? 1 : -1))[0];
@@ -130,8 +137,13 @@ const nasdaqShort = unlicensed(async (sym) => {
   return row ? { asOf: row.settlementDate, shares: plainNumber(row.interest), avgVolume: plainNumber(row.avgDailyShareVolume), daysToCover: plainNumber(row.daysToCover), source: "Nasdaq" } : null;
 });
 
-/** How much of a US stock is sold short. Published twice a month, so always a little old. `asOf` is month/day/year. */
-export async function shortInterest(sym) {
-  const fromFinra = await finraShort(sym).catch(() => null);
-  return fromFinra || nasdaqShort(sym);
+/**
+ * How much of a US stock is sold short. Published twice a month, so always a little old.
+ * `asOf` is month/day/year. `note(source, answered)` hears of each source that was asked,
+ * so a FINRA that is down is not hidden by Nasdaq answering in its place.
+ */
+export async function shortInterest(sym, note) {
+  const heard = (source, asked) => asked.then((row) => { note(source, true); return row; }, (e) => { note(source, false); throw e; });
+  const fromFinra = await heard("FINRA", finraShort(sym)).catch(() => null);
+  return fromFinra || heard("Nasdaq", nasdaqShort(sym));
 }
