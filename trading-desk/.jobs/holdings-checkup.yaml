@@ -1,0 +1,40 @@
+id: holdings-checkup
+name: Check my holdings
+enabled: true
+schedule: 45 8 * * 1-5
+provider: claude-code
+adapterType: claude_local
+ownerAgent: analyst
+agentSlug: analyst
+timeout: 900
+prompt: |-
+  Look at everything the person holds at Robinhood and write what needs their attention.
+  
+  Your working directory is the cabinet root.
+  
+  1. Read your persona, then `playbooks/how-the-desk-works.md` and `playbooks/robinhood.md`.
+     If you have no tool whose name starts with `mcp__cabinet-robinhood__`, report
+     "Robinhood is not connected." and stop.
+  2. Read the positions with `get_equity_positions` (and the option and crypto positions),
+     the account value with `get_portfolio`, and the open orders with `get_equity_orders`.
+  3. Read the person's trades (`desk/.data/shared.json` keys starting `t:`, and
+     `journal/trades.json`) to know which positions have a stop.
+  4. For each position, check these and keep only what is true today:
+     - `earnings`: it reports within seven days (`get_earnings_calendar`). Give the day.
+     - `news`: a headline from the last day that names the company (`get_equity_news`).
+       Read the title first. One headline, the one that matters most.
+     - `rating`: an analyst changed a rating in the last week (`get_equity_analyst_ratings`).
+     - `move`: it moved more than twice its usual daily move (`atr` in
+       `desk/data/market.json`), or more than 5% if the desk has no chart of it.
+     - `size`: it is more than 25% of the account's value.
+     - `no-stop`: the desk has no stop for it and it is down more than 10% from its cost.
+     - `order`: an open order for it is more than 5% away from the price, or older than
+       two weeks.
+  5. Write `account/attention.json` in the shape `desk/DATA.md` gives, replacing the old
+     file: at most eight items, the most pressing first, each one plain sentence with its
+     number. An empty list is a good answer.
+  
+  Do not say what to buy, sell or hold. Say what happened and when.
+  
+  Finish in two plain sentences: how many positions you checked, and the one thing the
+  person should read first.
