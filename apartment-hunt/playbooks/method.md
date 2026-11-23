@@ -12,7 +12,7 @@ the routine.
 ## 1. Read before you look
 
 - `search/brief.md`: the person's areas, money, must list and deal breakers.
-- `hunt/.data/shared.json`: every listing they saved, contacted or rejected, and why.
+- `hunt/.data/shared.json`: every listing they saved or rejected, and why.
 - `listings/`: every listing already on the map, so you never write one twice.
 - The newest three runs in `search/runs.json`: what was blocked last time, what was thin.
 
@@ -23,7 +23,7 @@ for it now and say so in the summary.
 
 1. **Cabinet's browser**, when you have it (on the Cabinet desktop app). It is a real
    browser: Yad2, Madlan, Homeless, Zillow, StreetEasy, Trulia, HotPads and Apartments.com
-   refuse plain requests and open in it. The person may
+   refuse plain requests, and the browser is the way to try them. The person may
    be watching, so move with purpose.
 2. **Reading a page as text** (web fetch), for public pages that allow it: Komo, WinWin,
    agency sites, nadlan.gov.il pages that render without a browser, HUD's Fair Market

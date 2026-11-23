@@ -41,8 +41,9 @@ trade. It writes what it learned to `search/brief.md` and searches right away.
   Zumper, HotPads and Craigslist, plus public sale records, HUD's Fair Market Rents and
   FEMA's flood map.
 
-On the Cabinet desktop app the Scout uses Cabinet's own browser, which reads sites that
-refuse plain requests. It never signs in, never pays and never sends a message for you.
+Most of these sites refuse plain requests from a program. On the Cabinet desktop app the
+Scout opens them in Cabinet's own browser instead; a site that still blocks it is named in
+the search's record, and the Scout moves on. It never signs in, never pays and never sends a message for you.
 
 ## Where things are kept
 

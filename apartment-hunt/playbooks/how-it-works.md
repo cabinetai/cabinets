@@ -197,7 +197,7 @@ The map keeps the person's actions under keys `l:<listing file name without .md>
 { "l:yad2-a1b2c3": { "status": "rejected", "reason": "noisy", "note": "Right above a bar", "at": "2026-11-23T19:02:11Z" } }
 ```
 
-- `status`: `saved`, `contacted`, `visiting`, `visited`, `applied`, `rejected`.
+- `status`: `saved` or `rejected`.
 - `reason` (on `rejected`): `price`, `area`, `small`, `noisy`, `dark`, `condition`,
   `missing`, `looks_off`, `other`. `note` is free text.
 
