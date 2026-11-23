@@ -15,9 +15,9 @@
   For one property the newer of the two wins, so an edit here shows at once and a later
   edit by an assistant shows too. playbooks/how-the-map-works.md is the same rule in words.
 
-  The map picture is OpenFreeMap (free, no key, drawn by the MapLibre library loaded from a
-  CDN). Panning, zooming and the pins are this script's own. If MapLibre cannot start, the
-  picture falls back to plain OpenStreetMap tiles. Address search asks OpenStreetMap's
+  The map is MapLibre (loaded from a CDN) drawing OpenFreeMap (free, no key). MapLibre does
+  the panning and zooming; the pins are this page's own buttons, placed as MapLibre markers.
+  If MapLibre cannot start, the map says so and the board works alone. Address search asks OpenStreetMap's
   Nominatim, only on a press. Those, and Google Fonts, are the only requests that leave
   Cabinet. One file on purpose: a sealed frame cannot load files next to it.
 -->
@@ -50,7 +50,6 @@
     --serif: Fraunces, Georgia, "Times New Roman", serif;
     --ring: 0 0 0 3px rgba(31,58,92,.25);
     --ease: cubic-bezier(.23, 1, .32, 1);
-    --tile-filter: saturate(.6) sepia(.16) brightness(1.02) contrast(.97);
     --map-bg: #EDE6DA;
     --gl-filter: sepia(.14) saturate(.9);
   }
@@ -72,8 +71,8 @@
     --ring: 0 0 0 3px rgba(157,188,227,.35);
     --map-bg: #1d1a18;
   }
-  :root[data-map="classic"] { --tile-filter: none; --gl-filter: none; }
-  :root[data-map="night"] { --tile-filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.55); --map-bg: #1d1a18; --gl-filter: none; }
+  :root[data-map="classic"] { --gl-filter: none; }
+  :root[data-map="night"] { --map-bg: #1d1a18; --gl-filter: none; }
 
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -126,16 +125,11 @@
   .rail { min-height: 0; overflow-y: auto; padding: 0 14px 28px; scrollbar-width: thin; }
 
   /* ── The map ───────────────────────────────────────────────────────────── */
-  #map { position: absolute; inset: 0; overflow: hidden; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; }
-  #map.dragging { cursor: grabbing; }
-  #map.placing, #map.placing .pin { cursor: crosshair; }
-  .tiles { position: absolute; inset: 0; filter: var(--tile-filter); transition: filter .4s; }
-  .gl { position: absolute; inset: 0; pointer-events: none; filter: var(--gl-filter, none); }
-  .gl canvas { outline: none; }
-  .tiles img { position: absolute; left: 0; top: 0; opacity: 0; transition: opacity .28s; pointer-events: none; -webkit-user-drag: none; max-width: none; }
-  .tiles img.in { opacity: 1; }
-  .pins { position: absolute; inset: 0; pointer-events: none; }
-  .pin, .cluster, .spot { position: absolute; left: 0; top: 0; pointer-events: auto; border: 0; background: none; padding: 0; will-change: transform; }
+  #map { position: absolute; inset: 0; user-select: none; -webkit-user-select: none; }
+  #map canvas { outline: none; filter: var(--gl-filter, none); }
+  #map.placing .maplibregl-canvas-container, #map.placing .pin { cursor: crosshair; }
+  /* MapLibre moves each marker by its transform; the look of a pin is on .pin-in inside. */
+  .pin, .cluster, .spot { border: 0; background: none; padding: 0; }
   .pin-in { position: relative; display: flex; align-items: center; gap: 6px; transform: translate(-50%, calc(-100% - 9px)); transform-origin: 50% calc(100% + 9px); padding: 5px 10px 5px 6px; border-radius: 999px; background: var(--surface); color: var(--ink); font-weight: 700; font-size: 13px; white-space: nowrap; max-width: 190px; box-shadow: 0 1px 2px rgba(34,23,22,.25), 0 8px 18px -8px rgba(34,23,22,.5); border: 1.5px solid var(--c); transition: transform .22s var(--ease), box-shadow .22s, background .2s, color .2s; animation: drop .5s var(--ease) both; animation-delay: var(--d, 0ms); }
   .pin-in::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 11px; height: 11px; background: inherit; border: inherit; border-top: 0; border-left: 0; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 3px 0; }
   .pin-in::before { content: ""; position: absolute; left: 50%; bottom: -13px; width: 8px; height: 4px; border-radius: 50%; background: rgba(34,23,22,.28); transform: translateX(-50%); filter: blur(1px); }
@@ -148,7 +142,6 @@
   .pin.sel .pin-in { background: var(--c); color: var(--on-st); transform: translate(-50%, calc(-100% - 9px)) scale(1.14); }
   .pin.sel .pin-ic { background: rgba(255,255,255,.22); }
   .pin.sel::after { content: ""; position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--c); animation: ring 1.8s ease-out infinite; pointer-events: none; }
-  .pin.dim { opacity: .28; }
   .pin.example .pin-in { border-style: dashed; }
   @keyframes drop { from { opacity: 0; transform: translate(-50%, calc(-100% - 40px)) scale(.7); } }
   @keyframes ring { from { transform: scale(.6); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
@@ -391,6 +384,7 @@
   }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 </style>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 </head>
 <body>
@@ -410,11 +404,7 @@
   </header>
   <div class="main">
     <section class="mapwrap" aria-label="Map of your properties">
-      <div id="map" tabindex="0">
-        <div class="gl" id="gl"></div>
-        <div class="tiles" id="tiles"></div>
-        <div class="pins" id="pins"></div>
-      </div>
+      <div id="map"></div>
       <div class="map-ui" id="mapui">
         <div class="chips" id="chips"></div>
         <div class="ctrl" id="ctrl"></div>
@@ -437,7 +427,6 @@
   var FOLDER = "properties";
   var STYLE_URL = "https://tiles.openfreemap.org/styles/";
   var LOOKS = { paper: "positron", classic: "liberty", night: "dark" };
-  var TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
   var GEO_URL = "https://nominatim.openstreetmap.org";
   var DAY = 86400000;
 
@@ -843,131 +832,56 @@
   }
 
   // ── The map ─────────────────────────────────────────────────────────────
-  var TILE = 256, MINZ = 2, MAXZ = 19;
-  var mapEl = $("map"), tilesEl = $("tiles"), pinsEl = $("pins");
-  var map = { w: 0, h: 0, x: .5, y: .4, z: 2.5, tiles: {}, frame: 0, anim: 0, zTo: null, zAt: null, groupsKey: "" };
+  // MapLibre draws the map and owns every drag, wheel, pinch, double press and key. The
+  // pins are this page's own buttons, handed to MapLibre as markers so they move with it.
+  var mapEl = $("map");
+  var map = { w: 0, h: 0, frame: 0, groupsKey: "" };
   var state = { open: null, hover: null, hot: null, hide: {}, q: "", placing: false, moving: null, spot: null, editing: false, drawer: null, menu: false, geo: null, geoBusy: false, firstFit: false, listSort: "name" };
+  var gl = null, glLook = "", markers = [], stacked = window.matchMedia("(max-width: 899px)");
 
-  function ll2n(lat, lng) { var s = Math.sin(clamp(lat, -85, 85) * Math.PI / 180); return { x: (lng + 180) / 360, y: .5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI) }; }
-  function n2ll(x, y) { var n = Math.PI * (1 - 2 * y); return { lat: Math.atan(Math.sinh(n)) * 180 / Math.PI, lng: (((x % 1) + 1) % 1) * 360 - 180 }; }
-  function world(z) { return TILE * Math.pow(2, z); }
-  function toScreen(nx, ny) { var s = world(map.z), dx = nx - map.x; dx -= Math.round(dx); return { x: dx * s + map.w / 2, y: (ny - map.y) * s + map.h / 2 }; }
-  function fromScreen(px, py) { var s = world(map.z); return { x: map.x + (px - map.w / 2) / s, y: map.y + (py - map.h / 2) / s }; }
-  function setView(x, y, z) {
-    if (!isFinite(x) || !isFinite(y) || !isFinite(z)) return;
-    map.z = clamp(z, MINZ, MAXZ);
-    var half = map.h / 2 / world(map.z);
-    map.y = half >= .5 ? .5 : clamp(y, half, 1 - half);
-    map.x = ((x % 1) + 1) % 1;
-    draw();
-  }
-  function draw() { if (!map.frame) map.frame = requestAnimationFrame(function () { map.frame = 0; render(); }); }
-  function stop() { cancelAnimationFrame(map.anim); map.anim = 0; map.zTo = null; }
-
-  // The map picture: OpenFreeMap, drawn by MapLibre under the pins. It only follows this
-  // script's view, so every press, drag and zoom stays here.
-  var gl = null, glLook = "";
   function lookNow() { return prefs.map || (document.documentElement.dataset.theme === "dark" ? "night" : "classic"); }
+  // Made once the theme is known, so the first picture is already the right look. No
+  // MapLibre (the script did not load, or no WebGL): gl is false and the map says so.
   function startGl() {
     var look = lookNow();
     if (gl) { if (look !== glLook) { glLook = look; gl.setStyle(STYLE_URL + LOOKS[look]); } return; }
-    if (!window.maplibregl || !map.w || gl === false) return;
+    if (gl === false) return;
     try {
-      var c = n2ll(map.x, map.y);
-      gl = new window.maplibregl.Map({ container: "gl", style: STYLE_URL + LOOKS[look], interactive: false, attributionControl: false, center: [c.lng, c.lat], zoom: map.z - 1, fadeDuration: 120 });
-      glLook = look;
-      // No picture after a while (no network to it, or no WebGL): the plain tiles take over.
-      var made = gl, ok = false;
-      made.once("load", function () { ok = true; });
-      var giveUp = function () {
-        if (ok || gl !== made) return;
-        if (document.hidden) return setTimeout(giveUp, 9000); // a hidden tab draws nothing yet
-        made.remove(); gl = false; draw();
-      };
-      setTimeout(giveUp, 9000);
-    } catch (e) { gl = false; }
+      gl = new window.maplibregl.Map({ container: mapEl, style: STYLE_URL + LOOKS[look], center: [-40, 30], zoom: 1.2, minZoom: 1, maxZoom: 18, maxPitch: 0, dragRotate: false, pitchWithRotate: false, attributionControl: false, fadeDuration: 120 });
+    } catch (e) { gl = false; paintMapUi(); return; }
+    glLook = look;
+    gl.touchZoomRotate.disableRotation();
+    gl.keyboard.disableRotation();
+    gl.on("move", draw);
+    gl.on("movestart", function (e) { if (e.originalEvent) setHover(null); });
+    gl.on("moveend", saveView);
+    gl.on("click", function (e) { if (!e.originalEvent.target.closest(".pin, .cluster, .spot")) mapPress(e.lngLat); });
   }
-  function render() {
-    if (!map.w) return;
-    startGl();
-    if (gl) {
-      var c = n2ll(map.x, map.y);
-      gl.jumpTo({ center: [c.lng, c.lat], zoom: map.z - 1 });
-      placePins(); placeHover();
+  function draw() { if (!map.frame) map.frame = requestAnimationFrame(function () { map.frame = 0; if (gl) { buildPins(); placeHover(); } }); }
+
+  // Room kept clear around what the map fits, never more than a quarter of the map.
+  function pad(side, top, bottom) {
+    var x = Math.min(side, map.w / 4), y = map.h / 4;
+    return { left: x, right: x, top: Math.min(top, y), bottom: Math.min(bottom, y) };
+  }
+  function boundsOf(list) { var b = new window.maplibregl.LngLatBounds(); list.forEach(function (a) { b.extend([a.lng, a.lat]); }); return b; }
+  // lift: how far below the middle of the map the place ends up, in pixels.
+  function fly(lng, lat, zoom, lift) { if (gl) gl.flyTo({ center: [lng, lat], zoom: zoom, offset: [0, lift || 0], speed: 1.6 }); }
+  function fitAll(instant) {
+    var list = shownAssets().filter(isOn); if (!gl || !list.length) return;
+    if (list.length === 1) {
+      if (instant) gl.jumpTo({ center: [list[0].lng, list[0].lat], zoom: 13.5 }); else fly(list[0].lng, list[0].lat, 13.5);
       return;
     }
-    var tz = clamp(Math.round(map.z), MINZ, MAXZ), n = Math.pow(2, tz), s = Math.pow(2, map.z - tz);
-    var cx = map.x * n * TILE, cy = map.y * n * TILE;
-    var x0 = Math.floor((cx - map.w / 2 / s) / TILE), x1 = Math.floor((cx + map.w / 2 / s) / TILE);
-    var y0 = Math.max(0, Math.floor((cy - map.h / 2 / s) / TILE)), y1 = Math.min(n - 1, Math.floor((cy + map.h / 2 / s) / TILE));
-    var need = {}, pending = 0;
-    for (var ty = y0; ty <= y1; ty++) for (var tx = x0; tx <= x1; tx++) {
-      var key = tz + "/" + tx + "/" + ty, t = map.tiles[key];
-      if (!t) t = map.tiles[key] = makeTile(tz, tx, ty, n);
-      need[key] = 1; if (!t.ready) pending++;
-    }
-    Object.keys(map.tiles).forEach(function (key) {
-      var t = map.tiles[key];
-      var keep = t.z === tz ? need[key] : (pending > 0 && Math.abs(t.z - tz) <= 3);
-      if (!keep) { t.img.onload = t.img.onerror = null; t.img.remove(); delete map.tiles[key]; return; }
-      var ts = Math.pow(2, map.z - t.z), size = TILE * ts, tn = Math.pow(2, t.z);
-      var l = (t.x * TILE - map.x * tn * TILE) * ts + map.w / 2, tp = (t.y * TILE - map.y * tn * TILE) * ts + map.h / 2;
-      if (l > map.w || tp > map.h || l + size < 0 || tp + size < 0) { if (t.z !== tz) { t.img.remove(); delete map.tiles[key]; } return; }
-      var rl = Math.round(l), rt = Math.round(tp);
-      t.img.style.cssText = "transform:translate(" + rl + "px," + rt + "px);width:" + (Math.round(l + size) - rl) + "px;height:" + (Math.round(tp + size) - rt) + "px;z-index:" + (t.z === tz ? 2 : 1);
-    });
-    placePins();
-    placeHover();
-  }
-  function makeTile(z, x, y, n) {
-    var img = new Image(), t = { z: z, x: x, y: y, img: img, ready: false };
-    img.alt = ""; img.draggable = false; img.decoding = "async";
-    img.onload = function () { t.ready = true; img.classList.add("in"); draw(); };
-    img.onerror = function () { t.ready = true; draw(); };
-    img.src = TILE_URL.replace("{z}", z).replace("{x}", ((x % n) + n) % n).replace("{y}", y);
-    tilesEl.appendChild(img);
-    return t;
-  }
-
-  function zoomAt(px, py, z) {
-    var before = fromScreen(px, py); map.z = clamp(z, MINZ, MAXZ); var after = fromScreen(px, py);
-    setView(map.x + before.x - after.x, map.y + before.y - after.y, map.z);
-  }
-  function zoomSmooth(px, py, dz) {
-    cancelAnimationFrame(map.anim);
-    map.zTo = clamp((map.zTo == null ? map.z : map.zTo) + dz, MINZ, MAXZ); map.zAt = [px, py];
-    (function step() {
-      if (map.zTo == null) return;
-      var d = map.zTo - map.z;
-      if (Math.abs(d) < .004) { zoomAt(map.zAt[0], map.zAt[1], map.zTo); map.zTo = null; saveView(); return; }
-      zoomAt(map.zAt[0], map.zAt[1], map.z + d * .22);
-      map.anim = requestAnimationFrame(step);
-    })();
-  }
-  function fly(nx, ny, z, ms) {
-    stop();
-    var x0 = map.x, y0 = map.y, z0 = map.z, dx = nx - x0; dx -= Math.round(dx);
-    var dist = Math.hypot(dx, ny - y0) * world(Math.min(z0, z)) / Math.max(map.w, map.h, 1);
-    var dip = dist > 1 ? clamp(Math.log(dist) / Math.LN2, 0, 4) : 0, t0 = performance.now();
-    ms = ms || clamp(450 + dist * 60, 450, 1500);
-    (function step(now) {
-      var t = clamp(((now || performance.now()) - t0) / ms, 0, 1), e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      setView(x0 + dx * e, y0 + (ny - y0) * e, z0 + (z - z0) * e - dip * Math.sin(Math.PI * t));
-      if (t < 1) map.anim = requestAnimationFrame(step); else { map.anim = 0; saveView(); }
-    })();
-  }
-  function fitAll(instant) {
-    var pts = shownAssets().filter(isOn).map(function (a) { return ll2n(a.lat, a.lng); });
-    if (!pts.length) return;
-    var xs = pts.map(function (p) { return p.x; }), ys = pts.map(function (p) { return p.y; });
-    var x0 = Math.min.apply(0, xs), x1 = Math.max.apply(0, xs), y0 = Math.min.apply(0, ys), y1 = Math.max.apply(0, ys);
-    var z = pts.length === 1 ? 14.5 : Math.min(Math.log(Math.max(120, map.w - 230) / ((x1 - x0) * TILE)) / Math.LN2, Math.log(Math.max(1, map.h - 170) / ((y1 - y0) * TILE)) / Math.LN2, 16);
-    z = clamp(z, MINZ, 17);
-    var cy = (y0 + y1) / 2 - 22 / world(z);
-    if (instant) setView((x0 + x1) / 2, cy, z); else fly((x0 + x1) / 2, cy, z);
+    gl.fitBounds(boundsOf(list), { padding: pad(115, 70, 100), maxZoom: 16, duration: instant ? 0 : 900 });
   }
   var viewTimer;
-  function saveView() { clearTimeout(viewTimer); viewTimer = setTimeout(function () { savePref("view", [+map.x.toFixed(6), +map.y.toFixed(6), +map.z.toFixed(2)]); }, 900); }
+  function saveView() {
+    // Not before the first view is set: MapLibre also moves while it sizes itself.
+    if (!state.firstFit) return;
+    clearTimeout(viewTimer);
+    viewTimer = setTimeout(function () { var c = gl.getCenter(); savePref("view", { lng: +c.lng.toFixed(6), lat: +c.lat.toFixed(6), zoom: +gl.getZoom().toFixed(2) }); }, 900);
+  }
 
   // Pins. Close pins fold into a counted circle; the groups change only with the zoom.
   var groups = [];
@@ -985,35 +899,33 @@
     return a.title;
   }
   function buildPins(force) {
-    var zk = Math.round(map.z * 3) / 3, list = shownAssets().filter(isOn);
-    var key = zk + "|" + (prefs.pin || "") + "|" + state.open + "|" + state.q + "|" + list.map(function (a) { return a.id + a.updatedAt; }).join(",") + "|" + (state.spot ? state.spot.x : "");
+    var zk = Math.round(gl.getZoom() * 3) / 3, list = shownAssets().filter(isOn);
+    var key = zk + "|" + (prefs.pin || "") + "|" + state.open + "|" + state.q + "|" + list.map(function (a) { return a.id + a.updatedAt; }).join(",") + "|" + (state.spot ? state.spot.lat + "," + state.spot.lng : "");
     if (!force && key === map.groupsKey) return;
     var first = !map.groupsKey; map.groupsKey = key;
-    var s = world(zk); groups = [];
+    groups = [];
     list.slice().sort(function (a, b) { return b.lat - a.lat; }).forEach(function (a) {
-      var p = ll2n(a.lat, a.lng), g = null;
-      for (var i = 0; i < groups.length && !g; i++) if (Math.abs(groups[i].x - p.x) * s < 54 && Math.abs(groups[i].y - p.y) * s < 34 && zk < 17.5) g = groups[i];
-      if (g) { g.items.push(a); var k = g.items.length; g.x += (p.x - g.x) / k; g.y += (p.y - g.y) / k; }
-      else groups.push({ x: p.x, y: p.y, items: [a] });
+      var p = gl.project([a.lng, a.lat]), g = null;
+      for (var i = 0; i < groups.length && !g; i++) if (Math.abs(groups[i].px - p.x) < 54 && Math.abs(groups[i].py - p.y) < 34 && zk < 16.5) g = groups[i];
+      if (g) { g.items.push(a); var k = g.items.length; g.lng += (a.lng - g.lng) / k; g.lat += (a.lat - g.lat) / k; g.px += (p.x - g.px) / k; g.py += (p.y - g.py) / k; }
+      else groups.push({ lng: a.lng, lat: a.lat, px: p.x, py: p.y, items: [a] });
     });
-    var html = groups.map(function (g, i) {
-      if (g.items.length > 1) return '<button class="cluster" data-g="' + i + '" data-act="cluster" aria-label="' + g.items.length + ' properties here. Press to zoom in."><div class="cluster-in">' + g.items.length + "</div></button>";
+    markers.forEach(function (m) { m.remove(); }); markers = [];
+    groups.forEach(function (g, i) {
+      if (g.items.length > 1) return addMarker('<button class="cluster" data-g="' + i + '" data-act="cluster" aria-label="' + g.items.length + ' properties here. Press to zoom in."><div class="cluster-in">' + g.items.length + "</div></button>", g, 1);
       var a = g.items[0], st = stateOf(a), label = pinLabel(a);
-      return '<button class="pin' + (label ? "" : " bare") + (a.id === state.open ? " sel" : "") + (matches(a) ? "" : " dim") + (a.example ? " example" : "") + '" data-g="' + i + '" data-act="open" data-id="' + esc(a.id) + '" style="--c:' + st.c + (first ? ";--d:" + Math.min(i * 55, 600) + "ms" : ";--d:0ms") + '" aria-label="' + esc(a.title + ", " + st.id) + '">' +
-        '<div class="pin-in"><span class="pin-ic">' + icon(typeOf(a).icon) + "</span>" + (label ? '<span class="pin-t">' + esc(label) + "</span>" : "") + "</div></button>";
-    }).join("");
-    if (state.spot) html += '<div class="spot" data-spot="1"><div class="spot-in"><span>' + esc(state.spot.label) + '</span><button class="btn small primary" data-act="add-here" data-write>' + icon("plus") + "Add it here</button><button class=\"btn small ghost\" data-act=\"spot-off\" aria-label=\"Close\" style=\"color:inherit\">" + icon("x") + "</button></div></div>";
-    pinsEl.innerHTML = html;
+      addMarker('<button class="pin' + (label ? "" : " bare") + (a.id === state.open ? " sel" : "") + (a.example ? " example" : "") + '" data-g="' + i + '" data-act="open" data-id="' + esc(a.id) + '" style="--c:' + st.c + (first ? ";--d:" + Math.min(i * 55, 600) + "ms" : ";--d:0ms") + '" aria-label="' + esc(a.title + ", " + st.id) + '">' +
+        '<div class="pin-in"><span class="pin-ic">' + icon(typeOf(a).icon) + "</span>" + (label ? '<span class="pin-t">' + esc(label) + "</span>" : "") + "</div></button>", g, matches(a) ? 1 : .28);
+    });
+    if (state.spot) addMarker('<div class="spot"><div class="spot-in"><span>' + esc(state.spot.label) + '</span><button class="btn small primary" data-act="add-here" data-write>' + icon("plus") + "Add it here</button><button class=\"btn small ghost\" data-act=\"spot-off\" aria-label=\"Close\" style=\"color:inherit\">" + icon("x") + "</button></div></div>", state.spot, 1);
   }
-  function placePins() {
-    buildPins();
-    var kids = pinsEl.children;
-    for (var i = 0; i < kids.length; i++) {
-      var el = kids[i], g = el.dataset.spot ? state.spot : groups[+el.dataset.g]; if (!g) continue;
-      var p = toScreen(g.x, g.y);
-      el.style.transform = "translate3d(" + p.x.toFixed(1) + "px," + p.y.toFixed(1) + "px,0)";
-      if (!el.dataset.spot) el.style.zIndex = el.classList.contains("sel") ? 5 : "";
-    }
+  var holder = document.createElement("div");
+  function addMarker(html, at, opacity) {
+    holder.innerHTML = html;
+    var el = holder.firstChild, label = el.getAttribute("aria-label");
+    markers.push(new window.maplibregl.Marker({ element: el, anchor: "top-left", opacity: String(opacity) }).setLngLat([at.lng, at.lat]).addTo(gl));
+    // addTo names every marker "Map marker"; a pin keeps its own name.
+    if (label) el.setAttribute("aria-label", label); else el.removeAttribute("aria-label");
   }
 
   // The hover card.
@@ -1044,8 +956,8 @@
     el.classList.toggle("wide", map.w >= 520); el.innerHTML = hoverHtml(a); el.classList.add("show"); placeHover();
   }
   function placeHover() {
-    var a = state.hover && byId(state.hover); if (!a || !isOn(a)) return;
-    var el = $("hover"), n = ll2n(a.lat, a.lng), p = toScreen(n.x, n.y), w = el.offsetWidth, h = el.offsetHeight;
+    var a = state.hover && byId(state.hover); if (!a || !isOn(a) || !gl) return;
+    var el = $("hover"), p = gl.project([a.lng, a.lat]), w = el.offsetWidth, h = el.offsetHeight;
     var x = clamp(p.x - w / 2, 8, Math.max(8, map.w - w - 8)), y = p.y - 58 - h;
     if (y < 8) {
       // No room above: beside the pin, on the side with more room, else under it.
@@ -1056,84 +968,21 @@
     el.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)";
   }
 
-  // Hands on the map: drag, wheel, pinch, double press, keys.
-  var ptrs = {}, drag = null, stacked = window.matchMedia("(max-width: 899px)");
-  function local(e) { var r = mapEl.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
-  mapEl.addEventListener("pointerdown", function (e) {
-    if (e.button > 0 || e.target.closest(".pin, .cluster, .spot")) return;
-    stop(); setHover(null);
-    var p = local(e); ptrs[e.pointerId] = p;
-    try { mapEl.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
-    var ids = Object.keys(ptrs);
-    if (ids.length === 1) drag = { sx: p[0], sy: p[1], x: map.x, y: map.y, moved: false, v: [0, 0], t: performance.now(), lx: p[0], ly: p[1] };
-    else if (ids.length === 2) { var a = ptrs[ids[0]], b = ptrs[ids[1]]; drag = { pinch: Math.hypot(a[0] - b[0], a[1] - b[1]), z: map.z, moved: true }; }
-  });
-  mapEl.addEventListener("pointermove", function (e) {
-    if (!ptrs[e.pointerId] || !drag) return;
-    var p = local(e); ptrs[e.pointerId] = p;
-    var ids = Object.keys(ptrs);
-    if (drag.pinch && ids.length >= 2) {
-      var a = ptrs[ids[0]], b = ptrs[ids[1]], dist = Math.hypot(a[0] - b[0], a[1] - b[1]);
-      zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, drag.z + Math.log(dist / drag.pinch) / Math.LN2);
-      return;
-    }
-    if (drag.pinch) return;
-    var dx = p[0] - drag.sx, dy = p[1] - drag.sy;
-    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
-    drag.moved = true; mapEl.classList.add("dragging");
-    var now = performance.now(), dt = Math.max(1, now - drag.t);
-    drag.v = [(p[0] - drag.lx) / dt, (p[1] - drag.ly) / dt]; drag.t = now; drag.lx = p[0]; drag.ly = p[1];
-    var s = world(map.z); setView(drag.x - dx / s, drag.y - dy / s, map.z);
-  });
-  function pointerEnd(e) {
-    if (!ptrs[e.pointerId]) return;
-    var p = ptrs[e.pointerId]; delete ptrs[e.pointerId];
-    mapEl.classList.remove("dragging");
-    if (!drag) return;
-    var d = drag; if (Object.keys(ptrs).length) { drag = null; return; }
-    drag = null;
-    if (!d.moved && e.type === "pointerup") return mapPress(p[0], p[1]);
-    if (d.pinch) return saveView();
-    var vx = d.v[0], vy = d.v[1];
-    if (performance.now() - d.t > 80 || Math.hypot(vx, vy) < .12) return saveView();
-    var last = performance.now();
-    (function glide(now) {
-      now = now || performance.now(); var dt = now - last; last = now;
-      var s = world(map.z); setView(map.x - vx * dt / s, map.y - vy * dt / s, map.z);
-      var k = Math.pow(.994, dt); vx *= k; vy *= k;
-      if (Math.hypot(vx, vy) > .02) map.anim = requestAnimationFrame(glide); else { map.anim = 0; saveView(); }
-    })();
-  }
-  mapEl.addEventListener("pointerup", pointerEnd);
-  mapEl.addEventListener("pointercancel", pointerEnd);
-  mapEl.addEventListener("wheel", function (e) {
-    // Stacked over the board, a plain wheel scrolls the page; a pinch still zooms.
-    if (stacked.matches && !e.ctrlKey && !e.metaKey) return;
-    e.preventDefault(); setHover(null);
-    var p = local(e), dy = e.deltaY * (e.deltaMode === 1 ? 18 : 1);
-    zoomSmooth(p[0], p[1], clamp(-dy * (e.ctrlKey ? .012 : .0032), -1.2, 1.2));
-  }, { passive: false });
-  mapEl.addEventListener("dblclick", function (e) { if (e.target.closest(".pin, .cluster, .spot")) return; var p = local(e); zoomSmooth(p[0], p[1], e.shiftKey ? -1 : 1); });
-  mapEl.addEventListener("keydown", function (e) {
-    var step = 90 / world(map.z), k = e.key;
-    if (k === "ArrowLeft") setView(map.x - step, map.y, map.z); else if (k === "ArrowRight") setView(map.x + step, map.y, map.z);
-    else if (k === "ArrowUp") setView(map.x, map.y - step, map.z); else if (k === "ArrowDown") setView(map.x, map.y + step, map.z);
-    else if (k === "+" || k === "=") zoomSmooth(map.w / 2, map.h / 2, 1); else if (k === "-") zoomSmooth(map.w / 2, map.h / 2, -1);
-    else return;
-    e.preventDefault();
-  });
-  pinsEl.addEventListener("mouseover", function (e) { var pin = e.target.closest(".pin"); if (pin && !drag) setHover(pin.dataset.id); });
-  pinsEl.addEventListener("mouseout", function (e) { var pin = e.target.closest(".pin"); if (pin && !pin.contains(e.relatedTarget)) setHover(null); });
-  pinsEl.addEventListener("focusin", function (e) { var pin = e.target.closest(".pin"); if (pin) setHover(pin.dataset.id); });
-  pinsEl.addEventListener("focusout", function () { setHover(null); });
+  // Stacked over the board, a plain wheel scrolls the page; a pinch still zooms. Caught on
+  // the way down, before MapLibre's own wheel listener inside the map sees it.
+  mapEl.addEventListener("wheel", function (e) { if (stacked.matches && !e.ctrlKey && !e.metaKey) e.stopPropagation(); }, true);
+  mapEl.addEventListener("mouseover", function (e) { var pin = e.target.closest(".pin"); if (pin && !(gl && gl.isMoving())) setHover(pin.dataset.id); });
+  mapEl.addEventListener("mouseout", function (e) { var pin = e.target.closest(".pin"); if (pin && !pin.contains(e.relatedTarget)) setHover(null); });
+  mapEl.addEventListener("focusin", function (e) { var pin = e.target.closest(".pin"); if (pin) setHover(pin.dataset.id); });
+  mapEl.addEventListener("focusout", function () { setHover(null); });
   new ResizeObserver(function () {
     var r = mapEl.getBoundingClientRect(); map.w = r.width; map.h = r.height; if (gl) gl.resize();
     if (loaded && !state.firstFit && map.w) firstView();
     draw();
   }).observe(mapEl);
 
-  function mapPress(px, py) {
-    var n = fromScreen(px, py), ll = n2ll(n.x, n.y);
+  function mapPress(ll) {
+    ll = ll.wrap();
     if (state.menu) { state.menu = false; paintMapUi(); return; }
     if (state.moving) {
       var a = byId(state.moving); state.moving = null;
@@ -1236,11 +1085,12 @@
     function opt(group, id, label, cur) { return '<button class="opt' + (cur === id ? " on" : "") + '" data-act="opt" data-group="' + group + '" data-id="' + id + '">' + label + "</button>"; }
     $("menu").innerHTML = !state.menu ? "" : '<div class="menu"><h4>Pins show</h4>' + opt("pin", "name", "The name", pin) + opt("pin", "value", "The value", pin) + opt("pin", "rent", "The rent", pin) + opt("pin", "state", "The state", pin) + opt("pin", "none", "Only the icon", pin) +
       "<h4>Map look</h4>" + opt("map", "paper", "Paper", look) + opt("map", "classic", "Classic", look) + opt("map", "night", "Night", look) + "</div>";
-    document.documentElement.dataset.map = look; draw();
+    document.documentElement.dataset.map = look; if (gl) startGl(); draw();
     mapEl.classList.toggle("placing", !!(state.placing || state.moving));
     var over = "";
     if (state.placing) over = '<div class="banner">' + icon("cross") + "<span>Press the map where the property is, or search its address.</span><button class=\"btn small\" data-act=\"cancel\">Cancel</button></div>";
     else if (state.moving) over = '<div class="banner">' + icon("move") + "<span>Press the map where the pin should go.</span><button class=\"btn small\" data-act=\"cancel\">Cancel</button></div>";
+    else if (gl === false) over = '<div class="empty-map"><h2>The map did not load</h2><p>Check the connection, then reload. Every property is still on the board.</p></div>';
     else if (loaded && !assets.length) over = '<div class="empty-map"><h2>Your map is empty</h2><p>Add a property by pressing the map, by searching its address, or by telling your assistant.</p><div class="actions" style="justify-content:center"><button class="btn primary" data-act="add" data-write>' + icon("plus") + 'Add a property</button><button class="btn" data-act="idea" data-id="import">' + icon("list") + "Paste a list</button></div></div>";
     $("overlay").innerHTML = over + (state.editing ? '<div class="map-off">' + partX("map", true) + "</div>" : "");
   }
@@ -1424,9 +1274,9 @@
     state.open = id; state.editing = false; state.drawer = null; setHover(null);
     $("results").hidden = true;
     paint(); $("rail").scrollTop = 0;
-    if (isOn(a) && flyThere !== false) {
-      var n = ll2n(a.lat, a.lng), p = toScreen(n.x, n.y), inView = p.x > 80 && p.x < map.w - 80 && p.y > 110 && p.y < map.h - 60;
-      if (!inView || map.z < 12.5) fly(n.x, n.y - 30 / world(Math.max(map.z, 14.5)), Math.max(map.z, 14.5));
+    if (isOn(a) && flyThere !== false && gl) {
+      var p = gl.project([a.lng, a.lat]), inView = p.x > 80 && p.x < map.w - 80 && p.y > 110 && p.y < map.h - 60;
+      if (!inView || gl.getZoom() < 11.5) fly(a.lng, a.lat, Math.max(gl.getZoom(), 13.5), 30);
     }
     if (stacked.matches) $("rail").scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -1488,16 +1338,14 @@
     if (act === "open") openAsset(el.dataset.id);
     else if (act === "close") { state.open = null; state.moving = null; paint(); }
     else if (act === "cluster") {
-      var g = groups[+el.dataset.g]; if (!g) return;
-      var xs = g.items.map(function (x) { return ll2n(x.lat, x.lng); });
-      var spanX = Math.max.apply(0, xs.map(function (p) { return p.x; })) - Math.min.apply(0, xs.map(function (p) { return p.x; })), spanY = Math.max.apply(0, xs.map(function (p) { return p.y; })) - Math.min.apply(0, xs.map(function (p) { return p.y; }));
-      var z = Math.min(Math.log(Math.max(1, map.w - 200) / (Math.max(spanX, 1e-9) * TILE)) / Math.LN2, Math.log(Math.max(1, map.h - 220) / (Math.max(spanY, 1e-9) * TILE)) / Math.LN2, 17.6);
-      fly(g.x, g.y, Math.max(z, map.z + 1.2));
+      var g = groups[+el.dataset.g]; if (!g || !gl) return;
+      var cam = gl.cameraForBounds(boundsOf(g.items), { padding: pad(100, 110, 110), maxZoom: 16.6 });
+      fly(g.lng, g.lat, Math.max(cam ? cam.zoom : 0, gl.getZoom() + 1.2));
     }
     else if (act === "add") { state.placing = true; state.open = null; state.drawer = null; paint(); if (stacked.matches) mapEl.scrollIntoView({ behavior: "smooth", block: "center" }); }
     else if (act === "cancel") { state.placing = false; state.moving = null; paint(); }
-    else if (act === "zin") zoomSmooth(map.w / 2, map.h / 2, 1);
-    else if (act === "zout") zoomSmooth(map.w / 2, map.h / 2, -1);
+    else if (act === "zin") { if (gl) gl.zoomIn(); }
+    else if (act === "zout") { if (gl) gl.zoomOut(); }
     else if (act === "fit") fitAll();
     else if (act === "menu") { state.menu = !state.menu; paintMapUi(); }
     else if (act === "opt") { savePref(el.dataset.group, el.dataset.id); paint(); }
@@ -1523,15 +1371,15 @@
     else if (act === "find") { findAddress(state.q.trim()); $("q").focus(); }
     else if (act === "geo") {
       var hit = state.geo && state.geo[+el.dataset.i]; if (!hit) return;
-      var n = ll2n(+hit.lat, +hit.lon); $("results").hidden = true;
+      $("results").hidden = true;
       if (state.placing) { state.placing = false; createAt(+hit.lat, +hit.lon, hit.display_name.split(", ").slice(0, 4).join(", ")); return; }
-      state.spot = { x: n.x, y: n.y, lat: +hit.lat, lng: +hit.lon, label: hit.display_name.split(", ").slice(0, 2).join(", "), full: hit.display_name.split(", ").slice(0, 4).join(", ") };
-      paint(); fly(n.x, n.y, Math.max(map.z, 15.5));
+      state.spot = { lat: +hit.lat, lng: +hit.lon, label: hit.display_name.split(", ").slice(0, 2).join(", "), full: hit.display_name.split(", ").slice(0, 4).join(", ") };
+      paint(); if (gl) fly(+hit.lon, +hit.lat, Math.max(gl.getZoom(), 14.5));
     }
     else if (act === "add-here" && state.spot) createAt(state.spot.lat, state.spot.lng, state.spot.full);
     else if (act === "spot-off") { state.spot = null; paint(); }
     else if (!a) return;
-    else if (act === "center") { var c = ll2n(a.lat, a.lng); fly(c.x, c.y, Math.max(map.z, 15.5)); }
+    else if (act === "center") { if (gl) fly(a.lng, a.lat, Math.max(gl.getZoom(), 14.5)); }
     else if (act === "move") { state.moving = a.id; paintMapUi(); if (stacked.matches) mapEl.scrollIntoView({ behavior: "smooth", block: "center" }); }
     else if (act === "state") { a.status = el.dataset.s; if (a.status === "Vacant" && !a.fields.vacant_since) a.fields.vacant_since = ymd(today()); saveAsset(a); paint(); }
     else if (act === "field-on") { a.fields[el.dataset.k] = ""; saveAsset(a); state.drawer = null; paint(); var inp = document.querySelector('[data-field="' + CSS.escape(el.dataset.k) + '"]'); if (inp) { inp.scrollIntoView({ block: "center", behavior: "smooth" }); inp.focus(); } }
@@ -1586,8 +1434,8 @@
   $("q").addEventListener("focus", paintResults);
   document.addEventListener("pointerdown", function (e) { if (!e.target.closest("#search")) $("results").hidden = true; });
   // A row in a box lights its pin on the map.
-  $("rail").addEventListener("mouseover", function (e) { var r = e.target.closest("[data-hot]"), id = r ? r.dataset.hot : null; if (id === state.hot) return; state.hot = id; [].forEach.call(pinsEl.querySelectorAll(".pin"), function (p) { p.classList.toggle("hot", p.dataset.id === id); }); });
-  $("rail").addEventListener("mouseleave", function () { state.hot = null; [].forEach.call(pinsEl.querySelectorAll(".pin.hot"), function (p) { p.classList.remove("hot"); }); });
+  $("rail").addEventListener("mouseover", function (e) { var r = e.target.closest("[data-hot]"), id = r ? r.dataset.hot : null; if (id === state.hot) return; state.hot = id; [].forEach.call(mapEl.querySelectorAll(".pin"), function (p) { p.classList.toggle("hot", p.dataset.id === id); }); });
+  $("rail").addEventListener("mouseleave", function () { state.hot = null; [].forEach.call(mapEl.querySelectorAll(".pin.hot"), function (p) { p.classList.remove("hot"); }); });
 
   // Dragging a box up or down the board.
   var lift = null;
@@ -1625,10 +1473,11 @@
   // ── Start ───────────────────────────────────────────────────────────────
   function firstView() {
     state.firstFit = true;
-    var v = prefs.view;
-    if (Array.isArray(v) && v.length === 3 && v.every(function (n) { return typeof n === "number" && isFinite(n); })) setView(v[0], v[1], v[2]);
-    else if (assets.some(isOn)) fitAll(true);
-    else setView(.5, .36, 2.2);
+    if (!gl) return;
+    // A view saved by the older map was an array in its own units: it is ignored.
+    var v = prefs.view, ok = v && [v.lng, v.lat, v.zoom].every(function (n) { return typeof n === "number" && isFinite(n); });
+    if (ok) gl.jumpTo({ center: [v.lng, v.lat], zoom: v.zoom });
+    else fitAll(true);
   }
   function refresh() { merge(); paint(); }
   function readStores() {
@@ -1643,6 +1492,7 @@
       var dark = h && h.theme ? h.theme === "dark" : !!(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
       if (dark) document.documentElement.dataset.theme = "dark";
       readStores();
+      startGl();
       return loadFiles();
     }).then(function () {
       loaded = true; merge(); paint();
