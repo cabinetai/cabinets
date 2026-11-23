@@ -93,7 +93,7 @@ const CABINET_ICONS = {
   'money-morning':            { object: 'a round piggy bank with a coin slot and one coin standing on edge beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'morning-mail':             { object: 'a small mailbox on a post with its flag raised and one letter poking out', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'news-desk':                { object: 'a rolled newspaper tied with string resting on a small reading stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'trading-desk':             { object: 'a small chalkboard easel showing a rising candlestick chart, with a little brass desk bell on its ledge', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
+  'stock-opportunities-reminder':             { object: 'a small chalkboard easel showing a rising candlestick chart, with a little brass desk bell on its ledge', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'subscription-audit':       { object: 'a pair of scissors mid-snip through a small price tag on a string', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'web-studio':               { object: 'an artist easel holding a browser-window canvas with rounded corners', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'week-ahead':               { object: 'a small standing weekly planner board with seven carved day slots, one slot marked', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
