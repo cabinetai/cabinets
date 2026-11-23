@@ -1,4 +1,5 @@
 ---
+country: il
 title: Renovated 3 rooms in Kerem HaTeimanim
 deal: rent
 price: 7600

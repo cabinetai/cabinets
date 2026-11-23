@@ -22,13 +22,15 @@ for it now and say so in the summary.
 ## 2. The tools, in order
 
 1. **Cabinet's browser**, when you have it (on the Cabinet desktop app). It is a real
-   browser: Yad2, Madlan and Homeless refuse plain requests and open in it. The person may
+   browser: Yad2, Madlan, Homeless, Zillow, StreetEasy, Trulia, HotPads and Apartments.com
+   refuse plain requests and open in it. The person may
    be watching, so move with purpose.
 2. **Reading a page as text** (web fetch), for public pages that allow it: Komo, WinWin,
-   agency sites, nadlan.gov.il pages that render without a browser, news.
+   agency sites, nadlan.gov.il pages that render without a browser, HUD's Fair Market
+   Rents, city and county records, news.
 3. **Web search**, to find ads that the sites' own search hides, and to check a street, a
-   building or an agency. Search in Hebrew as well as English: `דירה להשכרה 3 חדרים
-   גבעתיים ממ"ד`.
+   building or an agency. In Israel, search in Hebrew as well as English: `דירה להשכרה 3
+   חדרים גבעתיים ממ"ד`. In the US: `2 bedroom no fee Prospect Heights laundry`.
 4. **The shell**, for small things: `curl` to Nominatim to place an address, arithmetic.
 
 When a site blocks you (a check, a captcha, an empty page twice), stop trying it for this
@@ -38,6 +40,8 @@ search, note it in the run, and move to the next. Never sign in. Never solve a c
 
 Search every site that has ads in the person's areas. Use the brief's filters on the site
 itself, so you read fewer and better ads.
+
+### Israel
 
 | Site | What it is good for | How |
 |---|---|---|
@@ -49,6 +53,21 @@ itself, so you read fewer and better ads.
 | Agency sites | Anglo-Saxon, RE/MAX, Century 21 Israel, local agencies | Useful for buying and for high-end rentals. Always a fee. |
 | nadlan.gov.il | The government's record of real sales: price, size, floor, date, per street | The truth for buying. For renting, it is how you know what an owner paid, not what rent is fair. |
 | Facebook groups | Many private rentals ("דירות להשכרה בתל אביב") | They need a sign-in. You never sign in. If the person pastes a post or a link from a group, judge it like any ad. |
+
+### United States
+
+| Site | What it is good for | How |
+|---|---|---|
+| Zillow (`zillow.com`) | The most ads in most of the country, rentals and sales, with a Rent Zestimate and the sold history of nearby homes | Search the city or neighbourhood, set the filters on the page, sort by newest. |
+| StreetEasy (`streeteasy.com`) | New York City only, and the best there: price history of every apartment, no-fee and rent-stabilised filters | `/for-rent/<area>` or `/for-sale/<area>`, for example `/for-rent/prospect-heights`. The listing's price history shows cuts and past rents. |
+| Redfin (`redfin.com`) | Sales first, rentals too; the Redfin Estimate and nearby sold homes | Best for buying and for checking a price. |
+| Realtor.com | Sales from the agents' listing service (MLS), fresh and accurate | Buying. |
+| Apartments.com, Zumper, HotPads, Trulia | Large and managed rental buildings | Rentals outside New York City especially. |
+| Craigslist (`<city>.craigslist.org`, housing, apts) | Owners renting directly, sublets, rooms | Many scams: see 7. |
+| Facebook Marketplace and groups | Owner rentals and sublets | They need a sign-in. You never sign in. Judge a pasted post like any ad. |
+| Public records | County assessor and recorder sites, HUD Fair Market Rents, FEMA flood map, the city's building and violation records (New York City: HPD and DOB) | Fair price, the building's history, the flood risk. |
+
+### Every search
 
 Each search: newest ads first, back to your last run (or 14 days on a first search).
 
@@ -74,7 +93,8 @@ Drop the ad, and count why, if any of these is true:
   must passes the gate, and becomes the first question in "Ask before you visit".)
 - The price is over `price_max` by more than 3 percent. Within 3 percent passes only with a
   reason: prices in Israel are often talked down a little, and you say so.
-- Fewer rooms than `rooms_min`, or under `size_min` by more than 5 meters.
+- Fewer rooms than `rooms_min` (Israel) or fewer bedrooms than `beds_min` or bathrooms
+  than `baths_min` (US), or under `size_min` by more than 5 square meters or 50 square feet.
 - Outside the areas, unless it is a close neighbour within the commute the person accepts.
   Then it may pass as `maybe`, and you say why.
 - The entry date misses the move-in date by more than a month either way, unless the
@@ -105,16 +125,21 @@ search, raise your bar and keep the best.
 
 Name your basis in `fair_basis`, always with how many you compared:
 
-1. **Live ads like it**: same neighbourhood, rooms within half a room, size within 15
+1. **Live ads like it**: same neighbourhood, the same rooms (or bedrooms), size within 15
    percent. Use the middle of them, not the lowest.
-2. **Madlan's area figures** for the neighbourhood: median rent or price per meter.
-3. **For buying, nadlan.gov.il**: sales on the same street or the next ones since last
-   year, per square meter, adjusted for floor (higher is worth more with an elevator, less
-   without one), condition and a safe room.
+2. **Area figures.** Israel: Madlan's median rent or price per meter for the neighbourhood.
+   US: Zillow's Rent Zestimate or Zestimate, the Redfin Estimate, and StreetEasy's past rents
+   for the same apartment or building in New York City.
+3. **For buying, real sales.** Israel: nadlan.gov.il, sales on the same street or the next
+   ones since last year, per square meter. US: sold homes nearby since last year on Redfin
+   or Zillow (public records), per square foot. Adjust for floor (higher is worth more with
+   an elevator, less without one), condition, outdoor space, and a safe room in Israel.
 
-Adjust for what moves price in Israel: a safe room (more each year since 2023), an
+Adjust for what moves price. In Israel: a safe room (more each year since 2023), an
 elevator above the second floor, parking in the centre of a city, a balcony, renovation,
-the floor, a building facing a main road.
+the floor, a building facing a main road. In the US: laundry in the apartment, a doorman
+and an elevator, outdoor space, the walk to a subway or train, the school zone, a flood
+zone, and for a rental, a concession that hides the real rent.
 
 ## 7. Smell test
 
@@ -132,23 +157,43 @@ Say it in "Watch out" when you see any of these:
   future gain. Say which.
 - A basement or semi-basement (`מרתף`, `קומת מרתף`, `קומה 1-`): damp, little light.
 - An old ad bumped again and again: something keeps people away. Ask what.
+- US: a rental copied from a for-sale listing (the same photos on Zillow or Redfin with
+  another agent's name), a "landlord" who cannot show it and asks for Zelle, a wire, a gift
+  card or an app payment before a viewing, or an application fee far over the state's cap.
+- US: "net effective" rent shown as the price. Work out the gross rent and judge that.
+- US: a "garden level" or "lower level" unit, a "flex" bedroom without a window, a building
+  with open violations (New York City: HPD and DOB records), a flood zone on FEMA's map.
 
 ## 8. Ask before you visit
 
 For each listing, three to six questions that would save a wasted trip, the most important
 first. Always the unknown musts. Then from these, the ones that fit:
 
+Everywhere:
 - Is the apartment still free, and when exactly can I move in?
-- How much is `ועד בית` and `ארנונה` a month?
-- Which floor, and is there an elevator? Is there a safe room in the apartment or a shelter
-  in the building?
-- Is there a broker's fee? Who pays it? (See the law in `israel.md`.)
+- Which floor, and is there an elevator?
 - How long a lease will you sign, and is there an option to extend?
+- Any damp, leaks or mould in winter? Any pests?
+- Are pets fine, and is there a pet fee? Is there parking in the street at night?
+
+Israel:
+- How much is `ועד בית` and `ארנונה` a month?
+- Is there a safe room in the apartment or a shelter in the building?
+- Is there a broker's fee? Who pays it? (See the law in `israel.md`.)
 - What guarantees do you ask for? (Cheques, a bank guarantee, guarantors. The law caps it.)
-- Any damp, leaks or mould in winter? When were the pipes and the electricity redone?
-- Are pets fine? Is there parking in the street at night?
+- When were the pipes and the electricity redone?
 - For buying: is the apartment registered in `טאבו`, are there any liens, and is there a
   building permit for every room (an enclosed balcony often has none)?
+
+United States:
+- What is the total due at signing (first month, deposit, any fee)? Is there an application
+  fee, and how much?
+- What income and credit do you ask for? Do you take a guarantor or a guarantor company?
+- Which utilities are in the rent? How is the apartment heated and cooled?
+- Is the rent the gross rent, or net of a concession? What was the last renewal increase?
+- New York City: is it rent stabilised? Any bed bugs in the last year (the disclosure form)?
+- For buying: HOA or maintenance a month, any special assessment coming, the reserves, the
+  property tax, and for a co-op, the board's rules on down payment and money after closing.
 
 Write them as the person would ask them, in their language.
 

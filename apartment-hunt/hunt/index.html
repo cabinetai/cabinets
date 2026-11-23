@@ -14,8 +14,12 @@
   under "l:<listing file name>". The Scout reads it before every search.
   playbooks/how-it-works.md is the same contract in words.
 
-  The map is MapLibre (from a CDN) drawing OpenFreeMap (free, no key), as in the Real Estate
-  Map template. If MapLibre cannot start, the list works alone. One file on purpose: a sealed
+  Two countries: Israel and the United States. The brief's `country` decides the money, the
+  units (m² or sq ft, rooms or bedrooms, km or mi) and which example set shows before it exists.
+
+  The map is MapLibre (from a CDN) drawing VersaTiles (free and open, no key, OpenStreetMap
+  data), with labels in the page's language where the map has them. If MapLibre cannot
+  start, the list works alone. One file on purpose: a sealed
   frame cannot load files next to it.
 -->
 <html lang="en">
@@ -143,6 +147,9 @@
   .card p { margin: 0 0 10px; color: var(--ink-2); font-size: 14px; }
   .start { background: linear-gradient(160deg, var(--brand-tint), var(--surface) 70%); }
   .start h2 { font-size: 22px; }
+  .seg { display: flex; gap: 4px; padding: 4px; background: var(--surface-press); border-radius: 13px; }
+  .seg button { flex: 1; border: 0; background: none; border-radius: 10px; padding: 7px 8px; font-weight: 600; font-size: 14px; color: var(--ink-muted); }
+  .seg button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
   .start .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
   .muted { color: var(--ink-muted); font-size: 13px; }
   .brief-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
@@ -261,7 +268,7 @@
         <div class="ctrl" id="ctrl"></div>
         <div class="hover" id="hover"></div>
         <div id="mapoff"></div>
-        <div class="attr"><a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a></div>
+        <div class="attr"><a href="https://versatiles.org" target="_blank" rel="noopener">VersaTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a></div>
       </div>
     </section>
     <aside class="rail" id="rail"></aside>
@@ -272,9 +279,9 @@
 (function () {
   "use strict";
 
-  var STYLE_URL = "https://tiles.openfreemap.org/styles/";
+  var STYLE_URL = "https://tiles.versatiles.org/assets/styles/";
   var DAY = 86400000, HOUR = 3600000;
-  var ISRAEL = [[34.25, 29.45], [35.9, 33.35]];
+  var BOUNDS = { il: [[34.25, 29.45], [35.9, 33.35]], us: [[-125, 24.4], [-66.9, 49.4]] };
 
   // ── Words ───────────────────────────────────────────────────────────────
   var WORDS = {
@@ -285,25 +292,26 @@
       rent_in: "Renting in {places}", buy_in: "Buying in {places}", up_to: "up to {money}", rooms: "{a} rooms", rooms_range: "{a} to {b} rooms",
       search_now: "Search now", searching: "Searching", change: "Change my search", example: "Example",
       start_h: "Let's find your next home",
-      start_p: "The Apartment Scout asks you a few questions: where your days take you, your budget, and what you will not give up. Then it searches Yad2, Madlan and more twice a day, and puts the places worth seeing here.",
+      start_p: "The Apartment Scout asks you a few questions: where your days take you, your budget, and what you will not give up. Then it searches {sites} twice a day, and puts the places worth seeing here.",
+      sites_il: "Yad2, Madlan and more", sites_us: "Zillow, StreetEasy and more", where_h: "Where are you looking?", c_il: "Israel", c_us: "the United States", c_il_btn: "Israel", c_us_btn: "United States",
       rent_btn: "I want to rent", buy_btn: "I want to buy",
       start_note: "The places on the map now are examples, so you can see how it looks.",
       draft_h: "The interview is not finished", draft_p: "Answer the Scout's last questions and it starts searching.", go_on: "Carry on",
       brief_h: "What you are looking for", brief_ex: "What you are looking for (example)",
       must: "Must have", never: "Never", anchors: "Your places",
-      last_h: "Last search", never_ran: "No search yet. The Scout searches at 8 in the morning and 7 in the evening, Sunday to Friday.",
+      last_h: "Last search", never_ran: "No search yet. The Scout searches every day at 8 in the morning and 7 in the evening.",
       run_line: "{when}. Read {looked} ads, {fresh} new.", run_running: "The Scout is reading the sites now. New places show here as it finds them.",
       market_h: "This week's market", read_more: "Read it all", read_less: "Show less",
       tab_for_you: "For you", tab_saved: "Saved", tab_passed: "Passed",
       none_for_you: "Nothing new yet. The next search finds more.", none_saved: "Press Save on a place to keep it here.", none_passed: "Places you pass on, and ads that came down, go here.",
-      per_month: "a month", rooms_short: "rooms", m2: "m²", floor: "Floor", floor_of: "{a} of {b}", ground: "Ground", entry: "Move in", now: "Now", size: "Size", rooms_l: "Rooms",
+      per_month: "a month", rooms_short: "rooms", m2: "m²", sqft: "sq ft", bd: "{n} bd", ba: "{n} ba", studio: "Studio", beds_l: "Beds and baths", beds: "{a} bedrooms", beds_1: "1 bedroom", beds_range: "{a} to {b} bedrooms", floor: "Floor", floor_of: "{a} of {b}", ground: "Ground", entry: "Move in", now: "Now", size: "Size", rooms_l: "Rooms",
       top: "Top pick", good: "Good", maybe: "Worth a look", gone: "Gone",
       opp_below_market: "Below the street's price", opp_fresh: "Just posted", opp_price_cut: "Price cut", opp_no_broker: "No broker fee", opp_rare_match: "Rare match",
       st_saved: "Saved", st_contacted: "Contacted", st_visiting: "Visit booked", st_visited: "Seen", st_applied: "Applied", st_rejected: "Not for me",
       ago_min: "{n} min ago", ago_h: "{n} hours ago", ago_1h: "an hour ago", ago_d: "{n} days ago", ago_1d: "yesterday", just_now: "just now",
       today_at: "Today at {t}", yesterday_at: "Yesterday at {t}", on_day: "{d} at {t}",
       back: "All places", why_h: "Why it fits", fair_h: "Price", fair_mid: "Fair: {money}", fair_under: "{money} under a fair price", fair_over: "{money} over a fair price", fair_at: "About a fair price",
-      dist_h: "From your places", km: "{n} km to {to}", open_ad: "Open the ad on {site}", also_on: "Also on {sites}",
+      dist_h: "From your places", km: "{n} km to {to}", mi: "{n} mi to {to}", open_ad: "Open the ad on {site}", also_on: "Also on {sites}",
       save: "Save", saved: "Saved", contacted: "I contacted them", visiting: "Visit booked", visited: "I saw it", applied: "We applied", reject: "Not for me", undo: "Undo",
       reject_q: "Why not? The Scout learns from this.", note_ph: "Anything else? (optional)", done: "Done",
       r_price: "Too expensive", r_area: "Wrong area", r_small: "Too small", r_noisy: "Noisy", r_dark: "Dark", r_condition: "Poor condition", r_missing: "Missing a must", r_looks_off: "Looks off", r_other: "Something else",
@@ -312,8 +320,8 @@
       feat_yes: "Has", feat_no: "Lacks", feat_q: "Ask",
       no_bridge: "Open this page inside Cabinet to see your search.", no_map: "The map could not load here. Everything is in the list.",
       fit: "Show everything", ask_copied: "Copied. Paste it into a chat with your assistant.", saved_toast: "Saved.", rejected_toast: "Passed. The Scout will take it into account.", read_only: "Only people who can edit this cabinet can change this.",
-      ask_rent: "I am looking for an apartment to rent in Israel. Interview me the way playbooks/interview.md says, a few questions at a time, then write my brief and search.",
-      ask_buy: "I am looking for an apartment to buy in Israel. Interview me the way playbooks/interview.md says, a few questions at a time, then write my brief and search.",
+      ask_rent: "I am looking for an apartment to rent in {country}. Interview me the way playbooks/interview.md says, a few questions at a time, then write my brief and search.",
+      ask_buy: "I am looking for an apartment to buy in {country}. Interview me the way playbooks/interview.md says, a few questions at a time, then write my brief and search.",
       ask_go_on: "Let's finish my brief. Ask me what you still need, then search.",
       ask_change: "I want to change my search. Read my brief, tell me in a few lines what you have, and ask me what changed.",
       ask_owner: "Write a short, friendly first message to the owner or broker of \"{title}\" (listings/{file}.md). Include the questions under Ask before you visit. Draft only, in my language, ready to paste into WhatsApp.",
@@ -326,25 +334,26 @@
       rent_in: "שכירות ב{places}", buy_in: "קנייה ב{places}", up_to: "עד {money}", rooms: "{a} חדרים", rooms_range: "{a} עד {b} חדרים",
       search_now: "לחפש עכשיו", searching: "מחפש", change: "לשנות את החיפוש", example: "דוגמה",
       start_h: "בואו נמצא לכם בית",
-      start_p: "סוכן הדירות ישאל כמה שאלות: לאן אתם נוסעים ביום יום, מה התקציב, ועל מה לא תוותרו. אחר כך הוא מחפש ביד2, במדלן ובעוד אתרים פעמיים ביום, ומציג כאן רק את הדירות ששווה לראות.",
+      start_p: "סוכן הדירות ישאל כמה שאלות: לאן אתם נוסעים ביום יום, מה התקציב, ועל מה לא תוותרו. אחר כך הוא מחפש {sites} פעמיים ביום, ומציג כאן רק את הדירות ששווה לראות.",
+      sites_il: "ביד2, במדלן ובעוד אתרים", sites_us: "בזילו, בסטריטאיזי ובעוד אתרים", where_h: "איפה אתם מחפשים?", c_il: "ישראל", c_us: "ארצות הברית", c_il_btn: "ישראל", c_us_btn: "ארצות הברית",
       rent_btn: "אני רוצה לשכור", buy_btn: "אני רוצה לקנות",
       start_note: "הדירות שעל המפה עכשיו הן דוגמה, כדי שתראו איך זה נראה.",
       draft_h: "הראיון עוד לא הסתיים", draft_p: "ענו על השאלות האחרונות של הסוכן והוא יתחיל לחפש.", go_on: "להמשיך",
       brief_h: "מה אתם מחפשים", brief_ex: "מה אתם מחפשים (דוגמה)",
       must: "חובה", never: "בשום אופן", anchors: "המקומות שלכם",
-      last_h: "החיפוש האחרון", never_ran: "עוד לא היה חיפוש. הסוכן מחפש בשמונה בבוקר ובשבע בערב, בימים א' עד ו'.",
+      last_h: "החיפוש האחרון", never_ran: "עוד לא היה חיפוש. הסוכן מחפש כל יום בשמונה בבוקר ובשבע בערב.",
       run_line: "{when}. נקראו {looked} מודעות, {fresh} חדשות.", run_running: "הסוכן קורא עכשיו את האתרים. דירות חדשות יופיעו כאן כשהוא ימצא אותן.",
       market_h: "השוק השבוע", read_more: "לקרוא הכול", read_less: "פחות",
       tab_for_you: "בשבילך", tab_saved: "שמורות", tab_passed: "ויתרתם",
       none_for_you: "עוד אין דירות חדשות. החיפוש הבא ימצא עוד.", none_saved: "לחצו \"לשמור\" על דירה כדי לשמור אותה כאן.", none_passed: "דירות שוויתרתם עליהן, ומודעות שירדו, יופיעו כאן.",
-      per_month: "לחודש", rooms_short: "חד'", m2: "מ\"ר", floor: "קומה", floor_of: "{a} מתוך {b}", ground: "קרקע", entry: "כניסה", now: "מיידית", size: "גודל", rooms_l: "חדרים",
+      per_month: "לחודש", rooms_short: "חד'", m2: "מ\"ר", sqft: "רגל רבוע", bd: "{n} חד' שינה", ba: "{n} אמבט'", studio: "סטודיו", beds_l: "חדרי שינה ורחצה", beds: "{a} חדרי שינה", beds_1: "חדר שינה אחד", beds_range: "{a} עד {b} חדרי שינה", floor: "קומה", floor_of: "{a} מתוך {b}", ground: "קרקע", entry: "כניסה", now: "מיידית", size: "גודל", rooms_l: "חדרים",
       top: "הכי מתאימה", good: "טובה", maybe: "שווה הצצה", gone: "ירדה",
       opp_below_market: "מתחת למחיר ברחוב", opp_fresh: "פורסמה הרגע", opp_price_cut: "המחיר ירד", opp_no_broker: "בלי דמי תיווך", opp_rare_match: "התאמה נדירה",
       st_saved: "שמורה", st_contacted: "יצרתם קשר", st_visiting: "נקבע ביקור", st_visited: "ראיתם", st_applied: "הגשתם", st_rejected: "לא בשבילי",
       ago_min: "לפני {n} דק'", ago_h: "לפני {n} שעות", ago_1h: "לפני שעה", ago_d: "לפני {n} ימים", ago_1d: "אתמול", just_now: "הרגע",
       today_at: "היום ב-{t}", yesterday_at: "אתמול ב-{t}", on_day: "{d} ב-{t}",
       back: "כל הדירות", why_h: "למה זה מתאים", fair_h: "מחיר", fair_mid: "הוגן: {money}", fair_under: "{money} מתחת למחיר הוגן", fair_over: "{money} מעל מחיר הוגן", fair_at: "בערך המחיר ההוגן",
-      dist_h: "מהמקומות שלכם", km: "{n} ק\"מ ל{to}", open_ad: "לפתוח את המודעה ב{site}", also_on: "גם ב{sites}",
+      dist_h: "מהמקומות שלכם", km: "{n} ק\"מ ל{to}", mi: "{n} מייל ל{to}", open_ad: "לפתוח את המודעה ב{site}", also_on: "גם ב{sites}",
       save: "לשמור", saved: "שמורה", contacted: "יצרתי קשר", visiting: "נקבע ביקור", visited: "ראיתי", applied: "הגשנו", reject: "לא בשבילי", undo: "לבטל",
       reject_q: "למה לא? הסוכן לומד מזה.", note_ph: "עוד משהו? (לא חובה)", done: "סיום",
       r_price: "יקר מדי", r_area: "אזור לא מתאים", r_small: "קטנה מדי", r_noisy: "רועשת", r_dark: "חשוכה", r_condition: "מצב לא טוב", r_missing: "חסר משהו שחובה", r_looks_off: "משהו לא מסתדר", r_other: "משהו אחר",
@@ -353,8 +362,8 @@
       feat_yes: "יש", feat_no: "אין", feat_q: "לשאול",
       no_bridge: "פתחו את הדף בתוך Cabinet כדי לראות את החיפוש.", no_map: "המפה לא נטענה כאן. הכול נמצא ברשימה.",
       fit: "להציג הכול", ask_copied: "הועתק. הדביקו בצ'אט עם העוזר.", saved_toast: "נשמר.", rejected_toast: "ויתרתם. הסוכן ייקח את זה בחשבון.", read_only: "רק מי שיכול לערוך את הקבינט יכול לשנות את זה.",
-      ask_rent: "אני מחפש/ת דירה לשכירות בישראל. תראיין אותי כמו שכתוב ב-playbooks/interview.md, כמה שאלות בכל פעם, ואז תכתוב את הבריף שלי ותחפש. דבר איתי בעברית.",
-      ask_buy: "אני מחפש/ת דירה לקנייה בישראל. תראיין אותי כמו שכתוב ב-playbooks/interview.md, כמה שאלות בכל פעם, ואז תכתוב את הבריף שלי ותחפש. דבר איתי בעברית.",
+      ask_rent: "אני מחפש/ת דירה לשכירות ב{country}. תראיין אותי כמו שכתוב ב-playbooks/interview.md, כמה שאלות בכל פעם, ואז תכתוב את הבריף שלי ותחפש. דבר איתי בעברית.",
+      ask_buy: "אני מחפש/ת דירה לקנייה ב{country}. תראיין אותי כמו שכתוב ב-playbooks/interview.md, כמה שאלות בכל פעם, ואז תכתוב את הבריף שלי ותחפש. דבר איתי בעברית.",
       ask_go_on: "בוא נסיים את הבריף שלי. תשאל מה עוד חסר לך, ואז תחפש.",
       ask_change: "אני רוצה לשנות את החיפוש. תקרא את הבריף שלי, תגיד לי בכמה שורות מה יש לך, ותשאל מה השתנה.",
       ask_owner: "תכתוב הודעה ראשונה קצרה ונעימה לבעלים או למתווך של \"{title}\" (listings/{file}.md). תכלול את השאלות מתוך \"Ask before you visit\". טיוטה בלבד, בעברית, מוכנה להדבקה בוואטסאפ.",
@@ -367,7 +376,10 @@
     aircon: ["Air conditioning", "מיזוג"], furnished: ["Furnished", "מרוהטת"], pets: ["Pets allowed", "חיות מחמד"], renovated: ["Renovated", "משופצת"],
     storage: ["Storage room", "מחסן"], accessible: ["Step-free", "נגישה"], quiet: ["Quiet", "שקטה"], bright: ["Bright", "מוארת"],
     no_broker: ["No broker", "בלי תיווך"], long_lease: ["Long lease", "חוזה ארוך"], immediate: ["Free now", "כניסה מיידית"],
-    ground_floor: ["Ground floor", "קומת קרקע"], no_window_bedroom: ["Bedroom without a window", "חדר בלי חלון"]
+    ground_floor: ["Ground floor", "קומת קרקע"], no_window_bedroom: ["Bedroom without a window", "חדר בלי חלון"],
+    laundry: ["Laundry", "כביסה בבניין"], in_unit_laundry: ["Washer and dryer inside", "מכונת כביסה בדירה"], dishwasher: ["Dishwasher", "מדיח"],
+    doorman: ["Doorman", "שוער"], gym: ["Gym", "חדר כושר"], pool: ["Pool", "בריכה"], outdoor_space: ["Outdoor space", "שטח פתוח"],
+    utilities_included: ["Utilities included", "חשבונות כלולים"], rent_stabilized: ["Rent stabilized", "שכירות מפוקחת"], basement_unit: ["Below the street", "מתחת לרחוב"]
   };
   var REASONS = ["price", "area", "small", "noisy", "dark", "condition", "missing", "looks_off", "other"];
   var STATUSES = ["saved", "contacted", "visiting", "visited", "applied"];
@@ -397,8 +409,13 @@
   function list(v) { return String(v || "").replace(/^\[|\]$/g, "").split(",").map(function (s) { return s.trim().replace(/^(['"])(.*)\1$/, "$2"); }).filter(Boolean); }
   function safeUrl(v) { v = String(v || "").trim(); return /^https:\/\//i.test(v) ? v : ""; }
   function photoUrl(v) { v = safeUrl(v); return /["'()\\\s<>]/.test(v) ? "" : v; }
-  function money(n) { return n == null ? "" : "₪" + Math.round(n).toLocaleString("en-US"); }
-  function short(n) { if (n == null) return ""; if (n >= 1e6) return "₪" + (n / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M"; if (n >= 1e4) return "₪" + Math.round(n / 1e3) + "K"; if (n >= 1e3) return "₪" + (n / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return "₪" + Math.round(n); }
+  // The country of what shows: the person's brief, or the example set picked on the start card.
+  function country() { return (data.brief && data.brief.country) || ui.exCountry; }
+  function us() { return country() === "us"; }
+  function sym() { return us() ? "$" : "₪"; }
+  function dateLocale() { return lang === "he" ? "he-IL" : us() ? "en-US" : "en-GB"; }
+  function money(n) { return n == null ? "" : sym() + Math.round(n).toLocaleString("en-US"); }
+  function short(n) { var s = sym(); if (n == null) return ""; if (n >= 1e6) return s + (n / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M"; if (n >= 1e4) return s + Math.round(n / 1e3) + "K"; if (n >= 1e3) return s + (n / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return s + Math.round(n); }
   function parseTime(v) { var m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(String(v || "")); if (!m) return null; var d = new Date(String(v)); if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(String(v)) && !isNaN(d)) return d; return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)); }
   function hm(d) { return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
   function ago(d) {
@@ -411,7 +428,7 @@
     var now = new Date(), y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
     if (d.toDateString() === now.toDateString()) return t("today_at", { t: hm(d) });
     if (d.toDateString() === y.toDateString()) return t("yesterday_at", { t: hm(d) });
-    return t("on_day", { d: d.toLocaleDateString(lang === "he" ? "he-IL" : "en-GB", { day: "numeric", month: "short" }), t: hm(d) });
+    return t("on_day", { d: d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short" }), t: hm(d) });
   }
   function km(a, b) { var R = 6371, r = Math.PI / 180, dl = (b.lat - a.lat) * r, dn = (b.lng - a.lng) * r; var h = Math.sin(dl / 2) * Math.sin(dl / 2) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dn / 2) * Math.sin(dn / 2); return 2 * R * Math.asin(Math.sqrt(h)); }
   var toastTimer;
@@ -458,7 +475,12 @@
   var here = null, shared = {};
   var data = { loaded: false, example: false, brief: null, listings: [], runs: [], market: null };
   var jobs = { list: [], running: false };
-  var ui = { tab: "for_you", open: null, hover: null, rejecting: null, reasons: {}, note: "", marketOpen: false };
+  var ui = { tab: "for_you", open: null, hover: null, rejecting: null, reasons: {}, note: "", marketOpen: false, exCountry: guessCountry() };
+  // Before there is a brief: Israel for a Hebrew Cabinet or an Israeli clock, the US otherwise.
+  function guessCountry() {
+    var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { /* no zone */ }
+    return /^he/i.test(navigator.language || "") || /Jerusalem|Tel_Aviv/.test(tz) ? "il" : "us";
+  }
 
   function canWrite() { return hasStore ? cab.canWrite() !== false : false; }
   function canAsk() { return !!(cab && cab.ask) && (!here || here.role !== "viewer"); }
@@ -494,7 +516,7 @@
     if (shift) { if (posted) posted = new Date(posted.getTime() + shift); if (found) found = new Date(found.getTime() + shift); }
     var l = {
       file: file, example: /^EXAMPLE-/i.test(file), title: m.title || file.replace(/^EXAMPLE-/i, "").replace(/-/g, " "),
-      deal: m.deal === "buy" ? "buy" : "rent", price: num(m.price), rooms: num(m.rooms), size: num(m.size), floor: m.floor || "", floors: m.floors || "",
+      deal: m.deal === "buy" ? "buy" : "rent", price: num(m.price), rooms: num(m.rooms), bedrooms: num(m.bedrooms), bathrooms: num(m.bathrooms), size: num(m.size), floor: m.floor || "", floors: m.floors || "",
       address: m.address || "", neighborhood: m.neighborhood || "", city: m.city || "", lat: num(m.lat), lng: num(m.lng),
       has: list(m.has), lacks: list(m.lacks), unknown: list(m.unknown), entry: m.entry || "", broker: m.broker || "unknown",
       score: num(m.score), verdict: VERDICTS[m.verdict] && m.verdict !== "gone" ? m.verdict : "maybe", opportunity: OPPS.indexOf(m.opportunity) >= 0 ? m.opportunity : "",
@@ -511,7 +533,7 @@
       var parts = m[k].split("|"), ll = (parts[1] || "").split(",").map(num);
       if (ll.length === 2 && ll[0] != null && ll[1] != null) anchors.push({ key: k.slice(7), label: parts[0].trim() || k.slice(7), lat: ll[0], lng: ll[1] });
     });
-    return { example: example, status: m.status === "ready" ? "ready" : "draft", deal: m.deal === "buy" ? "buy" : "rent", cities: list(m.cities), hoods: list(m.neighborhoods),
+    return { example: example, status: m.status === "ready" ? "ready" : "draft", country: m.country === "us" ? "us" : "il", bedsMin: num(m.beds_min), bedsMax: num(m.beds_max), deal: m.deal === "buy" ? "buy" : "rent", cities: list(m.cities), hoods: list(m.neighborhoods),
       priceMax: num(m.price_max), roomsMin: num(m.rooms_min), roomsMax: num(m.rooms_max), must: list(m.must), nice: list(m.nice), never: list(m.never), anchors: anchors, body: doc.body };
   }
   var loading = null;
@@ -519,8 +541,8 @@
     if (loading) return loading;
     loading = Promise.all([cab.files.list("search").catch(function () { return []; }), cab.files.list("listings").catch(function () { return []; })]).then(function (r) {
       var s = {}; r[0].forEach(function (e) { s[e.name] = e; });
-      var real = !!s["brief.md"], pre = real ? "" : "EXAMPLE-";
-      var files = r[1].filter(function (e) { return !e.isDir && /\.md$/i.test(e.name) && !/^index\.md$/i.test(e.name) && (real ? !/^EXAMPLE-/i.test(e.name) : /^EXAMPLE-/i.test(e.name)); });
+      var real = !!s["brief.md"], pre = real ? "" : "EXAMPLE-" + ui.exCountry + "-";
+      var files = r[1].filter(function (e) { return !e.isDir && /\.md$/i.test(e.name) && !/^index\.md$/i.test(e.name) && (real ? !/^EXAMPLE-/i.test(e.name) : e.name.indexOf(pre) === 0); });
       files.sort(function (a, b) { return String(b.modified).localeCompare(String(a.modified)); });
       files = files.slice(0, 80);
       return Promise.all([
@@ -554,12 +576,18 @@
   function floorText(l) { var f = l.floor === "0" ? t("ground") : l.floor; return f ? (l.floors ? t("floor_of", { a: f, b: l.floors }) : f) : ""; }
   function metaLine(l) {
     var bits = [];
-    if (l.rooms != null) bits.push(l.rooms + " " + t("rooms_short"));
-    if (l.size != null) bits.push(l.size + " " + t("m2"));
+    if (us()) { if (bedsText(l)) bits.push(bedsText(l)); }
+    else if (l.rooms != null) bits.push(l.rooms + " " + t("rooms_short"));
+    if (l.size != null) bits.push(l.size.toLocaleString("en-US") + " " + t(us() ? "sqft" : "m2"));
     if (floorText(l)) bits.push(t("floor") + " " + floorText(l));
     return bits.join(" · ");
   }
-  function entryText(v) { if (v === "immediate") return t("now"); var d = parseTime(v); return d ? d.toLocaleDateString(lang === "he" ? "he-IL" : "en-GB", { day: "numeric", month: "short", year: "numeric" }) : v || "?"; }
+  function bedsText(l) {
+    var b = l.bedrooms === 0 ? t("studio") : l.bedrooms != null ? t("bd", { n: l.bedrooms }) : "";
+    return [b, l.bathrooms != null ? t("ba", { n: l.bathrooms }) : ""].filter(Boolean).join(" · ");
+  }
+  function distText(l, an) { var d = km(l, an); return us() ? t("mi", { n: (d * 0.621371).toFixed(1), to: an.label }) : t("km", { n: d.toFixed(1), to: an.label }); }
+  function entryText(v) { if (v === "immediate") return t("now"); var d = parseTime(v); return d ? d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" }) : v || "?"; }
   function place(l) { return [l.neighborhood, l.city].filter(Boolean).join(", "); }
   function mustChips(l, max) {
     var musts = data.brief ? data.brief.must : [], out = [];
@@ -578,9 +606,10 @@
     var b = data.brief; if (!b) return "";
     if (b.status !== "ready") return esc(t("line_draft"));
     var places = (b.hoods.length && b.hoods.length <= 2 ? b.hoods : b.cities).slice(0, 3).join(lang === "he" ? ", " : ", ");
-    var bits = ["<b>" + esc(t(b.deal === "buy" ? "buy_in" : "rent_in", { places: places || "Israel" })) + "</b>"];
+    var bits = ["<b>" + esc(t(b.deal === "buy" ? "buy_in" : "rent_in", { places: places || t("c_" + country()) })) + "</b>"];
     if (b.priceMax != null) bits.push(esc(t("up_to", { money: money(b.priceMax) })));
-    if (b.roomsMin != null) bits.push(esc(b.roomsMax != null && b.roomsMax !== b.roomsMin ? t("rooms_range", { a: b.roomsMin, b: b.roomsMax }) : t("rooms", { a: b.roomsMin })));
+    if (us()) { if (b.bedsMin != null) bits.push(esc(b.bedsMax != null && b.bedsMax !== b.bedsMin ? t("beds_range", { a: b.bedsMin, b: b.bedsMax }) : b.bedsMin === 1 ? t("beds_1") : t("beds", { a: b.bedsMin }))); }
+    else if (b.roomsMin != null) bits.push(esc(b.roomsMax != null && b.roomsMax !== b.roomsMin ? t("rooms_range", { a: b.roomsMin, b: b.roomsMax }) : t("rooms", { a: b.roomsMin })));
     return bits.join(" · ");
   }
   function searchJob() { for (var i = 0; i < jobs.list.length; i++) if (jobs.list[i].id === "find-apartments") return jobs.list[i]; return null; }
@@ -599,7 +628,8 @@
     var b = data.brief;
     if (b && !data.example && b.status !== "ready") return '<div class="card start"><h2>' + esc(t("draft_h")) + "</h2><p>" + esc(t("draft_p")) + '</p><button class="btn primary wide" data-act="go-on">' + icon("chat") + esc(t("go_on")) + "</button></div>";
     if (!data.example) return "";
-    return '<div class="card start"><h2>' + esc(t("start_h")) + "</h2><p>" + esc(t("start_p")) + '</p><div class="row2"><button class="btn primary" data-act="start-rent">' + esc(t("rent_btn")) + '</button><button class="btn" data-act="start-buy">' + esc(t("buy_btn")) + '</button></div><p class="muted" style="margin:12px 0 0">' + esc(t("start_note")) + "</p></div>";
+    var c = ui.exCountry, sw = '<p style="font-weight:600;margin:4px 0 6px">' + esc(t("where_h")) + '</p><div class="seg" role="radiogroup">' + ["il", "us"].map(function (k) { return '<button role="radio" aria-checked="' + (c === k) + '" class="' + (c === k ? "on" : "") + '" data-act="country" data-id="' + k + '">' + esc(t("c_" + k + "_btn")) + "</button>"; }).join("") + "</div>";
+    return '<div class="card start"><h2>' + esc(t("start_h")) + "</h2><p>" + esc(t("start_p", { sites: t("sites_" + c) })) + "</p>" + sw + '<div class="row2"><button class="btn primary" data-act="start-rent">' + esc(t("rent_btn")) + '</button><button class="btn" data-act="start-buy">' + esc(t("buy_btn")) + '</button></div><p class="muted" style="margin:12px 0 0">' + esc(t("start_note")) + "</p></div>";
   }
   function briefCard() {
     var b = data.brief; if (!b || b.status !== "ready") return "";
@@ -659,7 +689,7 @@
       (l.opportunity ? '<span class="tag">' + esc(t("opp_" + l.opportunity)) + "</span>" : "") + (l.example ? '<span class="tag ex">' + esc(t("example")) + "</span>" : "") + (a && a.status ? '<span class="st">' + esc(t("st_" + a.status)) + "</span>" : "") + "</div>" +
       '<h2 dir="auto">' + esc(l.title) + '</h2><div class="muted" dir="auto">' + esc(l.address || place(l)) + "</div>" +
       '<div style="margin-top:8px"><span class="d-price">' + esc(money(l.price)) + '</span> <span class="muted">' + esc(per(l)) + "</span></div>" +
-      '<div class="facts"><div><small>' + esc(t("rooms_l")) + "</small><b>" + esc(l.rooms != null ? l.rooms : "?") + "</b></div><div><small>" + esc(t("size")) + "</small><b>" + esc(l.size != null ? l.size + " " + t("m2") : "?") + "</b></div><div><small>" + esc(t("floor")) + "</small><b>" + esc(floorText(l) || "?") + "</b></div><div><small>" + esc(t("entry")) + "</small><b>" + esc(entryText(l.entry)) + "</b></div></div>" +
+      '<div class="facts"><div><small>' + esc(t(us() ? "beds_l" : "rooms_l")) + "</small><b>" + esc(us() ? bedsText(l) || "?" : l.rooms != null ? l.rooms : "?") + "</b></div><div><small>" + esc(t("size")) + "</small><b>" + esc(l.size != null ? l.size.toLocaleString("en-US") + " " + t(us() ? "sqft" : "m2") : "?") + "</b></div><div><small>" + esc(t("floor")) + "</small><b>" + esc(floorText(l) || "?") + "</b></div><div><small>" + esc(t("entry")) + "</small><b>" + esc(entryText(l.entry)) + "</b></div></div>" +
       (l.why ? '<p class="whyline" dir="auto">' + esc(l.why) + "</p>" : "");
     // The features: what it has, lacks, and what to ask about, the person's musts first.
     var musts = b ? b.must : [], seen = {}, fl = [];
@@ -674,7 +704,7 @@
       var say = Math.abs(pct) < .02 ? t("fair_at") : t(diff < 0 ? "fair_under" : "fair_over", { money: money(Math.abs(diff)) });
       out += '<div class="sec fair"><h4>' + esc(t("fair_h")) + '</h4><div style="font-weight:600">' + esc(say) + '</div><div class="bar"><span class="mid" style="' + (lang === "he" ? "right" : "left") + ':50%">' + esc(t("fair_mid", { money: money(l.fairPrice) })) + '</span><span class="mk" style="' + (lang === "he" ? "right" : "left") + ":" + pos.toFixed(1) + '%"></span></div>' + (l.fairBasis ? '<p class="muted" dir="auto">' + esc(l.fairBasis) + "</p>" : "") + "</div>";
     }
-    if (b && b.anchors.length && l.onMap) out += '<div class="sec"><h4>' + esc(t("dist_h")) + '</h4><div class="dist">' + b.anchors.map(function (an) { return '<span class="chip">' + icon(anchorIcon(an)) + esc(t("km", { n: km(l, an).toFixed(1), to: an.label })) + "</span>"; }).join("") + "</div></div>";
+    if (b && b.anchors.length && l.onMap) out += '<div class="sec"><h4>' + esc(t("dist_h")) + '</h4><div class="dist">' + b.anchors.map(function (an) { return '<span class="chip">' + icon(anchorIcon(an)) + esc(distText(l, an)) + "</span>"; }).join("") + "</div></div>";
     out += sections(l.body).map(function (s) { return '<div class="sec" dir="auto">' + (s.h ? "<h4>" + esc(s.h) + "</h4>" : "") + blockHtml(s.lines) + "</div>"; }).join("");
     if (l.url || l.alsoOn) out += '<div class="sec links">' + (l.url ? '<a class="btn" href="' + esc(l.url) + '" target="_blank" rel="noopener">' + icon("link") + esc(t("open_ad", { site: l.source || "the site" })) + "</a>" : "") + (l.alsoOn ? '<span class="muted" style="align-self:center">' + esc(t("also_on", { sites: l.alsoOn })) + "</span>" : "") + "</div>";
     out += "</div>";
@@ -703,27 +733,39 @@
 
   // ── The map ─────────────────────────────────────────────────────────────
   var gl = null, glReady = false, markers = [], fitted = false, mapEl = $("map");
-  // Hebrew and Arabic place names come out backwards without this plugin. Loaded only when a label needs it.
+  // Hebrew and Arabic place names come out backwards without this plugin. Loaded before the first label,
+  // because a label drawn before it arrives stays backwards.
   var RTL_TEXT = "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js";
   function startGl() {
     if (gl !== null) return;
     var dark = document.documentElement.dataset.theme === "dark";
     try {
       if (!window.maplibregl) throw new Error("no maplibre");
-      try { if (window.maplibregl.getRTLTextPluginStatus() === "unavailable") { var rtl = window.maplibregl.setRTLTextPlugin(RTL_TEXT, true); if (rtl && rtl.catch) rtl.catch(function () {}); } } catch (e) { /* the names stay as they are */ }
-      gl = new window.maplibregl.Map({ container: mapEl, style: STYLE_URL + (dark ? "dark" : "positron"), bounds: ISRAEL, fitBoundsOptions: { padding: 20 }, minZoom: 5, maxZoom: 18, maxPitch: 0, dragRotate: false, pitchWithRotate: false, attributionControl: false, fadeDuration: 120 });
+      try { if (window.maplibregl.getRTLTextPluginStatus() === "unavailable") { var rtl = window.maplibregl.setRTLTextPlugin(RTL_TEXT, false); if (rtl && rtl.catch) rtl.catch(function () {}); } } catch (e) { /* the names stay as they are */ }
+      gl = new window.maplibregl.Map({ container: mapEl, style: STYLE_URL + (dark ? "colorful-dark" : "colorful") + "/style.json", bounds: BOUNDS[country()], fitBoundsOptions: { padding: 20 }, minZoom: 5, maxZoom: 18, maxPitch: 0, dragRotate: false, pitchWithRotate: false, attributionControl: false, fadeDuration: 120 });
       gl.touchZoomRotate.disableRotation(); gl.keyboard.disableRotation();
       gl.on("move", placeHover);
-      // The map and the files load side by side; whichever is last fits the view.
-      gl.on("load", function () { glReady = true; if (data.loaded) fit(true); });
+      // Fitting needs only the map's size, not its style, so it never waits for the tiles.
+      glReady = true;
+      var labelled = false;
+      gl.on("styledata", function () { if (!labelled && gl.isStyleLoaded()) { labelled = true; localLabels(); } });
     } catch (e) { gl = false; $("mapoff").innerHTML = '<div class="map-off">' + esc(t("no_map")) + "</div>"; }
     $("ctrl").innerHTML = gl ? '<button data-act="zin" aria-label="Zoom in">' + icon("plus") + '</button><button data-act="zout" aria-label="Zoom out">' + icon("minus") + '</button><button data-act="fit" aria-label="' + esc(t("fit")) + '" title="' + esc(t("fit")) + '">' + icon("fit") + "</button>" : "";
+  }
+  // The map's labels in the page's language where the map has a name in it, else the local name.
+  function localLabels() {
+    var want = ["coalesce", ["get", "name_" + lang], ["get", "name"]];
+    gl.getStyle().layers.forEach(function (ly) {
+      if (ly.type !== "symbol" || !ly.layout) return;
+      var tf = ly.layout["text-field"];
+      if (Array.isArray(tf) && tf[0] === "get" && tf[1] === "name") { try { gl.setLayoutProperty(ly.id, "text-field", want); } catch (e) { /* keep the local name */ } }
+    });
   }
   function fit(instant) {
     if (!gl) return;
     var pts = onMapList().map(function (l) { return [l.lng, l.lat]; });
     if (data.brief) data.brief.anchors.forEach(function (a) { pts.push([a.lng, a.lat]); });
-    if (!pts.length) { gl.fitBounds(ISRAEL, { padding: 20, duration: instant ? 0 : 800 }); return; }
+    if (!pts.length) { gl.fitBounds(BOUNDS[country()], { padding: 20, duration: instant ? 0 : 800 }); return; }
     var bb = new window.maplibregl.LngLatBounds(); pts.forEach(function (p) { bb.extend(p); });
     var w = mapEl.clientWidth, h = mapEl.clientHeight;
     gl.fitBounds(bb, { padding: { top: Math.min(80, h / 4), bottom: Math.min(40, h / 5), left: Math.min(60, w / 5), right: Math.min(70, w / 5) }, maxZoom: 15, duration: instant ? 0 : 800 });
@@ -792,8 +834,15 @@
     if (act === "zin" && gl) return gl.zoomIn();
     if (act === "zout" && gl) return gl.zoomOut();
     if (act === "market") { ui.marketOpen = !ui.marketOpen; paintRail(); return; }
-    if (act === "start-rent") return ask(t("ask_rent"));
-    if (act === "start-buy") return ask(t("ask_buy"));
+    if (act === "start-rent") return ask(t("ask_rent", { country: t("c_" + ui.exCountry) }));
+    if (act === "start-buy") return ask(t("ask_buy", { country: t("c_" + ui.exCountry) }));
+    if (act === "country") {
+      if (id !== "il" && id !== "us" || id === ui.exCountry) return;
+      ui.exCountry = id; ui.open = null; fitted = false; pinKey = "";
+      if (cab && cab.mine && cab.mine.set) cab.mine.set("country", id).catch(function () {});
+      (loading || Promise.resolve()).then(function () { return refresh(); }).then(function () { fit(false); });
+      return;
+    }
     if (act === "go-on") return ask(t("ask_go_on"));
     if (act === "change") return ask(t("ask_change"));
     if (act === "run") {
@@ -835,6 +884,9 @@
       var dark = h && h.theme ? h.theme === "dark" : !!(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
       if (dark) document.documentElement.dataset.theme = "dark";
       shared = hasStore ? JSON.parse(JSON.stringify(kept.all() || {})) : {};
+      var picked = cab && cab.mine && cab.mine.get ? cab.mine.get("country") : null;
+      if (picked === "il" || picked === "us") ui.exCountry = picked;
+      else if (lang === "he") ui.exCountry = "il";
       startGl(); paint();
       if (!V2) return;
       if (hasStore && kept.onChange) kept.onChange(function () { shared = JSON.parse(JSON.stringify(kept.all() || {})); paint(); });

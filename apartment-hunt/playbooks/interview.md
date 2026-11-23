@@ -24,6 +24,14 @@ understand this person's life well enough to recognise the right apartment befor
   `hunt/.data/shared.json` first.
 - **Accept "I do not know".** Then propose a sensible default, say it is one, and move on.
 
+## The country comes first
+
+The Scout works in Israel and in the United States. If the ask does not say which, ask it
+first, with the city. Then read the country's playbook (`israel.md` or `united-states.md`)
+before round 3: the money, the words and the rules differ, and the person should hear them
+from you, not find them out at a viewing. Write `country` (and the `state` in the US) in the
+brief.
+
 ## Round 1: the life
 
 - Renting or buying? If buying: to live in, or as an investment?
@@ -42,30 +50,50 @@ and the money better, and say why in one line each. Ask if you may include them.
 
 ## Round 3: the money
 
-Renting:
+Renting, everywhere:
 - What is the most you can pay a month, and what would feel comfortable?
+
+Renting in Israel:
 - Does that include `ועד בית` (building fee) and `ארנונה` (city tax)? Most ads do not.
   Give a rough figure for their city from `israel.md` so they can decide.
 - Is a broker's fee fine (usually a month's rent plus VAT), or do you want only places
   without one?
 
-Buying:
+Renting in the US:
+- Does that include utilities? Give a rough figure for their city.
+- What is your household's yearly income, roughly, and your credit score? (Landlords ask:
+  often 40 times the rent in New York City, about 3 times elsewhere. If it does not reach,
+  will a guarantor sign?)
+- How much can you put down at move-in? (First month, a deposit, sometimes a fee. In New
+  York City since 2025 a tenant does not pay the landlord's broker.)
+
+Buying in Israel:
 - How much cash do you have for the deal, and what monthly mortgage payment is fine?
 - Is this your only home? (It changes the tax and how much a bank lends. See `israel.md`.)
 - Do you have a mortgage approval in principle (`אישור עקרוני`)?
 - New from a developer, second hand, or either? Would a building waiting for TAMA 38 or
   `פינוי בינוי` (urban renewal) be a plus or a worry?
 
+Buying in the US:
+- How much is the down payment, and what monthly payment is fine, all in (mortgage, tax,
+  insurance, HOA)?
+- Are you pre-approved, and for which loan (conventional, FHA, VA)? A first home?
+- A house, a condo or a co-op? (A co-op board asks for more. See `united-states.md`.)
+
 Then say back what the budget buys in their areas, honestly. If it does not fit, say so now
 and offer the trade: a smaller place, another area, or a higher budget.
 
 ## Round 4: the apartment
 
-- How many rooms at least? (Remind them: in Israel the living room counts. 3 rooms is a
-  living room and two bedrooms.) A smallest size in square meters?
+- Israel: how many rooms at least? (Remind them: the living room counts. 3 rooms is a living
+  room and two bedrooms.) A smallest size in square meters?
+- US: how many bedrooms and bathrooms at least? Would a studio or a "flex" do? A smallest
+  size in square feet?
 - When do you need to move in, and how flexible is that date?
-- Which of these matter to you: a safe room (`ממ"ד`), an elevator, parking, a balcony, a
-  floor you prefer, furnished or empty, pets, step-free access, quiet, light?
+- Which of these matter to you: an elevator, parking, a balcony or outdoor space, a floor
+  you prefer, furnished or empty, pets, step-free access, quiet, light? In Israel also a safe
+  room (`ממ"ד`). In the US also laundry (in the apartment or the building), a dishwasher, a
+  doorman, utilities in the rent.
 
 Then split what they said into three lists and read them back:
 - **Must have**: a place without it is out.

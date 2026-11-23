@@ -1,4 +1,5 @@
 ---
+country: il
 title: 3 rooms with a safe room on Shenkin
 deal: rent
 price: 7200

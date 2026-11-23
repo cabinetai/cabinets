@@ -1,4 +1,5 @@
 ---
+country: il
 title: 3.5 rooms, high floor, parking, Givatayim
 deal: rent
 price: 6600

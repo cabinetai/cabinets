@@ -1,4 +1,5 @@
 ---
+country: il
 title: New building in Florentin, 3 rooms
 deal: rent
 price: 6400

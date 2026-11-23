@@ -18,7 +18,7 @@ so a key spelled wrong is a fact the person never sees.
 | `search/runs.json` | The Scout, at the end of every search | What each search looked at and found. |
 | `search/market.md` | The Scout, once a week | The market read for the person's areas. |
 | `hunt/.data/shared.json` | The map (Cabinet keeps it) | What the person did on the map. Read only. |
-| `search/EXAMPLE-*`, `listings/EXAMPLE-*.md` | Ship with the cabinet | Made-up examples. |
+| `search/EXAMPLE-il-*`, `search/EXAMPLE-us-*`, `listings/EXAMPLE-il-*`, `listings/EXAMPLE-us-*` | Ship with the cabinet | Made-up examples, one set per country. |
 
 **Examples.** The map shows the `EXAMPLE-` files only while `search/brief.md` does not exist.
 Never count them, never compare with them, never write about them as real. Ignore the
@@ -32,6 +32,7 @@ Frontmatter on top, then the brief in the person's own words.
 ```
 ---
 status: ready
+country: il
 deal: rent
 who: A couple and a small dog. Both work from home two days a week.
 cities: Tel Aviv, Givatayim
@@ -55,18 +56,25 @@ updated: 2026-11-23
 
 - `status`: `draft` while the interview is still going, `ready` once the person said the
   brief is right. The search routine only runs on `ready`.
+- `country`: `il` (Israel) or `us` (the United States). It decides the money, the units,
+  the sites, and which of `israel.md` or `united-states.md` you read. US briefs add `state`
+  (two letters, `NY`).
 - `deal`: `rent` or `buy`.
 - `cities`, `neighborhoods`, `must`, `nice`, `never`: lists, comma separated, on one line.
-- Money is a plain number in shekels, no sign and no commas. Rent is a month. A purchase
-  price is the full price.
-- `rooms_min` and `rooms_max` count rooms the Israeli way (the living room is a room).
+- Money is a plain number in the country's money (shekels or dollars), no sign and no
+  commas. Rent is a month. A purchase price is the full price.
+- Israel: `rooms_min` and `rooms_max` count rooms the Israeli way (the living room is a
+  room). `size_min` is square meters.
+- US: `beds_min`, `beds_max` and `baths_min` instead of rooms (a studio is `0` beds).
+  `size_min` is square feet.
 - `broker`: `ok` (a fee is fine), `avoid` (prefer without, a great place may have one) or
   `never`.
 - `anchor_<name>`: a place the person's days go to: `Label | lat, lng`. Look the place up
   and write at least four decimals. The map shows each one and measures each find against it.
 - Buyers add what applies: `equity` (cash for the deal), `mortgage_ok` (the monthly payment
   they can carry), `first_home` (`yes` or `no`), `new_build` (`yes`, `no` or `either`),
-  `urban_renewal` (`yes` when a TAMA 38 or `פינוי בינוי` building is welcome).
+  `urban_renewal` (`yes` when a TAMA 38 or `פינוי בינוי` building is welcome). In the US
+  also `down_payment`, `credit` (a rough score) and `loan` (`conventional`, `fha`, `va`).
 - Any other `key: value` line is kept and shown as written.
 
 Under the frontmatter: `## What matters most`, `## What would make a place perfect`,
@@ -79,8 +87,8 @@ The map knows their names in English and Hebrew.
 
 | Word | Means |
 |---|---|
-| `mamad` | A safe room in the apartment (ממ"ד) |
-| `shelter` | A shared shelter in the building or a few steps away (מקלט / ממ"ק) |
+| `mamad` | Israel: a safe room in the apartment (ממ"ד) |
+| `shelter` | Israel: a shared shelter in the building or a few steps away (מקלט / ממ"ק) |
 | `elevator` | An elevator |
 | `parking` | A parking space of its own |
 | `balcony` | A balcony |
@@ -100,17 +108,28 @@ The map knows their names in English and Hebrew.
 | `immediate` | Can move in now |
 | `ground_floor` | On the ground floor (usually in `never`) |
 | `no_window_bedroom` | A bedroom without a window |
+| `laundry` | A washer and dryer in the apartment or the building |
+| `in_unit_laundry` | A washer and dryer in the apartment |
+| `dishwasher` | A dishwasher |
+| `doorman` | A door attendant |
+| `gym` | A gym in the building |
+| `pool` | A pool |
+| `outdoor_space` | A balcony, terrace, patio or yard of its own |
+| `utilities_included` | Some or all utilities in the rent |
+| `rent_stabilized` | New York: a rent-stabilised apartment |
+| `basement_unit` | Partly below the street (usually in `never`) |
 
 A word not in the list is shown as written. Prefer a list word when one fits.
 
 ## A listing: `listings/<name>.md`
 
 One file per apartment, named `<source>-<the site's own id>.md` in lower case, for
-example `yad2-a1b2c3.md`. The same apartment on two sites is one file (see `method.md`).
+example `yad2-a1b2c3.md` or `streeteasy-4581234.md`. The same apartment on two sites is one file (see `method.md`).
 
 ```
 ---
 title: 3 rooms with a safe room on Shenkin
+country: il
 deal: rent
 price: 7200
 rooms: 3
@@ -151,8 +170,13 @@ photo: https://...
 - ...
 ```
 
+- `country`: `il` or `us`, the same as the brief.
 - `price`, `size`, `floor`, `floors`, `fair_price` are plain numbers. `size` is square
-  meters. For `deal: buy`, `price` is the full asking price.
+  meters in Israel and square feet in the US. For `deal: buy`, `price` is the full asking
+  price. For a US rent with a concession, `price` is the gross lease rent; say the net
+  effective rent in "Watch out".
+- Israel uses `rooms`. The US uses `bedrooms` and `bathrooms` (`0` bedrooms is a studio,
+  `1.5` bathrooms has a half bath), and no `rooms`.
 - `verdict`: `top` (score 80 or more, go see it), `good` (65 to 79), `maybe` (50 to 64,
   worth a look if the market is thin). Below 50 gets no file.
 - `opportunity` (optional): `below_market`, `fresh`, `price_cut`, `no_broker`,

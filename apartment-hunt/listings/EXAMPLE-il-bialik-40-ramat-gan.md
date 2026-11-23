@@ -1,4 +1,5 @@
 ---
+country: il
 title: 3.5 rooms with parking in Ramat Gan
 deal: rent
 price: 6200

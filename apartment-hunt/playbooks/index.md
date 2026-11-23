@@ -13,3 +13,4 @@ the Scout follows what they say.
 - [The interview](interview.md): how the Scout learns what you need.
 - [The method](method.md): how it searches, judges a listing and checks a price.
 - [Israel](israel.md): the market, the rental law, buying, and the words in an ad.
+- [United States](united-states.md): the same for the US: approval, deposits, broker fees, buying, and the words in an ad.

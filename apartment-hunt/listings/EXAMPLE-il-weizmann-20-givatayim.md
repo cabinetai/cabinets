@@ -1,4 +1,5 @@
 ---
+country: il
 title: Bright 3 rooms near Arlozorov, Givatayim
 deal: rent
 price: 7100

@@ -1,5 +1,6 @@
 ---
 status: ready
+country: il
 deal: rent
 who: A couple and a small dog. Both work from home two days a week.
 cities: Tel Aviv, Givatayim
