@@ -9,6 +9,7 @@ import { RULES, scanDaily, facts } from "./lib/signals.mjs";
 import { usSession, symbolsOf } from "./refresh.mjs";
 import { ruleRecord, recordKey } from "./lib/record.mjs";
 import { readCalls, outcome, score } from "./lib/calls.mjs";
+import { toCron, fromCron, readSchedule, writeSchedule } from "./lib/schedule.mjs";
 import * as src from "./lib/sources.mjs";
 import { news } from "./lib/yahoo.mjs";
 
@@ -190,4 +191,23 @@ test("short interest comes from FINRA's newest report, and from Nasdaq when FINR
 test("a headline carries the site it leads to", async (t) => {
   cannedFetch(t, () => "<rss><channel><item><link>https://www.example.com/a?x=1</link><pubDate>Mon, 23 Nov 2026 09:55:35 +0000</pubDate><title>One &amp; two</title></item><item><link>javascript:alert(1)</link><title>Bad</title></item></channel></rss>");
   assert.deepEqual(await news("NVDA"), [{ title: "One & two", link: "https://www.example.com/a?x=1", site: "example.com", at: "2026-11-23T09:55:35.000Z" }]);
+});
+
+test("a chosen frequency and time become the routine's schedule line, and read back the same", async (t) => {
+  assert.equal(toCron({ days: "weekdays", time: "08:30" }), "30 8 * * 1-5");
+  assert.equal(toCron({ days: "daily", time: "17:05" }), "5 17 * * *");
+  assert.equal(toCron({ days: "1", time: "00:00" }), "0 0 * * 1");
+  for (const bad of [{ days: "weekdays", time: "25:00" }, { days: "often", time: "08:30" }, { days: "weekdays" }, { days: "toString", time: "08:30" }, undefined]) assert.equal(toCron(bad), null);
+  assert.deepEqual(fromCron("30 8 * * 1-5"), { days: "weekdays", time: "08:30" });
+  assert.deepEqual(fromCron("0 9 * * 6"), { days: "6", time: "09:00" });
+  assert.equal(fromCron("*/15 9-16 * * 1-5"), null, "a schedule typed elsewhere is left alone");
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "schedule-"));
+  t.after(() => fs.rm(dir, { recursive: true }));
+  const file = path.join(dir, "find-opportunities.yaml");
+  await fs.writeFile(file, "id: find-opportunities\nschedule: 30 8 * * 1-5\nprompt: |-\n  schedule: not this line\n");
+  await writeSchedule({ days: "daily", time: "16:45" }, file);
+  assert.equal(await fs.readFile(file, "utf8"), "id: find-opportunities\nschedule: 45 16 * * *\nprompt: |-\n  schedule: not this line\n");
+  const now = await readSchedule(file);
+  assert.deepEqual([now.days, now.time, typeof now.zone], ["daily", "16:45", "string"]);
+  await assert.rejects(writeSchedule({ days: "daily", time: "soon" }, file));
 });

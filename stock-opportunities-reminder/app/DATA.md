@@ -21,7 +21,10 @@ Symbols are written the way Yahoo Finance writes them: `NVDA`, `BTC-USD`, `ES=F`
 
 The engine's small server (`engine/server.mjs`, started by Cabinet once the app is allowed)
 answers what a file cannot: `/candles?sym=&frame=` (`5m`, `15m`, `1h`, `1d`, `1w`),
-`/search?q=`, `/refresh` (add `full=1` for everything) and `/health`.
+`/search?q=`, `/refresh` (add `full=1` for everything) and `/health`. `/schedule` says when
+the Scout looks (`{ days, time, zone }`, `days` being `weekdays`, `daily` or a day of the week
+from `0` for Sunday), and a POST of `{ days, time }` from the cabinet's owner changes it by
+rewriting the schedule line of `.jobs/find-opportunities.yaml`, which Cabinet re-reads.
 
 ## data/market.json
 

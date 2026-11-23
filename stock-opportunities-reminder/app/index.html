@@ -179,6 +179,8 @@
   .stocks > * { min-height: 0; }
   .watch { display: flex; flex-direction: column; padding: 12px 10px; }
   .find { position: relative; margin: 0 2px 8px; }
+  .whenrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13.5px; }
+  .whenrow select, .whenrow input { height: 34px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--sheet-2); color: var(--ink); font: inherit; }
   .find input { width: 100%; height: 36px; padding: 0 10px 0 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--sheet-2); caret-color: var(--brand); }
   .find > svg { position: absolute; left: 9px; top: 50%; margin-top: -8.5px; color: var(--muted); }
   .found { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); padding: 5px; border-radius: 12px; background: var(--sheet); box-shadow: var(--shadow-up); transform-origin: top center; animation: pop 150ms var(--ease-out); }
@@ -251,7 +253,7 @@
     .card { padding: 14px; }
     .tabs { position: fixed; z-index: 15; left: 8px; right: 8px; bottom: 8px; padding: 5px; border-radius: 16px; background: var(--sheet); box-shadow: var(--shadow-up); }
     .tab { flex-direction: column; gap: 2px; height: 52px; font-size: 12px; } .tab[aria-selected="true"] { background: var(--press); box-shadow: none; }
-    .btn, .btn.small, .find input { min-height: 44px; } .seg button, .tog { height: 38px; } .found button { padding: 12px 9px; }
+    .btn, .btn.small, .find input, .whenrow select, .whenrow input { min-height: 44px; } .seg button, .tog { height: 38px; } .found button { padding: 12px 9px; }
     .ctools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 14px 10px; } .ctools > * { flex: none; } .chead { padding: 14px 14px 8px; }
     .wrow { padding: 10px 11px; } .plot { height: 340px; }
     .toast { bottom: 84px; }
@@ -426,13 +428,17 @@
     if (!here || !here.cabinetPath || role() !== "owner") return null;
     return "/api/app-server/run/" + (here.cabinetPath + "/" + appPath).split("/").map(encodeURIComponent).join("/") + "/~";
   }
-  function engine(route) {
+  // `body`, when given, is sent as JSON with POST.
+  function engine(route, body) {
     const base = engineBase();
     if (!base) return Promise.reject(new Error("off"));
-    return fetch(base + route, { headers: { accept: "application/json" } }).then((r) => r.json().catch(() => ({})).then((j) => { if (!r.ok) { const e = new Error(j.error || "Live prices did not answer."); e.code = j.code || r.status; throw e; } return j; }));
+    return fetch(base + route, body === undefined ? { headers: { accept: "application/json" } } : { method: "POST", headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json().catch(() => ({})).then((j) => { if (!r.ok) { const e = new Error(j.error || "Live prices did not answer."); e.code = j.code || r.status; throw e; } return j; }));
   }
+  // When the Scout looks, as the engine reads it from the routine's file: `{ days, time, zone }`.
+  // Null until the engine is on, and `custom` instead of `days` for a schedule set elsewhere.
+  let sched = null;
   function checkLive() {
-    return engine("/health").then(() => { live = true; needsAllow = false; }, (e) => { live = false; needsAllow = e.code === "app-not-allowed" || e.code === 409; });
+    return engine("/health").then(() => { live = true; needsAllow = false; return engine("/schedule").then((x) => { sched = x; }, () => {}); }, (e) => { live = false; needsAllow = e.code === "app-not-allowed" || e.code === 409; });
   }
 
   // ── What the page knows ─────────────────────────────────────────────────
@@ -561,6 +567,23 @@
     const j = D.jobs.find((x) => x.id === FIND_JOB), busy = !!(j && j.running);
     return `<button class="btn primary" data-write id="run"${busy ? " disabled" : ""}>${icon(busy ? "loader" : "search", busy ? "spin" : "")}${busy ? "Looking at your list" : "Look again now"}</button>`;
   }
+  const WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const HOW_OFTEN = [["weekdays", "every weekday"], ["daily", "every day"]].concat(WEEK.map((d, i) => [String(i), "every " + d]));
+  // When the Scout looks, and the two controls that change it. Without the engine, or with
+  // a schedule the controls cannot show, it says the time in Cabinet's own words.
+  function whenHtml() {
+    if (sched && sched.days && canWrite()) {
+      const mine = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return `<div class="whenrow"><label for="sdays">The Stock Scout looks</label><select id="sdays">${HOW_OFTEN.map((x) => `<option value="${x[0]}"${x[0] === sched.days ? " selected" : ""}>${x[1]}</option>`).join("")}</select><label for="stime">at</label><input type="time" id="stime" value="${esc(sched.time)}" required />${sched.zone && sched.zone !== mine ? `<span class="sub">${esc(sched.zone.replace(/_/g, " "))} time</span>` : ""}</div>`;
+    }
+    const j = D.jobs.find((x) => x.id === FIND_JOB);
+    return `<p class="sub">${j && j.when ? "The Stock Scout looks: " + esc(j.when.toLowerCase()) + "." : ""}${needsAllow ? " Press Allow in the bar above this page to choose the days and the time here." : ""}</p>`;
+  }
+  function saveWhen() {
+    const days = $("sdays").value, time = $("stime").value;
+    if (!time) return;
+    engine("/schedule", { days, time }).then((x) => { sched = x; document.activeElement.blur(); toast(`Saved. The Stock Scout now looks ${HOW_OFTEN.find((o) => o[0] === days)[1]} at ${time}.`); return loadJobs(); }, (e) => toast(e.message));
+  }
   function runScout() {
     if (!cab.jobs.run) return toast("Open this in Cabinet to run it.");
     cab.jobs.run(FIND_JOB).then(() => { toast("The Stock Scout is looking at your list. New reminders appear here in a few minutes."); loadJobs().then(() => paint(true)); }, (e) => toast((e && e.message) || "That did not start. Try again."));
@@ -655,11 +678,11 @@
   }
   function viewOpps() {
     const f = D.opps[0];
-    if (!f) return `<div class="opps">${liveNote()}<section class="sheet card wide"><div class="empty"><b>No reminders yet.</b>The Stock Scout looks at your list every weekday morning and writes down where buying looks interesting.</div><div class="acts" style="justify-content:center">${runBtn()}</div></section>${footer()}</div>`;
+    if (!f) return `<div class="opps">${liveNote()}<section class="sheet card wide"><div class="empty"><b>No reminders yet.</b>The Stock Scout looks at your list on the days you choose and writes down where buying looks interesting.</div><div class="acts" style="justify-content:center">${runBtn()}</div>${whenHtml()}</section>${footer()}</div>`;
     const s = STANCE[f.stance], earlier = D.opps.slice(1).flatMap((x) => x.items), dayName = niceDay(f.day);
     return `<div class="opps">${liveNote()}
       <section class="sheet card market wide" data-s="${f.stance || "mixed"}">${s ? `<div class="stance"><span class="lamp">${icon(s[1])}</span><h2>${s[0]}</h2></div>` : ""}
-        ${f.read ? `<p class="read">${esc(f.read)}</p>` : ""}<div class="acts">${runBtn()}<span class="sub">Written ${onDay(f.at || f.day)}${f.at ? " at " + hm(f.at) : ""}. The Stock Scout looks again every weekday morning.</span></div></section>
+        ${f.read ? `<p class="read">${esc(f.read)}</p>` : ""}<div class="acts">${runBtn()}<span class="sub">Written ${onDay(f.at || f.day)}${f.at ? " at " + hm(f.at) : ""}.</span></div>${whenHtml()}</section>
       <div class="col">${f.example ? `<div class="note info">${icon("info")}<div class="grow"><b>This is an example.</b> It shows what a reminder looks like. Your own replace it after the Stock Scout's first run.</div></div>` : ""}
         <h2 class="daytitle">${dayName === "Today" ? "Today's opportunities" : "Opportunities from " + dayName}<span class="sub">${f.items.length ? plural(f.items.length, "place", "places") + " to look at" : ""}</span></h2>
         ${f.items.map(oppCard).join("") || `<section class="sheet card"><div class="empty"><b>Nothing worth buying ${dayName === "Today" ? "today" : "that day"}.</b>${esc(f.nothing || "The Stock Scout looked at every stock on your list and none of them is at a good place to buy.")}<br>A day with no opportunity is a normal answer. Waiting is part of the plan.</div></section>`}</div>
@@ -836,8 +859,10 @@
   // ── Painting ────────────────────────────────────────────────────────────
   const VIEWS = { opps: viewOpps, stocks: viewStocks };
   // `soft` is a repaint nobody asked for (new prices arrived): it keeps the scroll position, and on My stocks it leaves the chart and the search box alone.
+  // `soft` is a repaint nobody asked for (new prices arrived): it waits while the person is choosing a day or a time.
   function paint(soft) {
     paintTop();
+    if (soft && document.activeElement && document.activeElement.closest(".whenrow")) return;
     if (state.tab === "stocks" && $("lw")) { paintWatch(); paintChartHead(); paintSide(); return; }
     const view = $("view"), top = view.scrollTop;
     view.dataset.tab = state.tab; view.setAttribute("aria-label", TABS.find((t) => t[0] === state.tab)[1]);
@@ -873,6 +898,7 @@
     if (d.pick) return findPick(d.pick, d.name);
   });
   document.addEventListener("input", (e) => { if (e.target.id === "find") findType(e.target.value); });
+  document.addEventListener("change", (e) => { if (e.target.id === "sdays" || e.target.id === "stime") saveWhen(); });
   document.addEventListener("keydown", (e) => {
     const el = e.target;
     if (el.id === "find") {

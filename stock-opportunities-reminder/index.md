@@ -7,14 +7,15 @@ order: 1
 ---
 # Stock Opportunities Reminder
 
-A stock scout that works for you. Each weekday morning it reads the market and the stocks
-on your list, and tells you if one is worth buying now: where to buy, the price where the
+A stock scout that works for you. On the days and at the time you choose, it reads the
+market and the stocks on your list, and tells you if one is worth buying now: where to buy, the price where the
 idea is wrong, and what it aims for. Most days it finds little. Some days it finds nothing,
 and says so.
 
 ## What you get
 
-- **A reminder each weekday.** The Stock Scout runs before the US market opens. Its answer
+- **A reminder when you want it.** Pick how often and at what time on the page: every
+  weekday, every day, or one day a week. It starts as weekday mornings at 8:30. The answer
   is short: what the market is doing, and up to three stocks worth a look, or none.
 - **Every call is complete.** A buy zone, a stop (the price where the idea was wrong) and a
   target, each read off the chart and explained in plain words. No call without a stop.
