@@ -3,7 +3,7 @@
 // A rule with `on: false` is too noisy to flag a chart with, but its record is still kept.
 // The page names the same ids; keep RULES and the page in step.
 
-import { sma, ema, rsi, atr, macd, bandWidth, priorHigh, priorLow, avgVolume } from "./indicators.mjs";
+import { sma, ema, rsi, atr, macd, bandWidth, priorHigh, priorLow, avgVolume, nyDay } from "./indicators.mjs";
 
 export const RULES = [
   { id: "breakout", name: "Breakout", side: "long", on: true, days: 20, volume: 1.5 },
@@ -30,26 +30,50 @@ const pct = (a, b) => (b ? ((a - b) / b) * 100 : 0);
 const r2 = (n) => Math.round(n * 100) / 100;
 const r1 = (n) => Math.round(n * 10) / 10;
 
-/** Numbers about a symbol that the page and the assistants show next to its chart. */
-export function facts(candles) {
-  const n = candles.length;
-  if (n < 2) return null;
-  const closes = candles.map((c) => c.c);
-  const i = n - 1, last = candles[i];
-  const s20 = ema(closes, 20)[i], s50 = sma(closes, 50)[i], s200 = sma(closes, 200)[i];
-  const a = atr(candles, 14)[i], av = avgVolume(candles, i, 20);
-  const year = candles.slice(-252);
-  const hi = Math.max(...year.map((c) => c.h)), lo = Math.min(...year.map((c) => c.l));
+/**
+ * Everything the facts are read from, worked out once for a chart: its averages, RSI and
+ * usual daily move as of every candle, the New York day of each candle, and, when `fund`
+ * (the S&P 500 fund's daily candles) is given, the fund's close on each of those days.
+ */
+export function series(candles, fund) {
+  const closes = candles.map((c) => c.c), days = candles.map((c) => nyDay(c.t));
+  let market = null;
+  if (fund) {
+    // The fund's newest close on or before each day, so a coin's weekend still has a market beside it.
+    const fundDays = fund.map((c) => nyDay(c.t));
+    let j = -1;
+    market = days.map((d) => { while (j + 1 < fund.length && fundDays[j + 1] <= d) j++; return j < 0 ? null : fund[j].c; });
+  }
+  return { candles, closes, days, market, ema20: ema(closes, 20), sma50: sma(closes, 50), sma200: sma(closes, 200), rsi: rsi(closes, 14), atr: atr(candles, 14) };
+}
+
+/** The facts as of candle `i` of a `series`. Nothing after `i` is read. */
+export function factsAt(s, i) {
+  if (i < 1) return null;
+  const last = s.candles[i];
+  const s20 = s.ema20[i], s50 = s.sma50[i], s200 = s.sma200[i], a = s.atr[i], av = avgVolume(s.candles, i, 20);
+  const hi = priorHigh(s.candles, i + 1, 252), lo = priorLow(s.candles, i + 1, 252);
+  // The move over the last `n` candles in percent, null when history is short.
+  const back = (line, n) => (line && i >= n && line[i - n] ? pct(line[i], line[i - n]) : null);
+  const ahead = (n) => { const own = back(s.closes, n), fund = back(s.market, n); return own == null || fund == null ? null : r1(own - fund); };
+  const own10 = back(s.closes, 10), fund10 = back(s.market, 10);
   return {
     close: r2(last.c),
     ema20: s20 && r2(s20), sma50: s50 && r2(s50), sma200: s200 && r2(s200),
-    rsi: rsi(closes, 14)[i] == null ? null : r1(rsi(closes, 14)[i]),
+    rsi: s.rsi[i] == null ? null : r1(s.rsi[i]),
     atr: a && r2(a), atrPercent: a ? r2((a / last.c) * 100) : null,
     rvol: av ? r2(last.v / av) : null,
     high52: hi, low52: lo, fromHigh: r1(pct(last.c, hi)),
     trend: s50 && s200 ? (last.c > s50 && s50 > s200 ? "up" : last.c < s50 && s50 < s200 ? "down" : "mixed") : null,
+    // Its return over 1, 3 and 6 months of trading days, less the fund's over the same days.
+    rs: s.market && { m1: ahead(21), m3: ahead(63), m6: ahead(126) },
+    // The last 10 trading days, the stock beside the fund: what the "leader" setup compares.
+    ten: own10 == null || fund10 == null ? null : { stock: r1(own10), market: r1(fund10) },
   };
 }
+
+/** Numbers about a symbol that the page and the assistants show next to its chart. `fund` is the S&P 500 fund's daily candles. */
+export const facts = (candles, fund) => factsAt(series(candles, fund), candles.length - 1);
 
 /**
  * Daily rules, judged on the newest candle. `candles` are daily, oldest first; during

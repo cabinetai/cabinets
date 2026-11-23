@@ -17,6 +17,10 @@ and says so.
 - **A reminder when you want it.** Pick how often and at what time on the page: every
   weekday, every day, or one day a week. It starts as weekday mornings at 8:30. The answer
   is short: what the market is doing, and up to three stocks worth a look, or none.
+- **It only calls what the numbers support.** The engine finds every stock that fits one
+  of five setups, on your list and across about 100 large US stocks, and tests each setup
+  on the past. A setup that has lost money is never called. The Scout adds the judgement:
+  which candidate, what the news changes, and when to say no.
 - **Every call is complete.** A buy zone, a stop (the price where the idea was wrong) and a
   target, each read off the chart and explained in plain words. No call without a stop.
 - **What it passed on, and why.** The stocks that looked tempting and are not, with the

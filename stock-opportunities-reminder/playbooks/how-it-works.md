@@ -19,25 +19,30 @@ Read this before you answer a question or touch a file in this cabinet.
 
 ## Getting fresh numbers
 
-Run this from the cabinet root. It costs no AI and takes under a minute.
+Run this from the cabinet root. It costs no AI. A plain run takes a few seconds, a full one
+about a minute.
 
 ```
 node app/engine/refresh.mjs          # what is due now
 node app/engine/refresh.mjs --full   # everything, whatever its age
 ```
 
-It reads the person's list, fetches public prices, checks every chart against the rules,
-follows each of your calls, and writes the files below. `app/DATA.md` describes each file
+It reads the person's list, fetches public prices, counts the market's stance, finds every
+stock that fits a setup, tests the setups on the past, follows each of your calls, and writes
+the files below. `app/DATA.md` describes each file
 field by field.
 
 | File | What is in it |
 |---|---|
-| `app/data/market.json` | The newest price of every symbol, with `facts` (trend, averages, RSI, usual daily move, distance from the 52-week high), the next earnings date and short interest |
-| `app/data/candles/<SYMBOL>.1d.json` | Two years of daily candles: `[time, open, high, low, close, volume]`. One for every listed symbol, every stock you called, and today's movers |
+| `app/data/market.json` | `regime`: the market's stance, counted by the engine. Then the newest price of every symbol, with `facts` (trend, averages, RSI, usual daily move, distance from the 52-week high, strength against the market), the next earnings date and short interest |
+| `app/data/candidates.json` | Today's candidates: every stock that fits a setup, with its buy zone, stop, target, reasons to pass and the setup's verdict. Your calls come from here |
+| `app/data/setups.json` | How each setup did when replayed over the saved charts, overall and by market stance, with a verdict |
+| `app/data/candles/<SYMBOL>.1d.json` | Two years of daily candles: `[time, open, high, low, close, volume]`. One for every listed symbol, every candidate, every stock you called, and today's movers |
 | `app/data/signals.json` | What the rules flagged, newest first, three weeks of it |
 | `app/data/record.json` | How each rule did on this list over the saved candles (below) |
 | `app/data/movers.json` | The day's biggest gainers, losers and busiest US stocks. Rows worth a look carry `facts` |
 | `app/data/calendar.json` | Earnings for the next two weeks and this week's US economic news |
+| `app/data/reports.json` | The day each company reports, a week back to eight days ahead |
 | `app/data/news.json` | The newest headlines for each symbol on the list |
 | `app/data/outcomes.json` | Every call you made in the last 90 days and where it stands, with your scorecard |
 | `app/data/status.json` | When the last refresh ran and what failed |
@@ -97,18 +102,23 @@ never copy from a file whose name starts with `EXAMPLE-`.
 ```
 
 - `stance` is `with-you`, `mixed` or `against-you`.
+- Every call is one item of `app/data/candidates.json`: the same `sym` and `setup`, and
+  its `buy`, `stop` and `target` copied exactly. You add the words, never the numbers.
 - `setup` is one of the five names in [The method](method.md), spelled as there.
 - `buy` is `[low, high]`. `stop` is under `low`. `target` is over `high`. A call that
-  breaks this is thrown away by the engine, so check it.
-- `conviction` is 1, 2 or 3.
+  breaks this is thrown away by the engine.
+- `conviction` is 1 or 2. See the method for when 3 opens.
 - `items` holds three calls at most and may be empty. When it is empty, `nothing` says why
   in one or two sentences, and `passed` still lists what you looked at.
 - `passed` holds five at most: the tempting ones, not every stock you saw.
 - Plain words everywhere. The person may never have read a chart.
 
-After you write it, run `node app/engine/refresh.mjs` and read `app/data/outcomes.json`.
-Every call you wrote must be listed there. One that is missing was malformed: fix the file
-and run it again.
+After you write it, run `node app/engine/refresh.mjs`, then
+`node app/engine/check-calls.mjs`. It prints `OK` for each call, or what is wrong with it in
+a plain sentence: malformed numbers, a stop with too little room, pay under 2 to 1, earnings
+too close, a setup whose record says no. Fix or remove the call and run the check again
+until it ends with "All in order." The same problems are kept in `problems` in
+`app/data/outcomes.json`.
 
 ## How a call is scored
 
@@ -129,7 +139,7 @@ A call that reached a target three stop-distances away made 3. A stopped call lo
 little more when the price opened under the stop.
 
 `score` counts finished calls only: `closed`, `won` (finished above zero), `target`
-(reached the target) and `avgR`. Under 20 finished calls, luck decides. Say so whenever you
+(reached the target) and `avgR`. `score.bySetup` gives the same for each setup. Under 20 finished calls, luck decides. Say so whenever you
 quote it.
 
 ## A rule's record

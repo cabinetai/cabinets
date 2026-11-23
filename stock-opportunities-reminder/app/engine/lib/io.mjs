@@ -44,5 +44,14 @@ export async function readStore() {
   return s && typeof s === "object" ? s : {};
 }
 
+/** Candle rows as they are kept on disk, `[time, open, high, low, close, volume]`, as candles. */
+export const toCandles = (rows) => rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }));
+
+/** A symbol's saved daily candles, oldest first, or null when there is no file for it. */
+export async function readCandles(sym) {
+  const file = await readData(`candles/${fileSym(sym)}.1d.json`);
+  return file && Array.isArray(file.c) ? toCandles(file.c) : null;
+}
+
 /** A file name for a symbol: `BTC-USD` stays, `^VIX` and `ES=F` lose what a file system dislikes. */
 export const fileSym = (sym) => String(sym).toUpperCase().replace(/[^A-Z0-9.-]/g, "_");

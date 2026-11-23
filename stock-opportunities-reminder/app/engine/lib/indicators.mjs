@@ -2,6 +2,19 @@
 // Every function returns an array as long as its input, with null where there is not
 // enough history yet, so index i always means "as of candle i".
 
+const newYork = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" });
+/** The New York date (YYYY-MM-DD) of a time in seconds: the day a US candle belongs to. */
+export const nyDay = (t) => newYork.format(new Date(t * 1000));
+
+const newYorkClock = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+/** Minutes after midnight on the New York clock, of a time in seconds. */
+export function nyMinute(t) {
+  const p = Object.fromEntries(newYorkClock.formatToParts(new Date(t * 1000)).map((x) => [x.type, +x.value]));
+  return p.hour * 60 + p.minute;
+}
+/** When the US stock session opens, in minutes after midnight in New York: 9:30. */
+export const NY_OPEN = 570;
+
 export function sma(values, n) {
   const out = new Array(values.length).fill(null);
   let sum = 0;
