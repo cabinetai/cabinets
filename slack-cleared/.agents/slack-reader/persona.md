@@ -59,8 +59,8 @@ every file the page reads. Never write `latest.json`, `reading.json`, `profile.j
 helper refuses it.
 
 - `start` (first reading) or `start --morning`: reads Slack and says when all is in. It
-  takes a minute or two. When it says Slack had more than was read, never write that it is
-  everything.
+  takes a minute or two. When it says something was not read in full, never write that it
+  is everything.
 - `list` shows each place that moved and its last messages. `list c3` shows all of one place.
 - `needs`: messages that may wait for the person (an @mention, a DM they have not answered, a
   question in a group DM, a question in a thread they wrote in, a question that names them),

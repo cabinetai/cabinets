@@ -24,8 +24,8 @@ page is typed by the agent except its own short words (gists, replies, the headl
 those may hold no numbers.
 
 `latest.json` in short: `generatedAt`, `readAt` (when that reading began: the next morning
-counts from it), `partial[]` (only when Slack had more than was read: the searches that were
-cut, and the page says so), `since`, `timeZone`, `workspace`, `person { name }`,
+counts from it), `partial[]` (only when some searches were not read in full, because
+Slack had more or refused one; the page says so), `since`, `timeZone`, `workspace`, `person { name }`,
 `headline`, `totals { messages, dms, channels, mine, mentions, skipped }`,
 `pulse { start, stepHours, counts[], you[] }` (the banner's lights), and:
 

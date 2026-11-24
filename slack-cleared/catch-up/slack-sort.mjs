@@ -243,7 +243,7 @@ function refuse(n, why) {
 const SEARCH = { sort: "timestamp", count: 100 };
 /** The pages of one search: enough for a busy week, so a reading still ends within its time. */
 const PAGES = 10;
-/** Searches Slack had more for than was read: the page and the agent are told. */
+/** Searches not read in full (Slack had more, or refused one): the page and the agent are told. */
 const partialFile = path.join(workDir, ".partial.json");
 function partialList() { try { return readJson(partialFile); } catch { return []; } }
 function partial(n) { writeJson(partialFile, [...new Set([...partialList(), n])]); }
@@ -255,7 +255,8 @@ async function searchAll(n, query, pages = PAGES) {
     if (!got) {
       // A search the page needs must come back: its refusal is the run's reason to stop.
       if (page === 1 && NEEDED.includes(n)) stopRun(String(refusedList()[n]).replace(/\s+/g, " ").slice(0, 240));
-      if (page > 1) partial(n);
+      // A refused "everything" has its own second way: the channels, searched by name.
+      if (page > 1 || n !== "everything") partial(n);
       return;
     }
     if (!got.info.more) return;
@@ -501,6 +502,7 @@ function myThreads() {
  */
 function needs() {
   const md = model();
+  if (md.needs) return md.needs;
   const mineIn = myThreads();
   const seen = new Map();
   for (const m of md.msgs) {
@@ -515,7 +517,7 @@ function needs() {
     if (seen.has(key)) { const s = seen.get(key); s.more++; s.all.push(m); continue; }
     seen.set(key, { m, why, more: 0, all: [m], deferred: deferral(m) });
   }
-  return [...seen.values()].sort((a, b) => a.m.at - b.m.at);
+  return (md.needs = [...seen.values()].sort((a, b) => a.m.at - b.m.at));
 }
 /** The entry of needs that holds this message, as its first ask or a later one. */
 function needOf(m) { return needs().find((x) => x.all.includes(m)) || null; }
@@ -977,7 +979,7 @@ function latestOf(l) {
     if (linkOf(m)) o.link = linkOf(m);
     return o;
   }).filter(Boolean).slice(0, 8);
-  // Too much to read in full: the page says the numbers are from the newest messages.
+  // Not read in full: the page says some messages may be missing.
   if (partialList().length) out.partial = partialList();
   if (md.host) out.workspace = "https://" + md.host + "/";
   return out;
@@ -1042,7 +1044,7 @@ if (cmd === "window") {
   await readSlack();
   const m = missing();
   console.log(m.length ? "still missing: " + m.join("; ") + ". Run start again in a minute." : partialList().length
-    ? `Slack had more than was read in: ${partialList().join(", ")}. The newest is in, and the page says so. Never write that it is everything. Next: list, needs, asked, mine, loud`
+    ? `not read in full: ${partialList().join(", ")}. The page says so. Never write that it is everything. Next: list, needs, asked, mine, loud`
     : "all of Slack is in. Next: list, needs, asked, mine, loud");
 } else if (cmd === "people") {
   const md = model();
