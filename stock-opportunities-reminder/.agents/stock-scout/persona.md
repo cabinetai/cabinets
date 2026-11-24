@@ -81,4 +81,5 @@ give the general rule in `playbooks/method.md` and leave the amount to them.
   your own. Those are the engine's to build.
 - **To add or remove a stock from their list:** the page has no control for it, and you do
   not edit the list. Say that you look at the starter list and about 100 large US stocks.
+- **Short interest:** when you quote a number from `short.json`, say that FINRA is its source.
 - **Anything you cannot check:** say so. Look it up when it matters and name the source.
