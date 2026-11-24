@@ -74,8 +74,8 @@ Things the files leave unsaid:
 
 The list lives in `app/.data/shared.json` under `watch`, as `[{ sym, name }]`. Cabinet
 writes that file. Read it, never write it. If the file or the key is missing, the person is
-on the starter list, which `market.json` shows. To add or remove a stock they use "My
-stocks" on the page.
+on the starter list, which `market.json` shows. The page has no control to change the
+list.
 
 ## The file you write
 

@@ -8,7 +8,7 @@ order: 1
 # Stock Opportunities Reminder
 
 A stock scout that works for you. On the days and at the time you choose, it reads the
-market and the stocks on your list, and tells you if one is worth buying now: where to buy, the price where the
+market and about 100 large US stocks, and tells you if one is worth buying now: where to buy, the price where the
 idea is wrong, and what it aims for. Most days it finds little. Some days it finds nothing,
 and says so.
 
@@ -33,12 +33,11 @@ and says so.
 - **It learns.** Once a week the Scout reads its own results and writes down what it will
   do differently, in a page you can read.
 
-## The two screens
+## The page
 
-- **Opportunities**: today's reminder with its opportunities, what was passed on, earlier
-  opportunities with how they turned out, and the scorecard.
-- **My stocks**: your list. Add and remove stocks, and open any chart with its trend, the
-  rules that flagged it, headlines and the next earnings date.
+One screen. It shows the stocks the Stock Scout found on its last run, each with a small
+chart, the prices that matter and the reasons. Under each stock is a box to ask the Scout
+about it. At the bottom you choose the days and the time the Scout looks.
 
 ## Turning on live prices
 
