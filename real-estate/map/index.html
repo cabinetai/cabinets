@@ -412,6 +412,14 @@
     '<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> ' +
     'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
+  // Place names in Hebrew where the map data has one, and in Latin letters
+  // otherwise. Arabic shows only for a name that has no Hebrew or Latin form.
+  var NAME = ["coalesce", ["get", "name:he"], ["get", "name:latin"], ["get", "name"]];
+  // The map data names one area "Palestinian Territories" (country code PS). That
+  // label is hidden, and Judea and Samaria is named at the middle of the area.
+  var HIDDEN_COUNTRY = "PS";
+  var REGIONS = [{ name: "יהודה ושומרון", at: [35.25, 32.0] }];
+
   function styleUrl(look) {
     return STYLE_URL + (LOOKS[look] || LOOKS.classic);
   }
@@ -424,6 +432,44 @@
     } catch (e) {
       /* the names stay as they are */
     }
+  }
+
+  function isStateLabel(layer) {
+    return layer["source-layer"] === "place" && JSON.stringify(layer.filter || "").indexOf('"state"') !== -1;
+  }
+
+  // Runs on every style load, so a change of look keeps the names.
+  function localize(map) {
+    var layers = map.getStyle().layers;
+    var stateLabel = null;
+    layers.forEach(function (layer) {
+      if (layer.type !== "symbol") return;
+      var field = layer.layout && layer.layout["text-field"];
+      if (field && JSON.stringify(field).indexOf('"name') !== -1) map.setLayoutProperty(layer.id, "text-field", NAME);
+      if (layer["source-layer"] !== "place") return;
+      var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
+      map.setFilter(layer.id, layer.filter ? ["all", layer.filter, keep] : keep);
+      if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+    });
+    if (!stateLabel || map.getSource("cabinet-regions")) return;
+    map.addSource("cabinet-regions", {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: REGIONS.map(function (r) {
+          return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
+        }),
+      },
+    });
+    map.addLayer({
+      id: "cabinet-regions",
+      type: "symbol",
+      source: "cabinet-regions",
+      minzoom: 6,
+      maxzoom: 10,
+      layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
+      paint: stateLabel.paint || {},
+    });
   }
 
   // A flat map that pans and zooms but never tilts or turns. `options` adds to or
@@ -451,16 +497,28 @@
     } catch (e) {
       return null;
     }
+    map.on("style.load", function () {
+      try {
+        localize(map);
+      } catch (e) {
+        /* the map keeps the names the style gives */
+      }
+    });
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
     return map;
   }
 
+  // A full reload of the style, not a merge into the old one: only a full reload
+  // fires style.load, which puts the names and the label back.
+  function setLook(map, look) {
+    map.setStyle(styleUrl(look), { diff: false });
+  }
+
   window.CabinetBasemap = {
-    LOOKS: LOOKS,
     ATTRIBUTION: ATTRIBUTION,
-    styleUrl: styleUrl,
     create: create,
+    setLook: setLook,
   };
 })();
 </script>
@@ -922,9 +980,9 @@
   // MapLibre (the script did not load, or no WebGL): gl is false and the map says so.
   function startGl() {
     var look = lookNow();
-    if (gl) { if (look !== glLook) { glLook = look; gl.setStyle(BASE.styleUrl(look)); } return; }
+    if (gl) { if (look !== glLook) { glLook = look; BASE.setLook(gl, look); } return; }
     if (gl === false) return;
-    gl = (BASE && BASE.create(mapEl, look, { center: [-40, 30], zoom: 1.2, minZoom: 1 })) || false;
+    gl = (BASE && BASE.create(mapEl, look, { center: [35, 31.6], zoom: 6.6, minZoom: 1 })) || false;
     if (!gl) { paintMapUi(); return; }
     glLook = look;
     gl.on("move", draw);
@@ -1079,7 +1137,7 @@
     setTimeout(function () { var t = document.querySelector(".d-title"); if (t) { t.focus(); t.select(); } }, 420);
     if (!label) {
       // raw fetch: OpenStreetMap's public address lookup, to name the spot that was pressed.
-      fetch(GEO_URL + "/reverse?format=jsonv2&zoom=18&lat=" + lat + "&lon=" + lng, { headers: { "Accept-Language": "en" } })
+      fetch(GEO_URL + "/reverse?format=jsonv2&zoom=18&lat=" + lat + "&lon=" + lng, { headers: { "Accept-Language": "he,en" } })
         .then(function (r) { return r.json(); }).then(function (j) {
           var cur = byId(id); if (!cur || !j || !j.display_name || cur.address) return;
           var open = state.open === id, tIn = open && document.querySelector(".d-title"), aIn = open && document.querySelector(".d-addr");
@@ -1099,10 +1157,16 @@
         }).catch(function () {});
     }
   }
+  // An address in the address search's own words, without the country name it
+  // gives Judea and Samaria (country code ps).
+  function placeParts(g) {
+    var ad = g.address || {};
+    return String(g.display_name).split(", ").filter(function (part) { return ad.country_code !== "ps" || part !== ad.country; });
+  }
   function findAddress(q) {
     state.geoBusy = true; state.geo = null; paintResults();
     // raw fetch: OpenStreetMap's public address search.
-    fetch(GEO_URL + "/search?format=jsonv2&limit=6&q=" + encodeURIComponent(q), { headers: { "Accept-Language": "en" } })
+    fetch(GEO_URL + "/search?format=jsonv2&addressdetails=1&limit=6&viewbox=34.2,33.4,35.95,29.4&q=" + encodeURIComponent(q), { headers: { "Accept-Language": "he,en" } })
       .then(function (r) { return r.json(); })
       .then(function (list) { state.geo = Array.isArray(list) ? list : []; }, function () { state.geo = "failed"; })
       .then(function () { state.geoBusy = false; paintResults(); });
@@ -1115,7 +1179,7 @@
     if (state.geoBusy) html += '<div class="sep">Looking for that address</div>';
     else if (state.geo === "failed") html += '<div class="sep">The address search did not answer. Try again.</div>';
     else if (state.geo) html += '<div class="sep">' + (state.geo.length ? "On the map" : "No address found for that") + "</div>" + state.geo.map(function (g, i) {
-      var parts = String(g.display_name).split(", "); return '<button data-act="geo" data-i="' + i + '">' + icon("pin") + "<span><b>" + esc(parts.slice(0, 2).join(", ")) + "</b><small>" + esc(parts.slice(2).join(", ")) + "</small></span></button>"; }).join("");
+      var parts = placeParts(g); return '<button data-act="geo" data-i="' + i + '">' + icon("pin") + "<span><b>" + esc(parts.slice(0, 2).join(", ")) + "</b><small>" + esc(parts.slice(2).join(", ")) + "</small></span></button>"; }).join("");
     else html += '<button data-act="find">' + icon("cross") + "<span><b>Find “" + esc(q) + "” on the map</b><small>Search for this address</small></span></button>";
     box.innerHTML = html; box.hidden = false;
   }
@@ -1447,8 +1511,8 @@
     else if (act === "geo") {
       var hit = state.geo && state.geo[+el.dataset.i]; if (!hit) return;
       $("results").hidden = true;
-      if (state.placing) { state.placing = false; createAt(+hit.lat, +hit.lon, hit.display_name.split(", ").slice(0, 4).join(", ")); return; }
-      state.spot = { lat: +hit.lat, lng: +hit.lon, label: hit.display_name.split(", ").slice(0, 2).join(", "), full: hit.display_name.split(", ").slice(0, 4).join(", ") };
+      if (state.placing) { state.placing = false; createAt(+hit.lat, +hit.lon, placeParts(hit).slice(0, 4).join(", ")); return; }
+      state.spot = { lat: +hit.lat, lng: +hit.lon, label: placeParts(hit).slice(0, 2).join(", "), full: placeParts(hit).slice(0, 4).join(", ") };
       paint(); if (gl) fly(+hit.lon, +hit.lat, Math.max(gl.getZoom(), 14.5));
     }
     else if (act === "add-here" && state.spot) createAt(state.spot.lat, state.spot.lng, state.spot.full);

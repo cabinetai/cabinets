@@ -23,6 +23,14 @@
     '<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> ' +
     'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
+  // Place names in Hebrew where the map data has one, and in Latin letters
+  // otherwise. Arabic shows only for a name that has no Hebrew or Latin form.
+  var NAME = ["coalesce", ["get", "name:he"], ["get", "name:latin"], ["get", "name"]];
+  // The map data names one area "Palestinian Territories" (country code PS). That
+  // label is hidden, and Judea and Samaria is named at the middle of the area.
+  var HIDDEN_COUNTRY = "PS";
+  var REGIONS = [{ name: "יהודה ושומרון", at: [35.25, 32.0] }];
+
   function styleUrl(look) {
     return STYLE_URL + (LOOKS[look] || LOOKS.classic);
   }
@@ -35,6 +43,44 @@
     } catch (e) {
       /* the names stay as they are */
     }
+  }
+
+  function isStateLabel(layer) {
+    return layer["source-layer"] === "place" && JSON.stringify(layer.filter || "").indexOf('"state"') !== -1;
+  }
+
+  // Runs on every style load, so a change of look keeps the names.
+  function localize(map) {
+    var layers = map.getStyle().layers;
+    var stateLabel = null;
+    layers.forEach(function (layer) {
+      if (layer.type !== "symbol") return;
+      var field = layer.layout && layer.layout["text-field"];
+      if (field && JSON.stringify(field).indexOf('"name') !== -1) map.setLayoutProperty(layer.id, "text-field", NAME);
+      if (layer["source-layer"] !== "place") return;
+      var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
+      map.setFilter(layer.id, layer.filter ? ["all", layer.filter, keep] : keep);
+      if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+    });
+    if (!stateLabel || map.getSource("cabinet-regions")) return;
+    map.addSource("cabinet-regions", {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: REGIONS.map(function (r) {
+          return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
+        }),
+      },
+    });
+    map.addLayer({
+      id: "cabinet-regions",
+      type: "symbol",
+      source: "cabinet-regions",
+      minzoom: 6,
+      maxzoom: 10,
+      layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
+      paint: stateLabel.paint || {},
+    });
   }
 
   // A flat map that pans and zooms but never tilts or turns. `options` adds to or
@@ -62,15 +108,27 @@
     } catch (e) {
       return null;
     }
+    map.on("style.load", function () {
+      try {
+        localize(map);
+      } catch (e) {
+        /* the map keeps the names the style gives */
+      }
+    });
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
     return map;
   }
 
+  // A full reload of the style, not a merge into the old one: only a full reload
+  // fires style.load, which puts the names and the label back.
+  function setLook(map, look) {
+    map.setStyle(styleUrl(look), { diff: false });
+  }
+
   window.CabinetBasemap = {
-    LOOKS: LOOKS,
     ATTRIBUTION: ATTRIBUTION,
-    styleUrl: styleUrl,
     create: create,
+    setLook: setLook,
   };
 })();
