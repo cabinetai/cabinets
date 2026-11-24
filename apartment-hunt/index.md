@@ -57,4 +57,4 @@ the search's record, and the Scout moves on. It never signs in, never pays and n
 The places you see at first are examples, made up: around Tel Aviv for Israel, in Brooklyn
 for the US. They go away as soon as your own search starts.
 
-The map is drawn by VersaTiles (free and open, no key) from OpenStreetMap data.
+The map is drawn by OpenFreeMap (free, no key) from OpenStreetMap data.
