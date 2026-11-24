@@ -1,4 +1,4 @@
-// The refresh: reads the person's list, fetches prices, judges every chart against the
+// The refresh: fetches prices for the list, judges every chart against the
 // rules, follows each of the Scout's calls, and writes plain JSON into app/data/ for the
 // page and the Scout. It costs no AI: it is arithmetic over public prices.
 //
@@ -10,7 +10,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DATA_DIR, CALLS_DIR, LOCK, lock, readData, writeJson, readStore, announce, toCandles, candleName, readCandleFile, writeCandleFile } from "./lib/io.mjs";
+import { DATA_DIR, CALLS_DIR, LOCK, lock, readData, writeJson, announce, toCandles, candleName, readCandleFile, writeCandleFile } from "./lib/io.mjs";
 import * as src from "./lib/sources.mjs";
 import { eachLimited } from "./lib/net.mjs";
 import { nyDay, nyMinute, NY_OPEN, NY_CLOSE, DAY_MS, r2 } from "./lib/indicators.mjs";
@@ -21,9 +21,9 @@ import { regime, breadth } from "./lib/market.mjs";
 import { candidatesOf, setupRecord, fullDays } from "./lib/scan.mjs";
 import { UNIVERSE } from "./lib/universe.mjs";
 
-// The starter list: the two index funds, ten of the most traded US stocks when this shipped
-// (November 2026), and the two largest coins. The person replaces it with their own.
-const DEFAULT_WATCH = [
+// The list: the two index funds, ten of the most traded US stocks when this shipped
+// (November 2026), and the two largest coins. It is fixed: the page has no control to change it.
+const LIST = [
   { sym: "SPY", name: "S&P 500 fund" }, { sym: "QQQ", name: "Nasdaq 100 fund" },
   { sym: "NVDA", name: "NVIDIA" }, { sym: "AMD", name: "AMD" }, { sym: "TSLA", name: "Tesla" },
   { sym: "AAPL", name: "Apple" }, { sym: "MSFT", name: "Microsoft" }, { sym: "AMZN", name: "Amazon" },
@@ -31,17 +31,10 @@ const DEFAULT_WATCH = [
   { sym: "PLTR", name: "Palantir" },
   { sym: "BTC-USD", name: "Bitcoin" }, { sym: "ETH-USD", name: "Ethereum" },
 ];
-// The strip across the top of the page: the market's own vital signs.
-const STRIP = [
-  { sym: "ES=F", name: "S&P 500 futures" }, { sym: "NQ=F", name: "Nasdaq futures" },
-  { sym: "^VIX", name: "Fear gauge (VIX)" }, { sym: "^TNX", name: "10-year yield" },
-  { sym: "DX-Y.NYB", name: "US dollar" }, { sym: "GC=F", name: "Gold" }, { sym: "CL=F", name: "Oil" },
-  { sym: "BTC-USD", name: "Bitcoin" },
-];
 // The market every stock is measured against. It is priced and charted whatever the list holds.
 const FUND = { sym: "SPY", name: "S&P 500 fund" };
-// The fear gauge the stance is counted from.
-const FEAR = "^VIX";
+// The fear gauge the stance is counted from. Priced and charted like the fund.
+const FEAR = { sym: "^VIX", name: "Fear gauge (VIX)" };
 // The shape of setups.json. A file of an older shape carries no verdicts, so it is rebuilt.
 const SETUPS_SCHEMA = "reminder/setups@2";
 
@@ -65,12 +58,12 @@ function weekdays(t, way, count) {
 
 // `calls` are the Scout's calls still being followed: their symbols get prices and charts
 // too, whether or not they are on the list.
-export function symbolsOf(store, calls) {
-  const watch = Array.isArray(store.watch) && store.watch.length ? store.watch.filter((w) => w && w.sym) : DEFAULT_WATCH;
+/** Every symbol a refresh prices and charts, with its name. */
+export function symbolsOf(calls) {
   const names = new Map();
-  for (const w of [FUND, ...STRIP, ...watch]) names.set(String(w.sym).toUpperCase(), w.name || w.sym);
+  for (const w of [FUND, FEAR, ...LIST]) names.set(w.sym, w.name);
   for (const c of calls) if (!names.has(c.sym)) names.set(c.sym, c.name);
-  return { watch, names };
+  return names;
 }
 
 // How many closes the small line of a quote holds.
@@ -126,11 +119,10 @@ export async function refresh({ full = false, log = () => {} } = {}) {
 
 async function run(full, log) {
   const began = Date.now();
-  const store = await readStore();
   const calls = await readCalls(CALLS_DIR);
-  const { watch, names } = symbolsOf(store, calls);
+  const names = symbolsOf(calls);
   const syms = [...names.keys()];
-  const watchSet = new Set(watch.map((w) => String(w.sym).toUpperCase()));
+  const watchSet = new Set(LIST.map((w) => w.sym));
   const session = usSession();
   const old = (await readData("market.json")) || { quotes: {} };
   const errors = [];
@@ -138,7 +130,7 @@ async function run(full, log) {
   const sources = {};
   const note = (name, ok) => { sources[name] = sources[name] === false ? false : ok; };
 
-  // 1. Prices. Stocks rest when the market is closed; crypto, futures and currencies do not.
+  // 1. Prices. Stocks rest when the market is closed; crypto does not.
   const quotes = {};
   const due = syms.filter((s) => full || session !== "closed" || src.alwaysOpen(s) || !old.quotes[s] || age(old.at) > HOUR);
   const got = (await src.todayAll(due)).map((day) => day && quoteOf(day));
@@ -162,7 +154,7 @@ async function run(full, log) {
     const limit = market !== "closed" || src.alwaysOpen(s) ? 20 * MIN : 6 * HOUR;
     if (have && !full && age(have.at) < limit) return keep();
     try {
-      const res = await src.candles(s, "1d"), file = candleFile(s, res);
+      const res = await src.candles(s), file = candleFile(s, res);
       await writeCandleFile(s, file);
       daily[s] = res.candles;
       fetched[s] = file.at;
@@ -177,7 +169,7 @@ async function run(full, log) {
     }
   });
 
-  // 3. Judge every chart on the person's list against their rules.
+  // 3. Judge every chart on the list against the rules.
   const day = today();
   const found = [];
   for (const s of syms) {
@@ -189,7 +181,7 @@ async function run(full, log) {
   // The market's stance, counted. The stocks of the list are its US stocks: no fund, coin or future.
   const listed = [...watchSet].filter((s) => daily[s] && quotes[s] && quotes[s].facts && src.isUsStock(s) && quotes[s].kind === "EQUITY");
   const fund = daily[FUND.sym];
-  const stance = fund ? regime(series(fund), fund.length - 1, quotes[FEAR] ? quotes[FEAR].price : null, breadth(listed.map((s) => quotes[s].facts))) : null;
+  const stance = fund ? regime(series(fund), fund.length - 1, quotes[FEAR.sym] ? quotes[FEAR.sym].price : null, breadth(listed.map((s) => quotes[s].facts))) : null;
 
   // 3b. Each rule's track record on the list, replayed over the saved daily candles. It
   // changes only with a new daily candle, a rule's settings or the list, so it is kept.
@@ -214,7 +206,7 @@ async function run(full, log) {
     const earnings = [];
     dates.slice(behind.length).forEach((d, i) => {
       const list = lists[behind.length + i];
-      // The short list a person reads: their own stocks, and the six largest companies of the day.
+      // The short list a person reads: the list's stocks, and the six largest companies of the day.
       const rows = list ? list.filter((e, rank) => watchSet.has(e.sym) || (rank < 6 && e.cap >= 2e10)) : ((calendar && calendar.earnings) || []).filter((e) => e.date === src.isoDay(d));
       earnings.push(...rows.map((e) => ({ ...e, mine: watchSet.has(e.sym) })));
     });
@@ -256,7 +248,7 @@ async function run(full, log) {
     try {
       const m = await src.movers();
       const worth = [...new Set([...m.gainers, ...m.active].filter((x) => x.price >= 5).map((x) => x.sym))].slice(0, 16);
-      const charts = await eachLimited(worth, 3, (s) => src.candles(s, "1d"));
+      const charts = await eachLimited(worth, 3, (s) => src.candles(s));
       const about = Object.fromEntries(worth.map((s, i) => [s, charts[i] && facts(charts[i].candles, fund)]));
       // Their candles are saved too, so the Scout can read levels off a mover as it does off a listed chart.
       for (const [i, s] of worth.entries()) if (charts[i]) await writeCandleFile(s, candleFile(s, charts[i]));
@@ -299,7 +291,7 @@ async function run(full, log) {
     let wider = saved || { at: null, bySym: {} };
     const newest = Object.values(wider.bySym).map((file) => fullDays(toCandles(file.c.slice(-2)), file.at).at(-1)).reduce((top, c) => (c && nyDay(c.t) > top ? nyDay(c.t) : top), "");
     if (newest < asOf) {
-      const got = await eachLimited(UNIVERSE, 2, (s) => src.candles(s, "1d"));
+      const got = await eachLimited(UNIVERSE, 2, (s) => src.candles(s));
       const missed = UNIVERSE.filter((s, i) => !got[i]);
       if (missed.length) errors.push(`No chart for ${missed.length} of the ${UNIVERSE.length} stocks of the wider list: ${missed.join(", ")}`);
       wider = { at: new Date().toISOString(), bySym: Object.fromEntries(UNIVERSE.map((s, i) => [s, got[i] ? candleFile(s, got[i]) : wider.bySym[s]]).filter(([, file]) => file)) };
@@ -309,7 +301,7 @@ async function run(full, log) {
     const mine = listed.map((s) => ({ sym: s, name: names.get(s), from: "list", candles: whole(daily[s], fetched[s]) }));
     const far = Object.values(wider.bySym).filter((file) => file.kind === "EQUITY" && !watchSet.has(file.sym)).map((file) => ({ sym: file.sym, name: file.name, from: "universe", candles: whole(toCandles(file.c), file.at) }));
     if (replayDue) {
-      record = { schema: SETUPS_SCHEMA, at: new Date().toISOString(), ...setupRecord(Object.fromEntries([...mine, ...far].map((x) => [x.sym, x.candles])), fund, daily[FEAR] || null) };
+      record = { schema: SETUPS_SCHEMA, at: new Date().toISOString(), ...setupRecord(Object.fromEntries([...mine, ...far].map((x) => [x.sym, x.candles])), fund, daily[FEAR.sym] || null) };
       await writeJson("setups.json", record);
     }
     charts = { mine, far, wider, whole, asOf };
@@ -360,7 +352,7 @@ async function run(full, log) {
   const fresh = found.filter((x) => !seen.has(x.id));
   const items = [...fresh, ...was.items].filter((x) => age(x.at) < 21 * DAY_MS).slice(0, 400);
   await writeJson("signals.json", { schema: "reminder/signals@1", at: new Date().toISOString(), items });
-  await writeJson("market.json", { schema: "reminder/market@1", at: new Date().toISOString(), session: market, strip: STRIP.map((x) => x.sym), regime: stance, quotes });
+  await writeJson("market.json", { schema: "reminder/market@1", at: new Date().toISOString(), session: market, regime: stance, quotes });
   // Candles of a mover or a candidate that has since left the lists are of no use to anyone.
   const wanted = new Set([...syms, ...[...moversNow.gainers, ...moversNow.active].filter((x) => x.facts).map((x) => x.sym), ...(candidates ? candidates.items.map((x) => x.sym) : [])].map(candleName));
   for (const name of await fs.readdir(path.join(DATA_DIR, "candles"))) if (!wanted.has(name)) await fs.rm(path.join(DATA_DIR, "candles", name));

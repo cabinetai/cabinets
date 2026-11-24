@@ -53,7 +53,7 @@ is usually the right answer.
 ## Step 2. Start from the engine's candidates
 
 Read `candidates.json`. Each item is a stock that fits one of the five setups today, from
-the person's list, the day's movers, or a wider list of about 100 large US stocks. It
+the list, the day's movers, or a wider list of about 100 large US stocks. It
 carries:
 
 - `setup`, and the numbers built for it: `buy`, `stop`, `target`, and `pay` (how far the
@@ -138,7 +138,7 @@ From the candidates that are left, pick the ones you would put in front of the p
 
 - a better verdict, then a higher `pay`;
 - strength against the market (`rs` above zero over three and six months);
-- a stock from the person's own list over one they have never heard of;
+- a stock from the list (`from` is `list`) over one the person may never have heard of;
 - different industries. Never two calls from the same industry on one day: they rise and
   fall together, so it is one bet made twice.
 

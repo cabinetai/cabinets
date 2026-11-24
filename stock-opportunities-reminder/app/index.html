@@ -98,7 +98,7 @@
   .opp .headline { font: 500 19px/1.3 var(--serif); }
   .opp .body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: center; margin: 12px 0 14px; }
   .opp canvas { display: block; width: 100%; height: 180px; border-radius: 12px; background: var(--sheet-2); }
-  .opp h4 { font: 600 13px/1.2 var(--font); margin: 12px 0 4px; }
+  .opp h3 { font: 600 13px/1.2 var(--font); margin: 12px 0 4px; }
   .opp ul { padding-left: 18px; } .opp li { margin-bottom: 3px; }
   .opp ul, .opp .say { color: var(--ink-2); font-size: 13.5px; }
   .opp .note { margin-top: 10px; }
@@ -124,11 +124,13 @@
   @media (max-width: 640px) {
     #app { padding: 14px 12px 24px; } .card { padding: 14px; }
     .opp .body { grid-template-columns: minmax(0, 1fr); }
-    .btn, .askrow input, .whenrow select, .whenrow input { min-height: 44px; }
     .whenrow .btn { margin-left: 0; width: 100%; }
+    /* Under 16px, a phone zooms the page when a field takes the focus. */
+    .askrow input, .whenrow select, .whenrow input { font-size: 16px; }
   }
+  @media (pointer: coarse) { .btn, .askrow input, .whenrow select, .whenrow input { min-height: 44px; } }
   @media (prefers-reduced-motion: reduce) {
-    .toast { transform: translate(-50%, 0); transition: opacity 200ms ease; } .btn:active { transform: none; }
+    .toast { transform: translate(-50%, 0); transition: opacity 200ms ease; } .btn:active { transform: none; } .spin { animation: none; }
   }
 </style>
 </head>
@@ -171,14 +173,11 @@
   const role = () => (here && here.role) || "owner";
   const canWrite = () => (cab && cab.canWrite ? cab.canWrite() !== false : true);
   // Opens a chat with the Stock Scout. Where the page cannot, the question is copied for the person to paste.
+  // It settles once the question is on its way, and rejects with words the person can read.
   function ask(text) {
-    if (!cab || !cab.ask || role() === "viewer") {
-      const done = () => toast("Copied. Paste it into a chat with the Stock Scout.");
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => toast("Open this cabinet's chat to ask."));
-      else toast("Open this cabinet's chat to ask.");
-      return;
-    }
-    cab.ask(text, { agent: SCOUT }).catch((e) => toast((e && e.message) || "The chat did not open. Try again."));
+    if (cab && cab.ask && role() !== "viewer") return cab.ask(text, { agent: SCOUT }).catch((e) => { throw new Error((e && e.message) || "The chat did not open. Try again."); });
+    const copied = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject();
+    return copied.then(() => toast("Copied. Paste it into a chat with the Stock Scout."), () => { throw new Error("Open this cabinet's chat to ask."); });
   }
   // A file inside the cabinet, by its path from the cabinet's root.
   function readFile(path) {
@@ -223,7 +222,7 @@
     if (hit && Date.now() - hit.at < 120000) return Promise.resolve(hit.list);
     const keep = (c) => { const list = c.map((r) => ({ t: r[0], o: r[1], h: r[2], l: r[3], c: r[4], v: r[5] })); candleCache[sym] = { at: Date.now(), list }; return list; };
     const fromFile = () => readJson(candleFile(sym)).then((j) => { if (!j || !j.c) throw new Error("none"); return keep(j.c); });
-    return live ? engine("/candles?sym=" + encodeURIComponent(sym) + "&frame=1d").then((j) => keep(j.c), fromFile) : fromFile();
+    return live ? engine("/candles?sym=" + encodeURIComponent(sym) + "&frame=1d").then((j) => { if (!arr(j.c).length) throw new Error("none"); return keep(j.c); }).catch(fromFile) : fromFile();
   }
   // A file that failed to load keeps what the page already had: a refresh half-written is not a reason to go blank.
   function loadData() {
@@ -235,7 +234,7 @@
 
   // ── The Scout's file, read with care ────────────────────────────────────
   // A model writes these files, so nothing in them is trusted to be there or to be the right type.
-  const OPP_FILE = /^(EXAMPLE-)?(\d{4}-\d{2}-\d{2})\.json$/;
+  const OPP_FILE = /^(EXAMPLE-)?(\d{4}-\d{2}-\d{2})\.json$/, SYM = /^[A-Z0-9.^=-]{1,15}$/;
   const text = (v) => (typeof v === "string" ? v.trim() : "");
   const arr = (v) => (Array.isArray(v) ? v : []);
   const price = (v) => (typeof v === "number" && isFinite(v) && v > 0 ? v : null);
@@ -243,7 +242,7 @@
   // a zone of two prices with the lower first, a stop under the zone and a target above it. Nothing is repaired.
   function tidyItem(x, day, path, example) {
     const sym = text(x && x.sym).toUpperCase(), buy = x && Array.isArray(x.buy) && x.buy.length === 2 ? x.buy.map(price) : [], stop = price(x && x.stop), target = price(x && x.target);
-    if (!sym || !buy[0] || !buy[1] || buy[0] > buy[1] || !stop || !target || stop >= buy[0] || target <= buy[1]) return null;
+    if (!SYM.test(sym) || !buy[0] || !buy[1] || buy[0] > buy[1] || !stop || !target || stop >= buy[0] || target <= buy[1]) return null;
     const q = quote(sym);
     return { id: day + ":" + sym, day, path, example, sym, name: text(x.name) || (q && q.name) || "", headline: text(x.headline), buy, stop, target,
       why: (Array.isArray(x.why) ? x.why : [x.why]).map(text).filter(Boolean), risks: text(x.risks) };
@@ -251,16 +250,20 @@
   function tidyFile(j, file) {
     if (!j || typeof j !== "object") return null;
     const m = OPP_FILE.exec(file.name), day = m[2], example = !!m[1];
-    return { day, example, items: arr(j.items).map((x) => tidyItem(x, day, file.path, example)).filter(Boolean), nothing: text(j.nothing) };
+    const good = arr(j.items).map((x) => tidyItem(x, day, file.path, example)).filter(Boolean), seen = {};
+    // `unread` counts the entries that broke the rule. Of two entries for one symbol the first counts.
+    return { day, example, items: good.filter((o) => !seen[o.sym] && (seen[o.sym] = 1)), unread: arr(j.items).length - good.length, nothing: text(j.nothing) };
   }
-  // The person's newest file. Before the first one exists, the newest example.
+  // The person's newest file that can be read. Before the first one exists, the newest example.
+  // A file caught half-written keeps what the page already shows.
   function loadFound() {
     if (!V2 || !cab.files.list) return Promise.resolve();
     return cab.files.list("opportunities").then((all) => {
       const files = all.filter((f) => !f.isDir && OPP_FILE.test(f.name)).sort((a, b) => (OPP_FILE.exec(a.name)[2] < OPP_FILE.exec(b.name)[2] ? 1 : -1));
-      const f = files.find((x) => !/^EXAMPLE/.test(x.name)) || files[0];
-      return f ? readJson(f.path).then((j) => tidyFile(j, f)) : null;
-    }).then((r) => { D.found = r; }, () => {});
+      const mine = files.filter((x) => !/^EXAMPLE/.test(x.name)), pick = mine.length ? mine.slice(0, 5) : files.slice(0, 1);
+      const read = (i) => (i < pick.length ? readJson(pick[i].path).then((j) => tidyFile(j, pick[i]) || read(i + 1)) : null);
+      return read(0);
+    }).then((r) => { if (r) D.found = r; }, () => {});
   }
   const findOpp = (id) => (D.found && D.found.items.find((o) => o.id === id)) || null;
   // What became of an opportunity, from the engine's outcomes file. An example has no outcome.
@@ -294,22 +297,23 @@
   // The two controls that choose the days and the time. Without the engine, or with a schedule
   // the controls cannot show, the card says the time in Cabinet's own words.
   function whenCard() {
-    let inner;
+    let inner = "";
     if (sched && sched.days && canWrite()) {
       const mine = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      inner = `<label for="sdays">The Stock Scout looks</label><select id="sdays">${HOW_OFTEN.map((x) => `<option value="${x[0]}"${x[0] === sched.days ? " selected" : ""}>${x[1]}</option>`).join("")}</select><label for="stime">at</label><input type="time" id="stime" value="${esc(sched.time)}" required />${sched.zone && sched.zone !== mine ? `<span class="sub">${esc(sched.zone.replace(/_/g, " "))} time</span>` : ""}`;
+      inner = `<label for="sdays">The Stock Scout looks</label><select id="sdays">${HOW_OFTEN.map((x) => `<option value="${x[0]}"${x[0] === sched.days ? " selected" : ""}>${x[1]}</option>`).join("")}</select><label for="stime">at</label><input type="time" id="stime" value="${esc(sched.time)}" />${sched.zone && sched.zone !== mine ? `<span class="sub">${esc(sched.zone.replace(/_/g, " "))} time</span>` : ""}`;
     } else {
-      const j = findJob();
-      inner = `<span class="grow">${j && j.when ? "The Stock Scout looks: " + esc(j.when.toLowerCase()) + "." : ""}${needsAllow ? " Press Allow in the bar above this page to choose the days and the time." : sched && !sched.days && canWrite() ? " To change it, open this routine's own settings in Cabinet." : ""}</span>`;
+      const j = findJob(), said = (j && j.when ? "The Stock Scout looks: " + esc(j.when.toLowerCase()) + "." : "") + (needsAllow ? " Press Allow in the bar above this page to choose the days and the time." : sched && !sched.days && canWrite() ? " To change it, open this routine's own settings in Cabinet." : "");
+      if (said) inner = `<span class="grow">${said}</span>`;
     }
-    return `<section class="sheet card"><div class="whenrow">${inner}${runBtn()}</div></section>`;
+    const all = inner + runBtn();
+    return all ? `<section class="sheet card"><div class="whenrow">${all}</div></section>` : "";
   }
   // Saves the picker's choice when it is a whole time and not the one already saved. It never
   // takes the focus away: the person may still be typing.
   function saveWhen() {
     const days = $("sdays") && $("sdays").value, time = $("stime") && $("stime").value;
     if (!days || !/^\d\d:\d\d$/.test(time) || (days === sched.days && time === sched.time)) return;
-    engine("/schedule", { days, time }).then((x) => { sched = x; toast(`Saved. The Stock Scout now looks ${HOW_OFTEN.find((o) => o[0] === days)[1]} at ${time}.`); return loadJobs(); }, (e) => toast(e.message));
+    engine("/schedule", { days, time }).then((x) => { sched = x; toast(`Saved. The Stock Scout now looks ${HOW_OFTEN.find((o) => o[0] === days)[1]} at ${time}.`); return loadJobs(); }, (e) => { toast(e.message); paint(); });
   }
   function runScout() {
     if (!cab.jobs.run) return toast("Open this in Cabinet to run it.");
@@ -345,17 +349,17 @@
 
   // ── The screen ──────────────────────────────────────────────────────────
   function oppCard(o) {
-    const q = quote(o.sym), px = lastPrice(o.sym), z = `${lv(o.buy[0])} to ${lv(o.buy[1])}`, wrong = problemsOf(o), field = "ask-" + o.id.replace(/[^A-Za-z0-9]/g, "-");
+    const q = quote(o.sym), px = lastPrice(o.sym), z = `${lv(o.buy[0])} to ${lv(o.buy[1])}`, wrong = problemsOf(o);
     const row = (swatch, label, value, small) => `<dt><i class="${swatch}"></i>${label}</dt><dd><b>${value}</b>${small ? `<small>${small}</small>` : ""}</dd>`;
     return `<article class="sheet card opp"><header><span class="sym">${esc(o.sym)}</span><span class="sub grow">${esc(o.name)}</span>${o.example ? '<span class="chip ex">Example</span>' : ""}${outcomeChip(o)}</header>
-      ${o.headline ? `<h3 class="headline">${esc(o.headline)}</h3>` : ""}
+      ${o.headline ? `<h2 class="headline">${esc(o.headline)}</h2>` : ""}
       ${wrong.length ? `<div class="note">${icon("warn")}<div class="grow"><b>The engine's check found a problem with this one.</b> ${wrong.map(esc).join(" ")}</div></div>` : ""}
       ${q && q.earnings ? `<div class="note">${icon("warn")}<div class="grow">The company reports earnings ${esc(onDay(q.earnings.date))}. Prices often jump on the report, in either direction.</div></div>` : ""}
       <div class="body"><canvas data-mini="${esc(o.id)}" role="img" aria-label="Daily chart of ${esc(o.sym)} over three months, with the buy zone ${z}, the stop at ${lv(o.stop)} and the target at ${lv(o.target)}"></canvas>
         <dl class="nums">${row("", "Buy between", `${lv(o.buy[0])} and ${lv(o.buy[1])}`)}${row("stop", "Wrong below", lv(o.stop))}${row("aim", "Aim for", lv(o.target))}${px != null ? row("none", "Price now", fp(px), whereNow(o, px)) : ""}</dl></div>
-      ${o.why.length ? `<h4>Why it is worth a look</h4><ul>${o.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
-      ${o.risks ? `<h4>What could go wrong</h4><p class="say">${esc(o.risks)}</p>` : ""}
-      <form class="askrow" data-ask="${esc(o.id)}"><input id="${field}" type="text" maxlength="400" autocomplete="off" aria-label="Ask the Stock Scout about ${esc(o.sym)}" placeholder="Ask the Stock Scout about ${esc(o.sym)}" /><button class="btn primary" type="submit">${icon("chat")}Ask</button></form></article>`;
+      ${o.why.length ? `<h3>Why it is worth a look</h3><ul>${o.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+      ${o.risks ? `<h3>What could go wrong</h3><p class="say">${esc(o.risks)}</p>` : ""}
+      <form class="askrow" data-ask="${esc(o.id)}"><input type="text" maxlength="400" autocomplete="off" aria-label="Ask the Stock Scout about ${esc(o.sym)}" placeholder="Ask the Stock Scout about ${esc(o.sym)}" /><button class="btn primary" type="submit">${icon("chat")}Ask</button></form></article>`;
   }
   function allowNote() {
     if (live || !D.market) return "";
@@ -371,15 +375,20 @@
   function view() {
     const f = D.found;
     const cards = !f ? `<section class="sheet card"><div class="empty"><b>Nothing here yet.</b>The Stock Scout looks at the market on the days you choose and shows here the stocks that are at a good place to buy.</div></section>`
-      : f.items.map(oppCard).join("") || `<section class="sheet card"><div class="empty"><b>No stock worth buying ${esc(onDay(f.day))}.</b>${esc(f.nothing || "The Stock Scout looked and none is at a good place to buy.")}<br>A day with nothing is a normal answer. Waiting is part of the plan.</div></section>`;
-    return `${allowNote()}${cards}${whenCard()}<p class="foot">Prices can be late by minutes${D.market ? ", saved " + esc(ago(D.market.at)) : ""}. These are ideas to look at, not financial advice. This page cannot place an order.</p>`;
+      : f.items.map(oppCard).join("") || (f.unread ? "" : `<section class="sheet card"><div class="empty"><b>No stock worth buying ${esc(onDay(f.day))}.</b>${esc(f.nothing || "The Stock Scout looked and none is at a good place to buy.")}<br>A day with nothing is a normal answer. Waiting is part of the plan.</div></section>`);
+    const unread = f && f.unread ? `<div class="note">${icon("warn")}<div class="grow"><b>${f.unread === 1 ? "1 stock" : f.unread + " stocks"} in the Stock Scout's file could not be shown.</b> The prices were missing or out of order. Press Look again now, or ask the Stock Scout to write the file again.</div></div>` : "";
+    return `${allowNote()}${unread}${cards}${whenCard()}<p class="foot">Prices can be late by minutes${D.market ? ", saved " + esc(ago(D.market.at)) : ""}. These are ideas to look at, not financial advice. This page cannot place an order.</p>`;
   }
-  // `soft` is a repaint nobody asked for (new prices arrived): it waits while the person is typing a question or choosing a time.
+  // A repaint rebuilds every field, so one nobody asked for must not land on a person who is in the middle of something.
+  const midway = () => { const at = document.activeElement; return !!(at && at.closest("#view")) || Array.from(document.querySelectorAll(".askrow input")).some((i) => i.value); };
+  // `soft` is a repaint nobody asked for (new prices arrived). It waits while the person holds a control or
+  // has a question typed, and `stale` remembers that it is owed.
+  let stale = false;
   function paint(soft) {
     document.documentElement.toggleAttribute("data-read", !canWrite());
     $("lede").textContent = lede();
-    const at = document.activeElement;
-    if (soft && at && at.closest(".askrow, .whenrow") && at.matches("input, select")) return;
+    stale = !!soft && midway();
+    if (stale) return;
     $("view").innerHTML = view();
     paintMinis();
   }
@@ -394,15 +403,20 @@
     const form = e.target.closest("form[data-ask]");
     if (!form) return;
     e.preventDefault();
-    const o = findOpp(form.dataset.ask), box = form.querySelector("input"), typed = box.value.trim(), px = o && lastPrice(o.sym);
-    if (!o) return;
-    ask(`About ${o.sym}${o.name ? " (" + o.name + ")" : ""}, which you found ${onDay(o.day)}${o.headline ? `: "${o.headline}"` : ""}. ${oppWords(o)}.${px != null ? ` The price is now ${fp(px)}, ${whereNow(o, px)}.` : ""} Read ${o.path} and ${candleFile(o.sym)}. ${typed || "Is it still worth a look today? Say what I should wait to see before buying, and what would spoil the idea."}`);
-    box.value = ""; box.blur();
+    const o = findOpp(form.dataset.ask), box = form.querySelector("input"), send = form.querySelector("button"), typed = box.value.trim(), px = o && lastPrice(o.sym);
+    if (!o || send.disabled) return;
+    send.disabled = true;
+    // The question is kept until it is on its way: a chat that did not open must not cost the person their words.
+    ask(`About ${o.sym}${o.name ? " (" + o.name.slice(0, 60) + ")" : ""}, which you found ${onDay(o.day)}${o.headline ? `: "${o.headline.slice(0, 160)}"` : ""}. ${oppWords(o)}.${px != null ? ` The price is now ${fp(px)}, ${whereNow(o, px)}.` : ""} Read ${o.path} and ${candleFile(o.sym)}. ${typed || "Is it still worth a look today? Say what I should wait to see before buying, and what would spoil the idea."}`).then(() => { box.value = ""; }, (err) => toast(err.message)).then(() => { send.disabled = false; });
   });
   // A time field reports a change after each part typed, so the time is saved once the typing rests or the field is left.
   let whenTimer = null;
   document.addEventListener("change", (e) => { if (e.target.id === "sdays") saveWhen(); else if (e.target.id === "stime") { clearTimeout(whenTimer); whenTimer = setTimeout(saveWhen, 900); } });
-  document.addEventListener("focusout", (e) => { if (e.target.id === "stime") { clearTimeout(whenTimer); saveWhen(); } });
+  document.addEventListener("focusout", (e) => {
+    if (e.target.id === "stime") { clearTimeout(whenTimer); saveWhen(); }
+    // The repaint that waited for the person happens once they have let go.
+    setTimeout(() => { if (stale) paint(true); }, 0);
+  });
   // The pictures on the cards are drawn to the pixel, so a new width means a new drawing.
   let resizeTimer = null;
   addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(paintMinis, 150); });
@@ -431,8 +445,8 @@
   $("view").innerHTML = '<div class="empty" style="padding:80px 0">Opening your reminder</div>';
   if (cab && cab.ready && typeof cab.ready.then === "function") {
     let began = null; const go = () => { if (!began) began = start(); };
-    // Cabinet slow to answer: start without it, then read the look again once it is ready.
-    cab.ready.then(() => { if (began) began.then(() => { applyLook(); paint(true); }); else go(); }, go);
+    // Cabinet slow to answer: start without it, then ask it again who and where this is once it is ready.
+    cab.ready.then(() => { if (began) began.then(() => Promise.resolve(cab.here ? cab.here() : null).catch(() => null)).then((h) => { if (h) { here = h; if (h.appPath) appPath = h.appPath; } applyLook(); return checkLive(); }).then(() => paint(true)); else go(); }, go);
     setTimeout(go, 3000);
   } else start();
 })();

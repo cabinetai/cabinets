@@ -27,7 +27,7 @@ node app/engine/refresh.mjs          # what is due now
 node app/engine/refresh.mjs --full   # everything, whatever its age
 ```
 
-It reads the person's list, fetches public prices, counts the market's stance, finds every
+It fetches public prices for the list, counts the market's stance, finds every
 stock that fits a setup, tests the setups on the past, follows each of your calls, and writes
 the files below. `app/DATA.md` describes each file
 field by field.
@@ -41,7 +41,7 @@ field by field.
 | `app/data/signals.json` | What the rules flagged, newest first, three weeks of it |
 | `app/data/record.json` | How each rule did on this list over the saved candles (below) |
 | `app/data/movers.json` | The day's biggest gainers, losers and busiest US stocks. Rows worth a look carry `facts` |
-| `app/data/calendar.json` | Earnings for the next eight weekdays (the person's stocks and each day's largest companies) and this week's US economic news |
+| `app/data/calendar.json` | Earnings for the next eight weekdays (the list's stocks and each day's largest companies) and this week's US economic news |
 | `app/data/reports.json` | The day each US company's report trades, from seven weekdays back to eight ahead |
 | `app/data/news.json` | The newest headlines for each symbol on the list |
 | `app/data/outcomes.json` | Every call you made in the last 90 days and where it stands, with your scorecard |
@@ -61,7 +61,7 @@ Things the files leave unsaid:
 - **"20-day average" is an exponential average** (`ema20`). The 50 and 200-day are simple
   averages. Use the values in `facts`. Do not work out your own.
 - **`earnings` on a quote** is there only for a report in the next seven days, and only
-  for a stock on the person's list or one of the six largest companies reporting that
+  for a stock on the list or one of the six largest companies reporting that
   day. A quote without it can still report tomorrow. For the date of any US company, read
   `reports.json` (`bySym.<SYMBOL>`): the days its report trades, from seven weekdays back
   to eight ahead.
@@ -70,12 +70,12 @@ Things the files leave unsaid:
 - **Headlines in `news.json`** are filed under a symbol by their source and are sometimes
   about another company. Read the title before you lean on one.
 
-## The person's list
+## The list
 
-The list lives in `app/.data/shared.json` under `watch`, as `[{ sym, name }]`. Cabinet
-writes that file. Read it, never write it. If the file or the key is missing, the person is
-on the starter list, which `market.json` shows. The page has no control to change the
-list.
+"The list" is a fixed starter list: the S&P 500 fund, the Nasdaq 100 fund, ten heavily
+traded US stocks, Bitcoin and Ethereum. `market.json` shows every symbol on it. The engine
+also scans a wider list of about 100 large US stocks, and the day's movers. The page has no
+control to change the list, and you do not change it either.
 
 ## The file you write
 

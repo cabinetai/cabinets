@@ -18,18 +18,20 @@ and says so.
   weekday, every day, or one day a week. It starts as weekday mornings at 8:30. The answer
   is short: what the market is doing, and up to three stocks worth a look, or none.
 - **It only points at what the numbers support.** The engine finds every stock that fits
-  one of five setups, on your list and across about 100 large US stocks, and tests each
+  one of five setups across about 100 large US stocks and the day's movers, and tests each
   setup on the past. A setup is dropped once it has finished at least 30 times there and
   done worse than buying on any day for no reason. The Scout adds the judgement: which
   candidate, what the news changes, and when to say no.
 - **Every opportunity is complete.** A buy zone, a stop (the price where the idea was
   wrong) and a target, each read off the chart and explained in plain words. No
   opportunity without a stop.
-- **What it passed on, and why.** The stocks that looked tempting and are not, with the
-  reason. This is where you learn the most.
+- **What it passed on, and why.** The Scout writes down the stocks that looked tempting
+  and are not, with the reason, in the day's file in `opportunities/`. Ask the Scout and
+  it tells you. This is where you learn the most.
 - **An honest scorecard.** Every opportunity is followed by arithmetic, not by opinion:
-  did the price reach the zone, and which came first, the stop or the target. You see how
-  they did, the losers too.
+  did the price reach the zone, and which came first, the stop or the target. The count is
+  kept in `app/data/outcomes.json`, the losers too. Ask the Scout how its opportunities
+  did and it reads you the numbers.
 - **It learns.** Once a week the Scout reads its own results and writes down what it will
   do differently, in a page you can read.
 

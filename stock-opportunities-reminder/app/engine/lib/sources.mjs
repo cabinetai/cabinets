@@ -9,7 +9,7 @@ import { DAY_MS } from "./indicators.mjs";
 /**
  * The unofficial sources: public endpoints with no key and no licence for this use. Every
  * one of them is wrapped in `unlicensed` below and answers only while this is true.
- * Set to false, only FINRA's short interest is left: every price, chart, search, calendar
+ * Set to false, only FINRA's short interest is left: every price, chart, calendar
  * and headline goes, so it is a switch to pull when a licensed source has replaced them.
  */
 const UNLICENSED_FALLBACK = true;
@@ -26,19 +26,9 @@ export const cleanSym = (s) => (typeof s === "string" && /^[A-Z0-9.^=-]{1,15}$/i
 /** Written like a US stock or fund: what Nasdaq and FINRA cover. */
 export const isUsStock = (sym) => /^[A-Z.]{1,6}$/.test(sym);
 
-// Each chart size: one candle's length, and how Yahoo names how far back and the candle.
-export const FRAMES = {
-  "5m": { seconds: 300, range: "5d", interval: "5m" },
-  "15m": { seconds: 900, range: "1mo", interval: "15m" },
-  "1h": { seconds: 3600, range: "6mo", interval: "60m" },
-  "1d": { seconds: 86400, range: "2y", interval: "1d" },
-  "1w": { seconds: 604800, range: "10y", interval: "1wk" },
-};
-
 const yahooToday = unlicensed(yahoo.today);
 const yahooChart = unlicensed(yahoo.chart);
 const yahooMovers = unlicensed(yahoo.movers);
-export const search = unlicensed(yahoo.search);
 export const news = unlicensed(yahoo.news);
 
 /** For a source that sends candles and nothing else: the newest candle stands in for the quote. */
@@ -48,10 +38,9 @@ function fromCandles(sym, candles, about) {
   return { meta: { sym, name: sym, currency: "USD", price: last.c, prev: prev ? prev.c : null, at: last.t, regular: null, ...about }, candles };
 }
 
-/** Coinbase, for crypto when Yahoo will not answer. Newest first, 300 candles at most. */
-const coinbaseCandles = unlicensed(async (sym, frame) => {
-  if (frame === "1w") throw new Error("No weekly candles from this source");
-  const rows = await get(`https://api.exchange.coinbase.com/products/${encodeURIComponent(sym.toUpperCase())}/candles?granularity=${FRAMES[frame].seconds}`);
+/** Coinbase, for crypto when Yahoo will not answer. It sends the newest first, 300 daily candles at most. */
+const coinbaseCandles = unlicensed(async (sym) => {
+  const rows = await get(`https://api.exchange.coinbase.com/products/${encodeURIComponent(sym.toUpperCase())}/candles?granularity=86400`);
   const candles = rows.map((r) => ({ t: r[0], l: r[1], h: r[2], o: r[3], c: r[4], v: r[5] })).reverse();
   return fromCandles(sym, candles, { kind: "CRYPTOCURRENCY", exchange: "Coinbase", zone: "UTC" });
 });
@@ -60,7 +49,7 @@ const coinbaseCandles = unlicensed(async (sym, frame) => {
 export const isoDay = (d) => d.toISOString().slice(0, 10);
 const plainNumber = (s) => parseFloat(String(s).replace(/[$,]/g, ""));
 
-/** Nasdaq's own history, for US stocks and funds when Yahoo will not answer. Daily only. */
+/** Nasdaq's own history, for US stocks and funds when Yahoo will not answer. */
 const nasdaqDaily = unlicensed(async (sym) => {
   const to = new Date(), from = new Date(Date.now() - 730 * DAY_MS);
   for (const kind of ["stocks", "etf"]) {
@@ -76,13 +65,13 @@ const nasdaqDaily = unlicensed(async (sym) => {
   throw new Error("No history for this symbol");
 });
 
-/** Candles for any symbol, from the first source that answers. `source` says which one did. */
-export async function candles(sym, frame = "1d", opts) {
-  try { return { ...(await yahooChart(sym, FRAMES[frame], opts)), source: "Yahoo Finance" }; }
+/** Daily candles for any symbol, from the first source that answers. `source` says which one did. */
+export async function candles(sym) {
+  try { return { ...(await yahooChart(sym)), source: "Yahoo Finance" }; }
   catch (first) {
     try {
-      if (isCrypto(sym)) return { ...(await coinbaseCandles(sym, frame)), source: "Coinbase" };
-      if (frame === "1d" && isUsStock(sym)) return { ...(await nasdaqDaily(sym)), source: "Nasdaq" };
+      if (isCrypto(sym)) return { ...(await coinbaseCandles(sym)), source: "Coinbase" };
+      if (isUsStock(sym)) return { ...(await nasdaqDaily(sym)), source: "Nasdaq" };
     } catch { /* report the first failure, it names the usual source */ }
     throw first;
   }
@@ -115,7 +104,7 @@ export const economicWeek = unlicensed(async () => {
 /**
  * FINRA's short-interest reports: the regulator every broker reports to, so the numbers
  * Nasdaq shows are these. Its terms allow personal use and ask that FINRA is named as the
- * source, which `source` carries to the page. Null when FINRA has no recent report.
+ * source, which `source` carries to the Scout. Null when FINRA has no recent report.
  */
 async function finraShort(sym) {
   const rows = await get("https://api.finra.org/data/group/otcMarket/name/consolidatedShortInterest", {

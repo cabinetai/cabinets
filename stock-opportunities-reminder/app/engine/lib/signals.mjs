@@ -1,7 +1,6 @@
 // The rules that decide a chart is worth a look. Each rule reads plain candles and
 // answers with the numbers behind it, so nothing shown to the person is a guess.
 // A rule with `on: false` is too noisy to flag a chart with, but its record is still kept.
-// The page names the same ids; keep RULES and the page in step.
 
 import { sma, ema, rsi, atr, macd, bandWidth, priorHigh, priorLow, avgVolume, nyDay, r1, r2 } from "./indicators.mjs";
 
@@ -72,7 +71,7 @@ export function factsAt(s, i) {
   };
 }
 
-/** Numbers about a symbol that the page and the assistants show next to its chart. `fund` is the S&P 500 fund's daily candles. */
+/** Numbers about a symbol, counted from its daily candles: what the Scout reads as `facts`. `fund` is the S&P 500 fund's daily candles. */
 export const facts = (candles, fund) => factsAt(series(candles, fund), candles.length - 1);
 
 /**

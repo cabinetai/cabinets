@@ -67,12 +67,6 @@ export function announce() {
   }
 }
 
-/** What the person keeps in the page: their list. */
-export async function readStore() {
-  const s = await readJson(path.join(APP_DIR, ".data", "shared.json"), {});
-  return s && typeof s === "object" ? s : {};
-}
-
 /** Candle rows as they are kept on disk, `[time, open, high, low, close, volume]`, as candles. */
 export const toCandles = (rows) => rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }));
 

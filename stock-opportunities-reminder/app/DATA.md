@@ -1,8 +1,8 @@
 # The app's files
 
-What `app/engine/refresh.mjs` writes into `app/data/`, what the Stock Scout writes, and what
-the page keeps in its store. Times are ISO strings in UTC unless a field says otherwise.
-Symbols are written the way Yahoo Finance writes them: `NVDA`, `BTC-USD`, `ES=F`, `^VIX`.
+What `app/engine/refresh.mjs` writes into `app/data/`, and what the Stock Scout writes.
+Times are ISO strings in UTC unless a field says otherwise.
+Symbols are written the way Yahoo Finance writes them: `NVDA`, `BRK.B`, `BTC-USD`, `^VIX`.
 
 | File | Written by | What |
 |---|---|---|
@@ -11,7 +11,7 @@ Symbols are written the way Yahoo Finance writes them: `NVDA`, `BTC-USD`, `ES=F`
 | `data/setups.json` | refresh | Each setup's record and its verdict: the same detectors replayed over the saved candles, every candidate followed as a call is |
 | `data/reports.json` | refresh | When each US company's earnings report trades, from seven weekdays back to eight ahead |
 | `data/universe.json` | refresh | Two years of daily candles for the wider list, about 100 large US stocks (`engine/lib/universe.mjs`). Only the engine reads it. Not kept in git: the first refresh fetches it |
-| `data/candles/<SYMBOL>.1d.json` | refresh | Two years of daily candles. In the file name, any character other than a letter, digit, dot or hyphen becomes `_` (`^VIX` is `_VIX`, `ES=F` is `ES_F`) |
+| `data/candles/<SYMBOL>.1d.json` | refresh | Two years of daily candles. In the file name, any character other than a letter, digit, dot or hyphen becomes `_` (`^VIX` is `_VIX`) |
 | `data/signals.json` | refresh | What the rules flagged, newest first, three weeks |
 | `data/record.json` | refresh | Each rule's record on the list, over the saved daily candles |
 | `data/outcomes.json` | refresh | Where each of the Scout's calls stands, and the scorecard |
@@ -22,12 +22,17 @@ Symbols are written the way Yahoo Finance writes them: `NVDA`, `BTC-USD`, `ES=F`
 | `data/status.json` | refresh | The last run: when, how long, what failed, and what each source last did |
 | `data/refresh.lock` | refresh | Present while a refresh runs, so two never run at once. Not kept in git |
 | `../opportunities/YYYY-MM-DD.json` | The Stock Scout | One day's calls. At the cabinet's root, outside this folder |
-| `.data/shared.json` | The page, through Cabinet's app store | The person's list |
+
+"The list" in this file is the fixed starter list in `engine/refresh.mjs`: the two index
+funds, ten heavily traded US stocks and the two largest coins. The engine also scans a wider
+list of about 100 large US stocks (`engine/lib/universe.mjs`). The page has no control to
+change either.
 
 The engine's small server (`engine/server.mjs`, started by Cabinet once the app is allowed)
-answers what a file cannot: `/candles?sym=&frame=` (`5m`, `15m`, `1h`, `1d`, `1w`),
-`/search?q=`, `/refresh` (add `full=1` for everything, which only the cabinet's owner may ask
-for) and `/health`. `/refresh` answers with `status.json`, and with `busy: true` beside it
+answers what a file cannot: `/candles?sym=` (daily candles for one symbol, each row as in a
+candle file below), `/refresh` (what is due now) and `/health`. A full refresh is run from
+the command line: `node app/engine/refresh.mjs --full`. `/refresh` answers with
+`status.json`, and with `busy: true` beside it
 when a refresh in another process was already running and this one gave way. `/schedule` says when
 the Scout looks (`{ days, time, zone }`, `days` being `weekdays`, `daily` or a day of the week
 from `0` for Sunday), and a POST of `{ days, time }` from the cabinet's owner changes it by
@@ -78,7 +83,6 @@ The values below show the shape. They are not today's prices.
   "schema": "reminder/market@1",
   "at": "2026-11-19T13:31:53Z",
   "session": "pre",
-  "strip": ["ES=F", "NQ=F", "^VIX", "^TNX", "DX-Y.NYB", "GC=F", "CL=F", "BTC-USD"],
   "regime": {
     "stance": "against-you",
     "because": ["The S&P 500 fund closed at 689.81, under its 200-day average of 732.5.", "The fear gauge is at 28.5: frightened.", "20% of the 10 listed stocks closed above their 50-day average: broad weakness."],
@@ -167,7 +171,7 @@ candidate's file is removed once it leaves the lists.
 ## data/candidates.json
 
 The five setups of `playbooks/method.md`, looked for in code (`engine/lib/setups.mjs`) on
-the person's US stocks, the movers that carry `facts` and the wider list. Rebuilt on a full
+the list's US stocks, the movers that carry `facts` and the wider list. Rebuilt on a full
 refresh, when older than six hours, and whenever `setups.json` is rebuilt.
 
 ```json
@@ -304,7 +308,7 @@ stock from it that becomes a candidate gets its own file in `candles/`.
   "economy": [ { "title": "Unemployment Claims", "country": "USD", "at": "2026-11-19T08:30:00-05:00", "impact": "High", "forecast": "198K", "previous": "200K" } ] }
 ```
 
-`earnings` holds every symbol on the person's list (`mine: true`) plus the six largest
+`earnings` holds every symbol on the list (`mine: true`) plus the six largest
 companies reporting each day that are worth 20 billion dollars or more. `economy` is this week's US news of medium or high impact.
 
 ## data/record.json
@@ -420,12 +424,6 @@ Twelve rows at most in each list. Up to 16 of the gainers and busiest stocks pri
 dollars or more carry `facts`, the same object a quote in `market.json` has, and have a
 candle file. Fetched on a full refresh and when older than six hours.
 
-## .data/shared.json
-
-| Key | What |
-|---|---|
-| `watch` | The person's list: `[{ sym, name }]`. Missing means the starter list |
-
 ## Where the numbers come from
 
 `engine/lib/sources.mjs` holds the order. "No licence" means a public endpoint that needs no
@@ -441,10 +439,9 @@ value, so `sources` covers more than the last run.
 |---|---|---|---|
 | Stock and fund prices, today's candles, charts | Yahoo Finance, then Nasdaq (daily candles only) | None | No licence for this use |
 | Crypto prices and charts | Yahoo Finance, then Coinbase | None | No licence for this use |
-| Futures and indexes (the strip across the top) | Yahoo Finance | None | No licence for this use |
+| The fear gauge (`^VIX`) | Yahoo Finance | None | No licence for this use |
 | Gainers, losers, most traded | Yahoo Finance | None | No licence for this use |
 | Short interest | FINRA, then Nasdaq when FINRA has no report | None | Clean for personal use: FINRA's terms allow it and ask that FINRA is named as the source. Nasdaq: no licence for this use |
-| Symbol search | Yahoo Finance | None | No licence for this use |
 | Earnings calendar | Nasdaq | None | No licence for this use |
 | Economic calendar | Forex Factory's weekly file | None | No licence for this use |
 | Headlines | Yahoo Finance's RSS feed | None | No licence for this use: a feed made for feed readers, with no terms to rely on |

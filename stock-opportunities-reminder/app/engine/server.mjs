@@ -1,10 +1,10 @@
 // The app's small server. Cabinet starts it when the page first asks, once the person
 // has allowed this app, and passes every request through with a token. It answers what
-// a file on disk cannot: a chart for any symbol at any size, a search, a refresh now,
-// and choosing when the Scout looks.
+// a file on disk cannot: daily candles for any symbol, a refresh now, and choosing when
+// the Scout looks.
 
 import http from "node:http";
-import { candles, search, cleanSym, FRAMES } from "./lib/sources.mjs";
+import { candles, cleanSym } from "./lib/sources.mjs";
 import { refresh } from "./refresh.mjs";
 import { readSchedule, writeSchedule } from "./lib/schedule.mjs";
 
@@ -21,13 +21,8 @@ const keep = (key, ms, make) => {
 };
 /** An error whose message is written for the person and is safe to show them. */
 const refuse = (status, message) => Object.assign(new Error(message), { status });
-// The refresh in flight, if any: `{ full, done }`.
+// The refresh in flight, if any.
 let running = null;
-function startRefresh(full) {
-  const done = refresh({ full }).finally(() => { running = null; });
-  running = { full, done };
-  return done;
-}
 /** Cabinet says who is asking in a header it sets itself. By hand there is no Cabinet, and the person at the keyboard is the owner. */
 function isOwner(req) {
   if (!TOKEN) return true;
@@ -44,25 +39,17 @@ async function readBody(req) {
 }
 const routes = {
   "/health": async () => ({ ok: true }),
+  // Daily candles, the one size there is: whatever `frame` a caller names, the answer is `1d`.
   "/candles": async (q) => {
-    const sym = cleanSym(q.get("sym")), frame = FRAMES[q.get("frame")] ? q.get("frame") : "1d";
+    const sym = cleanSym(q.get("sym"));
     if (!sym) throw refuse(400, "That symbol does not look right.");
-    const intraday = frame !== "1d" && frame !== "1w";
-    const res = await keep(`${sym}:${frame}`, intraday ? 30000 : 120000, () => candles(sym, frame, { prePost: frame === "5m" }));
-    return { sym, frame, source: res.source, meta: res.meta, c: res.candles.map((c) => [c.t, c.o, c.h, c.l, c.c, c.v]) };
+    const res = await keep(sym, 120000, () => candles(sym));
+    return { sym, frame: "1d", source: res.source, meta: res.meta, c: res.candles.map((c) => [c.t, c.o, c.h, c.l, c.c, c.v]) };
   },
-  "/search": async (q) => {
-    const text = (q.get("q") || "").trim().slice(0, 40);
-    return { results: text ? await keep(`s:${text.toLowerCase()}`, 600000, () => search(text)) : [] };
-  },
-  // One refresh at a time: a second press joins the first. A full one never settles for a
-  // lighter one that is already running: it waits for it, then runs. A full one asks every
-  // source for everything, so only the owner may start it.
-  "/refresh": async (q, req) => {
-    const full = q.get("full") === "1";
-    if (full && !isOwner(req)) throw refuse(403, "Only the owner of this cabinet can ask for a full refresh.");
-    while (running && full && !running.full) await running.done.catch(() => {});
-    return running ? running.done : startRefresh(full);
+  // One refresh at a time: a second request joins the first.
+  "/refresh": async () => {
+    running ||= refresh().finally(() => { running = null; });
+    return running;
   },
   // GET says when the Scout looks. POST `{ days, time }` changes it: Cabinet re-reads the routine's file by itself.
   "/schedule": async (_q, req) => {

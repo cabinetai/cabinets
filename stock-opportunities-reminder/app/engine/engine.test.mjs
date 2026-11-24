@@ -86,9 +86,10 @@ test("the US session opens at 9:30 and closes at 16:00 on the New York clock", (
 });
 
 test("a stock the Scout named is priced and charted even when it is off the list", () => {
-  const { names } = symbolsOf({ watch: [{ sym: "AAPL", name: "Apple" }] }, [{ sym: "SOFI", name: "SoFi" }, { sym: "AAPL", name: "Apple Inc" }]);
+  const names = symbolsOf([{ sym: "SOFI", name: "SoFi" }, { sym: "AAPL", name: "Apple Inc" }]);
   assert.equal(names.get("SOFI"), "SoFi");
-  assert.equal(names.get("AAPL"), "Apple", "the person's own name for it wins");
+  assert.equal(names.get("AAPL"), "Apple", "the list's name for it wins");
+  assert.ok(names.has("SPY") && names.has("^VIX"), "the fund and the fear gauge are always there");
 });
 
 // A flat chart with one breakout on day 40, then a steady climb of one point a day.
@@ -787,15 +788,15 @@ test("the check reads the calls up to its day, so a later day's call is not held
   assert.match(run("2026-11-24"), /The call of 2026-11-23 on AAPL was still open on 2026-11-24/);
 });
 
-test("the server refuses before it reads the address, answers 400 to a malformed one, and keeps a full refresh for the owner", async (t) => {
+test("the server refuses before it reads the address, answers 400 to a malformed one, and keeps the schedule for the owner", async (t) => {
   const { env } = await scratchCabinet(t);
   const child = spawn(process.execPath, [fileURLToPath(new URL("./server.mjs", import.meta.url))], { env: { ...env, CABINET_APP_TOKEN: "secret" } });
   t.after(() => child.kill());
   const base = await new Promise((ok, fail) => { child.stdout.on("data", (line) => ok(/http:\S+/.exec(String(line))[0])); child.on("error", fail); });
   const as = (role) => ({ "x-cabinet-app-token": "secret", "x-cabinet-user": encodeURIComponent(JSON.stringify({ role })) });
-  const ask = async (where, headers) => { const res = await fetch(base + where, { headers }); return [res.status, (await res.json()).error]; };
+  const ask = async (where, headers, init) => { const res = await fetch(base + where, { headers, ...init }); return [res.status, (await res.json()).error]; };
   assert.deepEqual(await ask("//[", {}), [403, "Not allowed."]);
   assert.deepEqual(await ask("//[", as("owner")), [400, "That address does not look right."]);
   assert.deepEqual(await ask("/health", as("member")), [200, undefined], "the server is still up");
-  assert.deepEqual(await ask("/refresh?full=1", as("member")), [403, "Only the owner of this cabinet can ask for a full refresh."]);
+  assert.deepEqual(await ask("/schedule", as("member"), { method: "POST", body: JSON.stringify({ days: "daily", time: "09:00" }) }), [403, "Only the owner of this cabinet can change when the Scout looks."]);
 });

@@ -79,7 +79,8 @@ give the general rule in `playbooks/method.md` and leave the amount to them.
   an opportunity today: say which of the five setups it is closest to and what is missing
   for it to fit, from its `facts` and its candles. Give no buy zone, stop or target of
   your own. Those are the engine's to build.
-- **To add or remove a stock from their list:** the page has no control for it, and you do
-  not edit the list. Say that you look at the starter list and about 100 large US stocks.
+- **To add or remove a stock from the list:** the list is fixed. The page has no control
+  for it, and you do not edit it. Say that you look at a starter list, the day's movers
+  and about 100 large US stocks.
 - **Short interest:** when you quote a number from `short.json`, say that FINRA is its source.
 - **Anything you cannot check:** say so. Look it up when it matters and name the source.

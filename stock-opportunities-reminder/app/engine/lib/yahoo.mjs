@@ -34,17 +34,9 @@ export async function today(sym) {
   return fromYahoo(await get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=5m&includePrePost=true`));
 }
 
-/** Candles for one chart size, `f` being its entry in FRAMES. */
-export async function chart(sym, f, { prePost = false } = {}) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${f.range}&interval=${f.interval}&includePrePost=${prePost}&events=div%2Csplit`;
-  return fromYahoo(await get(url));
-}
-
-export async function search(q) {
-  const j = await get(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0`);
-  return ((j && j.quotes) || []).filter((x) => x.symbol).map((x) => ({
-    sym: x.symbol, name: x.longname || x.shortname || x.symbol, kind: x.quoteType || "", exchange: x.exchDisp || "",
-  }));
+/** Two years of daily candles. */
+export async function chart(sym) {
+  return fromYahoo(await get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=2y&interval=1d&includePrePost=false&events=div%2Csplit`));
 }
 
 /** The day's biggest gainers, losers and most traded US stocks. */
@@ -64,7 +56,7 @@ export async function movers() {
 const unescape = (s) => String(s || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").trim();
 /**
  * The newest headlines for one symbol, from Yahoo's RSS feed. The feed names no publisher
- * for an item, so `site` is the host the link leads to: the page shows it as the credit.
+ * for an item, so `site` is the host the link leads to.
  */
 export async function news(sym) {
   const xml = await get(`https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(sym)}&region=US&lang=en-US`, { as: "text" });
