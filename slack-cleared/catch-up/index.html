@@ -892,6 +892,7 @@
     border-radius: 12px; background: var(--page); color: var(--ink); font: inherit; font-size: 15.5px; line-height: 1.5; field-sizing: content; max-height: 260px; }
   .reply-edit:focus { outline: none; border-color: var(--ai); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ai) 18%, transparent); }
   .gap-note { margin: 8px 2px 0; font-size: 13px; color: var(--ink-3); }
+  .partial-note { margin: 10px 0 0; font-size: 14px; color: var(--ink-3); }
 
   /* Rows sit inside the card with the same gap on both sides. An open row is one rounded tile;
      what opens under it lines up with the words, under the name. */
@@ -1194,8 +1195,8 @@
 
   /**
    * Next steps in Slack: one tap to ask now, or to switch on as a routine. Each one belongs to
-   * a box and offers itself there when today's messages say it would help (see IDEA_FITS);
-   * all of them are always in the Ideas panel.
+   * a box; IDEA_FITS gives it a line for today when the messages say it would help. All of
+   * them are in the Ask box.
    */
   var IDEAS = [
     { id: "replies", box: "waiting", icon: "i-reply", tint: "", title: "Write replies for everyone waiting",
@@ -1922,7 +1923,6 @@
         ? '<button class="btn" disabled>' + icon("i-refresh", "spin") + "Reading...</button>"
         : '<button class="btn" data-act="run">' + icon("i-refresh") + "Read again</button>";
     }
-    var ideas = '<button class="btn" data-act="ideas" aria-haspopup="dialog">' + icon("i-bulb") + "Ideas</button>";
     var edit = !(state.loaded && state.data && !state.editing) ? ""
       : canAsk()
         ? '<button class="btn" data-act="layout-menu" aria-haspopup="menu" aria-expanded="' + state.menuOpen + '">' + icon("i-layout") + "Layout</button>"
@@ -2208,9 +2208,6 @@
     { id: "loud", x: 0, y: 50, w: 12, h: 5 },
     { id: "ask", x: 0, y: 55, w: 12, h: 4 }
   ];
-  /** Boxes added after people had saved a layout: they join it once, under Waiting on you. */
-  var NEW_BOXES = ["asked", "week", "files", "links"];
-  var NEW_BOXES_KEY = "slack-catch-up-new-boxes@3";
   /**
    * Every box a page can hold: how it draws, and for the Add a box panel its name, what it
    * shows, its group and the size it starts at. `show` keeps a box off the page while it
@@ -2274,15 +2271,19 @@
   function levelFor(width) { return width < 320 ? "S" : width < 640 ? "M" : "L"; }
   var LEVEL_WORDS = { S: "Small", M: "Medium", L: "Large" };
   /** The smallest a box may be made: wide and tall enough that what it shows still fits. */
+  /** A box this page has: its own id, never a name every object carries ("constructor"). */
+  function knownBox(id) { return typeof id === "string" && Object.prototype.hasOwnProperty.call(BOXES, id); }
   function minSize(id) { var m = BOXES[id].min || [3, 3]; return { w: m[0], h: m[1] }; }
   function whole(n) { return typeof n === "number" && n === Math.floor(n) && n >= 0; }
 
   /** A saved layout, keeping only entries that name a box we have and fit the grid. */
   function cleanLayout(value) {
     if (!Array.isArray(value)) return null;
+    // Every box removed is a choice too: it stays empty.
+    if (!value.length) return [];
     var seen = {};
     var out = value.filter(function (b) {
-      var ok = !!(b && BOXES[b.id] && !seen[b.id] && whole(b.x) && whole(b.y) && whole(b.w) && whole(b.h) &&
+      var ok = !!(b && knownBox(b.id) && !seen[b.id] && whole(b.x) && whole(b.y) && whole(b.w) && whole(b.h) &&
         b.w >= 1 && b.h >= 1 && b.x + b.w <= COLS && b.h <= 40);
       if (ok) seen[b.id] = true;
       return ok;
@@ -2297,40 +2298,6 @@
     return out;
   }
   function copyLayout(value) { return value.map(copyEntry); }
-  /** A saved layout from before the new boxes: they go in under Waiting on you, once, and stay the person's to remove. */
-  function withNewBoxes(layout) {
-    var have = {};
-    layout.forEach(function (b) { have[b.id] = true; });
-    var add = NEW_BOXES.filter(function (id) { return !have[id]; });
-    var mark = function (saved) {
-      // The layout with the new boxes is saved first, so a reload keeps them; only then is it marked done.
-      try {
-        Promise.resolve(saved ? cab.mine.set(LAYOUT_KEY, saved) : null)
-          .then(function () { return cab.mine.set(NEW_BOXES_KEY, true); }).catch(function () {});
-      } catch (e) { /* older bridge */ }
-    };
-    if (!add.length) { mark(null); return layout; }
-    var anchor = null;
-    layout.forEach(function (b) { if (b.id === "waiting") anchor = b; });
-    var at = anchor ? anchor.y + anchor.h : 0;
-    var room = add.reduce(function (sum, id) { return sum + BOXES[id].h; }, 0);
-    var out = layout.map(function (b) {
-      var c = copyEntry(b);
-      if (c.y >= at && c.id !== "waiting") c.y += room;
-      if (whole(c.o) && anchor && whole(anchor.o) && c.o > anchor.o) c.o += add.length;
-      return c;
-    });
-    var y = at;
-    add.forEach(function (id, i) {
-      var e = { id: id, x: 0, y: y, w: 12, h: BOXES[id].h };
-      if (anchor && whole(anchor.o)) e.o = anchor.o + 1 + i;
-      out.push(e);
-      y += BOXES[id].h;
-    });
-    mark(out);
-    return out;
-  }
-
   /**
    * Where the boxes land: each keeps its columns, is pushed down past any box above it that
    * it would overlap (an opened list grows), then rises into the space left above it, so a
@@ -2662,12 +2629,22 @@
     if (drawn[id] !== html) {
       var input = el.querySelector("input");
       var typed = input ? input.value : "";
-      var focused = !!input && document.activeElement === input;
+      // A reply being written keeps its words in state.edits; its place in them is kept here.
+      var active = el.contains(document.activeElement) ? document.activeElement : null;
+      var edit = active ? active.getAttribute("data-edit") : null;
+      var from = edit || active === input ? active && active.selectionStart : null;
+      var to = edit || active === input ? active && active.selectionEnd : null;
+      var scrolled = edit ? active.scrollTop : 0;
       el.innerHTML = html;
       drawn[id] = html;
       var again = el.querySelector("input");
       if (again && typed) again.value = typed;
-      if (again && focused) again.focus();
+      var back = edit ? el.querySelector('[data-edit="' + (window.CSS && CSS.escape ? CSS.escape(edit) : edit) + '"]') : active && active === input ? again : null;
+      if (back) {
+        back.focus({ preventScroll: true });
+        if (from !== null) back.setSelectionRange(from, to);
+        if (edit) back.scrollTop = scrolled;
+      }
     }
     fitBox(el);
   }
@@ -2782,7 +2759,10 @@
     if (num(t.skipped)) bits.push("<b>" + num(t.skipped).toLocaleString() + "</b> safe to skip");
     var head = text(state.data.headline, 220);
     var lead = head ? aiHtml("Slack Reader", '<p dir="auto">' + esc(head) + "</p>") : "";
-    return "<div>" + headlineTop(h2) + lead + pulseHtml() + "</div>";
+    // Slack had more than a reading takes in: the numbers are never passed off as all of it.
+    var part = !state.example && Array.isArray(state.data.partial) && state.data.partial.length
+      ? '<p class="partial-note">Too many messages to read them all. This is from the newest ones.</p>' : "";
+    return "<div>" + headlineTop(h2) + lead + part + pulseHtml() + "</div>";
   }
   function capital(s) { return s.replace(/^(<b>[^<]*<\/b>|.)/, function (m) { return m.charAt(0) === "<" ? m : m.toUpperCase(); }); }
   /** "since yesterday", "since Friday", "this week": the window the morning read. */
@@ -3184,13 +3164,10 @@
       }).join("") + "</dl>" + btn + "</div>";
   }
 
-  // Ask, or try an idea: the idea for today on top, a few more under it as chips.
+  // Ask, or try an idea: two ideas as chips, and More ideas opens the rest in place.
   function drawAsk(level) {
     if (state.layoutAsk) return drawLayoutAsk(level);
-    var featured = null;
-    var shown = shownIdeas();
-    if (featured) shown[featured.idea.id] = true;
-    var pool = level === "S" ? [] : IDEAS.filter(function (idea) { return !shown[idea.id] && !state.hiddenIdeas[idea.id]; });
+    var pool = level === "S" ? [] : IDEAS.filter(function (idea) { return !state.hiddenIdeas[idea.id]; });
     var more = state.allIdeas ? pool : pool.slice(0, 2);
     var toggle = pool.length > 2 ? '<button type="button" class="q q-more" data-act="ideas-more" aria-expanded="' + !!state.allIdeas + '">' + (state.allIdeas ? "Fewer" : "More ideas") + "</button>" : "";
     var note = state.askNote || (askReady() ? "" : askHint());
@@ -3198,7 +3175,6 @@
       '<form id="ask-form" autocomplete="off"><label for="ask-input" class="sr">Your question</label>' +
       '<input id="ask-input" name="q" dir="auto" maxlength="600" placeholder="Ask about your Slack..." />' +
       '<button type="submit" class="btn primary">' + icon("i-send") + "Ask</button></form>" +
-      (featured ? nudgeHtml(featured, "Idea for today: ") : "") +
       (more.length ? '<div class="qs">' + more.map(function (idea) {
         return '<button type="button" class="q" data-act="idea-now" data-idea="' + idea.id + '">' + esc(idea.title) + "</button>";
       }).join("") + toggle + "</div>" : "") +
@@ -3380,62 +3356,12 @@
     for (var i = 0; i < IDEAS.length; i++) if (IDEAS[i].id === id) return IDEAS[i];
     return null;
   }
-  /** The idea with what fits today, or null when it is hidden or would not help now. */
-  function fitted(idea, facts) {
-    if (!idea || state.hiddenIdeas[idea.id] || !state.data) return null;
-    var fit = IDEA_FITS[idea.id] ? IDEA_FITS[idea.id](facts || ideaFacts()) : null;
-    return fit ? { idea: idea, line: fit.line, act: fit.act } : null;
-  }
   function onPage(boxId) {
     return placed().some(function (spot) { return spot.id === boxId; });
-  }
-  /** The first idea of this box that fits today. */
-  function boxIdea(boxId) {
-    var facts = ideaFacts();
-    for (var i = 0; i < IDEAS.length; i++) {
-      if (IDEAS[i].box !== boxId) continue;
-      var f = fitted(IDEAS[i], facts);
-      if (f) return f;
-    }
-    return null;
-  }
-  /** Ideas the list boxes on the page are showing right now. */
-  function shownIdeas() {
-    var shown = {};
-    ["waiting", "promises", "decided", "loud"].forEach(function (id) {
-      var el = boxEls[id];
-      if (!onPage(id) || (el && el.getAttribute("data-level") === "S")) return;
-      var f = boxIdea(id);
-      if (f) shown[f.idea.id] = true;
-    });
-    return shown;
-  }
-  /** The Ask box's idea for today: its own, or one whose box is not on the page. */
-  function askIdea() {
-    var facts = ideaFacts();
-    var shown = shownIdeas();
-    var best = null;
-    IDEAS.forEach(function (idea) {
-      if (best || shown[idea.id] || (idea.box !== "ask" && onPage(idea.box))) return;
-      best = fitted(idea, facts);
-    });
-    return best;
   }
 
   /** "every Monday", "every month": the schedule as the end of "Do this ...". */
   function routineWords(idea) { return idea.when.charAt(0).toLowerCase() + idea.when.slice(1); }
-
-  function nudgeHtml(fit, lead) {
-    if (!fit) return "";
-    var idea = fit.idea;
-    var can = canAsk();
-    return '<div class="nudge">' + icon("i-bulb") + '<p dir="auto">' + esc((lead || "") + fit.line) + "</p>" +
-      '<div class="nudge-actions">' +
-      '<button type="button" class="btn small ' + (lead ? "primary" : "dark") + '" data-act="idea-now" data-idea="' + idea.id + '"' + (can ? "" : " disabled data-viewer-off") + ">" + esc(fit.act) + "</button>" +
-      '<button type="button" class="btn small" data-act="idea-routine" data-idea="' + idea.id + '"' + (can ? "" : " disabled data-viewer-off") + ">" + icon("i-repeat") + "Do this " + esc(routineWords(idea)) + "</button>" +
-      '<button type="button" class="nudge-hide" data-act="idea-hide" data-idea="' + idea.id + '" aria-label="Hide this idea from the page">Hide</button>' +
-      "</div></div>";
-  }
 
   function setIdeaHidden(id, hidden) {
     var before = snapshot();
@@ -3544,11 +3470,11 @@
 
   function removeBox(id) {
     var el = boxEls[id];
-    var next = copyLayout(state.layout || DEFAULT_LAYOUT).filter(function (b) { return b.id !== id; });
     if (el) el.classList.add("leaving");
     setTimeout(function () {
       if (el) el.classList.remove("leaving");
-      changeLayout(next);
+      // From the layout as it is now: another box may have gone meanwhile.
+      changeLayout(copyLayout(state.layout || DEFAULT_LAYOUT).filter(function (b) { return b.id !== id; }));
       toast(BOXES[id].title + " removed. Undo brings it back.");
     }, 200);
   }
@@ -3674,7 +3600,7 @@
   function cleanChange(d) {
     if (!d || typeof d !== "object" || !writtenAt(d.at)) return null;
     function ids(list) {
-      return Array.isArray(list) ? list.filter(function (id, i) { return typeof id === "string" && BOXES[id] && list.indexOf(id) === i; }) : [];
+      return Array.isArray(list) ? list.filter(function (id, i) { return knownBox(id) && list.indexOf(id) === i; }) : [];
     }
     return { at: d.at, for: text(d.for, 80), add: ids(d.add), remove: ids(d.remove), note: text(d.note, 300) };
   }
@@ -4292,7 +4218,7 @@
       openDrawer("add");
     } else if (act === "add-this") {
       var add = el.getAttribute("data-add");
-      if (BOXES[add]) addBox(add);
+      if (knownBox(add)) addBox(add);
     } else if (act === "phone-size") {
       var sized = el.closest(".box").getAttribute("data-box");
       var size = el.getAttribute("data-size");
@@ -4322,10 +4248,14 @@
     } else if (act === "gift-do") {
       var gift = state.reading && state.reading.gift;
       if (gift) {
-        ask(giftParts(gift).ask);
-        state.giftAsked = gift.at;
-        giftDone(gift);
-        if (readingNow() || revealing()) paintHero(); else paintGiftKeep();
+        el.disabled = true;
+        // The gift goes only once its question went through; otherwise it can be pressed again.
+        Promise.resolve(ask(giftParts(gift).ask)).then(function (ok) {
+          if (ok !== true) { el.disabled = false; return; }
+          state.giftAsked = gift.at;
+          giftDone(gift);
+          if (readingNow() || revealing()) paintHero(); else paintGiftKeep();
+        });
       }
     } else if (act === "gift-skip") {
       if (state.reading && state.reading.gift) giftDone(state.reading.gift);
@@ -4403,7 +4333,6 @@
     Promise.resolve(cab.ready).then(function () {
       var mine = cab.mine && typeof cab.mine.get === "function" ? cab.mine : null;
       var clean = cleanLayout(mine ? mine.get(LAYOUT_KEY) : null);
-      if (clean && mine && !mine.get(NEW_BOXES_KEY)) clean = withNewBoxes(clean);
       if (clean) state.layout = clean;
       var seenProfile = mine ? mine.get(PROFILE_SEEN_KEY) : null;
       if (typeof seenProfile === "string") state.profileSeen = seenProfile;

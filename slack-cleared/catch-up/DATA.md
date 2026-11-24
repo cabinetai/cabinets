@@ -23,7 +23,9 @@ counts every number from them and copies every name, quote, time and link, so no
 page is typed by the agent except its own short words (gists, replies, the headline), and
 those may hold no numbers.
 
-`latest.json` in short: `generatedAt`, `since`, `timeZone`, `workspace`, `person { name }`,
+`latest.json` in short: `generatedAt`, `readAt` (when that reading began: the next morning
+counts from it), `partial[]` (only when Slack had more than was read: the searches that were
+cut, and the page says so), `since`, `timeZone`, `workspace`, `person { name }`,
 `headline`, `totals { messages, dms, channels, mine, mentions, skipped }`,
 `pulse { start, stepHours, counts[], you[] }` (the banner's lights), and:
 
@@ -36,6 +38,10 @@ those may hold no numbers.
   yes to it after), `link`.
 - `channels[]`: `id`, `name` (`#launch`), `count`, `needs` (`you`, `fyi`, `none`), `gist`, `link`.
 - `loud[]`: `id`, `name`, `kind`, `count`, `link`: places that moved and never needed you.
+
+An item's `id` is its channel and time in Slack (`C0123ABCD-1760000000.000100`), the same in
+every reading, so a draft you are writing stays with its message. `waiting`, `promises` and
+`asked` look back seven days on every run.
 
 What Slack itself does not show, all counted by the helper from the saved answers:
 

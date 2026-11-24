@@ -47,7 +47,7 @@ const SCHEMA = "slack/catch-up";
 const SAFE_LINK = /^https:\/\/[a-z0-9-]+\.slack\.com\//;
 const GIFT_KINDS = ["waiting", "promise", "noise", "calm"];
 const NAME = /^(mine|dms|groups|mentions|threads|everything|in-[a-z0-9_-]{1,40}|thread|channel|channels|dm-list|people|person|files)(-\d{1,3})?$/i;
-/** The searches a reading must have before it writes the page; their next pages too while Slack has more (up to page 3). */
+/** The searches a reading must have before it writes the page; their next pages too while Slack has more (up to PAGES). */
 const NEEDED = ["mine", "dms", "groups", "mentions", "threads"];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -92,7 +92,8 @@ function sinceFor(morning) {
   if (!morning) return week;
   try {
     const l = readJson(path.join(dataDir, "latest.json"));
-    const at = new Date(l.generatedAt);
+    // Where that reading began, not when it was written: a message sent while it ran is still new.
+    const at = new Date(l.readAt || l.generatedAt);
     if (l.example !== true && !isNaN(at) && at > week && at < new Date()) return at;
   } catch { /* no last morning */ }
   return new Date(Date.now() - DAY);
@@ -240,18 +241,26 @@ function refuse(n, why) {
   console.log(`${n}: Slack did not answer it: "${String(why).replace(/\s+/g, " ").slice(0, 200)}"`);
 }
 const SEARCH = { sort: "timestamp", count: 100 };
+/** The pages of one search: enough for a busy week, so a reading still ends within its time. */
+const PAGES = 10;
+/** Searches Slack had more for than was read: the page and the agent are told. */
+const partialFile = path.join(workDir, ".partial.json");
+function partialList() { try { return readJson(partialFile); } catch { return []; } }
+function partial(n) { writeJson(partialFile, [...new Set([...partialList(), n])]); }
 /** One search and its next pages while Slack has more, up to `pages`. */
-async function searchAll(n, query, pages) {
+async function searchAll(n, query, pages = PAGES) {
   for (let page = 1; page <= pages; page++) {
     const name = page > 1 ? `${n}-${page}` : n;
     const got = await ask(name, "slack_search_messages", page > 1 ? { query, ...SEARCH, page } : { query, ...SEARCH });
     if (!got) {
       // A search the page needs must come back: its refusal is the run's reason to stop.
       if (page === 1 && NEEDED.includes(n)) stopRun(String(refusedList()[n]).replace(/\s+/g, " ").slice(0, 240));
+      if (page > 1) partial(n);
       return;
     }
     if (!got.info.more) return;
   }
+  partial(n);
 }
 /** True when the person allowed Cabinet no channel and no direct messages. Keeps the list. */
 async function nothingAllowed() {
@@ -264,7 +273,7 @@ async function nothingAllowed() {
 async function readSlack() {
   const after = mode().after;
   // Your own messages first: they say which person you are, for the mentions search.
-  await searchAll("mine", `from:me after:${after}`, 3);
+  await searchAll("mine", `from:me after:${after}`);
   let meId = ownId();
   if (!meId) {
     // Nothing of yours in the window: one older message of yours says who you are.
@@ -275,11 +284,11 @@ async function readSlack() {
     if (await nothingAllowed()) stopRun("Cabinet may not read any of your Slack yet. Press Connect Slack again and pick the channels.");
     stopRun("Slack shows no message of yours, so Cabinet can't tell who you are in Slack yet. Write one message in Slack, then try again.");
   }
-  await searchAll("dms", `is:dm after:${after}`, 3);
-  await searchAll("groups", `is:mpim after:${after}`, 3);
-  await searchAll("mentions", `<@${meId}> -from:me after:${after}`, 3);
-  await searchAll("threads", `is:thread -from:me after:${after}`, 3);
-  await searchAll("everything", `-from:me after:${after}`, 2);
+  await searchAll("dms", `is:dm after:${after}`);
+  await searchAll("groups", `is:mpim after:${after}`);
+  await searchAll("mentions", `<@${meId}> -from:me after:${after}`);
+  await searchAll("threads", `is:thread -from:me after:${after}`);
+  await searchAll("everything", `-from:me after:${after}`);
   let everything = null;
   try { everything = answerOf("everything"); } catch { /* refused */ }
   if (!everything || !everything.messages.length) {
@@ -287,7 +296,9 @@ async function readSlack() {
     if (await nothingAllowed()) stopRun("Cabinet may not read any of your Slack yet. Press Connect Slack again and pick the channels.");
     let channels = [];
     try { channels = answerOf("channels").channels; } catch { /* refused */ }
-    for (const c of channels.filter((x) => x && /^[a-z0-9_-]{1,40}$/i.test(x.name || "")).slice(0, 6)) {
+    const named = channels.filter((x) => x && /^[a-z0-9_-]{1,40}$/i.test(x.name || ""));
+    if (named.length > 6) partial("channels");
+    for (const c of named.slice(0, 6)) {
       await searchAll(`in-${c.name.toLowerCase()}`, `in:#${c.name} after:${after}`, 1);
     }
   }
@@ -330,7 +341,7 @@ function unnamed() {
   const md = model();
   return [...new Set(needs().map((x) => x.m.fromId).concat(md.convs.filter((c) => c.kind === "dm").map((c) => c.peer),
     askedCandidates().map((x) => x.whoId), topPeople().map((x) => x.id), fileList().slice(0, 12).map((f) => f.user),
-    md.msgs.filter((m) => md.inLook(m) && !m.mine && !m.bot && /https?:\/\//.test(m.raw)).map((m) => m.fromId)))]
+    md.msgs.filter((m) => md.inWeek(m) && !m.mine && !m.bot && /https?:\/\//.test(m.raw)).map((m) => m.fromId)))]
     .filter((id) => /^[UW]/.test(id) && !md.people[id]).slice(0, 20);
 }
 /** What is still missing before the page can be written: a search, or the files list. */
@@ -455,12 +466,10 @@ function model() {
   for (const m of all) { if (!r.msg[m.id]) r.msg[m.id] = "m" + ++r.n.m; m.ref = r.msg[m.id]; }
   writeJson(refsFile, r);
   const from = since();
-  const back = new Date(mode().lookback || mode().since);
   const inWindow = (m) => !m.system && m.at >= from;
-  const inLook = (m) => !m.system && m.at >= back;
-  const weekFrom = new Date(mode().week || mode().lookback || mode().since);
+  const weekFrom = new Date(mode().week);
   const inWeek = (m) => !m.system && m.at >= weekFrom;
-  modelCache = { me, people, nameOf, convs: [...convs.values()], msgs: all, inWindow, inLook, inWeek, weekFrom, back, from, host };
+  modelCache = { me, people, nameOf, convs: [...convs.values()], msgs: all, inWindow, inWeek, weekFrom, from, host };
   return modelCache;
 }
 function refs() {
@@ -495,7 +504,7 @@ function needs() {
   const mineIn = myThreads();
   const seen = new Map();
   for (const m of md.msgs) {
-    if (!md.inLook(m) || m.mine || m.bot || answered(m)) continue;
+    if (!md.inWeek(m) || m.mine || m.bot || answered(m)) continue;
     const asked = /\?\s*$|\?\s/.test(m.text);
     const meByName = md.me.first.length > 1 && new RegExp("(^|[^\\p{L}])" + md.me.first.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&") + "([^\\p{L}]|$)", "iu").test(m.text);
     const inMine = m.conv.kind === "channel" && mineIn.has(m.conv.key + "|" + m.root);
@@ -532,7 +541,9 @@ function dueHint(m) {
   if (/\btomorrow\b/.test(t)) return day(new Date(at.getFullYear(), at.getMonth(), at.getDate() + 1));
   const wd = new RegExp("\\b(by |on |this |next )?(" + WEEKDAYS.join("|") + ")\\b").exec(t);
   if (wd) {
-    let ahead = (WEEKDAYS.indexOf(wd[2]) - at.getDay() + 7) % 7 || 7;
+    let ahead = (WEEKDAYS.indexOf(wd[2]) - at.getDay() + 7) % 7;
+    // Friday, written on a Friday, is the next one; "this Friday" is that day itself.
+    if (!ahead && wd[1] !== "this ") ahead = 7;
     if (wd[1] === "next ") ahead += ahead < 7 ? 7 : 0;
     return day(new Date(at.getFullYear(), at.getMonth(), at.getDate() + ahead));
   }
@@ -542,7 +553,7 @@ function dueHint(m) {
 const AGREE = /^\s*(ok(ay)?|fine|sure|yes|yep|agreed?|sounds good|works( for me)?|great|perfect|got it|same|\+1|:\+1:|:thumbsup:|👍)(?![a-z])[\s\S]{0,40}$/iu;
 function mine() {
   const md = model();
-  return md.msgs.filter((m) => md.inLook(m) && m.mine && PROMISE.test(m.text));
+  return md.msgs.filter((m) => md.inWeek(m) && m.mine && PROMISE.test(m.text));
 }
 function countIn(c) { const md = model(); return md.msgs.filter((m) => m.conv === c && md.inWindow(m)).length; }
 /** Someone else's name in a place: for a promise, who you told. */
@@ -651,10 +662,14 @@ function giftOf(g) {
   const out = { kind };
   // The order is the person's: someone waiting, then a promise, then noise, then calm.
   const md = model();
-  const promiseOpen = mine().some((m) => Date.now() - m.at.getTime() >= 12 * HOUR);
-  const loudOne = md.convs.some((c) => countIn(c) >= 15 && !needs().some((x) => x.m.conv === c) && !md.msgs.some((m) => m.conv === c && m.mentionsMe && md.inWindow(m)));
-  if (kind !== "waiting" && needs().length) fail("refused, someone may be waiting for you (see needs): give a waiting gift");
-  if ((kind === "noise" || kind === "calm") && promiseOpen) fail("refused, you made a promise (see mine): give a promise gift");
+  // What the agent read and found to ask nothing ("Thanks!"), or to be no promise, by ref.
+  const no = new Set((Array.isArray(g.not) ? g.not : []).map((ref) => msgFor(ref)).filter(Boolean));
+  const asks = needs().filter((x) => x.all.some((m) => !no.has(m)));
+  const promiseOpen = mine().some((m) => !no.has(m) && Date.now() - m.at.getTime() >= 12 * HOUR);
+  const forYou = (c) => asks.some((x) => x.m.conv === c) || md.msgs.some((m) => m.conv === c && m.mentionsMe && !no.has(m) && md.inWindow(m));
+  const loudOne = md.convs.some((c) => countIn(c) >= 15 && !forYou(c));
+  if (kind !== "waiting" && asks.length) fail(`refused, someone may be waiting for you (${asks.map((x) => x.all.find((m) => !no.has(m)).ref).join(", ")}): give a waiting gift, or name the ones that ask nothing in "not"`);
+  if ((kind === "noise" || kind === "calm") && promiseOpen) fail(`refused, you made a promise (see mine): give a promise gift, or name the ones that are no promise in "not"`);
   if (kind === "calm" && loudOne) fail("refused, a loud place never needed you (see loud): give a noise gift");
   const gist = words(g.gist, 140, "the gist");
   if (gist) out.gist = gist;
@@ -677,14 +692,14 @@ function giftOf(g) {
     out.since = iso(m.at);
     const l = linkOf(m);
     if (l) out.link = l;
-    out.messageId = m.ref;
+    out.messageId = m.id;
   }
   if (kind === "noise") {
     const c = convFor(g.conv);
     if (!c) fail(`refused, no place ${g.conv || "(give conv: its ref from loud, like h3)"}`);
     const n = countIn(c);
     if (n < 15) fail(`refused, ${c.name} moved ${n} times in the window: noise is 15 or more. Give calm`);
-    if (needs().some((x) => x.m.conv === c) || model().msgs.some((m) => m.conv === c && m.mentionsMe && model().inWindow(m))) fail("refused, that place has something for you: it is not noise");
+    if (forYou(c)) fail("refused, that place has something for you: it is not noise");
     out.who = c.name.slice(0, 90);
     out.where = where(c);
     out.count = withWord(n, "message", "messages");
@@ -792,7 +807,7 @@ function siteOf(u) {
 function linksOf() {
   const md = model();
   const seen = new Map();
-  const msgs = md.msgs.filter((m) => md.inLook(m) && !m.mine && !m.bot).sort((a, b) => b.at - a.at);
+  const msgs = md.msgs.filter((m) => md.inWeek(m) && !m.mine && !m.bot).sort((a, b) => b.at - a.at);
   for (const m of msgs) {
     const found = [];
     const rest = m.raw.replace(/<(https?:\/\/[^|>\s]+)(?:\|([^>]*))?>/g, (_, url, label) => { found.push({ url, label }); return " "; });
@@ -805,7 +820,8 @@ function linksOf() {
       const host = u.hostname.replace(/^www\./, "");
       // A pull request and its "changes" or "files" page are one link.
       const gh = /github\.com$/i.test(host) ? /^\/([^/]+)\/([^/]+)\/(pull|issues)\/(\d+)/.exec(u.pathname) : null;
-      const key = gh ? ("github.com/" + gh.slice(1).join("/")).toLowerCase() : (host + u.pathname.replace(/\/$/, "") + u.search).toLowerCase();
+      // The host is lowercase already; a path or query can differ by case alone (a Google Docs id).
+      const key = gh ? ("github.com/" + gh.slice(1).join("/")).toLowerCase() : host + u.pathname.replace(/\/$/, "") + u.search;
       if (seen.has(key)) continue;
       const label = f.label ? plain(f.label, md.nameOf).trim() : "";
       let pathWords = "";
@@ -822,7 +838,7 @@ function askedCandidates() {
   const md = model();
   const out = [];
   for (const m of md.msgs) {
-    if (!m.mine || !md.inLook(m) || Date.now() - m.at.getTime() < 2 * HOUR) continue;
+    if (!m.mine || !md.inWeek(m) || Date.now() - m.at.getTime() < 2 * HOUR) continue;
     if (!/\?\s*$|\?\s/.test(m.text) || AGREE.test(m.text)) continue;
     let whoId = "", who = "";
     if (m.conv.kind === "dm") { whoId = m.conv.peer; who = m.conv.name; }
@@ -835,16 +851,20 @@ function askedCandidates() {
     }
     if (!who) continue;
     const later = md.msgs.filter((x) => x.conv === m.conv && x.at > m.at && !x.mine && !x.bot && !x.system &&
-      (m.conv.kind !== "channel" || x.root === m.root || (whoId && x.fromId === whoId)));
+      (m.conv.kind !== "channel" || x.root === m.root));
     // You wrote again there after it: you moved on, or asked again (that later one counts instead).
     const mineLater = md.msgs.some((x) => x.mine && x.conv === m.conv && x.at > m.at && (m.conv.kind !== "channel" || x.root === m.root));
     if (later.length || mineLater) continue;
-    out.push({ m, whoId, who });
+    // Their later words elsewhere in the channel may be the answer: the agent reads them and decides.
+    const elsewhere = m.conv.kind === "channel" && whoId ? md.msgs.filter((x) => x.conv === m.conv && x.at > m.at && x.fromId === whoId && !x.bot).slice(0, 3) : [];
+    out.push({ m, whoId, who, elsewhere });
   }
   return out.sort((a, b) => a.m.at - b.m.at).slice(-8);
 }
 
 // ── latest.json: the agent gives refs and its own words; the facts come from the saved answers ──
+// An item's id is its channel and time in Slack, never the run's short ref: a ref like m1 names
+// another message in the next run, and the page keeps the person's own draft by this id.
 function latestOf(l) {
   if (!l || typeof l !== "object" || Array.isArray(l)) fail("latest.json must be an object");
   if (typeof l.headline !== "string" || !l.headline.trim()) fail("latest.json needs a headline");
@@ -863,14 +883,14 @@ function latestOf(l) {
   const waiting = pick(l.waiting, 12, (m, x) => {
     if (m.mine || !open.has(m)) return null;
     const n = needOf(m);
-    const o = { id: m.ref, who: m.fromName.slice(0, 80), where: where(m), said: said(m), gist: words(x.gist, 160, "a waiting gist"),
+    const o = { id: m.id, who: m.fromName.slice(0, 80), where: where(m), said: said(m), gist: words(x.gist, 160, "a waiting gist"),
       why: WHY[n.why] || "question", at: iso(m.at), urgent: x.urgent === true,
       reply: typeof x.reply === "string" ? x.reply.trim().slice(0, 700) : "", replyTo: replyTo(m) };
     // The other asks of this person here, unless they have rows of their own (counted below).
-    o.asks = n.all.filter((y) => y !== m).map((y) => y.ref);
+    o.asks = n.all.filter((y) => y !== m).map((y) => y.id);
     const d = deferral(m);
     if (d) {
-      o.youSaid = { id: d.ref, said: said(d), at: iso(d.at) };
+      o.youSaid = { id: d.id, said: said(d), at: iso(d.at) };
       const due = dueHint(d);
       if (due) o.youSaid.due = due;
       if (due && due <= ymd(new Date())) o.urgent = true;
@@ -879,15 +899,15 @@ function latestOf(l) {
     return o;
   });
   for (const w of waiting) {
-    const more = w.asks.filter((ref) => !waiting.some((y) => y.id === ref)).length;
+    const more = w.asks.filter((id) => !waiting.some((y) => y.id === id)).length;
     delete w.asks;
     if (more) w.more = more;
   }
   // "I'll decide tomorrow" under a question shows on that question's row, not twice.
   const deferredIds = new Set(waiting.filter((w) => w.youSaid).map((w) => w.youSaid.id));
-  const promises = pick((Array.isArray(l.promises) ? l.promises : []).filter((x) => !(x && deferredIds.has((msgFor(x.id) || {}).ref))), 10, (m, x) => {
+  const promises = pick((Array.isArray(l.promises) ? l.promises : []).filter((x) => !(x && deferredIds.has((msgFor(x.id) || {}).id))), 10, (m, x) => {
     if (!m.mine || !PROMISE.test(m.text)) return null;
-    const o = { id: m.ref, to: toWhom(m).slice(0, 80), where: where(m), said: said(m), gist: words(x.gist, 160, "a promise gist"), at: iso(m.at) };
+    const o = { id: m.id, to: toWhom(m).slice(0, 80), where: where(m), said: said(m), gist: words(x.gist, 160, "a promise gist"), at: iso(m.at) };
     const due = typeof x.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x.due) ? x.due : dueHint(m);
     if (due) o.due = due;
     if (linkOf(m)) o.link = linkOf(m);
@@ -900,7 +920,7 @@ function latestOf(l) {
     if (AGREE.test(m.text)) fail(`refused, ${m.ref} only agrees ("${m.text.slice(0, 40)}"): give the message that proposed or made the decision`);
     const after = md.msgs.filter((y) => y.conv === m.conv && y.at > m.at && !y.bot && y.fromId !== m.fromId && AGREE.test(y.text) && (m.conv.kind !== "channel" || y.root === m.root));
     const agreed = [...new Set(after.map((y) => (y.mine ? "You" : y.fromName.slice(0, 60))))];
-    const o = { id: m.ref, who: m.mine ? "You" : m.fromName.slice(0, 80), where: where(m), gist, at: iso(m.at) };
+    const o = { id: m.id, who: m.mine ? "You" : m.fromName.slice(0, 80), where: where(m), gist, at: iso(m.at) };
     if (agreed.length) o.agreed = agreed.slice(0, 5);
     if (linkOf(m)) o.link = linkOf(m);
     return o;
@@ -936,7 +956,7 @@ function latestOf(l) {
   for (const x of waiting) if (new Date(x.at).getTime() >= from) you[slot(new Date(x.at))]++;
   const skipped = w.filter((m) => !m.mine && !busy.has(m.conv.name)).length;
   const out = {
-    schema: SCHEMA + "@1", example: false, generatedAt: iso(new Date()), since: iso(md.from), timeZone: TZ,
+    schema: SCHEMA + "@1", example: false, generatedAt: iso(new Date()), readAt: iso(new Date(mode().startedAt)), since: iso(md.from), timeZone: TZ,
     person: { name: l.person && typeof l.person.name === "string" && inSaved(l.person.name) ? l.person.name.slice(0, 60) : md.me.first.slice(0, 60) },
     headline,
     totals: { messages: w.length, dms: counted("dms"), channels: counted("channels"), mine: w.filter((m) => m.mine).length, mentions: counted("mentions"), skipped },
@@ -952,11 +972,13 @@ function latestOf(l) {
     const m = msgFor(x && x.id);
     const c = m && unanswered.find((y) => y.m === m);
     if (!c) return null;
-    const o = { id: m.ref, who: c.who.slice(0, 80), where: where(m), said: said(m), at: iso(m.at),
+    const o = { id: m.id, who: c.who.slice(0, 80), where: where(m), said: said(m), at: iso(m.at),
       reply: typeof x.reply === "string" ? x.reply.trim().slice(0, 500) : "", replyTo: replyTo(m) };
     if (linkOf(m)) o.link = linkOf(m);
     return o;
   }).filter(Boolean).slice(0, 8);
+  // Too much to read in full: the page says the numbers are from the newest messages.
+  if (partialList().length) out.partial = partialList();
   if (md.host) out.workspace = "https://" + md.host + "/";
   return out;
 }
@@ -1010,18 +1032,18 @@ if (cmd === "window") {
   if (fs.existsSync(workDir)) fs.rmSync(workDir, { recursive: true, force: true });
   fs.mkdirSync(workDir, { recursive: true });
   const s = sinceFor(morning);
-  // Who waits on you and what you promised look back at least three days: an ask still open
-  // from yesterday stays on the page even when the window since the last morning is short.
-  const back = morning ? new Date(Math.min(s.getTime(), Date.now() - 3 * DAY)) : s;
-  // "Your week" counts the last seven days on every run, so the searches always reach that far.
-  const week = new Date(Math.min(back.getTime(), Date.now() - 7 * DAY));
-  writeJson(modeFile, { morning, chat, since: utc(s), lookback: utc(back), week: utc(week), after: afterDay(week), startedAt: new Date().toISOString() });
+  // Who waits on you, what you promised and "Your week" look back seven days on every run, so an
+  // ask still open stays on the page even when the window since the last morning is short.
+  const week = new Date(Math.min(s.getTime(), Date.now() - 7 * DAY));
+  writeJson(modeFile, { morning, chat, since: utc(s), week: utc(week), after: afterDay(week), startedAt: new Date().toISOString() });
   if (!slackUrl()) stopRun("Slack is not connected. Press Connect Slack.", "Connect Slack so I can read who is waiting on you");
   if (!morning) writeJson(readingFile, { schema: SCHEMA + "/reading@1", startedAt: iso(new Date()), done: false, lines: [] });
   console.log(`${morning ? "morning" : "first reading"} started; the window is from ${iso(s)}. Reading Slack:`);
   await readSlack();
   const m = missing();
-  console.log(m.length ? "still missing: " + m.join("; ") + ". Run start again in a minute." : "all of Slack is in. Next: list, needs, asked, mine, loud");
+  console.log(m.length ? "still missing: " + m.join("; ") + ". Run start again in a minute." : partialList().length
+    ? `Slack had more than was read in: ${partialList().join(", ")}. The newest is in, and the page says so. Never write that it is everything. Next: list, needs, asked, mine, loud`
+    : "all of Slack is in. Next: list, needs, asked, mine, loud");
 } else if (cmd === "people") {
   const md = model();
   const w = md.msgs.filter(md.inWindow);
@@ -1045,7 +1067,7 @@ if (cmd === "window") {
   console.log(`you: ${md.me.name || md.me.id} | window from ${iso(md.from)} | ${md.msgs.filter(md.inWindow).length} messages`);
   for (const c of convs) console.log(convLine(c));
   for (const c of convs) {
-    const ms = md.msgs.filter((m) => m.conv === c && md.inLook(m));
+    const ms = md.msgs.filter((m) => m.conv === c && md.inWeek(m));
     console.log(`\n== ${convLine(c)}`);
     for (const m of ms.slice(only ? 0 : -15)) console.log(listLine(m));
     if (!only && ms.length > 15) console.log(`(${ms.length - 15} earlier: list ${c.ref})`);
@@ -1061,7 +1083,10 @@ if (cmd === "window") {
 } else if (cmd === "asked") {
   const list2 = askedCandidates();
   if (!list2.length) console.log("nothing you asked is still without an answer");
-  for (const x of list2) console.log(`${listLine(x.m)} | asked: ${x.who} | in: ${x.m.conv.name}`);
+  for (const x of list2) {
+    console.log(`${listLine(x.m)} | asked: ${x.who} | in: ${x.m.conv.name}`);
+    for (const y of x.elsewhere) console.log(`   ${x.who} wrote after, not in that thread: ${listLine(y)}`);
+  }
 } else if (cmd === "mine") {
   const list2 = mine();
   if (!list2.length) console.log("nothing you wrote in the window sounds like a promise");

@@ -59,13 +59,16 @@ every file the page reads. Never write `latest.json`, `reading.json`, `profile.j
 helper refuses it.
 
 - `start` (first reading) or `start --morning`: reads Slack and says when all is in. It
-  takes a minute or two.
+  takes a minute or two. When it says Slack had more than was read, never write that it is
+  everything.
 - `list` shows each place that moved and its last messages. `list c3` shows all of one place.
 - `needs`: messages that may wait for the person (an @mention, a DM they have not answered, a
   question in a group DM, a question in a thread they wrote in, a question that names them),
   one per person and place, oldest first.
 - `asked`: their own questions to someone (a DM, a thread, an @mention) that nobody
-  answered after. Each may get a nudge in `latest.json`.
+  answered after. Each may get a nudge in `latest.json`. Under a channel question it may list
+  what that person wrote there later, outside the thread: if one of those answers it, leave
+  the question out.
 - `mine`: their own messages that sound like a promise ("I'll send it tomorrow").
 - `loud`: the places by how much they moved, and whether any of it was for the person.
 - `people`: the people the page shows, with their names.
@@ -128,7 +131,9 @@ feel known, without asking anything. Push as soon as you can:
    - `promise`: their oldest open promise in `mine`. `{"kind":"promise","messageId":"m4","gist":"Send Noa the launch deck"}`
    - `noise`: a place from `loud` with "nothing for you". `{"kind":"noise","conv":"h3"}`
    - `calm`: `{"kind":"calm"}`.
-   If the helper refuses, read why and give what it asks for. Never skip the gift.
+   When a message in `needs` asks nothing ("Thanks!"), or one in `mine` is no promise, name it
+   in `not` so it does not hold the gift back: `{"kind":"calm","not":["m3","m9"]}`. Only ones
+   you read. If the helper refuses, read why and give what it asks for. Never skip the gift.
 3. Push what you found, one line each, three to five in all, each about *them*:
    "You were @mentioned **{mentions:|time|times}**", "**{waiting:|person|people}** may be
    waiting for your answer", "The busiest place was **#launch**: {in:h3|message|messages}",
@@ -141,7 +146,8 @@ feel known, without asking anything. Push as soon as you can:
 
 ## The morning
 
-`start --morning` (it reads since the last morning), then `needs`, `asked`, `mine`, `loud`,
+`start --morning` (the counts are since the last morning; what still waits goes back seven
+days, so an open ask stays), then `needs`, `asked`, `mine`, `loud`,
 and `list` only when you need the context of a message. Then `latest`, the report, `done`.
 No lines, no gift.
 
