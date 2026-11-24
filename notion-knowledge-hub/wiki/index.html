@@ -137,6 +137,8 @@
     en: {
       title: "Wiki", sub: "Your Notion wiki", example: "Example",
       exampleLine: "A made-up team, shown until the first reading of your Notion.",
+      reading: "Reading your Notion", readingLine: "Cabinet is reading the pages you picked. This takes about a minute.",
+      notRead: "Notion is connected", notReadLine: "Your pages show here after the first update.",
       updated: "Updated {ago}", connect: "Connect Notion", update: "Update now", updating: "Updating",
       eyebrow: "Your Notion wiki this week",
       changed: ["{n} page changed this week", "{n} pages changed this week"], review: ["{n} needs a review", "{n} need a review"],
@@ -154,6 +156,8 @@
     he: {
       title: "ויקי", sub: "הוויקי שלך ב-Notion", example: "דוגמה",
       exampleLine: "צוות לדוגמה, עד הקריאה הראשונה של ה-Notion שלך.",
+      reading: "קוראים את ה-Notion שלך", readingLine: "Cabinet קורא את העמודים שבחרת. זה לוקח בערך דקה.",
+      notRead: "Notion מחובר", notReadLine: "העמודים שלך יופיעו כאן אחרי העדכון הראשון.",
       updated: "עודכן {ago}", connect: "חיבור Notion", update: "עדכון עכשיו", updating: "מתעדכן",
       eyebrow: "הוויקי שלך ב-Notion השבוע",
       changed: ["עמוד אחד השתנה השבוע", "{n} עמודים השתנו השבוע"], review: ["אחד צריך בדיקה", "{n} צריכים בדיקה"],
@@ -220,6 +224,8 @@
 
   // ── Talking to Cabinet ──
   function connected() { return !S.conn || S.conn.state === "connected"; }
+  // Connected but not read yet: the made-up team would pass for real numbers, so it stays hidden.
+  function waiting() { return S.example && !!S.conn && S.conn.state === "connected"; }
   function setJobs(items) {
     var job = list(items).filter(function (j) { return j.id === JOB; })[0];
     var was = S.running;
@@ -262,8 +268,8 @@
     $("sub").textContent = d && !S.example && list(d.folders).length ? d.folders.join(", ") : W.sub;
     var html = "";
     if (S.status && S.status.ok === false) html += '<span class="pill warn" dir="auto">' + esc(S.status.why) + "</span>";
-    else if (S.example) html += '<span class="pill">' + esc(W.example) + "</span>";
-    else if (d) html += '<span class="pill">' + esc(fill(W.updated, { ago: ago(d.generatedAt) })) + "</span>";
+    else if (S.example && !waiting()) html += '<span class="pill">' + esc(W.example) + "</span>";
+    else if (d && !S.example) html += '<span class="pill">' + esc(fill(W.updated, { ago: ago(d.generatedAt) })) + "</span>";
     var editor = V2 && S.role !== "viewer";
     if (editor && !connected() && S.conn.canConnect) html += '<button class="btn dark" data-act="connect">' + icon("i-plug") + esc(W.connect) + "</button>";
     else if (editor) html += '<button class="btn' + (S.running ? " spin" : "") + '" data-act="run"' + (S.running ? " disabled" : "") + ">" +
@@ -274,6 +280,11 @@
   function paint() {
     paintBar();
     var d = S.data;
+    if (waiting()) {
+      $("main").innerHTML = '<section class="sheet"><h2 dir="auto">' + esc(S.running ? W.reading : W.notRead) + "</h2>" +
+        '<p class="line">' + esc(S.running ? W.readingLine : W.notReadLine) + "</p></section>";
+      return;
+    }
     if (!d) { $("main").innerHTML = ""; return; }
     var t = d.totals;
     var parts = [];
