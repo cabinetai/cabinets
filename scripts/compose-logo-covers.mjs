@@ -48,8 +48,6 @@ const LOGOS = {
   'meta-ads-brief': app('logos/facebook.svg'),
   'microsoft-365-brief': app('logos/microsoft-365.svg'),
   'monday-tasks': app('logos/monday.svg'),
-  'notion-library': app('logos/notion.svg'),
-  'notion-project-status': app('logos/notion.svg'),
   'obsidian-kb': icon('siObsidian'),
   'openai-image-studio': file('providers/openai.svg'),
   'safari-site-check': icon('siSafari'),

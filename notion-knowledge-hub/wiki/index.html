@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<!--
+  Knowledge Hub: Wiki. The cabinet opens on this page.
+
+  The team's Notion wiki on one page: how many pages changed this week and how many need a
+  review, the newest edits and who made them, pages nobody edited for 90 days that other pages
+  still link to, the most-linked pages, and who edited the most pages in the last 30 days.
+
+  Where the numbers come from: the morning routine runs wiki/read-notion.mjs over the Notion
+  copy, which writes data/latest.json. Until it exists the page shows data/EXAMPLE-latest.json,
+  a made-up team, marked as an example. A run that could not read Notion writes
+  data/status.json with ok:false and why.
+
+  How it talks to Cabinet: window.cabinet v2 (read files, connection state, connect, run the
+  routine). One file on purpose: a sealed frame cannot load files next to it. Notion's ink
+  #191919 is the one accent; icons are Lucide, inline. English or Hebrew, from Cabinet's locale.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wiki</title>
+<style>
+  :root {
+    --ink: #191919; --ink-2: #37352f; --ink-3: #787774; --line: rgba(55, 53, 47, .09); --line-2: rgba(55, 53, 47, .16);
+    --paper: #f7f6f3; --page: #ffffff; --late: #c4554d;
+    --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji";
+    --serif: "Lyon-Text", Georgia, ui-serif, serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--page); color: var(--ink-2); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; cursor: pointer; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 28px 40px; }
+  .icon { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
+  .brand { min-width: 0; }
+  .word { font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+  .brand h1 { margin: 0; font-size: 20px; font-weight: 700; color: var(--ink); }
+  .brand p { margin: 0; color: var(--ink-3); font-size: 13.5px; }
+  .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--paper); font-size: 13px; color: var(--ink-3); }
+  .pill.warn { color: var(--late); }
+  .btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--page); color: var(--ink); font-weight: 500; font-size: 14px; }
+  .btn:hover { background: var(--paper); }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn[disabled] { opacity: .55; cursor: default; }
+  .spin .icon { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin .icon { animation: none; } }
+
+  .sheet { margin-top: 20px; padding: 28px 32px; border-radius: 20px; color: #f7f6f3;
+    background: radial-gradient(rgba(247, 246, 243, .07) 1px, transparent 1.2px) 0 0 / 18px 18px, linear-gradient(168deg, #191919 0%, #2f2f2f 100%); }
+  .sheet .eyebrow { margin: 0; font-size: 13.5px; color: rgba(247, 246, 243, .7); }
+  .sheet h2 { margin: 10px 0 0; font: 400 clamp(26px, 4vw, 40px)/1.1 var(--serif); text-wrap: balance; }
+  .sheet .line { margin: 10px 0 0; color: rgba(247, 246, 243, .7); }
+  .tag { display: inline-block; margin-inline-start: 8px; padding: 1px 8px; border-radius: 6px; background: rgba(247, 246, 243, .14); font-size: 12px; font-family: var(--font); vertical-align: middle; }
+
+  .tiles { margin-top: 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .tile { padding: 14px 16px; border-radius: 12px; background: var(--paper); }
+  .tile b { display: block; font-size: 28px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+  .tile.warn b { color: var(--late); }
+  .tile span { font-size: 13.5px; color: var(--ink-3); }
+  .note { margin: 8px 0 0; font-size: 13px; color: var(--ink-3); }
+
+  .grid { margin-top: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .box { border: 1px solid var(--line-2); border-radius: 14px; overflow: hidden; }
+  .box header { display: flex; gap: 10px; padding: 14px 18px 10px; color: var(--ink); }
+  .box h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .box header p { margin: 2px 0 0; font-size: 13px; color: var(--ink-3); }
+  .box header .count { margin-inline-start: auto; font-size: 13px; color: var(--ink-3); }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 18px; border-top: 1px solid var(--line); }
+  .row b { font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row small { grid-column: 1 / -1; font-size: 13px; color: var(--ink-3); }
+  .row .aside { font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+  .row .late { color: var(--late); }
+  .row a { color: inherit; text-decoration: none; }
+  .row a:hover { text-decoration: underline; }
+  .pg { display: inline-block; width: 1.4em; margin-inline-end: 4px; text-align: center; }
+  .pg .icon { width: 16px; height: 16px; vertical-align: -3px; color: var(--ink-3); }
+  .meter { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--paper); overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 3px; background: var(--ink); }
+  .meter.warn i { background: var(--late); }
+  .meter.done i { opacity: .35; }
+  .empty { padding: 12px 18px 16px; border-top: 1px solid var(--line); color: var(--ink-3); }
+
+  footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); }
+  footer p { margin: 2px 0; }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 16px 16px 32px; }
+    .sheet { padding: 22px 20px; border-radius: 16px; }
+    .grid { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/><path d="m15 5 3 3"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-page" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="bar">
+    <div class="brand">
+      <h1><span class="word">Notion</span> · <span id="title"></span></h1>
+      <p id="sub" dir="auto"></p>
+    </div>
+    <div class="acts" id="acts"></div>
+  </header>
+  <main id="main"></main>
+  <footer>
+    <p id="foot"></p>
+    <p dir="ltr">Notion is a trademark of Notion Labs, Inc.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cab = window.cabinet;
+  var V2 = !!(cab && cab.connectors && cab.files && cab.jobs);
+  var JOB = "morning-knowledge";
+  var CONNECTOR = "notion";
+  var ROWS = 6;
+  var NOTION_LINK = /^https:\/\/([a-z0-9-]+\.)*notion\.(so|com|site)\//i;
+
+  var WORDS = {
+    en: {
+      title: "Wiki", sub: "Your Notion wiki", example: "Example",
+      exampleLine: "A made-up team, shown until the first reading of your Notion.",
+      reading: "Reading your Notion", readingLine: "Cabinet is reading the pages you picked. This takes about a minute.",
+      notRead: "Notion is connected", notReadLine: "Your pages show here after the first update.",
+      updated: "Updated {ago}", connect: "Connect Notion", update: "Update now", updating: "Updating",
+      eyebrow: "Your Notion wiki this week",
+      changed: ["{n} page changed this week", "{n} pages changed this week"], review: ["{n} needs a review", "{n} need a review"],
+      quiet: "Your wiki is quiet and in good shape.", empty: "No Notion page in the copy yet.",
+      line: ["From the {n} page Cabinet keeps of your Notion.", "From the {n} pages Cabinet keeps of your Notion."],
+      tPages: "In your wiki", tEdited: "Edited this week", tReview: "Need a review",
+      sRecent: "Recently edited", sRecentLine: "The newest edits in Notion, newest first.", sRecentEmpty: "No page has an edit date yet.",
+      sStale: "Needs a review", sStaleLine: "Not edited for 90 days, but other pages still link to them.", sStaleEmpty: "Nothing old is still in use.",
+      sLinked: "Most linked", sLinkedLine: "The pages other pages link to most.", sLinkedEmpty: "No page links to another yet.",
+      sEditors: "Who edits", sEditorsLine: "Who edited the most pages in the last 30 days.", sEditorsEmpty: "Nobody edited a page in the last 30 days.",
+      editedBy: "Edited {ago} by {name}", edited: "Edited {ago}", lastEdited: "Last edited {ago}",
+      links: ["{n} link", "{n} links"], pages: ["{n} page", "{n} pages"],
+      foot: "This page only reads the copy Cabinet keeps of your Notion. Nothing here changes a page in Notion."
+    },
+    he: {
+      title: "ויקי", sub: "הוויקי שלך ב-Notion", example: "דוגמה",
+      exampleLine: "צוות לדוגמה, עד הקריאה הראשונה של ה-Notion שלך.",
+      reading: "קוראים את ה-Notion שלך", readingLine: "Cabinet קורא את העמודים שבחרת. זה לוקח בערך דקה.",
+      notRead: "Notion מחובר", notReadLine: "העמודים שלך יופיעו כאן אחרי העדכון הראשון.",
+      updated: "עודכן {ago}", connect: "חיבור Notion", update: "עדכון עכשיו", updating: "מתעדכן",
+      eyebrow: "הוויקי שלך ב-Notion השבוע",
+      changed: ["עמוד אחד השתנה השבוע", "{n} עמודים השתנו השבוע"], review: ["אחד צריך בדיקה", "{n} צריכים בדיקה"],
+      quiet: "הוויקי שקט ובמצב טוב.", empty: "עדיין אין עמודי Notion בעותק.",
+      line: ["מתוך עמוד אחד ש-Cabinet שומר מה-Notion שלך.", "מתוך {n} העמודים ש-Cabinet שומר מה-Notion שלך."],
+      tPages: "בוויקי שלך", tEdited: "נערכו השבוע", tReview: "צריכים בדיקה",
+      sRecent: "נערכו לאחרונה", sRecentLine: "העריכות האחרונות ב-Notion, מהחדשה לישנה.", sRecentEmpty: "לאף עמוד אין עדיין תאריך עריכה.",
+      sStale: "צריכים בדיקה", sStaleLine: "לא נערכו 90 ימים, אבל עמודים אחרים עדיין מקשרים אליהם.", sStaleEmpty: "אין עמודים ישנים שעדיין בשימוש.",
+      sLinked: "הכי מקושרים", sLinkedLine: "העמודים שעמודים אחרים מקשרים אליהם הכי הרבה.", sLinkedEmpty: "עדיין אין עמוד שמקשר לעמוד אחר.",
+      sEditors: "מי עורך", sEditorsLine: "מי ערך הכי הרבה עמודים ב-30 הימים האחרונים.", sEditorsEmpty: "אף אחד לא ערך עמוד ב-30 הימים האחרונים.",
+      editedBy: "נערך {ago} על ידי {name}", edited: "נערך {ago}", lastEdited: "נערך לאחרונה {ago}",
+      links: ["קישור אחד", "{n} קישורים"], pages: ["עמוד אחד", "{n} עמודים"],
+      foot: "העמוד הזה רק קורא את העותק ש-Cabinet שומר מה-Notion שלך. שום דבר כאן לא משנה עמוד ב-Notion."
+    }
+  };
+
+  var S = { data: null, example: true, status: null, conn: null, running: false, appPath: "wiki", role: "owner", locale: navigator.language || "en" };
+  var W = WORDS.en;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function fill(s, vars) { return s.replace(/\{(\w+)\}/g, function (_, k) { return vars[k]; }); }
+  function plural(pair, n, vars) { return fill(pair[n === 1 ? 0 : 1], Object.assign({ n: n }, vars)); }
+  function icon(id) { return '<svg class="icon" aria-hidden="true"><use href="#' + id + '"/></svg>'; }
+  function list(v) { return Array.isArray(v) ? v : []; }
+
+  function setLocale(locale) {
+    S.locale = locale || S.locale;
+    var he = /^he\b/i.test(S.locale);
+    W = he ? WORDS.he : WORDS.en;
+    document.documentElement.lang = he ? "he" : "en";
+    document.documentElement.dir = he ? "rtl" : "ltr";
+  }
+  function ago(iso) {
+    // The example's times are fixed, so they are told from the day it was written, not today.
+    var now = S.example && S.data ? Date.parse(S.data.generatedAt) : Date.now();
+    var mins = Math.round((Date.parse(iso) - now) / 60000);
+    var f = new Intl.RelativeTimeFormat(S.locale, { numeric: "auto" });
+    if (Math.abs(mins) < 60) return f.format(mins, "minute");
+    if (Math.abs(mins) < 1440) return f.format(Math.round(mins / 60), "hour");
+    if (Math.abs(mins) < 43200) return f.format(Math.round(mins / 1440), "day");
+    return f.format(Math.round(mins / 43200), "month");
+  }
+
+  // ── Reading the files the routine writes ──
+  function read(rel) {
+    if (V2) return cab.files.read(S.appPath + "/" + rel).then(JSON.parse);
+    return fetch(rel, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  function maybe(p) { return p.catch(function () { return null; }); }
+  function usable(d) { return d && d.totals && Array.isArray(d.recent); }
+
+  function load() {
+    return Promise.all([maybe(read("data/latest.json")), maybe(read("data/status.json"))]).then(function (got) {
+      S.status = got[1];
+      if (usable(got[0]) && got[0].example !== true) { S.data = got[0]; S.example = false; return; }
+      return maybe(read("data/EXAMPLE-latest.json")).then(function (ex) { S.data = usable(ex) ? ex : null; S.example = true; });
+    }).then(paint);
+  }
+
+  // ── Talking to Cabinet ──
+  function connected() { return !S.conn || S.conn.state === "connected"; }
+  // Connected but not read yet: the made-up team would pass for real numbers, so it stays hidden.
+  function waiting() { return S.example && !!S.conn && S.conn.state === "connected"; }
+  function setJobs(items) {
+    var job = list(items).filter(function (j) { return j.id === JOB; })[0];
+    var was = S.running;
+    S.running = !!(job && job.running);
+    if (was && !S.running) load(); else paint();
+  }
+  function connect() {
+    cab.connectors.connect(CONNECTOR).then(function (result) {
+      if (result === "connected") runNow();
+    }).catch(function () {});
+  }
+  function runNow() {
+    S.running = true;
+    paint();
+    cab.jobs.run(JOB).catch(function () { S.running = false; paint(); });
+  }
+
+  // ── Drawing ──
+  function box(id, title, line, count, rows, empty) {
+    return '<section class="box"><header>' + icon(id) + "<div><h3>" + esc(title) + "</h3><p>" + esc(line) + "</p></div>" +
+      (count != null ? '<span class="count num">' + count + "</span>" : "") + "</header>" +
+      (rows.length ? rows.join("") : '<p class="empty">' + esc(empty) + "</p>") + "</section>";
+  }
+  function page(p, small, aside) {
+    var name = '<span class="pg">' + (p.icon ? esc(p.icon) : icon("i-page")) + "</span>" + esc(p.title);
+    var title = p.url && NOTION_LINK.test(p.url) ? '<a href="' + esc(p.url) + '" target="_blank" rel="noopener noreferrer">' + name + "</a>" : name;
+    return '<div class="row"><b dir="auto">' + title + "</b>" +
+      (aside ? '<span class="aside num">' + esc(aside) + "</span>" : "") +
+      (small ? '<small dir="auto">' + esc(small) + "</small>" : "") + "</div>";
+  }
+  function meter(title, aside, value, max) {
+    return '<div class="row"><b dir="auto">' + esc(title) + '</b><span class="aside num">' + esc(aside) + "</span>" +
+      '<span class="meter"><i style="width:' + Math.round((value / Math.max(max, 1)) * 100) + '%"></i></span></div>';
+  }
+
+  function paintBar() {
+    $("title").textContent = W.title;
+    $("foot").textContent = W.foot;
+    var d = S.data;
+    $("sub").textContent = d && !S.example && list(d.folders).length ? d.folders.join(", ") : W.sub;
+    var html = "";
+    if (S.status && S.status.ok === false) html += '<span class="pill warn" dir="auto">' + esc(S.status.why) + "</span>";
+    else if (S.example && !waiting()) html += '<span class="pill">' + esc(W.example) + "</span>";
+    else if (d && !S.example) html += '<span class="pill">' + esc(fill(W.updated, { ago: ago(d.generatedAt) })) + "</span>";
+    var editor = V2 && S.role !== "viewer";
+    if (editor && !connected() && S.conn.canConnect) html += '<button class="btn dark" data-act="connect">' + icon("i-plug") + esc(W.connect) + "</button>";
+    else if (editor) html += '<button class="btn' + (S.running ? " spin" : "") + '" data-act="run"' + (S.running ? " disabled" : "") + ">" +
+      icon("i-refresh") + esc(S.running ? W.updating : W.update) + "</button>";
+    $("acts").innerHTML = html;
+  }
+
+  function paint() {
+    paintBar();
+    var d = S.data;
+    if (waiting()) {
+      $("main").innerHTML = '<section class="sheet"><h2 dir="auto">' + esc(S.running ? W.reading : W.notRead) + "</h2>" +
+        '<p class="line">' + esc(S.running ? W.readingLine : W.notReadLine) + "</p></section>";
+      return;
+    }
+    if (!d) { $("main").innerHTML = ""; return; }
+    var t = d.totals;
+    var parts = [];
+    if (t.editedWeek) parts.push(plural(W.changed, t.editedWeek));
+    if (t.stale) parts.push(plural(W.review, t.stale));
+    var headline = !t.pages ? W.empty : parts.length ? parts.join(", ") : W.quiet;
+    var topEditor = Math.max.apply(null, [1].concat(list(d.editors).map(function (e) { return e.pages; })));
+
+    $("main").innerHTML =
+      '<section class="sheet"><p class="eyebrow">' + esc(W.eyebrow) + (S.example ? '<span class="tag">' + esc(W.example) + "</span>" : "") + "</p>" +
+        '<h2 dir="auto">' + esc(headline) + "</h2>" +
+        '<p class="line">' + esc(plural(W.line, t.pages)) + "</p></section>" +
+      '<div class="tiles">' +
+        '<div class="tile"><b class="num">' + t.pages + "</b><span>" + esc(W.tPages) + "</span></div>" +
+        '<div class="tile"><b class="num">' + t.editedWeek + "</b><span>" + esc(W.tEdited) + "</span></div>" +
+        '<div class="tile warn"><b class="num">' + t.stale + "</b><span>" + esc(W.tReview) + "</span></div></div>" +
+      (S.example ? '<p class="note">' + esc(W.exampleLine) + "</p>" : "") +
+      '<div class="grid">' +
+        box("i-pencil", W.sRecent, W.sRecentLine, null, list(d.recent).slice(0, ROWS).map(function (p) {
+          return page(p, p.by ? fill(W.editedBy, { ago: ago(p.edited), name: p.by }) : fill(W.edited, { ago: ago(p.edited) }));
+        }), W.sRecentEmpty) +
+        box("i-history", W.sStale, W.sStaleLine, t.stale, list(d.stale).slice(0, ROWS).map(function (p) {
+          return page(p, [fill(W.lastEdited, { ago: ago(p.edited) }), p.by].filter(Boolean).join(" · "), plural(W.links, p.links));
+        }), W.sStaleEmpty) +
+        box("i-link", W.sLinked, W.sLinkedLine, null, list(d.linked).slice(0, ROWS).map(function (p) {
+          return page(p, null, plural(W.links, p.links));
+        }), W.sLinkedEmpty) +
+        box("i-users", W.sEditors, W.sEditorsLine, null, list(d.editors).slice(0, ROWS).map(function (e) {
+          return meter(e.name, plural(W.pages, e.pages), e.pages, topEditor);
+        }), W.sEditorsEmpty) +
+      "</div>";
+  }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]");
+    if (!b) return;
+    if (b.dataset.act === "connect") connect();
+    if (b.dataset.act === "run") runNow();
+  });
+
+  setLocale();
+  if (V2) {
+    Promise.resolve(cab.here()).then(function (here) {
+      if (here) {
+        if (here.appPath) S.appPath = here.appPath;
+        if (here.role) S.role = here.role;
+        setLocale(here.locale);
+      }
+    }).catch(function () {}).then(function () {
+      load();
+      cab.files.onChange(S.appPath, load);
+    });
+    cab.connectors.list().then(function (items) {
+      S.conn = list(items).filter(function (c) { return c.id === CONNECTOR; })[0] || null;
+      paint();
+    }).catch(function () {});
+    cab.connectors.onChange(function (items) {
+      S.conn = list(items).filter(function (c) { return c.id === CONNECTOR; })[0] || S.conn;
+      paint();
+    });
+    cab.jobs.list().then(setJobs).catch(function () {});
+    cab.jobs.onChange(setJobs);
+  } else {
+    load();
+  }
+})();
+</script>
+</body>
+</html>
