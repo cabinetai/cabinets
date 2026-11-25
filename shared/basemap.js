@@ -99,8 +99,10 @@
 
   // A flat map that pans and zooms but never tilts or turns. `options` adds to or
   // overrides MapLibre's map options (center, zoom, bounds, minZoom). Returns null
-  // when MapLibre did not load or the browser cannot draw it (no WebGL).
-  function create(container, look, options) {
+  // when MapLibre did not load or the browser cannot draw it (no WebGL). When the
+  // first style does not load (no connection to the tiles), the map is removed and
+  // `onFail` runs, so the page can say so.
+  function create(container, look, options, onFail) {
     if (!window.maplibregl) return null;
     loadRtlText();
     var opts = {
@@ -121,6 +123,20 @@
     } catch (e) {
       return null;
     }
+    // Until the first style is in, the only error is that style failing to load.
+    var styled = false;
+    map.once("style.load", function () {
+      styled = true;
+    });
+    map.on("error", function () {
+      if (styled) return;
+      styled = true;
+      onFail();
+      // MapLibre is still inside its own error event here.
+      setTimeout(function () {
+        map.remove();
+      }, 0);
+    });
     setLook(map, look);
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
