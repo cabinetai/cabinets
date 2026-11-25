@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<!--
+  Real Estate Map: every property you own, as a pin on a map. The cabinet opens here.
+
+  Hover a pin to read everything known about the property. Press it to open the property:
+  its state, its numbers, its dates, a to-do list, notes, and any field the person adds.
+  Beside the map is a board of boxes each person arranges for themselves (Edit layout),
+  and an Ideas panel of one-press asks for the assistants.
+
+  Where a property comes from:
+    1. A file in properties/ (one .md per property, frontmatter on top). The assistants
+       write these, and the examples ship this way.
+    2. The app's own store (window.cabinet.store, kept by Cabinet in map/.data/shared.json).
+       Everything added or edited on this page lands there, under the key "a:<id>".
+  For one property the newer of the two wins, so an edit here shows at once and a later
+  edit by an assistant shows too. playbooks/how-the-map-works.md is the same rule in words.
+
+  The map is MapLibre (loaded from a CDN) drawing OpenFreeMap (free, no key). MapLibre does
+  the panning and zooming; the pins are this page's own buttons, placed as MapLibre markers.
+  If MapLibre cannot start, the map says so and the board works alone. Address search asks OpenStreetMap's
+  Nominatim, only on a press. Those, and Google Fonts, are the only requests that leave
+  Cabinet. One file on purpose: a sealed frame cannot load files next to it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Real Estate Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #F7F6F3; --surface: #FFFFFF; --surface-muted: #F6F5F2; --surface-press: #ECEAE5;
+    
+    --ink: #1C1F24; --ink-2: #40454D; --ink-muted: #6F747C;
+    --wood: #1F3A5C; --wood-deep: #142842; --on-wood: #FFFFFF;
+    --border: #E2E0DA; --border-soft: rgba(226,224,218,.7);
+    --danger: #C4321F; --danger-tint: #FCEBE7;
+    --warn: #A86A12; --warn-tint: #FBF1DD;
+    --ok: #14823E; --ok-tint: #E6F4EB;
+    --st-rented: #2E7D5B; --st-vacant: #B5473A; --st-own: #6B7280;
+    --st-reno: #B07D2B; --st-sale: #3A64A8; --st-sold: #9CA3AF;
+    --on-st: #FFFFFF;
+    color-scheme: light;
+    --radius: 18px;
+    --shadow-1: 0 1px 2px rgba(59,47,47,.06), 0 6px 18px -10px rgba(59,47,47,.18);
+    --shadow-2: 0 2px 4px rgba(59,47,47,.08), 0 18px 40px -16px rgba(59,47,47,.32);
+    --font: Geist, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --serif: Fraunces, Georgia, "Times New Roman", serif;
+    --ring: 0 0 0 3px rgba(31,58,92,.25);
+    --ease: cubic-bezier(.23, 1, .32, 1);
+    --map-bg: #EDE6DA;
+    --gl-filter: sepia(.14) saturate(.9);
+  }
+  :root[data-theme="dark"] {
+    --bg: #131518; --surface: #1C1F23; --surface-muted: #23262B; --surface-press: #2D3036;
+    
+    --ink: #ECEDEF; --ink-2: #C9CCD1; --ink-muted: #969BA3;
+    --wood: #9DBCE3; --wood-deep: #BCD2EE; --on-wood: #0F1B2B;
+    --border: #33363C; --border-soft: rgba(70,74,82,.6);
+    --danger: #FF8A7A; --danger-tint: #3A1B18;
+    --warn: #E5B866; --warn-tint: #33290F;
+    --ok: #5CC98A; --ok-tint: #173022;
+    --st-rented: #5FB28C; --st-vacant: #E07B6E; --st-own: #A3A9B3;
+    --st-reno: #D7A85A; --st-sale: #7EA3DD; --st-sold: #7C828C;
+    --on-st: #14171B;
+    color-scheme: dark;
+    --shadow-1: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px -10px rgba(0,0,0,.6);
+    --shadow-2: 0 2px 4px rgba(0,0,0,.35), 0 18px 40px -16px rgba(0,0,0,.8);
+    --ring: 0 0 0 3px rgba(157,188,227,.35);
+    --map-bg: #1d1a18;
+  }
+  :root[data-map="classic"] { --gl-filter: none; }
+  :root[data-map="night"] { --map-bg: #1d1a18; --gl-filter: none; }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; cursor: pointer; }
+  [hidden] { display: none !important; }
+  svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  :focus-visible { outline: none; box-shadow: var(--ring); }
+  html[data-read] [data-write] { display: none !important; }
+
+  /* ── Frame ─────────────────────────────────────────────────────────────── */
+  #app { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  .top { display: flex; align-items: center; gap: 12px; padding: 14px 16px 12px; flex-wrap: wrap; }
+  .brand { min-width: 0; margin-right: auto; }
+  .brand h1 { margin: 0; font: 600 22px/1.15 var(--serif); letter-spacing: -.02em; display: flex; align-items: center; gap: 9px; }
+  .brand h1 .mark { width: 34px; height: 34px; border-radius: 11px; background: var(--wood); color: var(--on-wood); display: grid; place-items: center; flex: none; }
+  .brand h1 .mark svg { width: 19px; height: 19px; }
+  .brand p .part-x { position: static; display: inline-grid; vertical-align: middle; margin-left: 8px; border-width: 0; }
+  .brand p { margin: 3px 0 0 43px; color: var(--ink-muted); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand p b { color: var(--ink-2); font-weight: 600; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 7px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); font-weight: 600; font-size: 14px; white-space: nowrap; transition: transform .16s var(--ease), background .16s, border-color .16s, box-shadow .16s; }
+  .btn:hover { background: var(--surface-muted); border-color: color-mix(in srgb, var(--wood) 35%, var(--border)); }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--wood); border-color: var(--wood); color: var(--on-wood); box-shadow: var(--shadow-1); }
+    .host { position: relative; display: inline-flex; }
+  .part-x { position: absolute; top: -9px; right: -9px; z-index: 7; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--bg); background: var(--ink); color: var(--bg); display: grid; place-items: center; padding: 0; box-shadow: var(--shadow-1); transition: transform .16s var(--ease), background .16s; }
+  .part-x svg { width: 12px; height: 12px; stroke-width: 2.6; }
+  .part-x:hover { background: var(--danger); }
+  .part-x:active { transform: scale(.92); }
+  .part-x.wide { position: static; width: auto; height: 34px; border-radius: 999px; padding: 0 13px 0 10px; display: inline-flex; gap: 6px; font-weight: 600; font-size: 13.5px; border-width: 0; }
+  .btn.primary:hover { background: var(--wood-deep); border-color: var(--wood-deep); }
+  .btn.ghost { border-color: transparent; background: none; }
+  .btn.ghost:hover { background: var(--surface-press); }
+  .btn.small { min-height: 32px; padding: 4px 10px; font-size: 13.5px; border-radius: 9px; }
+  .btn.danger { color: var(--danger); }
+  .btn.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .icon-btn { width: 38px; padding: 0; }
+
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 42%, 404px); min-height: 0; }
+  .mapwrap { position: relative; min-height: 0; margin: 0 0 14px 14px; border-radius: 22px; overflow: hidden; background: var(--map-bg); box-shadow: var(--shadow-2); border: 1px solid var(--border-soft); isolation: isolate; }
+  .main.nomap, .main.norail { grid-template-columns: minmax(0, 1fr); }
+  .main.nomap .mapwrap, .main.norail .rail { display: none; }
+  .main.norail .mapwrap { margin-right: 14px; }
+  .main.nomap .rail { padding-left: 14px; }
+  .main.nomap .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
+  .main.nomap .detail { max-width: 560px; margin: 0 auto; }
+  .map-off { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 7; }
+  .rail { min-height: 0; overflow-y: auto; padding: 0 14px 28px; scrollbar-width: thin; }
+
+  /* ── The map ───────────────────────────────────────────────────────────── */
+  #map { position: absolute; inset: 0; user-select: none; -webkit-user-select: none; }
+  #map canvas { outline: none; filter: var(--gl-filter, none); }
+  #map.placing .maplibregl-canvas-container, #map.placing .pin { cursor: crosshair; }
+  /* MapLibre moves each marker by its transform; the look of a pin is on .pin-in inside. */
+  .pin, .cluster, .spot { border: 0; background: none; padding: 0; }
+  .pin-in { position: relative; display: flex; align-items: center; gap: 6px; transform: translate(-50%, calc(-100% - 9px)); transform-origin: 50% calc(100% + 9px); padding: 5px 10px 5px 6px; border-radius: 999px; background: var(--surface); color: var(--ink); font-weight: 700; font-size: 13px; white-space: nowrap; max-width: 190px; box-shadow: 0 1px 2px rgba(34,23,22,.25), 0 8px 18px -8px rgba(34,23,22,.5); border: 1.5px solid var(--c); transition: transform .22s var(--ease), box-shadow .22s, background .2s, color .2s; animation: drop .5s var(--ease) both; animation-delay: var(--d, 0ms); }
+  .pin-in::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 11px; height: 11px; background: inherit; border: inherit; border-top: 0; border-left: 0; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 3px 0; }
+  .pin-in::before { content: ""; position: absolute; left: 50%; bottom: -13px; width: 8px; height: 4px; border-radius: 50%; background: rgba(34,23,22,.28); transform: translateX(-50%); filter: blur(1px); }
+  .pin-ic { width: 24px; height: 24px; border-radius: 50%; background: var(--c); color: var(--on-st); display: grid; place-items: center; flex: none; }
+  .pin-ic svg { width: 14px; height: 14px; stroke-width: 2.2; }
+  .pin-t { overflow: hidden; text-overflow: ellipsis; }
+  .pin.bare .pin-in { padding: 4px; }
+  .pin:hover, .pin.hot, .pin.sel { z-index: 5; }
+  .pin:hover .pin-in, .pin.hot .pin-in { transform: translate(-50%, calc(-100% - 9px)) scale(1.12); box-shadow: 0 2px 4px rgba(34,23,22,.3), 0 16px 28px -10px rgba(34,23,22,.6); }
+  .pin.sel .pin-in { background: var(--c); color: var(--on-st); transform: translate(-50%, calc(-100% - 9px)) scale(1.14); }
+  .pin.sel .pin-ic { background: rgba(255,255,255,.22); }
+  .pin.sel::after { content: ""; position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--c); animation: ring 1.8s ease-out infinite; pointer-events: none; }
+  .pin.example .pin-in { border-style: dashed; }
+  @keyframes drop { from { opacity: 0; transform: translate(-50%, calc(-100% - 40px)) scale(.7); } }
+  @keyframes ring { from { transform: scale(.6); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+  .cluster-in { transform: translate(-50%, -50%); width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--wood); color: var(--on-wood); font-weight: 700; font-size: 15px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--wood) 26%, transparent), 0 10px 20px -8px rgba(34,23,22,.6); transition: transform .2s var(--ease); }
+  .cluster:hover .cluster-in { transform: translate(-50%, -50%) scale(1.1); }
+  .spot-in { transform: translate(-50%, calc(-100% - 10px)); background: var(--ink); color: var(--bg); border-radius: 12px; padding: 8px 8px 8px 12px; display: flex; gap: 10px; align-items: center; font-size: 13.5px; font-weight: 600; box-shadow: var(--shadow-2); white-space: nowrap; }
+  .spot-in::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; background: inherit; transform: translateX(-50%) rotate(45deg); }
+  .spot::after { content: ""; position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: 2px solid var(--bg); }
+
+  .map-ui { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+  .map-ui > * { pointer-events: auto; }
+  .chips { position: absolute; left: 12px; top: 12px; right: 64px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; align-items: center; }
+  .chips .part-x { position: static; pointer-events: auto; }
+  .chip { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 9px; border-radius: 999px; border: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(8px); font-size: 13px; font-weight: 600; box-shadow: var(--shadow-1); transition: transform .16s var(--ease), opacity .2s; }
+  .chip:active { transform: scale(.95); }
+  .chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+  .chip.off { opacity: .55; text-decoration: line-through; }
+  .chip.off i { background: var(--ink-muted); }
+  .chip span { color: var(--ink-muted); font-weight: 500; }
+  .ctrl { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .ctrl .stack { display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-1); border: 1px solid var(--border); background: var(--surface); }
+  .ctrl button { width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: var(--surface); transition: background .15s; }
+  .ctrl button + button { border-top: 1px solid var(--border); }
+  .ctrl button:hover { background: var(--surface-press); }
+  .menu { position: absolute; right: 60px; top: 12px; width: 220px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-2); padding: 10px; animation: pop .18s var(--ease); transform-origin: top right; }
+  .menu h4 { margin: 4px 6px 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
+  .menu .opt { display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 8px; border: 0; background: none; border-radius: 8px; text-align: left; font-size: 14px; }
+  .menu .opt:hover { background: var(--surface-muted); }
+  .menu .opt.on { font-weight: 700; color: var(--wood); }
+  .menu .opt.on::after { content: "✓"; margin-left: auto; }
+  @keyframes pop { from { opacity: 0; transform: scale(.94); } }
+  .attr { position: absolute; right: 8px; bottom: 6px; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 80%, transparent); color: var(--ink-muted); }
+  .attr a { color: inherit; }
+  .banner { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 16px; border-radius: 14px; background: var(--ink); color: var(--bg); box-shadow: var(--shadow-2); font-weight: 600; font-size: 14px; max-width: calc(100% - 24px); animation: rise .3s var(--ease); }
+  .banner .btn { background: rgba(255,255,255,.14); border-color: transparent; color: inherit; }
+  @keyframes rise { from { opacity: 0; transform: translate(-50%, 14px); } }
+  .empty-map { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; background: var(--surface); padding: 22px 26px; border-radius: 18px; box-shadow: var(--shadow-2); max-width: 340px; }
+  .empty-map h2 { margin: 0 0 6px; font: 600 20px var(--serif); }
+  .empty-map p { margin: 0 0 14px; color: var(--ink-muted); }
+
+  /* The hover card: everything known about the property, without a press. */
+  .hover { position: absolute; left: 0; top: 0; width: 300px; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-2); border: 1px solid var(--border); pointer-events: none !important; overflow: hidden; opacity: 0; transition: opacity .16s; z-index: 6; }
+  .hover.show { opacity: 1; }
+  .hover.wide { width: 400px; }
+  .hover.wide dl { grid-template-columns: 1fr 1fr 1fr; }
+  .hover .h-top { padding: 12px 14px 10px; border-top: 4px solid var(--c); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 9%, var(--surface)), var(--surface)); }
+  .hover .h-photo { height: 110px; background-size: cover; background-position: center; }
+  .hover h3 { margin: 0; font: 600 17px/1.2 var(--serif); letter-spacing: -.01em; }
+  .hover .h-addr { color: var(--ink-muted); font-size: 13px; margin-top: 2px; }
+  .hover .h-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: color-mix(in srgb, var(--c) 14%, var(--surface)); color: var(--c); }
+  .tag.plain { background: var(--surface-press); color: var(--ink-2); }
+  .tag svg { width: 13px; height: 13px; }
+  .hover dl { margin: 0; padding: 4px 14px 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .hover dl div { padding: 6px 0; border-top: 1px solid var(--border-soft); min-width: 0; }
+  .hover dt { font-size: 11.5px; color: var(--ink-muted); }
+  .hover dd { margin: 0; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hover .h-flag { margin: 0 14px 8px; padding: 6px 10px; border-radius: 9px; font-size: 13px; font-weight: 600; }
+  .hover .h-note { padding: 0 14px 8px; font-size: 13px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .hover .h-foot { padding: 7px 14px; background: var(--surface-muted); color: var(--ink-muted); font-size: 12px; display: flex; justify-content: space-between; }
+  .flag-bad { background: var(--danger-tint); color: var(--danger); }
+  .flag-warn { background: var(--warn-tint); color: var(--warn); }
+  .flag-info { background: var(--surface-press); color: var(--ink-2); }
+  .flag-ok { background: var(--ok-tint); color: var(--ok); }
+
+  /* Search */
+  .search { position: relative; flex: 1 1 220px; max-width: 340px; }
+  .search input { width: 100%; height: 38px; border-radius: 11px; border: 1px solid var(--border); background: var(--surface); padding: 0 12px 0 36px; outline: none; transition: border-color .15s, box-shadow .15s; }
+  .search input:focus { border-color: var(--wood); box-shadow: var(--ring); }
+  .search > svg { position: absolute; left: 11px; top: 10px; color: var(--ink-muted); }
+  .results { position: absolute; left: 0; right: 0; top: 44px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-2); padding: 6px; z-index: 30; max-height: 60vh; overflow: auto; animation: pop .16s var(--ease); transform-origin: top; }
+  .results button { display: flex; width: 100%; gap: 9px; align-items: center; text-align: left; border: 0; background: none; padding: 8px 9px; border-radius: 9px; font-size: 14px; }
+  .results button:hover, .results button:focus-visible { background: var(--surface-muted); }
+  .results small { display: block; color: var(--ink-muted); font-size: 12.5px; }
+  .results .sep { margin: 6px 9px 2px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+
+  /* ── The board of boxes ────────────────────────────────────────────────── */
+  .board { display: flex; flex-direction: column; gap: 12px; }
+  .box { position: relative; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border-soft); box-shadow: var(--shadow-1); animation: boxin .4s var(--ease) both; }
+  @keyframes boxin { from { opacity: 0; transform: translateY(8px); } }
+  .box > header { display: flex; align-items: center; gap: 8px; padding: 14px 16px 0; }
+  .box > header h3 { margin: 0; font-size: 15.5px; letter-spacing: -.005em; color: var(--ink); font-weight: 650; display: flex; gap: 9px; align-items: center; }
+  .bi { display: grid; place-items: center; flex: none; color: var(--ink-muted); }
+  .bi svg { width: 16px; height: 16px; }
+    .addtile { width: 100%; min-height: 64px; border-radius: var(--radius); border: 1.5px dashed color-mix(in srgb, var(--wood) 45%, var(--border)); background: color-mix(in srgb, var(--wood) 5%, transparent); color: var(--wood); font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .16s var(--ease), background .16s; }
+  .addtile:hover { background: color-mix(in srgb, var(--wood) 10%, transparent); }
+  .addtile:active { transform: scale(.98); }
+  .box > header .n { margin-left: auto; color: var(--ink-muted); font-size: 13px; }
+  .box .body { padding: 12px 16px 16px; }
+  .box .none { color: var(--ink-muted); font-size: 14px; margin: 0; }
+  .editing .box { cursor: default; }
+  .editing .box .body { opacity: .55; pointer-events: none; }
+  .box .tools { display: none; margin-left: auto; gap: 2px; }
+  .editing .box .tools { display: flex; }
+  .editing .box > header .n { display: none; }
+  .tools button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; background: none; border-radius: 8px; color: var(--ink-muted); }
+  .tools button:hover { background: var(--surface-press); color: var(--ink); }
+  .tools .grip { cursor: grab; touch-action: none; }
+  .box.lift { z-index: 4; box-shadow: var(--shadow-2); transition: none; }
+  .editbar { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; align-items: center; padding: 10px 12px; margin-bottom: 12px; background: var(--ink); color: var(--bg); border-radius: 14px; font-weight: 600; font-size: 14px; box-shadow: var(--shadow-2); }
+  .editbar span { margin-right: auto; }
+  .editbar .btn { background: rgba(255,255,255,.14); border-color: transparent; color: inherit; }
+  .editbar .btn.primary { background: var(--bg); color: var(--ink); }
+
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi { background: var(--surface-muted); border-radius: 12px; padding: 11px 13px; min-width: 0; }
+  .kpi small { display: block; color: var(--ink-muted); font-size: 12.5px; }
+  .kpi b { display: block; font: 600 21px/1.2 var(--serif); letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi em { font-style: normal; font-size: 12.5px; color: var(--ink-muted); }
+  .kpi.wide { grid-column: 1 / -1; }
+  .meter { height: 6px; border-radius: 99px; background: var(--surface-press); overflow: hidden; margin-top: 7px; }
+  .meter i { display: block; height: 100%; border-radius: 99px; background: var(--wood); transition: width .8s var(--ease); }
+
+  .rows { list-style: none; margin: 0; padding: 0; }
+  .rows li + li { border-top: 1px solid var(--border-soft); }
+  .row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; border: 0; background: none; text-align: left; padding: 9px 6px; margin: 0 -6px; width: calc(100% + 12px); border-radius: 9px; transition: background .14s; }
+  .row:hover { background: var(--surface-muted); }
+  .row .dot { width: 8px; height: 8px; align-self: start; margin-top: 8px; }
+  .row b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row small { display: block; color: var(--ink-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .r { text-align: right; font-weight: 600; font-size: 14px; white-space: nowrap; }
+  .row .r small { font-weight: 400; }
+  .when { font-size: 12.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .seg { display: inline-flex; background: var(--surface-press); border-radius: 9px; padding: 2px; margin-left: auto; }
+  .seg button { border: 0; background: none; padding: 3px 9px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink-muted); }
+  .seg button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
+  .bar { display: flex; height: 12px; border-radius: 99px; overflow: hidden; background: var(--surface-press); margin-bottom: 10px; }
+  .bar i { display: block; height: 100%; background: var(--c); transition: width .8s var(--ease); }
+  .bar i + i { box-shadow: -2px 0 0 var(--surface); }
+  .legend { display: grid; grid-template-columns: auto 1fr auto; gap: 5px 9px; align-items: center; font-size: 14px; }
+  .legend span:last-child { font-weight: 600; }
+
+  .askbox { display: flex; gap: 8px; }
+  .askbox input { flex: 1; min-width: 0; height: 40px; border-radius: 11px; border: 1px solid var(--border); background: var(--surface-muted); padding: 0 12px; outline: none; }
+  .askbox input:focus { border-color: var(--wood); box-shadow: var(--ring); background: var(--surface); }
+  .idea { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 11px; padding: 11px 0; }
+  .idea + .idea { border-top: 1px solid var(--border-soft); }
+  .idea > svg { color: var(--ink-muted); margin-top: 2px; }
+  .idea b { font-weight: 600; }
+  .idea p { margin: 0; color: var(--ink-muted); font-size: 13.5px; grid-column: 2; }
+  .idea .go { grid-column: 2; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+  .idea.off { opacity: .55; }
+  .ex { position: relative; display: flex; gap: 10px; align-items: center; padding: 10px 12px 10px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border-soft); color: var(--ink-2); font-weight: 500; font-size: 13.5px; font-weight: 600; }
+  .ex span { flex: 1; }
+  .rail > .ex { margin-bottom: 12px; }
+  textarea.free { width: 100%; min-height: 90px; resize: vertical; border: 1px solid var(--border); border-radius: 11px; padding: 10px 12px; background: var(--surface-muted); outline: none; line-height: 1.5; }
+  textarea.free:focus { border-color: var(--wood); box-shadow: var(--ring); background: var(--surface); }
+
+  /* ── One property, opened ──────────────────────────────────────────────── */
+  .detail { background: var(--surface); border-radius: 18px; border: 1px solid var(--border-soft); box-shadow: var(--shadow-1); overflow: hidden; animation: slide .36s var(--ease); }
+  @keyframes slide { from { opacity: 0; transform: translateX(22px); } }
+  .d-head { position: relative; height: 132px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 82%, #000), var(--c) 55%, color-mix(in srgb, var(--c) 60%, #fff)); color: #fff; background-size: cover; background-position: center; }
+  .d-head .art { position: absolute; right: 14px; bottom: -14px; opacity: .22; }
+  .d-head .art svg { width: 130px; height: 130px; stroke-width: 1.1; }
+  .d-head.photo::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.35), transparent 50%); }
+  .d-head .bar-top { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; gap: 6px; }
+  .d-head .bar-top button { height: 34px; padding: 0 11px 0 7px; display: inline-flex; gap: 4px; align-items: center; border: 0; border-radius: 10px; background: rgba(255,255,255,.2); backdrop-filter: blur(6px); color: #fff; font-weight: 600; font-size: 13.5px; }
+  .d-head .bar-top button:hover { background: rgba(255,255,255,.32); }
+  :root[data-theme="dark"] .d-head:not(.photo), :root[data-theme="dark"] .d-head:not(.photo) .bar-top button { color: var(--on-st); }
+  :root[data-theme="dark"] .d-head:not(.photo) .bar-top button { background: rgba(0,0,0,.12); }
+  .d-head .bar-top .sp { margin-left: auto; padding: 0 9px; }
+  .d-main { padding: 14px 18px 20px; }
+  .d-title { width: 100%; border: 0; background: none; font: 600 23px/1.2 var(--serif); letter-spacing: -.02em; padding: 3px 6px; margin: 0 -6px; border-radius: 8px; outline: none; }
+  .d-addr { width: 100%; border: 0; background: none; color: var(--ink-muted); padding: 2px 6px; margin: 0 -6px; border-radius: 8px; outline: none; font-size: 14px; }
+  .d-title:hover, .d-addr:hover, .f input:hover, .f select:hover { background: var(--surface-muted); }
+  .d-title:focus, .d-addr:focus, .f input:focus, .f select:focus { background: var(--surface-muted); box-shadow: var(--ring); }
+  .states { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+  .state { border: 1.5px solid var(--border); background: none; padding: 4px 11px; border-radius: 999px; font-size: 13px; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; transition: transform .16s var(--ease), background .16s, border-color .16s, color .16s; }
+  .state i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .state:active { transform: scale(.95); }
+  .state.on { background: var(--c); border-color: var(--c); color: var(--on-st); }
+  .state.on i { background: var(--on-st); }
+  html[data-read] .state:not(.on) { display: none; }
+  .d-sec { margin-top: 18px; }
+  .d-sec > h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-muted); display: flex; align-items: center; gap: 8px; }
+  .d-sec > h4 .btn { margin-left: auto; text-transform: none; letter-spacing: 0; }
+  .flags { display: flex; flex-direction: column; gap: 6px; }
+  .flags div { padding: 7px 11px; border-radius: 10px; font-size: 14px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .f { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 1fr) 26px; align-items: center; gap: 4px; border-top: 1px solid var(--border-soft); min-height: 38px; }
+  .f:first-of-type { border-top: 0; }
+  .f label { color: var(--ink-muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .f input, .f select { width: 100%; border: 0; background: none; padding: 5px 7px; border-radius: 8px; font-weight: 600; outline: none; min-width: 0; text-align: right; }
+  .f input::placeholder { font-weight: 400; color: color-mix(in srgb, var(--ink-muted) 70%, transparent); }
+  .f .rm { width: 26px; height: 26px; border: 0; background: none; border-radius: 7px; color: var(--ink-muted); opacity: 0; display: grid; place-items: center; }
+  .f:hover .rm, .f .rm:focus-visible { opacity: 1; }
+  @media (hover: none) { .f .rm { opacity: 1; } }
+  .f .rm:hover { background: var(--danger-tint); color: var(--danger); }
+  .f .rm svg, .todo .rm svg { width: 14px; height: 14px; }
+  .f a.open { font-weight: 600; color: var(--wood); text-align: right; padding: 5px 7px; }
+  .derived { font-size: 12.5px; color: var(--ink-muted); text-align: right; padding: 0 33px 6px 0; }
+  .todo { display: grid; grid-template-columns: auto minmax(0, 1fr) 26px; gap: 9px; align-items: center; padding: 6px 0; }
+  .todo input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--wood); }
+  .todo.done span { text-decoration: line-through; color: var(--ink-muted); }
+  .todo .rm { width: 26px; height: 26px; border: 0; background: none; border-radius: 7px; color: var(--ink-muted); display: grid; place-items: center; }
+  .add-line { width: 100%; height: 38px; border-radius: 10px; border: 1px dashed var(--border); background: none; padding: 0 12px; outline: none; margin-top: 4px; }
+  .add-line:focus { border-style: solid; border-color: var(--wood); box-shadow: var(--ring); }
+  .asks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .d-foot { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border-soft); display: flex; align-items: center; gap: 8px; color: var(--ink-muted); font-size: 12.5px; }
+  .d-foot span { flex: 1; min-width: 0; }
+
+  /* ── Drawer: ideas, the box gallery, the field picker ──────────────────── */
+  .scrim { position: fixed; inset: 0; background: rgba(34,23,22,.36); z-index: 40; animation: fade .2s; }
+  @keyframes fade { from { opacity: 0; } }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100%); background: var(--bg); z-index: 41; box-shadow: var(--shadow-2); display: flex; flex-direction: column; animation: drawer .32s var(--ease); }
+  @keyframes drawer { from { transform: translateX(100%); } }
+  .drawer > header { display: flex; align-items: center; gap: 10px; padding: 16px 18px 10px; }
+  .drawer > header h2 { margin: 0; font: 600 21px var(--serif); margin-right: auto; }
+  .drawer > .sub { padding: 0 18px 10px; color: var(--ink-muted); font-size: 14px; }
+  .drawer .scroll { overflow-y: auto; padding: 0 18px 24px; flex: 1; }
+  .drawer .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border-soft); padding: 4px 14px; margin-bottom: 12px; }
+  .drawer h5 { margin: 14px 2px 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--wood); }
+  .picks { display: flex; flex-wrap: wrap; gap: 7px; }
+  .pick { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 500; display: inline-flex; gap: 6px; align-items: center; transition: transform .16s var(--ease), border-color .16s, background .16s; }
+  .pick:hover { border-color: var(--wood); background: var(--surface-muted); }
+  .pick:active { transform: scale(.95); }
+  .pick svg { width: 14px; height: 14px; color: var(--wood); }
+  .own { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+  .own input, .own select, .set select, .set input { height: 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); padding: 0 10px; outline: none; min-width: 0; }
+  .set { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 9px 0; }
+  .set + .set { border-top: 1px solid var(--border-soft); }
+  .gal { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 11px; align-items: center; padding: 11px 0; }
+  .gal + .gal { border-top: 1px solid var(--border-soft); }
+  .gal .bi { width: 22px; }
+  .gal small { display: block; color: var(--ink-muted); font-size: 13.5px; }
+
+  #toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .3s var(--ease); z-index: 60; max-width: calc(100% - 32px); }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ── Narrow: the map on top, the board under it ────────────────────────── */
+  @media (max-width: 639px) {
+    body { overflow: auto; }
+    #app { height: auto; display: block; }
+    .main { display: block; }
+    .mapwrap { height: 45dvh; min-height: 300px; margin: 0 12px 14px; }
+    .rail { overflow: visible; padding: 0 12px 40px; }
+    .top { padding: 12px; }
+    .search { max-width: none; order: 3; flex-basis: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
+  <script data-shared="basemap.js">
+/*
+ * The base map every template map page uses: OpenFreeMap tiles drawn by MapLibre.
+ *
+ * One source: shared/basemap.js at the root of the cabinets registry. A template
+ * installs on its own, and a sealed app frame cannot load a file next to its page,
+ * so `node .github/scripts/sync-shared.mjs` pastes this file into each page that
+ * marks a place for it, and a test fails when a page holds an older copy.
+ * Change this file, never a page's copy.
+ *
+ * A page loads MapLibre 4.7.1 from unpkg first, then marks the place with an empty
+ * script element that has the attribute data-shared="basemap.js". The sync fills it.
+ */
+(function () {
+  "use strict";
+
+  var STYLE_URL = "https://tiles.openfreemap.org/styles/";
+  // Hebrew and Arabic place names come out backwards without this plugin. It loads
+  // only when a label on screen needs it.
+  var RTL_TEXT = "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js";
+  var LOOKS = { paper: "positron", classic: "liberty", night: "dark" };
+  var ATTRIBUTION =
+    '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> ' +
+    '<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> ' +
+    'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
+  // Place names in Hebrew where the map data has one, and in Latin letters
+  // otherwise. Arabic shows only for a name that has no Hebrew or Latin form.
+  var NAME = ["coalesce", ["get", "name:he"], ["get", "name:latin"], ["get", "name"]];
+  // The map data names one area "Palestinian Territories" (country code PS). That
+  // label is hidden, and Judea and Samaria is named at the middle of the area.
+  var HIDDEN_COUNTRY = "PS";
+  var REGIONS = [{ name: "יהודה ושומרון", at: [35.25, 32.0] }];
+
+  function styleUrl(look) {
+    return STYLE_URL + (LOOKS[look] || LOOKS.classic);
+  }
+
+  function loadRtlText() {
+    try {
+      if (window.maplibregl.getRTLTextPluginStatus() !== "unavailable") return;
+      var loading = window.maplibregl.setRTLTextPlugin(RTL_TEXT, true);
+      if (loading && loading.catch) loading.catch(function () {});
+    } catch (e) {
+      /* the names stay as they are */
+    }
+  }
+
+  function isStateLabel(layer) {
+    return layer["source-layer"] === "place" && JSON.stringify(layer.filter || "").indexOf('"state"') !== -1;
+  }
+
+  // The style with the names and the label above, as a new object. MapLibre calls it
+  // with each style it downloads, before it draws anything.
+  function localizeStyle(style) {
+    var stateLabel = null;
+    var layers = style.layers.map(function (layer) {
+      if (layer.type !== "symbol") return layer;
+      var out = Object.assign({}, layer);
+      var field = layer.layout && layer.layout["text-field"];
+      if (field && JSON.stringify(field).indexOf('"name') !== -1) out.layout = Object.assign({}, layer.layout, { "text-field": NAME });
+      if (layer["source-layer"] === "place") {
+        var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
+        out.filter = layer.filter ? ["all", layer.filter, keep] : keep;
+        if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+      }
+      return out;
+    });
+    var sources = Object.assign({}, style.sources);
+    if (stateLabel) {
+      sources["cabinet-regions"] = {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: REGIONS.map(function (r) {
+            return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
+          }),
+        },
+      };
+      layers.push({
+        id: "cabinet-regions",
+        type: "symbol",
+        source: "cabinet-regions",
+        minzoom: 6,
+        maxzoom: 10,
+        layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
+        paint: stateLabel.paint || {},
+      });
+    }
+    return Object.assign({}, style, { sources: sources, layers: layers });
+  }
+
+  function setLook(map, look) {
+    map.setStyle(styleUrl(look), {
+      transformStyle: function (previous, next) {
+        return localizeStyle(next);
+      },
+    });
+  }
+
+  // A flat map that pans and zooms but never tilts or turns. `options` adds to or
+  // overrides MapLibre's map options (center, zoom, bounds, minZoom). Returns null
+  // when MapLibre did not load or the browser cannot draw it (no WebGL). When the
+  // first style does not load (no connection to the tiles), the map is removed and
+  // `onFail` runs, so the page can say so.
+  function create(container, look, options, onFail) {
+    if (!window.maplibregl) return null;
+    loadRtlText();
+    var opts = {
+      container: container,
+      maxZoom: 18,
+      maxPitch: 0,
+      dragRotate: false,
+      pitchWithRotate: false,
+      attributionControl: false,
+      fadeDuration: 120,
+    };
+    Object.keys(options || {}).forEach(function (key) {
+      opts[key] = options[key];
+    });
+    var map;
+    try {
+      map = new window.maplibregl.Map(opts);
+    } catch (e) {
+      return null;
+    }
+    // Until the first style is in, the only error is that style failing to load.
+    var styled = false;
+    map.once("style.load", function () {
+      styled = true;
+    });
+    map.on("error", function () {
+      if (styled) return;
+      styled = true;
+      onFail();
+      // MapLibre is still inside its own error event here.
+      setTimeout(function () {
+        map.remove();
+      }, 0);
+    });
+    setLook(map, look);
+    map.touchZoomRotate.disableRotation();
+    map.keyboard.disableRotation();
+    return map;
+  }
+
+  // A pin from the page's own HTML (one element), its top-left corner at `lngLat`.
+  // MapLibre names every marker "Map marker"; a pin keeps its own name.
+  var holder = null;
+  function pin(map, html, lngLat, opacity) {
+    holder = holder || document.createElement("div");
+    holder.innerHTML = html;
+    var el = holder.firstChild;
+    var label = el.getAttribute("aria-label");
+    var marker = new window.maplibregl.Marker({ element: el, anchor: "top-left", opacity: String(opacity == null ? 1 : opacity) })
+      .setLngLat(lngLat)
+      .addTo(map);
+    if (label) el.setAttribute("aria-label", label);
+    else el.removeAttribute("aria-label");
+    return marker;
+  }
+
+  window.CabinetBasemap = {
+    ATTRIBUTION: ATTRIBUTION,
+    create: create,
+    setLook: setLook,
+    pin: pin,
+    localizeStyle: localizeStyle,
+  };
+})();
+</script>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <h1 id="h1"></h1>
+      <p id="line">Loading your map</p>
+    </div>
+    <div class="search" id="search">
+      <svg class="i" viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4"/></svg>
+      <input id="q" type="search" placeholder="Search a property or an address" autocomplete="off" aria-label="Search a property or an address" />
+      <div class="results" id="results" hidden></div>
+      <span id="search-x"></span>
+    </div>
+    <div class="actions" id="actions"></div>
+  </header>
+  <div class="main">
+    <section class="mapwrap" aria-label="Map of your properties">
+      <div id="map"></div>
+      <div class="map-ui" id="mapui">
+        <div class="chips" id="chips"></div>
+        <div class="ctrl" id="ctrl"></div>
+        <div id="menu"></div>
+        <div id="overlay"></div>
+        <div class="hover" id="hover"></div>
+        <div class="attr" id="attr"></div>
+      </div>
+    </section>
+    <aside class="rail" id="rail"></aside>
+  </div>
+</div>
+<div id="drawer"></div>
+<div id="toast" role="status"></div>
+<script>
+(function () {
+  "use strict";
+
+  // ── Words and lists ─────────────────────────────────────────────────────
+  var FOLDER = "properties";
+  // The tiles, the looks and the map options come from basemap.js, which every template map shares.
+  var BASE = window.CabinetBasemap;
+  var GEO_URL = "https://nominatim.openstreetmap.org";
+  var DAY = 86400000;
+
+  var P = {
+    house: "M3 11l9-8 9 8 M5 10v10h14V10 M10 20v-6h4v6",
+    flat: "M5 21V4h10v17 M15 9h4v12 M3 21h18 M8 8h1 M11 8h1 M8 12h1 M11 12h1 M8 16h1 M11 16h1",
+    multi: "M2 20V10l5-4 5 4v10 M12 20v-7l5-4 5 4v7 M2 20h20",
+    store: "M4 9l1-5h14l1 5 M4 9v11h16V9 M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0 M9 20v-6h6v6",
+    land: "M12 3l6 9h-3l4 6H5l4-6H6z M12 18v4",
+    cabin: "M3 20l6-11 4 6 2-3 6 8z",
+    parking: "M5 3h14v18H5z M9 17V7h4a3 3 0 0 1 0 6H9",
+    pin: "M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
+    plus: "M12 5v14M5 12h14", minus: "M5 12h14", x: "M6 6l12 12M18 6L6 18",
+    fit: "M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5",
+    layers: "M12 3l9 5-9 5-9-5z M3 13l9 5 9-5",
+    bulb: "M9 18h6 M10 21h4 M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z",
+    layout: "M4 4h7v7H4z M13 4h7v4h-7z M13 10h7v10h-7z M4 13h7v7H4z",
+    grip: "M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01",
+    back: "M15 5l-7 7 7 7", up: "M6 15l6-6 6 6", down: "M6 9l6 6 6-6",
+    trash: "M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13",
+    move: "M12 3v18 M3 12h18 M9 6l3-3 3 3 M9 18l3 3 3-3 M6 9l-3 3 3 3 M18 9l3 3-3 3",
+    check: "M5 12l5 5 9-10", alert: "M12 4l9 16H3z M12 10v4 M12 17h.01",
+    cal: "M4 6h16v14H4z M4 10h16 M8 3v4 M16 3v4",
+    money: "M12 3v18 M16 7c-.5-1.3-2-2-4-2-2.2 0-4 1-4 3s1.8 2.7 4 3 4 1 4 3-1.8 3-4 3c-2 0-3.5-.7-4-2",
+    user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0",
+    sliders: "M4 6h10 M18 6h2 M4 12h4 M12 12h8 M4 18h12 M14 4v4 M8 10v4 M16 16v4",
+    send: "M4 12l16-8-6 16-3-6z",
+    target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+    note: "M5 4h14v12l-4 4H5z M15 20v-4h4 M8 9h8 M8 13h5",
+    list: "M8 6h12 M8 12h12 M8 18h12 M4 6h.01 M4 12h.01 M4 18h.01",
+    chart: "M4 20V10 M10 20V4 M16 20v-7 M22 20H2",
+    cross: "M12 3v4 M12 17v4 M3 12h4 M17 12h4 M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+    wrench: "M14 6a4 4 0 0 0 5 5l-9 9a2 2 0 0 1-3-3l9-9a4 4 0 0 1-2-2z",
+    doc: "M6 3h9l4 4v14H6z M15 3v4h4 M9 12h7 M9 16h5",
+    scale: "M12 4v16 M7 20h10 M5 8h14 M5 8l-3 7a3.5 3.5 0 0 0 6 0z M19 8l-3 7a3.5 3.5 0 0 0 6 0z",
+    mail: "M4 6h16v12H4z M4 7l8 6 8-6"
+  };
+  function icon(name, cls) { return '<svg class="i' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true"><path d="' + (P[name] || P.pin) + '"/></svg>'; }
+
+  var TYPES = [
+    { id: "House", icon: "house" }, { id: "Apartment", icon: "flat" }, { id: "Multi-family", icon: "multi" },
+    { id: "Commercial", icon: "store" }, { id: "Land", icon: "land" }, { id: "Vacation home", icon: "cabin" },
+    { id: "Parking or storage", icon: "parking" }, { id: "Other", icon: "pin" }
+  ];
+  var STATES = [
+    { id: "Rented", c: "var(--st-rented)" }, { id: "Vacant", c: "var(--st-vacant)" }, { id: "Own use", c: "var(--st-own)" },
+    { id: "Renovating", c: "var(--st-reno)" }, { id: "For sale", c: "var(--st-sale)" }, { id: "Sold", c: "var(--st-sold)" }
+  ];
+  var TYPE_COLORS = ["#1F3A5C", "#4F6D8F", "#7F97B2", "#A9BACB", "#6B7280", "#9CA3AF", "#C9CDD3", "#D9DCE0"];
+
+  // Every field a property can carry. A person adds the ones they want from the
+  // picker, or makes their own. `watch` puts a date in "Coming up" and in the state.
+  var FIELDS = [
+    { k: "value", l: "Value today", kind: "money", g: "Money" },
+    { k: "purchase_price", l: "Bought for", kind: "money", g: "Money" },
+    { k: "purchase_date", l: "Bought on", kind: "date", g: "Money" },
+    { k: "share", l: "My share", kind: "percent", g: "Money" },
+    { k: "ownership", l: "Owned as", kind: "text", g: "Money" },
+    { k: "asking_price", l: "Asking price", kind: "money", g: "Money" },
+    { k: "mortgage_balance", l: "Mortgage left", kind: "money", g: "Loan" },
+    { k: "mortgage_payment", l: "Mortgage a month", kind: "money", g: "Loan" },
+    { k: "mortgage_rate", l: "Interest rate", kind: "percent", g: "Loan" },
+    { k: "rate_fixed_until", l: "Rate fixed until", kind: "date", g: "Loan", watch: true },
+    { k: "lender", l: "Lender", kind: "text", g: "Loan" },
+    { k: "rent", l: "Rent a month", kind: "money", g: "Rent" },
+    { k: "tenant", l: "Tenant", kind: "text", g: "Rent" },
+    { k: "tenant_phone", l: "Tenant phone", kind: "text", g: "Rent" },
+    { k: "tenant_email", l: "Tenant email", kind: "text", g: "Rent" },
+    { k: "lease_start", l: "Lease started", kind: "date", g: "Rent" },
+    { k: "lease_end", l: "Lease ends", kind: "date", g: "Rent", watch: true },
+    { k: "deposit", l: "Deposit held", kind: "money", g: "Rent" },
+    { k: "rent_due_day", l: "Rent due on day", kind: "number", g: "Rent" },
+    { k: "vacant_since", l: "Vacant since", kind: "date", g: "Rent" },
+    { k: "expenses", l: "Running costs a month", kind: "money", g: "Costs" },
+    { k: "hoa", l: "Building fee a month", kind: "money", g: "Costs" },
+    { k: "property_tax", l: "Property tax a year", kind: "money", g: "Costs" },
+    { k: "tax_due", l: "Tax due", kind: "date", g: "Costs", watch: true },
+    { k: "insurance", l: "Insurance a year", kind: "money", g: "Costs" },
+    { k: "insurer", l: "Insurer", kind: "text", g: "Costs" },
+    { k: "insurance_renewal", l: "Insurance renews", kind: "date", g: "Costs", watch: true },
+    { k: "size", l: "Size", kind: "area", g: "The place" },
+    { k: "lot_size", l: "Lot size", kind: "area", g: "The place" },
+    { k: "bedrooms", l: "Bedrooms", kind: "number", g: "The place" },
+    { k: "bathrooms", l: "Bathrooms", kind: "number", g: "The place" },
+    { k: "units", l: "Units", kind: "number", g: "The place" },
+    { k: "floor", l: "Floor", kind: "text", g: "The place" },
+    { k: "year_built", l: "Built in", kind: "text", g: "The place" },
+    { k: "parking", l: "Parking", kind: "text", g: "The place" },
+    { k: "zoning", l: "Zoning", kind: "text", g: "The place" },
+    { k: "parcel_number", l: "Parcel number", kind: "text", g: "The place" },
+    { k: "condition", l: "Condition", kind: "text", g: "Upkeep" },
+    { k: "next_inspection", l: "Next inspection", kind: "date", g: "Upkeep", watch: true },
+    { k: "last_renovated", l: "Last renovated", kind: "date", g: "Upkeep" },
+    { k: "renovation_budget", l: "Renovation budget", kind: "money", g: "Upkeep" },
+    { k: "renovation_spent", l: "Renovation spent", kind: "money", g: "Upkeep" },
+    { k: "renovation_ends", l: "Renovation ends", kind: "date", g: "Upkeep", watch: true },
+    { k: "manager", l: "Property manager", kind: "text", g: "People" },
+    { k: "manager_phone", l: "Manager phone", kind: "text", g: "People" },
+    { k: "handyman", l: "Handyman", kind: "text", g: "People" },
+    { k: "agent", l: "Agent or broker", kind: "text", g: "People" },
+    { k: "documents", l: "Documents", kind: "link", g: "Links" },
+    { k: "listing", l: "Listing", kind: "link", g: "Links" },
+    { k: "photos", l: "Photo album", kind: "link", g: "Links" }
+  ];
+  var GROUPS = ["Money", "Loan", "Rent", "Costs", "The place", "Upkeep", "People", "Links", "Yours"];
+  var KINDS = [["text", "Words"], ["money", "Money"], ["number", "Number"], ["date", "Date"], ["percent", "Percent"], ["link", "Link"]];
+  var SKIP_KEYS = { created: 1, modified: 1, tags: 1, order: 1, example_as_of: 1, icon: 1 };
+
+  // One-press asks. `per: "one"` ideas show inside a property, with {name} filled in.
+  var IDEAS = [
+    { id: "import", icon: "list", title: "Add my properties from a list", text: "Paste addresses, a spreadsheet or a few lines. Each one becomes a pin.",
+      ask: "I want to add my properties to the map. I will paste a list next. For each one, find where it is, and create its file in properties/ with everything I gave you.", send: false },
+    { id: "missing", icon: "alert", title: "What is missing?", text: "The gaps in each property: no value, no lease date, no insurance date.",
+      ask: "Go through every property on my map and tell me what is missing or looks out of date: no value, no rent, no lease end, no insurance renewal, no tax date. One short line per property, most important first." },
+    { id: "value", icon: "chart", title: "Check what each one is worth", text: "A fresh estimate per property, with how it was worked out.",
+      ask: "Estimate what each of my properties is worth today. For each one give a range, what it is based on, and how far it is from the value on my map. Do not change my map; show me first." },
+    { id: "rents", icon: "money", title: "Are my rents right?", text: "Each rent next to what similar places ask nearby.",
+      ask: "For each rented property on my map, compare my rent with what similar places nearby ask now. Tell me where I am under, where I am over, and what a fair raise would be at the next renewal." },
+    { id: "renewals", icon: "cal", title: "Leases ending soon", text: "Who to talk to, when, and a renewal note for each.",
+      ask: "Which of my leases end in the next 120 days? For each one, suggest when to start the talk and draft a short, friendly renewal note to the tenant. Drafts only." },
+    { id: "vacant", icon: "house", title: "Fill my vacant places", text: "A listing text and a plan for each empty property.",
+      ask: "For each vacant property on my map, write a listing description, suggest a rent, and give me a short plan to fill it." },
+    { id: "year", icon: "doc", title: "My year in numbers", text: "Rent in, costs out, and what is left, per property.",
+      ask: "Make a one-page summary of my portfolio for this year: per property the rent in, the costs out (mortgage, tax, insurance, running costs) and what is left, then the totals. Say what you assumed." },
+    { id: "lender", icon: "scale", title: "A summary for the bank", text: "The whole portfolio on one page, ready to send to a lender.",
+      ask: "Write a portfolio summary I can send to a bank or lender: each property with its address, type, value, mortgage left, rent and state, then total value, total debt and equity." },
+    { id: "refi", icon: "money", title: "Should I refinance?", text: "Which loans are worth a second look at today's rates.",
+      ask: "Look at the mortgages on my map (balance, rate, payment, fixed-until date). Which ones are worth looking at refinancing, and what should I ask the bank?" },
+    { id: "dates", icon: "cal", title: "Put my dates on my calendar", text: "Lease ends, tax, insurance and inspections as calendar events.",
+      ask: "Put the dates from my map on my calendar: lease ends, tax due dates, insurance renewals and inspections, each with a reminder two weeks before. Show me the list first." },
+    { id: "upkeep", icon: "wrench", title: "A seasonal upkeep plan", text: "What to check on each property this season.",
+      ask: "Write a short upkeep checklist for this season for each of my properties, based on its type and what my notes say. Add the items to each property's to-do list in its file." },
+    { id: "sell", icon: "scale", title: "Hold or sell?", text: "The weakest performer, and what selling it would free up.",
+      ask: "Which of my properties earns the least for the money tied up in it? Walk me through hold against sell for that one, in plain numbers." },
+    { id: "inbox", icon: "mail", title: "File property mail", text: "Bills, tenant mail and notices from your inbox, filed to the right property.",
+      ask: "Look through my recent mail for anything about my properties (bills, tenant messages, tax or insurance notices). Add a dated note to the right property's file for each, and tell me what needs me." },
+    { id: "one-letter", per: "one", icon: "mail", title: "Write to the tenant", ask: "Draft a short, friendly message to the tenant of {name}. Ask me what it is about first. Draft only." },
+    { id: "one-raise", per: "one", icon: "money", title: "Plan a rent raise", ask: "For {name}: is a rent raise fair at the next renewal? Suggest the new rent, say why, and draft the notice. Draft only." },
+    { id: "one-value", per: "one", icon: "chart", title: "Estimate its value", ask: "Estimate what {name} is worth today. Give a range and what it is based on. Do not change my map; show me first." },
+    { id: "one-listing", per: "one", icon: "doc", title: "Write a listing", ask: "Write a listing description for {name} from what my map and its file say, and suggest a rent or price." },
+    { id: "one-fill", per: "one", icon: "list", title: "Fill in what is missing", ask: "Look at {name} and ask me, one question at a time, for what is missing. Write my answers into its file." },
+    { id: "one-costs", per: "one", icon: "scale", title: "What does it really earn?", ask: "For {name}: work out what it really earns a year after mortgage, tax, insurance and running costs, and the return on the money I put in." }
+  ];
+
+  // ── Small helpers ───────────────────────────────────────────────────────
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function num(v) { if (typeof v === "number") return isFinite(v) ? v : null; var s = String(v == null ? "" : v).replace(/[^0-9.\-]/g, ""); if (!s || s === "-" || s === ".") return null; var n = parseFloat(s); return isFinite(n) ? n : null; }
+  function copy(o) { return JSON.parse(JSON.stringify(o)); }
+  function props(n) { return n === 1 ? "1 property" : n + " properties"; }
+  var toastTimer;
+  function toast(text) { var t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2600); }
+
+  // Only values from these lists are used: settings come from the shared store, which
+  // other people (and assistants) write, and they end up inside the page's markup.
+  var CURRENCIES = ["$", "€", "£", "₪", "C$", "A$", "CHF ", "¥"], UNITS = ["sq ft", "m²", "acres", "dunam"];
+  function setting(k, list) { var v = shared.settings && shared.settings[k]; return list.indexOf(v) >= 0 ? v : list[0]; }
+  function sym() { return setting("currency", CURRENCIES); }
+  function unit() { return setting("unit", UNITS); }
+  function money(n) { if (n == null) return ""; var neg = n < 0; return (neg ? "-" : "") + sym() + Math.round(Math.abs(n)).toLocaleString("en-US"); }
+  function short(n) {
+    if (n == null) return ""; var a = Math.abs(n), s = n < 0 ? "-" : "";
+    if (a >= 1e6) return s + sym() + (a / 1e6).toFixed(a >= 1e7 ? 1 : 2).replace(/\.?0+$/, "") + "M";
+    if (a >= 1e4) return s + sym() + Math.round(a / 1e3) + "K";
+    return s + sym() + Math.round(a).toLocaleString("en-US");
+  }
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function parseDate(v) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || "")); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+  function ymd(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  function today() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  function daysTo(d) { return Math.round((d - today()) / DAY); }
+  function niceDate(d) { return d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
+  function inDays(n) { return n === 0 ? "today" : n === 1 ? "tomorrow" : n > 1 ? (n < 60 ? "in " + n + " days" : "in " + Math.round(n / 30) + " months") : n === -1 ? "yesterday" : (-n < 60 ? -n + " days ago" : Math.round(-n / 30) + " months ago"); }
+  // A photo goes inside a CSS url(""), so a quote, a bracket or a backslash could end it.
+  function photoUrl(v) { v = safeUrl(v); return /["'()\\\s<>]/.test(v) ? "" : v; }
+  function safeUrl(v) { v = String(v || "").trim(); return /^https?:\/\//i.test(v) ? v : ""; }
+  function slugKey(label) { return String(label).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40); }
+  // The key of a field the person names. A name already in use keeps its key. A name
+  // with no Latin letter or digit, or one whose key another name holds, gets a free key.
+  function ownKey(label, defs) {
+    var same = function (l) { return String(l).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim(); };
+    var taken = function (k) { return defs.some(function (d) { return d.k === k; }); };
+    for (var i = 0; i < defs.length; i++) if (same(defs[i].l) === same(label)) return defs[i].k;
+    var base = slugKey(label) || "field", k = base, n = 1;
+    while (taken(k)) k = base + "_" + ++n;
+    return k;
+  }
+  function pretty(key) { var s = String(key).replace(/_/g, " "); return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  // ── Talking to Cabinet ──────────────────────────────────────────────────
+  var cab = window.cabinet;
+  var kept = cab && cab.store;
+  var hasStore = !!(kept && kept.set && kept.all);
+  var V2 = !!(cab && cab.files && cab.files.list);
+  var LS = "real-estate-map@1";
+  var shared = {}, prefs = {}, here = null, fileAssets = [], assets = [], loaded = false;
+
+  function lsRead(k) { try { return JSON.parse(localStorage.getItem(k) || "{}") || {}; } catch (e) { return {}; } }
+  function lsWrite(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* a sealed frame has no storage */ } }
+  // Writes this page sent that the store has not confirmed yet. A store event from
+  // someone else carries a copy without them, so they are laid back on top of it.
+  var pending = {};
+  function saveShared(key, value) {
+    if (value === undefined) delete shared[key]; else shared[key] = value;
+    if (hasStore) {
+      var mark = {}, failed = false;
+      pending[key] = { v: value, mark: mark };
+      inTurn(function () { return value === undefined ? kept.remove(key) : kept.set(key, value); })
+        .catch(function (e) { failed = true; toast((e && e.message) || "That did not save. Try again."); })
+        .then(function () {
+          if (!pending[key] || pending[key].mark !== mark) return;
+          delete pending[key];
+          // The page showed the new value before the store answered: show what is stored.
+          if (failed) { shared = fromKept(); if (typing()) merge(); else refresh(); }
+        });
+    } else lsWrite(LS, shared);
+  }
+  function fromKept() {
+    var s = copy(kept.all() || {});
+    Object.keys(pending).forEach(function (k) { if (pending[k].v === undefined) delete s[k]; else s[k] = pending[k].v; });
+    return s;
+  }
+  function savePref(key, value) {
+    prefs[key] = value;
+    if (hasStore && cab.mine) inTurn(function () { return cab.mine.set(key, value); }).catch(function () {}); else lsWrite(LS + ":mine", prefs);
+  }
+  // One write at a time. Cabinet rewrites the whole store file on each write, so
+  // several sent together (removing every example at once) can lose some of them.
+  var writes = Promise.resolve();
+  // A write with no answer after 20 seconds stops holding up the ones behind it.
+  function inTurn(fn) {
+    var p = writes.then(fn);
+    writes = Promise.race([p, new Promise(function (ok) { setTimeout(ok, 20000); })]).catch(function () {});
+    return p;
+  }
+  // Parts of the page a person can take off in Edit layout, next to the boxes.
+  var PARTS = { map: "The map", line: "The numbers under the title", search: "Search", ideas: "The Ideas button", chips: "The filters on the map", examples: "The note about examples" };
+  function off(k) { return !!(prefs.off && prefs.off[k]); }
+  function setOff(k, v) { var o = copy(prefs.off || {}); if (v) o[k] = true; else delete o[k]; savePref("off", o); paint(); }
+  function partX(k, wide) { return state.editing ? '<button class="part-x' + (wide ? " wide" : "") + '" data-act="part-off" data-id="' + k + '" aria-label="Remove: ' + esc(PARTS[k]) + '">' + icon("x") + (wide ? "Remove the map" : "") + "</button>" : ""; }
+  function role() { return (here && here.role) || "owner"; }
+  function canWrite() { return hasStore ? cab.canWrite() !== false : true; }
+  function canAsk() { return !!(cab && cab.ask) && role() !== "viewer"; }
+  function ask(text, opts) {
+    if (!canAsk()) {
+      var done = function () { toast("Copied. Paste it into a chat with your assistant."); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { toast("Open this cabinet's chat to ask."); });
+      else toast("Open this cabinet's chat to ask.");
+      return;
+    }
+    cab.ask(text, opts || {}).catch(function (e) { toast((e && e.message) || "The chat did not open. Try again."); });
+  }
+
+  // ── Reading the property files ──────────────────────────────────────────
+  function parseFile(text, entry) {
+    var m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(text), meta = {}, body = text;
+    if (m) {
+      m[1].split(/\r?\n/).forEach(function (line) {
+        var k = /^([A-Za-z0-9_ -]+):\s*(.*)$/.exec(line); if (!k) return;
+        var v = k[2].trim().replace(/^(['"])([\s\S]*)\1$/, "$2");
+        meta[k[1].trim().toLowerCase().replace(/[ -]+/g, "_")] = v;
+      });
+      body = m[2];
+    }
+    var name = entry.name.replace(/\.md$/i, ""), example = /^EXAMPLE/i.test(name);
+    var shift = 0;
+    if (example && parseDate(meta.example_as_of)) shift = Math.round((today() - parseDate(meta.example_as_of)) / DAY);
+    var a = { id: /^p[a-z0-9]+$/.test(meta.id || "") ? meta.id : "f:" + name, src: "file", path: entry.path, example: example, updatedAt: entry.modified || "",
+      title: meta.title || pretty(name.replace(/^EXAMPLE-/i, "").replace(/-/g, " ")), address: meta.address || "",
+      lat: num(meta.lat), lng: num(meta.lng), type: meta.type || "House", status: meta.status || "Own use",
+      photo: meta.photo || "", fields: {}, todo: [], notes: "" };
+    Object.keys(meta).forEach(function (k) {
+      if (SKIP_KEYS[k] || /^(id|title|address|lat|lng|type|status|photo)$/.test(k)) return;
+      var v = meta[k], d = shift ? parseDate(v) : null;
+      if (d && /^\d{4}-\d{2}-\d{2}$/.test(v)) v = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() + shift));
+      a.fields[k] = v;
+    });
+    var notes = [];
+    body.split(/\r?\n/).forEach(function (line) {
+      var t = /^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/.exec(line);
+      if (t) a.todo.push({ t: t[2].trim(), done: t[1] !== " " });
+      else if (!/^#\s/.test(line) && !/^##\s+to.?do\s*$/i.test(line)) notes.push(line);
+    });
+    a.notes = notes.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    return a;
+  }
+  // Cabinet answers a page about 20 requests a second, so files are read a batch at a
+  // time, only when they changed, and a file that fails to read keeps its last copy.
+  var fileCache = {}, loading = null, loadAgain = false;
+  function readFile(e) {
+    var c = fileCache[e.path];
+    if (c && c.modified === e.modified) return Promise.resolve(c.asset);
+    return cab.files.read(e.path).then(function (t) {
+      var a = parseFile(t, e); fileCache[e.path] = { modified: e.modified, asset: a }; return a;
+    }, function () { return c ? c.asset : null; });
+  }
+  function readAll(files) {
+    var out = [], i = 0;
+    function next() {
+      var batch = files.slice(i, i + 15); i += 15;
+      return Promise.all(batch.map(readFile)).then(function (got) {
+        out = out.concat(got);
+        if (i >= files.length) return out;
+        return new Promise(function (ok) { setTimeout(ok, 1000); }).then(next);
+      });
+    }
+    return files.length ? next() : Promise.resolve(out);
+  }
+  function loadFiles() {
+    if (!V2) return Promise.resolve();
+    if (loading) { loadAgain = true; return loading; }
+    loading = cab.files.list(FOLDER).then(function (list) {
+      var files = list.filter(function (e) { return !e.isDir && /\.md$/i.test(e.name) && !/^index\.md$/i.test(e.name); });
+      return readAll(files);
+    }).then(function (list) { fileAssets = list.filter(Boolean); }, function () { /* keep what was read before */ })
+      .then(function () { loading = null; if (loadAgain) { loadAgain = false; return loadFiles(); } });
+    return loading;
+  }
+
+  // The newer of the file and the store wins, per property.
+  function merge() {
+    var out = [], seen = {};
+    fileAssets.forEach(function (f) {
+      var s = shared["a:" + f.id]; seen[f.id] = 1;
+      if (s && typeof s === "object" && (Date.parse(s.updatedAt) || 0) >= (Date.parse(f.updatedAt) || 0)) { if (!s.deleted) out.push(fromStore(s, f)); }
+      else out.push(f);
+    });
+    Object.keys(shared).forEach(function (key) {
+      if (key.indexOf("a:") !== 0) return;
+      var s = shared[key];
+      if (!s || typeof s !== "object" || s.deleted || seen[s.id] || String(s.id || "").indexOf("f:") === 0) return;
+      out.push(fromStore(s, null));
+    });
+    out.sort(function (a, b) { return a.title.localeCompare(b.title); });
+    assets = out;
+  }
+  function fromStore(s, f) {
+    return { id: s.id, src: f ? "file" : "store", path: f ? f.path : "", example: !!s.example, updatedAt: s.updatedAt || "",
+      title: String(s.title || "Property"), address: s.address || "", lat: num(s.lat), lng: num(s.lng), type: s.type || "House",
+      status: s.status || "Own use", photo: s.photo || "", fields: s.fields && typeof s.fields === "object" ? copy(s.fields) : {},
+      todo: Array.isArray(s.todo) ? copy(s.todo) : [], notes: s.notes || "" };
+  }
+  function byId(id) { for (var i = 0; i < assets.length; i++) if (assets[i].id === id) return assets[i]; return null; }
+  function saveAsset(a) {
+    a.updatedAt = new Date().toISOString();
+    saveShared("a:" + a.id, { id: a.id, title: a.title, address: a.address, lat: a.lat, lng: a.lng, type: a.type, status: a.status,
+      photo: a.photo, fields: a.fields, todo: a.todo, notes: a.notes, example: a.example, updatedAt: a.updatedAt });
+    merge();
+  }
+  function removeAsset(a) {
+    if (a.src === "file") saveShared("a:" + a.id, { id: a.id, deleted: true, updatedAt: new Date().toISOString() });
+    else saveShared("a:" + a.id, undefined);
+    merge();
+  }
+
+  // ── What a property says about itself ───────────────────────────────────
+  function customDefs() { return Array.isArray(shared.fields) ? shared.fields.filter(function (d) { return d && d.k && d.l; }) : []; }
+  function isKind(v) { return KINDS.some(function (x) { return x[0] === v; }); }
+  function defOf(k) {
+    for (var i = 0; i < FIELDS.length; i++) if (FIELDS[i].k === k) return FIELDS[i];
+    var c = customDefs();
+    for (var j = 0; j < c.length; j++) if (c[j].k === k) return { k: k, l: c[j].l, kind: isKind(c[j].kind) ? c[j].kind : "text", g: "Yours", watch: c[j].kind === "date", own: true };
+    return { k: k, l: pretty(k), kind: "text", g: "Yours" };
+  }
+  function show(def, v) {
+    if (v == null || v === "") return "";
+    if (def.kind === "money") { var n = num(v); return n == null ? String(v) : money(n); }
+    if (def.kind === "percent") { var p = num(v); return p == null ? String(v) : p + "%"; }
+    if (def.kind === "area") { var s = num(v); return s == null ? String(v) : s.toLocaleString("en-US") + " " + unit(); }
+    if (def.kind === "date") { var d = parseDate(v); return d ? niceDate(d) : String(v); }
+    if (def.kind === "link") return safeUrl(v) ? "Link" : String(v);
+    return String(v);
+  }
+  function f(a, k) { return num(a.fields[k]); }
+  function stateOf(a) { for (var i = 0; i < STATES.length; i++) if (STATES[i].id.toLowerCase() === String(a.status).toLowerCase()) return STATES[i]; return { id: a.status || "Other", c: "var(--st-sold)" }; }
+  function typeOf(a) { for (var i = 0; i < TYPES.length; i++) if (TYPES[i].id.toLowerCase() === String(a.type).toLowerCase()) return TYPES[i]; return { id: a.type || "Other", icon: "pin" }; }
+  function isOn(a) { return a.lat != null && a.lng != null; }
+  function owned(a) { return stateOf(a).id !== "Sold"; }
+  function derived(a) {
+    var v = f(a, "value"), debt = f(a, "mortgage_balance"), rent = stateOf(a).id === "Rented" ? f(a, "rent") : null, bought = f(a, "purchase_price");
+    var out = (f(a, "mortgage_payment") || 0) + (f(a, "expenses") || 0) + (f(a, "hoa") || 0) + ((f(a, "property_tax") || 0) + (f(a, "insurance") || 0)) / 12;
+    return { value: v, equity: v != null ? v - (debt || 0) : null, rent: rent, net: rent != null ? rent - out : (out ? -out : null),
+      yield: rent != null && v ? rent * 12 / v * 100 : null, gain: v != null && bought ? v - bought : null, out: out };
+  }
+  function dates(a) {
+    var out = [];
+    Object.keys(a.fields).forEach(function (k) {
+      var def = defOf(k); if (def.kind !== "date" || !def.watch) return;
+      var d = parseDate(a.fields[k]); if (d) out.push({ a: a, def: def, date: d, days: daysTo(d) });
+    });
+    return out;
+  }
+  function flags(a) {
+    var out = [], st = stateOf(a).id;
+    if (st === "Vacant") { var since = parseDate(a.fields.vacant_since); out.push({ lvl: "bad", text: since ? "Vacant for " + Math.max(0, -daysTo(since)) + " days" : "Vacant" }); }
+    dates(a).forEach(function (d) {
+      if (st === "Sold" || (d.def.own && d.days < -30)) return;
+      if (d.days < 0) out.push({ lvl: "bad", text: d.def.l + ": " + inDays(d.days) });
+      else if (d.days <= 60) out.push({ lvl: "warn", text: d.def.l + " " + inDays(d.days) });
+    });
+    if (!isOn(a)) out.push({ lvl: "warn", text: "Not on the map yet" });
+    var open = a.todo.filter(function (t) { return !t.done; }).length;
+    if (open) out.push({ lvl: "info", text: open + " to do" });
+    if (f(a, "value") == null && st !== "Sold") out.push({ lvl: "info", text: "No value yet" });
+    return out;
+  }
+  // The part of a property that is the person's: "My share", the whole when not set.
+  function part(a) { var p = f(a, "share"); return p == null ? 1 : clamp(p, 0, 100) / 100; }
+  function totals() {
+    var t = { n: 0, value: 0, debt: 0, rent: 0, net: 0, rented: 0, rentable: 0, any: false };
+    assets.filter(owned).forEach(function (a) {
+      var d = derived(a), st = stateOf(a).id, p = part(a); t.n++;
+      if (d.value != null) { t.value += d.value * p; t.any = true; }
+      t.debt += (f(a, "mortgage_balance") || 0) * p; t.rent += (d.rent || 0) * p; t.net += (d.net || 0) * p;
+      if (st === "Rented") { t.rented++; t.rentable++; } else if (st === "Vacant") t.rentable++;
+    });
+    t.equity = t.value - t.debt;
+    return t;
+  }
+
+  // ── The map ─────────────────────────────────────────────────────────────
+  // MapLibre draws the map and owns every drag, wheel, pinch, double press and key. The
+  // pins are this page's own buttons, handed to MapLibre as markers so they move with it.
+  var mapEl = $("map");
+  var map = { w: 0, h: 0, frame: 0, groupsKey: "" };
+  var state = { open: null, hover: null, hot: null, hide: {}, q: "", placing: false, moving: null, spot: null, editing: false, drawer: null, menu: false, geo: null, geoBusy: false, firstFit: false, listSort: "name" };
+  var gl = null, glLook = "", markers = [], stacked = window.matchMedia("(max-width: 639px)");
+
+  function lookNow() { return prefs.map || (document.documentElement.dataset.theme === "dark" ? "night" : "classic"); }
+  // Made once the theme is known, so the first picture is already the right look. No
+  // MapLibre (the script did not load, no WebGL, or no tiles): gl is false and the map says so.
+  function startGl() {
+    var look = lookNow();
+    if (gl) { if (look !== glLook) { glLook = look; BASE.setLook(gl, look); } return; }
+    if (gl === false) return;
+    gl = (BASE && BASE.create(mapEl, look, { center: [35, 31.6], zoom: 6.6, minZoom: 1 }, function () {
+      gl = false; markers = []; setHover(null); paintMapUi();
+    })) || false;
+    if (!gl) { paintMapUi(); return; }
+    glLook = look;
+    gl.on("move", draw);
+    gl.on("movestart", function (e) { if (e.originalEvent) setHover(null); });
+    gl.on("moveend", saveView);
+    gl.on("click", function (e) { if (!e.originalEvent.target.closest(".pin, .cluster, .spot")) mapPress(e.lngLat); });
+  }
+  function draw() { if (!map.frame) map.frame = requestAnimationFrame(function () { map.frame = 0; if (gl) { buildPins(); placeHover(); } }); }
+
+  // Room kept clear around what the map fits, never more than a quarter of the map.
+  function pad(side, top, bottom) {
+    var x = Math.min(side, map.w / 4), y = map.h / 4;
+    return { left: x, right: x, top: Math.min(top, y), bottom: Math.min(bottom, y) };
+  }
+  function boundsOf(list) { var b = new window.maplibregl.LngLatBounds(); list.forEach(function (a) { b.extend([a.lng, a.lat]); }); return b; }
+  // lift: how far below the middle of the map the place ends up, in pixels.
+  function fly(lng, lat, zoom, lift) { if (gl) gl.flyTo({ center: [lng, lat], zoom: zoom, offset: [0, lift || 0], speed: 1.6 }); }
+  function fitAll(instant) {
+    var list = shownAssets().filter(isOn); if (!gl || !list.length) return;
+    if (list.length === 1) {
+      if (instant) gl.jumpTo({ center: [list[0].lng, list[0].lat], zoom: 13.5 }); else fly(list[0].lng, list[0].lat, 13.5);
+      return;
+    }
+    gl.fitBounds(boundsOf(list), { padding: pad(115, 70, 100), maxZoom: 16, duration: instant ? 0 : 900 });
+  }
+  var viewTimer;
+  function saveView() {
+    // Not before the first view is set: MapLibre also moves while it sizes itself.
+    if (!state.firstFit) return;
+    clearTimeout(viewTimer);
+    viewTimer = setTimeout(function () { var c = gl.getCenter(); savePref("view", { lng: +c.lng.toFixed(6), lat: +c.lat.toFixed(6), zoom: +gl.getZoom().toFixed(2) }); }, 900);
+  }
+
+  // Pins. Close pins fold into a counted circle; the groups change only with the zoom.
+  var groups = [];
+  function shownAssets() { return assets.filter(function (a) { return !state.hide[stateOf(a).id]; }); }
+  function matches(a) {
+    var q = state.q.trim().toLowerCase(); if (!q) return true;
+    return (a.title + " " + a.address + " " + a.type + " " + a.status + " " + (a.fields.tenant || "")).toLowerCase().indexOf(q) >= 0;
+  }
+  function pinLabel(a) {
+    var mode = prefs.pin || "name", d = derived(a);
+    if (mode === "value") return d.value != null ? short(d.value) : a.title;
+    if (mode === "rent") return d.rent != null ? short(d.rent) + "/mo" : stateOf(a).id;
+    if (mode === "state") return stateOf(a).id;
+    if (mode === "none") return "";
+    return a.title;
+  }
+  function buildPins(force) {
+    var zk = Math.round(gl.getZoom() * 3) / 3, list = shownAssets().filter(isOn);
+    var key = zk + "|" + (prefs.pin || "") + "|" + state.open + "|" + state.q + "|" + list.map(function (a) { return a.id + a.updatedAt; }).join(",") + "|" + (state.spot ? state.spot.lat + "," + state.spot.lng : "");
+    if (!force && key === map.groupsKey) return;
+    var first = !map.groupsKey; map.groupsKey = key;
+    groups = [];
+    list.slice().sort(function (a, b) { return b.lat - a.lat; }).forEach(function (a) {
+      var p = gl.project([a.lng, a.lat]), g = null;
+      for (var i = 0; i < groups.length && !g; i++) if (Math.abs(groups[i].px - p.x) < 54 && Math.abs(groups[i].py - p.y) < 34 && zk < 16.5) g = groups[i];
+      if (g) { g.items.push(a); var k = g.items.length; g.lng += (a.lng - g.lng) / k; g.lat += (a.lat - g.lat) / k; g.px += (p.x - g.px) / k; g.py += (p.y - g.py) / k; }
+      else groups.push({ lng: a.lng, lat: a.lat, px: p.x, py: p.y, items: [a] });
+    });
+    markers.forEach(function (m) { m.remove(); }); markers = [];
+    groups.forEach(function (g, i) {
+      if (g.items.length > 1) return addMarker('<button class="cluster" data-g="' + i + '" data-act="cluster" aria-label="' + g.items.length + ' properties here. Press to zoom in."><div class="cluster-in">' + g.items.length + "</div></button>", g, 1);
+      var a = g.items[0], st = stateOf(a), label = pinLabel(a);
+      addMarker('<button class="pin' + (label ? "" : " bare") + (a.id === state.open ? " sel" : "") + (a.example ? " example" : "") + '" data-g="' + i + '" data-act="open" data-id="' + esc(a.id) + '" style="--c:' + st.c + (first ? ";--d:" + Math.min(i * 55, 600) + "ms" : ";--d:0ms") + '" aria-label="' + esc(a.title + ", " + st.id) + '">' +
+        '<div class="pin-in"><span class="pin-ic">' + icon(typeOf(a).icon) + "</span>" + (label ? '<span class="pin-t">' + esc(label) + "</span>" : "") + "</div></button>", g, matches(a) ? 1 : .28);
+    });
+    if (state.spot) addMarker('<div class="spot"><div class="spot-in"><span>' + esc(state.spot.label) + '</span><button class="btn small primary" data-act="add-here" data-write>' + icon("plus") + "Add it here</button><button class=\"btn small ghost\" data-act=\"spot-off\" aria-label=\"Close\" style=\"color:inherit\">" + icon("x") + "</button></div></div>", state.spot, 1);
+  }
+  function addMarker(html, at, opacity) { markers.push(BASE.pin(gl, html, [at.lng, at.lat], opacity)); }
+
+  // The hover card.
+  function hoverHtml(a) {
+    var st = stateOf(a), d = derived(a), rows = [], photo = photoUrl(a.photo);
+    function add(l, v) { if (v !== "" && v != null) rows.push([l, v]); }
+    add("Value today", d.value != null ? money(d.value) : ""); add("Rent a month", d.rent != null ? money(d.rent) : "");
+    add("Equity", d.value != null && f(a, "mortgage_balance") ? money(d.equity) : ""); add("Rent yield", d.yield != null ? d.yield.toFixed(1) + "% a year" : "");
+    Object.keys(a.fields).forEach(function (k) {
+      if (k === "value" || k === "rent") return; var def = defOf(k), v = show(def, a.fields[k]);
+      if (def.kind === "link") return;
+      if (def.kind === "date" && def.watch && parseDate(a.fields[k])) v += " (" + inDays(daysTo(parseDate(a.fields[k]))) + ")";
+      add(def.l, v);
+    });
+    var wide = map.w >= 520, cap = (map.h > 640 ? 6 : map.h > 480 ? 4 : 3) * (wide ? 3 : 2), more = Math.max(0, rows.length - cap), fl = flags(a).filter(function (x) { return x.lvl !== "info"; })[0];
+    return (photo ? '<div class="h-photo" style="background-image:url(&quot;' + esc(photo) + '&quot;)"></div>' : "") +
+      '<div class="h-top" style="--c:' + st.c + '"><h3>' + esc(a.title) + "</h3>" + (a.address ? '<div class="h-addr">' + esc(a.address) + "</div>" : "") +
+      '<div class="h-tags"><span class="tag">' + esc(st.id) + '</span><span class="tag plain">' + icon(typeOf(a).icon) + esc(typeOf(a).id) + "</span>" + (a.example ? '<span class="tag plain">Example</span>' : "") + "</div></div>" +
+      (fl ? '<div class="h-flag flag-' + fl.lvl + '">' + esc(fl.text) + "</div>" : "") +
+      (rows.length ? "<dl>" + rows.slice(0, cap).map(function (r) { return "<div><dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd></div>"; }).join("") + "</dl>" : "") +
+      (a.notes ? '<div class="h-note">' + esc(a.notes) + "</div>" : "") +
+      '<div class="h-foot"><span>' + (more ? more + " more inside" : (a.todo.length ? a.todo.filter(function (t) { return !t.done; }).length + " to do" : "")) + "</span><span>Press to open</span></div>";
+  }
+  function setHover(id) {
+    if (state.hover === id) return; state.hover = id;
+    var el = $("hover"), a = id && byId(id);
+    if (!a || !isOn(a)) { el.classList.remove("show"); return; }
+    el.classList.toggle("wide", map.w >= 520); el.innerHTML = hoverHtml(a); el.classList.add("show"); placeHover();
+  }
+  function placeHover() {
+    var a = state.hover && byId(state.hover); if (!a || !isOn(a) || !gl) return;
+    var el = $("hover"), p = gl.project([a.lng, a.lat]), w = el.offsetWidth, h = el.offsetHeight;
+    var x = clamp(p.x - w / 2, 8, Math.max(8, map.w - w - 8)), y = p.y - 58 - h;
+    if (y < 8) {
+      // No room above: beside the pin, on the side with more room, else under it.
+      var side = 118, right = p.x + side + w <= map.w - 8, left = p.x - side - w >= 8;
+      if (right || left) { x = right && (!left || p.x < map.w / 2) ? p.x + side : p.x - side - w; y = clamp(p.y - 30 - h / 2, 8, Math.max(8, map.h - h - 8)); }
+      else y = Math.min(p.y + 14, Math.max(8, map.h - h - 8));
+    }
+    el.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)";
+  }
+
+  // Stacked over the board, a plain wheel scrolls the page; a pinch still zooms. Caught on
+  // the way down, before MapLibre's own wheel listener inside the map sees it.
+  mapEl.addEventListener("wheel", function (e) { if (stacked.matches && !e.ctrlKey && !e.metaKey) e.stopPropagation(); }, true);
+  mapEl.addEventListener("mouseover", function (e) { var pin = e.target.closest(".pin"); if (pin && !(gl && gl.isMoving())) setHover(pin.dataset.id); });
+  mapEl.addEventListener("mouseout", function (e) { var pin = e.target.closest(".pin"); if (pin && !pin.contains(e.relatedTarget)) setHover(null); });
+  mapEl.addEventListener("focusin", function (e) { var pin = e.target.closest(".pin"); if (pin) setHover(pin.dataset.id); });
+  mapEl.addEventListener("focusout", function () { setHover(null); });
+  new ResizeObserver(function () {
+    var r = mapEl.getBoundingClientRect(); map.w = r.width; map.h = r.height; if (gl) gl.resize();
+    if (loaded && !state.firstFit && map.w) firstView();
+    draw();
+  }).observe(mapEl);
+
+  function mapPress(ll) {
+    ll = ll.wrap();
+    if (state.menu) { state.menu = false; paintMapUi(); return; }
+    if (state.moving) {
+      var a = byId(state.moving); state.moving = null;
+      if (a) { a.lat = +ll.lat.toFixed(6); a.lng = +ll.lng.toFixed(6); saveAsset(a); toast("Pin moved."); }
+      return paint();
+    }
+    if (state.placing) { state.placing = false; return createAt(ll.lat, ll.lng, ""); }
+    if (state.spot) { state.spot = null; return paint(); }
+  }
+
+  // ── Adding, and finding an address ──────────────────────────────────────
+  function createAt(lat, lng, label) {
+    var id = "p" + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
+    var a = { id: id, src: "store", path: "", example: false, title: label ? label.split(",")[0] : "New property", address: label || "",
+      lat: +(+lat).toFixed(6), lng: +(+lng).toFixed(6), type: "House", status: "Own use", photo: "", fields: { value: "" }, todo: [], notes: "" };
+    saveAsset(a);
+    state.spot = null; state.q = ""; $("q").value = "";
+    openAsset(id, true);
+    setTimeout(function () { var t = document.querySelector(".d-title"); if (t) { t.focus(); t.select(); } }, 420);
+    if (!label) {
+      // raw fetch: OpenStreetMap's public address lookup, to name the spot that was pressed.
+      fetch(GEO_URL + "/reverse?format=jsonv2&zoom=18&lat=" + lat + "&lon=" + lng, { headers: { "Accept-Language": "he,en" } })
+        .then(function (r) { return r.json(); }).then(function (j) {
+          var cur = byId(id); if (!cur || !j || !j.display_name || cur.address) return;
+          var open = state.open === id, tIn = open && document.querySelector(".d-title"), aIn = open && document.querySelector(".d-addr");
+          if (aIn && aIn.value.trim()) return;
+          var ad = j.address || {}, street = [ad.house_number, ad.road].filter(Boolean).join(" ");
+          cur.address = [street || j.name, ad.city || ad.town || ad.village || ad.county, ad.state].filter(Boolean).join(", ");
+          var untouched = cur.title === "New property" && (!tIn || tIn.value === "New property");
+          if (untouched && (street || j.name)) cur.title = street || j.name;
+          saveAsset(cur);
+          // Someone typing keeps the field they are in: fill the boxes in place, no repaint.
+          if (document.activeElement && document.activeElement.closest && document.activeElement.closest(".detail")) {
+            if (aIn) aIn.value = cur.address;
+            if (tIn && untouched && document.activeElement === tIn) { tIn.value = cur.title; tIn.select(); }
+            return;
+          }
+          paint();
+        }).catch(function () {});
+    }
+  }
+  // An address in the address search's own words, without the country name it
+  // gives Judea and Samaria (country code ps).
+  function placeParts(g) {
+    var ad = g.address || {};
+    return String(g.display_name).split(", ").filter(function (part) { return ad.country_code !== "ps" || part !== ad.country; });
+  }
+  function findAddress(q) {
+    state.geoBusy = true; state.geo = null; paintResults();
+    // raw fetch: OpenStreetMap's public address search.
+    fetch(GEO_URL + "/search?format=jsonv2&addressdetails=1&limit=6&viewbox=34.2,33.4,35.95,29.4&q=" + encodeURIComponent(q), { headers: { "Accept-Language": "he,en" } })
+      .then(function (r) { return r.json(); })
+      .then(function (list) { state.geo = Array.isArray(list) ? list : []; }, function () { state.geo = "failed"; })
+      .then(function () { state.geoBusy = false; paintResults(); });
+  }
+  function paintResults() {
+    var box = $("results"), q = state.q.trim();
+    if (!q || document.activeElement !== $("q") && !box.contains(document.activeElement)) { box.hidden = true; return; }
+    var hits = assets.filter(matches).slice(0, 6);
+    var html = hits.map(function (a) { return '<button data-act="open" data-id="' + esc(a.id) + '"><i class="dot" style="--c:' + stateOf(a).c + '"></i><span><b>' + esc(a.title) + "</b><small>" + esc(a.address || stateOf(a).id) + "</small></span></button>"; }).join("");
+    if (state.geoBusy) html += '<div class="sep">Looking for that address</div>';
+    else if (state.geo === "failed") html += '<div class="sep">The address search did not answer. Try again.</div>';
+    else if (state.geo) html += '<div class="sep">' + (state.geo.length ? "On the map" : "No address found for that") + "</div>" + state.geo.map(function (g, i) {
+      var parts = placeParts(g); return '<button data-act="geo" data-i="' + i + '">' + icon("pin") + "<span><b>" + esc(parts.slice(0, 2).join(", ")) + "</b><small>" + esc(parts.slice(2).join(", ")) + "</small></span></button>"; }).join("");
+    else html += '<button data-act="find">' + icon("cross") + "<span><b>Find “" + esc(q) + "” on the map</b><small>Search for this address</small></span></button>";
+    box.innerHTML = html; box.hidden = false;
+  }
+
+  // ── Painting ────────────────────────────────────────────────────────────
+  function paint() {
+    var fk = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.fk : null;
+    var inDrawer = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest(".drawer"));
+    document.documentElement.toggleAttribute("data-read", !canWrite());
+    if (state.open && !byId(state.open)) state.open = null;
+    paintTop(); paintMapUi(); paintRail(); paintDrawer();
+    var main = document.querySelector(".main"), exNote = !off("examples") && assets.some(function (a) { return a.example; });
+    main.classList.toggle("nomap", off("map"));
+    main.classList.toggle("norail", !off("map") && !state.editing && !state.open && !layout().length && !exNote);
+    map.groupsKey = map.groupsKey ? " " : ""; draw();
+    var el = fk && document.querySelector('[data-fk="' + CSS.escape(fk) + '"]');
+    if (el) el.focus(); else if (inDrawer) focusDrawer();
+  }
+  var paintTimer;
+  function paintSoon() { clearTimeout(paintTimer); paintTimer = setTimeout(paint, 0); }
+
+  function paintTop() {
+    var t = totals(), ex = assets.filter(function (a) { return a.example; }).length;
+    $("h1").innerHTML = '<span class="mark">' + icon("pin") + "</span>" + esc((here && here.cabinetName) || "Real Estate Map");
+    $("line").innerHTML = (!assets.length ? "No properties yet. Add your first one." :
+      "<b>" + props(t.n) + "</b>" + (t.any ? " · <b>" + short(t.value) + "</b> in value" : "") + (t.rent ? " · <b>" + money(t.rent) + "</b> rent a month" : "") + (ex ? " · showing examples" : "")) + partX("line");
+    $("line").hidden = off("line"); $("search").hidden = off("search"); $("search-x").innerHTML = partX("search");
+    $("actions").innerHTML =
+      '<button class="btn primary" data-act="add" data-write>' + icon("plus") + '<span class="lbl">Add a property</span></button>' +
+      (off("ideas") ? "" : '<span class="host"><button class="btn" data-act="drawer" data-kind="ideas">' + icon("bulb") + '<span class="lbl">Ideas</span></button>' + partX("ideas") + "</span>") +
+      '<button class="btn' + (state.editing ? " on" : "") + '" data-act="edit">' + icon("layout") + '<span class="lbl">Edit layout</span></button>' +
+      '<button class="btn icon-btn" data-act="drawer" data-kind="settings" aria-label="Settings">' + icon("sliders") + "</button>";
+  }
+
+  function paintMapUi() {
+    var counts = {}; assets.forEach(function (a) { var s = stateOf(a).id; counts[s] = (counts[s] || 0) + 1; });
+    $("chips").innerHTML = STATES.filter(function (s) { return counts[s.id]; }).map(function (s) {
+      return '<button class="chip' + (state.hide[s.id] ? " off" : "") + '" data-act="chip" data-s="' + s.id + '" style="--c:' + s.c + '" aria-pressed="' + !state.hide[s.id] + '"><i></i>' + s.id + " <span>" + counts[s.id] + "</span></button>";
+    }).join("") + partX("chips");
+    $("chips").hidden = off("chips");
+    $("ctrl").innerHTML = '<div class="stack"><button data-act="zin" aria-label="Zoom in">' + icon("plus") + '</button><button data-act="zout" aria-label="Zoom out">' + icon("minus") + "</button></div>" +
+      '<div class="stack"><button data-act="fit" aria-label="Show all my properties">' + icon("fit") + '</button><button data-act="menu" aria-label="Map options">' + icon("layers") + "</button></div>";
+    var look = lookNow(), pin = prefs.pin || "name";
+    function opt(group, id, label, cur) { return '<button class="opt' + (cur === id ? " on" : "") + '" data-act="opt" data-group="' + group + '" data-id="' + id + '">' + label + "</button>"; }
+    $("menu").innerHTML = !state.menu ? "" : '<div class="menu"><h4>Pins show</h4>' + opt("pin", "name", "The name", pin) + opt("pin", "value", "The value", pin) + opt("pin", "rent", "The rent", pin) + opt("pin", "state", "The state", pin) + opt("pin", "none", "Only the icon", pin) +
+      "<h4>Map look</h4>" + opt("map", "paper", "Paper", look) + opt("map", "classic", "Classic", look) + opt("map", "night", "Night", look) + "</div>";
+    document.documentElement.dataset.map = look; if (gl) startGl(); draw();
+    mapEl.classList.toggle("placing", !!(state.placing || state.moving));
+    var over = "";
+    if (state.placing) over = '<div class="banner">' + icon("cross") + "<span>Press the map where the property is, or search its address.</span><button class=\"btn small\" data-act=\"cancel\">Cancel</button></div>";
+    else if (state.moving) over = '<div class="banner">' + icon("move") + "<span>Press the map where the pin should go.</span><button class=\"btn small\" data-act=\"cancel\">Cancel</button></div>";
+    else if (gl === false) over = '<div class="empty-map"><h2>The map did not load</h2><p>Check the connection, then reload. Every property is still on the board.</p></div>';
+    else if (loaded && !assets.length) over = '<div class="empty-map"><h2>Your map is empty</h2><p>Add a property by pressing the map, by searching its address, or by telling your assistant.</p><div class="actions" style="justify-content:center"><button class="btn primary" data-act="add" data-write>' + icon("plus") + 'Add a property</button><button class="btn" data-act="idea" data-id="import">' + icon("list") + "Paste a list</button></div></div>";
+    $("overlay").innerHTML = over + (state.editing ? '<div class="map-off">' + partX("map", true) + "</div>" : "");
+  }
+
+  // ── The boxes ───────────────────────────────────────────────────────────
+  var BOXES = {
+    summary: { title: "Your portfolio", icon: "chart", desc: "Value, equity, rent and how full you are.", draw: boxSummary },
+    attention: { title: "Reminders", icon: "alert", desc: "Vacant places, late dates and what is close.", draw: boxAttention },
+    list: { title: "All properties", icon: "list", desc: "Every property, sorted the way you like.", draw: boxList },
+    upcoming: { title: "Coming up", icon: "cal", desc: "Every date on every property, in order.", draw: boxUpcoming },
+    rentroll: { title: "Rent roll", icon: "user", desc: "Each tenant, the rent and when the lease ends.", draw: boxRentRoll },
+    mix: { title: "The mix", icon: "layers", desc: "Your value by type or by state.", draw: boxMix },
+    goal: { title: "Your goal", icon: "target", desc: "A number to aim for, and how far along you are.", draw: boxGoal },
+    todo: { title: "To do", icon: "check", desc: "Open to-dos across every property.", draw: boxTodo },
+    notes: { title: "Notes", icon: "note", desc: "A free page for anything about the portfolio.", draw: boxNotes },
+    ask: { title: "Ask", icon: "send", desc: "Ask your assistant anything, with an idea for today.", draw: boxAsk },
+    ideas: { title: "Ideas", icon: "bulb", desc: "Every idea in one box, one press each.", draw: boxIdeas }
+  };
+  IDEAS.filter(function (i) { return !i.per; }).forEach(function (idea) {
+    BOXES["idea-" + idea.id] = { title: idea.title, icon: idea.icon, desc: idea.text, idea: true, draw: function () { return { html: '<p class="none" style="margin-bottom:10px">' + esc(idea.text) + '</p><button class="btn small primary" data-act="idea" data-id="' + idea.id + '">' + icon("send") + "Ask</button>" }; } };
+  });
+  var DEFAULT_LAYOUT = ["summary", "list", "ask"];
+  function boxIcon(b) { return '<span class="bi">' + icon(b.icon) + "</span>"; }
+  function layout() { var l = Array.isArray(prefs.layout) ? prefs.layout.filter(function (id, i, all) { return BOXES[id] && all.indexOf(id) === i; }) : null; return l || DEFAULT_LAYOUT.slice(); }
+
+  function rowBtn(a, right, sub) {
+    return '<li><button class="row" data-act="open" data-id="' + esc(a.id) + '" data-hot="' + esc(a.id) + '"><i class="dot" style="--c:' + stateOf(a).c + '"></i><span><b>' + esc(a.title) + "</b><small>" + esc(sub == null ? (a.address || typeOf(a).id) : sub) + '</small></span><span class="r">' + right + "</span></button></li>";
+  }
+  function boxSummary() {
+    var t = totals(); if (!t.n) return { html: '<p class="none">Add a property and your numbers show here.</p>' };
+    var occ = t.rentable ? Math.round(t.rented / t.rentable * 100) : null;
+    return { html: '<div class="kpis">' +
+      '<div class="kpi"><small>Total value</small><b>' + (t.any ? short(t.value) : "No values yet") + "</b><em>" + props(t.n) + "</em></div>" +
+      '<div class="kpi"><small>Equity</small><b>' + (t.any ? short(t.equity) : "") + "</b><em>" + (t.debt ? short(t.debt) + " owed" : "No loans listed") + "</em></div>" +
+      '<div class="kpi"><small>Rent a month</small><b>' + money(t.rent) + "</b><em>" + (t.rent ? money(t.rent * 12) + " a year" : "No rent listed") + "</em></div>" +
+      '<div class="kpi"><small>Left after costs</small><b>' + money(t.net) + "</b><em>a month, with what you listed</em></div>" +
+      (occ == null ? "" : '<div class="kpi wide"><small>Rented</small><b>' + t.rented + " of " + t.rentable + '</b><div class="meter"><i style="width:' + occ + '%"></i></div></div>') + "</div>" };
+  }
+  function boxAttention() {
+    var rows = [];
+    assets.forEach(function (a) { flags(a).forEach(function (fl) { if (fl.lvl !== "info") rows.push({ a: a, fl: fl }); }); });
+    rows.sort(function (x, y) { return (x.fl.lvl === "bad" ? 0 : 1) - (y.fl.lvl === "bad" ? 0 : 1); });
+    if (!rows.length) return { n: "", html: '<div class="flags"><div class="flag-ok">' + icon("check") + "Nothing to check right now.</div></div>" };
+    return { n: rows.length, html: '<ul class="rows">' + rows.slice(0, 8).map(function (r) { return rowBtn(r.a, '<span class="when flag-' + r.fl.lvl + '">' + esc(r.fl.lvl === "bad" ? "Now" : "Soon") + "</span>", r.fl.text); }).join("") + "</ul>" };
+  }
+  function boxList() {
+    var sort = state.listSort, list = assets.filter(matches).slice();
+    if (sort === "value") list.sort(function (a, b) { return (f(b, "value") || 0) - (f(a, "value") || 0); });
+    if (sort === "rent") list.sort(function (a, b) { return (derived(b).rent || 0) - (derived(a).rent || 0); });
+    var seg = '<div class="seg">' + [["name", "Name"], ["value", "Value"], ["rent", "Rent"]].map(function (s) { return '<button data-act="sort" data-id="' + s[0] + '" class="' + (sort === s[0] ? "on" : "") + '">' + s[1] + "</button>"; }).join("") + "</div>";
+    if (!list.length) return { extra: seg, html: '<p class="none">' + (assets.length ? "Nothing matches your search." : "No properties yet.") + "</p>" };
+    return { extra: seg, html: '<ul class="rows">' + list.map(function (a) {
+      var d = derived(a), right = sort === "rent" ? (d.rent != null ? money(d.rent) : "") : (d.value != null ? short(d.value) : "");
+      return rowBtn(a, right + "<small>" + esc(stateOf(a).id) + "</small>");
+    }).join("") + "</ul>" };
+  }
+  function boxUpcoming() {
+    var all = []; assets.filter(owned).forEach(function (a) { all = all.concat(dates(a)); });
+    all = all.filter(function (d) { return d.days >= -30 && d.days <= 365; }).sort(function (a, b) { return a.days - b.days; });
+    if (!all.length) return { html: '<p class="none">No dates yet. Add a lease end, a tax date or an insurance renewal to a property.</p>' };
+    return { n: all.length, html: '<ul class="rows">' + all.slice(0, 8).map(function (d) {
+      return rowBtn(d.a, '<span class="when flag-' + (d.days < 0 ? "bad" : d.days <= 60 ? "warn" : "info") + '">' + esc(inDays(d.days)) + "</span>", d.def.l + " · " + niceDate(d.date));
+    }).join("") + "</ul>" };
+  }
+  function boxRentRoll() {
+    var list = assets.filter(function (a) { return stateOf(a).id === "Rented"; });
+    if (!list.length) return { html: '<p class="none">No rented properties yet.</p>' };
+    var sum = 0;
+    return { n: list.length, html: '<ul class="rows">' + list.map(function (a) {
+      var r = f(a, "rent") || 0, end = parseDate(a.fields.lease_end); sum += r;
+      return rowBtn(a, money(r) + "<small>" + (end ? "to " + niceDate(end) : "no lease end") + "</small>", a.fields.tenant || "No tenant name");
+    }).join("") + '</ul><div class="derived" style="padding:8px 0 0;font-size:14px"><b>' + money(sum) + "</b> a month in all</div>" };
+  }
+  function boxMix() {
+    var by = prefs.mixBy === "state" ? "state" : "type", parts = {}, total = 0, hasValue = totals().any;
+    assets.filter(owned).forEach(function (a) { var k = by === "state" ? stateOf(a).id : typeOf(a).id, v = hasValue ? (f(a, "value") || 0) * part(a) : 1; parts[k] = (parts[k] || 0) + v; total += v; });
+    var keys = Object.keys(parts).sort(function (a, b) { return parts[b] - parts[a]; });
+    var seg = '<div class="seg"><button data-act="mix" data-id="type" class="' + (by === "type" ? "on" : "") + '">Type</button><button data-act="mix" data-id="state" class="' + (by === "state" ? "on" : "") + '">State</button></div>';
+    if (!total) return { extra: seg, html: '<p class="none">Nothing to show yet.</p>' };
+    function color(k, i) { if (by === "state") { for (var j = 0; j < STATES.length; j++) if (STATES[j].id === k) return STATES[j].c; } return TYPE_COLORS[i % TYPE_COLORS.length]; }
+    return { extra: seg, html: '<div class="bar">' + keys.map(function (k, i) { return '<i style="--c:' + color(k, i) + ";width:" + (parts[k] / total * 100).toFixed(2) + '%"></i>'; }).join("") + '</div><div class="legend">' +
+      keys.map(function (k, i) { return '<i class="dot" style="--c:' + color(k, i) + '"></i><span>' + esc(k) + "</span><span>" + (hasValue ? short(parts[k]) + " · " : "") + Math.round(parts[k] / total * 100) + "%</span>"; }).join("") + "</div>" };
+  }
+  function boxGoal() {
+    var g = shared.goal && typeof shared.goal === "object" ? shared.goal : {}, what = g.what || "value", t = totals();
+    var now = what === "rent" ? t.rent : what === "equity" ? t.equity : what === "count" ? t.n : t.value, target = num(g.target);
+    var pct = target ? clamp(Math.round(now / target * 100), 0, 100) : 0, show = function (n) { return what === "count" ? props(n) : what === "rent" ? money(n) + " a month" : short(n); };
+    return { html: '<div class="f"><label for="goal-what">I am aiming for</label><select id="goal-what" data-goal="what" data-fk="goal-what" ' + (canWrite() ? "" : "disabled") + ">" +
+      [["value", "Total value"], ["equity", "Equity"], ["rent", "Rent a month"], ["count", "Number of properties"]].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === what ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select><span></span></div>" +
+      '<div class="f"><label for="goal-target">Of</label><input id="goal-target" data-goal="target" data-fk="goal-target" inputmode="decimal" placeholder="Your number" value="' + esc(target == null ? "" : (what === "count" ? target : money(target))) + '" ' + (canWrite() ? "" : "readonly") + " /><span></span></div>" +
+      (target ? '<div class="meter" style="height:10px;margin-top:12px"><i style="width:' + pct + '%"></i></div><p class="none" style="margin-top:8px"><b style="color:var(--ink)">' + pct + "%</b> there. " + show(now) + " of " + show(target) + ".</p>" : '<p class="none" style="margin-top:8px">Set a number and watch it fill.</p>') };
+  }
+  function boxTodo() {
+    var rows = []; assets.forEach(function (a) { a.todo.forEach(function (t, i) { if (!t.done) rows.push({ a: a, t: t, i: i }); }); });
+    if (!rows.length) return { html: '<p class="none">No open to-dos. Add one inside a property.</p>' };
+    return { n: rows.length, html: rows.slice(0, 10).map(function (r) {
+      return '<label class="todo"><input type="checkbox" data-act-change="todo" data-id="' + esc(r.a.id) + '" data-i="' + r.i + '" ' + (canWrite() ? "" : "disabled") + " /><span>" + esc(r.t.t) + ' <small style="color:var(--ink-muted)">· ' + esc(r.a.title) + "</small></span><span></span></label>";
+    }).join("") };
+  }
+  function boxNotes() {
+    return { html: '<textarea class="free" data-shared="notes" data-fk="notes" placeholder="Plans, numbers to remember, who to call." ' + (canWrite() ? "" : "readonly") + ">" + esc(shared.notes || "") + "</textarea>" };
+  }
+  function ideaOfDay() { var list = IDEAS.filter(function (i) { return !i.per && !(prefs.hiddenIdeas || {})[i.id]; }); if (!assets.filter(function (a) { return !a.example; }).length) return list[0]; return list.length ? list[1 + Math.floor(Date.now() / DAY) % Math.max(1, list.length - 1)] || list[0] : null; }
+  function boxAsk() {
+    var idea = ideaOfDay();
+    return { html: '<form class="askbox" data-form="ask"><input name="q" data-fk="ask" placeholder="Ask about your properties" aria-label="Ask about your properties" /><button class="btn primary icon-btn" aria-label="Ask">' + icon("send") + "</button></form>" +
+      (idea ? '<div class="idea" style="margin-top:6px">' + icon(idea.icon) + "<b>" + esc(idea.title) + "</b><p>" + esc(idea.text) + '</p><div class="go"><button class="btn small" data-act="idea" data-id="' + idea.id + '">Try it</button><button class="btn small ghost" data-act="drawer" data-kind="ideas">More ideas</button></div></div>' : "") };
+  }
+  function boxIdeas() {
+    return { html: IDEAS.filter(function (i) { return !i.per && !(prefs.hiddenIdeas || {})[i.id]; }).map(function (i) {
+      return '<div class="idea">' + icon(i.icon) + "<b>" + esc(i.title) + "</b><p>" + esc(i.text) + '</p><div class="go"><button class="btn small" data-act="idea" data-id="' + i.id + '">Ask</button></div></div>'; }).join("") };
+  }
+
+  function paintRail() {
+    var rail = $("rail");
+    if (state.open) { rail.innerHTML = detailHtml(byId(state.open)); rail.classList.remove("editing"); return; }
+    rail.classList.toggle("editing", state.editing);
+    var ex = assets.filter(function (a) { return a.example; }).length, html = "";
+    if (state.editing) html += '<div class="editbar"><span>Remove or move anything.</span><button class="btn small" data-act="drawer" data-kind="boxes">' + icon("plus") + 'Add a box</button><button class="btn small" data-act="reset-layout">Reset</button><button class="btn small primary" data-act="edit">Done</button></div>';
+    if (ex && !off("examples")) html += '<div class="ex">' + icon("bulb") + "<span>" + (ex === 1 ? "1 example property is" : ex + " example properties are") + ' here to play with.</span>' + partX("examples") + '<button class="btn small" data-act="clear-examples" data-write>Remove them</button></div>';
+    html += '<div class="board" id="board">' + layout().map(function (id, i) {
+      var b = BOXES[id], d = b.draw();
+      return '<section class="box" data-box="' + id + '" style="animation-delay:' + i * 45 + 'ms"><header><h3>' + boxIcon(b) + esc(b.title) + "</h3>" + (d.extra && !state.editing ? d.extra : "") + (d.n ? '<span class="n">' + d.n + "</span>" : "") +
+        '<div class="tools"><button data-act="box-up" aria-label="Move up">' + icon("up") + '</button><button data-act="box-down" aria-label="Move down">' + icon("down") + '</button><button class="grip" data-grip aria-label="Drag to move">' + icon("grip") + '</button><button data-act="box-off" aria-label="Remove this box">' + icon("x") + "</button></div></header>" +
+        '<div class="body">' + d.html + "</div></section>";
+    }).join("") + (state.editing ? '<button class="addtile" data-act="drawer" data-kind="boxes">' + icon("plus") + "Add a box</button>" : "") + "</div>";
+    rail.innerHTML = html;
+  }
+
+  // ── One property, opened ────────────────────────────────────────────────
+  function inputFor(a, k) {
+    var def = defOf(k), v = a.fields[k], ro = canWrite() ? "" : " readonly", fk = ' data-fk="f-' + esc(k) + '" data-field="' + esc(k) + '" data-kind="' + esc(def.kind) + '" aria-label="' + esc(def.l) + '"';
+    if (def.kind === "date") return '<input type="date"' + fk + ' value="' + esc(parseDate(v) ? ymd(parseDate(v)) : "") + '"' + ro + " />";
+    if (def.kind === "link" && safeUrl(v) && !canWrite()) return '<a class="open" href="' + esc(safeUrl(v)) + '" target="_blank" rel="noopener">Open</a>';
+    var ph = def.kind === "money" ? sym() + "0" : def.kind === "percent" ? "0%" : def.kind === "link" ? "https://" : def.kind === "area" ? unit() : "Add";
+    return "<input" + fk + ' value="' + esc(def.kind === "link" ? (v || "") : show(def, v)) + '" placeholder="' + esc(ph) + '"' + (/money|percent|area|number/.test(def.kind) ? ' inputmode="decimal"' : "") + ro + " />";
+  }
+  function detailHtml(a) {
+    var st = stateOf(a), d = derived(a), photo = photoUrl(a.photo), ro = canWrite() ? "" : " readonly", fl = flags(a);
+    var byGroup = {};
+    Object.keys(a.fields).forEach(function (k) { var g = defOf(k).g; (byGroup[g] = byGroup[g] || []).push(k); });
+    var sections = GROUPS.filter(function (g) { return byGroup[g]; }).map(function (g) {
+      var extra = "";
+      if (g === "Money" && d.gain != null) extra = '<div class="derived">' + (d.gain >= 0 ? "Up " : "Down ") + money(Math.abs(d.gain)) + " since you bought it</div>";
+      if (g === "Money" && d.value != null && part(a) < 1) extra += '<div class="derived">Your share is ' + money(d.value * part(a)) + ". Your portfolio counts this part.</div>";
+      if (g === "Loan" && d.value != null && f(a, "mortgage_balance")) extra = '<div class="derived">Equity ' + money(d.equity) + " · " + Math.round(f(a, "mortgage_balance") / d.value * 100) + "% borrowed</div>";
+      if (g === "Rent" && d.yield != null) extra = '<div class="derived">' + d.yield.toFixed(1) + "% rent yield a year" + (d.out ? " · " + money(d.net) + " a month after costs" : "") + "</div>";
+      return '<div class="d-sec"><h4>' + esc(g) + "</h4>" + byGroup[g].map(function (k) {
+        var def = defOf(k), link = def.kind === "link" && safeUrl(a.fields[k]);
+        return '<div class="f"><label>' + (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="color:var(--wood)">' + esc(def.l) + " ↗</a>" : esc(def.l)) + "</label>" + inputFor(a, k) + '<button class="rm" data-act="field-off" data-k="' + esc(k) + '" data-write aria-label="Remove ' + esc(def.l) + '">' + icon("x") + "</button></div>";
+      }).join("") + extra + "</div>";
+    }).join("");
+    var kp = [];
+    if (d.value != null) kp.push(["Value today", short(d.value), d.gain != null ? (d.gain >= 0 ? "+" : "-") + short(Math.abs(d.gain)) + " since bought" : ""]);
+    if (d.rent != null) kp.push(["Rent a month", money(d.rent), d.yield != null ? d.yield.toFixed(1) + "% yield" : ""]);
+    if (d.value != null && f(a, "mortgage_balance")) kp.push(["Equity", short(d.equity), short(f(a, "mortgage_balance")) + " owed"]);
+    if (d.net != null && d.out) kp.push(["After costs", money(d.net), "a month"]);
+    return '<article class="detail" style="--c:' + st.c + '">' +
+      '<div class="d-head' + (photo ? " photo" : "") + '"' + (photo ? ' style="background-image:url(&quot;' + esc(photo) + '&quot;)"' : "") + ">" + (photo ? "" : '<div class="art">' + icon(typeOf(a).icon) + "</div>") +
+      '<div class="bar-top"><button data-act="close">' + icon("back") + "All properties</button>" +
+      (isOn(a) ? '<button class="sp" data-act="center" aria-label="Show on the map">' + icon("cross") + "</button>" : '<span class="sp"></span>') +
+      '<button data-act="move" data-write style="padding:0 11px">' + icon("move") + (isOn(a) ? "Move pin" : "Place on map") + "</button></div></div>" +
+      '<div class="d-main">' +
+      '<input class="d-title" data-top="title" data-fk="top-title" value="' + esc(a.title) + '" aria-label="Name"' + ro + " />" +
+      '<input class="d-addr" data-top="address" data-fk="top-address" value="' + esc(a.address) + '" placeholder="Add the address" aria-label="Address"' + ro + " />" +
+      '<div class="states" role="group" aria-label="State">' + STATES.map(function (s) { return '<button class="state' + (s.id === st.id ? " on" : "") + '" data-act="state" data-s="' + s.id + '" style="--c:' + s.c + '" aria-pressed="' + (s.id === st.id) + '"><i></i>' + s.id + "</button>"; }).join("") + "</div>" +
+      (a.example ? '<div class="ex" style="margin-top:10px">' + icon("alert") + "<span>An example, made up. Change it or remove it.</span></div>" : "") +
+      (kp.length ? '<div class="kpis" style="margin-top:14px">' + kp.map(function (k) { return '<div class="kpi"><small>' + k[0] + "</small><b>" + k[1] + "</b><em>" + k[2] + "</em></div>"; }).join("") + "</div>" : "") +
+      '<div class="d-sec"><h4>State</h4><div class="flags">' + (fl.length ? fl.map(function (x) { return '<div class="flag-' + x.lvl + '">' + icon(x.lvl === "info" ? "note" : "alert") + esc(x.text) + "</div>"; }).join("") : '<div class="flag-ok">' + icon("check") + "All good. Nothing is due.</div>") + "</div></div>" +
+      '<div class="d-sec"><h4>Kind</h4><div class="f"><label for="d-type">Type</label><select id="d-type" data-top="type" data-fk="top-type"' + (canWrite() ? "" : " disabled") + ">" + TYPES.map(function (t) { return "<option" + (t.id === typeOf(a).id ? " selected" : "") + ">" + t.id + "</option>"; }).join("") + '</select><span></span></div><div class="f"><label>Photo</label><input data-top="photo" data-fk="top-photo" value="' + esc(a.photo) + '" placeholder="Paste a picture link"' + ro + " /><span></span></div></div>" +
+      sections +
+      '<div class="d-sec" data-write><button class="btn" data-act="drawer" data-kind="fields" style="width:100%">' + icon("plus") + "Add a field</button></div>" +
+      '<div class="d-sec"><h4>To do</h4>' + a.todo.map(function (t, i) { return '<label class="todo' + (t.done ? " done" : "") + '"><input type="checkbox" data-act-change="todo" data-id="' + esc(a.id) + '" data-i="' + i + '"' + (t.done ? " checked" : "") + (canWrite() ? "" : " disabled") + " /><span>" + esc(t.t) + '</span><button class="rm" data-act="todo-off" data-i="' + i + '" data-write aria-label="Remove">' + icon("x") + "</button></label>"; }).join("") +
+      '<form data-form="todo" data-write><input class="add-line" name="t" data-fk="todo-add" placeholder="Add a to-do and press Enter" aria-label="Add a to-do" /></form></div>' +
+      '<div class="d-sec"><h4>Notes</h4><textarea class="free" data-top="notes" data-fk="top-notes" placeholder="Anything worth remembering about this place."' + ro + ">" + esc(a.notes) + "</textarea></div>" +
+      '<div class="d-sec"><h4>Ask your assistant</h4><div class="asks">' + IDEAS.filter(function (i) { return i.per; }).map(function (i) { return '<button class="pick" data-act="idea" data-id="' + i.id + '">' + icon(i.icon) + esc(i.title) + "</button>"; }).join("") + "</div></div>" +
+      '<div class="d-foot"><span>' + (a.path ? "File: " + esc(a.path) : "Kept on this map") + '</span><button class="btn small danger" data-act="delete" data-write>' + icon("trash") + "Remove</button></div>" +
+      "</div></article>";
+  }
+  function openAsset(id, flyThere) {
+    var a = byId(id); if (!a) return;
+    state.open = id; state.editing = false; state.drawer = null; setHover(null);
+    $("results").hidden = true;
+    paint(); $("rail").scrollTop = 0;
+    if (isOn(a) && flyThere !== false && gl) {
+      var p = gl.project([a.lng, a.lat]), inView = p.x > 80 && p.x < map.w - 80 && p.y > 110 && p.y < map.h - 60;
+      if (!inView || gl.getZoom() < 11.5) fly(a.lng, a.lat, Math.max(gl.getZoom(), 13.5), 30);
+    }
+    if (stacked.matches) $("rail").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ── The drawer ──────────────────────────────────────────────────────────
+  function paintDrawer() {
+    var el = $("drawer"), kind = state.drawer, body = "", title = "", sub = "";
+    if (!kind) { el.innerHTML = ""; return; }
+    if (kind === "ideas") {
+      title = "Ideas"; sub = "One press hands the job to your assistant. The answer comes in the chat beside the map.";
+      var hid = prefs.hiddenIdeas || {}, on = layout();
+      body = '<div class="card">' + IDEAS.filter(function (i) { return !i.per; }).map(function (i) {
+        return '<div class="idea' + (hid[i.id] ? " off" : "") + '">' + icon(i.icon) + "<b>" + esc(i.title) + "</b><p>" + esc(i.text) + '</p><div class="go"><button class="btn small primary" data-act="idea" data-id="' + i.id + '">Ask</button>' +
+          (on.indexOf("idea-" + i.id) < 0 ? '<button class="btn small" data-act="box-on" data-id="idea-' + i.id + '">Put it on my page</button>' : '<button class="btn small" data-act="box-off" data-id="idea-' + i.id + '">Take it off my page</button>') +
+          '<button class="btn small ghost" data-act="idea-hide" data-id="' + i.id + '">' + (hid[i.id] ? "Show it again" : "Hide") + "</button></div></div>"; }).join("") + "</div>";
+    } else if (kind === "boxes") {
+      title = "Add a box"; sub = "Pick what you want beside your map. You can move and remove boxes any time.";
+      var cur = layout(), free = Object.keys(BOXES).filter(function (id) { return cur.indexOf(id) < 0; });
+      function gal(ids) { return ids.length ? '<div class="card">' + ids.map(function (id) { var b = BOXES[id]; return '<div class="gal">' + boxIcon(b) + "<span><b>" + esc(b.title) + "</b><small>" + esc(b.desc) + '</small></span><button class="btn small" data-act="box-on" data-id="' + id + '">Add</button></div>'; }).join("") + "</div>" : '<p class="none" style="color:var(--ink-muted)">All of these are on your page.</p>'; }
+      var gone = Object.keys(PARTS).filter(off);
+      body = (gone.length ? "<h5>Parts of the page you removed</h5>" + '<div class="card">' + gone.map(function (k) { return '<div class="gal"><span class="bi">' + icon("layout") + "</span><span><b>" + esc(PARTS[k]) + '</b></span><button class="btn small" data-act="part-on" data-id="' + k + '">Put it back</button></div>'; }).join("") + "</div>" : "") + "<h5>Boxes</h5>" + gal(free.filter(function (id) { return !BOXES[id].idea; })) + "<h5>One idea each</h5>" + gal(free.filter(function (id) { return BOXES[id].idea; }));
+    } else if (kind === "fields") {
+      var a = byId(state.open); if (!a) { state.drawer = null; el.innerHTML = ""; return; }
+      title = "Add a field"; sub = "Pick anything you want to keep about " + a.title + ", or make your own.";
+      var defs = FIELDS.concat(customDefs().map(function (c) { return defOf(c.k); }));
+      body = '<h5>Your own</h5><form class="own" data-form="own"><input name="l" placeholder="Name it, for example Gate code" aria-label="Field name" maxlength="40" /><select name="kind" aria-label="Kind">' + KINDS.map(function (k) { return '<option value="' + k[0] + '">' + k[1] + "</option>"; }).join("") + '</select><button class="btn primary">Add</button></form>' +
+        GROUPS.map(function (g) {
+          var list = defs.filter(function (d) { return d.g === g && !(d.k in a.fields); });
+          return list.length ? "<h5>" + esc(g) + '</h5><div class="picks">' + list.map(function (d) { return '<button class="pick" data-act="field-on" data-k="' + esc(d.k) + '">' + icon("plus") + esc(d.l) + "</button>"; }).join("") + "</div>" : "";
+        }).join("");
+    } else if (kind === "settings") {
+      title = "Settings"; sub = "For everyone who uses this map.";
+      body = '<div class="card"><div class="set"><label for="set-cur">Money is in</label><select id="set-cur" data-setting="currency" data-fk="set-currency">' + CURRENCIES.map(function (c) { return "<option" + (c === sym() ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></div>" +
+        '<div class="set"><label for="set-unit">Sizes are in</label><select id="set-unit" data-setting="unit" data-fk="set-unit">' + UNITS.map(function (u) { return "<option" + (u === unit() ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select></div></div>" +
+        '<p class="sub" style="padding:0">Properties your assistant adds are files in the ' + FOLDER + " folder. What you add or change here is kept by this map. The newer one always shows.</p>";
+    }
+    el.innerHTML = '<div class="scrim" data-act="drawer-off"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><header><h2>' + esc(title) + '</h2><button class="btn icon-btn ghost" data-act="drawer-off" aria-label="Close">' + icon("x") + '</button></header><div class="sub">' + esc(sub) + '</div><div class="scroll">' + body + "</div></aside>";
+  }
+
+  // The drawer is a dialog: focus goes in when it opens, Tab stays inside it, and a
+  // close gives focus back to the button that opened it.
+  function focusDrawer() { var x = document.querySelector('.drawer [data-act="drawer-off"]'); if (x) x.focus(); }
+  function closeDrawer() {
+    var kind = state.drawer; state.drawer = null; paintDrawer();
+    var opener = document.querySelector('[data-act="drawer"][data-kind="' + kind + '"]'); if (opener) opener.focus();
+  }
+
+  // ── Changing things ─────────────────────────────────────────────────────
+  function setLayout(next) { savePref("layout", next); paint(); }
+  function runIdea(id) {
+    var idea = null; IDEAS.forEach(function (i) { if (i.id === id) idea = i; }); if (!idea) return;
+    var text = idea.ask, a = state.open && byId(state.open);
+    if (idea.per) { if (!a) return; text = text.replace("{name}", "“" + a.title + "”" + (a.path ? " (" + a.path + ")" : "")); }
+    state.drawer = null; paintDrawer();
+    ask(text, idea.send === false ? { send: false } : {});
+  }
+  function commitField(a, k, raw) {
+    var def = defOf(k), v = String(raw).trim();
+    if (/money|percent|area|number/.test(def.kind) && v !== "") { var n = num(v); v = n == null ? "" : n; }
+    if (def.kind === "link" && v && !safeUrl(v)) v = "https://" + v.replace(/^\/+/, "");
+    a.fields[k] = v; saveAsset(a);
+  }
+
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-act]"); if (!el) { if (state.menu && !e.target.closest(".menu")) { state.menu = false; paintMapUi(); } return; }
+    var act = el.dataset.act, a = state.open && byId(state.open), l, i;
+    if (act === "open") openAsset(el.dataset.id);
+    else if (act === "close") { state.open = null; state.moving = null; paint(); }
+    else if (act === "cluster") {
+      var g = groups[+el.dataset.g]; if (!g || !gl) return;
+      var cam = gl.cameraForBounds(boundsOf(g.items), { padding: pad(100, 110, 110), maxZoom: 16.6 });
+      fly(g.lng, g.lat, Math.max(cam ? cam.zoom : 0, gl.getZoom() + 1.2));
+    }
+    else if (act === "add") { state.placing = true; state.open = null; state.drawer = null; paint(); if (stacked.matches) mapEl.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    else if (act === "cancel") { state.placing = false; state.moving = null; paint(); }
+    else if (act === "zin") { if (gl) gl.zoomIn(); }
+    else if (act === "zout") { if (gl) gl.zoomOut(); }
+    else if (act === "fit") fitAll();
+    else if (act === "menu") { state.menu = !state.menu; paintMapUi(); }
+    else if (act === "opt") { savePref(el.dataset.group, el.dataset.id); paint(); }
+    else if (act === "chip") { state.hide[el.dataset.s] = !state.hide[el.dataset.s]; paint(); }
+    else if (act === "sort") { state.listSort = el.dataset.id; paintRail(); }
+    else if (act === "mix") { savePref("mixBy", el.dataset.id); paintRail(); }
+    else if (act === "drawer") { state.drawer = el.dataset.kind; paintDrawer(); focusDrawer(); }
+    else if (act === "drawer-off") closeDrawer();
+    else if (act === "edit") { state.editing = !state.editing; state.open = null; paint(); }
+    else if (act === "reset-layout") { savePref("off", {}); setLayout(DEFAULT_LAYOUT.slice()); }
+    else if (act === "part-off") { setOff(el.dataset.id, true); toast("Removed. Add a box brings it back."); }
+    else if (act === "part-on") { setOff(el.dataset.id, false); }
+    else if (act === "box-on") { l = layout(); if (l.indexOf(el.dataset.id) < 0) l.push(el.dataset.id); setLayout(l); toast("Added to your page."); }
+    else if (act === "box-off") { var id = el.dataset.id || el.closest(".box").dataset.box; setLayout(layout().filter(function (x) { return x !== id; })); }
+    else if (act === "box-up" || act === "box-down") {
+      l = layout(); i = l.indexOf(el.closest(".box").dataset.box); var j = i + (act === "box-up" ? -1 : 1);
+      if (j < 0 || j >= l.length) return; var tmp = l[i]; l[i] = l[j]; l[j] = tmp; setLayout(l);
+      var again = document.querySelector('.box[data-box="' + tmp + '"] [data-act="' + act + '"]'); if (again) again.focus();
+    }
+    else if (act === "idea") runIdea(el.dataset.id);
+    else if (act === "idea-hide") { var h = copy(prefs.hiddenIdeas || {}); h[el.dataset.id] = !h[el.dataset.id]; savePref("hiddenIdeas", h); paint(); }
+    else if (act === "clear-examples") { assets.filter(function (x) { return x.example; }).forEach(removeAsset); state.open = null; toast("Examples removed."); paint(); }
+    else if (act === "find") { findAddress(state.q.trim()); $("q").focus(); }
+    else if (act === "geo") {
+      var hit = state.geo && state.geo[+el.dataset.i]; if (!hit) return;
+      $("results").hidden = true;
+      if (state.placing) { state.placing = false; createAt(+hit.lat, +hit.lon, placeParts(hit).slice(0, 4).join(", ")); return; }
+      state.spot = { lat: +hit.lat, lng: +hit.lon, label: placeParts(hit).slice(0, 2).join(", "), full: placeParts(hit).slice(0, 4).join(", ") };
+      paint(); if (gl) fly(+hit.lon, +hit.lat, Math.max(gl.getZoom(), 14.5));
+    }
+    else if (act === "add-here" && state.spot) createAt(state.spot.lat, state.spot.lng, state.spot.full);
+    else if (act === "spot-off") { state.spot = null; paint(); }
+    else if (!a) return;
+    else if (act === "center") { if (gl) fly(a.lng, a.lat, Math.max(gl.getZoom(), 14.5)); }
+    else if (act === "move") { state.moving = a.id; paintMapUi(); if (stacked.matches) mapEl.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    else if (act === "state") { a.status = el.dataset.s; if (a.status === "Vacant" && !a.fields.vacant_since) a.fields.vacant_since = ymd(today()); saveAsset(a); paint(); }
+    else if (act === "field-on") { a.fields[el.dataset.k] = ""; saveAsset(a); state.drawer = null; paint(); var inp = document.querySelector('[data-field="' + CSS.escape(el.dataset.k) + '"]'); if (inp) { inp.scrollIntoView({ block: "center", behavior: "smooth" }); inp.focus(); } }
+    else if (act === "field-off") { delete a.fields[el.dataset.k]; saveAsset(a); paint(); }
+    else if (act === "todo-off") { a.todo.splice(+el.dataset.i, 1); saveAsset(a); paint(); }
+    else if (act === "delete") {
+      if (el.dataset.sure) { removeAsset(a); state.open = null; toast("Removed."); paint(); }
+      else { el.dataset.sure = "1"; el.innerHTML = icon("trash") + "Press again to remove"; }
+    }
+  });
+
+  document.addEventListener("change", function (e) {
+    var el = e.target, a = state.open && byId(state.open);
+    if (el.dataset.actChange === "todo") { var t = byId(el.dataset.id); if (t && t.todo[+el.dataset.i]) { t.todo[+el.dataset.i].done = el.checked; saveAsset(t); paintSoon(); } return; }
+    if ((el.dataset.setting || el.dataset.goal || el.dataset.shared) && !canWrite()) { toast("You can look, but not change this."); return paint(); }
+    if (el.dataset.setting) { var s = copy(shared.settings || {}); s[el.dataset.setting] = el.value; saveShared("settings", s); return paintSoon(); }
+    if (el.dataset.goal) { var g = copy(shared.goal && typeof shared.goal === "object" ? shared.goal : {}); g[el.dataset.goal] = el.dataset.goal === "target" ? num(el.value) : el.value; saveShared("goal", g); return paintSoon(); }
+    if (el.dataset.shared) { saveShared(el.dataset.shared, el.value); return; }
+    if (!a) return;
+    if (el.dataset.field) { commitField(a, el.dataset.field, el.value); return paintSoon(); }
+    if (el.dataset.top) { a[el.dataset.top] = el.dataset.top === "notes" ? el.value : el.value.trim(); if (el.dataset.top === "title" && !a.title) a.title = "Property"; saveAsset(a); return paintSoon(); }
+  });
+  // Money and the like show formatted, and turn into the bare number while typed in.
+  document.addEventListener("focusin", function (e) {
+    var el = e.target; if (!el.dataset || !el.dataset.field || !/money|percent|area/.test(el.dataset.kind) || el.readOnly) return;
+    var n = num(el.value); el.value = n == null ? "" : n; el.select();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.target.matches && e.target.matches(".f input, .d-title, .d-addr")) e.target.blur();
+    if (e.key === "Enter" && e.target.id === "q" && state.q.trim()) {
+      var hits = assets.filter(matches); if (hits.length === 1 && !state.placing) openAsset(hits[0].id); else findAddress(state.q.trim());
+    }
+    if (e.key === "Tab" && state.drawer) {
+      var stops = document.querySelectorAll(".drawer button, .drawer input, .drawer select"), first = stops[0], last = stops[stops.length - 1];
+      var inside = document.activeElement.closest(".drawer");
+      if (!inside || document.activeElement === (e.shiftKey ? first : last)) { e.preventDefault(); (e.shiftKey && inside ? last : first).focus(); }
+    }
+    if (e.key === "Escape") {
+      if (state.drawer) return closeDrawer(); else if (state.menu) state.menu = false; else if (state.placing || state.moving) { state.placing = false; state.moving = null; }
+      else if (!$("results").hidden) { $("results").hidden = true; return; } else if (state.open) state.open = null; else return;
+      paint();
+    }
+  });
+  document.addEventListener("submit", function (e) {
+    e.preventDefault(); var form = e.target, a = state.open && byId(state.open);
+    if (form.dataset.form === "ask") { var q = form.q.value.trim(); if (q) { ask(q); form.q.value = ""; } }
+    else if (form.dataset.form === "todo" && a) { var t = form.t.value.trim(); if (!t) return; a.todo.push({ t: t.slice(0, 200), done: false }); saveAsset(a); paint(); var again = document.querySelector('[data-fk="todo-add"]'); if (again) again.focus(); }
+    else if (form.dataset.form === "own" && a) {
+      var label = form.l.value.trim(); if (!label) return form.l.focus();
+      var defs = customDefs(), k = ownKey(label, defs);
+      if (!FIELDS.some(function (d) { return d.k === k; }) && !defs.some(function (d) { return d.k === k; })) { defs.push({ k: k, l: label, kind: form.kind.value }); saveShared("fields", defs); }
+      a.fields[k] = a.fields[k] || ""; saveAsset(a); state.drawer = null; paint();
+      var inp = document.querySelector('[data-field="' + CSS.escape(k) + '"]'); if (inp) { inp.scrollIntoView({ block: "center", behavior: "smooth" }); inp.focus(); }
+    }
+  });
+  $("q").addEventListener("input", function () { state.q = this.value; state.geo = null; paintResults(); if (!state.open) paintRail(); map.groupsKey = " "; draw(); });
+  $("q").addEventListener("focus", paintResults);
+  document.addEventListener("pointerdown", function (e) { if (!e.target.closest("#search")) $("results").hidden = true; });
+  // A row in a box lights its pin on the map.
+  $("rail").addEventListener("mouseover", function (e) { var r = e.target.closest("[data-hot]"), id = r ? r.dataset.hot : null; if (id === state.hot) return; state.hot = id; [].forEach.call(mapEl.querySelectorAll(".pin"), function (p) { p.classList.toggle("hot", p.dataset.id === id); }); });
+  $("rail").addEventListener("mouseleave", function () { state.hot = null; [].forEach.call(mapEl.querySelectorAll(".pin.hot"), function (p) { p.classList.remove("hot"); }); });
+
+  // Dragging a box up or down the board.
+  var lift = null;
+  $("rail").addEventListener("pointerdown", function (e) {
+    var grip = e.target.closest("[data-grip]"); if (!grip || !state.editing) return;
+    var box = grip.closest(".box"); e.preventDefault();
+    lift = { box: box, y: e.clientY, id: e.pointerId }; box.classList.add("lift"); box.style.animation = "none";
+    try { grip.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
+  });
+  $("rail").addEventListener("pointermove", function (e) {
+    if (!lift || e.pointerId !== lift.id) return;
+    var box = lift.box, dy = e.clientY - lift.y, sib = dy < 0 ? box.previousElementSibling : box.nextElementSibling;
+    if (sib && sib.classList.contains("box")) {
+      var r = sib.getBoundingClientRect(), mid = r.top + r.height / 2, br = box.getBoundingClientRect();
+      if ((dy < 0 && br.top < mid) || (dy > 0 && br.bottom > mid)) {
+        var before = sib.getBoundingClientRect().top, top0 = box.offsetTop;
+        if (dy < 0) box.parentNode.insertBefore(box, sib); else box.parentNode.insertBefore(sib, box);
+        lift.y += box.offsetTop - top0; dy = e.clientY - lift.y;
+        var delta = before - sib.getBoundingClientRect().top;
+        if (sib.animate) sib.animate([{ transform: "translateY(" + delta + "px)" }, { transform: "none" }], { duration: 260, easing: "cubic-bezier(.23,1,.32,1)" });
+      }
+    }
+    box.style.transform = "translateY(" + dy + "px) scale(1.02)";
+  });
+  function dropBox(e) {
+    if (!lift || e.pointerId !== lift.id) return;
+    var box = lift.box; lift = null; box.classList.remove("lift");
+    if (box.animate) box.animate([{ transform: box.style.transform }, { transform: "none" }], { duration: 240, easing: "cubic-bezier(.23,1,.32,1)" });
+    box.style.transform = "";
+    savePref("layout", [].map.call(document.querySelectorAll("#board .box"), function (b) { return b.dataset.box; }));
+  }
+  $("rail").addEventListener("pointerup", dropBox);
+  $("rail").addEventListener("pointercancel", dropBox);
+
+  // ── Start ───────────────────────────────────────────────────────────────
+  function firstView() {
+    state.firstFit = true;
+    if (!gl) return;
+    // A view saved by the older map was an array in its own units: it is ignored.
+    var v = prefs.view, ok = v && [v.lng, v.lat, v.zoom].every(function (n) { return typeof n === "number" && isFinite(n); });
+    if (ok) gl.jumpTo({ center: [v.lng, v.lat], zoom: v.zoom });
+    else fitAll(true);
+  }
+  function refresh() { merge(); paint(); }
+  function readStores() {
+    shared = hasStore ? fromKept() : lsRead(LS);
+    prefs = hasStore && cab.mine ? copy(cab.mine.all() || {}) : lsRead(LS + ":mine");
+  }
+  function typing() { var el = document.activeElement; return !!(el && el.dataset && el.dataset.fk); }
+  function start() {
+    var hereP = cab && cab.here ? Promise.resolve(cab.here()).catch(function () { return null; }) : Promise.resolve(null);
+    return hereP.then(function (h) {
+      here = h;
+      var dark = h && h.theme ? h.theme === "dark" : !!(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+      if (dark) document.documentElement.dataset.theme = "dark";
+      readStores();
+      startGl();
+      return loadFiles();
+    }).then(function () {
+      loaded = true; merge(); paint();
+      if (map.w) firstView();
+      // Someone typing keeps their box: the data updates now, the page on the next paint.
+      if (hasStore && kept.onChange) kept.onChange(function () { shared = fromKept(); if (typing()) merge(); else refresh(); });
+      if (V2 && cab.files.onChange) cab.files.onChange(FOLDER, function () { loadFiles().then(function () { if (typing()) merge(); else refresh(); }); });
+    });
+  }
+  if (BASE) $("attr").innerHTML = BASE.ATTRIBUTION;
+  paintTop(); paintMapUi();
+  if (cab && cab.ready && typeof cab.ready.then === "function") {
+    var began = null, go = function () { if (!began) began = start(); };
+    // Cabinet slow to answer: start without it, then read the stores again once it is ready.
+    cab.ready.then(function () { if (began) began.then(function () { readStores(); refresh(); }); else go(); }, go);
+    setTimeout(go, 3000);
+  } else start();
+})();
+</script>
+</body>
+</html>
