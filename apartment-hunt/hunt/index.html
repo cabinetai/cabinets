@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<!--
+  Apartment Hunt: the places worth seeing, as pins on a map. The cabinet opens here.
+
+  What it reads (all through window.cabinet.files, written by the Apartment Scout):
+    search/brief.md     what the person is looking for (frontmatter + words)
+    listings/*.md       one apartment each (frontmatter + "Why it fits", "Watch out", "Ask before you visit")
+    search/runs.json    what each search looked at and found
+    search/market.md    the weekly market read
+  While search/brief.md does not exist the EXAMPLE- versions show instead, labelled.
+
+  What it writes: only what the person does with a listing (save it, or not for me and why), in the app's store (window.cabinet.store, kept by Cabinet in hunt/.data/shared.json)
+  under "l:<listing file name>". The Scout reads it before every search.
+  playbooks/how-it-works.md is the same contract in words.
+
+  Two countries: Israel and the United States. The brief's `country` decides the money, the
+  units (m² or sq ft, rooms or bedrooms, km or mi) and which example set shows before it exists.
+
+  The map is MapLibre (from a CDN) drawing OpenFreeMap (free, no key, OpenStreetMap data),
+  set up by the shared base map (shared/basemap.js in the registry, pasted in below). If
+  MapLibre cannot start, the list works alone. One file on purpose: a sealed
+  frame cannot load files next to it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Apartment Hunt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=Geist:wght@400;500;600;700&family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #F7F5F1; --surface: #FFFFFF; --surface-muted: #F4F1EC; --surface-press: #EAE6DF;
+    --ink: #1D2024; --ink-2: #41464D; --ink-muted: #70757C;
+    --brand: #0F5A5E; --brand-deep: #0A4245; --on-brand: #FFFFFF; --brand-tint: #E3F0EF;
+    --border: #E3DFD7; --border-soft: rgba(227,223,215,.75);
+    --top: #23845A; --good: #3566B0; --maybe: #B47A1F; --gone: #9AA0A8; --anchor: #22262B;
+    --ok: #23845A; --ok-tint: #E5F3EB; --warn: #A86A12; --warn-tint: #FBF1DD; --bad: #BF3B2B; --bad-tint: #FBEAE6;
+    --on-pin: #FFFFFF;
+    --radius: 18px;
+    --shadow-1: 0 1px 2px rgba(40,32,24,.06), 0 6px 18px -10px rgba(40,32,24,.2);
+    --shadow-2: 0 2px 4px rgba(40,32,24,.08), 0 18px 40px -16px rgba(40,32,24,.34);
+    --font: Geist, Heebo, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --serif: Fraunces, Georgia, "Times New Roman", serif;
+    --ring: 0 0 0 3px rgba(15,90,94,.25);
+    --ease: cubic-bezier(.23, 1, .32, 1);
+    --map-bg: #ECE7DE;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #121416; --surface: #1B1E21; --surface-muted: #222528; --surface-press: #2B2F33;
+    --ink: #ECEDEE; --ink-2: #C8CBCF; --ink-muted: #969BA2;
+    --brand: #7CC7C4; --brand-deep: #A3DAD7; --on-brand: #0B2526; --brand-tint: #17302F;
+    --border: #33373B; --border-soft: rgba(70,74,80,.6);
+    --top: #5EC08F; --good: #80A6E3; --maybe: #DDAA5C; --gone: #6E747C; --anchor: #E6E8EA;
+    --ok: #5EC08F; --ok-tint: #16301F; --warn: #E5B866; --warn-tint: #33290F; --bad: #FF8E7E; --bad-tint: #3A1C18;
+    --on-pin: #111416;
+    --shadow-1: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px -10px rgba(0,0,0,.6);
+    --shadow-2: 0 2px 4px rgba(0,0,0,.35), 0 18px 40px -16px rgba(0,0,0,.8);
+    --ring: 0 0 0 3px rgba(124,199,196,.35);
+    --map-bg: #1B1C1D;
+    color-scheme: dark;
+  }
+  :root[lang="he"] { --font: Heebo, Geist, system-ui, -apple-system, "Segoe UI", sans-serif; --serif: Heebo, Georgia, serif; }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; cursor: pointer; }
+  [hidden] { display: none !important; }
+  svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  :focus-visible { outline: none; box-shadow: var(--ring); }
+  [dir="rtl"] .flip { transform: scaleX(-1); }
+
+  /* ── Frame ─────────────────────────────────────────────────────────────── */
+  #app { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  .top { display: flex; align-items: center; gap: 12px; padding: 14px 16px 12px; flex-wrap: wrap; }
+  .brand { min-width: 0; margin-inline-end: auto; display: flex; align-items: center; gap: 10px; }
+  .mark { width: 36px; height: 36px; border-radius: 11px; background: var(--brand); color: var(--on-brand); display: grid; place-items: center; flex: none; }
+  .mark svg { width: 20px; height: 20px; }
+  .brand h1 { margin: 0; font: 600 22px/1.15 var(--serif); letter-spacing: -.02em; }
+  .brand p { margin: 2px 0 0; color: var(--ink-muted); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62vw; }
+  .brand p b { color: var(--ink-2); font-weight: 600; }
+  .brand > div { min-width: 0; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 7px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); font-weight: 600; font-size: 14px; white-space: nowrap; transition: transform .16s var(--ease), background .16s, border-color .16s; }
+  .btn:hover { background: var(--surface-muted); }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: var(--on-brand); box-shadow: var(--shadow-1); }
+  .btn.primary:hover { background: var(--brand-deep); border-color: var(--brand-deep); }
+  .btn.ghost { border-color: transparent; background: none; }
+  .btn.ghost:hover { background: var(--surface-press); }
+  .btn.small { min-height: 32px; padding: 4px 11px; font-size: 13.5px; border-radius: 10px; }
+  .btn.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .btn.wide { width: 100%; }
+  .btn[disabled] { opacity: .55; cursor: default; transform: none; }
+  .tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-press); color: var(--ink-2); white-space: nowrap; }
+  .tag.ex { background: var(--warn-tint); color: var(--warn); }
+
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; min-height: 0; }
+  .mapwrap { position: relative; min-height: 0; margin-inline-start: 14px; margin-bottom: 14px; border-radius: 22px; overflow: hidden; background: var(--map-bg); box-shadow: var(--shadow-2); border: 1px solid var(--border-soft); isolation: isolate; }
+  .rail { min-height: 0; overflow-y: auto; padding: 0 14px 28px; scrollbar-width: thin; }
+
+  /* ── The map ───────────────────────────────────────────────────────────── */
+  #map { position: absolute; inset: 0; }
+  #map canvas { outline: none; }
+  .map-ui { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+  .map-ui > * { pointer-events: auto; }
+  .ctrl { position: absolute; inset-inline-end: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .ctrl button { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); display: grid; place-items: center; box-shadow: var(--shadow-1); }
+  .ctrl button:hover { background: var(--surface-muted); }
+  .legend { position: absolute; inset-inline-start: 12px; top: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 92%, transparent); box-shadow: var(--shadow-1); font-size: 12.5px; font-weight: 600; color: var(--ink-2); backdrop-filter: blur(6px); }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+  .attr { position: absolute; inset-inline-end: 8px; bottom: 6px; font-size: 10.5px; color: var(--ink-muted); background: color-mix(in srgb, var(--surface) 80%, transparent); padding: 1px 6px; border-radius: 6px; }
+  .attr a { color: inherit; text-decoration: none; }
+  .map-off { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--ink-muted); }
+  .pin, .anchor { border: 0; background: none; padding: 0; }
+  .pin-in { position: relative; display: flex; align-items: center; gap: 5px; transform: translate(-50%, calc(-100% - 9px)); transform-origin: 50% calc(100% + 9px); padding: 4px 10px 4px 5px; border-radius: 999px; background: var(--c); color: var(--on-pin); font-weight: 700; font-size: 13px; white-space: nowrap; box-shadow: 0 1px 2px rgba(20,16,12,.25), 0 8px 18px -8px rgba(20,16,12,.55); transition: transform .22s var(--ease), box-shadow .22s; animation: drop .5s var(--ease) both; animation-delay: var(--d, 0ms); }
+  [dir="rtl"] .pin-in { padding: 4px 5px 4px 10px; }
+  .pin-in::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 11px; height: 11px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 3px 0; z-index: -1; }
+  .pin-ic { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.22); display: grid; place-items: center; flex: none; }
+  :root[data-theme="dark"] .pin-ic { background: rgba(0,0,0,.14); }
+  .pin-ic svg { width: 13px; height: 13px; stroke-width: 2.3; }
+  .pin.example .pin-in { opacity: .92; }
+  .pin:hover, .pin.sel { z-index: 5; }
+  .pin:hover .pin-in { transform: translate(-50%, calc(-100% - 9px)) scale(1.07); }
+  .pin.sel .pin-in { transform: translate(-50%, calc(-100% - 9px)) scale(1.14); box-shadow: 0 0 0 3px var(--surface), 0 12px 26px -8px rgba(20,16,12,.6); }
+  .pin.dim .pin-in { opacity: .35; }
+  @keyframes drop { from { opacity: 0; transform: translate(-50%, calc(-100% - 30px)); } }
+  .anchor-in { display: flex; align-items: center; gap: 6px; transform: translate(-50%, -50%); padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--anchor); color: var(--bg); font-size: 12.5px; font-weight: 600; white-space: nowrap; box-shadow: var(--shadow-1); }
+  [dir="rtl"] .anchor-in { padding: 4px 4px 4px 10px; }
+  .anchor-in span.dot { width: 20px; height: 20px; border-radius: 50%; background: var(--bg); color: var(--anchor); display: grid; place-items: center; }
+  .anchor-in svg { width: 12px; height: 12px; stroke-width: 2.4; }
+  .hover { position: absolute; left: 0; top: 0; width: 280px; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-2); border: 1px solid var(--border-soft); padding: 12px 14px; pointer-events: none; opacity: 0; transition: opacity .14s; z-index: 6; }
+  .hover.show { opacity: 1; }
+  .hover h3 { margin: 0 0 2px; font-size: 14.5px; line-height: 1.3; }
+  .hover .price { font-weight: 700; font-size: 17px; }
+  .hover p { margin: 6px 0 0; font-size: 13px; color: var(--ink-2); }
+
+  /* ── The rail ──────────────────────────────────────────────────────────── */
+  .card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); box-shadow: var(--shadow-1); padding: 16px; margin-bottom: 12px; }
+  .card h2 { margin: 0 0 6px; font: 600 18px/1.25 var(--serif); letter-spacing: -.01em; }
+  .card p { margin: 0 0 10px; color: var(--ink-2); font-size: 14px; }
+  .start { background: linear-gradient(160deg, var(--brand-tint), var(--surface) 70%); }
+  .start h2 { font-size: 22px; }
+  .seg { display: flex; gap: 4px; padding: 4px; background: var(--surface-press); border-radius: 13px; }
+  .seg button { flex: 1; border: 0; background: none; border-radius: 10px; padding: 7px 8px; font-weight: 600; font-size: 14px; color: var(--ink-muted); }
+  .seg button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
+  .start .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .muted { color: var(--ink-muted); font-size: 13px; }
+  .brief-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; background: var(--surface-muted); border: 1px solid var(--border-soft); font-size: 13px; color: var(--ink-2); }
+  .chip.must { background: var(--brand-tint); border-color: transparent; color: var(--brand-deep); font-weight: 600; }
+  :root[data-theme="dark"] .chip.must { color: var(--brand); }
+  .chip.no { background: var(--bad-tint); border-color: transparent; color: var(--bad); }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+  .card-head h2 { margin: 0; }
+  .run { display: flex; gap: 10px; align-items: flex-start; }
+  .dotline { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .dotline span { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-muted); }
+  .dotline i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .dotline i.bad { background: var(--bad); }
+  .busy { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface-press); border-radius: 13px; margin: 4px 0 12px; position: sticky; top: 0; z-index: 2; }
+  .tabs button { flex: 1; border: 0; background: none; border-radius: 10px; padding: 7px 8px; font-weight: 600; font-size: 13.5px; color: var(--ink-muted); display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .tabs button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
+  .tabs b { font-size: 12px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--surface-muted); color: var(--ink-2); }
+  .tabs button.on b { background: var(--brand-tint); color: var(--brand-deep); }
+
+  .item { position: relative; display: block; width: 100%; text-align: start; border: 1px solid var(--border-soft); background: var(--surface); border-radius: 16px; padding: 13px 14px 12px; margin-bottom: 9px; box-shadow: var(--shadow-1); transition: border-color .16s, transform .16s var(--ease); overflow: hidden; }
+  .item::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 4px; background: var(--c); }
+  .item:hover { border-color: color-mix(in srgb, var(--c) 45%, var(--border)); }
+  .item:active { transform: scale(.99); }
+  .item.hot { border-color: var(--c); }
+  .item .l1 { display: flex; align-items: baseline; gap: 8px; }
+  .item .price { font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+  .item .per { color: var(--ink-muted); font-size: 12.5px; font-weight: 500; }
+  .item .score { margin-inline-start: auto; font-weight: 700; font-size: 13px; color: var(--c); display: inline-flex; align-items: center; gap: 4px; }
+  .item .h3, .item .meta, .item .why { display: block; }
+  .item .h3 { margin: 2px 0 1px; font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+  .item .meta { color: var(--ink-muted); font-size: 13px; }
+  .item .why { margin: 6px 0 0; font-size: 13.5px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .item .foot { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; align-items: center; }
+  .f { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--ok-tint); color: var(--ok); }
+  .f.q { background: var(--warn-tint); color: var(--warn); }
+  .f.x { background: var(--bad-tint); color: var(--bad); }
+  .f svg { width: 12px; height: 12px; stroke-width: 2.6; }
+  .badge { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--c); color: var(--on-pin); }
+  .st { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--ink); color: var(--bg); }
+  .src { margin-inline-start: auto; font-size: 12px; color: var(--ink-muted); }
+  .empty { text-align: center; padding: 26px 12px; color: var(--ink-muted); font-size: 14px; }
+
+  /* ── One listing ───────────────────────────────────────────────────────── */
+  .detail .back { margin: 0 0 10px; margin-inline-start: -6px; }
+  .d-photo { height: 180px; border-radius: 16px; background: var(--surface-press) center/cover no-repeat; margin-bottom: 12px; }
+  .d-head .l1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .d-head h2 { margin: 6px 0 2px; font: 600 21px/1.25 var(--serif); letter-spacing: -.01em; }
+  .d-price { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px; margin: 12px 0; }
+  .facts div { background: var(--surface-muted); border-radius: 12px; padding: 8px 10px; }
+  .facts small { display: block; font-size: 11.5px; color: var(--ink-muted); }
+  .facts b { font-size: 15px; }
+  .whyline { font-size: 15px; color: var(--ink); background: var(--brand-tint); border-radius: 14px; padding: 10px 12px; margin: 0 0 12px; }
+  .fair { margin: 0 0 12px; }
+  .fair .bar { position: relative; height: 8px; border-radius: 99px; background: linear-gradient(90deg, var(--ok), var(--surface-press) 50%, var(--bad)); margin: 22px 4px 6px; }
+  [dir="rtl"] .fair .bar { background: linear-gradient(-90deg, var(--ok), var(--surface-press) 50%, var(--bad)); }
+  .fair .mk { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); border: 3px solid var(--surface); transform: translate(-50%, -50%); }
+  [dir="rtl"] .fair .mk { transform: translate(50%, -50%); }
+  .fair .mid { position: absolute; top: -18px; transform: translateX(-50%); font-size: 11.5px; color: var(--ink-muted); white-space: nowrap; }
+  [dir="rtl"] .fair .mid { transform: translateX(50%); }
+  .fair .mid::after { content: ""; position: absolute; left: 50%; top: 16px; width: 1px; height: 12px; background: var(--ink-muted); }
+  .sec { margin: 14px 0 0; }
+  .sec h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); }
+  :root[lang="he"] .sec h4 { text-transform: none; letter-spacing: 0; font-size: 14px; }
+  .sec ul { margin: 0; padding-inline-start: 18px; }
+  .sec li { margin: 3px 0; font-size: 14px; color: var(--ink-2); }
+  .sec p { margin: 4px 0; font-size: 14px; color: var(--ink-2); }
+  .dist { display: flex; flex-wrap: wrap; gap: 6px; }
+  .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .reasons { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .reasons button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; }
+  .reasons button.on { background: var(--bad); border-color: var(--bad); color: #fff; }
+  textarea { width: 100%; min-height: 64px; border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; background: var(--surface); resize: vertical; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; }
+  a.btn { text-decoration: none; color: inherit; }
+  .market-body { margin-top: 8px; }
+
+  #toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 12px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .25s var(--ease); z-index: 50; max-width: calc(100vw - 32px); }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ── Narrow: the map on top, the list under it, the page scrolls ──────── */
+  @media (max-width: 899px) {
+    body { overflow: auto; }
+    #app { height: auto; min-height: 100dvh; display: block; }
+    .main { display: block; }
+    .mapwrap { height: 46vh; min-height: 280px; margin: 0 12px 12px; }
+    .rail { overflow: visible; padding: 0 12px 28px; }
+    .brand p { max-width: calc(100vw - 80px); }
+    .hover { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .pin-in { animation: none; } * { transition-duration: 0s !important; } }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
+<script data-shared="basemap.js">
+/*
+ * The base map every template map page uses: OpenFreeMap tiles drawn by MapLibre.
+ *
+ * One source: shared/basemap.js at the root of the cabinets registry. A template
+ * installs on its own, and a sealed app frame cannot load a file next to its page,
+ * so `node .github/scripts/sync-shared.mjs` pastes this file into each page that
+ * marks a place for it, and a test fails when a page holds an older copy.
+ * Change this file, never a page's copy.
+ *
+ * A page loads MapLibre 4.7.1 from unpkg first, then marks the place with an empty
+ * script element that has the attribute data-shared="basemap.js". The sync fills it.
+ */
+(function () {
+  "use strict";
+
+  var STYLE_URL = "https://tiles.openfreemap.org/styles/";
+  // Hebrew and Arabic place names come out backwards without this plugin. It loads
+  // only when a label on screen needs it.
+  var RTL_TEXT = "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js";
+  var LOOKS = { paper: "positron", classic: "liberty", night: "dark" };
+  var ATTRIBUTION =
+    '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> ' +
+    '<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> ' +
+    'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
+  // Place names in Hebrew where the map data has one, and in Latin letters
+  // otherwise. Arabic shows only for a name that has no Hebrew or Latin form.
+  var NAME = ["coalesce", ["get", "name:he"], ["get", "name:latin"], ["get", "name"]];
+  // The map data names one area "Palestinian Territories" (country code PS). That
+  // label is hidden, and Judea and Samaria is named at the middle of the area.
+  var HIDDEN_COUNTRY = "PS";
+  var REGIONS = [{ name: "יהודה ושומרון", at: [35.25, 32.0] }];
+
+  function styleUrl(look) {
+    return STYLE_URL + (LOOKS[look] || LOOKS.classic);
+  }
+
+  function loadRtlText() {
+    try {
+      if (window.maplibregl.getRTLTextPluginStatus() !== "unavailable") return;
+      var loading = window.maplibregl.setRTLTextPlugin(RTL_TEXT, true);
+      if (loading && loading.catch) loading.catch(function () {});
+    } catch (e) {
+      /* the names stay as they are */
+    }
+  }
+
+  function isStateLabel(layer) {
+    return layer["source-layer"] === "place" && JSON.stringify(layer.filter || "").indexOf('"state"') !== -1;
+  }
+
+  // The style with the names and the label above, as a new object. MapLibre calls it
+  // with each style it downloads, before it draws anything.
+  function localizeStyle(style) {
+    var stateLabel = null;
+    var layers = style.layers.map(function (layer) {
+      if (layer.type !== "symbol") return layer;
+      var out = Object.assign({}, layer);
+      var field = layer.layout && layer.layout["text-field"];
+      if (field && JSON.stringify(field).indexOf('"name') !== -1) out.layout = Object.assign({}, layer.layout, { "text-field": NAME });
+      if (layer["source-layer"] === "place") {
+        var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
+        out.filter = layer.filter ? ["all", layer.filter, keep] : keep;
+        if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+      }
+      return out;
+    });
+    var sources = Object.assign({}, style.sources);
+    if (stateLabel) {
+      sources["cabinet-regions"] = {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: REGIONS.map(function (r) {
+            return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
+          }),
+        },
+      };
+      layers.push({
+        id: "cabinet-regions",
+        type: "symbol",
+        source: "cabinet-regions",
+        minzoom: 6,
+        maxzoom: 10,
+        layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
+        paint: stateLabel.paint || {},
+      });
+    }
+    return Object.assign({}, style, { sources: sources, layers: layers });
+  }
+
+  function setLook(map, look) {
+    map.setStyle(styleUrl(look), {
+      transformStyle: function (previous, next) {
+        return localizeStyle(next);
+      },
+    });
+  }
+
+  // A flat map that pans and zooms but never tilts or turns. `options` adds to or
+  // overrides MapLibre's map options (center, zoom, bounds, minZoom). Returns null
+  // when MapLibre did not load or the browser cannot draw it (no WebGL). When the
+  // first style does not load (no connection to the tiles), the map is removed and
+  // `onFail` runs, so the page can say so.
+  function create(container, look, options, onFail) {
+    if (!window.maplibregl) return null;
+    loadRtlText();
+    var opts = {
+      container: container,
+      maxZoom: 18,
+      maxPitch: 0,
+      dragRotate: false,
+      pitchWithRotate: false,
+      attributionControl: false,
+      fadeDuration: 120,
+    };
+    Object.keys(options || {}).forEach(function (key) {
+      opts[key] = options[key];
+    });
+    var map;
+    try {
+      map = new window.maplibregl.Map(opts);
+    } catch (e) {
+      return null;
+    }
+    // Until the first style is in, the only error is that style failing to load.
+    var styled = false;
+    map.once("style.load", function () {
+      styled = true;
+    });
+    map.on("error", function () {
+      if (styled) return;
+      styled = true;
+      onFail();
+      // MapLibre is still inside its own error event here.
+      setTimeout(function () {
+        map.remove();
+      }, 0);
+    });
+    setLook(map, look);
+    map.touchZoomRotate.disableRotation();
+    map.keyboard.disableRotation();
+    return map;
+  }
+
+  // A pin from the page's own HTML (one element), its top-left corner at `lngLat`.
+  // MapLibre names every marker "Map marker"; a pin keeps its own name.
+  var holder = null;
+  function pin(map, html, lngLat, opacity) {
+    holder = holder || document.createElement("div");
+    holder.innerHTML = html;
+    var el = holder.firstChild;
+    var label = el.getAttribute("aria-label");
+    var marker = new window.maplibregl.Marker({ element: el, anchor: "top-left", opacity: String(opacity == null ? 1 : opacity) })
+      .setLngLat(lngLat)
+      .addTo(map);
+    if (label) el.setAttribute("aria-label", label);
+    else el.removeAttribute("aria-label");
+    return marker;
+  }
+
+  window.CabinetBasemap = {
+    ATTRIBUTION: ATTRIBUTION,
+    create: create,
+    setLook: setLook,
+    pin: pin,
+    localizeStyle: localizeStyle,
+  };
+})();
+</script>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark"><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8 M5 10v10h14V10 M10 20v-6h4v6"/></svg></div>
+      <div><h1 id="h1">Apartment Hunt</h1><p id="line"></p></div>
+    </div>
+    <div class="actions" id="actions"></div>
+  </header>
+  <div class="main">
+    <section class="mapwrap" id="mapwrap">
+      <div id="map"></div>
+      <div class="map-ui">
+        <div class="legend" id="legend"></div>
+        <div class="ctrl" id="ctrl"></div>
+        <div class="hover" id="hover"></div>
+        <div id="mapoff"></div>
+        <div class="attr" id="attr"></div>
+      </div>
+    </section>
+    <aside class="rail" id="rail"></aside>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+<script>
+(function () {
+  "use strict";
+
+  // The tiles, the looks and the map options come from basemap.js, which every template map shares.
+  var BASE = window.CabinetBasemap;
+  var DAY = 86400000, HOUR = 3600000;
+  var BOUNDS = { il: [[34.25, 29.45], [35.9, 33.35]], us: [[-125, 24.4], [-66.9, 49.4]] };
+
+  // ── Words ───────────────────────────────────────────────────────────────
+  var WORDS = {
+    en: {
+      title: "Apartment Hunt", loading: "Loading your search",
+      
+      line_draft: "The Scout is still learning what you need.",
+      rent_in: "Renting in {places}", buy_in: "Buying in {places}", up_to: "up to {money}", rooms: "{a} rooms", rooms_range: "{a} to {b} rooms",
+      search_now: "Search now", searching: "Searching", change: "Change my search", example: "Example",
+      start_h: "Let's find your next home",
+      start_p: "The Apartment Scout asks you a few questions: where your days take you, your budget, and what you will not give up. Then it searches {sites} twice a day, and puts the places worth seeing here.",
+      sites_il: "Yad2, Madlan and more", sites_us: "Zillow, StreetEasy and more", where_h: "Where are you looking?", c_il: "Israel", c_us: "the United States", c_il_btn: "Israel", c_us_btn: "United States",
+      rent_btn: "I want to rent", buy_btn: "I want to buy",
+      start_note: "The places on the map now are examples, so you can see how it looks.",
+      draft_h: "The interview is not finished", draft_p: "Answer the Scout's last questions and it starts searching.", go_on: "Carry on",
+      brief_h: "What you are looking for", brief_ex: "What you are looking for (example)",
+      anchors: "Your places",
+      last_h: "Last search", never_ran: "No search yet. The Scout searches every day at 8 in the morning and 7 in the evening.",
+      run_line: "{when}. Read {looked} ads, {fresh} new.", run_running: "The Scout is reading the sites now. New places show here as it finds them.", blocked: "Could not read: {sites}.",
+      market_h: "This week's market", read_more: "Read it all", read_less: "Show less",
+      tab_for_you: "For you", tab_saved: "Saved", tab_passed: "Passed",
+      none_for_you: "Nothing new yet. The next search finds more.", none_saved: "Press Save on a place to keep it here.", none_passed: "Places you pass on, and ads that came down, go here.",
+      per_month: "a month", rooms_short: "rooms", m2: "m²", sqft: "sq ft", bd: "{n} bd", ba: "{n} ba", studio: "Studio", beds_l: "Beds and baths", beds: "{a} bedrooms", beds_1: "1 bedroom", beds_range: "{a} to {b} bedrooms", floor: "Floor", floor_of: "{a} of {b}", ground: "Ground", entry: "Move in", now: "Now", size: "Size", rooms_l: "Rooms",
+      top: "Top pick", good: "Good", maybe: "Worth a look", gone: "Gone",
+      opp_below_market: "Below the street's price", opp_fresh: "Just posted", opp_price_cut: "Price cut", opp_no_broker: "No broker fee", opp_rare_match: "Rare match",
+      st_saved: "Saved", st_rejected: "Not for me",
+      ago_min: "{n} min ago", ago_h: "{n} hours ago", ago_1h: "an hour ago", ago_d: "{n} days ago", ago_1d: "yesterday", just_now: "just now",
+      today_at: "Today at {t}", yesterday_at: "Yesterday at {t}", on_day: "{d} at {t}",
+      back: "All places", fair_h: "Price", fair_mid: "Fair: {money}", fair_under: "{money} under a fair price", fair_over: "{money} over a fair price", fair_at: "About a fair price",
+      dist_h: "Straight line from your places", km: "{n} km to {to}", mi: "{n} mi to {to}", open_ad: "Open the ad on {site}", also_on: "Also on {sites}",
+      save: "Save", saved: "Saved", reject: "Not for me", undo: "Undo",
+      reject_q: "Why not? The Scout learns from this.", note_ph: "Anything else? (optional)", done: "Done",
+      r_price: "Too expensive", r_area: "Wrong area", r_small: "Too small", r_noisy: "Noisy", r_dark: "Dark", r_condition: "Poor condition", r_missing: "Missing a must", r_looks_off: "Looks off", r_other: "Something else",
+      write_owner: "Write to the owner", ask_about: "Ask about this place",
+      broker_yes: "Broker", broker_no: "No broker",
+      
+      no_bridge: "Open this page inside Cabinet to see your search.", load_failed: "Your search could not be read.", retry: "Try again", not_saved: "That did not save. Try again.", no_map: "The map could not load here. Everything is in the list.",
+      fit: "Show everything", ask_copied: "Copied. Paste it into a chat with your assistant.", ask_open: "Open this cabinet's chat to ask.", saved_toast: "Saved.", rejected_toast: "Passed. The Scout will take it into account.", read_only: "Only people who can edit this cabinet can change this.",
+      ask_rent: "I am looking for an apartment to rent in {country}.",
+      ask_buy: "I am looking for an apartment to buy in {country}.",
+      ask_go_on: "Let's finish my brief.",
+      ask_change: "I want to change my search.",
+      ask_owner: "Write a short, friendly first message to the owner or broker of \"{title}\" (listings/{file}.md). Include the questions under Ask before you visit. Draft only, in my language, ready to paste into WhatsApp.",
+      ask_about_t: "About \"{title}\" (listings/{file}.md): "
+    },
+    he: {
+      title: "ציד דירות", loading: "טוען את החיפוש",
+      
+      line_draft: "הסוכן עדיין לומד מה אתם מחפשים.",
+      rent_in: "שכירות ב{places}", buy_in: "קנייה ב{places}", up_to: "עד {money}", rooms: "{a} חדרים", rooms_range: "{a} עד {b} חדרים",
+      search_now: "לחפש עכשיו", searching: "מחפש", change: "לשנות את החיפוש", example: "דוגמה",
+      start_h: "בואו נמצא לכם בית",
+      start_p: "סוכן הדירות ישאל כמה שאלות: לאן אתם נוסעים ביום יום, מה התקציב, ועל מה לא תוותרו. אחר כך הוא מחפש {sites} פעמיים ביום, ומציג כאן רק את הדירות ששווה לראות.",
+      sites_il: "ביד2, במדלן ובעוד אתרים", sites_us: "בזילו, בסטריטאיזי ובעוד אתרים", where_h: "איפה אתם מחפשים?", c_il: "ישראל", c_us: "ארצות הברית", c_il_btn: "ישראל", c_us_btn: "ארצות הברית",
+      rent_btn: "אני רוצה לשכור", buy_btn: "אני רוצה לקנות",
+      start_note: "הדירות שעל המפה עכשיו הן דוגמה, כדי שתראו איך זה נראה.",
+      draft_h: "הראיון עוד לא הסתיים", draft_p: "ענו על השאלות האחרונות של הסוכן והוא יתחיל לחפש.", go_on: "להמשיך",
+      brief_h: "מה אתם מחפשים", brief_ex: "מה אתם מחפשים (דוגמה)",
+      anchors: "המקומות שלכם",
+      last_h: "החיפוש האחרון", never_ran: "עוד לא היה חיפוש. הסוכן מחפש כל יום בשמונה בבוקר ובשבע בערב.",
+      run_line: "{when}. נקראו {looked} מודעות, {fresh} חדשות.", run_running: "הסוכן קורא עכשיו את האתרים. דירות חדשות יופיעו כאן כשהוא ימצא אותן.", blocked: "לא נקראו: {sites}.",
+      market_h: "השוק השבוע", read_more: "לקרוא הכול", read_less: "פחות",
+      tab_for_you: "בשבילך", tab_saved: "שמורות", tab_passed: "ויתרתם",
+      none_for_you: "עוד אין דירות חדשות. החיפוש הבא ימצא עוד.", none_saved: "לחצו \"לשמור\" על דירה כדי לשמור אותה כאן.", none_passed: "דירות שוויתרתם עליהן, ומודעות שירדו, יופיעו כאן.",
+      per_month: "לחודש", rooms_short: "חד'", m2: "מ\"ר", sqft: "רגל רבוע", bd: "{n} חד' שינה", ba: "{n} אמבט'", studio: "סטודיו", beds_l: "חדרי שינה ורחצה", beds: "{a} חדרי שינה", beds_1: "חדר שינה אחד", beds_range: "{a} עד {b} חדרי שינה", floor: "קומה", floor_of: "{a} מתוך {b}", ground: "קרקע", entry: "כניסה", now: "מיידית", size: "גודל", rooms_l: "חדרים",
+      top: "הכי מתאימה", good: "טובה", maybe: "שווה הצצה", gone: "ירדה",
+      opp_below_market: "מתחת למחיר ברחוב", opp_fresh: "פורסמה הרגע", opp_price_cut: "המחיר ירד", opp_no_broker: "בלי דמי תיווך", opp_rare_match: "התאמה נדירה",
+      st_saved: "שמורה", st_rejected: "לא בשבילי",
+      ago_min: "לפני {n} דק'", ago_h: "לפני {n} שעות", ago_1h: "לפני שעה", ago_d: "לפני {n} ימים", ago_1d: "אתמול", just_now: "הרגע",
+      today_at: "היום ב-{t}", yesterday_at: "אתמול ב-{t}", on_day: "{d} ב-{t}",
+      back: "כל הדירות", fair_h: "מחיר", fair_mid: "הוגן: {money}", fair_under: "{money} מתחת למחיר הוגן", fair_over: "{money} מעל מחיר הוגן", fair_at: "בערך המחיר ההוגן",
+      dist_h: "בקו אווירי מהמקומות שלכם", km: "{n} ק\"מ ל{to}", mi: "{n} מייל ל{to}", open_ad: "לפתוח את המודעה ב{site}", also_on: "גם ב{sites}",
+      save: "לשמור", saved: "שמורה", reject: "לא בשבילי", undo: "לבטל",
+      reject_q: "למה לא? הסוכן לומד מזה.", note_ph: "עוד משהו? (לא חובה)", done: "סיום",
+      r_price: "יקר מדי", r_area: "אזור לא מתאים", r_small: "קטנה מדי", r_noisy: "רועשת", r_dark: "חשוכה", r_condition: "מצב לא טוב", r_missing: "חסר משהו שחובה", r_looks_off: "משהו לא מסתדר", r_other: "משהו אחר",
+      write_owner: "לכתוב לבעלים", ask_about: "לשאול על הדירה",
+      broker_yes: "תיווך", broker_no: "בלי תיווך",
+      
+      no_bridge: "פתחו את הדף בתוך Cabinet כדי לראות את החיפוש.", load_failed: "לא הצלחנו לקרוא את החיפוש.", retry: "לנסות שוב", not_saved: "לא נשמר. נסו שוב.", no_map: "המפה לא נטענה כאן. הכול נמצא ברשימה.",
+      fit: "להציג הכול", ask_copied: "הועתק. הדביקו בצ'אט עם העוזר.", ask_open: "פתחו את הצ'אט של הקבינט כדי לשאול.", saved_toast: "נשמר.", rejected_toast: "ויתרתם. הסוכן ייקח את זה בחשבון.", read_only: "רק מי שיכול לערוך את הקבינט יכול לשנות את זה.",
+      ask_rent: "אני מחפש/ת דירה לשכירות ב{country}.",
+      ask_buy: "אני מחפש/ת דירה לקנייה ב{country}.",
+      ask_go_on: "בוא נסיים את הבריף שלי.",
+      ask_change: "אני רוצה לשנות את החיפוש.",
+      ask_owner: "תכתוב הודעה ראשונה קצרה ונעימה לבעלים או למתווך של \"{title}\" (listings/{file}.md). תכלול את השאלות מתוך \"Ask before you visit\". טיוטה בלבד, בעברית, מוכנה להדבקה בוואטסאפ.",
+      ask_about_t: "לגבי \"{title}\" (listings/{file}.md): "
+    }
+  };
+  var FEAT = {
+    mamad: ["Safe room", "ממ\"ד"], shelter: ["Shelter", "מקלט"], elevator: ["Elevator", "מעלית"], parking: ["Parking", "חניה"],
+    balcony: ["Balcony", "מרפסת"], sun_balcony: ["Sun balcony", "מרפסת שמש"], garden: ["Garden", "גינה"], roof: ["Roof terrace", "גג"],
+    aircon: ["Air conditioning", "מיזוג"], furnished: ["Furnished", "מרוהטת"], pets: ["Pets allowed", "חיות מחמד"], renovated: ["Renovated", "משופצת"],
+    storage: ["Storage room", "מחסן"], accessible: ["Step-free", "נגישה"], quiet: ["Quiet", "שקטה"], bright: ["Bright", "מוארת"],
+    no_broker: ["No broker", "בלי תיווך"], long_lease: ["Long lease", "חוזה ארוך"], immediate: ["Free now", "כניסה מיידית"],
+    ground_floor: ["Ground floor", "קומת קרקע"], no_window_bedroom: ["Bedroom without a window", "חדר בלי חלון"],
+    laundry: ["Laundry", "כביסה בבניין"], in_unit_laundry: ["Washer and dryer inside", "מכונת כביסה בדירה"], dishwasher: ["Dishwasher", "מדיח"],
+    doorman: ["Doorman", "שוער"], gym: ["Gym", "חדר כושר"], pool: ["Pool", "בריכה"], outdoor_space: ["Outdoor space", "שטח פתוח"],
+    utilities_included: ["Utilities included", "חשבונות כלולים"], rent_stabilized: ["Rent stabilized", "שכירות מפוקחת"], basement_unit: ["Below the street", "מתחת לרחוב"]
+  };
+  var REASONS = ["price", "area", "small", "noisy", "dark", "condition", "missing", "looks_off", "other"];
+  var VERDICTS = { top: "var(--top)", good: "var(--good)", maybe: "var(--maybe)", gone: "var(--gone)" };
+  var OPPS = ["below_market", "fresh", "price_cut", "no_broker", "rare_match"];
+
+  var lang = "en";
+  function t(k, v) { var s = (WORDS[lang] && WORDS[lang][k]) || WORDS.en[k] || k; if (v) Object.keys(v).forEach(function (n) { s = s.split("{" + n + "}").join(v[n]); }); return s; }
+  function feat(w) { var f = FEAT[w]; return f ? f[lang === "he" ? 1 : 0] : String(w).replace(/_/g, " "); }
+
+  // ── Small helpers ───────────────────────────────────────────────────────
+  var P = {
+    house: "M3 11l9-8 9 8 M5 10v10h14V10 M10 20v-6h4v6",
+    star: "M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-2.9-5.4 2.9 1.1-6L3.2 9.4l6.1-.8z",
+    check: "M5 12l5 5 9-10", x: "M6 6l12 12M18 6L6 18", q: "M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14 M12 17.5h.01",
+    fit: "M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5", plus: "M12 5v14M5 12h14", minus: "M5 12h14",
+    search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4", back: "M15 5l-7 7 7 7",
+    edit: "M4 20h4L19 9l-4-4L4 16z M13 7l4 4", send: "M4 12l16-8-6 16-3-6z", chat: "M4 5h16v11H9l-5 4z",
+    link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
+    work: "M4 8h16v11H4z M9 8V5h6v3", heart: "M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z", pin: "M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
+    school: "M3 9l9-5 9 5-9 5z M7 11v5c3 2 7 2 10 0v-5", chart: "M4 20V10 M10 20V4 M16 20v-7 M22 20H2"
+  };
+  function icon(name, cls) { return '<svg class="i' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true"><path d="' + (P[name] || P.pin) + '"/></svg>'; }
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function num(v) { if (typeof v === "number") return isFinite(v) ? v : null; var s = String(v == null ? "" : v).replace(/[^0-9.\-]/g, ""); if (!s || s === "-" || s === ".") return null; var n = parseFloat(s); return isFinite(n) ? n : null; }
+  function list(v) { return String(v || "").replace(/^\[|\]$/g, "").split(",").map(function (s) { return s.trim().replace(/^(['"])(.*)\1$/, "$2"); }).filter(Boolean); }
+  function safeUrl(v) { v = String(v || "").trim(); return /^https:\/\//i.test(v) ? v : ""; }
+  function photoUrl(v) { v = safeUrl(v); return /["'()\\\s<>]/.test(v) ? "" : v; }
+  // The country of what shows: the person's brief, or the example set picked on the start card.
+  function country() { return (data.brief && data.brief.country) || ui.exCountry; }
+  function us() { return country() === "us"; }
+  function sym() { return us() ? "$" : "₪"; }
+  function dateLocale() { return lang === "he" ? "he-IL" : us() ? "en-US" : "en-GB"; }
+  function money(n) { return n == null ? "" : sym() + Math.round(n).toLocaleString("en-US"); }
+  function short(n) { var s = sym(); if (n == null) return ""; if (n >= 1e6) return s + (n / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M"; if (n >= 1e4) return s + Math.round(n / 1e3) + "K"; if (n >= 1e3) return s + (n / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return s + Math.round(n); }
+  function parseTime(v) { var m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(String(v || "")); if (!m) return null; var d = new Date(String(v)); if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(String(v)) && !isNaN(d)) return d; return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)); }
+  function hm(d) { return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  function ago(d) {
+    if (!d) return ""; var ms = Date.now() - d.getTime();
+    if (ms < 5 * 60000) return t("just_now"); if (ms < HOUR) return t("ago_min", { n: Math.round(ms / 60000) });
+    if (ms < 1.5 * HOUR) return t("ago_1h"); if (ms < DAY) return t("ago_h", { n: Math.round(ms / HOUR) });
+    if (ms < 2 * DAY) return t("ago_1d"); return t("ago_d", { n: Math.round(ms / DAY) });
+  }
+  function when(d) {
+    var now = new Date(), y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    if (d.toDateString() === now.toDateString()) return t("today_at", { t: hm(d) });
+    if (d.toDateString() === y.toDateString()) return t("yesterday_at", { t: hm(d) });
+    return t("on_day", { d: d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short" }), t: hm(d) });
+  }
+  function km(a, b) { var R = 6371, r = Math.PI / 180, dl = (b.lat - a.lat) * r, dn = (b.lng - a.lng) * r; var h = Math.sin(dl / 2) * Math.sin(dl / 2) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dn / 2) * Math.sin(dn / 2); return 2 * R * Math.asin(Math.sqrt(h)); }
+  var toastTimer;
+  function toast(text) { var el = $("toast"); el.textContent = text; el.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove("show"); }, 2800); }
+
+  // Frontmatter: "key: value" lines between the first two "---" lines.
+  function parseDoc(text) {
+    var m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(text || ""), meta = {};
+    if (!m) return { meta: meta, body: text || "" };
+    m[1].split(/\r?\n/).forEach(function (line) {
+      var k = /^([A-Za-z0-9_]+):\s*(.*)$/.exec(line); if (!k) return;
+      meta[k[1].toLowerCase()] = k[2].trim().replace(/^(['"])([\s\S]*)\1$/, "$2");
+    });
+    return { meta: meta, body: m[2] };
+  }
+  // The little markdown the Scout writes: ## headings, - lists, paragraphs, **bold**.
+  function inline(s) { return esc(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+  function sections(body) {
+    var out = [], cur = { h: "", lines: [] };
+    String(body || "").split(/\r?\n/).forEach(function (line) {
+      var h = /^#{2,4}\s+(.*)$/.exec(line);
+      if (/^#\s/.test(line)) return;
+      if (h) { if (cur.h || cur.lines.length) out.push(cur); cur = { h: h[1].trim(), lines: [] }; } else cur.lines.push(line);
+    });
+    if (cur.h || cur.lines.join("").trim()) out.push(cur);
+    return out;
+  }
+  function blockHtml(lines) {
+    var html = "", inList = false;
+    lines.forEach(function (line) {
+      var li = /^\s*[-*]\s+(.*)$/.exec(line);
+      if (li) { if (!inList) { html += "<ul>"; inList = true; } html += "<li>" + inline(li[1]) + "</li>"; return; }
+      if (inList) { html += "</ul>"; inList = false; }
+      if (line.trim()) html += "<p>" + inline(line.trim()) + "</p>";
+    });
+    return html + (inList ? "</ul>" : "");
+  }
+
+  // ── Talking to Cabinet ──────────────────────────────────────────────────
+  var cab = window.cabinet;
+  var kept = cab && cab.store;
+  var hasStore = !!(kept && kept.set && kept.all);
+  var V2 = !!(cab && cab.files && cab.files.list);
+  var here = null, shared = {};
+  var data = { loaded: false, failed: false, set: null, example: false, brief: null, listings: [], runs: [], market: null };
+  var jobs = { list: [], running: false };
+  var ui = { tab: "for_you", open: null, hover: null, rejecting: null, reasons: {}, note: "", marketOpen: false, exCountry: guessCountry() };
+  // Before there is a brief: Israel for a Hebrew Cabinet or an Israeli clock, the US otherwise.
+  function guessCountry() {
+    var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { /* no zone */ }
+    return /^he/i.test(navigator.language || "") || /Jerusalem|Tel_Aviv/.test(tz) ? "il" : "us";
+  }
+
+  function canWrite() { return hasStore ? cab.canWrite() !== false : false; }
+  function canAsk() { return !!(cab && cab.ask) && (!here || here.role !== "viewer"); }
+  function ask(text, opts) {
+    if (!canAsk()) {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast(t("ask_copied")); }, function () { toast(t("ask_open")); });
+      else toast(t("ask_open"));
+      return;
+    }
+    cab.ask(text, opts || {}).catch(function (e) { toast((e && e.message) || "Try again."); });
+  }
+  // One write at a time: Cabinet rewrites the whole store file on each one.
+  var writes = Promise.resolve();
+  function fromKept() { return hasStore ? JSON.parse(JSON.stringify(kept.all() || {})) : {}; }
+  // Answers true once the store took the write. A refused write puts the stored value back.
+  function setAction(file, value) {
+    if (!canWrite()) { toast(t("read_only")); return Promise.resolve(false); }
+    var key = "l:" + file;
+    if (value) shared[key] = value; else delete shared[key];
+    paint();
+    writes = writes.then(function () { return value ? kept.set(key, value) : kept.remove(key); }).then(function () { return true; }, function (e) {
+      var stored = fromKept();
+      if (key in stored) shared[key] = stored[key]; else delete shared[key];
+      toast((e && e.message) || t("not_saved")); paint();
+      return false;
+    });
+    return writes;
+  }
+  function actionOf(l) { var a = shared["l:" + l.file]; return a && typeof a === "object" ? a : null; }
+
+  // ── Reading the files ───────────────────────────────────────────────────
+  // Cabinet answers a burst of about 40 requests and refuses the rest as too-fast, so reads
+  // wait their turn and try again instead of coming back empty.
+  function patient(call, tries) {
+    return call().catch(function (e) {
+      if (!e || e.code !== "too-fast" || (tries || 0) >= 6) throw e;
+      return new Promise(function (ok) { setTimeout(ok, 400 * ((tries || 0) + 1)); }).then(function () { return patient(call, (tries || 0) + 1); });
+    });
+  }
+  // null when the file could not be read.
+  function readText(path) { return patient(function () { return cab.files.read(path); }).catch(function () { return null; }); }
+  function listDir(dir) { return patient(function () { return cab.files.list(dir); }); }
+  function inTurns(items, size, fn) {
+    var out = new Array(items.length), next = 0;
+    function worker() { if (next >= items.length) return Promise.resolve(); var i = next++; return fn(items[i]).then(function (v) { out[i] = v; return worker(); }); }
+    var workers = []; for (var w = 0; w < Math.min(size, items.length); w++) workers.push(worker());
+    return Promise.all(workers).then(function () { return out; });
+  }
+  // A listing is read again only when its file changed, so a search writing files does not
+  // make the page read every listing again.
+  var readCache = {};
+  function readListing(e) {
+    var hit = readCache[e.path];
+    if (hit && hit.modified === e.modified) return Promise.resolve(hit.listing);
+    return readText(e.path).then(function (txt) {
+      // A read that failed keeps the listing as it was last read.
+      if (txt == null) return hit ? hit.listing : null;
+      var l = toListing(e, txt);
+      readCache[e.path] = { modified: e.modified, listing: l };
+      return l;
+    });
+  }
+  function exampleShift(meta) {
+    var d = parseTime(meta.example_as_of); if (!d) return 0;
+    var n = new Date(), today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    return Math.max(0, Math.round((today - d) / DAY)) * DAY;
+  }
+  function toListing(entry, text) {
+    var doc = parseDoc(text), m = doc.meta, file = entry.name.replace(/\.md$/i, ""), shift = exampleShift(m);
+    var posted = parseTime(m.posted), found = parseTime(m.found);
+    if (shift) { if (posted) posted = new Date(posted.getTime() + shift); if (found) found = new Date(found.getTime() + shift); }
+    var l = {
+      file: file, example: /^EXAMPLE-/i.test(file), title: m.title || file.replace(/^EXAMPLE-/i, "").replace(/-/g, " "),
+      deal: m.deal === "buy" ? "buy" : "rent", price: num(m.price), rooms: num(m.rooms), bedrooms: num(m.bedrooms), bathrooms: num(m.bathrooms), size: num(m.size), floor: m.floor || "", floors: m.floors || "",
+      address: m.address || "", neighborhood: m.neighborhood || "", city: m.city || "", lat: num(m.lat), lng: num(m.lng),
+      has: list(m.has), lacks: list(m.lacks), unknown: list(m.unknown), entry: m.entry || "", broker: m.broker || "unknown",
+      score: num(m.score), verdict: VERDICTS[m.verdict] && m.verdict !== "gone" ? m.verdict : "maybe", opportunity: OPPS.indexOf(m.opportunity) >= 0 ? m.opportunity : "",
+      fairPrice: num(m.fair_price), fairBasis: m.fair_basis || "", why: m.why || "", source: m.source || "", url: safeUrl(m.url), alsoOn: m.also_on || "",
+      posted: posted, found: found, gone: m.status === "gone", photo: photoUrl(m.photo), body: doc.body
+    };
+    l.onMap = l.lat != null && l.lng != null && Math.abs(l.lat) <= 90 && Math.abs(l.lng) <= 180;
+    return l;
+  }
+  function toBrief(text, example) {
+    var doc = parseDoc(text), m = doc.meta, anchors = [];
+    Object.keys(m).forEach(function (k) {
+      if (!/^anchor_/.test(k)) return;
+      var parts = m[k].split("|"), ll = (parts[1] || "").split(",").map(num);
+      if (ll.length === 2 && ll[0] != null && ll[1] != null && Math.abs(ll[0]) <= 90 && Math.abs(ll[1]) <= 180) anchors.push({ key: k.slice(7), label: parts[0].trim() || k.slice(7), lat: ll[0], lng: ll[1] });
+    });
+    return { example: example, status: m.status === "ready" ? "ready" : "draft", country: m.country === "us" || m.country === "il" ? m.country : null, bedsMin: num(m.beds_min), bedsMax: num(m.beds_max), deal: m.deal === "buy" ? "buy" : "rent", cities: list(m.cities), hoods: list(m.neighborhoods),
+      priceMax: num(m.price_max), roomsMin: num(m.rooms_min), roomsMax: num(m.rooms_max), must: list(m.must), nice: list(m.nice), never: list(m.never), anchors: anchors, body: doc.body };
+  }
+  // One scan at a time. A change that arrives during a scan gets one more scan after it.
+  var loading = null, stale = false;
+  function load() {
+    if (loading) { stale = true; return loading; }
+    loading = scan().then(function () { data.failed = false; }, function () { data.failed = true; }).then(function () {
+      loading = null; data.loaded = true;
+      if (stale) { stale = false; return load(); }
+    });
+    return loading;
+  }
+  // A folder that cannot be listed fails the scan, and the page keeps what it showed.
+  function scan() {
+    return Promise.all([listDir("search"), listDir("listings")]).then(function (r) {
+      var s = {}; r[0].forEach(function (e) { s[e.name] = e; });
+      var real = !!s["brief.md"], pre = real ? "" : "EXAMPLE-" + ui.exCountry + "-", same = data.set === pre;
+      var files = r[1].filter(function (e) { return !e.isDir && /\.md$/i.test(e.name) && !/^index\.md$/i.test(e.name) && (real ? !/^EXAMPLE-/i.test(e.name) : e.name.indexOf(pre) === 0); });
+      // Every place the person saved or passed on, then the newest 120 others.
+      files.sort(function (a, b) { return String(b.modified).localeCompare(String(a.modified)); });
+      var acted = files.filter(function (e) { return shared["l:" + e.name.replace(/\.md$/i, "")]; });
+      files = acted.concat(files.filter(function (e) { return acted.indexOf(e) < 0; }).slice(0, 120));
+      // A file that is not there is not read. A file that is there and cannot be read keeps its last value.
+      function part(name, old, parse) {
+        if (!s[pre + name]) return Promise.resolve(null);
+        return readText("search/" + pre + name).then(function (txt) { return txt != null ? parse(txt) : same ? old : null; });
+      }
+      return Promise.all([
+        part("brief.md", data.brief, function (txt) { return toBrief(txt, !real); }),
+        part("runs.json", data.runs, function (txt) { return toRuns(txt, !real); }),
+        part("market.md", data.market, parseDoc),
+        inTurns(files, 6, readListing)
+      ]).then(function (got) {
+        data.set = pre; data.example = !real;
+        data.brief = got[0]; data.runs = got[1] || []; data.market = got[2];
+        data.listings = got[3].filter(Boolean);
+      });
+    });
+  }
+  function toRuns(text, example) {
+    var runs = []; try { runs = (JSON.parse(text).runs || []).filter(function (x) { return x && typeof x === "object"; }); } catch (e) { runs = []; }
+    // Example runs move forward with the example listings, so the example never looks stale.
+    if (example) { var sh = exampleShift({ example_as_of: "2026-11-23" }); runs.forEach(function (x) { var d = parseTime(x.at); if (d) x._at = new Date(d.getTime() + sh); }); }
+    return runs;
+  }
+
+  // ── What shows where ────────────────────────────────────────────────────
+  // A place the person saved stays in Saved when its ad comes down. It leaves the map only.
+  function stateOf(l) { var a = actionOf(l); if (a && a.status === "rejected") return "passed"; if (a && a.status === "saved") return "saved"; return l.gone ? "passed" : "for_you"; }
+  function colorOf(l) { return l.gone ? VERDICTS.gone : VERDICTS[l.verdict]; }
+  function inTab(tab) {
+    return data.listings.filter(function (l) { return stateOf(l) === tab; })
+      .sort(function (a, b) { return (b.score || 0) - (a.score || 0) || ((b.found && b.found.getTime()) || 0) - ((a.found && a.found.getTime()) || 0); });
+  }
+  function onMapList() { return data.listings.filter(function (l) { return l.onMap && !l.gone && stateOf(l) !== "passed"; }); }
+  function byFile(f) { for (var i = 0; i < data.listings.length; i++) if (data.listings[i].file === f) return data.listings[i]; return null; }
+  function per(l) { return l.deal === "rent" ? " " + t("per_month") : ""; }
+  function floorText(l) { var f = l.floor === "0" ? t("ground") : l.floor; return f ? (l.floors ? t("floor_of", { a: f, b: l.floors }) : f) : ""; }
+  function metaLine(l) {
+    var bits = [];
+    if (us()) { if (bedsText(l)) bits.push(bedsText(l)); }
+    else if (l.rooms != null) bits.push(l.rooms + " " + t("rooms_short"));
+    if (l.size != null) bits.push(l.size.toLocaleString("en-US") + " " + t(us() ? "sqft" : "m2"));
+    if (floorText(l)) bits.push(t("floor") + " " + floorText(l));
+    return bits.join(" · ");
+  }
+  function bedsText(l) {
+    var b = l.bedrooms === 0 ? t("studio") : l.bedrooms != null ? t("bd", { n: l.bedrooms }) : "";
+    return [b, l.bathrooms != null ? t("ba", { n: l.bathrooms }) : ""].filter(Boolean).join(" · ");
+  }
+  function distText(l, an) { var d = km(l, an); return us() ? t("mi", { n: (d * 0.621371).toFixed(1), to: an.label }) : t("km", { n: d.toFixed(1), to: an.label }); }
+  function entryText(v) { if (v === "immediate") return t("now"); var d = parseTime(v); return d ? d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" }) : v || "?"; }
+  function place(l) { return [l.neighborhood, l.city].filter(Boolean).join(", "); }
+  function mustChips(l, max) {
+    var musts = data.brief ? data.brief.must : [], out = [];
+    musts.forEach(function (w) {
+      if (l.has.indexOf(w) >= 0) out.push('<span class="f">' + icon("check") + esc(feat(w)) + "</span>");
+      else if (l.lacks.indexOf(w) >= 0) out.push('<span class="f x">' + icon("x") + esc(feat(w)) + "</span>");
+      else out.push('<span class="f q">' + icon("q") + esc(feat(w)) + "</span>");
+    });
+    return out.slice(0, max || 9).join("");
+  }
+
+  // ── Painting ────────────────────────────────────────────────────────────
+  function paint() { paintTop(); paintRail(); buildPins(); }
+
+  function briefLine() {
+    var b = data.brief; if (!b) return "";
+    if (b.status !== "ready") return esc(t("line_draft"));
+    var places = (b.hoods.length && b.hoods.length <= 2 ? b.hoods : b.cities).slice(0, 3).join(lang === "he" ? ", " : ", ");
+    var bits = ["<b>" + esc(t(b.deal === "buy" ? "buy_in" : "rent_in", { places: places || t("c_" + country()) })) + "</b>"];
+    if (b.priceMax != null) bits.push(esc(t("up_to", { money: money(b.priceMax) })));
+    if (us()) { if (b.bedsMin != null) bits.push(esc(b.bedsMax != null && b.bedsMax !== b.bedsMin ? t("beds_range", { a: b.bedsMin, b: b.bedsMax }) : b.bedsMin === 1 ? t("beds_1") : t("beds", { a: b.bedsMin }))); }
+    else if (b.roomsMin != null) bits.push(esc(b.roomsMax != null && b.roomsMax !== b.roomsMin ? t("rooms_range", { a: b.roomsMin, b: b.roomsMax }) : t("rooms", { a: b.roomsMin })));
+    return bits.join(" · ");
+  }
+  function searchJob() { for (var i = 0; i < jobs.list.length; i++) if (jobs.list[i].id === "find-apartments") return jobs.list[i]; return null; }
+  function paintTop() {
+    $("h1").textContent = t("title");
+    document.title = t("title");
+    var line = !data.loaded ? esc(t("loading")) : data.example ? (data.brief ? '<span class="tag ex">' + esc(t("example")) + "</span> " : "") + briefLine() : data.brief ? briefLine() : "";
+    $("line").innerHTML = line; $("line").hidden = !line;
+    var acts = "", b = data.brief, real = b && !data.example;
+    if (real && b.status === "ready" && searchJob() && canAsk()) acts += '<button class="btn primary" data-act="run"' + (jobs.running ? " disabled" : "") + ">" + (jobs.running ? '<span class="busy"></span>' + esc(t("searching")) : icon("search") + esc(t("search_now"))) + "</button>";
+    if (real && canAsk()) acts += '<button class="btn" data-act="change">' + icon("edit") + esc(t("change")) + "</button>";
+    $("actions").innerHTML = acts;
+  }
+
+  function startCard() {
+    var b = data.brief;
+    if (b && !data.example && b.status !== "ready") return '<div class="card start"><h2>' + esc(t("draft_h")) + "</h2><p>" + esc(t("draft_p")) + '</p><button class="btn primary wide" data-act="go-on">' + icon("chat") + esc(t("go_on")) + "</button></div>";
+    if (!data.example) return "";
+    var c = ui.exCountry, sw = '<p style="font-weight:600;margin:4px 0 6px">' + esc(t("where_h")) + '</p><div class="seg" role="radiogroup">' + ["il", "us"].map(function (k) { return '<button role="radio" aria-checked="' + (c === k) + '" class="' + (c === k ? "on" : "") + '" data-act="country" data-id="' + k + '">' + esc(t("c_" + k + "_btn")) + "</button>"; }).join("") + "</div>";
+    return '<div class="card start"><h2>' + esc(t("start_h")) + "</h2><p>" + esc(t("start_p", { sites: t("sites_" + c) })) + "</p>" + sw + '<div class="row2"><button class="btn primary" data-act="start-rent">' + esc(t("rent_btn")) + '</button><button class="btn" data-act="start-buy">' + esc(t("buy_btn")) + '</button></div><p class="muted" style="margin:12px 0 0">' + esc(t("start_note")) + "</p></div>";
+  }
+  function briefCard() {
+    var b = data.brief; if (!b || b.status !== "ready") return "";
+    var chips = b.must.map(function (w) { return '<span class="chip must">' + icon("check") + esc(feat(w)) + "</span>"; }).join("") +
+      b.nice.map(function (w) { return '<span class="chip">' + esc(feat(w)) + "</span>"; }).join("") +
+      b.never.map(function (w) { return '<span class="chip no">' + icon("x") + esc(feat(w)) + "</span>"; }).join("");
+    var anchors = b.anchors.length ? '<div class="muted">' + esc(t("anchors")) + ": " + b.anchors.map(function (a) { return esc(a.label); }).join(" · ") + "</div>" : "";
+    return '<div class="card"><div class="card-head"><h2>' + esc(t(b.example ? "brief_ex" : "brief_h")) + "</h2>" + (!b.example && canAsk() ? '<button class="btn small ghost" data-act="change">' + icon("edit") + esc(t("change")) + "</button>" : "") + '</div><p class="muted" style="margin:0">' + briefLine() + '</p><div class="brief-chips">' + chips + "</div>" + anchors + "</div>";
+  }
+  function runCard() {
+    if (!data.brief || data.brief.status !== "ready") return "";
+    var r = data.runs.filter(function (x) { return x.kind !== "market"; })[0], body;
+    if (jobs.running && !data.example) body = '<p style="margin:0"><span class="busy" style="color:var(--brand);vertical-align:-2px"></span> ' + esc(t("run_running")) + "</p>";
+    else if (!r) body = '<p style="margin:0" class="muted">' + esc(t("never_ran")) + "</p>";
+    else {
+      var d = r._at || parseTime(r.at), sites = (Array.isArray(r.sites) ? r.sites : []).filter(function (x) { return x && x.name; });
+      var blocked = sites.filter(function (x) { return !x.ok; }).map(function (x) { return x.name; });
+      body = '<p style="margin:0">' + esc(t("run_line", { when: d ? when(d) : "", looked: num(r.looked) || 0, fresh: num(r["new"]) || 0 })) + "</p>" +
+        (r.summary ? '<p dir="auto" style="margin:6px 0 0">' + inline(String(r.summary)) + "</p>" : "") +
+        (sites.length ? '<div class="dotline">' + sites.slice(0, 8).map(function (s) { return '<span title="' + esc(s.note || "") + '"><i' + (s.ok ? "" : ' class="bad"') + "></i>" + esc(s.name) + "</span>"; }).join("") + "</div>" : "") +
+        (blocked.length ? '<p class="muted" style="margin:6px 0 0">' + esc(t("blocked", { sites: blocked.join(", ") })) + "</p>" : "");
+    }
+    return '<div class="card"><div class="card-head"><h2>' + esc(t("last_h")) + "</h2></div>" + body + "</div>";
+  }
+  function marketCard() {
+    var m = data.market; if (!m || !data.brief || data.brief.status !== "ready") return "";
+    var head = m.meta.headline || "", more = ui.marketOpen ? '<div class="market-body sec">' + sections(m.body).map(function (s) { return (s.h ? "<h4>" + esc(s.h) + "</h4>" : "") + blockHtml(s.lines); }).join("") + "</div>" : "";
+    return '<div class="card"><div class="card-head"><h2>' + esc(t("market_h")) + '</h2><button class="btn small ghost" data-act="market">' + esc(t(ui.marketOpen ? "read_less" : "read_more")) + "</button></div>" + (head ? '<p dir="auto" style="margin:0">' + inline(head) + "</p>" : "") + more + "</div>";
+  }
+  function itemHtml(l) {
+    var a = actionOf(l), c = colorOf(l), tags = "";
+    if (l.gone) tags += '<span class="badge" style="--c:var(--gone)">' + esc(t("gone")) + "</span>";
+    else if (a && (a.status === "saved" || a.status === "rejected")) tags += '<span class="st">' + esc(t("st_" + a.status)) + "</span>";
+    else if (l.opportunity) tags += '<span class="badge" style="--c:' + c + '">' + esc(t("opp_" + l.opportunity)) + "</span>";
+    return '<button class="item' + (ui.hover === l.file ? " hot" : "") + '" data-act="open" data-id="' + esc(l.file) + '" data-hot="' + esc(l.file) + '" style="--c:' + c + '">' +
+      '<span class="l1"><span class="price">' + esc(money(l.price)) + '</span><span class="per">' + esc(per(l)) + "</span>" + (l.score != null ? '<span class="score">' + (l.verdict === "top" ? icon("star") : "") + esc(t(l.verdict)) + " · " + esc(l.score) + "</span>" : "") + "</span>" +
+      '<span class="h3" dir="auto">' + esc(l.title) + '</span><span class="meta">' + esc([metaLine(l), place(l)].filter(Boolean).join(" · ")) + "</span>" +
+      (l.why ? '<span class="why" dir="auto">' + esc(l.why) + "</span>" : "") +
+      '<span class="foot">' + tags + mustChips(l, 4) + '<span class="src">' + esc([l.source, ago(l.posted || l.found)].filter(Boolean).join(" · ")) + "</span></span></button>";
+  }
+  function paintRail() {
+    var rail = $("rail");
+    // A change from outside does not wipe a reason the person is typing.
+    if (ui.rejecting && document.activeElement && document.activeElement.id === "note") return;
+    if (!V2) { rail.innerHTML = '<div class="card"><p style="margin:0">' + esc(t("no_bridge")) + "</p></div>"; return; }
+    if (!data.loaded) { rail.innerHTML = '<div class="empty"><span class="busy"></span></div>'; return; }
+    if (data.failed && data.set == null) { rail.innerHTML = '<div class="card"><p>' + esc(t("load_failed")) + '</p><button class="btn" data-act="reload">' + esc(t("retry")) + "</button></div>"; return; }
+    var l = ui.open && byFile(ui.open);
+    if (l) { rail.innerHTML = detailHtml(l); return; }
+    var counts = { for_you: inTab("for_you").length, saved: inTab("saved").length, passed: inTab("passed").length };
+    var items = inTab(ui.tab), none = { for_you: "none_for_you", saved: "none_saved", passed: "none_passed" }[ui.tab];
+    rail.innerHTML = startCard() + briefCard() + runCard() +
+      (data.listings.length || (data.brief && data.brief.status === "ready") ? '<div class="tabs" role="tablist">' + ["for_you", "saved", "passed"].map(function (k) { return '<button role="tab" aria-selected="' + (ui.tab === k) + '" class="' + (ui.tab === k ? "on" : "") + '" data-act="tab" data-id="' + k + '">' + esc(t("tab_" + k)) + " <b>" + counts[k] + "</b></button>"; }).join("") + "</div>" +
+        (items.length ? items.map(itemHtml).join("") : '<div class="empty">' + esc(t(none)) + "</div>") : "") +
+      marketCard();
+  }
+  function detailHtml(l) {
+    var a = actionOf(l), c = colorOf(l), b = data.brief, out = "";
+    out += '<div class="detail"><button class="btn small ghost back" data-act="back">' + icon("back", "flip") + esc(t("back")) + "</button>";
+    if (l.photo) out += '<div class="d-photo" style="background-image:url(&quot;' + esc(l.photo) + '&quot;)"></div>';
+    out += '<div class="card d-head" style="--c:' + c + '"><div class="l1"><span class="badge" style="--c:' + c + '">' + esc(l.gone ? t("gone") : t(l.verdict)) + (l.score != null ? " · " + esc(l.score) : "") + "</span>" +
+      (l.opportunity ? '<span class="tag">' + esc(t("opp_" + l.opportunity)) + "</span>" : "") + (l.example ? '<span class="tag ex">' + esc(t("example")) + "</span>" : "") + (a && (a.status === "saved" || a.status === "rejected") ? '<span class="st">' + esc(t("st_" + a.status)) + "</span>" : "") + "</div>" +
+      '<h2 dir="auto">' + esc(l.title) + '</h2><div class="muted" dir="auto">' + esc(l.address || place(l)) + "</div>" +
+      '<div style="margin-top:8px"><span class="d-price">' + esc(money(l.price)) + '</span> <span class="muted">' + esc(per(l)) + "</span></div>" +
+      '<div class="facts"><div><small>' + esc(t(us() ? "beds_l" : "rooms_l")) + "</small><b>" + esc(us() ? bedsText(l) || "?" : l.rooms != null ? l.rooms : "?") + "</b></div><div><small>" + esc(t("size")) + "</small><b>" + esc(l.size != null ? l.size.toLocaleString("en-US") + " " + t(us() ? "sqft" : "m2") : "?") + "</b></div><div><small>" + esc(t("floor")) + "</small><b>" + esc(floorText(l) || "?") + "</b></div><div><small>" + esc(t("entry")) + "</small><b>" + esc(entryText(l.entry)) + "</b></div></div>" +
+      (l.why ? '<p class="whyline" dir="auto">' + esc(l.why) + "</p>" : "");
+    // The features: what it has, lacks, and what to ask about, the person's musts first.
+    var musts = b ? b.must : [], seen = {}, fl = [];
+    function push(w, kind) { if (seen[w]) return; seen[w] = 1; fl.push('<span class="f' + (kind === "x" ? " x" : kind === "q" ? " q" : "") + '">' + icon(kind === "x" ? "x" : kind === "q" ? "q" : "check") + esc(feat(w)) + "</span>"); }
+    musts.forEach(function (w) { push(w, l.has.indexOf(w) >= 0 ? "y" : l.lacks.indexOf(w) >= 0 ? "x" : "q"); });
+    l.has.forEach(function (w) { push(w, "y"); }); l.lacks.forEach(function (w) { push(w, "x"); }); l.unknown.forEach(function (w) { push(w, "q"); });
+    if (l.broker === "yes" || l.broker === "no") fl.push('<span class="f' + (l.broker === "yes" ? " q" : "") + '">' + esc(t(l.broker === "yes" ? "broker_yes" : "broker_no")) + "</span>");
+    out += '<div class="acts" style="gap:5px">' + fl.join("") + "</div>";
+    // Price against the fair price for the street.
+    if (l.price != null && l.fairPrice) {
+      var diff = l.price - l.fairPrice, pct = diff / l.fairPrice, pos = Math.max(4, Math.min(96, 50 + pct * 250));
+      var say = Math.abs(pct) < .02 ? t("fair_at") : t(diff < 0 ? "fair_under" : "fair_over", { money: money(Math.abs(diff)) });
+      out += '<div class="sec fair"><h4>' + esc(t("fair_h")) + '</h4><div style="font-weight:600">' + esc(say) + '</div><div class="bar"><span class="mid" style="' + (lang === "he" ? "right" : "left") + ':50%">' + esc(t("fair_mid", { money: money(l.fairPrice) })) + '</span><span class="mk" style="' + (lang === "he" ? "right" : "left") + ":" + pos.toFixed(1) + '%"></span></div>' + (l.fairBasis ? '<p class="muted" dir="auto">' + esc(l.fairBasis) + "</p>" : "") + "</div>";
+    }
+    if (b && b.anchors.length && l.onMap) out += '<div class="sec"><h4>' + esc(t("dist_h")) + '</h4><div class="dist">' + b.anchors.map(function (an) { return '<span class="chip">' + icon(anchorIcon(an)) + esc(distText(l, an)) + "</span>"; }).join("") + "</div></div>";
+    out += sections(l.body).map(function (s) { return '<div class="sec" dir="auto">' + (s.h ? "<h4>" + esc(s.h) + "</h4>" : "") + blockHtml(s.lines) + "</div>"; }).join("");
+    if (l.url || l.alsoOn) out += '<div class="sec links">' + (l.url ? '<a class="btn" href="' + esc(l.url) + '" target="_blank" rel="noopener">' + icon("link") + esc(t("open_ad", { site: l.source || "the site" })) + "</a>" : "") + (l.alsoOn ? '<span class="muted" style="align-self:center">' + esc(t("also_on", { sites: l.alsoOn })) + "</span>" : "") + "</div>";
+    out += "</div>";
+    // What the person does with it.
+    if (canWrite() || canAsk()) {
+      out += '<div class="card">';
+      if (canWrite()) {
+        if (ui.rejecting === l.file) {
+          out += '<p style="font-weight:600;margin:0">' + esc(t("reject_q")) + '</p><div class="reasons">' + REASONS.map(function (r) { return '<button class="' + (ui.reasons[r] ? "on" : "") + '" data-act="reason" data-id="' + r + '">' + esc(t("r_" + r)) + "</button>"; }).join("") + "</div>" +
+            '<textarea id="note" placeholder="' + esc(t("note_ph")) + '">' + esc(ui.note) + '</textarea><div class="acts" style="margin-top:8px"><button class="btn primary" data-act="reject-done">' + esc(t("done")) + '</button><button class="btn ghost" data-act="reject-cancel">' + esc(t("undo")) + "</button></div>";
+        } else if (a && a.status === "rejected") {
+          out += '<div class="acts"><span class="st" style="align-self:center">' + esc(t("st_rejected")) + (REASONS.indexOf(a.reason) >= 0 ? " · " + esc(t("r_" + a.reason)) : "") + '</span><button class="btn small" data-act="status" data-id="">' + esc(t("undo")) + "</button></div>";
+        } else {
+          var on = !!(a && a.status === "saved");
+          out += '<div class="acts"><button class="btn small' + (on ? " on" : "") + '" data-act="status" data-id="' + (on ? "" : "saved") + '">' + icon("star") + esc(t(on ? "saved" : "save")) + "</button>" + '<button class="btn small ghost" style="color:var(--bad)" data-act="reject">' + icon("x") + esc(t("reject")) + "</button></div>";
+        }
+      }
+      if (canAsk() && ui.rejecting !== l.file) out += '<div class="acts" style="margin-top:' + (canWrite() ? "10px" : "0") + '"><button class="btn small" data-act="owner">' + icon("send", "flip") + esc(t("write_owner")) + '</button><button class="btn small" data-act="ask-about">' + icon("chat") + esc(t("ask_about")) + "</button></div>";
+      out += "</div>";
+    }
+    return out + "</div>";
+  }
+  function anchorIcon(an) { var k = (an.key + " " + an.label).toLowerCase(); return /work|office|עבודה|משרד/.test(k) ? "work" : /school|kinder|gan|בית ספר|גן/.test(k) ? "school" : /family|parent|mom|home|משפחה|הורים/.test(k) ? "heart" : "pin"; }
+
+  // ── The map ─────────────────────────────────────────────────────────────
+  var gl = null, glReady = false, markers = [], fitted = false, mapEl = $("map");
+  function startGl() {
+    if (gl !== null) return;
+    var dark = document.documentElement.dataset.theme === "dark";
+    // When the tiles do not answer, the map goes and the list works alone.
+    gl = (BASE && BASE.create(mapEl, dark ? "night" : "classic", { bounds: BOUNDS[country()], fitBoundsOptions: { padding: 20 }, minZoom: 5 }, function () {
+      gl = false; glReady = false; markers = [];
+      $("legend").innerHTML = ""; $("ctrl").innerHTML = ""; setHover(null);
+      $("mapoff").innerHTML = '<div class="map-off">' + esc(t("no_map")) + "</div>";
+    })) || false;
+    if (gl) {
+      gl.on("move", placeHover);
+      // Fitting needs only the map's size, not its style, so it never waits for the tiles.
+      glReady = true;
+    } else $("mapoff").innerHTML = '<div class="map-off">' + esc(t("no_map")) + "</div>";
+    $("ctrl").innerHTML = gl ? '<button data-act="zin" aria-label="Zoom in">' + icon("plus") + '</button><button data-act="zout" aria-label="Zoom out">' + icon("minus") + '</button><button data-act="fit" aria-label="' + esc(t("fit")) + '" title="' + esc(t("fit")) + '">' + icon("fit") + "</button>" : "";
+  }
+  function fit(instant) {
+    if (!gl) return;
+    var pts = onMapList().map(function (l) { return [l.lng, l.lat]; });
+    if (data.brief) data.brief.anchors.forEach(function (a) { pts.push([a.lng, a.lat]); });
+    if (!pts.length) { gl.fitBounds(BOUNDS[country()], { padding: 20, duration: instant ? 0 : 800 }); return; }
+    var bb = new window.maplibregl.LngLatBounds(); pts.forEach(function (p) { bb.extend(p); });
+    var w = mapEl.clientWidth, h = mapEl.clientHeight;
+    gl.fitBounds(bb, { padding: { top: Math.min(80, h / 4), bottom: Math.min(40, h / 5), left: Math.min(60, w / 5), right: Math.min(70, w / 5) }, maxZoom: 15, duration: instant ? 0 : 800 });
+    fitted = true;
+  }
+  function addMarker(html, lng, lat, z) {
+    var m = BASE.pin(gl, html, [lng, lat]);
+    if (z) m.getElement().style.zIndex = z;
+    markers.push(m);
+  }
+  var pinKey = "";
+  function buildPins() {
+    if (!gl) return;
+    var ls = onMapList(), key = lang + "|" + ui.open + "|" + ls.map(function (l) { var a = actionOf(l); return [l.file, l.price, l.lat, l.lng, l.verdict, l.score, a ? a.status : ""].join(":"); }).join(",") + "|" + (data.brief ? JSON.stringify(data.brief.anchors) : "");
+    if (key === pinKey) return;
+    var first = !pinKey; pinKey = key;
+    markers.forEach(function (m) { m.remove(); }); markers = [];
+    if (data.brief) data.brief.anchors.forEach(function (an) {
+      addMarker('<div class="anchor" aria-label="' + esc(an.label) + '"><div class="anchor-in"><span class="dot">' + icon(anchorIcon(an)) + "</span>" + esc(an.label) + "</div></div>", an.lng, an.lat, 1);
+    });
+    ls.slice().sort(function (a, b) { return (a.score || 0) - (b.score || 0); }).forEach(function (l, i) {
+      var a = actionOf(l), saved = !!(a && a.status === "saved");
+      addMarker('<button class="pin' + (l.file === ui.open ? " sel" : "") + (ui.open && l.file !== ui.open ? " dim" : "") + (l.example ? " example" : "") + '" data-act="open" data-id="' + esc(l.file) + '" style="--c:' + colorOf(l) + ";--d:" + (first ? Math.min(i * 60, 600) : 0) + 'ms" aria-label="' + esc(l.title + ", " + money(l.price)) + '"><div class="pin-in"><span class="pin-ic">' + icon(saved || l.verdict === "top" ? "star" : "house") + "</span>" + esc(short(l.price)) + "</div></button>", l.lng, l.lat, 2 + (l.score || 0));
+    });
+    var legend = ["top", "good", "maybe"].filter(function (v) { return ls.some(function (l) { return l.verdict === v; }); });
+    $("legend").innerHTML = legend.map(function (v) { return '<span><i style="--c:' + VERDICTS[v] + '"></i>' + esc(t(v)) + "</span>"; }).join("");
+  }
+  function setHover(file) {
+    if (ui.hover === file) return; ui.hover = file;
+    var el = $("hover"), l = file && byFile(file);
+    document.querySelectorAll(".item.hot").forEach(function (x) { x.classList.remove("hot"); });
+    if (file) { var it = document.querySelector('.item[data-hot="' + (window.CSS && CSS.escape ? CSS.escape(file) : file) + '"]'); if (it) it.classList.add("hot"); }
+    if (!l || !gl || !l.onMap) { el.classList.remove("show"); return; }
+    el.innerHTML = '<div class="price">' + esc(money(l.price)) + ' <span class="muted" style="font-weight:500;font-size:12.5px">' + esc(per(l)) + '</span></div><h3 dir="auto">' + esc(l.title) + '</h3><div class="muted">' + esc(metaLine(l)) + "</div>" + (l.why ? '<p dir="auto">' + esc(l.why) + "</p>" : "");
+    el.classList.add("show"); placeHover();
+  }
+  function placeHover() {
+    var l = ui.hover && byFile(ui.hover); if (!l || !gl || !l.onMap) return;
+    var el = $("hover"), p = gl.project([l.lng, l.lat]), w = el.offsetWidth, h = el.offsetHeight, W = mapEl.clientWidth;
+    var x = Math.max(8, Math.min(W - w - 8, p.x - w / 2)), y = p.y - 50 - h;
+    if (y < 8) y = p.y + 14;
+    el.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)";
+  }
+  mapEl.addEventListener("mouseover", function (e) { var pin = e.target.closest(".pin"); if (pin) setHover(pin.dataset.id); });
+  mapEl.addEventListener("mouseout", function (e) { var pin = e.target.closest(".pin"); if (pin && !pin.contains(e.relatedTarget)) setHover(null); });
+  new ResizeObserver(function () { if (gl) gl.resize(); }).observe(mapEl);
+
+  // ── Presses ─────────────────────────────────────────────────────────────
+  // The rail is drawn again on every change, so focus is put on what replaced the pressed control.
+  function focusOn(selector) { var el = $("rail").querySelector(selector); if (el) el.focus({ preventScroll: true }); }
+  function close() {
+    var file = ui.open; ui.open = null; ui.rejecting = null; paint();
+    focusOn('.item[data-id="' + (window.CSS && CSS.escape ? CSS.escape(file) : file) + '"]');
+  }
+  function open(file) {
+    ui.open = file; ui.rejecting = null; setHover(null); paint();
+    focusOn(".detail .back");
+    var l = byFile(file);
+    if (l && l.onMap && gl) gl.easeTo({ center: [l.lng, l.lat], zoom: Math.max(gl.getZoom(), 14), duration: 700 });
+    var rail = $("rail"); rail.scrollTop = 0;
+    if (window.matchMedia("(max-width: 899px)").matches) rail.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-act]"); if (!el) return;
+    var act = el.dataset.act, id = el.dataset.id, l = ui.open && byFile(ui.open);
+    if (act === "open") return open(id);
+    if (act === "back") return close();
+    if (act === "tab") { ui.tab = id; paint(); return; }
+    if (act === "fit") return fit(false);
+    if (act === "zin" && gl) return gl.zoomIn();
+    if (act === "zout" && gl) return gl.zoomOut();
+    if (act === "market") { ui.marketOpen = !ui.marketOpen; paintRail(); return; }
+    if (act === "start-rent") return ask(t("ask_rent", { country: t("c_" + ui.exCountry) }));
+    if (act === "start-buy") return ask(t("ask_buy", { country: t("c_" + ui.exCountry) }));
+    if (act === "country") {
+      if (id !== "il" && id !== "us" || id === ui.exCountry) return;
+      ui.exCountry = id; ui.open = null; fitted = false; pinKey = "";
+      if (cab && cab.mine && cab.mine.set) cab.mine.set("country", id).catch(function () {});
+      // The start card shows the new country at once: its buttons send the country it shows.
+      paintRail();
+      refresh().then(function () { fit(false); });
+      return;
+    }
+    if (act === "reload") { refresh(); return; }
+    if (act === "go-on") return ask(t("ask_go_on"));
+    if (act === "change") return ask(t("ask_change"));
+    if (act === "run") {
+      var j = searchJob(); if (!j || !cab.jobs) return;
+      jobs.running = true; paint();
+      cab.jobs.run(j.id).catch(function (err) { if (!err || err.code !== "busy") { jobs.running = false; paint(); } toast((err && err.message) || "Try again."); });
+      return;
+    }
+    if (!l) return;
+    if (act === "status") { setAction(l.file, id ? { status: id, at: new Date().toISOString() } : null).then(function (ok) { if (ok && id === "saved") toast(t("saved_toast")); }); return; }
+    if (act === "reject") { ui.rejecting = l.file; ui.reasons = {}; ui.note = ""; paintRail(); return; }
+    if (act === "reason") { ui.reasons = {}; ui.reasons[id] = true; paintRail(); return; }
+    if (act === "reject-cancel") { ui.rejecting = null; paintRail(); return; }
+    if (act === "reject-done") {
+      var reason = Object.keys(ui.reasons)[0] || "", note = ui.note.trim();
+      var v = { status: "rejected", at: new Date().toISOString() }; if (reason) v.reason = reason; if (note) v.note = note;
+      // The form and the reason stay until the store took it, so a refused write can be sent again.
+      var file = l.file;
+      setAction(file, v).then(function (ok) {
+        if (!ok || ui.rejecting !== file) return;
+        ui.rejecting = null; ui.open = null; toast(t("rejected_toast")); paint();
+      });
+      return;
+    }
+    if (act === "owner") return ask(t("ask_owner", { title: l.title, file: l.file }));
+    if (act === "ask-about") return ask(t("ask_about_t", { title: l.title, file: l.file }), { send: false });
+  });
+  document.addEventListener("input", function (e) { if (e.target.id === "note") ui.note = e.target.value.slice(0, 500); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && ui.open) close(); });
+  $("rail").addEventListener("mouseover", function (e) { var it = e.target.closest(".item"); setHover(it ? it.dataset.hot : null); });
+  $("rail").addEventListener("mouseleave", function () { setHover(null); });
+
+  // ── Start ───────────────────────────────────────────────────────────────
+  function readJobs(listNow) {
+    jobs.list = Array.isArray(listNow) ? listNow : [];
+    var j = searchJob(), was = jobs.running; jobs.running = !!(j && j.running);
+    if (was && !jobs.running) refresh(); else paint();
+  }
+  function refresh() { return load().then(function () { if (ui.open && !byFile(ui.open)) ui.open = null; paint(); if (!fitted && glReady) fit(true); }); }
+  function start() {
+    var hereP = cab && cab.here ? Promise.resolve(cab.here()).catch(function () { return null; }) : Promise.resolve(null);
+    return hereP.then(function (h) {
+      here = h;
+      lang = h && /^he/i.test(h.locale || "") ? "he" : (!h && /^he/i.test(navigator.language || "") ? "he" : "en");
+      document.documentElement.lang = lang; document.documentElement.dir = lang === "he" ? "rtl" : "ltr";
+      var dark = h && h.theme ? h.theme === "dark" : !!(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+      if (dark) document.documentElement.dataset.theme = "dark";
+      shared = fromKept();
+      var picked = cab && cab.mine && cab.mine.get ? cab.mine.get("country") : null;
+      if (picked === "il" || picked === "us") ui.exCountry = picked;
+      else if (lang === "he") ui.exCountry = "il";
+      startGl(); paint();
+      if (!V2) return;
+      if (hasStore && kept.onChange) kept.onChange(function () { shared = fromKept(); paint(); });
+      cab.files.onChange("listings", refresh);
+      cab.files.onChange("search", refresh);
+      if (cab.jobs) { cab.jobs.list().then(readJobs, function () {}); cab.jobs.onChange(readJobs); }
+      return refresh();
+    });
+  }
+  if (BASE) $("attr").innerHTML = BASE.ATTRIBUTION;
+  paintTop();
+  if (cab && cab.ready && typeof cab.ready.then === "function") {
+    var began = false, go = function () { if (!began) { began = true; start(); } };
+    cab.ready.then(go, go); setTimeout(go, 3000);
+  } else start();
+})();
+</script>
+</body>
+</html>

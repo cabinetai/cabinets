@@ -37,6 +37,7 @@ Each top-level directory in this repo is a complete cabinet template you can ins
 |---------|--------|--------|------|----------|-------------|
 | [agency](./agency) | Professional Services | 2 | 2 | 2 | Digital agency managing multiple client engagements with shared processes and templates |
 | [ai-hero](./ai-hero) | Education | 2 | 2 | 0 | Self-paced AI course — 20 hours of math, intuition, theory, and hands-on LLM construction |
+| [apartment-hunt](./apartment-hunt) | Lifestyle | 1 | 2 | 0 | An apartment scout for Israel and the US: it asks what you need, searches the listing sites twice a day, and maps the places worth seeing |
 | [asana-tasks](./asana-tasks) | Operations | 1 | 1 | 0 | Every morning, the Asana tasks that are actually on you today |
 | [audits](./audits) | Operations | 1 | 2 | 0 | Walk a product, file every friction as a markdown issue, ship fixes with a Senior Product Lead bar — then hand a stakeholder an interacti… |
 | [aws-s3-contents](./aws-s3-contents) | Operations | 1 | 1 | 0 | What's actually in your bucket, and what changed last |
