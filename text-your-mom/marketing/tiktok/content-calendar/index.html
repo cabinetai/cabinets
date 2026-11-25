@@ -1,127 +1,526 @@
 <!doctype html>
+<!--
+  The TikTok content calendar: this week's posts, Monday to Sunday, from ../content-ideas.csv.
+
+  The CSV is the only source of the plan. The page reads it with window.cabinet v2 and repaints
+  when it changes. Without Cabinet it fetches the same file over the page's own address and hides
+  the buttons. It never writes: "Plan this week" and "Mark as posted" ask the Script Writer, and
+  posting to TikTok stays by hand because TikTok is connected read only.
+-->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TikTok Content Calendar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=TikTok+Sans:wght@400..800&display=swap" rel="stylesheet" />
     <style>
+      /* TikTok's look, as on TikTok Digest: white sheets on TikTok's pale grey in TikTok Sans, and
+         the headline as TikTok's black band with the title in plain white. */
       :root {
-        --bg: #fff7f2;
-        --card: #ffffff;
-        --ink: #2f2424;
-        --muted: #7b6d6a;
-        --line: #ead9d2;
-        --accent: #ff6b6b;
-        --accent-2: #ffb347;
+        --sans: "TikTok Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        --canvas: #F1F1F2;
+        --page: #FFFFFF;
+        --panel: #F8F8F8;
+        --panel-2: #EBEBEC;
+        --line: #EBEBEC;
+        --ink: #161823;
+        --ink-2: #474953;
+        --ink-3: #66676E;
+        --faint: #B0B1B6;
+        --green-ink: #007571;
+        --green-tint: #E5F8F7;
+        --amber-ink: #8A5A00;
+        --amber-tint: #FFF5E2;
+        --red: #E3214A;
+        --red-deep: #C91C40;
+        --shadow-1: 0 1px 2px rgba(22, 24, 35, .05), 0 10px 28px -14px rgba(22, 24, 35, .16);
+        --shadow-2: 0 2px 4px rgba(22, 24, 35, .06), 0 18px 38px -18px rgba(22, 24, 35, .28);
+        --radius: 16px;
       }
       * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
       body {
-        margin: 0;
-        font-family: Georgia, "Times New Roman", serif;
-        background: radial-gradient(circle at top, #ffe7db, var(--bg) 45%);
-        color: var(--ink);
+        margin: 0; background: var(--canvas); color: var(--ink);
+        font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
       }
-      .wrap {
-        max-width: 1080px;
-        margin: 0 auto;
-        padding: 32px 20px 48px;
+      .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+      /* TikTok's own logo (Simple Icons, CC0) in its cyan and red, small. */
+            .mark { width: 22px; height: 22px; display: inline-block; flex: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 26 26'%3E%3Cpath fill='%2325f4ee' transform='translate(-.8 -.8)' d='M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z'/%3E%3Cpath fill='%23fe2c55' transform='translate(.8 .8)' d='M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z'/%3E%3Cpath fill='%23121212' d='M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z'/%3E%3C/svg%3E") no-repeat center / contain; }
+      .head .mark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 26 26'%3E%3Cpath fill='%2325f4ee' transform='translate(-.8 -.8)' d='M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z'/%3E%3Cpath fill='%23fe2c55' transform='translate(.8 .8)' d='M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z'/%3E%3Cpath fill='%23ffffff' d='M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z'/%3E%3C/svg%3E"); }
+
+      .wrap { max-width: 1280px; margin: 0 auto; padding: 16px 28px 40px; display: flex; flex-direction: column; gap: 16px; }
+
+      /* The headline band: TikTok's black, the TikTok mark and the page's name, then the title and
+         the week in numbers. The band sets its own colours, so its pill turns dark with it. */
+      .head {
+        --page: #121212; --panel: #232329; --ink: #FFFFFF; --ink-2: rgba(255, 255, 255, .82); --ink-3: rgba(255, 255, 255, .6);
+        padding: 22px 26px 24px; border-radius: var(--radius); background: var(--page); color: var(--ink); box-shadow: var(--shadow-2);
       }
-      .hero {
-        display: flex;
-        justify-content: space-between;
-        gap: 24px;
-        align-items: end;
-        margin-bottom: 24px;
+      .head-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
+      .brand { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 15px; font-weight: 600; color: var(--ink-2); }
+      .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 12px; border-radius: 999px; background: var(--panel); color: var(--ink-2); font-weight: 500; font-size: 13.5px; }
+      h1 { margin: 14px 0 0; font-size: clamp(28px, 3.2vw, 40px); line-height: 1.1; font-weight: 800; letter-spacing: -.02em; }
+      .head-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-top: 8px; }
+      .summary { margin: 0; font-size: 16px; color: var(--ink-2); max-width: 70ch; }
+
+      /* Buttons. The one red button on the page is the plan button in the band; white on this
+         red is 4.6:1, where white on TikTok's brighter #FE2C55 is only 3.7:1. */
+      button { font: inherit; }
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 7px 14px; border: 0; border-radius: 10px;
+        background: var(--panel-2); color: var(--ink); font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .15s;
       }
-      .kicker {
-        font: 700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--muted);
+      .btn:hover { background: #E0E0E2; }
+      .btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+      .btn:disabled { opacity: .6; cursor: default; }
+      .btn.red { background: var(--red); color: #FFFFFF; min-height: 42px; padding: 8px 18px; font-size: 15px; font-weight: 700; }
+      .btn.red:hover { background: var(--red-deep); }
+      html[data-role="viewer"] [data-viewer-off] { display: none !important; }
+
+      #notes { display: flex; flex-direction: column; gap: 10px; }
+      #notes:empty { display: none; }
+      .notice { margin: 0; padding: 12px 18px; border-radius: 12px; background: var(--amber-tint); color: var(--amber-ink); font-size: 14.5px; font-weight: 500; }
+      .notice.problem { padding: 22px 24px; background: var(--page); color: var(--ink); box-shadow: var(--shadow-1); font-size: 16px; font-weight: 400; }
+      .notice.problem strong { display: block; margin-bottom: 4px; font-size: 18px; font-weight: 700; }
+
+      /* The week as an agenda: one row per day, Monday to Sunday, so an empty day is a visible row.
+         The lists of what has no day sit beside it, and under it on a narrow screen. */
+      .board { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+      .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+      .sheet { min-width: 0; padding: 18px 22px 8px; border-radius: var(--radius); background: var(--page); box-shadow: var(--shadow-1); }
+      .sheet-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding-bottom: 12px; }
+      h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.015em; line-height: 1.3; }
+      .hint { margin: 2px 0 0; font-size: 13.5px; color: var(--ink-3); }
+      .nav { display: flex; flex-wrap: wrap; gap: 8px; }
+
+      .days { margin: 0; padding: 0; list-style: none; }
+      .day { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+      .day-name { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+      .day.today .day-name { color: var(--red); }
+      .day-date { margin: 2px 0 0; font-size: 13.5px; color: var(--ink-3); }
+      .day-body { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+      .rest { margin: 0; font-size: 14px; color: var(--ink-3); line-height: 1.45; }
+      .gap { margin: 0; padding: 7px 12px; border-radius: 10px; background: var(--amber-tint); color: var(--amber-ink); font-size: 14px; font-weight: 600; }
+
+      .post { min-width: 0; }
+      .post-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+      h3 { margin: 0; min-width: 0; font-size: 16.5px; font-weight: 650; letter-spacing: -.015em; line-height: 1.35; overflow-wrap: anywhere; }
+      .state { display: inline-flex; align-items: center; flex: none; padding: 2px 9px; border-radius: 999px; background: var(--panel-2); color: var(--ink-2); font-size: 13px; font-weight: 500; white-space: nowrap; }
+      .state.research { background: var(--amber-tint); color: var(--amber-ink); }
+      .state.ready { background: var(--green-tint); color: var(--green-ink); }
+      .state.posted { background: var(--ink); color: #FFFFFF; }
+      .facts { margin: 6px 0 0; padding: 0; list-style: none; }
+      .facts li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 3px 0; font-size: 14.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+      .facts .k { color: var(--ink-3); font-size: 13.5px; line-height: 1.6; }
+      .facts .none { color: var(--ink-3); }
+      .risk { margin: 6px 0 0; font-size: 14px; font-weight: 600; color: var(--amber-ink); }
+      .post .btn { margin-top: 8px; }
+
+      .items { margin: 0; padding: 0; list-style: none; }
+      .item { padding: 12px 0; border-top: 1px solid var(--line); }
+
+      .foot { margin: 0; padding: 0 4px; font-size: 13.5px; color: var(--ink-3); }
+
+      .toast {
+        position: fixed; left: 50%; bottom: 20px; z-index: 5; width: max-content; max-width: min(90vw, 480px); padding: 10px 16px; border-radius: 12px;
+        background: var(--ink); color: #FFFFFF; font-size: 14.5px; box-shadow: var(--shadow-2); transform: translateX(-50%);
       }
-      h1 {
-        margin: 8px 0 6px;
-        font-size: clamp(2.2rem, 4vw, 4rem);
-        line-height: 0.95;
+
+      @media (max-width: 900px) {
+        .board { grid-template-columns: minmax(0, 1fr); }
       }
-      .summary {
-        color: var(--muted);
-        max-width: 680px;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 20px;
-        padding: 18px;
-        box-shadow: 0 14px 35px rgba(89, 59, 44, 0.07);
-      }
-      .pill {
-        display: inline-block;
-        padding: 6px 10px;
-        border-radius: 999px;
-        background: rgba(255, 107, 107, 0.12);
-        color: #9f2f3b;
-        font: 700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
-        text-transform: uppercase;
-      }
-      h2 {
-        margin: 12px 0 8px;
-        font-size: 1.25rem;
-      }
-      ul {
-        margin: 0;
-        padding-left: 18px;
-        color: var(--muted);
+      @media (max-width: 560px) {
+        .wrap { padding: 12px 16px 32px; gap: 14px; }
+        .head { padding: 18px 18px 20px; }
+        .sheet { padding: 16px 16px 6px; }
+        .day { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+        .day-head { display: flex; align-items: baseline; gap: 8px; }
+        .day-date { margin: 0; }
+        .head-row .btn.red { width: 100%; }
       }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <div class="hero">
-        <div>
-          <div class="kicker">Text Your Mom / TikTok Growth</div>
-          <h1>Weekly Content Calendar</h1>
-          <p class="summary">
-            A lightweight planning surface for hooks, skits, and confession-style creative built
-            around reply guilt, family group chat avoidance, and warm accountability.
-          </p>
+    <main class="wrap">
+      <header class="head">
+        <div class="head-top">
+          <div class="brand"><span class="mark" aria-hidden="true"></span><span>Text Your Mom / TikTok Growth</span></div>
+          <span class="pill" id="weekPill">This week</span>
         </div>
-        <div class="pill">Imported cabinet</div>
-      </div>
-      <div class="grid">
-        <div class="card">
-          <div class="pill">Monday</div>
-          <h2>The Question Mark Post</h2>
-          <ul>
-            <li>Format: 5-slide carousel</li>
-            <li>Hook: "Text your mom before she sends ?"</li>
-            <li>Status: script ready</li>
-          </ul>
+        <h1>Weekly Content Calendar</h1>
+        <div class="head-row">
+          <p class="summary" id="summary" aria-live="polite">Reading the plan.</p>
+          <button type="button" class="btn red" id="planBtn" data-viewer-off hidden>Plan this week</button>
         </div>
-        <div class="card">
-          <div class="pill">Wednesday</div>
-          <h2>Group Chat Shame Spiral</h2>
-          <ul>
-            <li>Format: skit</li>
-            <li>Angle: you muted it, but emotionally it muted you</li>
-            <li>Status: idea</li>
-          </ul>
-        </div>
-        <div class="card">
-          <div class="pill">Friday</div>
-          <h2>Liked The Photo, Ignored The Text</h2>
-          <ul>
-            <li>Format: talking head</li>
-            <li>Angle: accidental betrayal via casual social interaction</li>
-            <li>Status: research</li>
-          </ul>
+      </header>
+      <div id="notes"></div>
+      <div class="board" id="board" hidden>
+        <section class="sheet" aria-labelledby="weekTitle">
+          <div class="sheet-head">
+            <h2 id="weekTitle"></h2>
+            <div class="nav">
+              <button type="button" class="btn" id="prevBtn">Previous week</button>
+              <button type="button" class="btn" id="nowBtn" hidden>This week</button>
+              <button type="button" class="btn" id="nextBtn">Next week</button>
+            </div>
+          </div>
+          <ol class="days" id="days"></ol>
+        </section>
+        <div class="side">
+          <section class="sheet" id="latePanel" aria-labelledby="lateTitle" hidden>
+            <div class="sheet-head"><div><h2 id="lateTitle">Date passed</h2><p class="hint">Not posted yet.</p></div></div>
+            <ul class="items" id="late"></ul>
+          </section>
+          <section class="sheet" aria-labelledby="looseTitle">
+            <div class="sheet-head"><div><h2 id="looseTitle">Unscheduled</h2><p class="hint">Highest priority first.</p></div></div>
+            <ul class="items" id="loose"></ul>
+          </section>
         </div>
       </div>
-    </div>
+      <p class="foot" id="foot" hidden></p>
+    </main>
+    <div class="toast" id="toast" role="status" hidden></div>
+
+    <script>
+      const CSV_NAME = "content-ideas.csv";
+      const AGENT = "script-writer";
+      const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      const POST_DAYS = [0, 2, 4]; // Monday, Wednesday and Friday, counted from Monday.
+      const STATUS = {
+        idea: { label: "Idea", cls: "", script: false },
+        research: { label: "Research", cls: "research", script: false },
+        "script ready": { label: "Script Ready", cls: "ready", script: true },
+        made: { label: "Made", cls: "ready", script: true },
+        posted: { label: "Posted", cls: "posted", script: true },
+      };
+      const PRIORITY = { critical: 0, high: 1, medium: 2, low: 3 };
+      // jobs.list() has no on/off field. A switched-off job's `when` is Cabinet's word for
+      // "Paused", in the person's language: these are the English and Hebrew words.
+      const PAUSED = ["paused", "מושהית"];
+
+      const cab = window.cabinet;
+      const V2 = !!(cab && cab.files && cab.jobs && typeof cab.ask === "function");
+      const state = { posts: [], error: "", skipped: 0, loaded: false, offset: null, role: "owner", jobs: [] };
+      let csvPath = CSV_NAME;
+      let readTicket = 0;
+
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+      const norm = (s) => String(s || "").trim().toLowerCase().replace(/[-_\s]+/g, " ");
+      const canAsk = () => V2 && state.role !== "viewer";
+
+      // ---------- Dates, always in local time ----------
+      const atMidnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+      const mondayOf = (d) => addDays(d, -((d.getDay() + 6) % 7));
+      const dayKey = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      const shortDate = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const dayName = (d) => DAY_NAMES[(d.getDay() + 6) % 7];
+      const today = () => atMidnight(new Date());
+
+      function readDay(text) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(text || "").trim());
+        if (!m) return null;
+        const d = new Date(+m[1], +m[2] - 1, +m[3]);
+        return d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] ? d : null;
+      }
+      function dayWithYear(d) {
+        const words = dayName(d) + ", " + shortDate(d);
+        return d.getFullYear() === today().getFullYear() ? words : words + ", " + d.getFullYear();
+      }
+
+      // ---------- CSV ----------
+      // From usa-travel-planner/parks-map: handles quoted fields with commas and doubled quotes.
+      function parseCsvRows(text) {
+        const rows = [];
+        let row = [], field = "", inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const c = text[i];
+          if (inQuotes) {
+            if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+            else if (c === '"') { inQuotes = false; }
+            else { field += c; }
+          } else {
+            if (c === '"') inQuotes = true;
+            else if (c === ",") { row.push(field); field = ""; }
+            else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+            else if (c === "\r") { /* skip */ }
+            else { field += c; }
+          }
+        }
+        if (field !== "" || row.length > 0) { row.push(field); rows.push(row); }
+        return rows;
+      }
+
+      // Rows by column name, whatever the column order. A short row is kept with its last
+      // columns blank. A long row has an unquoted comma, so its columns cannot be trusted: it is
+      // counted and said out loud rather than shown wrong.
+      function readTable(text) {
+        const rows = parseCsvRows(text.replace(/^﻿/, ""));
+        const headers = (rows[0] || []).map(norm);
+        if (!headers.includes("title")) throw new Error("It has no Title column.");
+        const posts = [];
+        let skipped = 0;
+        rows.slice(1).forEach((r) => {
+          if (r.every((cell) => !cell.trim())) return;
+          if (r.length > headers.length) { skipped++; return; }
+          const rec = {};
+          headers.forEach((h, i) => { rec[h] = (r[i] || "").trim(); });
+          posts.push(toPost(rec, posts.length));
+        });
+        return { posts, skipped };
+      }
+
+      function toPost(rec, id) {
+        const known = STATUS[norm(rec.status)];
+        const rawDate = rec["post date"] || "";
+        return {
+          id,
+          title: rec.title || "Untitled",
+          format: rec.format || "",
+          hook: rec.hook || "",
+          priority: rec.priority || "",
+          brief: rec.brief || "",
+          status: known ? known.label : rec.status || "No status",
+          statusCls: known ? known.cls : "",
+          hasScript: !!(known && known.script),
+          isPosted: norm(rec.status) === "posted",
+          canPost: norm(rec.status) === "script ready" || norm(rec.status) === "made",
+          date: readDay(rawDate),
+          rawDate,
+        };
+      }
+
+      // ---------- Reading ----------
+      function readCsv() {
+        if (V2) return cab.files.read(csvPath);
+        return fetch("../" + CSV_NAME, { cache: "no-store" }).then((res) => {
+          if (!res.ok) throw new Error("The server answered " + res.status + ".");
+          return res.text();
+        });
+      }
+
+      function load() {
+        const ticket = ++readTicket;
+        return readCsv().then((text) => {
+          if (ticket !== readTicket) return;
+          const table = readTable(text);
+          state.posts = table.posts;
+          state.skipped = table.skipped;
+          state.error = "";
+          state.loaded = true;
+          paint();
+        }).catch((err) => {
+          if (ticket !== readTicket) return;
+          state.error = (err && err.message) || "The file did not open.";
+          paint();
+        });
+      }
+
+      // ---------- Which week ----------
+      // Weeks are counted from the Monday of today's week. A Sunday with nothing left to post
+      // opens on the coming week, since the week it belongs to is over.
+      function openingOffset() {
+        const now = today();
+        if (now.getDay() !== 0) return 0;
+        const dueToday = state.posts.some((p) => p.date && !p.isPosted && dayKey(p.date) === dayKey(now));
+        return dueToday ? 0 : 1;
+      }
+      function shownWeek() {
+        const monday = addDays(mondayOf(today()), (state.offset || 0) * 7);
+        return { monday, sunday: addDays(monday, 6) };
+      }
+      function weekWords(monday) {
+        if (state.offset === 0) return "this week";
+        if (state.offset === 1) return "next week";
+        if (state.offset === -1) return "last week";
+        return "the week of " + shortDate(monday);
+      }
+
+      // ---------- Words ----------
+      function riskOf(post) {
+        if (!post.date || post.isPosted) return "";
+        if (post.date < today()) return dayName(post.date) + ": date passed, not posted.";
+        return post.hasScript ? "" : dayName(post.date) + ": no script yet.";
+      }
+      function summaryOf(inWeek, monday) {
+        const words = weekWords(monday);
+        if (!inWeek.length) return "No posts planned " + words + ".";
+        const scripts = inWeek.filter((p) => p.hasScript).length;
+        return inWeek.length + (inWeek.length === 1 ? " post " : " posts ") + words + ". " +
+          (scripts === 0 ? "None has a script." : scripts === 1 ? "1 has a script." : scripts + " have a script.");
+      }
+
+      // ---------- Painting ----------
+      function factsHtml(post) {
+        const brief = post.brief ? esc(post.brief) : '<span class="none">No brief yet</span>';
+        return '<ul class="facts">' +
+          '<li><span class="k">Hook</span><span>' + (post.hook ? esc(post.hook) : '<span class="none">No hook yet</span>') + "</span></li>" +
+          (post.format ? '<li><span class="k">Format</span><span>' + esc(post.format) + "</span></li>" : "") +
+          '<li><span class="k">Brief</span><span>' + brief + "</span></li>" +
+          (post.date || !post.priority ? "" : '<li><span class="k">Priority</span><span>' + esc(post.priority) + "</span></li>") +
+          "</ul>";
+      }
+      function postHtml(post, risk) {
+        const button = canAsk() && post.canPost
+          ? '<button type="button" class="btn" data-viewer-off data-mark="' + post.id + '">Mark as posted</button>'
+          : "";
+        return '<article class="post">' +
+          '<div class="post-top"><h3>' + esc(post.title) + '</h3><span class="state ' + post.statusCls + '">' + esc(post.status) + "</span></div>" +
+          factsHtml(post) +
+          (risk ? '<p class="risk">' + esc(risk) + "</p>" : "") + button +
+          "</article>";
+      }
+
+      function dayHtml(i, monday, inWeek) {
+        const date = addDays(monday, i);
+        const key = dayKey(date);
+        const posts = inWeek.filter((p) => dayKey(p.date) === key);
+        const now = today();
+        const isToday = key === dayKey(now);
+        let body;
+        if (posts.length) body = posts.map((p) => postHtml(p, riskOf(p))).join("");
+        else if (POST_DAYS.includes(i) && date >= now) body = '<p class="gap">' + DAY_NAMES[i] + ": nothing planned.</p>";
+        else body = '<p class="rest">Nothing planned</p>';
+        return '<li class="day' + (isToday ? " today" : "") + '"><div class="day-head">' +
+          '<p class="day-name">' + DAY_NAMES[i] + '</p><p class="day-date">' + (isToday ? "Today, " : "") + shortDate(date) + "</p>" +
+          '</div><div class="day-body">' + body + "</div></li>";
+      }
+
+      function paintNotes() {
+        let html = "";
+        if (state.error) {
+          html = state.loaded
+            ? '<p class="notice">' + CSV_NAME + " did not open just now, so this is the last plan read. " + esc(state.error) + "</p>"
+            : '<div class="notice problem" role="alert"><strong>The plan could not be read.</strong>This page reads ' + CSV_NAME +
+              " from the TikTok Growth folder. " + esc(state.error) + "</div>";
+        }
+        if (state.skipped) {
+          const rows = state.skipped === 1 ? "1 row" : state.skipped + " rows";
+          html += '<p class="notice">' + rows + " in " + CSV_NAME + " not shown: too many columns. A comma inside a field needs quotes.</p>";
+        }
+        $("notes").innerHTML = html;
+      }
+
+      function paintFoot() {
+        const daily = state.jobs.filter((job) => /^daily-/.test(job.id));
+        const off = daily.filter((job) => PAUSED.includes(norm(job.when)));
+        const foot = $("foot");
+        foot.hidden = !off.length;
+        if (off.length === daily.length) foot.textContent = "Daily jobs are off.";
+        else foot.textContent = off.map((job) => job.name).join(", ") + (off.length === 1 ? " is off." : " are off.");
+      }
+
+      function paint() {
+        paintNotes();
+        paintFoot();
+        const failed = !state.loaded;
+        $("board").hidden = failed;
+        $("planBtn").hidden = true;
+        if (failed) {
+          $("summary").textContent = "";
+          return;
+        }
+        if (state.offset === null) state.offset = openingOffset();
+        const { monday, sunday } = shownWeek();
+        const now = today();
+        const inWeek = state.posts.filter((p) => p.date && p.date >= monday && p.date <= sunday);
+
+        $("weekPill").textContent = "Week of " + shortDate(monday);
+        $("summary").textContent = summaryOf(inWeek, monday);
+        $("weekTitle").textContent = shortDate(monday) + " to " + shortDate(sunday);
+        $("nowBtn").hidden = state.offset === 0;
+        $("days").innerHTML = DAY_NAMES.map((_, i) => dayHtml(i, monday, inWeek)).join("");
+
+        const plan = $("planBtn");
+        plan.textContent = "Plan " + weekWords(monday);
+        plan.hidden = !canAsk() || sunday < now;
+
+        const late = state.posts.filter((p) => p.date && !p.isPosted && p.date < now && !(p.date >= monday && p.date <= sunday))
+          .sort((a, b) => a.date - b.date);
+        $("latePanel").hidden = !late.length;
+        $("late").innerHTML = late.map((p) => '<li class="item">' + postHtml(p, dayWithYear(p.date) + ": date passed, not posted.") + "</li>").join("");
+
+        const rank = (p) => { const r = PRIORITY[norm(p.priority)]; return r === undefined ? 9 : r; };
+        const loose = state.posts.filter((p) => !p.date && !p.isPosted).sort((a, b) => rank(a) - rank(b) || a.id - b.id);
+        $("loose").innerHTML = loose.length
+          ? loose.map((p) => {
+              const bad = p.rawDate ? 'Post date "' + p.rawDate + '" is not a date.' : "";
+              return '<li class="item">' + postHtml(p, bad) + "</li>";
+            }).join("")
+          : '<li class="item"><p class="rest">Every idea has a date.</p></li>';
+      }
+
+      // ---------- Asking ----------
+      let toastTimer = 0;
+      function toast(words) {
+        const el = $("toast");
+        el.textContent = words;
+        el.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { el.hidden = true; }, 6000);
+      }
+      function ask(text, button) {
+        if (!canAsk()) return;
+        button.disabled = true;
+        cab.ask(text, { agent: AGENT, send: true })
+          .then(() => toast("Sent to Script Writer. The chat is open beside this page."))
+          .catch((err) => toast((err && err.message) || "That did not go through. Try again."))
+          .then(() => { button.disabled = false; });
+      }
+      function planWords() {
+        const { monday, sunday } = shownWeek();
+        // A posting day that is over gets no new post: it would show as late at once.
+        const slots = POST_DAYS.filter((i) => addDays(monday, i) >= today()).map((i) => DAY_NAMES[i] + " " + dayKey(addDays(monday, i))).join(", ");
+        return "Plan the TikTok week from " + dayKey(monday) + " to " + dayKey(sunday) + ".\n" +
+          (slots ? "In content-ideas.csv, give each of " + slots + " a post. Fill an empty day from the rows with no Post date, highest Priority first, and write the date in Post date as YYYY-MM-DD. Do not move a post that already has a date, and do not date a post before today.\n" : "") +
+          "For each post that week with no script yet, write briefs/<slug>.md with the script, put that path in Brief, and set Status to Script Ready. If another row already uses that path, add -2, -3 and so on to the slug.\n" +
+          "Status is one of: Idea, Research, Script Ready, Made, Posted. Do not post anything to TikTok.";
+      }
+      function postedWords(post) {
+        return "I posted this on TikTok by hand: \"" + post.title + "\".\n" +
+          "In content-ideas.csv, set its Status to Posted. If its Post date is empty, set it to " + dayKey(today()) + ". Change nothing else.";
+      }
+
+      // ---------- Wiring ----------
+      function step(to) { state.offset = to; paint(); }
+      $("prevBtn").addEventListener("click", () => step(state.offset - 1));
+      $("nextBtn").addEventListener("click", () => step(state.offset + 1));
+      $("nowBtn").addEventListener("click", () => step(0));
+      $("planBtn").addEventListener("click", (e) => ask(planWords(), e.currentTarget));
+      document.addEventListener("click", (e) => {
+        const button = e.target.closest ? e.target.closest("[data-mark]") : null;
+        const post = button ? state.posts[Number(button.getAttribute("data-mark"))] : null;
+        if (post) ask(postedWords(post), button);
+      });
+
+      function setJobs(list) {
+        state.jobs = Array.isArray(list) ? list : [];
+        paintFoot();
+      }
+
+      if (V2) {
+        // The nearest .cabinet owns this page, and paths are relative to it. appPath is this
+        // page's folder from there, so the CSV is its parent folder's, whichever cabinet that is.
+        Promise.resolve(cab.here()).then((here) => {
+          if (here && here.role) state.role = here.role;
+          document.documentElement.setAttribute("data-role", state.role);
+          if (here && typeof here.appPath === "string") {
+            const parent = here.appPath.split("/").slice(0, -1).join("/");
+            csvPath = parent ? parent + "/" + CSV_NAME : CSV_NAME;
+          }
+        }).catch(() => {}).then(() => {
+          load();
+          try { cab.files.onChange(csvPath, load); } catch (e) { /* older bridge */ }
+        });
+        cab.jobs.list().then(setJobs).catch(() => {});
+        cab.jobs.onChange(setJobs);
+      } else {
+        load();
+      }
+    </script>
   </body>
 </html>
