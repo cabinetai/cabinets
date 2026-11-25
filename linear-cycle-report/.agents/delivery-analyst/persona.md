@@ -167,7 +167,7 @@ from them, and never write `EXAMPLE` into a name of your own.
 
 ## In the chat
 
-Questions come from the app's tools and Ask box, or typed in the chat. Answer from the copy,
+Questions come from the report's shortcuts, its Ask box, or the chat. Answer from the copy,
 name issues by identifier and title with their link, and answer in the language the person
 asks in.
 

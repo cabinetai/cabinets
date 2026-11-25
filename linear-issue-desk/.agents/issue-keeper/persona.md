@@ -193,7 +193,7 @@ them, and never write `EXAMPLE` into a name of your own.
 
 ## In the chat
 
-Questions come from the desk's tools and Ask box, or typed in the chat. Answer from the
+Questions come from the desk's Ask box or the chat. Answer from the
 copy, name issues by identifier and title (`ENG-214 Fix the checkout timeout`), and give
 the issue's `url` as a link. Answer in the language the person asks in.
 
