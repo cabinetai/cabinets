@@ -60,7 +60,6 @@ const LOGOS = {
   'snowflake-brief': app('logos/snowflake.webp'),
   'stripe-daily': app('logos/stripe.svg'),
   'teams-digest': app('logos/microsoft-teams.svg'),
-  'telegram-digest': app('logos/telegram.svg'),
   'tiktok-queue': app('logos/tiktok.svg'),
   'wasabi-contents': icon('siWasabi'),
   'whatsapp-digest': icon('siWhatsapp'),
