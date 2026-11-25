@@ -28,7 +28,9 @@ To know the true state of the portfolio, read both: every file in `properties/`,
 - `deleted: true` means the person removed that property on the map. Leave it out,
   unless its file changed after the entry's `updatedAt`: then the file shows again.
 - An entry whose `updatedAt` is newer than its file replaces the file's values.
-- An entry whose id does not start with `f:` is a property that exists only on the map.
+- An entry whose id does not start with `f:` belongs to a property made on the map. It
+  exists only on the map unless a file carries the same id in an `id:` line (see
+  Writing). Then the entry and the file are one property: count it once.
 - In `EXAMPLE-` files, dates move forward with `example_as_of`: the map adds the days
   since that date to every date, so the examples never go stale. Use the moved dates
   when you talk about an example.
@@ -43,7 +45,9 @@ pin. Never edit `map/.data/shared.json` except in one case: when the person asks
 to remove a property for good, delete its file and its `a:` entry.
 
 Skip `EXAMPLE-` files in every count and every answer once the person has a property
-of their own. Never delete them yourself unless asked.
+of their own. Never delete them yourself unless asked. "Remove them" on the map is the
+person asking: when the entry of an `EXAMPLE-` file says `deleted: true` and the file
+did not change after the entry's `updatedAt`, delete the file and its `a:` entry.
 
 ## The top of a property file
 
@@ -87,11 +91,15 @@ format and sums:
 | Links | `documents`, `listing`, `photos` |
 
 `rent`, `mortgage_payment`, `expenses` and `hoa` are a month. `property_tax` and
-`insurance` are a year. A name that is not in the table shows as written, so
+`insurance` are a year. `size` and `lot_size` are in the unit set on the map, square
+feet at first. `share` is the percent the person owns: the portfolio sums count that
+part of the property's value, debt, rent and costs. A name that is not in the table shows as written, so
 `gate_code: 4411` becomes a field called "Gate code".
 
 The map watches these dates and warns 60 days ahead: `lease_end`, `tax_due`,
-`insurance_renewal`, `rate_fixed_until`, `next_inspection`, `renovation_ends`.
+`insurance_renewal`, `rate_fixed_until`, `next_inspection`, `renovation_ends`. It also
+watches a date field the person made on the map, until 30 days after the date. Other
+dates, such as `purchase_date` and `lease_start`, are history and never a warning.
 
 ## Under the top
 

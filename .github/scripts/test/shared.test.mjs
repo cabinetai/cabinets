@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { pasted, sharedPages, stalePages } from "../sync-shared.mjs";
+import { ROOT, pasted, sharedPages, stalePages } from "../sync-shared.mjs";
 
 test("every page's copy of a shared file matches its source", () => {
   assert.deepEqual(stalePages(), [], "Run node .github/scripts/sync-shared.mjs");
@@ -37,7 +37,7 @@ test("a page that marks a place is found, filled, and reported when its copy is 
 });
 
 test("no shared file holds a closing script tag, which would end the page's copy early", () => {
-  const dir = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..", "shared");
+  const dir = path.join(ROOT, "shared");
   for (const name of fs.readdirSync(dir)) {
     assert.ok(!/<\/script/i.test(fs.readFileSync(path.join(dir, name), "utf8")), name);
   }

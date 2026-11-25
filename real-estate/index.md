@@ -7,15 +7,15 @@ order: 1
 ---
 # Real Estate Map
 
-Every property you own as a pin on a map. Hover a pin for the facts. Press it for the
-state, the numbers, the dates and anything else you keep about the place.
+Every property you own as a pin on a map. Press a pin for its state, its numbers, its
+dates and anything else you keep about the place.
 
 ## How it works
 
 The **Map** app is where you live. Each pin is one property, coloured by its state:
 rented, vacant, your own use, renovating, for sale or sold.
 
-- **Hover** a pin to read everything known about it without opening it.
+- **Hover** a pin with a mouse to read everything known about it without opening it.
 - **Press** a pin to open the property. Change its state with one press. Type straight
   into any number or date. Keep a to-do list and notes.
 - **Add a field** for anything you want to keep: a mortgage, a tenant, an insurance
