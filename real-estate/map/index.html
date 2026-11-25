@@ -437,37 +437,51 @@
     return layer["source-layer"] === "place" && JSON.stringify(layer.filter || "").indexOf('"state"') !== -1;
   }
 
-  // Runs on every style load, so a change of look keeps the names.
-  function localize(map) {
-    var layers = map.getStyle().layers;
+  // The style with the names and the label above, as a new object. MapLibre calls it
+  // with each style it downloads, before it draws anything.
+  function localizeStyle(style) {
     var stateLabel = null;
-    layers.forEach(function (layer) {
-      if (layer.type !== "symbol") return;
+    var layers = style.layers.map(function (layer) {
+      if (layer.type !== "symbol") return layer;
+      var out = Object.assign({}, layer);
       var field = layer.layout && layer.layout["text-field"];
-      if (field && JSON.stringify(field).indexOf('"name') !== -1) map.setLayoutProperty(layer.id, "text-field", NAME);
-      if (layer["source-layer"] !== "place") return;
-      var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
-      map.setFilter(layer.id, layer.filter ? ["all", layer.filter, keep] : keep);
-      if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+      if (field && JSON.stringify(field).indexOf('"name') !== -1) out.layout = Object.assign({}, layer.layout, { "text-field": NAME });
+      if (layer["source-layer"] === "place") {
+        var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
+        out.filter = layer.filter ? ["all", layer.filter, keep] : keep;
+        if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+      }
+      return out;
     });
-    if (!stateLabel || map.getSource("cabinet-regions")) return;
-    map.addSource("cabinet-regions", {
-      type: "geojson",
-      data: {
-        type: "FeatureCollection",
-        features: REGIONS.map(function (r) {
-          return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
-        }),
+    var sources = Object.assign({}, style.sources);
+    if (stateLabel) {
+      sources["cabinet-regions"] = {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: REGIONS.map(function (r) {
+            return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
+          }),
+        },
+      };
+      layers.push({
+        id: "cabinet-regions",
+        type: "symbol",
+        source: "cabinet-regions",
+        minzoom: 6,
+        maxzoom: 10,
+        layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
+        paint: stateLabel.paint || {},
+      });
+    }
+    return Object.assign({}, style, { sources: sources, layers: layers });
+  }
+
+  function setLook(map, look) {
+    map.setStyle(styleUrl(look), {
+      transformStyle: function (previous, next) {
+        return localizeStyle(next);
       },
-    });
-    map.addLayer({
-      id: "cabinet-regions",
-      type: "symbol",
-      source: "cabinet-regions",
-      minzoom: 6,
-      maxzoom: 10,
-      layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
-      paint: stateLabel.paint || {},
     });
   }
 
@@ -479,7 +493,6 @@
     loadRtlText();
     var opts = {
       container: container,
-      style: styleUrl(look),
       maxZoom: 18,
       maxPitch: 0,
       dragRotate: false,
@@ -496,28 +509,17 @@
     } catch (e) {
       return null;
     }
-    map.on("style.load", function () {
-      try {
-        localize(map);
-      } catch (e) {
-        /* the map keeps the names the style gives */
-      }
-    });
+    setLook(map, look);
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
     return map;
-  }
-
-  // A full reload of the style, not a merge into the old one: only a full reload
-  // fires style.load, which puts the names and the label back.
-  function setLook(map, look) {
-    map.setStyle(styleUrl(look), { diff: false });
   }
 
   window.CabinetBasemap = {
     ATTRIBUTION: ATTRIBUTION,
     create: create,
     setLook: setLook,
+    localizeStyle: localizeStyle,
   };
 })();
 </script>
