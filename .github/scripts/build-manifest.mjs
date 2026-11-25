@@ -72,7 +72,7 @@ const SLUG_DOMAIN = {
   "physics-experiments": "Education",
   "podcast-factory": "Media",
   "reading-room": "Education",
-  "real-estate": "Sales",
+  "real-estate": "Operations",
   "saas-startup": "Software",
   "text-your-mom": "Software",
   "usa-travel-planner": "Lifestyle",

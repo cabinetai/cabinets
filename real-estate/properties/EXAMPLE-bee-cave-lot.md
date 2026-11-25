@@ -9,7 +9,7 @@ value: 235000
 purchase_price: 140000
 purchase_date: 2015-03-30
 asking_price: 249000
-lot_size: 1.2
+lot_size: 52272
 agent: Hill Country Land Co.
 property_tax: 1900
 tax_due: 2027-01-31

@@ -113,7 +113,7 @@
   .btn.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
   .icon-btn { width: 38px; padding: 0; }
 
-  .main { display: grid; grid-template-columns: minmax(0, 1fr) 404px; min-height: 0; }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 42%, 404px); min-height: 0; }
   .mapwrap { position: relative; min-height: 0; margin: 0 0 14px 14px; border-radius: 22px; overflow: hidden; background: var(--map-bg); box-shadow: var(--shadow-2); border: 1px solid var(--border-soft); isolation: isolate; }
   .main.nomap, .main.norail { grid-template-columns: minmax(0, 1fr); }
   .main.nomap .mapwrap, .main.norail .rail { display: none; }
@@ -328,6 +328,7 @@
   .f input::placeholder { font-weight: 400; color: color-mix(in srgb, var(--ink-muted) 70%, transparent); }
   .f .rm { width: 26px; height: 26px; border: 0; background: none; border-radius: 7px; color: var(--ink-muted); opacity: 0; display: grid; place-items: center; }
   .f:hover .rm, .f .rm:focus-visible { opacity: 1; }
+  @media (hover: none) { .f .rm { opacity: 1; } }
   .f .rm:hover { background: var(--danger-tint); color: var(--danger); }
   .f .rm svg, .todo .rm svg { width: 14px; height: 14px; }
   .f a.open { font-weight: 600; color: var(--wood); text-align: right; padding: 5px 7px; }
@@ -371,21 +372,19 @@
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
   /* ── Narrow: the map on top, the board under it ────────────────────────── */
-  @media (max-width: 899px) {
+  @media (max-width: 639px) {
     body { overflow: auto; }
     #app { height: auto; display: block; }
     .main { display: block; }
-    .mapwrap { height: 62vh; min-height: 360px; margin: 0 12px 14px; }
+    .mapwrap { height: 45dvh; min-height: 300px; margin: 0 12px 14px; }
     .rail { overflow: visible; padding: 0 12px 40px; }
     .top { padding: 12px; }
     .search { max-width: none; order: 3; flex-basis: 100%; }
-    .btn .lbl { display: none; }
-    .btn.primary .lbl { display: inline; }
   }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 </style>
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
   <script data-shared="basemap.js">
 /*
  * The base map every template map page uses: OpenFreeMap tiles drawn by MapLibre.
@@ -412,6 +411,14 @@
     '<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> ' +
     'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
+  // Place names in Hebrew where the map data has one, and in Latin letters
+  // otherwise. Arabic shows only for a name that has no Hebrew or Latin form.
+  var NAME = ["coalesce", ["get", "name:he"], ["get", "name:latin"], ["get", "name"]];
+  // The map data names one area "Palestinian Territories" (country code PS). That
+  // label is hidden, and Judea and Samaria is named at the middle of the area.
+  var HIDDEN_COUNTRY = "PS";
+  var REGIONS = [{ name: "יהודה ושומרון", at: [35.25, 32.0] }];
+
   function styleUrl(look) {
     return STYLE_URL + (LOOKS[look] || LOOKS.classic);
   }
@@ -424,6 +431,44 @@
     } catch (e) {
       /* the names stay as they are */
     }
+  }
+
+  function isStateLabel(layer) {
+    return layer["source-layer"] === "place" && JSON.stringify(layer.filter || "").indexOf('"state"') !== -1;
+  }
+
+  // Runs on every style load, so a change of look keeps the names.
+  function localize(map) {
+    var layers = map.getStyle().layers;
+    var stateLabel = null;
+    layers.forEach(function (layer) {
+      if (layer.type !== "symbol") return;
+      var field = layer.layout && layer.layout["text-field"];
+      if (field && JSON.stringify(field).indexOf('"name') !== -1) map.setLayoutProperty(layer.id, "text-field", NAME);
+      if (layer["source-layer"] !== "place") return;
+      var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
+      map.setFilter(layer.id, layer.filter ? ["all", layer.filter, keep] : keep);
+      if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+    });
+    if (!stateLabel || map.getSource("cabinet-regions")) return;
+    map.addSource("cabinet-regions", {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: REGIONS.map(function (r) {
+          return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
+        }),
+      },
+    });
+    map.addLayer({
+      id: "cabinet-regions",
+      type: "symbol",
+      source: "cabinet-regions",
+      minzoom: 6,
+      maxzoom: 10,
+      layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
+      paint: stateLabel.paint || {},
+    });
   }
 
   // A flat map that pans and zooms but never tilts or turns. `options` adds to or
@@ -451,16 +496,28 @@
     } catch (e) {
       return null;
     }
+    map.on("style.load", function () {
+      try {
+        localize(map);
+      } catch (e) {
+        /* the map keeps the names the style gives */
+      }
+    });
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
     return map;
   }
 
+  // A full reload of the style, not a merge into the old one: only a full reload
+  // fires style.load, which puts the names and the label back.
+  function setLook(map, look) {
+    map.setStyle(styleUrl(look), { diff: false });
+  }
+
   window.CabinetBasemap = {
-    LOOKS: LOOKS,
     ATTRIBUTION: ATTRIBUTION,
-    styleUrl: styleUrl,
     create: create,
+    setLook: setLook,
   };
 })();
 </script>
@@ -683,6 +740,16 @@
   function photoUrl(v) { v = safeUrl(v); return /["'()\\\s<>]/.test(v) ? "" : v; }
   function safeUrl(v) { v = String(v || "").trim(); return /^https?:\/\//i.test(v) ? v : ""; }
   function slugKey(label) { return String(label).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40); }
+  // The key of a field the person names. A name already in use keeps its key. A name
+  // with no Latin letter or digit, or one whose key another name holds, gets a free key.
+  function ownKey(label, defs) {
+    var same = function (l) { return String(l).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim(); };
+    var taken = function (k) { return defs.some(function (d) { return d.k === k; }); };
+    for (var i = 0; i < defs.length; i++) if (same(defs[i].l) === same(label)) return defs[i].k;
+    var base = slugKey(label) || "field", k = base, n = 1;
+    while (taken(k)) k = base + "_" + ++n;
+    return k;
+  }
   function pretty(key) { var s = String(key).replace(/_/g, " "); return s.charAt(0).toUpperCase() + s.slice(1); }
 
   // ── Talking to Cabinet ──────────────────────────────────────────────────
@@ -701,11 +768,16 @@
   function saveShared(key, value) {
     if (value === undefined) delete shared[key]; else shared[key] = value;
     if (hasStore) {
-      var mark = {};
+      var mark = {}, failed = false;
       pending[key] = { v: value, mark: mark };
       inTurn(function () { return value === undefined ? kept.remove(key) : kept.set(key, value); })
-        .catch(function (e) { toast((e && e.message) || "That did not save. Try again."); })
-        .then(function () { if (pending[key] && pending[key].mark === mark) delete pending[key]; });
+        .catch(function (e) { failed = true; toast((e && e.message) || "That did not save. Try again."); })
+        .then(function () {
+          if (!pending[key] || pending[key].mark !== mark) return;
+          delete pending[key];
+          // The page showed the new value before the store answered: show what is stored.
+          if (failed) { shared = fromKept(); if (typing()) merge(); else refresh(); }
+        });
     } else lsWrite(LS, shared);
   }
   function fromKept() {
@@ -852,7 +924,7 @@
   function defOf(k) {
     for (var i = 0; i < FIELDS.length; i++) if (FIELDS[i].k === k) return FIELDS[i];
     var c = customDefs();
-    for (var j = 0; j < c.length; j++) if (c[j].k === k) return { k: k, l: c[j].l, kind: isKind(c[j].kind) ? c[j].kind : "text", g: "Yours", watch: c[j].kind === "date" };
+    for (var j = 0; j < c.length; j++) if (c[j].k === k) return { k: k, l: c[j].l, kind: isKind(c[j].kind) ? c[j].kind : "text", g: "Yours", watch: c[j].kind === "date", own: true };
     return { k: k, l: pretty(k), kind: "text", g: "Yours" };
   }
   function show(def, v) {
@@ -887,7 +959,7 @@
     var out = [], st = stateOf(a).id;
     if (st === "Vacant") { var since = parseDate(a.fields.vacant_since); out.push({ lvl: "bad", text: since ? "Vacant for " + Math.max(0, -daysTo(since)) + " days" : "Vacant" }); }
     dates(a).forEach(function (d) {
-      if (st === "Sold") return;
+      if (st === "Sold" || (d.def.own && d.days < -30)) return;
       if (d.days < 0) out.push({ lvl: "bad", text: d.def.l + ": " + inDays(d.days) });
       else if (d.days <= 60) out.push({ lvl: "warn", text: d.def.l + " " + inDays(d.days) });
     });
@@ -897,12 +969,14 @@
     if (f(a, "value") == null && st !== "Sold") out.push({ lvl: "info", text: "No value yet" });
     return out;
   }
+  // The part of a property that is the person's: "My share", the whole when not set.
+  function part(a) { var p = f(a, "share"); return p == null ? 1 : clamp(p, 0, 100) / 100; }
   function totals() {
     var t = { n: 0, value: 0, debt: 0, rent: 0, net: 0, rented: 0, rentable: 0, any: false };
     assets.filter(owned).forEach(function (a) {
-      var d = derived(a), st = stateOf(a).id; t.n++;
-      if (d.value != null) { t.value += d.value; t.any = true; }
-      t.debt += f(a, "mortgage_balance") || 0; t.rent += d.rent || 0; t.net += d.net || 0;
+      var d = derived(a), st = stateOf(a).id, p = part(a); t.n++;
+      if (d.value != null) { t.value += d.value * p; t.any = true; }
+      t.debt += (f(a, "mortgage_balance") || 0) * p; t.rent += (d.rent || 0) * p; t.net += (d.net || 0) * p;
       if (st === "Rented") { t.rented++; t.rentable++; } else if (st === "Vacant") t.rentable++;
     });
     t.equity = t.value - t.debt;
@@ -915,16 +989,16 @@
   var mapEl = $("map");
   var map = { w: 0, h: 0, frame: 0, groupsKey: "" };
   var state = { open: null, hover: null, hot: null, hide: {}, q: "", placing: false, moving: null, spot: null, editing: false, drawer: null, menu: false, geo: null, geoBusy: false, firstFit: false, listSort: "name" };
-  var gl = null, glLook = "", markers = [], stacked = window.matchMedia("(max-width: 899px)");
+  var gl = null, glLook = "", markers = [], stacked = window.matchMedia("(max-width: 639px)");
 
   function lookNow() { return prefs.map || (document.documentElement.dataset.theme === "dark" ? "night" : "classic"); }
   // Made once the theme is known, so the first picture is already the right look. No
   // MapLibre (the script did not load, or no WebGL): gl is false and the map says so.
   function startGl() {
     var look = lookNow();
-    if (gl) { if (look !== glLook) { glLook = look; gl.setStyle(BASE.styleUrl(look)); } return; }
+    if (gl) { if (look !== glLook) { glLook = look; BASE.setLook(gl, look); } return; }
     if (gl === false) return;
-    gl = (BASE && BASE.create(mapEl, look, { center: [-40, 30], zoom: 1.2, minZoom: 1 })) || false;
+    gl = (BASE && BASE.create(mapEl, look, { center: [35, 31.6], zoom: 6.6, minZoom: 1 })) || false;
     if (!gl) { paintMapUi(); return; }
     glLook = look;
     gl.on("move", draw);
@@ -1079,7 +1153,7 @@
     setTimeout(function () { var t = document.querySelector(".d-title"); if (t) { t.focus(); t.select(); } }, 420);
     if (!label) {
       // raw fetch: OpenStreetMap's public address lookup, to name the spot that was pressed.
-      fetch(GEO_URL + "/reverse?format=jsonv2&zoom=18&lat=" + lat + "&lon=" + lng, { headers: { "Accept-Language": "en" } })
+      fetch(GEO_URL + "/reverse?format=jsonv2&zoom=18&lat=" + lat + "&lon=" + lng, { headers: { "Accept-Language": "he,en" } })
         .then(function (r) { return r.json(); }).then(function (j) {
           var cur = byId(id); if (!cur || !j || !j.display_name || cur.address) return;
           var open = state.open === id, tIn = open && document.querySelector(".d-title"), aIn = open && document.querySelector(".d-addr");
@@ -1099,10 +1173,16 @@
         }).catch(function () {});
     }
   }
+  // An address in the address search's own words, without the country name it
+  // gives Judea and Samaria (country code ps).
+  function placeParts(g) {
+    var ad = g.address || {};
+    return String(g.display_name).split(", ").filter(function (part) { return ad.country_code !== "ps" || part !== ad.country; });
+  }
   function findAddress(q) {
     state.geoBusy = true; state.geo = null; paintResults();
     // raw fetch: OpenStreetMap's public address search.
-    fetch(GEO_URL + "/search?format=jsonv2&limit=6&q=" + encodeURIComponent(q), { headers: { "Accept-Language": "en" } })
+    fetch(GEO_URL + "/search?format=jsonv2&addressdetails=1&limit=6&viewbox=34.2,33.4,35.95,29.4&q=" + encodeURIComponent(q), { headers: { "Accept-Language": "he,en" } })
       .then(function (r) { return r.json(); })
       .then(function (list) { state.geo = Array.isArray(list) ? list : []; }, function () { state.geo = "failed"; })
       .then(function () { state.geoBusy = false; paintResults(); });
@@ -1115,7 +1195,7 @@
     if (state.geoBusy) html += '<div class="sep">Looking for that address</div>';
     else if (state.geo === "failed") html += '<div class="sep">The address search did not answer. Try again.</div>';
     else if (state.geo) html += '<div class="sep">' + (state.geo.length ? "On the map" : "No address found for that") + "</div>" + state.geo.map(function (g, i) {
-      var parts = String(g.display_name).split(", "); return '<button data-act="geo" data-i="' + i + '">' + icon("pin") + "<span><b>" + esc(parts.slice(0, 2).join(", ")) + "</b><small>" + esc(parts.slice(2).join(", ")) + "</small></span></button>"; }).join("");
+      var parts = placeParts(g); return '<button data-act="geo" data-i="' + i + '">' + icon("pin") + "<span><b>" + esc(parts.slice(0, 2).join(", ")) + "</b><small>" + esc(parts.slice(2).join(", ")) + "</small></span></button>"; }).join("");
     else html += '<button data-act="find">' + icon("cross") + "<span><b>Find “" + esc(q) + "” on the map</b><small>Search for this address</small></span></button>";
     box.innerHTML = html; box.hidden = false;
   }
@@ -1123,6 +1203,7 @@
   // ── Painting ────────────────────────────────────────────────────────────
   function paint() {
     var fk = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.fk : null;
+    var inDrawer = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest(".drawer"));
     document.documentElement.toggleAttribute("data-read", !canWrite());
     if (state.open && !byId(state.open)) state.open = null;
     paintTop(); paintMapUi(); paintRail(); paintDrawer();
@@ -1130,7 +1211,8 @@
     main.classList.toggle("nomap", off("map"));
     main.classList.toggle("norail", !off("map") && !state.editing && !state.open && !layout().length && !exNote);
     map.groupsKey = map.groupsKey ? " " : ""; draw();
-    if (fk) { var el = document.querySelector('[data-fk="' + CSS.escape(fk) + '"]'); if (el) el.focus(); }
+    var el = fk && document.querySelector('[data-fk="' + CSS.escape(fk) + '"]');
+    if (el) el.focus(); else if (inDrawer) focusDrawer();
   }
   var paintTimer;
   function paintSoon() { clearTimeout(paintTimer); paintTimer = setTimeout(paint, 0); }
@@ -1241,7 +1323,7 @@
   }
   function boxMix() {
     var by = prefs.mixBy === "state" ? "state" : "type", parts = {}, total = 0, hasValue = totals().any;
-    assets.filter(owned).forEach(function (a) { var k = by === "state" ? stateOf(a).id : typeOf(a).id, v = hasValue ? (f(a, "value") || 0) : 1; parts[k] = (parts[k] || 0) + v; total += v; });
+    assets.filter(owned).forEach(function (a) { var k = by === "state" ? stateOf(a).id : typeOf(a).id, v = hasValue ? (f(a, "value") || 0) * part(a) : 1; parts[k] = (parts[k] || 0) + v; total += v; });
     var keys = Object.keys(parts).sort(function (a, b) { return parts[b] - parts[a]; });
     var seg = '<div class="seg"><button data-act="mix" data-id="type" class="' + (by === "type" ? "on" : "") + '">Type</button><button data-act="mix" data-id="state" class="' + (by === "state" ? "on" : "") + '">State</button></div>';
     if (!total) return { extra: seg, html: '<p class="none">Nothing to show yet.</p>' };
@@ -1310,6 +1392,7 @@
     var sections = GROUPS.filter(function (g) { return byGroup[g]; }).map(function (g) {
       var extra = "";
       if (g === "Money" && d.gain != null) extra = '<div class="derived">' + (d.gain >= 0 ? "Up " : "Down ") + money(Math.abs(d.gain)) + " since you bought it</div>";
+      if (g === "Money" && d.value != null && part(a) < 1) extra += '<div class="derived">Your share is ' + money(d.value * part(a)) + ". Your portfolio counts this part.</div>";
       if (g === "Loan" && d.value != null && f(a, "mortgage_balance")) extra = '<div class="derived">Equity ' + money(d.equity) + " · " + Math.round(f(a, "mortgage_balance") / d.value * 100) + "% borrowed</div>";
       if (g === "Rent" && d.yield != null) extra = '<div class="derived">' + d.yield.toFixed(1) + "% rent yield a year" + (d.out ? " · " + money(d.net) + " a month after costs" : "") + "</div>";
       return '<div class="d-sec"><h4>' + esc(g) + "</h4>" + byGroup[g].map(function (k) {
@@ -1384,11 +1467,19 @@
         }).join("");
     } else if (kind === "settings") {
       title = "Settings"; sub = "For everyone who uses this map.";
-      body = '<div class="card"><div class="set"><label for="set-cur">Money is in</label><select id="set-cur" data-setting="currency">' + CURRENCIES.map(function (c) { return "<option" + (c === sym() ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></div>" +
-        '<div class="set"><label for="set-unit">Sizes are in</label><select id="set-unit" data-setting="unit">' + UNITS.map(function (u) { return "<option" + (u === unit() ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select></div></div>" +
+      body = '<div class="card"><div class="set"><label for="set-cur">Money is in</label><select id="set-cur" data-setting="currency" data-fk="set-currency">' + CURRENCIES.map(function (c) { return "<option" + (c === sym() ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></div>" +
+        '<div class="set"><label for="set-unit">Sizes are in</label><select id="set-unit" data-setting="unit" data-fk="set-unit">' + UNITS.map(function (u) { return "<option" + (u === unit() ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select></div></div>" +
         '<p class="sub" style="padding:0">Properties your assistant adds are files in the ' + FOLDER + " folder. What you add or change here is kept by this map. The newer one always shows.</p>";
     }
-    el.innerHTML = '<div class="scrim" data-act="drawer-off"></div><aside class="drawer" role="dialog" aria-label="' + esc(title) + '"><header><h2>' + esc(title) + '</h2><button class="btn icon-btn ghost" data-act="drawer-off" aria-label="Close">' + icon("x") + '</button></header><div class="sub">' + esc(sub) + '</div><div class="scroll">' + body + "</div></aside>";
+    el.innerHTML = '<div class="scrim" data-act="drawer-off"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><header><h2>' + esc(title) + '</h2><button class="btn icon-btn ghost" data-act="drawer-off" aria-label="Close">' + icon("x") + '</button></header><div class="sub">' + esc(sub) + '</div><div class="scroll">' + body + "</div></aside>";
+  }
+
+  // The drawer is a dialog: focus goes in when it opens, Tab stays inside it, and a
+  // close gives focus back to the button that opened it.
+  function focusDrawer() { var x = document.querySelector('.drawer [data-act="drawer-off"]'); if (x) x.focus(); }
+  function closeDrawer() {
+    var kind = state.drawer; state.drawer = null; paintDrawer();
+    var opener = document.querySelector('[data-act="drawer"][data-kind="' + kind + '"]'); if (opener) opener.focus();
   }
 
   // ── Changing things ─────────────────────────────────────────────────────
@@ -1427,8 +1518,8 @@
     else if (act === "chip") { state.hide[el.dataset.s] = !state.hide[el.dataset.s]; paint(); }
     else if (act === "sort") { state.listSort = el.dataset.id; paintRail(); }
     else if (act === "mix") { savePref("mixBy", el.dataset.id); paintRail(); }
-    else if (act === "drawer") { state.drawer = el.dataset.kind; paintDrawer(); }
-    else if (act === "drawer-off") { state.drawer = null; paintDrawer(); }
+    else if (act === "drawer") { state.drawer = el.dataset.kind; paintDrawer(); focusDrawer(); }
+    else if (act === "drawer-off") closeDrawer();
     else if (act === "edit") { state.editing = !state.editing; state.open = null; paint(); }
     else if (act === "reset-layout") { savePref("off", {}); setLayout(DEFAULT_LAYOUT.slice()); }
     else if (act === "part-off") { setOff(el.dataset.id, true); toast("Removed. Add a box brings it back."); }
@@ -1447,8 +1538,8 @@
     else if (act === "geo") {
       var hit = state.geo && state.geo[+el.dataset.i]; if (!hit) return;
       $("results").hidden = true;
-      if (state.placing) { state.placing = false; createAt(+hit.lat, +hit.lon, hit.display_name.split(", ").slice(0, 4).join(", ")); return; }
-      state.spot = { lat: +hit.lat, lng: +hit.lon, label: hit.display_name.split(", ").slice(0, 2).join(", "), full: hit.display_name.split(", ").slice(0, 4).join(", ") };
+      if (state.placing) { state.placing = false; createAt(+hit.lat, +hit.lon, placeParts(hit).slice(0, 4).join(", ")); return; }
+      state.spot = { lat: +hit.lat, lng: +hit.lon, label: placeParts(hit).slice(0, 2).join(", "), full: placeParts(hit).slice(0, 4).join(", ") };
       paint(); if (gl) fly(+hit.lon, +hit.lat, Math.max(gl.getZoom(), 14.5));
     }
     else if (act === "add-here" && state.spot) createAt(state.spot.lat, state.spot.lng, state.spot.full);
@@ -1487,8 +1578,13 @@
     if (e.key === "Enter" && e.target.id === "q" && state.q.trim()) {
       var hits = assets.filter(matches); if (hits.length === 1 && !state.placing) openAsset(hits[0].id); else findAddress(state.q.trim());
     }
+    if (e.key === "Tab" && state.drawer) {
+      var stops = document.querySelectorAll(".drawer button, .drawer input, .drawer select"), first = stops[0], last = stops[stops.length - 1];
+      var inside = document.activeElement.closest(".drawer");
+      if (!inside || document.activeElement === (e.shiftKey ? first : last)) { e.preventDefault(); (e.shiftKey && inside ? last : first).focus(); }
+    }
     if (e.key === "Escape") {
-      if (state.drawer) state.drawer = null; else if (state.menu) state.menu = false; else if (state.placing || state.moving) { state.placing = false; state.moving = null; }
+      if (state.drawer) return closeDrawer(); else if (state.menu) state.menu = false; else if (state.placing || state.moving) { state.placing = false; state.moving = null; }
       else if (!$("results").hidden) { $("results").hidden = true; return; } else if (state.open) state.open = null; else return;
       paint();
     }
@@ -1499,7 +1595,7 @@
     else if (form.dataset.form === "todo" && a) { var t = form.t.value.trim(); if (!t) return; a.todo.push({ t: t.slice(0, 200), done: false }); saveAsset(a); paint(); var again = document.querySelector('[data-fk="todo-add"]'); if (again) again.focus(); }
     else if (form.dataset.form === "own" && a) {
       var label = form.l.value.trim(); if (!label) return form.l.focus();
-      var k = slugKey(label) || "field", defs = customDefs();
+      var defs = customDefs(), k = ownKey(label, defs);
       if (!FIELDS.some(function (d) { return d.k === k; }) && !defs.some(function (d) { return d.k === k; })) { defs.push({ k: k, l: label, kind: form.kind.value }); saveShared("fields", defs); }
       a.fields[k] = a.fields[k] || ""; saveAsset(a); state.drawer = null; paint();
       var inp = document.querySelector('[data-field="' + CSS.escape(k) + '"]'); if (inp) { inp.scrollIntoView({ block: "center", behavior: "smooth" }); inp.focus(); }
