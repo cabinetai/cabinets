@@ -15,9 +15,6 @@ import { DAY_MS } from "./indicators.mjs";
 const UNLICENSED_FALLBACK = true;
 const unlicensed = (fn) => (...args) => (UNLICENSED_FALLBACK ? fn(...args) : Promise.reject(new Error("This source is switched off")));
 
-const isCrypto = (sym) => /-USD[TC]?$/i.test(sym);
-/** Trades around the clock or nearly: crypto, currencies, futures. */
-export const alwaysOpen = (sym) => isCrypto(sym) || /=X$|=F$/i.test(sym);
 /**
  * A symbol as the sources write it, in upper case, or null for anything else. The one rule
  * for what is a symbol: the server's requests and the Scout's files both pass through it.
@@ -37,13 +34,6 @@ function fromCandles(sym, candles, about) {
   const last = candles[candles.length - 1], prev = candles[candles.length - 2];
   return { meta: { sym, name: sym, currency: "USD", price: last.c, prev: prev ? prev.c : null, at: last.t, regular: null, ...about }, candles };
 }
-
-/** Coinbase, for crypto when Yahoo will not answer. It sends the newest first, 300 daily candles at most. */
-const coinbaseCandles = unlicensed(async (sym) => {
-  const rows = await get(`https://api.exchange.coinbase.com/products/${encodeURIComponent(sym.toUpperCase())}/candles?granularity=86400`);
-  const candles = rows.map((r) => ({ t: r[0], l: r[1], h: r[2], o: r[3], c: r[4], v: r[5] })).reverse();
-  return fromCandles(sym, candles, { kind: "CRYPTOCURRENCY", exchange: "Coinbase", zone: "UTC" });
-});
 
 /** A date as YYYY-MM-DD, in UTC. */
 export const isoDay = (d) => d.toISOString().slice(0, 10);
@@ -70,7 +60,6 @@ export async function candles(sym) {
   try { return { ...(await yahooChart(sym)), source: "Yahoo Finance" }; }
   catch (first) {
     try {
-      if (isCrypto(sym)) return { ...(await coinbaseCandles(sym)), source: "Coinbase" };
       if (isUsStock(sym)) return { ...(await nasdaqDaily(sym)), source: "Nasdaq" };
     } catch { /* report the first failure, it names the usual source */ }
     throw first;

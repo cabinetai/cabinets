@@ -8,13 +8,13 @@ import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { sma, ema, rsi, atr, priorHigh, avgVolume, nyDay } from "./lib/indicators.mjs";
 import { RULES, scanDaily, signalOf, facts, series, factsAt } from "./lib/signals.mjs";
-import { usSession, symbolsOf } from "./refresh.mjs";
+import { usSession, symbolsOf, NO_PRICES } from "./refresh.mjs";
 import { ruleRecord, recordKey } from "./lib/record.mjs";
 import { readCalls, readDay, outcome, score, follow, heldBefore } from "./lib/calls.mjs";
 import { lock } from "./lib/io.mjs";
 import { regime, breadth } from "./lib/market.mjs";
 import { SETUPS, detect, spoilers, broken } from "./lib/setups.mjs";
-import { candidatesOf, setupRecord, fullDays } from "./lib/scan.mjs";
+import { candidatesOf, setupRecord, fullDays, endingOn } from "./lib/scan.mjs";
 import { verdictOf, verdictFor } from "./lib/verdict.mjs";
 import { UNIVERSE } from "./lib/universe.mjs";
 import { toCron, fromCron, readSchedule, writeSchedule } from "./lib/schedule.mjs";
@@ -561,6 +561,11 @@ test("a chart's newest candle is a full day only when it was fetched after that 
   assert.deepEqual(fullDays(two.slice(0, 1), "2026-11-23T15:00:00Z"), [], "a chart with only today so far has no full day");
 });
 
+test("a chart that ends before the fund's last full day is no candidate", () => {
+  const upTo = (sym, n) => ({ sym, candles: days([340, 343, 339, 342], [350, 352, 346, 351]).slice(0, n) });
+  assert.deepEqual(endingOn([upTo("FRESH", 2), upTo("OLD", 1), upTo("EMPTY", 0)], "2026-11-24").map((x) => x.sym), ["FRESH"]);
+});
+
 test("a signal's id carries the day of its candle, so it is the same on whatever day it is read", () => {
   const hit = { rule: "gap", side: "long", text: "Opened 5% above yesterday's close of 100." };
   const friday = signalOf("TSLA", "Tesla", hit, "2026-11-20", 105, "2026-11-20T21:05:00Z"), monday = signalOf("TSLA", "Tesla", hit, "2026-11-20", 105, "2026-11-23T13:00:00Z");
@@ -775,6 +780,35 @@ test("the check before the Scout finishes holds each call against the candidates
   await write([good]);
   assert.deepEqual(run(), [0, ["AAPL  OK", "All in order."]], "an earlier day is checked without the candidates of a later one");
   assert.deepEqual([run("2026-11-25")[0], run("someday")[0]], [2, 2], "a missing file is not in order");
+});
+
+test("with no fresh chart of the fund the day has no candidates, and the check refuses a call", async (t) => {
+  // Every request fails, as on a computer that is offline or that the sources turn away.
+  const offline = ["--import", 'data:text/javascript,globalThis.fetch=()=>Promise.reject(new Error("offline"))'];
+  const refreshed = (env) => new Promise((done) => spawn(process.execPath, [...offline, fileURLToPath(new URL("./refresh.mjs", import.meta.url)), "--full"], { env, stdio: "ignore" }).on("close", done));
+  const today = nyDay(Date.now() / 1000), saved = new Date(Date.now() - 3 * 86400000).toISOString();
+  // A chart of the fund saved three days ago: 260 flat days, enough to count a stance from.
+  const oldFund = { at: saved, kind: "ETF", c: flat(260).map((c, i) => [Date.parse(saved) / 1000 - (260 - i) * 86400, c.o, c.h, c.l, c.c, c.v]) };
+  const none = await scratchCabinet(t), earlier = await scratchCabinet(t);
+  const scanned = { schema: "reminder/candidates@1", at: new Date().toISOString(), day: today, items: [{ sym: "AAPL" }] };
+  for (const cabinet of [none, earlier]) await cabinet.data("candles/SPY.1d.json", oldFund);
+  await earlier.data("candidates.json", scanned);
+  await Promise.all([refreshed(none.env), refreshed(earlier.env)]);
+  const read = async (cabinet, name) => JSON.parse(await fs.readFile(path.join(cabinet.root, "app", "data", name), "utf8"));
+
+  const candidates = await read(none, "candidates.json");
+  assert.deepEqual([candidates.day, candidates.items, candidates.problem], [today, [], NO_PRICES], "an old chart is not scanned as today's");
+  assert.equal((await read(none, "status.json")).errors[0], NO_PRICES, "and the refresh says so first");
+  assert.deepEqual(await read(earlier, "candidates.json"), scanned, "candidates scanned earlier the same day stay");
+
+  const check = () => spawnSync(process.execPath, [fileURLToPath(new URL("./check-calls.mjs", import.meta.url)), today], { env: none.env, encoding: "utf8" });
+  const write = (items) => fs.writeFile(path.join(none.root, "opportunities", `${today}.json`), JSON.stringify({ at: new Date().toISOString(), market: { stance: "against-you" }, items }));
+  await write([{ sym: "AAPL", name: "Apple", setup: SETUPS[0], conviction: 1, buy: [338, 344], stop: 332, target: 370 }]);
+  const refused = check();
+  assert.equal(refused.status, 2);
+  assert.match(refused.stdout, new RegExp(`^FILE {2}PROBLEM {2}${NO_PRICES} Remove every call`, "m"));
+  await write([]);
+  assert.equal(check().stdout, `Calls of ${today}\nNo calls in this file. Nothing to check.\nAll in order.\n`, "a day with no calls is the right answer then");
 });
 
 test("the check reads the calls up to its day, so a later day's call is not held against an earlier one", async (t) => {

@@ -2,7 +2,7 @@
 
 What `app/engine/refresh.mjs` writes into `app/data/`, and what the Stock Scout writes.
 Times are ISO strings in UTC unless a field says otherwise.
-Symbols are written the way Yahoo Finance writes them: `NVDA`, `BRK.B`, `BTC-USD`, `^VIX`.
+Symbols are written the way Yahoo Finance writes them: `NVDA`, `BRK.B`, `^VIX`.
 
 | File | Written by | What |
 |---|---|---|
@@ -24,7 +24,7 @@ Symbols are written the way Yahoo Finance writes them: `NVDA`, `BRK.B`, `BTC-USD
 | `../opportunities/YYYY-MM-DD.json` | The Stock Scout | One day's calls. At the cabinet's root, outside this folder |
 
 "The list" in this file is the fixed starter list in `engine/refresh.mjs`: the two index
-funds, ten heavily traded US stocks and the two largest coins. The engine also scans a wider
+funds and ten heavily traded US stocks. The engine also scans a wider
 list of about 100 large US stocks (`engine/lib/universe.mjs`). The page has no control to
 change either.
 
@@ -65,7 +65,8 @@ What it checks, beyond the `problems` of `data/outcomes.json` (below):
   `stop` and `target` copied exactly, and no `spoilers`. Only this check compares the two,
   and only when `candidates.json` is of the same day: the candidates are scanned again
   later in the day, so a call that was right when it was written is never told off for it
-  in `outcomes.json`. Candidates of an earlier day, or none, are a `FILE` problem. With
+  in `outcomes.json`. Candidates of an earlier day, or none, are a `FILE` problem, and so is a call in a
+  file whose day's candidates carry a `problem` (prices could not be fetched). With
   candidates of a later day, an older file is checked without them.
 - The file names a stance, and holds no more calls than the stance allows: three when it is
   `with-you`, two when `mixed`, one when `against-you`. The stance is the harsher of the
@@ -119,7 +120,7 @@ The values below show the shape. They are not today's prices.
   - `fear`: the fear gauge's level and a word for the level alone: `calm` under 18,
     `uneasy` from 18 to 25, `frightened` over 25. The stance turns on 20 and 25, so
     `uneasy` at 19 can still be `with-you`. Null when it has no price.
-  - `breadth`: of the list's US stocks (no fund, coin or future), the percent closing above
+  - `breadth`: of the list's US stocks (no fund), the percent closing above
     their 50-day and their 200-day average. It is reported and does not change `stance`.
 - `price`: the last price of the regular session. `change`: percent against `prev`.
 - `ext`: a trade outside the regular session, and its percent change against `price`. Only
@@ -145,8 +146,8 @@ The values below show the shape. They are not today's prices.
 ```
 
 Each row is `[time in seconds, open, high, low, close, volume]`, oldest first. During the
-session the last row is today so far. `source` is `Yahoo Finance`, `Coinbase` or `Nasdaq`.
-`kind` is the source's word for what it is (`EQUITY`, `ETF`, `CRYPTOCURRENCY`, `FUTURE`, `INDEX`).
+session the last row is today so far. `source` is `Yahoo Finance` or `Nasdaq`.
+`kind` is the source's word for what it is (`EQUITY`, `ETF`, `INDEX`).
 There is one file for every listed symbol, the S&P 500 fund, every stock the Scout called,
 the day's movers that carry `facts`, and every stock in `candidates.json`. A mover's or a
 candidate's file is removed once it leaves the lists.
@@ -191,6 +192,12 @@ refresh, when older than six hours, and whenever `setups.json` is rebuilt.
   the session, and a chart saved mid-session is never read as a whole day later. No chart
   is read past `asOf`. So `facts` here can differ from the live `facts` in `market.json`.
   `stance` is the market's stance the scan used.
+- `problem`: present only when prices could not be fetched: the S&P 500 fund has no chart,
+  or its chart is past its age limit (20 minutes while the market is open, six hours when
+  it is closed) and the fetch failed. Then `items` is empty and `asOf` is null, unless
+  candidates of the same day were already saved, which stay. `check-calls.mjs` reports a
+  day's file that holds a call beside a `problem`. The file is built again on the next refresh.
+- A stock whose own chart ends before `asOf` could not be fetched again and is left out.
 - `from`: `list`, `movers` or `universe`, the first of the three places the stock was found.
 - `setup`: one of the method's five names. A stock that fits two setups is listed twice.
 - `buy`, `stop`, `target`: built as the method's step 4 describes for each setup. `pay` is
@@ -215,7 +222,7 @@ refresh, when older than six hours, and whenever `setups.json` is rebuilt.
 - `facts`: the same object a quote has, as of `asOf`.
 - Items with no spoilers come first. Among those, `pays` comes before `unproven` before
   `fails`, then the higher `pay`.
-- Left out: funds, coins, futures, currencies, a price under 5 dollars, fewer than 500,000
+- Left out: funds, a price under 5 dollars, fewer than 500,000
   shares on a usual day, a chart younger than 200 days, and any stock still waiting or open
   from a call of an earlier day. A stock called today stays in, so today's file can be
   checked against this one and written again.
@@ -438,7 +445,6 @@ value, so `sources` covers more than the last run.
 | Data | Source | Key | Licence |
 |---|---|---|---|
 | Stock and fund prices, today's candles, charts | Yahoo Finance, then Nasdaq (daily candles only) | None | No licence for this use |
-| Crypto prices and charts | Yahoo Finance, then Coinbase | None | No licence for this use |
 | The fear gauge (`^VIX`) | Yahoo Finance | None | No licence for this use |
 | Gainers, losers, most traded | Yahoo Finance | None | No licence for this use |
 | Short interest | FINRA, then Nasdaq when FINRA has no report | None | Clean for personal use: FINRA's terms allow it and ask that FINRA is named as the source. Nasdaq: no licence for this use |

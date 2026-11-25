@@ -8,7 +8,7 @@ order: 1
 # Stock Opportunities Reminder
 
 A stock scout that works for you. On the days and at the time you choose, it reads the
-market and about 100 large US stocks, and tells you if one is worth buying now: where to buy, the price where the
+market and about 100 large US stocks, and tells you if one is worth a look now: where a buyer would buy, the price where the
 idea is wrong, and what it aims for. Most days it finds little. Some days it finds nothing,
 and says so.
 
@@ -44,8 +44,8 @@ about it. At the bottom you choose the days and the time the Scout looks.
 ## Turning on live prices
 
 The first time you open this cabinet, Cabinet asks whether to allow the app to run its own
-code. That code is a small script in `app/engine`: it reads public prices every five
-minutes, costs no AI, and cannot buy or sell anything. Until you press Allow, the page shows
+code. That code is a small script in `app/engine`: it reads public prices while the page is
+open, costs no AI, and cannot buy or sell anything. Until you press Allow, the page shows
 the prices saved the last time the Scout ran.
 
 ## What it is not

@@ -4,7 +4,7 @@ order: 3
 ---
 # The rules
 
-The chart rules the engine checks on every stock of the list, every five minutes, for free.
+The chart rules the engine checks on every stock of the list at each refresh, for free.
 A rule that fires is a reason for the Scout to look closer. It is never a reason to buy by
 itself: the Scout judges it with [the method](method.md), and `app/data/record.json` shows
 how each rule has done on this list. The last column describes a habit of traders. It is

@@ -38,7 +38,7 @@ export function series(candles, fund) {
   const closes = candles.map((c) => c.c), days = candles.map((c) => nyDay(c.t));
   let market = null;
   if (fund) {
-    // The fund's newest close on or before each day, so a coin's weekend still has a market beside it.
+    // The fund's newest close on or before each day, so a day the fund has no candle for still has a market beside it.
     const fundDays = fund.map((c) => nyDay(c.t));
     let j = -1;
     market = days.map((d) => { while (j + 1 < fund.length && fundDays[j + 1] <= d) j++; return j < 0 ? null : fund[j].c; });

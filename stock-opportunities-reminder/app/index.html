@@ -191,8 +191,6 @@
   // from the files. `needsAllow` is true when the server is there and only waits for the person's yes.
   let live = false, needsAllow = false;
   function engineBase() {
-    const dev = /[?&]engine=(http:\/\/(127\.0\.0\.1|localhost):\d+)/.exec(location.search);
-    if (dev) return dev[1];
     if (!here || !here.cabinetPath || role() !== "owner") return null;
     return "/api/app-server/run/" + (here.cabinetPath + "/" + appPath).split("/").map(encodeURIComponent).join("/") + "/~";
   }
@@ -282,7 +280,6 @@
     const off = (edge, side) => (far(px, edge) === "0.0%" ? "at the edge of the buy zone" : far(px, edge) + " " + side + " the zone");
     return px > o.target ? "above the target" : px > o.buy[1] ? off(o.buy[1], "above") : px >= o.buy[0] ? "inside the buy zone" : px > o.stop ? off(o.buy[0], "below") : "under the stop";
   }
-  const oppWords = (o) => `Buy between ${lv(o.buy[0])} and ${lv(o.buy[1])}, wrong below ${lv(o.stop)}, aim for ${lv(o.target)}`;
 
   // ── When the Scout looks ────────────────────────────────────────────────
   function loadJobs() { if (cab && cab.jobs && cab.jobs.list) return cab.jobs.list().then((j) => { D.jobs = j || []; }, () => {}); return Promise.resolve(); }
@@ -290,7 +287,7 @@
   function runBtn() {
     if (!cab || !cab.jobs) return "";
     const busy = !!(findJob() && findJob().running);
-    return `<button class="btn" data-write id="run"${busy ? " disabled" : ""}>${icon(busy ? "loader" : "search", busy ? "spin" : "")}${busy ? "Looking now" : "Look again now"}</button>`;
+    return `<button class="btn" data-write id="run"${busy ? " disabled" : ""}>${icon(busy ? "loader" : "search", busy ? "spin" : "")}${busy ? "Looking now" : D.found && !D.found.example ? "Look again now" : "Look now"}</button>`;
   }
   const WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const HOW_OFTEN = [["weekdays", "every weekday"], ["daily", "every day"]].concat(WEEK.map((d, i) => [String(i), "every " + d]));
@@ -363,7 +360,7 @@
   }
   function allowNote() {
     if (live || !D.market) return "";
-    if (needsAllow) return `<div class="note info">${icon("info")}<div class="grow"><b>Turn on live prices.</b> Press Allow in the bar above this page. Prices then update every five minutes, for free. Until then you see the prices saved ${esc(ago(D.market.at))}.</div></div>`;
+    if (needsAllow) return `<div class="note info">${icon("info")}<div class="grow"><b>Turn on live prices.</b> Press Allow in the bar above this page. Prices then update while this page is open, for free. Until then you see the prices saved ${esc(ago(D.market.at))}.</div></div>`;
     return Date.now() - Date.parse(D.market.at) > 36e5 ? `<div class="note">${icon("warn")}<div class="grow">These prices were saved ${esc(ago(D.market.at))}.</div></div>` : "";
   }
   function lede() {
@@ -374,8 +371,8 @@
   }
   function view() {
     const f = D.found;
-    const cards = !f ? `<section class="sheet card"><div class="empty"><b>Nothing here yet.</b>The Stock Scout looks at the market on the days you choose and shows here the stocks that are at a good place to buy.</div></section>`
-      : f.items.map(oppCard).join("") || (f.unread ? "" : `<section class="sheet card"><div class="empty"><b>No stock worth buying ${esc(onDay(f.day))}.</b>${esc(f.nothing || "The Stock Scout looked and none is at a good place to buy.")}<br>A day with nothing is a normal answer. Waiting is part of the plan.</div></section>`);
+    const cards = !f ? `<section class="sheet card"><div class="empty"><b>Nothing here yet.</b>The Stock Scout looks at the market on the days you choose and shows here the stocks worth a look.</div></section>`
+      : f.items.map(oppCard).join("") || (f.unread ? "" : `<section class="sheet card"><div class="empty"><b>No stock worth a look ${esc(onDay(f.day))}.</b>${esc(f.nothing || "The Stock Scout looked and found none.")}<br>A day with nothing is a normal answer. Waiting is part of the plan.</div></section>`);
     const unread = f && f.unread ? `<div class="note">${icon("warn")}<div class="grow"><b>${f.unread === 1 ? "1 stock" : f.unread + " stocks"} in the Stock Scout's file could not be shown.</b> The prices were missing or out of order. Press Look again now, or ask the Stock Scout to write the file again.</div></div>` : "";
     return `${allowNote()}${unread}${cards}${whenCard()}<p class="foot">Prices can be late by minutes${D.market ? ", saved " + esc(ago(D.market.at)) : ""}. These are ideas to look at, not financial advice. This page cannot place an order.</p>`;
   }
@@ -403,11 +400,12 @@
     const form = e.target.closest("form[data-ask]");
     if (!form) return;
     e.preventDefault();
-    const o = findOpp(form.dataset.ask), box = form.querySelector("input"), send = form.querySelector("button"), typed = box.value.trim(), px = o && lastPrice(o.sym);
+    const o = findOpp(form.dataset.ask), box = form.querySelector("input"), send = form.querySelector("button"), typed = box.value.trim();
     if (!o || send.disabled) return;
     send.disabled = true;
     // The question is kept until it is on its way: a chat that did not open must not cost the person their words.
-    ask(`About ${o.sym}${o.name ? " (" + o.name.slice(0, 60) + ")" : ""}, which you found ${onDay(o.day)}${o.headline ? `: "${o.headline.slice(0, 160)}"` : ""}. ${oppWords(o)}.${px != null ? ` The price is now ${fp(px)}, ${whereNow(o, px)}.` : ""} Read ${o.path} and ${candleFile(o.sym)}. ${typed || "Is it still worth a look today? Say what I should wait to see before buying, and what would spoil the idea."}`).then(() => { box.value = ""; }, (err) => toast(err.message)).then(() => { send.disabled = false; });
+    // The person's own words come first: the chat shows this message as theirs.
+    ask(`${typed || "Is it still worth a look today? What should I wait to see, and what would spoil the idea?"} (About ${o.sym}, ${o.example ? "the example" : "your call of " + o.day} in ${o.path}.)`).then(() => { box.value = ""; }, (err) => toast(err.message)).then(() => { send.disabled = false; });
   });
   // A time field reports a change after each part typed, so the time is saved once the typing rests or the field is left.
   let whenTimer = null;

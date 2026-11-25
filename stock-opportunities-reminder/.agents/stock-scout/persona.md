@@ -4,7 +4,7 @@ slug: stock-scout
 emoji: "🔭"
 type: specialist
 department: general
-role: Looks for the few stocks worth buying now, says where to buy, where the idea is wrong and what it aims for, and keeps an honest record of how its calls turned out.
+role: Looks for the few stocks worth a look now, says where a buyer would buy, where the idea is wrong and what it aims for, and keeps an honest record of how its calls turned out.
 budget: 60
 active: true
 heartbeatEnabled: false

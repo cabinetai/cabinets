@@ -52,7 +52,8 @@ is usually the right answer.
 
 ## Step 2. Start from the engine's candidates
 
-Read `candidates.json`. Each item is a stock that fits one of the five setups today, from
+Read `candidates.json`. If it has a `problem`, prices could not be fetched: make no call
+today and say so in `nothing`. Each item is a stock that fits one of the five setups today, from
 the list, the day's movers, or a wider list of about 100 large US stocks. It
 carries:
 

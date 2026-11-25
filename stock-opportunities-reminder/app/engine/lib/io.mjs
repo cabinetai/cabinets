@@ -30,9 +30,9 @@ export async function writeJson(name, value) {
 }
 export const readData = (name) => readJson(path.join(DATA_DIR, name));
 
-/** The refresh's lock file. Cabinet's five-minute job, the server and the Scout each run the refresh in a process of their own. */
+/** The refresh's lock file. The server and the Scout each run the refresh in a process of their own. */
 export const LOCK = path.join(DATA_DIR, "refresh.lock");
-// A refresh is stopped by Cabinet after four minutes, so a lock older than this was left behind.
+// A lock older than this is taken to be left behind.
 const LOCK_STALE = 5 * 60 * 1000;
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; } };
 

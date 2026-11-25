@@ -52,6 +52,7 @@ async function checkDay(day) {
   if (stance && file.calls.length > MOST_CALLS[stance]) whole.push(`It holds ${file.calls.length} calls. A market that is ${stance.replace("-", " ")} allows ${MOST_CALLS[stance]} at most.`);
   // The candidates of a later day say nothing about this one: an older day is checked without them.
   const compared = candidates && candidates.day === day;
+  if (compared && candidates.problem && file.calls.length) whole.push(`${candidates.problem} Remove every call, and say in \`nothing\` that prices could not be fetched.`);
   if (!compared && !(candidates && candidates.day > day)) whole.push(`app/data/candidates.json is ${candidates ? `of ${candidates.day}` : "missing"}, so the calls cannot be held against it. Run node app/engine/refresh.mjs --full, then check again.`);
 
   const lines = whole.map((text) => `FILE  PROBLEM  ${text}`);

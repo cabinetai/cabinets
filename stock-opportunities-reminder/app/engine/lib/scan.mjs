@@ -29,6 +29,9 @@ export function fullDays(candles, fetchedAt, upTo = null) {
   return candles.slice(0, n);
 }
 
+/** The charts of `pool` whose newest full day is `asOf`, the fund's. A chart that ends earlier is old, and is no picture of today. */
+export const endingOn = (pool, asOf) => pool.filter((x) => x.candles.length && nyDay(x.candles.at(-1).t) === asOf);
+
 /**
  * Today's candidates. `pool` is `[{ sym, name, from, candles }]` in the order of the
  * method's step 2; a symbol met twice counts where it was met first. `skip` holds the

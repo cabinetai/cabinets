@@ -14,7 +14,7 @@ order: 4
 | Reward to risk | How far the target is, against how far the stop is. 2 to 1 means the gain aimed for is twice the loss risked |
 | R | The loss a call risks, from its entry to its stop, counted as 1. A call that made 2R gained twice what it risked |
 | Candle | One period of trading as a bar: where it opened, the high, the low, where it closed |
-| Volume | How many shares or coins changed hands |
+| Volume | How many shares changed hands |
 | Relative volume | Today's volume against the usual. 2 means twice as busy |
 | Moving average | The average close of the last N days: a line that shows the trend |
 | RSI | A 0 to 100 score of how hard a price was bought or sold lately |

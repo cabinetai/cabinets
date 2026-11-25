@@ -35,7 +35,7 @@ field by field.
 | File | What is in it |
 |---|---|
 | `app/data/market.json` | `regime`: the market's stance, counted by the engine. Then the newest price of every symbol, with `facts` (trend, averages, RSI, usual daily move, distance from the 52-week high, strength against the market), the next earnings date and short interest |
-| `app/data/candidates.json` | Today's candidates: every stock that fits a setup, with its buy zone, stop, target, reasons to pass and the setup's verdict. Your calls come from here |
+| `app/data/candidates.json` | Today's candidates: every stock that fits a setup, with its buy zone, stop, target, reasons to pass and the setup's verdict. Your calls come from here. With a `problem`, prices could not be fetched and there are none |
 | `app/data/setups.json` | How each setup did when replayed over the saved charts, overall and by market stance, with a verdict |
 | `app/data/candles/<SYMBOL>.1d.json` | Two years of daily candles: `[time, open, high, low, close, volume]`. One for every listed symbol, every candidate, every stock you called, and today's movers |
 | `app/data/signals.json` | What the rules flagged, newest first, three weeks of it |
@@ -48,6 +48,10 @@ field by field.
 | `app/data/status.json` | When the last refresh ran and what failed |
 
 If `status.json` lists errors, say in one line which numbers may be old.
+
+If `candidates.json` has a `problem`, the engine could not fetch the market's chart and
+found no candidates. Make no call that day: write the file with empty `items`, and let
+`nothing` say that prices could not be fetched.
 
 If it prints "Another refresh is running. Nothing done.", another one was already at work:
 wait a few seconds and run it again. A `--full` run waits by itself.
@@ -73,7 +77,7 @@ Things the files leave unsaid:
 ## The list
 
 "The list" is a fixed starter list: the S&P 500 fund, the Nasdaq 100 fund, ten heavily
-traded US stocks, Bitcoin and Ethereum. `market.json` shows every symbol on it. The engine
+traded US stocks. `market.json` shows every symbol on it. The engine
 also scans a wider list of about 100 large US stocks, and the day's movers. The page has no
 control to change the list, and you do not change it either.
 

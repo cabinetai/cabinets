@@ -5,7 +5,7 @@
 //   node app/engine/refresh.mjs          what is due now
 //   node app/engine/refresh.mjs --full   everything, whatever its age
 //
-// Cabinet runs it every five minutes once the app is allowed. An assistant can run it too.
+// The Scout runs it at the start of every run, and the app's server runs it for an open page.
 
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -18,18 +18,17 @@ import { RULES, SCAN_WARMUP, scanDaily, signalOf, facts, series } from "./lib/si
 import { ruleRecord, recordKey } from "./lib/record.mjs";
 import { readCalls, follow, heldBefore } from "./lib/calls.mjs";
 import { regime, breadth } from "./lib/market.mjs";
-import { candidatesOf, setupRecord, fullDays } from "./lib/scan.mjs";
+import { candidatesOf, setupRecord, fullDays, endingOn } from "./lib/scan.mjs";
 import { UNIVERSE } from "./lib/universe.mjs";
 
-// The list: the two index funds, ten of the most traded US stocks when this shipped
-// (November 2026), and the two largest coins. It is fixed: the page has no control to change it.
+// The list: the two index funds and ten of the most traded US stocks when this shipped
+// (November 2026). It is fixed: the page has no control to change it.
 const LIST = [
   { sym: "SPY", name: "S&P 500 fund" }, { sym: "QQQ", name: "Nasdaq 100 fund" },
   { sym: "NVDA", name: "NVIDIA" }, { sym: "AMD", name: "AMD" }, { sym: "TSLA", name: "Tesla" },
   { sym: "AAPL", name: "Apple" }, { sym: "MSFT", name: "Microsoft" }, { sym: "AMZN", name: "Amazon" },
   { sym: "GOOGL", name: "Alphabet" }, { sym: "META", name: "Meta" }, { sym: "MU", name: "Micron" },
   { sym: "PLTR", name: "Palantir" },
-  { sym: "BTC-USD", name: "Bitcoin" }, { sym: "ETH-USD", name: "Ethereum" },
 ];
 // The market every stock is measured against. It is priced and charted whatever the list holds.
 const FUND = { sym: "SPY", name: "S&P 500 fund" };
@@ -37,6 +36,9 @@ const FUND = { sym: "SPY", name: "S&P 500 fund" };
 const FEAR = { sym: "^VIX", name: "Fear gauge (VIX)" };
 // The shape of setups.json. A file of an older shape carries no verdicts, so it is rebuilt.
 const SETUPS_SCHEMA = "reminder/setups@2";
+
+/** What candidates.json says when it holds none because the market's own chart is missing or old. */
+export const NO_PRICES = "Prices could not be fetched, so the engine found no candidates today.";
 
 const MIN = 60 * 1000, HOUR = 60 * MIN;
 const age = (iso) => (iso ? Date.now() - Date.parse(iso) : Infinity);
@@ -102,10 +104,10 @@ function quoteOf({ meta, candles }) {
 const LOCK_WAIT = 6 * MIN;
 
 /**
- * One refresh at a time across processes: Cabinet's five-minute job, the server and the
- * Scout each start their own, and two at once would prune each other's fresh files. A plain
- * run gives way to the one that is running. A full run waits for it, then runs. A run that
- * gave way returns the saved status with `busy: true`.
+ * One refresh at a time across processes: the server and the Scout each start their own,
+ * and two at once would prune each other's fresh files. A plain run gives way to the one
+ * that is running. A full run waits for it, then runs. A run that gave way returns the
+ * saved status with `busy: true`.
  */
 export async function refresh({ full = false, log = () => {} } = {}) {
   let release = await lock(LOCK);
@@ -130,9 +132,9 @@ async function run(full, log) {
   const sources = {};
   const note = (name, ok) => { sources[name] = sources[name] === false ? false : ok; };
 
-  // 1. Prices. Stocks rest when the market is closed; crypto does not.
+  // 1. Prices. They rest when the market is closed.
   const quotes = {};
-  const due = syms.filter((s) => full || session !== "closed" || src.alwaysOpen(s) || !old.quotes[s] || age(old.at) > HOUR);
+  const due = syms.filter((s) => full || session !== "closed" || !old.quotes[s] || age(old.at) > HOUR);
   const got = (await src.todayAll(due)).map((day) => day && quoteOf(day));
   due.forEach((s, i) => {
     if (got[i]) { quotes[s] = got[i].q; note("Yahoo Finance", true); }
@@ -146,12 +148,13 @@ async function run(full, log) {
 
   // 2. Daily candles, kept on disk so the page draws charts without waiting for anyone.
   // `fetched` is when each chart was fetched: it says whether its newest candle is a full day.
-  const daily = {}, fetched = {};
+  // `stale` holds the symbols whose chart is past its age limit and could not be fetched again.
+  const daily = {}, fetched = {}, stale = new Set();
   await fs.mkdir(path.join(DATA_DIR, "candles"), { recursive: true });
   await eachLimited(syms, 3, async (s) => {
     const have = await readCandleFile(s);
     const keep = () => { daily[s] = toCandles(have.c); fetched[s] = have.at; };
-    const limit = market !== "closed" || src.alwaysOpen(s) ? 20 * MIN : 6 * HOUR;
+    const limit = market !== "closed" ? 20 * MIN : 6 * HOUR;
     if (have && !full && age(have.at) < limit) return keep();
     try {
       const res = await src.candles(s), file = candleFile(s, res);
@@ -164,8 +167,11 @@ async function run(full, log) {
         quotes[s] = { name: res.meta.name, kind: res.meta.kind, currency: res.meta.currency, price: r2(a.c), prev: r2(b.c), change: r2(((a.c - b.c) / b.c) * 100), at: new Date(a.t * 1000).toISOString(), spark: spark(res.candles.slice(-SPARK)) };
       }
     } catch (e) {
-      if (have) keep();
-      else errors.push(`No chart for ${s}: ${e.message}`);
+      if (!have) return errors.push(`No chart for ${s}: ${e.message}`);
+      keep();
+      if (age(have.at) < limit) return;
+      stale.add(s);
+      errors.push(`No fresh chart for ${s}: ${e.message}. The one saved on ${have.at.slice(0, 10)} is kept.`);
     }
   });
 
@@ -178,7 +184,7 @@ async function run(full, log) {
     // A signal belongs to the day of the candle it was read from: before the open, that is yesterday.
     if (watchSet.has(s) && list) for (const hit of scanDaily(list, RULES)) found.push(signalOf(s, names.get(s) || s, hit, nyDay(list[list.length - 1].t), quotes[s] ? quotes[s].price : null, new Date().toISOString()));
   }
-  // The market's stance, counted. The stocks of the list are its US stocks: no fund, coin or future.
+  // The market's stance, counted. The stocks of the list are its US stocks, without the funds.
   const listed = [...watchSet].filter((s) => daily[s] && quotes[s] && quotes[s].facts && src.isUsStock(s) && quotes[s].kind === "EQUITY");
   const fund = daily[FUND.sym];
   const stance = fund ? regime(series(fund), fund.length - 1, quotes[FEAR.sym] ? quotes[FEAR.sym].price : null, breadth(listed.map((s) => quotes[s].facts))) : null;
@@ -280,10 +286,12 @@ async function run(full, log) {
   // carry its verdicts, so a new record means a new scan.
   const candidatesOld = await readData("candidates.json"), setupsOld = await readData("setups.json");
   let record = setupsOld && setupsOld.schema === SETUPS_SCHEMA ? setupsOld : null;
-  const replayDue = full || !record || age(record.at) > 12 * HOUR, scanDue = replayDue || !candidatesOld || age(candidatesOld.at) > 6 * HOUR;
+  const replayDue = full || !record || age(record.at) > 12 * HOUR, scanDue = replayDue || !candidatesOld || candidatesOld.problem || age(candidatesOld.at) > 6 * HOUR;
+  // Without a fresh chart of the fund nothing says which day is the newest, so no setup is looked for.
+  const blind = !fund || !stance || stale.has(FUND.sym);
   // The charts the setups are looked for in, when a replay or a scan is due.
   let charts = null;
-  if (fund && stance && scanDue) {
+  if (!blind && scanDue) {
     // A setup is judged on full days, and every chart of one scan ends on the same one: the fund's last.
     const asOf = nyDay(fullDays(fund, fetched[FUND.sym]).at(-1).t), whole = (candles, at) => fullDays(candles, at, asOf);
     // The wider list is charted for this alone, gently: when it is missing, and when its newest full day is behind the fund's.
@@ -327,11 +335,16 @@ async function run(full, log) {
     // The method's order: the list, then the movers, then the wider list. A stock still
     // held from an earlier day is no candidate; one called today stays, so today's file
     // can be checked against this one and written again.
-    const items = candidatesOf([...mine, ...moving, ...far], { fund, stance: stance.stance, reports: reports && reports.bySym, day, skip: heldBefore(followed.calls, day), record });
+    // A chart that ends before the fund's last full day could not be fetched again: its newest day is not today's picture.
+    const items = candidatesOf(endingOn([...mine, ...moving, ...far], asOf), { fund, stance: stance.stance, reports: reports && reports.bySym, day, skip: heldBefore(followed.calls, day), record });
     candidates = { schema: "reminder/candidates@1", at: new Date().toISOString(), day, asOf, stance: stance.stance, items };
     await writeJson("candidates.json", candidates);
     // A candidate's candles are saved, so the Scout can read levels off it as it does off a listed chart.
     for (const x of items) if (x.from === "universe") await writeCandleFile(x.sym, wider.bySym[x.sym]);
+  } else if (blind && scanDue && !(candidatesOld && candidatesOld.day === day && !candidatesOld.problem)) {
+    // Candidates scanned earlier today stay. Otherwise the day has none, and the file says why.
+    candidates = { schema: "reminder/candidates@1", at: new Date().toISOString(), day, asOf: null, stance: stance ? stance.stance : null, items: [], problem: NO_PRICES };
+    await writeJson("candidates.json", candidates);
   }
 
   // 7. Write. A signal keeps the moment it was first seen; three weeks of them stay.
@@ -358,6 +371,8 @@ async function run(full, log) {
   for (const name of await fs.readdir(path.join(DATA_DIR, "candles"))) if (!wanted.has(name)) await fs.rm(path.join(DATA_DIR, "candles", name));
   // A source that was not asked this run keeps what it last did.
   const before = (await readData("status.json")) || {};
+  // The one problem that empties the day comes first: the list below is cut at twelve.
+  if (candidates && candidates.problem) errors.unshift(candidates.problem);
   const status = { at: new Date().toISOString(), ok: !errors.length, took: Date.now() - began, symbols: syms.length, newSignals: fresh.length, sources: { ...before.sources, ...sources }, errors: errors.slice(0, 12) };
   await writeJson("status.json", status);
   announce();
