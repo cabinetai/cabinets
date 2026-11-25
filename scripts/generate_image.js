@@ -136,7 +136,6 @@ const CABINET_ICONS = {
   'stripe-daily':             { object: 'a payment card standing in a small card holder with two coins beside it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'tavily-web-search':        { object: 'a small telescope on a tripod pointed at a cluster of three tiny stars', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'teams-digest':             { object: 'two overlapping speech bubbles of different sizes on a small stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
-  'telegram-digest':          { object: 'a paper airplane banking into a gentle curve, suspended on a thin stand', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'tiktok-queue':             { object: 'a musical eighth-note standing on a small round stage with two ripple arcs behind it', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'wasabi-contents':          { object: 'a rounded storage jar with a snug lid and a small leaf-green painted band', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
   'whatsapp-digest':          { object: 'a vintage telephone handset cradled inside a rounded speech bubble', bgHex: '#F2E8D5', bgName: 'soft warm cream' },
@@ -158,7 +157,6 @@ const CABINET_ICONS = {
 // touching the shared bgHex/bgName used by the other two styles.
 const VIVID_COLOR_OVERRIDES = {
   'gmail-inbox':      { hex: '#e4634b', name: 'warm coral-red' },
-  'telegram-digest':  { hex: '#165db8', name: 'vivid sky blue' },
   'phone-line':       { hex: '#ff6a2b', name: 'vivid tangerine orange' },
 };
 
