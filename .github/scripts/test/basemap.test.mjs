@@ -14,9 +14,8 @@ const FIXTURES = path.join(ROOT, ".github", "scripts", "test", "fixtures");
 const LOOKS = ["positron", "liberty", "dark"];
 const NAME = ["coalesce", ["get", "name:he"], ["get", "name:latin"], ["get", "name"]];
 
-function basemap() {
-  const window = {};
-  vm.runInNewContext(fs.readFileSync(path.join(ROOT, "shared", "basemap.js"), "utf8"), { window });
+function basemap(window = {}) {
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, "shared", "basemap.js"), "utf8"), { window, setTimeout });
   return window.CabinetBasemap;
 }
 
@@ -60,4 +59,63 @@ test("a change of look runs the same rewrite", () => {
   assert.equal(calls[0].url, "https://tiles.openfreemap.org/styles/dark");
   const style = JSON.parse(fs.readFileSync(path.join(FIXTURES, "openfreemap-dark.json"), "utf8"));
   assert.ok(calls[0].options.transformStyle(undefined, style).layers.some((l) => l.id === "cabinet-regions"));
+});
+
+// A stand-in for MapLibre's Map that records what create() asks of it.
+function fakeMapLibre() {
+  const made = [];
+  class Map {
+    constructor(options) {
+      this.options = options;
+      this.handlers = {};
+      this.removed = 0;
+      this.touchZoomRotate = { disableRotation() {} };
+      this.keyboard = { disableRotation() {} };
+      made.push(this);
+    }
+    on(name, fn) {
+      (this.handlers[name] ||= []).push(fn);
+    }
+    once(name, fn) {
+      const wrap = (e) => {
+        this.handlers[name] = this.handlers[name].filter((f) => f !== wrap);
+        fn(e);
+      };
+      this.on(name, wrap);
+    }
+    fire(name) {
+      for (const fn of [...(this.handlers[name] || [])]) fn({});
+    }
+    setStyle(url) {
+      this.style = url;
+    }
+    remove() {
+      this.removed += 1;
+    }
+  }
+  return { made, maplibregl: { Map, getRTLTextPluginStatus: () => "loaded" } };
+}
+
+test("a first style that fails to load removes the map and tells the page once", async () => {
+  const { made, maplibregl } = fakeMapLibre();
+  let failed = 0;
+  const map = basemap({ maplibregl }).create({}, "classic", { zoom: 3 }, () => failed++);
+  assert.equal(made[0].options.zoom, 3);
+  assert.equal(map.style, "https://tiles.openfreemap.org/styles/liberty");
+  map.fire("error");
+  map.fire("error");
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(failed, 1);
+  assert.equal(map.removed, 1);
+});
+
+test("an error after the style is in leaves the map alone", async () => {
+  const { maplibregl } = fakeMapLibre();
+  let failed = 0;
+  const map = basemap({ maplibregl }).create({}, "night", {}, () => failed++);
+  map.fire("style.load");
+  map.fire("error");
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(failed, 0);
+  assert.equal(map.removed, 0);
 });
