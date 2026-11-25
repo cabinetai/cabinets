@@ -531,10 +531,27 @@
     return map;
   }
 
+  // A pin from the page's own HTML (one element), its top-left corner at `lngLat`.
+  // MapLibre names every marker "Map marker"; a pin keeps its own name.
+  var holder = null;
+  function pin(map, html, lngLat, opacity) {
+    holder = holder || document.createElement("div");
+    holder.innerHTML = html;
+    var el = holder.firstChild;
+    var label = el.getAttribute("aria-label");
+    var marker = new window.maplibregl.Marker({ element: el, anchor: "top-left", opacity: String(opacity == null ? 1 : opacity) })
+      .setLngLat(lngLat)
+      .addTo(map);
+    if (label) el.setAttribute("aria-label", label);
+    else el.removeAttribute("aria-label");
+    return marker;
+  }
+
   window.CabinetBasemap = {
     ATTRIBUTION: ATTRIBUTION,
     create: create,
     setLook: setLook,
+    pin: pin,
     localizeStyle: localizeStyle,
   };
 })();
@@ -1088,14 +1105,7 @@
     });
     if (state.spot) addMarker('<div class="spot"><div class="spot-in"><span>' + esc(state.spot.label) + '</span><button class="btn small primary" data-act="add-here" data-write>' + icon("plus") + "Add it here</button><button class=\"btn small ghost\" data-act=\"spot-off\" aria-label=\"Close\" style=\"color:inherit\">" + icon("x") + "</button></div></div>", state.spot, 1);
   }
-  var holder = document.createElement("div");
-  function addMarker(html, at, opacity) {
-    holder.innerHTML = html;
-    var el = holder.firstChild, label = el.getAttribute("aria-label");
-    markers.push(new window.maplibregl.Marker({ element: el, anchor: "top-left", opacity: String(opacity) }).setLngLat([at.lng, at.lat]).addTo(gl));
-    // addTo names every marker "Map marker"; a pin keeps its own name.
-    if (label) el.setAttribute("aria-label", label); else el.removeAttribute("aria-label");
-  }
+  function addMarker(html, at, opacity) { markers.push(BASE.pin(gl, html, [at.lng, at.lat], opacity)); }
 
   // The hover card.
   function hoverHtml(a) {

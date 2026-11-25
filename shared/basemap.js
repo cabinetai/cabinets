@@ -143,10 +143,27 @@
     return map;
   }
 
+  // A pin from the page's own HTML (one element), its top-left corner at `lngLat`.
+  // MapLibre names every marker "Map marker"; a pin keeps its own name.
+  var holder = null;
+  function pin(map, html, lngLat, opacity) {
+    holder = holder || document.createElement("div");
+    holder.innerHTML = html;
+    var el = holder.firstChild;
+    var label = el.getAttribute("aria-label");
+    var marker = new window.maplibregl.Marker({ element: el, anchor: "top-left", opacity: String(opacity == null ? 1 : opacity) })
+      .setLngLat(lngLat)
+      .addTo(map);
+    if (label) el.setAttribute("aria-label", label);
+    else el.removeAttribute("aria-label");
+    return marker;
+  }
+
   window.CabinetBasemap = {
     ATTRIBUTION: ATTRIBUTION,
     create: create,
     setLook: setLook,
+    pin: pin,
     localizeStyle: localizeStyle,
   };
 })();
