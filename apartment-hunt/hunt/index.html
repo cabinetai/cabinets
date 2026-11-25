@@ -299,49 +299,64 @@
     return layer["source-layer"] === "place" && JSON.stringify(layer.filter || "").indexOf('"state"') !== -1;
   }
 
-  // Runs on every style load, so a change of look keeps the names.
-  function localize(map) {
-    var layers = map.getStyle().layers;
+  // The style with the names and the label above, as a new object. MapLibre calls it
+  // with each style it downloads, before it draws anything.
+  function localizeStyle(style) {
     var stateLabel = null;
-    layers.forEach(function (layer) {
-      if (layer.type !== "symbol") return;
+    var layers = style.layers.map(function (layer) {
+      if (layer.type !== "symbol") return layer;
+      var out = Object.assign({}, layer);
       var field = layer.layout && layer.layout["text-field"];
-      if (field && JSON.stringify(field).indexOf('"name') !== -1) map.setLayoutProperty(layer.id, "text-field", NAME);
-      if (layer["source-layer"] !== "place") return;
-      var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
-      map.setFilter(layer.id, layer.filter ? ["all", layer.filter, keep] : keep);
-      if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+      if (field && JSON.stringify(field).indexOf('"name') !== -1) out.layout = Object.assign({}, layer.layout, { "text-field": NAME });
+      if (layer["source-layer"] === "place") {
+        var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
+        out.filter = layer.filter ? ["all", layer.filter, keep] : keep;
+        if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+      }
+      return out;
     });
-    if (!stateLabel || map.getSource("cabinet-regions")) return;
-    map.addSource("cabinet-regions", {
-      type: "geojson",
-      data: {
-        type: "FeatureCollection",
-        features: REGIONS.map(function (r) {
-          return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
-        }),
+    var sources = Object.assign({}, style.sources);
+    if (stateLabel) {
+      sources["cabinet-regions"] = {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: REGIONS.map(function (r) {
+            return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
+          }),
+        },
+      };
+      layers.push({
+        id: "cabinet-regions",
+        type: "symbol",
+        source: "cabinet-regions",
+        minzoom: 6,
+        maxzoom: 10,
+        layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
+        paint: stateLabel.paint || {},
+      });
+    }
+    return Object.assign({}, style, { sources: sources, layers: layers });
+  }
+
+  function setLook(map, look) {
+    map.setStyle(styleUrl(look), {
+      transformStyle: function (previous, next) {
+        return localizeStyle(next);
       },
-    });
-    map.addLayer({
-      id: "cabinet-regions",
-      type: "symbol",
-      source: "cabinet-regions",
-      minzoom: 6,
-      maxzoom: 10,
-      layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
-      paint: stateLabel.paint || {},
     });
   }
 
   // A flat map that pans and zooms but never tilts or turns. `options` adds to or
   // overrides MapLibre's map options (center, zoom, bounds, minZoom). Returns null
-  // when MapLibre did not load or the browser cannot draw it (no WebGL).
-  function create(container, look, options) {
+  // when MapLibre did not load or the browser cannot draw it (no WebGL). When the
+  // first style does not load (no connection to the tiles), the map is removed and
+  // `onFail` runs, so the page can say so.
+  function create(container, look, options, onFail) {
     if (!window.maplibregl) return null;
     loadRtlText();
     var opts = {
       container: container,
-      style: styleUrl(look),
       maxZoom: 18,
       maxPitch: 0,
       dragRotate: false,
@@ -358,28 +373,31 @@
     } catch (e) {
       return null;
     }
-    map.on("style.load", function () {
-      try {
-        localize(map);
-      } catch (e) {
-        /* the map keeps the names the style gives */
-      }
+    // Until the first style is in, the only error is that style failing to load.
+    var styled = false;
+    map.once("style.load", function () {
+      styled = true;
     });
+    map.on("error", function () {
+      if (styled) return;
+      styled = true;
+      onFail();
+      // MapLibre is still inside its own error event here.
+      setTimeout(function () {
+        map.remove();
+      }, 0);
+    });
+    setLook(map, look);
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
     return map;
-  }
-
-  // A full reload of the style, not a merge into the old one: only a full reload
-  // fires style.load, which puts the names and the label back.
-  function setLook(map, look) {
-    map.setStyle(styleUrl(look), { diff: false });
   }
 
   window.CabinetBasemap = {
     ATTRIBUTION: ATTRIBUTION,
     create: create,
     setLook: setLook,
+    localizeStyle: localizeStyle,
   };
 })();
 </script>
@@ -928,21 +946,14 @@
   function startGl() {
     if (gl !== null) return;
     var dark = document.documentElement.dataset.theme === "dark";
-    gl = (BASE && BASE.create(mapEl, dark ? "night" : "classic", { bounds: BOUNDS[country()], fitBoundsOptions: { padding: 20 }, minZoom: 5 })) || false;
+    // When the tiles do not answer, the map goes and the list works alone.
+    gl = (BASE && BASE.create(mapEl, dark ? "night" : "classic", { bounds: BOUNDS[country()], fitBoundsOptions: { padding: 20 }, minZoom: 5 }, function () {
+      gl = false; glReady = false; markers = [];
+      $("legend").innerHTML = ""; $("ctrl").innerHTML = ""; setHover(null);
+      $("mapoff").innerHTML = '<div class="map-off">' + esc(t("no_map")) + "</div>";
+    })) || false;
     if (gl) {
       gl.on("move", placeHover);
-      // Until the style is in, the only error is the style itself failing: the list works alone then.
-      var styled = false;
-      gl.once("style.load", function () { styled = true; });
-      gl.on("error", function () {
-        if (styled || !gl) return;
-        var dead = gl; gl = false; glReady = false;
-        markers.forEach(function (m) { m.remove(); }); markers = [];
-        $("legend").innerHTML = ""; $("ctrl").innerHTML = ""; setHover(null);
-        $("mapoff").innerHTML = '<div class="map-off">' + esc(t("no_map")) + "</div>";
-        // MapLibre is still inside its own error event here.
-        setTimeout(function () { dead.remove(); }, 0);
-      });
       // Fitting needs only the map's size, not its style, so it never waits for the tiles.
       glReady = true;
     } else $("mapoff").innerHTML = '<div class="map-off">' + esc(t("no_map")) + "</div>";
