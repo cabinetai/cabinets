@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<!--
+  Stock Opportunities Reminder: the page this cabinet opens on.
+
+  One screen: the stocks the Stock Scout found on its last run, each with a box to ask
+  the Scout about it. Under them, when the Scout looks.
+
+  Where things come from:
+    1. opportunities/YYYY-MM-DD.json at the cabinet's root, written by the Stock Scout,
+       one file per day it ran. The page shows the newest.
+    2. app/data/*.json, written by app/engine/refresh.mjs: prices, daily candles, and what
+       became of every opportunity (outcomes.json). DATA.md is the map of those files.
+    3. The app's small server (app/engine/server.mjs), once the person allowed it:
+       fresh prices, and the days and the time the Scout looks.
+
+  The page reads prices. It cannot place an order, and neither can anything else here.
+  Google Fonts are the only request that leaves Cabinet from this page.
+  One file on purpose: a sealed frame cannot load files next to it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stock Opportunities Reminder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..600&family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --page: #EEE9DF; --sheet: #FFFFFF; --sheet-2: #F8F6F1; --press: #EFEBE3; --hover: #F4F1EA;
+    --ink: #1E1A15; --ink-2: #4B453C; --muted: #6E675B;
+    --line: rgba(64, 48, 20, .11);
+    --brand: #3B2F2F; --on-brand: #FFFFFF; --brand-soft: #EFE7DA;
+    --up: #12783A; --up-tint: #E4F3E9; --down: #C2321F; --down-tint: #FBE9E5;
+    --warn: #96600C; --warn-tint: #FAF0DA; --info: #2B5C9E; --info-tint: #E6EEF8; --zone: rgba(43, 92, 158, .16);
+    --radius: 18px; --radius-s: 11px;
+    --shadow: 0 1px 2px rgba(59, 47, 47, .05), 0 8px 24px -14px rgba(59, 47, 47, .22);
+    --shadow-up: 0 2px 6px rgba(59, 47, 47, .08), 0 24px 60px -20px rgba(59, 47, 47, .38);
+    --font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --serif: Fraunces, Georgia, "Times New Roman", serif;
+    --ease-out: cubic-bezier(.23, 1, .32, 1);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --page: #131110; --sheet: #1D1A17; --sheet-2: #23201C; --press: #2E2A25; --hover: #27231F;
+    --ink: #F0EBE3; --ink-2: #CFC8BC; --muted: #9E968A;
+    --line: rgba(255, 240, 215, .11);
+    --brand: #EADFCB; --on-brand: #1E1A15; --brand-soft: #2F2A23;
+    --up: #4CC38A; --up-tint: #16301F; --down: #FF7B6B; --down-tint: #3A1B17;
+    --warn: #E6B45C; --warn-tint: #33280F; --info: #86B2EC; --info-tint: #17263A; --zone: rgba(134, 178, 236, .2);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px -14px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 240, 215, .04);
+    --shadow-up: 0 2px 6px rgba(0, 0, 0, .4), 0 24px 60px -20px rgba(0, 0, 0, .9);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 var(--font); letter-spacing: -.006em; -webkit-font-smoothing: antialiased; }
+  button, input, select { font: inherit; color: inherit; letter-spacing: inherit; }
+  button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; cursor: pointer; border: 0; background: none; padding: 0; }
+  [hidden] { display: none !important; }
+  ::selection { background: var(--brand-soft); color: var(--ink); }
+  ::placeholder { color: var(--muted); opacity: .85; }
+  h1, h2, h3, h4, p, ul, dl, dd { margin: 0; }
+  svg.i { width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .grow { flex: 1; min-width: 0; }
+  /* Someone who may only read sees no control that changes anything. */
+  html[data-read] [data-write] { display: none !important; }
+
+  /* One column: a title, the stocks found, then when the Scout looks. */
+  #app { max-width: 780px; margin: 0 auto; padding: 18px 16px 28px; display: grid; gap: 14px; }
+  .top h1 { font: 650 20px/1.15 var(--font); letter-spacing: -.025em; }
+  .top p { color: var(--muted); margin-top: 3px; }
+  #view { display: grid; gap: 14px; }
+  .sheet { background: var(--sheet); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .card { padding: 16px 18px; }
+  .card > header { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .sub { color: var(--muted); font-size: 12.5px; }
+  .empty { padding: 18px 6px; color: var(--muted); text-align: center; }
+  .empty b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+  .note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius-s); background: var(--warn-tint); font-size: 13px; }
+  .note svg { color: var(--warn); margin-top: 1px; }
+  .note.info { background: var(--info-tint); } .note.info svg { color: var(--info); }
+  .chip { display: inline-flex; align-items: center; gap: 5px; min-height: 22px; padding: 2px 8px; border-radius: 7px; font-size: 12px; font-weight: 600; background: var(--press); color: var(--ink-2); }
+  .chip svg.i { width: 13px; height: 13px; stroke-width: 2.2; }
+  .chip.good { background: var(--up-tint); color: var(--up); } .chip.bad { background: var(--down-tint); color: var(--down); }
+  .chip.now { background: var(--info-tint); color: var(--info); } .chip.ex { background: var(--warn-tint); color: var(--warn); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 10px; font-weight: 500; white-space: nowrap; background: var(--sheet-2); transition: transform 140ms var(--ease-out), background-color 150ms ease; }
+  .btn.primary { background: var(--brand); color: var(--on-brand); font-weight: 600; }
+  .btn[disabled] { opacity: .55; cursor: default; }
+  .btn:active { transform: scale(.97); }
+  .spin { animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (hover: hover) and (pointer: fine) { .btn:not(.primary):hover { background: var(--hover); } }
+
+  .opp .sym { font: 600 17px/1.2 var(--mono); letter-spacing: -.02em; }
+  .opp .headline { font: 500 19px/1.3 var(--serif); }
+  .opp .body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: center; margin: 12px 0 14px; }
+  .opp canvas { display: block; width: 100%; height: 180px; border-radius: 12px; background: var(--sheet-2); }
+  .opp h3 { font: 600 13px/1.2 var(--font); margin: 12px 0 4px; }
+  .opp ul { padding-left: 18px; } .opp li { margin-bottom: 3px; }
+  .opp ul, .opp .say { color: var(--ink-2); font-size: 13.5px; }
+  .opp .note { margin-top: 10px; }
+  /* The numbers of one opportunity, as label and value. The swatch matches the chart. */
+  .nums { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7px 14px; align-items: baseline; }
+  .nums dt { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .nums dd b { font: 500 15px/1.3 var(--mono); letter-spacing: -.02em; }
+  .nums dd small { display: block; color: var(--muted); font-size: 12px; }
+  .nums dt i { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 2px; background: var(--info); }
+  .nums dt i.stop { background: var(--down); } .nums dt i.aim { background: var(--up); } .nums dt i.none { background: none; }
+  /* The ask box under each stock. */
+  .askrow { display: flex; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .askrow input, .whenrow select, .whenrow input { height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--sheet-2); min-width: 0; }
+  .askrow input { flex: 1; caret-color: var(--brand); }
+
+  .whenrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13.5px; }
+  .whenrow .btn { margin-left: auto; }
+  .foot { text-align: center; color: var(--muted); font-size: 12px; max-width: 70ch; margin: 4px auto 0; }
+
+  .toast { position: fixed; z-index: 50; left: 50%; bottom: 22px; padding: 10px 16px; border-radius: 12px; background: var(--ink); color: var(--sheet); font-weight: 500; box-shadow: var(--shadow-up); opacity: 0; transform: translate(-50%, 100%); transition: transform 400ms ease, opacity 400ms ease; pointer-events: none; max-width: calc(100vw - 32px); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 640px) {
+    #app { padding: 14px 12px 24px; } .card { padding: 14px; }
+    .opp .body { grid-template-columns: minmax(0, 1fr); }
+    .whenrow .btn { margin-left: 0; width: 100%; }
+    /* Under 16px, a phone zooms the page when a field takes the focus. */
+    .askrow input, .whenrow select, .whenrow input { font-size: 16px; }
+  }
+  @media (pointer: coarse) { .btn, .askrow input, .whenrow select, .whenrow input { min-height: 44px; } }
+  @media (prefers-reduced-motion: reduce) {
+    .toast { transform: translate(-50%, 0); transition: opacity 200ms ease; } .btn:active { transform: none; } .spin { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top"><h1>Stock Opportunities Reminder</h1><p id="lede"></p></header>
+  <main id="view"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+(() => {
+  "use strict";
+  // ── Small helpers ───────────────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+  const P = {
+    check: "M5 12.5l4.5 4.5L19 7.5", warn: "M12 4l9 16H3zM12 10v4M12 17v.5", info: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7.5v.5", clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
+    bell: "M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0", x: "M6 6l12 12M18 6L6 18", search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4", chat: "M5 5h14v10H10l-5 4z", loader: "M12 3a9 9 0 1 0 9 9",
+  };
+  const icon = (n, cls) => `<svg class="i${cls ? " " + cls : ""}" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n]}"/></svg>`;
+  // A live price, always with cents. A level someone chose (a zone, a stop) drops the cents it does not need.
+  const fp = (n) => { if (n == null || !isFinite(n)) return "-"; const a = Math.abs(n); return n.toLocaleString("en-US", a >= 1 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumSignificantDigits: 4 }); };
+  const lv = (n) => n.toLocaleString("en-US", { maximumFractionDigits: Math.abs(n) >= 1 ? 2 : 4 });
+  const far = (a, b) => Math.abs(((a - b) / b) * 100).toFixed(1) + "%";
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const ymd = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const daysAgo = (n) => ymd(new Date(Date.now() - n * 864e5));
+  // A day (YYYY-MM-DD) or a moment (ISO), to sit inside a sentence: "today", "yesterday", "on Mon 23 Nov".
+  const onDay = (s) => { const d = new Date(String(s).length === 10 ? s + "T12:00:00" : s); if (isNaN(d)) return ""; const k = ymd(d); return k === daysAgo(0) ? "today" : k === daysAgo(1) ? "yesterday" : "on " + DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()]; };
+  const ago = (iso) => { const m = Math.round((Date.now() - Date.parse(iso)) / 6e4); return !isFinite(m) ? "" : m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " days ago"; };
+  let toastTimer;
+  const toast = (text) => { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2800); };
+  const SCOUT = "stock-scout", FIND_JOB = "find-opportunities";
+
+  // ── Talking to Cabinet ──────────────────────────────────────────────────
+  const cab = window.cabinet;
+  const V2 = !!(cab && cab.files && cab.files.read);
+  let here = null, appPath = "app";
+  const role = () => (here && here.role) || "owner";
+  const canWrite = () => (cab && cab.canWrite ? cab.canWrite() !== false : true);
+  // Opens a chat with the Stock Scout. Where the page cannot, the question is copied for the person to paste.
+  // It settles once the question is on its way, and rejects with words the person can read.
+  function ask(text) {
+    if (cab && cab.ask && role() !== "viewer") return cab.ask(text, { agent: SCOUT }).catch((e) => { throw new Error((e && e.message) || "The chat did not open. Try again."); });
+    const copied = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject();
+    return copied.then(() => toast("Copied. Paste it into a chat with the Stock Scout."), () => { throw new Error("Open this cabinet's chat to ask."); });
+  }
+  // A file inside the cabinet, by its path from the cabinet's root.
+  function readFile(path) {
+    if (V2) return cab.files.read(path);
+    return fetch("../" + path).then((r) => { if (!r.ok) throw new Error("missing"); return r.text(); });
+  }
+  const readJson = (path) => readFile(path).then((t) => JSON.parse(t)).catch(() => null);
+  const dataFile = (name) => readJson(appPath + "/data/" + name);
+
+  // The app's own server, when the person has allowed it. Without it the page still works
+  // from the files. `needsAllow` is true when the server is there and only waits for the person's yes.
+  let live = false, needsAllow = false;
+  function engineBase() {
+    if (!here || !here.cabinetPath || role() !== "owner") return null;
+    return "/api/app-server/run/" + (here.cabinetPath + "/" + appPath).split("/").map(encodeURIComponent).join("/") + "/~";
+  }
+  // `body`, when given, is sent as JSON with POST.
+  function engine(route, body) {
+    const base = engineBase();
+    if (!base) return Promise.reject(new Error("off"));
+    return fetch(base + route, body === undefined ? { headers: { accept: "application/json" } } : { method: "POST", headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json().catch(() => ({})).then((j) => { if (!r.ok) { const e = new Error(j.error || "Live prices did not answer."); e.code = j.code || r.status; throw e; } return j; }));
+  }
+  // When the Scout looks, as the engine reads it from the routine's file: `{ days, time, zone }`.
+  // Null until the engine is on, and `custom` instead of `days` for a schedule set elsewhere.
+  let sched = null;
+  function checkLive() {
+    return engine("/health").then(() => { live = true; needsAllow = false; return engine("/schedule").then((x) => { sched = x; }, () => {}); }, (e) => { live = false; needsAllow = e.code === "app-not-allowed" || e.code === 409; });
+  }
+
+  // ── What the page knows ─────────────────────────────────────────────────
+  // `found` is the newest opportunities file (see tidyFile), or null before the first one.
+  const D = { market: null, status: null, outcomes: null, found: null, jobs: [] };
+  const quote = (sym) => (D.market && D.market.quotes && D.market.quotes[sym]) || null;
+  const lastPrice = (sym) => { const q = quote(sym); return q ? (q.ext && D.market.session !== "open" ? q.ext.price : q.price) : null; };
+  const candleFile = (sym) => appPath + "/data/candles/" + String(sym).toUpperCase().replace(/[^A-Z0-9.-]/g, "_") + ".1d.json";
+  // Daily candles for a symbol: from the app's server when it is on, else from the saved file.
+  const candleCache = {};
+  function getCandles(sym) {
+    const hit = candleCache[sym];
+    if (hit && Date.now() - hit.at < 120000) return Promise.resolve(hit.list);
+    const keep = (c) => { const list = c.map((r) => ({ t: r[0], o: r[1], h: r[2], l: r[3], c: r[4], v: r[5] })); candleCache[sym] = { at: Date.now(), list }; return list; };
+    const fromFile = () => readJson(candleFile(sym)).then((j) => { if (!j || !j.c) throw new Error("none"); return keep(j.c); });
+    return live ? engine("/candles?sym=" + encodeURIComponent(sym) + "&frame=1d").then((j) => { if (!arr(j.c).length) throw new Error("none"); return keep(j.c); }).catch(fromFile) : fromFile();
+  }
+  // A file that failed to load keeps what the page already had: a refresh half-written is not a reason to go blank.
+  function loadData() {
+    return Promise.all([dataFile("market.json"), dataFile("status.json"), dataFile("outcomes.json")]).then((r) => {
+      if (r[0]) D.market = r[0]; if (r[1]) D.status = r[1];
+      if (r[2] && Array.isArray(r[2].calls)) D.outcomes = r[2];
+    });
+  }
+
+  // ── The Scout's file, read with care ────────────────────────────────────
+  // A model writes these files, so nothing in them is trusted to be there or to be the right type.
+  const OPP_FILE = /^(EXAMPLE-)?(\d{4}-\d{2}-\d{2})\.json$/, SYM = /^[A-Z0-9.^=-]{1,15}$/;
+  const text = (v) => (typeof v === "string" ? v.trim() : "");
+  const arr = (v) => (Array.isArray(v) ? v : []);
+  const price = (v) => (typeof v === "number" && isFinite(v) && v > 0 ? v : null);
+  // One opportunity, or null when it breaks the rule the engine also keeps (app/engine/lib/calls.mjs): a symbol,
+  // a zone of two prices with the lower first, a stop under the zone and a target above it. Nothing is repaired.
+  function tidyItem(x, day, path, example) {
+    const sym = text(x && x.sym).toUpperCase(), buy = x && Array.isArray(x.buy) && x.buy.length === 2 ? x.buy.map(price) : [], stop = price(x && x.stop), target = price(x && x.target);
+    if (!SYM.test(sym) || !buy[0] || !buy[1] || buy[0] > buy[1] || !stop || !target || stop >= buy[0] || target <= buy[1]) return null;
+    const q = quote(sym);
+    return { id: day + ":" + sym, day, path, example, sym, name: text(x.name) || (q && q.name) || "", headline: text(x.headline), buy, stop, target,
+      why: (Array.isArray(x.why) ? x.why : [x.why]).map(text).filter(Boolean), risks: text(x.risks) };
+  }
+  function tidyFile(j, file) {
+    if (!j || typeof j !== "object") return null;
+    const m = OPP_FILE.exec(file.name), day = m[2], example = !!m[1];
+    const good = arr(j.items).map((x) => tidyItem(x, day, file.path, example)).filter(Boolean), seen = {};
+    // `unread` counts the entries that broke the rule. Of two entries for one symbol the first counts.
+    return { day, example, items: good.filter((o) => !seen[o.sym] && (seen[o.sym] = 1)), unread: arr(j.items).length - good.length, nothing: text(j.nothing) };
+  }
+  // The person's newest file that can be read. Before the first one exists, the newest example.
+  // A file caught half-written keeps what the page already shows.
+  function loadFound() {
+    if (!V2 || !cab.files.list) return Promise.resolve();
+    return cab.files.list("opportunities").then((all) => {
+      const files = all.filter((f) => !f.isDir && OPP_FILE.test(f.name)).sort((a, b) => (OPP_FILE.exec(a.name)[2] < OPP_FILE.exec(b.name)[2] ? 1 : -1));
+      const mine = files.filter((x) => !/^EXAMPLE/.test(x.name)), pick = mine.length ? mine.slice(0, 5) : files.slice(0, 1);
+      const read = (i) => (i < pick.length ? readJson(pick[i].path).then((j) => tidyFile(j, pick[i]) || read(i + 1)) : null);
+      return read(0);
+    }).then((r) => { if (r) D.found = r; }, () => {});
+  }
+  const findOpp = (id) => (D.found && D.found.items.find((o) => o.id === id)) || null;
+  // What became of an opportunity, from the engine's outcomes file. An example has no outcome.
+  const OUTCOME = {
+    "waiting": ["Waiting for the price", "", "clock"], "in-zone": ["In the buy zone now", "now", "bell"], "open": ["Entered", "now", "check"],
+    "target": ["Reached its target", "good", "check"], "stopped": ["Fell through its stop", "bad", "x"], "timed-out": ["Ran out of time", "", "clock"], "expired": ["Never reached the zone", "", "x"],
+  };
+  function outcomeChip(o) {
+    const c = !o.example && D.outcomes && D.outcomes.calls.find((x) => x && x.id === o.id), s = c && OUTCOME[c.state];
+    return s ? `<span class="chip ${s[1]}">${icon(s[2])}${s[0]}</span>` : "";
+  }
+  // What the engine's check found wrong with an opportunity, as plain sentences.
+  const problemsOf = (o) => { const p = !o.example && D.outcomes && arr(D.outcomes.problems).find((x) => x && x.id === o.id); return p ? arr(p.why).map(text).filter(Boolean) : []; };
+  // Where the price is against the plan, in words.
+  function whereNow(o, px) {
+    const off = (edge, side) => (far(px, edge) === "0.0%" ? "at the edge of the buy zone" : far(px, edge) + " " + side + " the zone");
+    return px > o.target ? "above the target" : px > o.buy[1] ? off(o.buy[1], "above") : px >= o.buy[0] ? "inside the buy zone" : px > o.stop ? off(o.buy[0], "below") : "under the stop";
+  }
+
+  // ── When the Scout looks ────────────────────────────────────────────────
+  function loadJobs() { if (cab && cab.jobs && cab.jobs.list) return cab.jobs.list().then((j) => { D.jobs = j || []; }, () => {}); return Promise.resolve(); }
+  const findJob = () => D.jobs.find((x) => x.id === FIND_JOB);
+  function runBtn() {
+    if (!cab || !cab.jobs) return "";
+    const busy = !!(findJob() && findJob().running);
+    return `<button class="btn" data-write id="run"${busy ? " disabled" : ""}>${icon(busy ? "loader" : "search", busy ? "spin" : "")}${busy ? "Looking now" : D.found && !D.found.example ? "Look again now" : "Look now"}</button>`;
+  }
+  const WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const HOW_OFTEN = [["weekdays", "every weekday"], ["daily", "every day"]].concat(WEEK.map((d, i) => [String(i), "every " + d]));
+  // The two controls that choose the days and the time. Without the engine, or with a schedule
+  // the controls cannot show, the card says the time in Cabinet's own words.
+  function whenCard() {
+    let inner = "";
+    if (sched && sched.days && canWrite()) {
+      const mine = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      inner = `<label for="sdays">The Stock Scout looks</label><select id="sdays">${HOW_OFTEN.map((x) => `<option value="${x[0]}"${x[0] === sched.days ? " selected" : ""}>${x[1]}</option>`).join("")}</select><label for="stime">at</label><input type="time" id="stime" value="${esc(sched.time)}" />${sched.zone && sched.zone !== mine ? `<span class="sub">${esc(sched.zone.replace(/_/g, " "))} time</span>` : ""}`;
+    } else {
+      const j = findJob(), said = (j && j.when ? "The Stock Scout looks: " + esc(j.when.toLowerCase()) + "." : "") + (needsAllow ? " Press Allow in the bar above this page to choose the days and the time." : sched && !sched.days && canWrite() ? " To change it, open this routine's own settings in Cabinet." : "");
+      if (said) inner = `<span class="grow">${said}</span>`;
+    }
+    const all = inner + runBtn();
+    return all ? `<section class="sheet card"><div class="whenrow">${all}</div></section>` : "";
+  }
+  // Saves the picker's choice when it is a whole time and not the one already saved. It never
+  // takes the focus away: the person may still be typing.
+  function saveWhen() {
+    const days = $("sdays") && $("sdays").value, time = $("stime") && $("stime").value;
+    if (!days || !/^\d\d:\d\d$/.test(time) || (days === sched.days && time === sched.time)) return;
+    engine("/schedule", { days, time }).then((x) => { sched = x; toast(`Saved. The Stock Scout now looks ${HOW_OFTEN.find((o) => o[0] === days)[1]} at ${time}.`); return loadJobs(); }, (e) => { toast(e.message); paint(); });
+  }
+  function runScout() {
+    if (!cab.jobs.run) return toast("Open this in Cabinet to run it.");
+    cab.jobs.run(FIND_JOB).then(() => { toast("The Stock Scout is looking. What it finds appears here in a few minutes."); loadJobs().then(() => paint(true)); }, (e) => toast((e && e.message) || "That did not start. Try again."));
+  }
+
+  // ── The picture on a card ───────────────────────────────────────────────
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  function drawMini(cv, list, o) {
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight, part = list.slice(-64);
+    if (!w || !h || part.length < 2) return;
+    cv.width = w * dpr; cv.height = h * dpr;
+    const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+    const lo = Math.min(o.stop, ...part.map((c) => c.l)), hi = Math.max(o.target, ...part.map((c) => c.h)), pad = 14;
+    const y = (p) => pad + (1 - (p - lo) / (hi - lo)) * (h - pad * 2), up = css("--up"), down = css("--down"), zone = css("--info");
+    g.font = "500 11px " + css("--mono"); g.textBaseline = "middle";
+    const labels = [["Aim " + lv(o.target), up, y(o.target)], ["Buy " + lv(o.buy[0]) + " to " + lv(o.buy[1]), zone, y((o.buy[0] + o.buy[1]) / 2)], ["Stop " + lv(o.stop), down, y(o.stop)]];
+    const gutter = Math.max(...labels.map((l) => g.measureText(l[0]).width)) + 14, plot = w - gutter, step = (plot - 8) / part.length, bw = Math.max(1, step * 0.62);
+    g.fillStyle = css("--zone"); g.fillRect(0, y(o.buy[1]), plot, Math.max(2, y(o.buy[0]) - y(o.buy[1])));
+    const rule = (p, color, dash) => { g.strokeStyle = color; g.lineWidth = 1.5; g.setLineDash(dash); g.beginPath(); g.moveTo(0, Math.round(y(p)) + .5); g.lineTo(plot, Math.round(y(p)) + .5); g.stroke(); g.setLineDash([]); };
+    rule(o.target, up, []); rule(o.stop, down, [5, 4]);
+    part.forEach((c, i) => { const x = 4 + i * step + step / 2; g.strokeStyle = g.fillStyle = c.c >= c.o ? up : down; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y(c.h)); g.lineTo(x, y(c.l)); g.stroke(); const top = y(Math.max(c.o, c.c)), bot = y(Math.min(c.o, c.c)); g.fillRect(x - bw / 2, top, bw, Math.max(1, bot - top)); });
+    // The names never sit on top of each other, however close the three prices are.
+    labels[0][2] = Math.min(labels[0][2], labels[1][2] - 14); labels[2][2] = Math.max(labels[2][2], labels[1][2] + 14);
+    labels.forEach((l) => { g.fillStyle = l[1]; g.fillText(l[0], plot + 7, clamp(l[2], 8, h - 8)); });
+  }
+  function paintMinis() {
+    document.querySelectorAll("canvas[data-mini]").forEach((cv) => {
+      const o = findOpp(cv.dataset.mini);
+      if (o) getCandles(o.sym).then((list) => drawMini(cv, list, o), () => {});
+    });
+  }
+
+  // ── The screen ──────────────────────────────────────────────────────────
+  function oppCard(o) {
+    const q = quote(o.sym), px = lastPrice(o.sym), z = `${lv(o.buy[0])} to ${lv(o.buy[1])}`, wrong = problemsOf(o);
+    const row = (swatch, label, value, small) => `<dt><i class="${swatch}"></i>${label}</dt><dd><b>${value}</b>${small ? `<small>${small}</small>` : ""}</dd>`;
+    return `<article class="sheet card opp"><header><span class="sym">${esc(o.sym)}</span><span class="sub grow">${esc(o.name)}</span>${o.example ? '<span class="chip ex">Example</span>' : ""}${outcomeChip(o)}</header>
+      ${o.headline ? `<h2 class="headline">${esc(o.headline)}</h2>` : ""}
+      ${wrong.length ? `<div class="note">${icon("warn")}<div class="grow"><b>The engine's check found a problem with this one.</b> ${wrong.map(esc).join(" ")}</div></div>` : ""}
+      ${q && q.earnings ? `<div class="note">${icon("warn")}<div class="grow">The company reports earnings ${esc(onDay(q.earnings.date))}. Prices often jump on the report, in either direction.</div></div>` : ""}
+      <div class="body"><canvas data-mini="${esc(o.id)}" role="img" aria-label="Daily chart of ${esc(o.sym)} over three months, with the buy zone ${z}, the stop at ${lv(o.stop)} and the target at ${lv(o.target)}"></canvas>
+        <dl class="nums">${row("", "Buy between", `${lv(o.buy[0])} and ${lv(o.buy[1])}`)}${row("stop", "Wrong below", lv(o.stop))}${row("aim", "Aim for", lv(o.target))}${px != null ? row("none", "Price now", fp(px), whereNow(o, px)) : ""}</dl></div>
+      ${o.why.length ? `<h3>Why it is worth a look</h3><ul>${o.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+      ${o.risks ? `<h3>What could go wrong</h3><p class="say">${esc(o.risks)}</p>` : ""}
+      <form class="askrow" data-ask="${esc(o.id)}"><input type="text" maxlength="400" autocomplete="off" aria-label="Ask the Stock Scout about ${esc(o.sym)}" placeholder="Ask the Stock Scout about ${esc(o.sym)}" /><button class="btn primary" type="submit">${icon("chat")}Ask</button></form></article>`;
+  }
+  function allowNote() {
+    if (live || !D.market) return "";
+    if (needsAllow) return `<div class="note info">${icon("info")}<div class="grow"><b>Turn on live prices.</b> Press Allow in the bar above this page. Prices then update while this page is open, for free. Until then you see the prices saved ${esc(ago(D.market.at))}.</div></div>`;
+    return Date.now() - Date.parse(D.market.at) > 36e5 ? `<div class="note">${icon("warn")}<div class="grow">These prices were saved ${esc(ago(D.market.at))}.</div></div>` : "";
+  }
+  function lede() {
+    const f = D.found;
+    if (!f) return "The Stock Scout has not looked yet.";
+    if (f.example) return "An example of what the Stock Scout finds. Your own replace it after its first run.";
+    return f.items.length ? `${f.items.length === 1 ? "1 stock" : f.items.length + " stocks"} the Stock Scout found ${onDay(f.day)}.` : `The Stock Scout looked ${onDay(f.day)}.`;
+  }
+  function view() {
+    const f = D.found;
+    const cards = !f ? `<section class="sheet card"><div class="empty"><b>Nothing here yet.</b>The Stock Scout looks at the market on the days you choose and shows here the stocks worth a look.</div></section>`
+      : f.items.map(oppCard).join("") || (f.unread ? "" : `<section class="sheet card"><div class="empty"><b>No stock worth a look ${esc(onDay(f.day))}.</b>${esc(f.nothing || "The Stock Scout looked and found none.")}<br>A day with nothing is a normal answer. Waiting is part of the plan.</div></section>`);
+    const unread = f && f.unread ? `<div class="note">${icon("warn")}<div class="grow"><b>${f.unread === 1 ? "1 stock" : f.unread + " stocks"} in the Stock Scout's file could not be shown.</b> The prices were missing or out of order. Press Look again now, or ask the Stock Scout to write the file again.</div></div>` : "";
+    return `${allowNote()}${unread}${cards}${whenCard()}<p class="foot">Prices can be late by minutes${D.market ? ", saved " + esc(ago(D.market.at)) : ""}. These are ideas to look at, not financial advice. This page cannot place an order.</p>`;
+  }
+  // A repaint rebuilds every field, so one nobody asked for must not land on a person who is in the middle of something.
+  const midway = () => { const at = document.activeElement; return !!(at && at.closest("#view")) || Array.from(document.querySelectorAll(".askrow input")).some((i) => i.value); };
+  // `soft` is a repaint nobody asked for (new prices arrived). It waits while the person holds a control or
+  // has a question typed, and `stale` remembers that it is owed.
+  let stale = false;
+  function paint(soft) {
+    document.documentElement.toggleAttribute("data-read", !canWrite());
+    $("lede").textContent = lede();
+    stale = !!soft && midway();
+    if (stale) return;
+    $("view").innerHTML = view();
+    paintMinis();
+  }
+  function applyLook() {
+    const dark = here && here.theme ? here.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    if (dark) document.documentElement.dataset.theme = "dark"; else delete document.documentElement.dataset.theme;
+  }
+
+  // ── Presses and typing ──────────────────────────────────────────────────
+  document.addEventListener("click", (e) => { if (e.target.closest("#run")) runScout(); });
+  document.addEventListener("submit", (e) => {
+    const form = e.target.closest("form[data-ask]");
+    if (!form) return;
+    e.preventDefault();
+    const o = findOpp(form.dataset.ask), box = form.querySelector("input"), send = form.querySelector("button"), typed = box.value.trim();
+    if (!o || send.disabled) return;
+    send.disabled = true;
+    // The question is kept until it is on its way: a chat that did not open must not cost the person their words.
+    // The person's own words come first: the chat shows this message as theirs.
+    ask(`${typed || "Is it still worth a look today? What should I wait to see, and what would spoil the idea?"} (About ${o.sym}, ${o.example ? "the example" : "your call of " + o.day} in ${o.path}.)`).then(() => { box.value = ""; }, (err) => toast(err.message)).then(() => { send.disabled = false; });
+  });
+  // A time field reports a change after each part typed, so the time is saved once the typing rests or the field is left.
+  let whenTimer = null;
+  document.addEventListener("change", (e) => { if (e.target.id === "sdays") saveWhen(); else if (e.target.id === "stime") { clearTimeout(whenTimer); whenTimer = setTimeout(saveWhen, 900); } });
+  document.addEventListener("focusout", (e) => {
+    if (e.target.id === "stime") { clearTimeout(whenTimer); saveWhen(); }
+    // The repaint that waited for the person happens once they have let go.
+    setTimeout(() => { if (stale) paint(true); }, 0);
+  });
+  // The pictures on the cards are drawn to the pixel, so a new width means a new drawing.
+  let resizeTimer = null;
+  addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(paintMinis, 150); });
+
+  // ── Start ───────────────────────────────────────────────────────────────
+  function start() {
+    const hereP = cab && cab.here ? Promise.resolve(cab.here()).catch(() => null) : Promise.resolve(null);
+    return hereP.then((h) => {
+      here = h; if (h && h.appPath) appPath = h.appPath;
+      applyLook();
+      // Prices first: an opportunity takes the company's name from them.
+      return Promise.all([loadData().then(loadFound), loadJobs(), checkLive()]);
+    }).then(() => {
+      paint();
+      if (V2 && cab.files.onChange) {
+        cab.files.onChange(appPath + "/data", () => loadData().then(() => paint(true)));
+        cab.files.onChange("opportunities", () => loadFound().then(() => paint(true)));
+      }
+      if (cab && cab.jobs && cab.jobs.onChange) cab.jobs.onChange((list) => { D.jobs = list || []; paint(true); });
+      // Fresh prices every two minutes while the page is in view.
+      const fresh = () => engine("/refresh").then(loadData).then(() => paint(true), () => {});
+      setInterval(() => { if (live && !document.hidden) fresh(); }, 120000);
+      if (live && D.status && Date.now() - Date.parse(D.status.at) > 5 * 60000) fresh();
+    });
+  }
+  $("view").innerHTML = '<div class="empty" style="padding:80px 0">Opening your reminder</div>';
+  if (cab && cab.ready && typeof cab.ready.then === "function") {
+    let began = null; const go = () => { if (!began) began = start(); };
+    // Cabinet slow to answer: start without it, then ask it again who and where this is once it is ready.
+    cab.ready.then(() => { if (began) began.then(() => Promise.resolve(cab.here ? cab.here() : null).catch(() => null)).then((h) => { if (h) { here = h; if (h.appPath) appPath = h.appPath; } applyLook(); return checkLive(); }).then(() => paint(true)); else go(); }, go);
+    setTimeout(go, 3000);
+  } else start();
+})();
+</script>
+</body>
+</html>

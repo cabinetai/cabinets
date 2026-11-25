@@ -1,0 +1,3 @@
+{
+  "server": "engine/server.mjs"
+}
