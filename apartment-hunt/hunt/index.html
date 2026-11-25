@@ -393,10 +393,27 @@
     return map;
   }
 
+  // A pin from the page's own HTML (one element), its top-left corner at `lngLat`.
+  // MapLibre names every marker "Map marker"; a pin keeps its own name.
+  var holder = null;
+  function pin(map, html, lngLat, opacity) {
+    holder = holder || document.createElement("div");
+    holder.innerHTML = html;
+    var el = holder.firstChild;
+    var label = el.getAttribute("aria-label");
+    var marker = new window.maplibregl.Marker({ element: el, anchor: "top-left", opacity: String(opacity == null ? 1 : opacity) })
+      .setLngLat(lngLat)
+      .addTo(map);
+    if (label) el.setAttribute("aria-label", label);
+    else el.removeAttribute("aria-label");
+    return marker;
+  }
+
   window.CabinetBasemap = {
     ATTRIBUTION: ATTRIBUTION,
     create: create,
     setLook: setLook,
+    pin: pin,
     localizeStyle: localizeStyle,
   };
 })();
@@ -969,12 +986,9 @@
     gl.fitBounds(bb, { padding: { top: Math.min(80, h / 4), bottom: Math.min(40, h / 5), left: Math.min(60, w / 5), right: Math.min(70, w / 5) }, maxZoom: 15, duration: instant ? 0 : 800 });
     fitted = true;
   }
-  var holder = document.createElement("div");
   function addMarker(html, lng, lat, z) {
-    holder.innerHTML = html; var el = holder.firstChild, label = el.getAttribute("aria-label");
-    var m = new window.maplibregl.Marker({ element: el, anchor: "top-left" }).setLngLat([lng, lat]).addTo(gl);
-    if (label) el.setAttribute("aria-label", label);
-    if (z) el.style.zIndex = z;
+    var m = BASE.pin(gl, html, [lng, lat]);
+    if (z) m.getElement().style.zIndex = z;
     markers.push(m);
   }
   var pinKey = "";
