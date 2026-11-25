@@ -15,9 +15,12 @@ the routine.
 - `hunt/.data/shared.json`: every listing they saved or rejected, and why.
 - `listings/`: every listing already on the map, so you never write one twice.
 - The newest three runs in `search/runs.json`: what was blocked last time, what was thin.
+  The file does not exist before the first search.
 
-If the rejections show a pattern (three or more for the same reason), tighten the search
-for it now and say so in the summary.
+If the rejections show a pattern (three or more for the same reason), the brief does not
+change by itself. Count that reason against a place like those in its score, and propose
+the change to the brief in one line of the summary. `must`, `never` and every other line
+of the brief change only after the person says yes in chat.
 
 ## 2. The tools, in order
 
@@ -69,7 +72,11 @@ itself, so you read fewer and better ads.
 
 ### Every search
 
-Each search: newest ads first, back to your last run (or 14 days on a first search).
+Each search: newest ads first. How far back is set per site: back to the newest run of
+`kind: search` in `search/runs.json` where that site has `ok: true`, and never less than 3
+days. A run where the site refused you does not count, and a `kind: market` run never
+counts. For a site with no such run, and on a first search, go back 14 days. Reading an ad
+twice costs nothing: "seen before" drops it.
 
 ## 4. Read every ad
 
@@ -81,9 +88,12 @@ shown, entry date, broker or not, and every feature word from `how-it-works.md` 
 confirm. A feature the ad does not mention is `unknown`, not missing. A feature the
 photos or text rule out is in `lacks`.
 
-**Same apartment, two sites.** The same street, floor, rooms and a price within 5 percent,
-or the same photos, is one apartment. Keep one file, the cheapest honest ad (a private
-owner over a broker at the same price), and name the others in `also_on`.
+**Same apartment, two sites.** Two ads are one apartment when they show the same photos,
+or the same street and number, floor, rooms and size with a price within 5 percent. The
+same street and floor alone is not enough: a building has more than one apartment like
+that. When you cannot tell, keep both and say so in "Watch out". For one apartment keep
+one file, the cheapest honest ad (a private owner over a broker at the same price), and
+name the others in `also_on`.
 
 ## 5. The gate
 
@@ -95,6 +105,9 @@ Drop the ad, and count why, if any of these is true:
   reason: prices in Israel are often talked down a little, and you say so.
 - Fewer rooms than `rooms_min` (Israel) or fewer bedrooms than `beds_min` or bathrooms
   than `baths_min` (US), or under `size_min` by more than 5 square meters or 50 square feet.
+- The floor is known and above `floor_max`. An unknown floor passes and becomes a question.
+- The brief says `broker: never` and the ad has a broker's fee for certain. An unknown fee
+  passes and becomes the first question in "Ask before you visit".
 - Outside the areas, unless it is a close neighbour within the commute the person accepts.
   Then it may pass as `maybe`, and you say why.
 - The entry date misses the move-in date by more than a month either way, unless the
@@ -201,7 +214,9 @@ Write them as the person would ask them, in their language.
 
 1. Write each listing file in the shape `how-it-works.md` gives, with its coordinates
    (from the ad's map pin, or the street and number through Nominatim).
-2. When an ad you wrote before is gone, set its `status` to `gone`. When its price
+2. When an ad you wrote before is gone, set its `status` to `gone`. Gone means you saw
+   that the ad was taken down or the apartment let. A page that is blocked, refuses you or
+   times out is not gone: leave the `status` and name the site in the run. When its price
    changed, update `price`, add a line in "Watch out" or "Why it fits" with the old price
    and the date, and set `opportunity: price_cut` if it fell.
 3. Add the run to `search/runs.json`, with what you looked at, what you kept, what you

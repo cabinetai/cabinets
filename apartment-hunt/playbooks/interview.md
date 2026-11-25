@@ -27,7 +27,8 @@ understand this person's life well enough to recognise the right apartment befor
 ## The country comes first
 
 The Scout works in Israel and in the United States. If the ask does not say which, ask it
-first, with the city. Then read the country's playbook (`israel.md` or `united-states.md`)
+first, with the city. For any other country, say plainly that this cabinet knows Israel
+and the United States only, and stop: do not write a brief. Then read the country's playbook (`israel.md` or `united-states.md`)
 before round 3: the money, the words and the rules differ, and the person should hear them
 from you, not find them out at a viewing. Write `country` (and the `state` in the US) in the
 brief.
@@ -126,4 +127,5 @@ perfect place lacked only this, would you still go and see it?"
 When the person says something that changes the search ("I can go up to 8,000", "no more
 ground floors", "we are having a baby"), change only that, keep the rest, set `updated`,
 and say what changed in one line. When their "Not for me" reasons on the map show a pattern
-they never said, propose the change and make it only when they agree.
+they never said, propose the change and make it only when they agree (see step 1 of
+`method.md`).

@@ -245,8 +245,8 @@
   }
   @media (prefers-reduced-motion: reduce) { .pin-in { animation: none; } * { transition-duration: 0s !important; } }
 </style>
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
 <script data-shared="basemap.js">
 /*
  * The base map every template map page uses: OpenFreeMap tiles drawn by MapLibre.
@@ -273,6 +273,14 @@
     '<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> ' +
     'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
+  // Place names in Hebrew where the map data has one, and in Latin letters
+  // otherwise. Arabic shows only for a name that has no Hebrew or Latin form.
+  var NAME = ["coalesce", ["get", "name:he"], ["get", "name:latin"], ["get", "name"]];
+  // The map data names one area "Palestinian Territories" (country code PS). That
+  // label is hidden, and Judea and Samaria is named at the middle of the area.
+  var HIDDEN_COUNTRY = "PS";
+  var REGIONS = [{ name: "יהודה ושומרון", at: [35.25, 32.0] }];
+
   function styleUrl(look) {
     return STYLE_URL + (LOOKS[look] || LOOKS.classic);
   }
@@ -285,6 +293,44 @@
     } catch (e) {
       /* the names stay as they are */
     }
+  }
+
+  function isStateLabel(layer) {
+    return layer["source-layer"] === "place" && JSON.stringify(layer.filter || "").indexOf('"state"') !== -1;
+  }
+
+  // Runs on every style load, so a change of look keeps the names.
+  function localize(map) {
+    var layers = map.getStyle().layers;
+    var stateLabel = null;
+    layers.forEach(function (layer) {
+      if (layer.type !== "symbol") return;
+      var field = layer.layout && layer.layout["text-field"];
+      if (field && JSON.stringify(field).indexOf('"name') !== -1) map.setLayoutProperty(layer.id, "text-field", NAME);
+      if (layer["source-layer"] !== "place") return;
+      var keep = ["!=", ["get", "iso_a2"], HIDDEN_COUNTRY];
+      map.setFilter(layer.id, layer.filter ? ["all", layer.filter, keep] : keep);
+      if (!stateLabel && isStateLabel(layer)) stateLabel = layer;
+    });
+    if (!stateLabel || map.getSource("cabinet-regions")) return;
+    map.addSource("cabinet-regions", {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: REGIONS.map(function (r) {
+          return { type: "Feature", properties: { name: r.name }, geometry: { type: "Point", coordinates: r.at } };
+        }),
+      },
+    });
+    map.addLayer({
+      id: "cabinet-regions",
+      type: "symbol",
+      source: "cabinet-regions",
+      minzoom: 6,
+      maxzoom: 10,
+      layout: { "text-field": ["get", "name"], "text-font": stateLabel.layout["text-font"], "text-size": 14 },
+      paint: stateLabel.paint || {},
+    });
   }
 
   // A flat map that pans and zooms but never tilts or turns. `options` adds to or
@@ -312,16 +358,28 @@
     } catch (e) {
       return null;
     }
+    map.on("style.load", function () {
+      try {
+        localize(map);
+      } catch (e) {
+        /* the map keeps the names the style gives */
+      }
+    });
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
     return map;
   }
 
+  // A full reload of the style, not a merge into the old one: only a full reload
+  // fires style.load, which puts the names and the label back.
+  function setLook(map, look) {
+    map.setStyle(styleUrl(look), { diff: false });
+  }
+
   window.CabinetBasemap = {
-    LOOKS: LOOKS,
     ATTRIBUTION: ATTRIBUTION,
-    styleUrl: styleUrl,
     create: create,
+    setLook: setLook,
   };
 })();
 </script>
@@ -376,7 +434,7 @@
       brief_h: "What you are looking for", brief_ex: "What you are looking for (example)",
       anchors: "Your places",
       last_h: "Last search", never_ran: "No search yet. The Scout searches every day at 8 in the morning and 7 in the evening.",
-      run_line: "{when}. Read {looked} ads, {fresh} new.", run_running: "The Scout is reading the sites now. New places show here as it finds them.",
+      run_line: "{when}. Read {looked} ads, {fresh} new.", run_running: "The Scout is reading the sites now. New places show here as it finds them.", blocked: "Could not read: {sites}.",
       market_h: "This week's market", read_more: "Read it all", read_less: "Show less",
       tab_for_you: "For you", tab_saved: "Saved", tab_passed: "Passed",
       none_for_you: "Nothing new yet. The next search finds more.", none_saved: "Press Save on a place to keep it here.", none_passed: "Places you pass on, and ads that came down, go here.",
@@ -387,19 +445,19 @@
       ago_min: "{n} min ago", ago_h: "{n} hours ago", ago_1h: "an hour ago", ago_d: "{n} days ago", ago_1d: "yesterday", just_now: "just now",
       today_at: "Today at {t}", yesterday_at: "Yesterday at {t}", on_day: "{d} at {t}",
       back: "All places", fair_h: "Price", fair_mid: "Fair: {money}", fair_under: "{money} under a fair price", fair_over: "{money} over a fair price", fair_at: "About a fair price",
-      dist_h: "From your places", km: "{n} km to {to}", mi: "{n} mi to {to}", open_ad: "Open the ad on {site}", also_on: "Also on {sites}",
+      dist_h: "Straight line from your places", km: "{n} km to {to}", mi: "{n} mi to {to}", open_ad: "Open the ad on {site}", also_on: "Also on {sites}",
       save: "Save", saved: "Saved", reject: "Not for me", undo: "Undo",
       reject_q: "Why not? The Scout learns from this.", note_ph: "Anything else? (optional)", done: "Done",
       r_price: "Too expensive", r_area: "Wrong area", r_small: "Too small", r_noisy: "Noisy", r_dark: "Dark", r_condition: "Poor condition", r_missing: "Missing a must", r_looks_off: "Looks off", r_other: "Something else",
       write_owner: "Write to the owner", ask_about: "Ask about this place",
       broker_yes: "Broker", broker_no: "No broker",
       
-      no_bridge: "Open this page inside Cabinet to see your search.", no_map: "The map could not load here. Everything is in the list.",
+      no_bridge: "Open this page inside Cabinet to see your search.", load_failed: "Your search could not be read.", retry: "Try again", not_saved: "That did not save. Try again.", no_map: "The map could not load here. Everything is in the list.",
       fit: "Show everything", ask_copied: "Copied. Paste it into a chat with your assistant.", ask_open: "Open this cabinet's chat to ask.", saved_toast: "Saved.", rejected_toast: "Passed. The Scout will take it into account.", read_only: "Only people who can edit this cabinet can change this.",
-      ask_rent: "I am looking for an apartment to rent in {country}. Interview me the way playbooks/interview.md says, a few questions at a time, then write my brief and search.",
-      ask_buy: "I am looking for an apartment to buy in {country}. Interview me the way playbooks/interview.md says, a few questions at a time, then write my brief and search.",
-      ask_go_on: "Let's finish my brief. Ask me what you still need, then search.",
-      ask_change: "I want to change my search. Read my brief, tell me in a few lines what you have, and ask me what changed.",
+      ask_rent: "I am looking for an apartment to rent in {country}.",
+      ask_buy: "I am looking for an apartment to buy in {country}.",
+      ask_go_on: "Let's finish my brief.",
+      ask_change: "I want to change my search.",
       ask_owner: "Write a short, friendly first message to the owner or broker of \"{title}\" (listings/{file}.md). Include the questions under Ask before you visit. Draft only, in my language, ready to paste into WhatsApp.",
       ask_about_t: "About \"{title}\" (listings/{file}.md): "
     },
@@ -418,7 +476,7 @@
       brief_h: "מה אתם מחפשים", brief_ex: "מה אתם מחפשים (דוגמה)",
       anchors: "המקומות שלכם",
       last_h: "החיפוש האחרון", never_ran: "עוד לא היה חיפוש. הסוכן מחפש כל יום בשמונה בבוקר ובשבע בערב.",
-      run_line: "{when}. נקראו {looked} מודעות, {fresh} חדשות.", run_running: "הסוכן קורא עכשיו את האתרים. דירות חדשות יופיעו כאן כשהוא ימצא אותן.",
+      run_line: "{when}. נקראו {looked} מודעות, {fresh} חדשות.", run_running: "הסוכן קורא עכשיו את האתרים. דירות חדשות יופיעו כאן כשהוא ימצא אותן.", blocked: "לא נקראו: {sites}.",
       market_h: "השוק השבוע", read_more: "לקרוא הכול", read_less: "פחות",
       tab_for_you: "בשבילך", tab_saved: "שמורות", tab_passed: "ויתרתם",
       none_for_you: "עוד אין דירות חדשות. החיפוש הבא ימצא עוד.", none_saved: "לחצו \"לשמור\" על דירה כדי לשמור אותה כאן.", none_passed: "דירות שוויתרתם עליהן, ומודעות שירדו, יופיעו כאן.",
@@ -429,19 +487,19 @@
       ago_min: "לפני {n} דק'", ago_h: "לפני {n} שעות", ago_1h: "לפני שעה", ago_d: "לפני {n} ימים", ago_1d: "אתמול", just_now: "הרגע",
       today_at: "היום ב-{t}", yesterday_at: "אתמול ב-{t}", on_day: "{d} ב-{t}",
       back: "כל הדירות", fair_h: "מחיר", fair_mid: "הוגן: {money}", fair_under: "{money} מתחת למחיר הוגן", fair_over: "{money} מעל מחיר הוגן", fair_at: "בערך המחיר ההוגן",
-      dist_h: "מהמקומות שלכם", km: "{n} ק\"מ ל{to}", mi: "{n} מייל ל{to}", open_ad: "לפתוח את המודעה ב{site}", also_on: "גם ב{sites}",
+      dist_h: "בקו אווירי מהמקומות שלכם", km: "{n} ק\"מ ל{to}", mi: "{n} מייל ל{to}", open_ad: "לפתוח את המודעה ב{site}", also_on: "גם ב{sites}",
       save: "לשמור", saved: "שמורה", reject: "לא בשבילי", undo: "לבטל",
       reject_q: "למה לא? הסוכן לומד מזה.", note_ph: "עוד משהו? (לא חובה)", done: "סיום",
       r_price: "יקר מדי", r_area: "אזור לא מתאים", r_small: "קטנה מדי", r_noisy: "רועשת", r_dark: "חשוכה", r_condition: "מצב לא טוב", r_missing: "חסר משהו שחובה", r_looks_off: "משהו לא מסתדר", r_other: "משהו אחר",
       write_owner: "לכתוב לבעלים", ask_about: "לשאול על הדירה",
       broker_yes: "תיווך", broker_no: "בלי תיווך",
       
-      no_bridge: "פתחו את הדף בתוך Cabinet כדי לראות את החיפוש.", no_map: "המפה לא נטענה כאן. הכול נמצא ברשימה.",
+      no_bridge: "פתחו את הדף בתוך Cabinet כדי לראות את החיפוש.", load_failed: "לא הצלחנו לקרוא את החיפוש.", retry: "לנסות שוב", not_saved: "לא נשמר. נסו שוב.", no_map: "המפה לא נטענה כאן. הכול נמצא ברשימה.",
       fit: "להציג הכול", ask_copied: "הועתק. הדביקו בצ'אט עם העוזר.", ask_open: "פתחו את הצ'אט של הקבינט כדי לשאול.", saved_toast: "נשמר.", rejected_toast: "ויתרתם. הסוכן ייקח את זה בחשבון.", read_only: "רק מי שיכול לערוך את הקבינט יכול לשנות את זה.",
-      ask_rent: "אני מחפש/ת דירה לשכירות ב{country}. תראיין אותי כמו שכתוב ב-playbooks/interview.md, כמה שאלות בכל פעם, ואז תכתוב את הבריף שלי ותחפש. דבר איתי בעברית.",
-      ask_buy: "אני מחפש/ת דירה לקנייה ב{country}. תראיין אותי כמו שכתוב ב-playbooks/interview.md, כמה שאלות בכל פעם, ואז תכתוב את הבריף שלי ותחפש. דבר איתי בעברית.",
-      ask_go_on: "בוא נסיים את הבריף שלי. תשאל מה עוד חסר לך, ואז תחפש.",
-      ask_change: "אני רוצה לשנות את החיפוש. תקרא את הבריף שלי, תגיד לי בכמה שורות מה יש לך, ותשאל מה השתנה.",
+      ask_rent: "אני מחפש/ת דירה לשכירות ב{country}.",
+      ask_buy: "אני מחפש/ת דירה לקנייה ב{country}.",
+      ask_go_on: "בוא נסיים את הבריף שלי.",
+      ask_change: "אני רוצה לשנות את החיפוש.",
       ask_owner: "תכתוב הודעה ראשונה קצרה ונעימה לבעלים או למתווך של \"{title}\" (listings/{file}.md). תכלול את השאלות מתוך \"Ask before you visit\". טיוטה בלבד, בעברית, מוכנה להדבקה בוואטסאפ.",
       ask_about_t: "לגבי \"{title}\" (listings/{file}.md): "
     }
@@ -548,7 +606,7 @@
   var hasStore = !!(kept && kept.set && kept.all);
   var V2 = !!(cab && cab.files && cab.files.list);
   var here = null, shared = {};
-  var data = { loaded: false, example: false, brief: null, listings: [], runs: [], market: null };
+  var data = { loaded: false, failed: false, set: null, example: false, brief: null, listings: [], runs: [], market: null };
   var jobs = { list: [], running: false };
   var ui = { tab: "for_you", open: null, hover: null, rejecting: null, reasons: {}, note: "", marketOpen: false, exCountry: guessCountry() };
   // Before there is a brief: Israel for a Hebrew Cabinet or an Israeli clock, the US otherwise.
@@ -569,25 +627,35 @@
   }
   // One write at a time: Cabinet rewrites the whole store file on each one.
   var writes = Promise.resolve();
+  function fromKept() { return hasStore ? JSON.parse(JSON.stringify(kept.all() || {})) : {}; }
+  // Answers true once the store took the write. A refused write puts the stored value back.
   function setAction(file, value) {
-    if (!canWrite()) { toast(t("read_only")); return; }
+    if (!canWrite()) { toast(t("read_only")); return Promise.resolve(false); }
     var key = "l:" + file;
     if (value) shared[key] = value; else delete shared[key];
-    writes = writes.then(function () { return value ? kept.set(key, value) : kept.remove(key); })
-      .catch(function (e) { toast((e && e.message) || "That did not save. Try again."); });
     paint();
+    writes = writes.then(function () { return value ? kept.set(key, value) : kept.remove(key); }).then(function () { return true; }, function (e) {
+      var stored = fromKept();
+      if (key in stored) shared[key] = stored[key]; else delete shared[key];
+      toast((e && e.message) || t("not_saved")); paint();
+      return false;
+    });
+    return writes;
   }
   function actionOf(l) { var a = shared["l:" + l.file]; return a && typeof a === "object" ? a : null; }
 
   // ── Reading the files ───────────────────────────────────────────────────
   // Cabinet answers a burst of about 40 requests and refuses the rest as too-fast, so reads
   // wait their turn and try again instead of coming back empty.
-  function readText(path, tries) {
-    return cab.files.read(path).catch(function (e) {
-      if (!e || e.code !== "too-fast" || (tries || 0) >= 6) return null;
-      return new Promise(function (ok) { setTimeout(ok, 400 * ((tries || 0) + 1)); }).then(function () { return readText(path, (tries || 0) + 1); });
+  function patient(call, tries) {
+    return call().catch(function (e) {
+      if (!e || e.code !== "too-fast" || (tries || 0) >= 6) throw e;
+      return new Promise(function (ok) { setTimeout(ok, 400 * ((tries || 0) + 1)); }).then(function () { return patient(call, (tries || 0) + 1); });
     });
   }
+  // null when the file could not be read.
+  function readText(path) { return patient(function () { return cab.files.read(path); }).catch(function () { return null; }); }
+  function listDir(dir) { return patient(function () { return cab.files.list(dir); }); }
   function inTurns(items, size, fn) {
     var out = new Array(items.length), next = 0;
     function worker() { if (next >= items.length) return Promise.resolve(); var i = next++; return fn(items[i]).then(function (v) { out[i] = v; return worker(); }); }
@@ -601,8 +669,10 @@
     var hit = readCache[e.path];
     if (hit && hit.modified === e.modified) return Promise.resolve(hit.listing);
     return readText(e.path).then(function (txt) {
-      var l = txt == null ? null : toListing(e, txt);
-      if (l) readCache[e.path] = { modified: e.modified, listing: l };
+      // A read that failed keeps the listing as it was last read.
+      if (txt == null) return hit ? hit.listing : null;
+      var l = toListing(e, txt);
+      readCache[e.path] = { modified: e.modified, listing: l };
       return l;
     });
   }
@@ -632,48 +702,64 @@
     Object.keys(m).forEach(function (k) {
       if (!/^anchor_/.test(k)) return;
       var parts = m[k].split("|"), ll = (parts[1] || "").split(",").map(num);
-      if (ll.length === 2 && ll[0] != null && ll[1] != null) anchors.push({ key: k.slice(7), label: parts[0].trim() || k.slice(7), lat: ll[0], lng: ll[1] });
+      if (ll.length === 2 && ll[0] != null && ll[1] != null && Math.abs(ll[0]) <= 90 && Math.abs(ll[1]) <= 180) anchors.push({ key: k.slice(7), label: parts[0].trim() || k.slice(7), lat: ll[0], lng: ll[1] });
     });
-    return { example: example, status: m.status === "ready" ? "ready" : "draft", country: m.country === "us" ? "us" : "il", bedsMin: num(m.beds_min), bedsMax: num(m.beds_max), deal: m.deal === "buy" ? "buy" : "rent", cities: list(m.cities), hoods: list(m.neighborhoods),
+    return { example: example, status: m.status === "ready" ? "ready" : "draft", country: m.country === "us" || m.country === "il" ? m.country : null, bedsMin: num(m.beds_min), bedsMax: num(m.beds_max), deal: m.deal === "buy" ? "buy" : "rent", cities: list(m.cities), hoods: list(m.neighborhoods),
       priceMax: num(m.price_max), roomsMin: num(m.rooms_min), roomsMax: num(m.rooms_max), must: list(m.must), nice: list(m.nice), never: list(m.never), anchors: anchors, body: doc.body };
   }
-  var loading = null;
+  // One scan at a time. A change that arrives during a scan gets one more scan after it.
+  var loading = null, stale = false;
   function load() {
-    if (loading) return loading;
-    loading = Promise.all([cab.files.list("search").catch(function () { return []; }), cab.files.list("listings").catch(function () { return []; })]).then(function (r) {
+    if (loading) { stale = true; return loading; }
+    loading = scan().then(function () { data.failed = false; }, function () { data.failed = true; }).then(function () {
+      loading = null; data.loaded = true;
+      if (stale) { stale = false; return load(); }
+    });
+    return loading;
+  }
+  // A folder that cannot be listed fails the scan, and the page keeps what it showed.
+  function scan() {
+    return Promise.all([listDir("search"), listDir("listings")]).then(function (r) {
       var s = {}; r[0].forEach(function (e) { s[e.name] = e; });
-      var real = !!s["brief.md"], pre = real ? "" : "EXAMPLE-" + ui.exCountry + "-";
+      var real = !!s["brief.md"], pre = real ? "" : "EXAMPLE-" + ui.exCountry + "-", same = data.set === pre;
       var files = r[1].filter(function (e) { return !e.isDir && /\.md$/i.test(e.name) && !/^index\.md$/i.test(e.name) && (real ? !/^EXAMPLE-/i.test(e.name) : e.name.indexOf(pre) === 0); });
       // Every place the person saved or passed on, then the newest 120 others.
       files.sort(function (a, b) { return String(b.modified).localeCompare(String(a.modified)); });
       var acted = files.filter(function (e) { return shared["l:" + e.name.replace(/\.md$/i, "")]; });
       files = acted.concat(files.filter(function (e) { return acted.indexOf(e) < 0; }).slice(0, 120));
+      // A file that is not there is not read. A file that is there and cannot be read keeps its last value.
+      function part(name, old, parse) {
+        if (!s[pre + name]) return Promise.resolve(null);
+        return readText("search/" + pre + name).then(function (txt) { return txt != null ? parse(txt) : same ? old : null; });
+      }
       return Promise.all([
-        readText("search/" + pre + "brief.md"), readText("search/" + pre + "runs.json"), readText("search/" + pre + "market.md"),
+        part("brief.md", data.brief, function (txt) { return toBrief(txt, !real); }),
+        part("runs.json", data.runs, function (txt) { return toRuns(txt, !real); }),
+        part("market.md", data.market, parseDoc),
         inTurns(files, 6, readListing)
       ]).then(function (got) {
-        data.example = !real;
-        data.brief = got[0] != null ? toBrief(got[0], !real) : null;
-        var runs = []; try { runs = (JSON.parse(got[1] || "{}").runs || []).filter(function (x) { return x && typeof x === "object"; }); } catch (e) { runs = []; }
-        // Example runs move forward with the example listings, so the example never looks stale.
-        if (!real) { var sh = exampleShift({ example_as_of: "2026-11-23" }); runs.forEach(function (x) { var d = parseTime(x.at); if (d) x._at = new Date(d.getTime() + sh); }); }
-        data.runs = runs;
-        data.market = got[2] != null ? parseDoc(got[2]) : null;
+        data.set = pre; data.example = !real;
+        data.brief = got[0]; data.runs = got[1] || []; data.market = got[2];
         data.listings = got[3].filter(Boolean);
-        data.loaded = true;
       });
-    }).then(function () { loading = null; }, function () { loading = null; data.loaded = true; });
-    return loading;
+    });
+  }
+  function toRuns(text, example) {
+    var runs = []; try { runs = (JSON.parse(text).runs || []).filter(function (x) { return x && typeof x === "object"; }); } catch (e) { runs = []; }
+    // Example runs move forward with the example listings, so the example never looks stale.
+    if (example) { var sh = exampleShift({ example_as_of: "2026-11-23" }); runs.forEach(function (x) { var d = parseTime(x.at); if (d) x._at = new Date(d.getTime() + sh); }); }
+    return runs;
   }
 
   // ── What shows where ────────────────────────────────────────────────────
-  function stateOf(l) { var a = actionOf(l); if (a && a.status === "rejected") return "passed"; if (l.gone) return "passed"; if (a && a.status === "saved") return "saved"; return "for_you"; }
+  // A place the person saved stays in Saved when its ad comes down. It leaves the map only.
+  function stateOf(l) { var a = actionOf(l); if (a && a.status === "rejected") return "passed"; if (a && a.status === "saved") return "saved"; return l.gone ? "passed" : "for_you"; }
   function colorOf(l) { return l.gone ? VERDICTS.gone : VERDICTS[l.verdict]; }
   function inTab(tab) {
-    return data.listings.filter(function (l) { var s = stateOf(l); return tab === "for_you" ? s !== "passed" : s === tab; })
+    return data.listings.filter(function (l) { return stateOf(l) === tab; })
       .sort(function (a, b) { return (b.score || 0) - (a.score || 0) || ((b.found && b.found.getTime()) || 0) - ((a.found && a.found.getTime()) || 0); });
   }
-  function onMapList() { return data.listings.filter(function (l) { return l.onMap && stateOf(l) !== "passed"; }); }
+  function onMapList() { return data.listings.filter(function (l) { return l.onMap && !l.gone && stateOf(l) !== "passed"; }); }
   function byFile(f) { for (var i = 0; i < data.listings.length; i++) if (data.listings[i].file === f) return data.listings[i]; return null; }
   function per(l) { return l.deal === "rent" ? " " + t("per_month") : ""; }
   function floorText(l) { var f = l.floor === "0" ? t("ground") : l.floor; return f ? (l.floors ? t("floor_of", { a: f, b: l.floors }) : f) : ""; }
@@ -748,10 +834,12 @@
     if (jobs.running && !data.example) body = '<p style="margin:0"><span class="busy" style="color:var(--brand);vertical-align:-2px"></span> ' + esc(t("run_running")) + "</p>";
     else if (!r) body = '<p style="margin:0" class="muted">' + esc(t("never_ran")) + "</p>";
     else {
-      var d = r._at || parseTime(r.at), sites = Array.isArray(r.sites) ? r.sites : [];
+      var d = r._at || parseTime(r.at), sites = (Array.isArray(r.sites) ? r.sites : []).filter(function (x) { return x && x.name; });
+      var blocked = sites.filter(function (x) { return !x.ok; }).map(function (x) { return x.name; });
       body = '<p style="margin:0">' + esc(t("run_line", { when: d ? when(d) : "", looked: num(r.looked) || 0, fresh: num(r["new"]) || 0 })) + "</p>" +
         (r.summary ? '<p dir="auto" style="margin:6px 0 0">' + inline(String(r.summary)) + "</p>" : "") +
-        (sites.length ? '<div class="dotline">' + sites.slice(0, 8).map(function (s) { return '<span title="' + esc(s.note || "") + '"><i' + (s.ok ? "" : ' class="bad"') + "></i>" + esc(s.name) + "</span>"; }).join("") + "</div>" : "");
+        (sites.length ? '<div class="dotline">' + sites.slice(0, 8).map(function (s) { return '<span title="' + esc(s.note || "") + '"><i' + (s.ok ? "" : ' class="bad"') + "></i>" + esc(s.name) + "</span>"; }).join("") + "</div>" : "") +
+        (blocked.length ? '<p class="muted" style="margin:6px 0 0">' + esc(t("blocked", { sites: blocked.join(", ") })) + "</p>" : "");
     }
     return '<div class="card"><div class="card-head"><h2>' + esc(t("last_h")) + "</h2></div>" + body + "</div>";
   }
@@ -773,9 +861,11 @@
   }
   function paintRail() {
     var rail = $("rail");
-    if (document.activeElement && document.activeElement.id === "note") return;
+    // A change from outside does not wipe a reason the person is typing.
+    if (ui.rejecting && document.activeElement && document.activeElement.id === "note") return;
     if (!V2) { rail.innerHTML = '<div class="card"><p style="margin:0">' + esc(t("no_bridge")) + "</p></div>"; return; }
     if (!data.loaded) { rail.innerHTML = '<div class="empty"><span class="busy"></span></div>'; return; }
+    if (data.failed && data.set == null) { rail.innerHTML = '<div class="card"><p>' + esc(t("load_failed")) + '</p><button class="btn" data-act="reload">' + esc(t("retry")) + "</button></div>"; return; }
     var l = ui.open && byFile(ui.open);
     if (l) { rail.innerHTML = detailHtml(l); return; }
     var counts = { for_you: inTab("for_you").length, saved: inTab("saved").length, passed: inTab("passed").length };
@@ -841,6 +931,18 @@
     gl = (BASE && BASE.create(mapEl, dark ? "night" : "classic", { bounds: BOUNDS[country()], fitBoundsOptions: { padding: 20 }, minZoom: 5 })) || false;
     if (gl) {
       gl.on("move", placeHover);
+      // Until the style is in, the only error is the style itself failing: the list works alone then.
+      var styled = false;
+      gl.once("style.load", function () { styled = true; });
+      gl.on("error", function () {
+        if (styled || !gl) return;
+        var dead = gl; gl = false; glReady = false;
+        markers.forEach(function (m) { m.remove(); }); markers = [];
+        $("legend").innerHTML = ""; $("ctrl").innerHTML = ""; setHover(null);
+        $("mapoff").innerHTML = '<div class="map-off">' + esc(t("no_map")) + "</div>";
+        // MapLibre is still inside its own error event here.
+        setTimeout(function () { dead.remove(); }, 0);
+      });
       // Fitting needs only the map's size, not its style, so it never waits for the tiles.
       glReady = true;
     } else $("mapoff").innerHTML = '<div class="map-off">' + esc(t("no_map")) + "</div>";
@@ -867,7 +969,7 @@
   var pinKey = "";
   function buildPins() {
     if (!gl) return;
-    var ls = onMapList(), key = lang + "|" + ui.open + "|" + ls.map(function (l) { var a = actionOf(l); return l.file + l.price + (a ? a.status : ""); }).join(",") + "|" + (data.brief ? JSON.stringify(data.brief.anchors) : "");
+    var ls = onMapList(), key = lang + "|" + ui.open + "|" + ls.map(function (l) { var a = actionOf(l); return [l.file, l.price, l.lat, l.lng, l.verdict, l.score, a ? a.status : ""].join(":"); }).join(",") + "|" + (data.brief ? JSON.stringify(data.brief.anchors) : "");
     if (key === pinKey) return;
     var first = !pinKey; pinKey = key;
     markers.forEach(function (m) { m.remove(); }); markers = [];
@@ -902,8 +1004,15 @@
   new ResizeObserver(function () { if (gl) gl.resize(); }).observe(mapEl);
 
   // ── Presses ─────────────────────────────────────────────────────────────
+  // The rail is drawn again on every change, so focus is put on what replaced the pressed control.
+  function focusOn(selector) { var el = $("rail").querySelector(selector); if (el) el.focus({ preventScroll: true }); }
+  function close() {
+    var file = ui.open; ui.open = null; ui.rejecting = null; paint();
+    focusOn('.item[data-id="' + (window.CSS && CSS.escape ? CSS.escape(file) : file) + '"]');
+  }
   function open(file) {
     ui.open = file; ui.rejecting = null; setHover(null); paint();
+    focusOn(".detail .back");
     var l = byFile(file);
     if (l && l.onMap && gl) gl.easeTo({ center: [l.lng, l.lat], zoom: Math.max(gl.getZoom(), 14), duration: 700 });
     var rail = $("rail"); rail.scrollTop = 0;
@@ -913,7 +1022,7 @@
     var el = e.target.closest("[data-act]"); if (!el) return;
     var act = el.dataset.act, id = el.dataset.id, l = ui.open && byFile(ui.open);
     if (act === "open") return open(id);
-    if (act === "back") { ui.open = null; ui.rejecting = null; paint(); return; }
+    if (act === "back") return close();
     if (act === "tab") { ui.tab = id; paint(); return; }
     if (act === "fit") return fit(false);
     if (act === "zin" && gl) return gl.zoomIn();
@@ -925,9 +1034,12 @@
       if (id !== "il" && id !== "us" || id === ui.exCountry) return;
       ui.exCountry = id; ui.open = null; fitted = false; pinKey = "";
       if (cab && cab.mine && cab.mine.set) cab.mine.set("country", id).catch(function () {});
-      (loading || Promise.resolve()).then(function () { return refresh(); }).then(function () { fit(false); });
+      // The start card shows the new country at once: its buttons send the country it shows.
+      paintRail();
+      refresh().then(function () { fit(false); });
       return;
     }
+    if (act === "reload") { refresh(); return; }
     if (act === "go-on") return ask(t("ask_go_on"));
     if (act === "change") return ask(t("ask_change"));
     if (act === "run") {
@@ -937,20 +1049,26 @@
       return;
     }
     if (!l) return;
-    if (act === "status") { setAction(l.file, id ? { status: id, at: new Date().toISOString() } : null); if (id === "saved") toast(t("saved_toast")); return; }
+    if (act === "status") { setAction(l.file, id ? { status: id, at: new Date().toISOString() } : null).then(function (ok) { if (ok && id === "saved") toast(t("saved_toast")); }); return; }
     if (act === "reject") { ui.rejecting = l.file; ui.reasons = {}; ui.note = ""; paintRail(); return; }
     if (act === "reason") { ui.reasons = {}; ui.reasons[id] = true; paintRail(); return; }
     if (act === "reject-cancel") { ui.rejecting = null; paintRail(); return; }
     if (act === "reject-done") {
       var reason = Object.keys(ui.reasons)[0] || "", note = ui.note.trim();
       var v = { status: "rejected", at: new Date().toISOString() }; if (reason) v.reason = reason; if (note) v.note = note;
-      ui.rejecting = null; setAction(l.file, v); toast(t("rejected_toast")); ui.open = null; paint(); return;
+      // The form and the reason stay until the store took it, so a refused write can be sent again.
+      var file = l.file;
+      setAction(file, v).then(function (ok) {
+        if (!ok || ui.rejecting !== file) return;
+        ui.rejecting = null; ui.open = null; toast(t("rejected_toast")); paint();
+      });
+      return;
     }
     if (act === "owner") return ask(t("ask_owner", { title: l.title, file: l.file }));
     if (act === "ask-about") return ask(t("ask_about_t", { title: l.title, file: l.file }), { send: false });
   });
   document.addEventListener("input", function (e) { if (e.target.id === "note") ui.note = e.target.value.slice(0, 500); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && ui.open) { ui.open = null; ui.rejecting = null; paint(); } });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && ui.open) close(); });
   $("rail").addEventListener("mouseover", function (e) { var it = e.target.closest(".item"); setHover(it ? it.dataset.hot : null); });
   $("rail").addEventListener("mouseleave", function () { setHover(null); });
 
@@ -969,13 +1087,13 @@
       document.documentElement.lang = lang; document.documentElement.dir = lang === "he" ? "rtl" : "ltr";
       var dark = h && h.theme ? h.theme === "dark" : !!(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
       if (dark) document.documentElement.dataset.theme = "dark";
-      shared = hasStore ? JSON.parse(JSON.stringify(kept.all() || {})) : {};
+      shared = fromKept();
       var picked = cab && cab.mine && cab.mine.get ? cab.mine.get("country") : null;
       if (picked === "il" || picked === "us") ui.exCountry = picked;
       else if (lang === "he") ui.exCountry = "il";
       startGl(); paint();
       if (!V2) return;
-      if (hasStore && kept.onChange) kept.onChange(function () { shared = JSON.parse(JSON.stringify(kept.all() || {})); paint(); });
+      if (hasStore && kept.onChange) kept.onChange(function () { shared = fromKept(); paint(); });
       cab.files.onChange("listings", refresh);
       cab.files.onChange("search", refresh);
       if (cab.jobs) { cab.jobs.list().then(readJobs, function () {}); cab.jobs.onChange(readJobs); }

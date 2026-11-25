@@ -34,7 +34,7 @@ example_as_of: 2026-11-23
 
 ## Watch out
 - The ad never says where the laundry is. That is a must for you, so ask first.
-- Listed on Craigslist by the owner. Real, from the photos of the street and the building, but never pay before you see it and the lease.
+- Listed on Craigslist by the owner. Not verified: photos can be copied from a real ad. Check that the person renting it owns it, and never pay before you see it and the lease.
 
 ## Ask before you visit
 - Is there a washer and dryer in the building, or the nearest laundromat?

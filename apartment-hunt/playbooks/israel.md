@@ -60,11 +60,15 @@ minimums a lease cannot take away. Check details on gov.il ("שכירות הוג
   water, no electricity, no lock, mould, a leaking roof and more) makes it unfit. The owner
   must fix faults they are responsible for in a reasonable time: up to 30 days, and up to 3
   days for an urgent one.
-- **Guarantees are capped:** at most the lower of 3 months' rent or a third of the rent for
-  the whole lease. The owner returns them within 60 days of the lease's end, minus what the
-  tenant really owes.
-- **Notice:** an owner who does not want to renew must say so at least 90 days before the
-  end; a tenant at least 60 days.
+- **Guarantees that cost the tenant money are capped:** a cash deposit or a bank guarantee
+  is at most the lower of 3 months' rent or a third of the rent for the whole lease. The
+  owner returns it within 60 days of the lease's end, minus what the tenant really owes.
+  The cap is not read as covering a promissory note (`שטר חוב`) or guarantors, so an owner
+  who asks for a larger note is not breaking it.
+- **An option to extend has a notice time:** a tenant who uses an option says so at least
+  60 days before the end, and an owner at least 90 days. This is about an option written
+  in the lease. A lease with no option ends on its date, and nothing makes either side
+  give notice that it will not be renewed. Ask the owner early, in writing.
 - **The broker's fee:** the tenant pays only for a broker the tenant hired. A broker working
   for the owner is the owner's to pay. Many brokers still ask the tenant to sign a fee
   agreement: read it before signing, and never pay without a signed order (`הזמנת שירותי
@@ -80,7 +84,8 @@ Bank of Israel and a mortgage adviser.
 - **Mortgage limits (Bank of Israel):** a buyer of a first and only home can borrow up to
   75 percent of the price, someone selling to upgrade up to 70 percent, an investor buying
   another apartment up to 50 percent. Banks want the monthly payment to stay under about a
-  third of net household income (40 percent is the ceiling).
+  third of net household income. Above 40 percent a bank treats the loan as higher risk
+  and prices it so. Above 50 percent a bank may not lend.
 - **Purchase tax (`מס רכישה`):** for a single home, nothing up to about 1.98 million ₪, then
   rising brackets (3.5, 5, 8 and 10 percent). For an additional apartment, 8 percent up to
   about 6 million ₪ and 10 percent above. The brackets are updated yearly.

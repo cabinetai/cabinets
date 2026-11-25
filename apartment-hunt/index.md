@@ -29,7 +29,7 @@ trade. It writes what it learned to `search/brief.md` and searches right away.
   smells wrong.
 - **Questions to ask** the owner or broker before you travel to see it.
 - **It learns from you.** Press **Not for me** and say why. The Scout reads every reason
-  before its next search and tightens the search.
+  before its next search. When a reason repeats, it asks you before it changes your search.
 - **A weekly market read.** Once a week: what places like yours cost now, what moved, and
   whether your budget or your areas should change.
 

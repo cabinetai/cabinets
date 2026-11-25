@@ -75,7 +75,6 @@ updated: 2026-11-23
   they can carry), `first_home` (`yes` or `no`), `new_build` (`yes`, `no` or `either`),
   `urban_renewal` (`yes` when a TAMA 38 or `פינוי בינוי` building is welcome). In the US
   also `down_payment`, `credit` (a rough score) and `loan` (`conventional`, `fha`, `va`).
-- Any other `key: value` line is kept and shown as written.
 
 Under the frontmatter: `## What matters most`, `## What would make a place perfect`,
 `## What we learned from what they passed on` (the Scout keeps this one up to date).
@@ -227,4 +226,5 @@ the person rejected, and never show it again, even if it is listed again on anot
 ```
 
 Newest first. Keep the last 30. `kind` is `search` or `market`. Read the file, add the new
-run at the top, and write it back as valid JSON. `summary` is in the person's language.
+run at the top, and write it back as valid JSON. The file does not exist before the first
+run: create it then. `summary` is in the person's language.
