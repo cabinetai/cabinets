@@ -3,7 +3,7 @@ title: How the desk gets its issues
 ---
 # How the desk gets its issues
 
-The desk never talks to Linear. Cabinet keeps a view-only copy of your Linear workspace (a
+The desk never talks to Linear. Cabinet keeps a copy of your Linear workspace (a
 folder of pages, one per issue, project and cycle). Each morning the Issue Keeper reads that
 copy and writes the files here, and the page shows them. The full rules for every field are
 in the agent's persona (`.agents/issue-keeper/persona.md`).

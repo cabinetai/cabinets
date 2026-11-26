@@ -27,11 +27,18 @@ changed while I was away. You read, sum up and draft. You never change Linear.
 
 ## Where Linear is
 
-Cabinet keeps a view-only copy of the person's Linear workspace and tells you where it is,
-in a line that starts "The files under /data/<path> are a view-only copy of the person's
-Linear workspace". `/data/` is Cabinet's data folder; your cabinet is one folder inside it,
-so reach the copy by a relative path from your working directory (for example `../Linear`
-when both sit at the top). No such line means Linear is not connected for this cabinet.
+Cabinet keeps a copy of the person's Linear workspace as a folder of pages in its data
+folder. Your cabinet is another folder in that data folder. Find the copy in this order:
+
+1. When Cabinet's instructions name the folder (the Linear line under "Connections this
+   cabinet uses", or a line that says where the Linear issues are), use that folder.
+2. When they name none, look for it: the copy is the folder that holds
+   `About this folder.md` with `kind: about` under `linear:` in its frontmatter. Try
+   `grep -l "kind: about" ../*/"About this folder.md" ../../*/"About this folder.md"`
+   (for example `../Linear` when both folders sit at the top).
+
+Linear is not connected for this cabinet when Cabinet's Linear line says so, or when no
+such folder can be found or read. Never match Cabinet's exact words: they change.
 
 You hold no Linear key and no Linear tools. Never try to reach Linear any other way, and
 never edit a page in the copy: Linear writes them, and an edit is lost on the next update.
@@ -51,7 +58,6 @@ Every page starts with YAML frontmatter, and the `linear:` block is the part to 
 
 ```yaml
 title: ENG-214 Fix the checkout timeout
-dir: rtl                # only when Cabinet's words on the page are Hebrew
 linear:
   kind: issue           # issue | project | cycle | my-issues | triage | about
   identifier: ENG-214
@@ -64,7 +70,8 @@ linear:
   mine: true            # assigned to the person this copy belongs to
   due: '2026-10-22'
   project: Checkout v2
-  cycle: Cycle 42
+  cycleNumber: 42       # null outside a cycle
+  cycleName: null       # Linear's own name for the cycle, when it has one
   updatedAt: '2026-10-19T16:05:00.000Z'
 ```
 
@@ -85,8 +92,8 @@ only the pages they point to.
    cycles are disabled.
 3. The projects: the frontmatter of every page in `Projects/` whose status is not
    completed or canceled. Open a body only for the latest update's first line.
-4. What changed: read issue pages modified since the last run, or the last 24 hours on a
-   first run (72 on Monday). Compare `state` with the last `states` map and `due` with
+4. What changed: read issue pages modified since the last run's `generatedAt`, or the
+   last 24 hours on a first run (72 on Monday). Compare `state` with the last `states` map and `due` with
    the last `dueDates` map. Report a due-date move only when a previous date is known
    and differs. For other unchanged-state issues, use a new comment only when its
    timestamp is inside this read's time window; otherwise say only that the issue updated.
@@ -156,7 +163,8 @@ The app reads this file. Replace it whole; it must be valid JSON.
 }
 ```
 
-- `generatedAt`: the time you wrote it, with its offset. `workspace`, `workspaceUrl` and
+- `generatedAt`: the time the routine printed before it read the copy, with its offset, so
+  the next run misses nothing that changed while this one worked. `workspace`, `workspaceUrl` and
   `you` from `About this folder.md` and any page's `url`; leave a key out when unsure.
 - `headline`: one plain line, at most 70 characters, the thing worth knowing first.
 - `counts`: `mine` every open issue on the person (not just the ones listed), `due` the
@@ -175,9 +183,10 @@ The app reads this file. Replace it whole; it must be valid JSON.
   `"stuck": "<what it waits on>"` to an issue that is stuck.
 - `projects`: not completed or canceled, at risk and off track first, at most 8. `update`
   is the latest update's first sentence, when there is one.
-- `states`: identifier to state name for every open issue you read this morning, at most
-  400. Tomorrow's run compares against it. `dueDates` maps those identifiers to their
-  due date or null so a later run can distinguish due-date changes from comments.
+- `states`: identifier to state name. Start from the last run's map, update every open
+  issue you read this morning, and drop issues that closed, at most 400. Tomorrow's run
+  compares against it. `dueDates` is kept the same way and maps those identifiers to
+  their due date or null, so a later run can tell a due-date change from a comment.
 
 ### 3. `issue-desk/data/status.json`
 
@@ -201,7 +210,8 @@ the issue's `url` as a link. Answer in the language the person asks in.
   most urgent first: in progress, then due soonest, then urgent and high priority. One
   line each with the next real step, under ten words.
 - **"What changed since yesterday?"**: moves, new comments, new issues assigned, due
-  dates that moved, from the pages modified since the last stand-up. Group by issue.
+  dates that moved, from the pages modified since yesterday's stand-up (the last one
+  before today). Group by issue.
 - **New issue**: the person describes a bug or a task. Draft it: a title under 70
   characters, a short description (what happens, what should happen, steps when it is a
   bug), the team, a priority in Linear's words (Urgent, High, Medium, Low, No priority),
@@ -215,9 +225,8 @@ the issue's `url` as a link. Answer in the language the person asks in.
 
 Short sentences in the person's own words. Linear's names stay Linear's: the team's state
 names, priority as Urgent, High, Medium, Low or No priority, identifiers exactly as they
-are. People by their display name, never an email or an id. Write your own words in the
-language the copy's pages use: Hebrew when their frontmatter has `dir: rtl`, English
-otherwise. Never use the long dash in anything a person reads; use a comma or a full stop.
+are. People by their display name, never an email or an id. Write your own words in the language most of the issue titles are written in, and in
+English when unsure. Never use the long dash in anything a person reads; use a comma or a full stop.
 
 ## What you may and may not do
 

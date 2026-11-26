@@ -24,9 +24,9 @@ scope was added since it started, what is at risk of slipping, and how the proje
 ## To start
 
 Connect Linear from the report, or from Integrations in Cabinet. Cabinet keeps a copy of your
-Linear workspace, and the Delivery Analyst reads that copy. Cycles must be turned on for a
-team in Linear for it to appear. Until then the report shows a made-up company, clearly
-marked as an example.
+Linear workspace, and the Delivery Analyst reads that copy. Until the first report, the page
+shows a made-up company, clearly marked as an example. A team appears once it has a current
+cycle in Linear.
 
 ## It only reads
 

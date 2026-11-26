@@ -3,7 +3,7 @@ title: How the report gets its numbers
 ---
 # How the report gets its numbers
 
-The report never talks to Linear. Cabinet keeps a view-only copy of your Linear workspace (a
+The report never talks to Linear. Cabinet keeps a copy of your Linear workspace (a
 folder of pages, one per issue, project and cycle). Every Friday the Delivery Analyst reads
 that copy and writes the files here, and the page shows them. The full rules for every field
 are in the agent's persona (`.agents/delivery-analyst/persona.md`).
@@ -23,7 +23,7 @@ has `team`, `teamName`, `name`, `url`, `startsAt`, `endsAt`, `done`, `total`,
 (`identifier`, `title`, `url`, `state`, `stateType`, `priority` 0 to 4, `assignee`, `due`)
 each with `why`. Each project has `name`, `url`, `health` (onTrack, atRisk, offTrack or
 null), `progress` 0 to 1, `lead`, `targetDate`, `openIssues`, and its latest `update`,
-`updateBy` and `updateAt`. `baseline` keeps each cycle's starting scope from one Friday to
+`updateBy` and `updateAt`. `baseline` keeps each current and upcoming cycle's starting scope from one Friday to
 the next, because the copy holds a cycle's total today and not its history.
 
 The readable pages go to `reports/` beside this folder: `reports/<YYYY-MM-DD> cycle.md` every
